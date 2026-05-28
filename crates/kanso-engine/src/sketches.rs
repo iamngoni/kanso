@@ -37,11 +37,13 @@ impl Engine {
         .execute(&mut *tx)
         .await?;
 
+        let (payload_blob, data_cipher) = self.encrypt_blob(&blob)?;
         let payload = SketchPayload {
             note_id: note_id.to_string(),
             title: title.map(str::to_string),
             format_version,
-            data_blob: blob.clone(),
+            data_blob: payload_blob,
+            data_cipher,
             updated_at: now,
         };
         enqueue_outbox(
@@ -93,11 +95,13 @@ impl Engine {
         .execute(&mut *tx)
         .await?;
 
+        let (payload_blob, data_cipher) = self.encrypt_blob(&blob)?;
         let payload = SketchPayload {
             note_id,
             title: None,
             format_version,
-            data_blob: blob,
+            data_blob: payload_blob,
+            data_cipher,
             updated_at: now,
         };
         enqueue_outbox(

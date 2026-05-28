@@ -38,10 +38,12 @@ impl Engine {
         .await?;
 
         reindex_note(&mut tx, &id, title, body).await?;
+        let (payload_body, body_cipher) = self.encrypt_body(body)?;
         let payload = NoteCreatedPayload {
             notebook_id: notebook_id.to_string(),
             title: title.to_string(),
-            body_markdown: body.to_string(),
+            body_markdown: payload_body,
+            body_cipher,
             created_at: now,
             updated_at: now,
         };
@@ -111,9 +113,11 @@ impl Engine {
         .await?;
 
         reindex_note(&mut tx, note_id, &title, body).await?;
+        let (payload_body, body_cipher) = self.encrypt_body(body)?;
         let payload = NoteUpdatedPayload {
             title: title.clone(),
-            body_markdown: body.to_string(),
+            body_markdown: payload_body,
+            body_cipher,
             updated_at: now,
         };
         enqueue_outbox(
@@ -128,6 +132,24 @@ impl Engine {
 
         tx.commit().await?;
         Ok(())
+    }
+
+    /// Get-or-create today's daily note (titled `YYYY-MM-DD`) in a notebook.
+    pub async fn create_daily_note(&self, notebook_id: &str) -> Result<Note> {
+        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let query = format!(
+            "SELECT {NOTE_COLUMNS} FROM notes \
+             WHERE notebook_id = ? AND title = ? AND deleted_at IS NULL"
+        );
+        if let Some(existing) = sqlx::query_as::<_, Note>(&query)
+            .bind(notebook_id)
+            .bind(&date)
+            .fetch_optional(&self.pool)
+            .await?
+        {
+            return Ok(existing);
+        }
+        self.create_note(notebook_id, &date, "").await
     }
 
     pub async fn list_notes(&self, notebook_id: &str) -> Result<Vec<Note>> {
@@ -244,9 +266,11 @@ impl Engine {
 
         reindex_note(&mut *tx, note_id, &title, &body).await?;
 
+        let (payload_body, body_cipher) = self.encrypt_body(&body)?;
         let payload = NoteUpdatedPayload {
             title: title.clone(),
-            body_markdown: body.clone(),
+            body_markdown: payload_body,
+            body_cipher,
             updated_at: now,
         };
         enqueue_outbox(

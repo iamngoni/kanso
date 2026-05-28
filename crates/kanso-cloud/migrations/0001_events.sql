@@ -1,11 +1,9 @@
--- Event log: append-only, ordered by authoritative server sequence.
---
--- Single-tenant for now (per-service deployment = per-user).
--- TODO: add a `user_id` column (UUID FK → users table) when auth lands so
---       the table becomes multi-tenant and every query gains a user_id filter.
+-- Kanso Cloud event log. Per-user, append-only, ordered by a global sequence.
+-- Single Postgres instance; shard/partition by user_id when scale requires it.
 
 CREATE TABLE events (
     server_sequence  BIGSERIAL    PRIMARY KEY,
+    user_id          TEXT         NOT NULL,
     event_id         UUID         NOT NULL UNIQUE,
     origin_device_id TEXT         NOT NULL,
     entity_type      TEXT         NOT NULL,
@@ -16,5 +14,5 @@ CREATE TABLE events (
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
--- Fast forward-scan by sequence (the common pull query path).
-CREATE INDEX idx_events_seq ON events (server_sequence);
+-- Pull is "the user's events after sequence N", so scope the index by user.
+CREATE INDEX idx_events_user_seq ON events (user_id, server_sequence);

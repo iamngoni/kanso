@@ -20,7 +20,12 @@ pub struct NotebookPayload {
 pub struct NoteCreatedPayload {
     pub notebook_id: String,
     pub title: String,
+    /// Plaintext body, or empty when E2EE is on (see `body_cipher`).
     pub body_markdown: String,
+    /// Ciphertext body when E2EE is on (`nonce || ciphertext+tag`). The server
+    /// only ever sees this; the plaintext stays on-device.
+    #[serde(default)]
+    pub body_cipher: Option<Vec<u8>>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -28,7 +33,11 @@ pub struct NoteCreatedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NoteUpdatedPayload {
     pub title: String,
+    /// Plaintext body, or empty when E2EE is on (see `body_cipher`).
     pub body_markdown: String,
+    /// Ciphertext body when E2EE is on (`nonce || ciphertext+tag`).
+    #[serde(default)]
+    pub body_cipher: Option<Vec<u8>>,
     pub updated_at: i64,
 }
 
@@ -72,9 +81,11 @@ pub struct SketchPayload {
     pub note_id: String,
     pub title: Option<String>,
     pub format_version: i64,
-    /// Canonical CBOR blob. (Serialized as a JSON byte array for now; a real
-    /// backend would base64/binary-frame this.)
+    /// Canonical CBOR blob, or empty when E2EE is on (see `data_cipher`).
     #[serde(default)]
     pub data_blob: Vec<u8>,
+    /// Encrypted CBOR blob when E2EE is on (`nonce || ciphertext+tag`).
+    #[serde(default)]
+    pub data_cipher: Option<Vec<u8>>,
     pub updated_at: i64,
 }

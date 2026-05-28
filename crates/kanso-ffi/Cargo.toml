@@ -11,6 +11,7 @@ crate-type = ["cdylib", "staticlib", "lib"]
 
 [dependencies]
 kanso-engine.workspace = true
+kanso-ink.workspace = true
 uniffi = { workspace = true, features = ["cli"] }
 tokio = { workspace = true }
 pollster.workspace = true

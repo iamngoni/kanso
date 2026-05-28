@@ -5,6 +5,9 @@ members = [
   "crates/kanso-ink",
   "crates/kanso-cloud",
   "crates/kanso-ffi",
+  "crates/kanso-client",
+  "crates/kanso-crypto",
+  "crates/kanso-mcp",
 ]
 resolver = "2"
 
@@ -49,6 +52,17 @@ pollster = "0.4.0"
 wgpu = "29.0.3"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 
+# HTTP client (sync transport)
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+
+# Client-side crypto (E2EE)
+chacha20poly1305 = "0.10"
+argon2 = { version = "0.5", features = ["std"] }
+zeroize = "1.8.2"
+
+# Server auth (rust_crypto = pure-Rust provider, no C toolchain)
+jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto"] }
+
 # Async
 tokio = { version = "1", features = ["full"] }
 
@@ -56,3 +70,4 @@ tokio = { version = "1", features = ["full"] }
 kanso-types = { path = "crates/kanso-types" }
 kanso-ink = { path = "crates/kanso-ink" }
 kanso-engine = { path = "crates/kanso-engine" }
+kanso-crypto = { path = "crates/kanso-crypto" }

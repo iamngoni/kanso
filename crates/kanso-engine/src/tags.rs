@@ -65,6 +65,28 @@ impl Engine {
         Ok(())
     }
 
+    pub async fn untag_note(&self, note_id: &str, tag_id: &str) -> Result<()> {
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM note_tags WHERE note_id = ? AND tag_id = ?")
+            .bind(note_id)
+            .bind(tag_id)
+            .execute(&mut *tx)
+            .await?;
+        let payload = NoteTagPayload { note_id: note_id.to_string(), tag_id: tag_id.to_string() };
+        enqueue_outbox(
+            &mut *tx,
+            EntityType::NoteTag,
+            note_id,
+            Operation::NoteUntagged,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn list_tags(&self) -> Result<Vec<Tag>> {
         let tags = sqlx::query_as::<_, Tag>("SELECT id, name, color FROM tags ORDER BY name")
             .fetch_all(&self.pool)

@@ -99,6 +99,74 @@ impl From<kanso_engine::Tag> for TagDto {
     }
 }
 
+// ── Ink / sketch records ──────────────────────────────────────────────────────
+
+/// One captured stylus sample. The native layer (PencilKit-free; raw
+/// `UITouch`/`NSEvent`/`MotionEvent`) normalizes its input into these.
+#[derive(uniffi::Record)]
+pub struct InkPoint {
+    pub x: f32,
+    pub y: f32,
+    /// 0.0–1.0 pen pressure; pass 1.0 for mouse/finger without force.
+    pub pressure: f32,
+}
+
+#[derive(uniffi::Record)]
+pub struct ColorRgba {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+/// One captured stroke: a point list plus styling.
+#[derive(uniffi::Record)]
+pub struct InkStroke {
+    pub points: Vec<InkPoint>,
+    pub color: ColorRgba,
+    pub width: f32,
+}
+
+/// Flat representation of a sketch.
+#[derive(uniffi::Record)]
+pub struct SketchDto {
+    pub id: String,
+    pub note_id: String,
+    pub title: Option<String>,
+}
+
+impl From<kanso_engine::Sketch> for SketchDto {
+    fn from(s: kanso_engine::Sketch) -> Self {
+        SketchDto { id: s.id, note_id: s.note_id, title: s.title }
+    }
+}
+
+/// Build a canonical `kanso_ink::SketchDoc` from captured strokes.
+fn build_sketch_doc(strokes: &[InkStroke]) -> kanso_ink::SketchDoc {
+    use kanso_ink::{Background, Element, Point, Rgba, SketchDoc, Stroke, Tool};
+
+    let mut doc = SketchDoc::new();
+    doc.background = Background::Blank;
+    for stroke in strokes {
+        doc.elements.push(Element::Stroke(Stroke {
+            points: stroke
+                .points
+                .iter()
+                .map(|p| Point { x: p.x, y: p.y, pressure: p.pressure, tilt: 0.0, t: 0.0 })
+                .collect(),
+            color: Rgba {
+                r: stroke.color.r,
+                g: stroke.color.g,
+                b: stroke.color.b,
+                a: stroke.color.a,
+            },
+            base_width: stroke.width,
+            tool: Tool::Pen,
+        }));
+    }
+    doc
+}
+
 // ── KansoEngine object ────────────────────────────────────────────────────────
 
 /// The primary FFI object.  Wraps an owned Tokio runtime so every method can
@@ -220,5 +288,41 @@ impl KansoEngine {
     pub fn list_tags(&self) -> Result<Vec<TagDto>, KansoError> {
         let tags = self.rt.block_on(self.inner.list_tags())?;
         Ok(tags.into_iter().map(Into::into).collect())
+    }
+
+    // ── Sketches ─────────────────────────────────────────────────────────────
+
+    /// Persist captured strokes as a sketch on a note. The native layer captures
+    /// raw stylus input and hands the normalized strokes here; the engine stores
+    /// the canonical CBOR document.
+    pub fn create_sketch(
+        &self,
+        note_id: String,
+        title: Option<String>,
+        strokes: Vec<InkStroke>,
+    ) -> Result<SketchDto, KansoError> {
+        let doc = build_sketch_doc(&strokes);
+        let sketch = self
+            .rt
+            .block_on(self.inner.create_sketch(&note_id, title.as_deref(), &doc))?;
+        Ok(sketch.into())
+    }
+
+    pub fn list_sketches(&self, note_id: String) -> Result<Vec<SketchDto>, KansoError> {
+        let sketches = self.rt.block_on(self.inner.list_sketches(&note_id))?;
+        Ok(sketches.into_iter().map(Into::into).collect())
+    }
+
+    /// Render a sketch preview to PNG bytes (headless `tiny-skia`).
+    pub fn render_sketch_preview(
+        &self,
+        sketch_id: String,
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<u8>, KansoError> {
+        let png = self
+            .rt
+            .block_on(self.inner.render_sketch_preview(&sketch_id, width, height))?;
+        Ok(png)
     }
 }

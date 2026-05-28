@@ -1,5 +1,5 @@
 [package]
-name = "kanso-engine"
+name = "kanso-client"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,17 +7,15 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+kanso-engine.workspace = true
 kanso-types.workspace = true
-serde.workspace = true
+reqwest.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
-uuid.workspace = true
-chrono.workspace = true
-sqlx.workspace = true
-comrak.workspace = true
-kanso-ink.workspace = true
-kanso-crypto.workspace = true
 async-trait.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
+kanso-cloud = { path = "../kanso-cloud" }
+actix-web.workspace = true
+actix-test = "0.1"
 tokio.workspace = true

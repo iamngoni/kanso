@@ -37,14 +37,16 @@ impl Engine {
             }
             Operation::NoteCreated => {
                 let p: NoteCreatedPayload = serde_json::from_value(event.payload.clone())?;
-                apply_note_create(&mut tx, id, &p).await?
+                let body = self.resolve_body(&p.body_markdown, &p.body_cipher)?;
+                apply_note_create(&mut tx, id, &p, &body).await?
             }
             Operation::NoteUpdated => {
                 let p: NoteUpdatedPayload = serde_json::from_value(event.payload.clone())?;
                 if tombstoned_after(&mut tx, EntityType::Note, id, p.updated_at).await? {
                     ApplyOutcome::Skipped
                 } else {
-                    apply_note_body(&mut tx, id, &p.title, &p.body_markdown, p.updated_at).await?
+                    let body = self.resolve_body(&p.body_markdown, &p.body_cipher)?;
+                    apply_note_body(&mut tx, id, &p.title, &body, p.updated_at).await?
                 }
             }
             Operation::NoteMoved => {
@@ -111,7 +113,8 @@ impl Engine {
             }
             Operation::SketchCreated | Operation::SketchUpdated => {
                 let p: SketchPayload = serde_json::from_value(event.payload.clone())?;
-                apply_sketch_upsert(&mut tx, id, &p).await?
+                let blob = self.resolve_blob(&p.data_blob, &p.data_cipher)?;
+                apply_sketch_upsert(&mut tx, id, &p, &blob).await?
             }
             Operation::SketchDeleted => {
                 let p: DeletePayload = serde_json::from_value(event.payload.clone())?;
@@ -193,6 +196,7 @@ async fn apply_note_create(
     conn: &mut SqliteConnection,
     id: &str,
     p: &NoteCreatedPayload,
+    body: &str,
 ) -> Result<ApplyOutcome> {
     if tombstoned_after(&mut *conn, EntityType::Note, id, p.updated_at).await? {
         return Ok(ApplyOutcome::Skipped);
@@ -203,7 +207,7 @@ async fn apply_note_create(
         .await?;
     if existing.is_some() {
         // Already present — reconcile via the same last-write-wins body path.
-        return apply_note_body(&mut *conn, id, &p.title, &p.body_markdown, p.updated_at).await;
+        return apply_note_body(&mut *conn, id, &p.title, body, p.updated_at).await;
     }
     sqlx::query(
         "INSERT INTO notes (id, notebook_id, title, body_markdown, created_at, updated_at) \
@@ -212,12 +216,12 @@ async fn apply_note_create(
     .bind(id)
     .bind(&p.notebook_id)
     .bind(&p.title)
-    .bind(&p.body_markdown)
+    .bind(body)
     .bind(p.created_at)
     .bind(p.updated_at)
     .execute(&mut *conn)
     .await?;
-    reindex_note(&mut *conn, id, &p.title, &p.body_markdown).await?;
+    reindex_note(&mut *conn, id, &p.title, body).await?;
     Ok(ApplyOutcome::Applied)
 }
 
@@ -363,6 +367,7 @@ async fn apply_sketch_upsert(
     conn: &mut SqliteConnection,
     id: &str,
     p: &SketchPayload,
+    blob: &[u8],
 ) -> Result<ApplyOutcome> {
     if tombstoned_after(&mut *conn, EntityType::Sketch, id, p.updated_at).await? {
         return Ok(ApplyOutcome::Skipped);
@@ -379,7 +384,7 @@ async fn apply_sketch_upsert(
     .bind(&p.note_id)
     .bind(&p.title)
     .bind(p.format_version)
-    .bind(&p.data_blob)
+    .bind(blob)
     .bind(p.updated_at)
     .bind(p.updated_at)
     .execute(&mut *conn)

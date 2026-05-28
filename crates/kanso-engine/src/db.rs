@@ -16,6 +16,10 @@ use crate::error::Result;
 #[derive(Clone)]
 pub struct Engine {
     pub(crate) pool: SqlitePool,
+    /// Optional client-side E2EE key. When set, note bodies are encrypted in
+    /// outbound sync payloads and decrypted on apply; local storage stays
+    /// plaintext so FTS keeps working.
+    pub(crate) enc: Option<std::sync::Arc<[u8; 32]>>,
 }
 
 impl Engine {
@@ -33,7 +37,7 @@ impl Engine {
             .connect_with(options)
             .await?;
 
-        let engine = Self { pool };
+        let engine = Self { pool, enc: None };
         engine.migrate().await?;
         Ok(engine)
     }
@@ -49,7 +53,7 @@ impl Engine {
             .connect_with(options)
             .await?;
 
-        let engine = Self { pool };
+        let engine = Self { pool, enc: None };
         engine.migrate().await?;
         Ok(engine)
     }
@@ -57,6 +61,82 @@ impl Engine {
     async fn migrate(&self) -> Result<()> {
         sqlx::migrate!("./migrations").run(&self.pool).await?;
         Ok(())
+    }
+}
+
+impl Engine {
+    /// Enable end-to-end encryption with a 32-byte key (derive it via
+    /// `kanso_crypto::derive_key`). Note bodies in sync payloads are encrypted;
+    /// the local database stays plaintext.
+    pub fn with_encryption_key(mut self, key: [u8; 32]) -> Self {
+        self.enc = Some(std::sync::Arc::new(key));
+        self
+    }
+
+    /// Build the `(body_markdown, body_cipher)` pair for a sync payload: with
+    /// encryption on, the plaintext field is emptied and the ciphertext set.
+    pub(crate) fn encrypt_body(&self, body: &str) -> Result<(String, Option<Vec<u8>>)> {
+        match &self.enc {
+            Some(key) => {
+                let ciphertext = kanso_crypto::encrypt(key, body.as_bytes())
+                    .map_err(|e| crate::error::EngineError::Decode(e.to_string()))?;
+                Ok((String::new(), Some(ciphertext)))
+            }
+            None => Ok((body.to_string(), None)),
+        }
+    }
+
+    /// Resolve a note body from a sync payload, decrypting if it carries
+    /// ciphertext. Errors if encrypted but no key is configured.
+    pub(crate) fn resolve_body(
+        &self,
+        body_markdown: &str,
+        body_cipher: &Option<Vec<u8>>,
+    ) -> Result<String> {
+        match body_cipher {
+            Some(ciphertext) => match &self.enc {
+                Some(key) => {
+                    let plaintext = kanso_crypto::decrypt(key, ciphertext)
+                        .map_err(|e| crate::error::EngineError::Decode(e.to_string()))?;
+                    Ok(String::from_utf8_lossy(&plaintext).into_owned())
+                }
+                None => Err(crate::error::EngineError::Decode(
+                    "encrypted note body but no decryption key is set".to_string(),
+                )),
+            },
+            None => Ok(body_markdown.to_string()),
+        }
+    }
+
+    /// Byte-oriented counterpart of [`Engine::encrypt_body`], for binary blobs
+    /// such as a sketch's CBOR document.
+    pub(crate) fn encrypt_blob(&self, bytes: &[u8]) -> Result<(Vec<u8>, Option<Vec<u8>>)> {
+        match &self.enc {
+            Some(key) => {
+                let ciphertext = kanso_crypto::encrypt(key, bytes)
+                    .map_err(|e| crate::error::EngineError::Decode(e.to_string()))?;
+                Ok((Vec::new(), Some(ciphertext)))
+            }
+            None => Ok((bytes.to_vec(), None)),
+        }
+    }
+
+    /// Byte-oriented counterpart of [`Engine::resolve_body`].
+    pub(crate) fn resolve_blob(
+        &self,
+        data_blob: &[u8],
+        data_cipher: &Option<Vec<u8>>,
+    ) -> Result<Vec<u8>> {
+        match data_cipher {
+            Some(ciphertext) => match &self.enc {
+                Some(key) => kanso_crypto::decrypt(key, ciphertext)
+                    .map_err(|e| crate::error::EngineError::Decode(e.to_string())),
+                None => Err(crate::error::EngineError::Decode(
+                    "encrypted sketch but no decryption key is set".to_string(),
+                )),
+            },
+            None => Ok(data_blob.to_vec()),
+        }
     }
 }
 

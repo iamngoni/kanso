@@ -8,19 +8,26 @@
 mod attachments;
 mod db;
 mod error;
+mod import_export;
 mod markdown;
 mod models;
 mod notebooks;
 mod notes;
+mod queries;
 mod remote;
+mod revisions;
 mod sketches;
+mod skills;
 mod sync;
 mod sync_client;
 mod tags;
 
 pub use db::Engine;
 pub use error::{EngineError, Result};
-pub use models::{ApplyOutcome, Attachment, NewAttachment, Note, Notebook, Sketch, SyncReport, Tag};
+pub use models::{
+    ApplyOutcome, Attachment, ExportFile, ImportFile, NewAttachment, Note, NoteLink, Notebook,
+    Revision, Sketch, Skill, SkillRun, SyncReport, Tag, TaskItem,
+};
 pub use sync_client::SyncTransport;
 
 /// Markdown extraction (headings, links, Kanso references, tasks).
@@ -206,6 +213,7 @@ mod tests {
         let stale = NoteUpdatedPayload {
             title: "Title".into(),
             body_markdown: "stale remote body".into(),
+            body_cipher: None,
             updated_at: 1,
         };
         let change = RemoteChange {
@@ -309,5 +317,196 @@ mod tests {
         // No device re-applied its own events into its outbox.
         assert_eq!(a.pending_outbox_count().await.unwrap(), 0);
         assert_eq!(b.pending_outbox_count().await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn e2ee_keeps_plaintext_off_the_wire() {
+        let key = [7u8; 32];
+        let a = Engine::open_in_memory().await.unwrap().with_encryption_key(key);
+
+        let nb = a.create_notebook("Secret", None).await.unwrap();
+        let note = a
+            .create_note(&nb.id, "Title", "the launch code is 1234")
+            .await
+            .unwrap();
+
+        // Local storage stays plaintext — FTS still works.
+        assert_eq!(
+            a.get_note(&note.id).await.unwrap().unwrap().body_markdown,
+            "the launch code is 1234"
+        );
+        assert_eq!(a.search_notes("launch").await.unwrap().len(), 1);
+
+        // The outbound payload must NOT carry the plaintext.
+        let ops = a.get_pending_sync_ops(10).await.unwrap();
+        let wire = serde_json::to_string(&ops).unwrap();
+        assert!(!wire.contains("launch code"), "plaintext leaked into the sync payload");
+
+        // A device with the same key converges to plaintext.
+        let b = Engine::open_in_memory().await.unwrap().with_encryption_key(key);
+        for (i, event) in ops.iter().enumerate() {
+            let change = RemoteChange { server_sequence: i as i64 + 1, event: event.clone() };
+            b.apply_remote_change(&change).await.unwrap();
+        }
+        assert_eq!(
+            b.get_note(&note.id).await.unwrap().unwrap().body_markdown,
+            "the launch code is 1234"
+        );
+
+        // A device with the WRONG key cannot decrypt the note.
+        let c = Engine::open_in_memory().await.unwrap().with_encryption_key([9u8; 32]);
+        let note_event = ops.iter().find(|e| e.operation == Operation::NoteCreated).unwrap();
+        let change = RemoteChange { server_sequence: 1, event: note_event.clone() };
+        assert!(c.apply_remote_change(&change).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn skills_lifecycle() {
+        let engine = Engine::open_in_memory().await.unwrap();
+
+        let skill = engine
+            .create_skill("Extract tasks", "Find every TODO and list it.", "global")
+            .await
+            .unwrap();
+        assert!(skill.id.starts_with("skill:"));
+        assert_eq!(engine.list_skills().await.unwrap().len(), 1);
+
+        engine
+            .update_skill(&skill.id, "Extract tasks v2", "updated body", false)
+            .await
+            .unwrap();
+
+        let run = engine
+            .start_skill_run(&skill.id, Some("note"), Some("note:1"), "dry_run")
+            .await
+            .unwrap();
+        engine
+            .complete_skill_run(&run.id, "completed", "found 3 tasks")
+            .await
+            .unwrap();
+
+        let runs = engine.list_skill_runs(&skill.id).await.unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, "completed");
+        assert_eq!(runs[0].output_summary.as_deref(), Some("found 3 tasks"));
+
+        engine.delete_skill(&skill.id).await.unwrap();
+        assert_eq!(engine.list_skills().await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn e2ee_covers_sketches() {
+        use kanso_ink::{Background, SketchDoc};
+
+        let key = [3u8; 32];
+        let a = Engine::open_in_memory().await.unwrap().with_encryption_key(key);
+        let nb = a.create_notebook("S", None).await.unwrap();
+        let note = a.create_note(&nb.id, "n", "b").await.unwrap();
+
+        let mut doc = SketchDoc::new();
+        doc.background = Background::Dotted;
+        let sketch = a.create_sketch(&note.id, Some("flow"), &doc).await.unwrap();
+        let original_blob = a.get_sketch(&sketch.id).await.unwrap().unwrap().data_blob;
+
+        // Replay A's events into B (same key); the sketch blob survives the
+        // encrypt → wire → decrypt round-trip.
+        let ops = a.get_pending_sync_ops(20).await.unwrap();
+        let b = Engine::open_in_memory().await.unwrap().with_encryption_key(key);
+        for (i, event) in ops.iter().enumerate() {
+            let change = RemoteChange { server_sequence: i as i64 + 1, event: event.clone() };
+            b.apply_remote_change(&change).await.unwrap();
+        }
+
+        let synced = b.get_sketch(&sketch.id).await.unwrap().unwrap();
+        assert_eq!(synced.data_blob, original_blob);
+        assert!(SketchDoc::from_cbor(&synced.data_blob).is_ok());
+    }
+
+    #[tokio::test]
+    async fn backlinks_tasks_and_daily_note() {
+        let engine = Engine::open_in_memory().await.unwrap();
+        let nb = engine.create_notebook("Work", None).await.unwrap();
+        let target = engine.create_note(&nb.id, "Product Direction", "the vision").await.unwrap();
+        let src = engine
+            .create_note(
+                &nb.id,
+                "Meeting",
+                "see [[Product Direction]]\n\n- [ ] ship it\n- [x] done thing",
+            )
+            .await
+            .unwrap();
+
+        // Backlinks: the meeting note links to the target by title.
+        let backs = engine.backlinks(&target.id).await.unwrap();
+        assert_eq!(backs.len(), 1);
+        assert_eq!(backs[0].id, src.id);
+
+        // Outgoing links.
+        let outs = engine.outgoing_links(&src.id).await.unwrap();
+        assert!(outs.iter().any(|l| l.link_kind == "note" && l.target_ref == "Product Direction"));
+
+        // Tasks.
+        assert_eq!(engine.list_tasks(&nb.id).await.unwrap().len(), 2);
+        let open = engine.list_open_tasks(&nb.id).await.unwrap();
+        assert_eq!(open.len(), 1);
+        assert_eq!(open[0].text, "ship it");
+
+        // Daily note is get-or-create.
+        let d1 = engine.create_daily_note(&nb.id).await.unwrap();
+        let d2 = engine.create_daily_note(&nb.id).await.unwrap();
+        assert_eq!(d1.id, d2.id);
+    }
+
+    #[tokio::test]
+    async fn markdown_export_import_round_trip() {
+        use crate::ImportFile;
+
+        let engine = Engine::open_in_memory().await.unwrap();
+        let nb = engine.create_notebook("Export", None).await.unwrap();
+        engine.create_note(&nb.id, "First", "# First\n\nbody one").await.unwrap();
+        engine.create_note(&nb.id, "Second", "body two").await.unwrap();
+
+        let files = engine.export_notebook_markdown(&nb.id).await.unwrap();
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().any(|f| f.path == "First.md" && f.content.contains("body one")));
+
+        // Re-import into a fresh notebook; titles and bodies survive.
+        let nb2 = engine.create_notebook("Imported", None).await.unwrap();
+        let imports: Vec<ImportFile> = files
+            .into_iter()
+            .map(|f| ImportFile { filename: f.path, content: f.content })
+            .collect();
+        let ids = engine.import_markdown(&nb2.id, imports).await.unwrap();
+        assert_eq!(ids.len(), 2);
+
+        let notes = engine.list_notes(&nb2.id).await.unwrap();
+        assert!(notes.iter().any(|n| n.title == "First" && n.body_markdown.contains("body one")));
+        assert!(notes.iter().any(|n| n.title == "Second"));
+    }
+
+    #[tokio::test]
+    async fn revisions_restore_and_tag_queries() {
+        let engine = Engine::open_in_memory().await.unwrap();
+        let nb = engine.create_notebook("R", None).await.unwrap();
+        let note = engine.create_note(&nb.id, "N", "v1").await.unwrap();
+        engine.update_note_body(&note.id, "v2").await.unwrap();
+        engine.update_note_body(&note.id, "v3").await.unwrap();
+
+        // Two pre-edit snapshots: v1 (oldest) and v2.
+        let revs = engine.list_revisions(&note.id).await.unwrap();
+        assert_eq!(revs.len(), 2);
+        let oldest = revs.last().unwrap().clone();
+        assert_eq!(oldest.body_markdown, "v1");
+
+        // Restoring rolls the body back (and snapshots v3 in the process).
+        engine.restore_revision(&note.id, &oldest.id).await.unwrap();
+        assert_eq!(engine.get_note(&note.id).await.unwrap().unwrap().body_markdown, "v1");
+
+        // Tag membership queries.
+        let tag = engine.create_tag("important").await.unwrap();
+        engine.tag_note(&note.id, &tag.id).await.unwrap();
+        assert_eq!(engine.notes_with_tag(&tag.id).await.unwrap().len(), 1);
+        engine.untag_note(&note.id, &tag.id).await.unwrap();
+        assert_eq!(engine.notes_with_tag(&tag.id).await.unwrap().len(), 0);
     }
 }

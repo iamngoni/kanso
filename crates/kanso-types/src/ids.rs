@@ -45,3 +45,5 @@ prefixed_id!(AttachmentId, "attachment");
 prefixed_id!(SketchId, "sketch");
 prefixed_id!(RevisionId, "revision");
 prefixed_id!(DeviceId, "device");
+prefixed_id!(SkillId, "skill");
+prefixed_id!(SkillRunId, "skillrun");
