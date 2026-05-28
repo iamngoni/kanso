@@ -4,7 +4,12 @@
 //! assigns an authoritative monotonic sequence, and clients `pull` everything
 //! after their last-seen sequence. Attachment blobs are content-addressed and
 //! exchanged out of band via presigned URLs (not yet wired here).
+//!
+//! Store selection at runtime:
+//! - `DATABASE_URL` set → [`PostgresStore`] (migrations run on startup)
+//! - `DATABASE_URL` unset → [`MemoryStore`] (in-process, non-durable)
 
+mod dto;
 mod store;
 
 use std::sync::Arc;
@@ -12,9 +17,9 @@ use std::sync::Arc;
 use actix_cors::Cors;
 use actix_web::{App, HttpResponse, HttpServer, web};
 use kanso_types::{PullResponse, PushRequest, PushResponse};
-use serde::Deserialize;
 
-use crate::store::{EventStore, MemoryStore};
+use crate::dto::PullQuery;
+use crate::store::{EventStore, MemoryStore, PostgresStore};
 
 type Store = web::Data<Arc<dyn EventStore>>;
 
@@ -24,7 +29,7 @@ async fn health() -> HttpResponse {
 
 async fn push(store: Store, body: web::Json<PushRequest>) -> HttpResponse {
     let req = body.into_inner();
-    let (accepted_ids, server_high_water) = store.append(req.events);
+    let (accepted_ids, server_high_water) = store.append(&req.device_id, req.events).await;
     log::info!(
         "push device={} accepted={} high_water={}",
         req.device_id,
@@ -34,27 +39,37 @@ async fn push(store: Store, body: web::Json<PushRequest>) -> HttpResponse {
     HttpResponse::Ok().json(PushResponse { accepted_ids, server_high_water })
 }
 
-#[derive(Debug, Deserialize)]
-struct PullQuery {
-    #[serde(default)]
-    since: i64,
-    limit: Option<i64>,
-}
-
 async fn pull(store: Store, query: web::Query<PullQuery>) -> HttpResponse {
     let limit = query.limit.unwrap_or(500).clamp(1, 5_000) as usize;
-    let changes = store.since(query.since, limit);
-    HttpResponse::Ok().json(PullResponse {
-        changes,
-        server_high_water: store.high_water(),
-    })
+    let changes = store.since(&query.device_id, query.since, limit).await;
+    let server_high_water = store.high_water().await;
+    HttpResponse::Ok().json(PullResponse { changes, server_high_water })
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
 
-    let store: Arc<dyn EventStore> = Arc::new(MemoryStore::default());
+    let store: Arc<dyn EventStore> = match std::env::var("DATABASE_URL") {
+        Ok(url) => {
+            log::info!("DATABASE_URL set — connecting to Postgres");
+            match PostgresStore::connect(&url).await {
+                Ok(pg) => {
+                    log::info!("Postgres store ready");
+                    Arc::new(pg)
+                }
+                Err(e) => {
+                    log::error!("failed to connect to Postgres: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(_) => {
+            log::info!("DATABASE_URL not set — using in-memory store (non-durable)");
+            Arc::new(MemoryStore::default())
+        }
+    };
+
     let data: web::Data<Arc<dyn EventStore>> = web::Data::new(store);
 
     let bind = std::env::var("KANSO_CLOUD_BIND").unwrap_or_else(|_| "127.0.0.1:8787".to_string());

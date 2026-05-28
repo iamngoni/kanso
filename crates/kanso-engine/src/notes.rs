@@ -5,25 +5,14 @@
 //! native apps never see this sequencing; they call one command.
 
 use kanso_types::NoteId;
+use kanso_types::payloads::{DeletePayload, NoteCreatedPayload, NoteMovedPayload, NoteUpdatedPayload};
 use kanso_types::sync::{EntityType, Operation};
-use sqlx::{FromRow, SqliteConnection};
+use sqlx::SqliteConnection;
 
-use crate::db::{Engine, enqueue_outbox, now_ms};
+use crate::db::{Engine, enqueue_outbox, insert_tombstone, now_ms};
 use crate::error::{EngineError, Result};
 use crate::markdown::{self, RefKind};
-
-#[derive(Debug, Clone, FromRow)]
-pub struct Note {
-    pub id: String,
-    pub notebook_id: String,
-    pub title: String,
-    pub body_markdown: String,
-    pub created_at: i64,
-    pub updated_at: i64,
-    pub pinned: i64,
-    pub favorite: i64,
-    pub status: String,
-}
+use crate::models::Note;
 
 const NOTE_COLUMNS: &str =
     "id, notebook_id, title, body_markdown, created_at, updated_at, pinned, favorite, status";
@@ -49,12 +38,19 @@ impl Engine {
         .await?;
 
         reindex_note(&mut tx, &id, title, body).await?;
+        let payload = NoteCreatedPayload {
+            notebook_id: notebook_id.to_string(),
+            title: title.to_string(),
+            body_markdown: body.to_string(),
+            created_at: now,
+            updated_at: now,
+        };
         enqueue_outbox(
             &mut tx,
             EntityType::Note,
             &id,
             Operation::NoteCreated,
-            serde_json::json!({ "notebook_id": notebook_id, "title": title, "body_markdown": body }),
+            serde_json::to_value(&payload)?,
             now,
         )
         .await?;
@@ -115,12 +111,17 @@ impl Engine {
         .await?;
 
         reindex_note(&mut tx, note_id, &title, body).await?;
+        let payload = NoteUpdatedPayload {
+            title: title.clone(),
+            body_markdown: body.to_string(),
+            updated_at: now,
+        };
         enqueue_outbox(
             &mut tx,
             EntityType::Note,
             note_id,
             Operation::NoteUpdated,
-            serde_json::json!({ "body_markdown": body }),
+            serde_json::to_value(&payload)?,
             now,
         )
         .await?;
@@ -160,11 +161,149 @@ impl Engine {
             .await?;
         Ok(notes)
     }
+
+    /// Fetch a single note by id, returning `None` if it does not exist or has
+    /// been soft-deleted.
+    pub async fn get_note(&self, note_id: &str) -> Result<Option<Note>> {
+        let query = format!(
+            "SELECT {NOTE_COLUMNS} FROM notes WHERE id = ? AND deleted_at IS NULL"
+        );
+        let note = sqlx::query_as::<_, Note>(&query)
+            .bind(note_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(note)
+    }
+
+    /// Soft-delete a note, remove it from the FTS index, write a tombstone, and
+    /// enqueue a `NoteDeleted` outbox event — all in one transaction.
+    pub async fn delete_note(&self, note_id: &str) -> Result<()> {
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+
+        let result = sqlx::query(
+            "UPDATE notes SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(now)
+        .bind(now)
+        .bind(note_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(EngineError::NotFound(note_id.to_string()));
+        }
+
+        sqlx::query("DELETE FROM notes_fts WHERE note_id = ?")
+            .bind(note_id)
+            .execute(&mut *tx)
+            .await?;
+
+        insert_tombstone(&mut *tx, EntityType::Note, note_id, now).await?;
+
+        let payload = DeletePayload { deleted_at: now };
+        enqueue_outbox(
+            &mut *tx,
+            EntityType::Note,
+            note_id,
+            Operation::NoteDeleted,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Restore a previously soft-deleted note: clear `deleted_at`, remove the
+    /// tombstone, re-add the FTS row, and enqueue a `NoteUpdated` event.
+    pub async fn restore_note(&self, note_id: &str) -> Result<()> {
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+
+        let current: Option<(String, String)> =
+            sqlx::query_as("SELECT title, body_markdown FROM notes WHERE id = ?")
+                .bind(note_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+        let Some((title, body)) = current else {
+            return Err(EngineError::NotFound(note_id.to_string()));
+        };
+
+        sqlx::query("UPDATE notes SET deleted_at = NULL, updated_at = ? WHERE id = ?")
+            .bind(now)
+            .bind(note_id)
+            .execute(&mut *tx)
+            .await?;
+
+        sqlx::query("DELETE FROM tombstones WHERE entity_type = 'note' AND entity_id = ?")
+            .bind(note_id)
+            .execute(&mut *tx)
+            .await?;
+
+        reindex_note(&mut *tx, note_id, &title, &body).await?;
+
+        let payload = NoteUpdatedPayload {
+            title: title.clone(),
+            body_markdown: body.clone(),
+            updated_at: now,
+        };
+        enqueue_outbox(
+            &mut *tx,
+            EntityType::Note,
+            note_id,
+            Operation::NoteUpdated,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Move a note to a different notebook, updating `notebook_id` atomically
+    /// and emitting a `NoteMoved` outbox event.
+    pub async fn move_note(&self, note_id: &str, notebook_id: &str) -> Result<()> {
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+
+        let result = sqlx::query(
+            "UPDATE notes SET notebook_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(notebook_id)
+        .bind(now)
+        .bind(note_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(EngineError::NotFound(note_id.to_string()));
+        }
+
+        let payload = NoteMovedPayload {
+            notebook_id: notebook_id.to_string(),
+            updated_at: now,
+        };
+        enqueue_outbox(
+            &mut *tx,
+            EntityType::Note,
+            note_id,
+            Operation::NoteMoved,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
 }
 
 /// Rebuild the FTS row and the derived tasks/links for a note. Runs inside the
 /// caller's transaction so the index can never drift from the note.
-async fn reindex_note(
+pub(crate) async fn reindex_note(
     conn: &mut SqliteConnection,
     note_id: &str,
     title: &str,

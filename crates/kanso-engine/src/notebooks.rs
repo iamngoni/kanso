@@ -1,22 +1,12 @@
 //! Notebook commands.
 
 use kanso_types::NotebookId;
+use kanso_types::payloads::{DeletePayload, NotebookPayload};
 use kanso_types::sync::{EntityType, Operation};
-use sqlx::FromRow;
 
-use crate::db::{Engine, enqueue_outbox, now_ms};
+use crate::db::{Engine, enqueue_outbox, insert_tombstone, now_ms};
 use crate::error::{EngineError, Result};
-
-#[derive(Debug, Clone, FromRow)]
-pub struct Notebook {
-    pub id: String,
-    pub name: String,
-    pub parent_id: Option<String>,
-    pub sort_order: i64,
-    pub created_at: i64,
-    pub updated_at: i64,
-    pub deleted_at: Option<i64>,
-}
+use crate::models::Notebook;
 
 impl Engine {
     pub async fn create_notebook(&self, name: &str, parent_id: Option<&str>) -> Result<Notebook> {
@@ -36,12 +26,18 @@ impl Engine {
         .execute(&mut *tx)
         .await?;
 
+        let payload = NotebookPayload {
+            name: name.to_string(),
+            parent_id: parent_id.map(str::to_string),
+            created_at: Some(now),
+            updated_at: now,
+        };
         enqueue_outbox(
             &mut tx,
             EntityType::Notebook,
             &id,
             Operation::NotebookCreated,
-            serde_json::json!({ "name": name, "parent_id": parent_id }),
+            serde_json::to_value(&payload)?,
             now,
         )
         .await?;
@@ -70,15 +66,74 @@ impl Engine {
     }
 
     pub async fn rename_notebook(&self, id: &str, name: &str) -> Result<()> {
-        let result = sqlx::query("UPDATE notebooks SET name = ?, updated_at = ? WHERE id = ?")
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+
+        let row: Option<(Option<String>,)> =
+            sqlx::query_as("SELECT parent_id FROM notebooks WHERE id = ? AND deleted_at IS NULL")
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await?;
+        let (parent_id,) = row.ok_or_else(|| EngineError::NotFound(id.to_string()))?;
+
+        sqlx::query("UPDATE notebooks SET name = ?, updated_at = ? WHERE id = ?")
             .bind(name)
-            .bind(now_ms())
+            .bind(now)
             .bind(id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
+
+        let payload = NotebookPayload {
+            name: name.to_string(),
+            parent_id,
+            created_at: None,
+            updated_at: now,
+        };
+        enqueue_outbox(
+            &mut tx,
+            EntityType::Notebook,
+            id,
+            Operation::NotebookUpdated,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn delete_notebook(&self, id: &str) -> Result<()> {
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+
+        let result = sqlx::query(
+            "UPDATE notebooks SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+        )
+        .bind(now)
+        .bind(now)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
         if result.rows_affected() == 0 {
             return Err(EngineError::NotFound(id.to_string()));
         }
+
+        insert_tombstone(&mut tx, EntityType::Notebook, id, now).await?;
+
+        let payload = DeletePayload { deleted_at: now };
+        enqueue_outbox(
+            &mut tx,
+            EntityType::Notebook,
+            id,
+            Operation::NotebookDeleted,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 }

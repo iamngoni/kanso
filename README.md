@@ -13,10 +13,13 @@ the full design.
 
 | Crate | Role |
 |-------|------|
-| `kanso-types`  | Shared domain IDs + sync wire types. Used by both the engine and the cloud server so the protocol can't drift. |
-| `kanso-engine` | The product engine: SQLite (canonical), Markdown indexing, FTS5 search, revisions, soft deletes, and the sync outbox. Single source of product truth. |
-| `kanso-ink`    | Cross-platform ink core: canonical CBOR sketch format, stroke geometry (smoothing, pressure→width), and headless `tiny-skia` preview/export. No GPU. |
-| `kanso-cloud`  | Kanso Cloud sync service (`actix-web`): ordered event replication per user. |
+| `kanso-types`  | Shared domain IDs + sync wire types + typed payloads. Used by the engine and the cloud server so the protocol can't drift. |
+| `kanso-engine` | The product engine: SQLite (canonical), Markdown indexing, FTS5 search, revisions, soft deletes, sync outbox, inbound `apply_remote_change` (LWW + conflict-copy), and the device sync loop. Single source of product truth. |
+| `kanso-ink`    | Cross-platform ink core: canonical CBOR sketch format, stroke geometry, stroke tessellation, headless `tiny-skia` preview/export, and a feature-gated (`gpu`) `wgpu` offscreen renderer. |
+| `kanso-cloud`  | Kanso Cloud sync service (`actix-web`): ordered, origin-aware event replication; in-memory store by default, Postgres when `DATABASE_URL` is set. |
+| `kanso-ffi`    | UniFFI bindings: a blocking facade over the engine exposing Swift/Kotlin-ready commands. Generates `kanso_ffi.swift`. |
+
+Plus `apps/KansoMac/` — a native SwiftUI three-pane shell (built in Xcode, not in the Cargo workspace) and `scripts/build-apple-bindings.sh` to produce the Swift bindings + `KansoFFI.xcframework`.
 
 ## Stack
 
@@ -27,9 +30,11 @@ edition 2024, toolchain 1.93.1.
 ## Build
 
 ```sh
-cargo check --workspace
-cargo test --workspace
-cargo run -p kanso-cloud   # starts the sync service on 127.0.0.1:8787
+cargo test --workspace                 # engine + ink suites
+cargo check -p kanso-ink --features gpu # the wgpu offscreen renderer
+cargo run -p kanso-cloud               # sync service on 127.0.0.1:8787 (in-memory)
+DATABASE_URL=postgres://… cargo run -p kanso-cloud   # durable Postgres-backed
+./scripts/build-apple-bindings.sh      # Swift bindings + KansoFFI.xcframework
 ```
 
 ## Notes

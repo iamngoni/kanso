@@ -17,6 +17,12 @@ pub enum EngineError {
 
     #[error("conflict: {0}")]
     Conflict(String),
+
+    #[error("decode error: {0}")]
+    Decode(String),
+
+    #[error("transport error: {0}")]
+    Transport(String),
 }
 
 pub type Result<T> = std::result::Result<T, EngineError>;

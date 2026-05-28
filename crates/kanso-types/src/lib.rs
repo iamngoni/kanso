@@ -4,6 +4,7 @@
 //! (`kanso-cloud`) so the sync wire format is defined exactly once.
 
 pub mod ids;
+pub mod payloads;
 pub mod sync;
 
 pub use ids::*;

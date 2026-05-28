@@ -6,7 +6,13 @@ license.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
+[features]
+gpu = ["dep:wgpu", "dep:bytemuck", "dep:pollster"]
+
 [dependencies]
 serde.workspace = true
 ciborium.workspace = true
 tiny-skia.workspace = true
+wgpu = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }

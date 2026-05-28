@@ -113,3 +113,41 @@ pub(crate) async fn enqueue_outbox(
     .await?;
     Ok(())
 }
+
+/// Record (or refresh) a tombstone so a deleted entity does not resurrect from
+/// another device. Inside the caller's transaction.
+pub(crate) async fn insert_tombstone(
+    conn: &mut SqliteConnection,
+    entity_type: EntityType,
+    entity_id: &str,
+    now: i64,
+) -> Result<()> {
+    sqlx::query(
+        "INSERT INTO tombstones (entity_type, entity_id, deleted_at) VALUES (?, ?, ?) \
+         ON CONFLICT (entity_type, entity_id) DO UPDATE SET deleted_at = excluded.deleted_at",
+    )
+    .bind(enum_str(&entity_type))
+    .bind(entity_id)
+    .bind(now)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
+/// True if a tombstone for the entity exists with `deleted_at` at or after the
+/// given timestamp — i.e. a delete that should suppress an older upsert.
+pub(crate) async fn tombstoned_after(
+    conn: &mut SqliteConnection,
+    entity_type: EntityType,
+    entity_id: &str,
+    at_or_after: i64,
+) -> Result<bool> {
+    let row: Option<(i64,)> = sqlx::query_as(
+        "SELECT deleted_at FROM tombstones WHERE entity_type = ? AND entity_id = ?",
+    )
+    .bind(enum_str(&entity_type))
+    .bind(entity_id)
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(matches!(row, Some((deleted_at,)) if deleted_at >= at_or_after))
+}

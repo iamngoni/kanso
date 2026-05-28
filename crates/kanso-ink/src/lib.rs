@@ -8,6 +8,9 @@
 pub mod format;
 pub mod geometry;
 pub mod raster;
+pub mod tessellate;
+#[cfg(feature = "gpu")]
+pub mod gpu;
 
 pub use format::*;
 

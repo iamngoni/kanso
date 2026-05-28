@@ -4,6 +4,7 @@ members = [
   "crates/kanso-engine",
   "crates/kanso-ink",
   "crates/kanso-cloud",
+  "crates/kanso-ffi",
 ]
 resolver = "2"
 
@@ -38,9 +39,20 @@ actix-rt = "2"
 actix-cors = "0.7"
 log = "0.4"
 env_logger = "0.11"
+async-trait = "0.1.89"
+
+# FFI bindings (UniFFI -> Swift/Kotlin)
+uniffi = "0.31.1"
+pollster = "0.4.0"
+
+# GPU ink renderer (feature-gated in kanso-ink)
+wgpu = "29.0.3"
+bytemuck = { version = "1.25.0", features = ["derive"] }
 
 # Async
 tokio = { version = "1", features = ["full"] }
 
 # Internal
 kanso-types = { path = "crates/kanso-types" }
+kanso-ink = { path = "crates/kanso-ink" }
+kanso-engine = { path = "crates/kanso-engine" }
