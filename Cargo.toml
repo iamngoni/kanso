@@ -1,0 +1,46 @@
+[workspace]
+members = [
+  "crates/kanso-types",
+  "crates/kanso-engine",
+  "crates/kanso-ink",
+  "crates/kanso-cloud",
+]
+resolver = "2"
+
+[workspace.package]
+authors = ["Kanso"]
+edition = "2024"
+license = "UNLICENSED"
+rust-version = "1.85"
+version = "0.1.0"
+
+[workspace.dependencies]
+# Shared
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+thiserror = "2.0.18"
+anyhow = "1.0.102"
+uuid = { version = "1.23.1", features = ["v7", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Engine (embedded SQLite — the only DB-driver divergence from the
+# Postgres backends; the engine is local-first and on-device).
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
+comrak = "0.52.0"
+
+# Ink core
+tiny-skia = { version = "0.12.0", features = ["png-format"] }
+ciborium = "0.2.2"
+
+# Cloud (mirrors heimdall's actix stack)
+actix-web = "4"
+actix-rt = "2"
+actix-cors = "0.7"
+log = "0.4"
+env_logger = "0.11"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+
+# Internal
+kanso-types = { path = "crates/kanso-types" }
