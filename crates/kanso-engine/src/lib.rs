@@ -10,6 +10,7 @@ mod db;
 mod error;
 mod import_export;
 mod markdown;
+mod mcp_access;
 mod models;
 mod notebooks;
 mod notes;
@@ -25,8 +26,8 @@ mod tags;
 pub use db::Engine;
 pub use error::{EngineError, Result};
 pub use models::{
-    ApplyOutcome, Attachment, ExportFile, ImportFile, NewAttachment, Note, NoteLink, Notebook,
-    Revision, Sketch, Skill, SkillRun, SyncReport, Tag, TaskItem,
+    ApplyOutcome, Attachment, ExportFile, ImportFile, McpClient, NewAttachment, Note, NoteLink,
+    Notebook, Revision, Sketch, Skill, SkillRun, SyncReport, Tag, TaskItem,
 };
 pub use sync_client::SyncTransport;
 
@@ -508,5 +509,94 @@ mod tests {
         assert_eq!(engine.notes_with_tag(&tag.id).await.unwrap().len(), 1);
         engine.untag_note(&note.id, &tag.id).await.unwrap();
         assert_eq!(engine.notes_with_tag(&tag.id).await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn mcp_client_permissions() {
+        let engine = Engine::open_in_memory().await.unwrap();
+        let client = engine.register_mcp_client("Claude Desktop").await.unwrap();
+        assert!(client.id.starts_with("mcpclient:"));
+
+        // No grants yet → denied.
+        assert!(!engine.client_can(&client.id, "read").await.unwrap());
+
+        engine.grant_capability(&client.id, "read").await.unwrap();
+        assert!(engine.client_can(&client.id, "read").await.unwrap());
+        assert!(!engine.client_can(&client.id, "write").await.unwrap());
+
+        // Trusted clients bypass per-capability checks.
+        engine.set_mcp_client_trusted(&client.id, true).await.unwrap();
+        assert!(engine.client_can(&client.id, "write").await.unwrap());
+
+        // Revoke + untrust → denied again.
+        engine.set_mcp_client_trusted(&client.id, false).await.unwrap();
+        engine.revoke_capability(&client.id, "read").await.unwrap();
+        assert!(!engine.client_can(&client.id, "read").await.unwrap());
+
+        // Unknown clients are always denied.
+        assert!(!engine.client_can("mcpclient:ghost", "read").await.unwrap());
+
+        assert_eq!(engine.list_mcp_clients().await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn note_metadata_setters() {
+        let engine = Engine::open_in_memory().await.unwrap();
+        let nb = engine.create_notebook("M", None).await.unwrap();
+        let note = engine.create_note(&nb.id, "n", "b").await.unwrap();
+
+        assert_eq!(engine.list_pinned().await.unwrap().len(), 0);
+        engine.set_note_pinned(&note.id, true).await.unwrap();
+        assert_eq!(engine.list_pinned().await.unwrap().len(), 1);
+
+        engine.set_note_favorite(&note.id, true).await.unwrap();
+        engine.set_note_status(&note.id, "archived").await.unwrap();
+        let n = engine.get_note(&note.id).await.unwrap().unwrap();
+        assert_eq!(n.favorite, 1);
+        assert_eq!(n.status, "archived");
+
+        engine.set_note_pinned(&note.id, false).await.unwrap();
+        assert_eq!(engine.list_pinned().await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn rename_and_scoped_search() {
+        let engine = Engine::open_in_memory().await.unwrap();
+        let a = engine.create_notebook("A", None).await.unwrap();
+        let b = engine.create_notebook("B", None).await.unwrap();
+        let note_a = engine.create_note(&a.id, "Old", "alpha unique body").await.unwrap();
+        engine.create_note(&b.id, "Other", "alpha unique body").await.unwrap();
+
+        // Global search spans notebooks; scoped search does not.
+        assert_eq!(engine.search_notes("alpha").await.unwrap().len(), 2);
+        assert_eq!(engine.search_notes_in(&a.id, "alpha").await.unwrap().len(), 1);
+
+        // Rename updates the title and the FTS index.
+        engine.rename_note(&note_a.id, "Fresh Title").await.unwrap();
+        assert_eq!(engine.get_note(&note_a.id).await.unwrap().unwrap().title, "Fresh Title");
+        assert_eq!(engine.search_notes("Fresh").await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn trash_and_nested_notebooks() {
+        let engine = Engine::open_in_memory().await.unwrap();
+        let parent = engine.create_notebook("Parent", None).await.unwrap();
+        let child = engine.create_notebook("Child", Some(&parent.id)).await.unwrap();
+
+        assert_eq!(engine.list_root_notebooks().await.unwrap().len(), 1);
+        assert_eq!(engine.list_child_notebooks(&parent.id).await.unwrap().len(), 1);
+
+        // Reparent the child to the root.
+        engine.move_notebook(&child.id, None).await.unwrap();
+        assert_eq!(engine.list_root_notebooks().await.unwrap().len(), 2);
+        assert_eq!(engine.list_child_notebooks(&parent.id).await.unwrap().len(), 0);
+
+        // Trash: soft-delete shows in trash; purge removes it for good.
+        let note = engine.create_note(&parent.id, "n", "trashable").await.unwrap();
+        engine.delete_note(&note.id).await.unwrap();
+        assert_eq!(engine.list_trash().await.unwrap().len(), 1);
+        engine.purge_note(&note.id).await.unwrap();
+        assert_eq!(engine.list_trash().await.unwrap().len(), 0);
+        assert!(engine.get_note(&note.id).await.unwrap().is_none());
     }
 }

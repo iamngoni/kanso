@@ -5,3 +5,6 @@
 *.db-wal
 .DS_Store
 .env
+
+# SwiftPM
+.build/

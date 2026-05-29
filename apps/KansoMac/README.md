@@ -1,38 +1,38 @@
 # KansoMac
 
 The native macOS shell — a quiet three-pane SwiftUI app over the shared Rust
-engine via the generated UniFFI bindings.
+engine via the generated UniFFI bindings. It is a SwiftPM package (not part of
+the Cargo workspace).
 
-This target is **not** part of the Cargo workspace and is built in Xcode.
-
-## Build the bindings first
+## Build & run (verified working)
 
 ```sh
-./scripts/build-apple-bindings.sh
+# 1. Build the host FFI static lib + generate Swift bindings (one-time / on FFI change)
+cargo build -p kanso-ffi
+cargo run -p kanso-ffi --bin uniffi-bindgen -- generate \
+  --library target/debug/libkanso_ffi.dylib --language swift \
+  --out-dir target/bindings/swift
+cp target/bindings/swift/kanso_ffi.swift apps/KansoMac/Sources/KansoMac/
+cp target/bindings/swift/kanso_ffiFFI.h  apps/KansoMac/Sources/kanso_ffiFFI/include/
+
+# 2. Build and launch the app
+cd apps/KansoMac
+swift build      # links against ../../target/debug/libkanso_ffi.a
+swift run        # opens the three-pane window on a desktop session
 ```
 
-This produces:
+`swift build` succeeds and the binary launches: on first run it creates the
+engine database (with migrations) at `~/Library/Application Support/Kanso/kanso.db`
+through the FFI — the SwiftUI → UniFFI → Rust engine → SQLite path works end to end.
 
-- `target/bindings/swift/kanso_ffi.swift` — the Swift glue (defines `KansoEngine`,
-  `NoteDto`, `NotebookDto`, `TagDto`, etc.)
-- `target/KansoFFI.xcframework` — static libs + C headers for macOS + iOS
+`Package.swift` hardcodes the repo's `target/debug` path for the linker; adjust
+if you move the repo.
 
-## Wire it into Xcode
+## Shippable .app / iOS
 
-1. Create a macOS App target (or SwiftPM executable) from `Sources/KansoMac/`.
-2. Add `target/KansoFFI.xcframework` to **Frameworks, Libraries, and Embedded Content**.
-3. Add the generated `target/bindings/swift/kanso_ffi.swift` to the target's sources.
-4. Build & run.
-
-## Expected editor diagnostics before step 1–3
-
-Opening the `Sources/KansoMac/*.swift` files on their own (e.g. in this repo
-without the Xcode target) will show "Cannot find type `KansoEngine`/`NoteDto`"
-and "`@main` cannot be used in a module with top-level code". Both are artifacts
-of SourceKit analyzing loose files without (a) the generated `kanso_ffi.swift`
-and (b) a real app-target module. They resolve once the bindings are generated
-and the files are part of the Xcode/SwiftPM target. The Swift here is written
-against the exact generated API surface.
+For a distributable bundle or iOS, build the universal xcframework via
+`scripts/build-apple-bindings.sh` and use an Xcode app target (embed
+`KansoFFI.xcframework` + add `kanso_ffi.swift` to sources) instead of SwiftPM.
 
 ## What it does
 

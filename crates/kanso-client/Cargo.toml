@@ -13,6 +13,7 @@ reqwest.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
 uuid.workspace = true
+sha2 = "0.10"
 
 [dev-dependencies]
 kanso-cloud = { path = "../kanso-cloud" }

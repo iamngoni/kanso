@@ -6,6 +6,7 @@
 
 pub mod accounts;
 pub mod auth;
+pub mod blobs;
 pub mod dto;
 pub mod store;
 
@@ -17,6 +18,7 @@ use kanso_types::{AuthResponse, LoginRequest, PullResponse, PushRequest, PushRes
 
 use crate::accounts::AccountStore;
 use crate::auth::{Claims, JwtKeys};
+use crate::blobs::{BlobStore, content_hash};
 use crate::dto::PullQuery;
 use crate::store::EventStore;
 
@@ -26,6 +28,7 @@ const TOKEN_TTL_SECS: i64 = 60 * 60 * 24 * 30;
 type StoreData = web::Data<Arc<dyn EventStore>>;
 type AccountData = web::Data<Arc<dyn AccountStore>>;
 type JwtData = web::Data<JwtKeys>;
+type BlobData = web::Data<Arc<dyn BlobStore>>;
 
 /// Extract and verify the bearer token, returning its claims or a 401.
 fn require_auth(req: &HttpRequest, keys: &JwtKeys) -> Result<Claims, HttpResponse> {
@@ -82,6 +85,23 @@ async fn issue_session(accounts: &AccountData, keys: &JwtData, user_id: &str) ->
     }
 }
 
+/// Reissue a fresh token for the same user+device (sliding session). Requires a
+/// currently-valid bearer token.
+async fn refresh(req: HttpRequest, keys: JwtData) -> HttpResponse {
+    let claims = match require_auth(&req, &keys) {
+        Ok(c) => c,
+        Err(resp) => return resp,
+    };
+    match keys.issue(&claims.sub, &claims.device_id, TOKEN_TTL_SECS) {
+        Ok(token) => HttpResponse::Ok().json(AuthResponse {
+            token,
+            user_id: claims.sub,
+            device_id: claims.device_id,
+        }),
+        Err(_) => HttpResponse::InternalServerError().finish(),
+    }
+}
+
 async fn push(
     req: HttpRequest,
     store: StoreData,
@@ -115,8 +135,61 @@ async fn pull(
     HttpResponse::Ok().json(PullResponse { changes, server_high_water })
 }
 
+async fn put_blob(
+    req: HttpRequest,
+    blobs: BlobData,
+    keys: JwtData,
+    path: web::Path<String>,
+    body: web::Bytes,
+) -> HttpResponse {
+    let claims = match require_auth(&req, &keys) {
+        Ok(c) => c,
+        Err(resp) => return resp,
+    };
+    let hash = path.into_inner();
+    let actual = content_hash(&body);
+    if actual != hash {
+        return HttpResponse::BadRequest()
+            .json(serde_json::json!({ "error": "content hash mismatch", "expected": hash, "actual": actual }));
+    }
+    let size = body.len();
+    blobs.put(&claims.sub, &hash, body.to_vec()).await;
+    HttpResponse::Ok().json(serde_json::json!({ "hash": hash, "size": size }))
+}
+
+async fn get_blob(
+    req: HttpRequest,
+    blobs: BlobData,
+    keys: JwtData,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let claims = match require_auth(&req, &keys) {
+        Ok(c) => c,
+        Err(resp) => return resp,
+    };
+    match blobs.get(&claims.sub, &path.into_inner()).await {
+        Some(bytes) => HttpResponse::Ok().content_type("application/octet-stream").body(bytes),
+        None => HttpResponse::NotFound().finish(),
+    }
+}
+
+async fn blob_exists(
+    req: HttpRequest,
+    blobs: BlobData,
+    keys: JwtData,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let claims = match require_auth(&req, &keys) {
+        Ok(c) => c,
+        Err(resp) => return resp,
+    };
+    let exists = blobs.exists(&claims.sub, &path.into_inner()).await;
+    HttpResponse::Ok().json(serde_json::json!({ "exists": exists }))
+}
+
 /// Register all routes. The caller supplies `web::Data` for the event store,
-/// account store (`Arc<dyn AccountStore>`), and [`JwtKeys`].
+/// account store (`Arc<dyn AccountStore>`), [`JwtKeys`], and the blob store
+/// (`Arc<dyn BlobStore>`).
 pub fn routes(cfg: &mut web::ServiceConfig) {
     // Throttle the unauthenticated auth surface to blunt credential stuffing.
     // Token bucket: burst of 10, refilling one request every 2s, keyed by peer
@@ -133,8 +206,12 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             web::scope("/v1/auth")
                 .wrap(Governor::new(&auth_governor))
                 .route("/register", web::post().to(register))
-                .route("/login", web::post().to(login)),
+                .route("/login", web::post().to(login))
+                .route("/refresh", web::post().to(refresh)),
         )
         .route("/v1/sync/push", web::post().to(push))
-        .route("/v1/sync/pull", web::get().to(pull));
+        .route("/v1/sync/pull", web::get().to(pull))
+        .route("/v1/blobs/{hash}", web::put().to(put_blob))
+        .route("/v1/blobs/{hash}", web::get().to(get_blob))
+        .route("/v1/blobs/{hash}/exists", web::get().to(blob_exists));
 }

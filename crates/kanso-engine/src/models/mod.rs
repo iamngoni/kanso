@@ -6,6 +6,7 @@
 mod apply;
 mod attachment;
 mod io;
+mod mcp_client;
 mod note;
 mod note_link;
 mod notebook;
@@ -19,6 +20,7 @@ mod task_item;
 pub use apply::ApplyOutcome;
 pub use attachment::{Attachment, NewAttachment};
 pub use io::{ExportFile, ImportFile};
+pub use mcp_client::McpClient;
 pub use note::Note;
 pub use note_link::NoteLink;
 pub use notebook::Notebook;

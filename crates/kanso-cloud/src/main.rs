@@ -53,9 +53,14 @@ async fn main() -> std::io::Result<()> {
     };
     let keys = JwtKeys::new(secret.as_bytes());
 
+    // Blob storage is in-memory for now; object storage (S3/R2) slots in here.
+    let blob_store: std::sync::Arc<dyn kanso_cloud::blobs::BlobStore> =
+        std::sync::Arc::new(kanso_cloud::blobs::MemoryBlobStore::default());
+
     let event_data = web::Data::new(event_store);
     let account_data = web::Data::new(account_store);
     let jwt_data = web::Data::new(keys);
+    let blob_data = web::Data::new(blob_store);
 
     let bind = std::env::var("KANSO_CLOUD_BIND").unwrap_or_else(|_| "127.0.0.1:8787".to_string());
     log::info!("kanso-cloud listening on http://{bind}");
@@ -65,6 +70,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(event_data.clone())
             .app_data(account_data.clone())
             .app_data(jwt_data.clone())
+            .app_data(blob_data.clone())
             .wrap(Cors::default().allow_any_origin().allow_any_method().allow_any_header())
             .wrap(Logger::default())
             .configure(routes)

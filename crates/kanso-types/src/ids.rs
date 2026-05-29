@@ -47,3 +47,4 @@ prefixed_id!(RevisionId, "revision");
 prefixed_id!(DeviceId, "device");
 prefixed_id!(SkillId, "skill");
 prefixed_id!(SkillRunId, "skillrun");
+prefixed_id!(McpClientId, "mcpclient");

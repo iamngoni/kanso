@@ -134,6 +134,46 @@ impl Engine {
         Ok(())
     }
 
+    /// Pin/unpin a note. (Local metadata; not synced through the outbox yet.)
+    pub async fn set_note_pinned(&self, note_id: &str, pinned: bool) -> Result<()> {
+        self.set_note_flag("pinned", pinned as i64, note_id).await
+    }
+
+    /// Favorite/unfavorite a note.
+    pub async fn set_note_favorite(&self, note_id: &str, favorite: bool) -> Result<()> {
+        self.set_note_flag("favorite", favorite as i64, note_id).await
+    }
+
+    /// Set a note's status (e.g. `active`, `archived`).
+    pub async fn set_note_status(&self, note_id: &str, status: &str) -> Result<()> {
+        let result = sqlx::query("UPDATE notes SET status = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
+            .bind(status)
+            .bind(now_ms())
+            .bind(note_id)
+            .execute(&self.pool)
+            .await?;
+        if result.rows_affected() == 0 {
+            return Err(EngineError::NotFound(note_id.to_string()));
+        }
+        Ok(())
+    }
+
+    // Shared setter for the integer flag columns (`pinned`, `favorite`). The
+    // column name is a fixed internal literal, never user input.
+    async fn set_note_flag(&self, column: &str, value: i64, note_id: &str) -> Result<()> {
+        let sql = format!("UPDATE notes SET {column} = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL");
+        let result = sqlx::query(&sql)
+            .bind(value)
+            .bind(now_ms())
+            .bind(note_id)
+            .execute(&self.pool)
+            .await?;
+        if result.rows_affected() == 0 {
+            return Err(EngineError::NotFound(note_id.to_string()));
+        }
+        Ok(())
+    }
+
     /// Get-or-create today's daily note (titled `YYYY-MM-DD`) in a notebook.
     pub async fn create_daily_note(&self, notebook_id: &str) -> Result<Note> {
         let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -182,6 +222,100 @@ impl Engine {
             .fetch_all(&self.pool)
             .await?;
         Ok(notes)
+    }
+
+    /// Permanently remove a soft-deleted note and all its derived rows. The
+    /// tombstone is kept so sync won't resurrect it.
+    pub async fn purge_note(&self, note_id: &str) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+
+        let present: Option<(i64,)> =
+            sqlx::query_as("SELECT 1 FROM notes WHERE id = ? AND deleted_at IS NOT NULL")
+                .bind(note_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+        if present.is_none() {
+            return Err(EngineError::NotFound(note_id.to_string()));
+        }
+
+        for stmt in [
+            "DELETE FROM notes_fts WHERE note_id = ?",
+            "DELETE FROM note_tags WHERE note_id = ?",
+            "DELETE FROM attachments WHERE note_id = ?",
+            "DELETE FROM sketches WHERE note_id = ?",
+            "DELETE FROM note_links WHERE source_note_id = ?",
+            "DELETE FROM note_tasks WHERE note_id = ?",
+            "DELETE FROM revisions WHERE note_id = ?",
+            "DELETE FROM notes WHERE id = ?",
+        ] {
+            sqlx::query(stmt).bind(note_id).execute(&mut *tx).await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Rename a note's title, re-indexing FTS and enqueuing a sync event.
+    pub async fn rename_note(&self, note_id: &str, title: &str) -> Result<()> {
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+
+        let current: Option<(String,)> =
+            sqlx::query_as("SELECT body_markdown FROM notes WHERE id = ? AND deleted_at IS NULL")
+                .bind(note_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+        let Some((body,)) = current else {
+            return Err(EngineError::NotFound(note_id.to_string()));
+        };
+
+        sqlx::query("UPDATE notes SET title = ?, updated_at = ? WHERE id = ?")
+            .bind(title)
+            .bind(now)
+            .bind(note_id)
+            .execute(&mut *tx)
+            .await?;
+
+        reindex_note(&mut *tx, note_id, title, &body).await?;
+        let (payload_body, body_cipher) = self.encrypt_body(&body)?;
+        let payload = NoteUpdatedPayload {
+            title: title.to_string(),
+            body_markdown: payload_body,
+            body_cipher,
+            updated_at: now,
+        };
+        enqueue_outbox(
+            &mut *tx,
+            EntityType::Note,
+            note_id,
+            Operation::NoteUpdated,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Full-text search scoped to a single notebook.
+    pub async fn search_notes_in(&self, notebook_id: &str, query: &str) -> Result<Vec<Note>> {
+        let cols = NOTE_COLUMNS
+            .split(", ")
+            .map(|c| format!("n.{c}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "SELECT {cols} FROM notes_fts f \
+             JOIN notes n ON n.id = f.note_id \
+             WHERE notes_fts MATCH ? AND n.notebook_id = ? AND n.deleted_at IS NULL \
+             ORDER BY rank"
+        );
+        Ok(sqlx::query_as::<_, Note>(&sql)
+            .bind(query)
+            .bind(notebook_id)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     /// Fetch a single note by id, returning `None` if it does not exist or has

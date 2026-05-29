@@ -2364,6 +2364,7 @@ dependencies = [
  "kanso-types",
  "reqwest",
  "serde_json",
+ "sha2",
  "tokio",
  "uuid",
 ]
@@ -2384,6 +2385,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "thiserror",
  "tokio",

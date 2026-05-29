@@ -29,6 +29,67 @@ pub async fn register(base_url: &str, email: &str, password: &str) -> Result<Aut
     response.json().await.map_err(|e| e.to_string())
 }
 
+/// Upload an attachment blob (content-addressed by SHA-256); returns the hash.
+pub async fn put_blob(base_url: &str, token: &str, bytes: &[u8]) -> Result<String, String> {
+    let base = base_url.trim_end_matches('/');
+    let hash = sha256_hex(bytes);
+    let response = reqwest::Client::new()
+        .put(format!("{base}/v1/blobs/{hash}"))
+        .bearer_auth(token)
+        .body(bytes.to_vec())
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!("put_blob failed: HTTP {}", response.status()));
+    }
+    Ok(hash)
+}
+
+/// Download an attachment blob by hash; `None` if absent (or not yours).
+pub async fn get_blob(base_url: &str, token: &str, hash: &str) -> Result<Option<Vec<u8>>, String> {
+    let base = base_url.trim_end_matches('/');
+    let response = reqwest::Client::new()
+        .get(format!("{base}/v1/blobs/{hash}"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if response.status().as_u16() == 404 {
+        return Ok(None);
+    }
+    if !response.status().is_success() {
+        return Err(format!("get_blob failed: HTTP {}", response.status()));
+    }
+    Ok(Some(response.bytes().await.map_err(|e| e.to_string())?.to_vec()))
+}
+
+/// Refresh a session token, returning a new one for the same user+device.
+pub async fn refresh(base_url: &str, token: &str) -> Result<AuthResponse, String> {
+    let base = base_url.trim_end_matches('/');
+    let response = reqwest::Client::new()
+        .post(format!("{base}/v1/auth/refresh"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!("refresh failed: HTTP {}", response.status()));
+    }
+    response.json().await.map_err(|e| e.to_string())
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(bytes);
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        use std::fmt::Write;
+        let _ = write!(hex, "{byte:02x}");
+    }
+    hex
+}
+
 /// Log in to an existing account; returns a token for a new device session.
 pub async fn login(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, String> {
     let base = base_url.trim_end_matches('/');

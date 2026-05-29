@@ -11,12 +11,21 @@ use serde_json::{Value, json};
 /// to test without a running process.
 pub struct McpServer {
     engine: Engine,
+    /// When set, every tool call is checked against this client's granted
+    /// capabilities. `None` = unrestricted (local/dev / trusted host process).
+    client_id: Option<String>,
 }
 
 impl McpServer {
-    /// Wrap an already-opened engine in an MCP server.
+    /// Wrap an already-opened engine in an unrestricted MCP server.
     pub fn new(engine: Engine) -> Self {
-        Self { engine }
+        Self { engine, client_id: None }
+    }
+
+    /// Wrap an engine for a specific approved client; tool calls are gated by
+    /// that client's capabilities (see `Engine::client_can`).
+    pub fn with_client(engine: Engine, client_id: impl Into<String>) -> Self {
+        Self { engine, client_id: Some(client_id.into()) }
     }
 
     /// Handle one JSON-RPC request value. Returns `Some(response)` for requests
@@ -80,6 +89,14 @@ impl McpServer {
     /// Execute a named tool, returning a human/agent-readable text result or an
     /// error string that becomes a JSON-RPC `-32000` application error.
     async fn run_tool(&self, name: &str, args: &Value) -> Result<String, String> {
+        // Enforce capability when scoped to a client.
+        if let Some(client_id) = &self.client_id {
+            let capability = capability_for(name);
+            if !self.engine.client_can(client_id, capability).await.map_err(|e| e.to_string())? {
+                return Err(format!("permission denied: '{name}' requires the '{capability}' capability"));
+            }
+        }
+
         // Helper: extract a string field from the arguments, defaulting to "".
         let s = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or("").to_string();
 
@@ -208,8 +225,50 @@ impl McpServer {
                 Ok("tagged".to_string())
             }
 
+            "list_skills" => {
+                let skills = self.engine.list_skills().await.map_err(|e| e.to_string())?;
+                Ok(skills
+                    .into_iter()
+                    .map(|sk| format!("{}\t{}\t{}", sk.id, sk.title, if sk.enabled != 0 { "enabled" } else { "disabled" }))
+                    .collect::<Vec<_>>()
+                    .join("\n"))
+            }
+
+            "create_skill" => {
+                let scope = { let v = s("scope"); if v.is_empty() { "global".to_string() } else { v } };
+                let skill = self
+                    .engine
+                    .create_skill(&s("title"), &s("body_markdown"), &scope)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(format!("created skill {} ({})", skill.title, skill.id))
+            }
+
+            "run_skill" => {
+                let mode = { let v = s("mode"); if v.is_empty() { "dry_run".to_string() } else { v } };
+                let run = self
+                    .engine
+                    .start_skill_run(&s("skill_id"), None, None, &mode)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(format!("started skill run {} (mode {})", run.id, run.mode))
+            }
+
             other => Err(format!("unknown tool: {other}")),
         }
+    }
+}
+
+/// The capability a tool requires: `read`, `write`, or `delete`.
+fn capability_for(tool: &str) -> &'static str {
+    match tool {
+        "delete_note" => "delete",
+        "run_skill" => "run_skill",
+        "create_notebook" | "create_note" | "update_note" | "create_tag" | "tag_note"
+        | "create_daily_note" | "create_skill" => "write",
+        // reads: list_notebooks, list_notes, search_notes, get_note, list_tags,
+        // list_tasks, backlinks, list_skills
+        _ => "read",
     }
 }
 
@@ -359,6 +418,36 @@ fn tool_definitions() -> Value {
                 "properties": { "note_id": { "type": "string" }, "tag_id": { "type": "string" } },
                 "required": ["note_id", "tag_id"]
             }
+        },
+        {
+            "name": "list_skills",
+            "description": "List all skills.",
+            "inputSchema": { "type": "object", "properties": {} }
+        },
+        {
+            "name": "create_skill",
+            "description": "Create a Markdown-defined skill.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string" },
+                    "body_markdown": { "type": "string" },
+                    "scope": { "type": "string", "description": "global | notebook | note | project" }
+                },
+                "required": ["title", "body_markdown"]
+            }
+        },
+        {
+            "name": "run_skill",
+            "description": "Start a skill run (records a run; default mode dry_run).",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "skill_id": { "type": "string" },
+                    "mode": { "type": "string", "description": "dry_run | review_changes | apply_changes" }
+                },
+                "required": ["skill_id"]
+            }
         }
     ])
 }
@@ -475,6 +564,40 @@ mod tests {
         assert_eq!(
             resp["error"]["code"], -32601,
             "unknown method must yield error code -32601"
+        );
+    }
+
+    /// A client-scoped server enforces granted capabilities per tool.
+    #[tokio::test]
+    async fn capability_gating_blocks_ungranted_tools() {
+        let engine = Engine::open_in_memory().await.unwrap();
+        let client = engine.register_mcp_client("agent").await.unwrap();
+        engine.grant_capability(&client.id, "read").await.unwrap();
+
+        let srv = McpServer::with_client(engine, client.id);
+
+        // A read tool is allowed.
+        let read = srv
+            .handle(json!({
+                "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                "params": { "name": "list_notebooks", "arguments": {} }
+            }))
+            .await
+            .unwrap();
+        assert!(read.get("result").is_some(), "read tool should be allowed");
+
+        // A write tool (not granted) is denied with an application error.
+        let write = srv
+            .handle(json!({
+                "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                "params": { "name": "create_notebook", "arguments": { "name": "X" } }
+            }))
+            .await
+            .unwrap();
+        assert_eq!(write["error"]["code"], -32000, "ungranted write must error");
+        assert!(
+            write["error"]["message"].as_str().unwrap().contains("permission denied"),
+            "error should explain the denial"
         );
     }
 }

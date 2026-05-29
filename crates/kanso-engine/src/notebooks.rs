@@ -136,4 +136,62 @@ impl Engine {
         tx.commit().await?;
         Ok(())
     }
+
+    /// Reparent a notebook (pass `None` to move it to the root).
+    pub async fn move_notebook(&self, id: &str, parent_id: Option<&str>) -> Result<()> {
+        let now = now_ms();
+        let mut tx = self.pool.begin().await?;
+
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT name FROM notebooks WHERE id = ? AND deleted_at IS NULL")
+                .bind(id)
+                .fetch_optional(&mut *tx)
+                .await?;
+        let (name,) = row.ok_or_else(|| EngineError::NotFound(id.to_string()))?;
+
+        sqlx::query("UPDATE notebooks SET parent_id = ?, updated_at = ? WHERE id = ?")
+            .bind(parent_id)
+            .bind(now)
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+
+        let payload = NotebookPayload {
+            name,
+            parent_id: parent_id.map(str::to_string),
+            created_at: None,
+            updated_at: now,
+        };
+        enqueue_outbox(
+            &mut tx,
+            EntityType::Notebook,
+            id,
+            Operation::NotebookUpdated,
+            serde_json::to_value(&payload)?,
+            now,
+        )
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn list_child_notebooks(&self, parent_id: &str) -> Result<Vec<Notebook>> {
+        Ok(sqlx::query_as::<_, Notebook>(
+            "SELECT id, name, parent_id, sort_order, created_at, updated_at, deleted_at \
+             FROM notebooks WHERE parent_id = ? AND deleted_at IS NULL ORDER BY sort_order, name",
+        )
+        .bind(parent_id)
+        .fetch_all(&self.pool)
+        .await?)
+    }
+
+    pub async fn list_root_notebooks(&self) -> Result<Vec<Notebook>> {
+        Ok(sqlx::query_as::<_, Notebook>(
+            "SELECT id, name, parent_id, sort_order, created_at, updated_at, deleted_at \
+             FROM notebooks WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY sort_order, name",
+        )
+        .fetch_all(&self.pool)
+        .await?)
+    }
 }

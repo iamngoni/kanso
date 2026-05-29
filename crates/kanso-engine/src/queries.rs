@@ -32,6 +32,24 @@ impl Engine {
         .await?)
     }
 
+    /// Soft-deleted notes (the trash), most-recently-deleted first.
+    pub async fn list_trash(&self) -> Result<Vec<Note>> {
+        let sql = format!(
+            "SELECT {NOTE_COLUMNS_N} FROM notes n \
+             WHERE n.deleted_at IS NOT NULL ORDER BY n.deleted_at DESC"
+        );
+        Ok(sqlx::query_as::<_, Note>(&sql).fetch_all(&self.pool).await?)
+    }
+
+    /// All pinned (non-deleted) notes across every notebook, most-recent first.
+    pub async fn list_pinned(&self) -> Result<Vec<Note>> {
+        let sql = format!(
+            "SELECT {NOTE_COLUMNS_N} FROM notes n \
+             WHERE n.pinned = 1 AND n.deleted_at IS NULL ORDER BY n.updated_at DESC"
+        );
+        Ok(sqlx::query_as::<_, Note>(&sql).fetch_all(&self.pool).await?)
+    }
+
     /// All (non-deleted) notes carrying a given tag.
     pub async fn notes_with_tag(&self, tag_id: &str) -> Result<Vec<Note>> {
         let sql = format!(
