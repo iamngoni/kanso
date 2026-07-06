@@ -3,8 +3,17 @@
 *.db
 *.db-shm
 *.db-wal
+*.log
+*.profraw
 .DS_Store
 .env
 
 # SwiftPM
 .build/
+
+# Xcode local state
+xcuserdata/
+*.xcuserstate
+
+# Generated Apple FFI artifacts
+apps/KansoMac/KansoFFI.xcframework/

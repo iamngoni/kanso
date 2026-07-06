@@ -1,4 +1,0 @@
-module kanso_ffiFFI {
-    header "kanso_ffiFFI.h"
-    export *
-}

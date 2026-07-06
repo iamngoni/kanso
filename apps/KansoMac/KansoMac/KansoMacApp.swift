@@ -1,13 +1,17 @@
+//
+//  KansoMacApp.swift
+//  KansoMac
+//
+//  Created by Ngonidzashe  Mangudya on 2026/05/29.
+//
+
 import SwiftUI
 
-// The Kanso macOS shell. A quiet, native three-pane Markdown notebook over the
-// shared Rust engine (via the generated UniFFI bindings in `kanso_ffi.swift`).
-//
-// This target is built in Xcode against `KansoFFI.xcframework` + `kanso_ffi.swift`,
-// both produced by `scripts/build-apple-bindings.sh`. It is intentionally not part
-// of the Cargo workspace.
+// A quiet, native three-pane Markdown notebook over the shared Rust engine
+// (via the generated UniFFI bindings in `kanso_ffi.swift`). Requires the
+// `kanso_ffiFFI` module — link `KansoFFI.xcframework` into this target.
 @main
-struct KansoApp: App {
+struct KansoMacApp: App {
     @StateObject private var store = KansoStore()
 
     var body: some Scene {
