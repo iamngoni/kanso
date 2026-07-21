@@ -4,6 +4,8 @@
 //! plus the verbatim body. Import reverses it, reading the title from
 //! frontmatter (or the filename) and creating notes.
 
+use std::collections::HashSet;
+
 use crate::db::Engine;
 use crate::error::Result;
 use crate::models::{ExportFile, ImportFile};
@@ -12,10 +14,11 @@ impl Engine {
     /// Export every (non-deleted) note in a notebook to Markdown files.
     pub async fn export_notebook_markdown(&self, notebook_id: &str) -> Result<Vec<ExportFile>> {
         let notes = self.list_notes(notebook_id).await?;
+        let mut used_paths = HashSet::new();
         Ok(notes
             .into_iter()
             .map(|note| ExportFile {
-                path: format!("{}.md", sanitize_filename(&note.title)),
+                path: unique_markdown_path(&note.title, &mut used_paths),
                 content: format!(
                     "---\ntitle: {}\ncreated: {}\nupdated: {}\n---\n\n{}",
                     note.title, note.created_at, note.updated_at, note.body_markdown
@@ -40,14 +43,41 @@ impl Engine {
     }
 }
 
+fn unique_markdown_path(title: &str, used_paths: &mut HashSet<String>) -> String {
+    let stem = sanitize_filename(title);
+    let mut path = format!("{stem}.md");
+    if used_paths.insert(path.clone()) {
+        return path;
+    }
+
+    let mut suffix = 2;
+    loop {
+        path = format!("{stem} {suffix}.md");
+        if used_paths.insert(path.clone()) {
+            return path;
+        }
+        suffix += 1;
+    }
+}
+
 /// Make a title safe to use as a filename.
 fn sanitize_filename(title: &str) -> String {
     let cleaned: String = title
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let trimmed = cleaned.trim();
-    if trimmed.is_empty() { "untitled".to_string() } else { trimmed.to_string() }
+    if trimmed.is_empty() {
+        "untitled".to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 /// Split a Markdown document into `(title, body)`, honoring a leading

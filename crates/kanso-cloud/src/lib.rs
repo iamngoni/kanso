@@ -14,7 +14,9 @@ use std::sync::Arc;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{HttpRequest, HttpResponse, http::header::AUTHORIZATION, web};
-use kanso_types::{AuthResponse, LoginRequest, PullResponse, PushRequest, PushResponse, RegisterRequest};
+use kanso_types::{
+    AuthResponse, LoginRequest, PullResponse, PushRequest, PushResponse, RegisterRequest,
+};
 
 use crate::accounts::AccountStore;
 use crate::auth::{Claims, JwtKeys};
@@ -38,7 +40,9 @@ fn require_auth(req: &HttpRequest, keys: &JwtKeys) -> Result<Claims, HttpRespons
         .and_then(|h| h.to_str().ok())
         .and_then(|h| h.strip_prefix("Bearer "));
     match token {
-        Some(token) => keys.verify(token).map_err(|_| HttpResponse::Unauthorized().finish()),
+        Some(token) => keys
+            .verify(token)
+            .map_err(|_| HttpResponse::Unauthorized().finish()),
         None => Err(HttpResponse::Unauthorized().finish()),
     }
 }
@@ -55,16 +59,25 @@ async fn register(
     let req = body.into_inner();
     let user_id = match accounts.register(&req.email, &req.password).await {
         Ok(id) => id,
-        Err(e) => return HttpResponse::Conflict().json(serde_json::json!({ "error": e.to_string() })),
+        Err(e) => {
+            return HttpResponse::Conflict().json(serde_json::json!({ "error": e.to_string() }));
+        }
     };
     issue_session(&accounts, &keys, &user_id).await
 }
 
-async fn login(accounts: AccountData, keys: JwtData, body: web::Json<LoginRequest>) -> HttpResponse {
+async fn login(
+    accounts: AccountData,
+    keys: JwtData,
+    body: web::Json<LoginRequest>,
+) -> HttpResponse {
     let req = body.into_inner();
     let user_id = match accounts.login(&req.email, &req.password).await {
         Ok(id) => id,
-        Err(_) => return HttpResponse::Unauthorized().json(serde_json::json!({ "error": "invalid credentials" })),
+        Err(_) => {
+            return HttpResponse::Unauthorized()
+                .json(serde_json::json!({ "error": "invalid credentials" }));
+        }
     };
     issue_session(&accounts, &keys, &user_id).await
 }
@@ -73,7 +86,10 @@ async fn login(accounts: AccountData, keys: JwtData, body: web::Json<LoginReques
 async fn issue_session(accounts: &AccountData, keys: &JwtData, user_id: &str) -> HttpResponse {
     let device_id = match accounts.register_device(user_id, "device").await {
         Ok(id) => id,
-        Err(e) => return HttpResponse::InternalServerError().json(serde_json::json!({ "error": e.to_string() })),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": e.to_string() }));
+        }
     };
     match keys.issue(user_id, &device_id, TOKEN_TTL_SECS) {
         Ok(token) => HttpResponse::Ok().json(AuthResponse {
@@ -114,9 +130,13 @@ async fn push(
     };
     let request = body.into_inner();
     // Scope by the authenticated user + device, not the (spoofable) body fields.
-    let (accepted_ids, server_high_water) =
-        store.append(&claims.sub, &claims.device_id, request.events).await;
-    HttpResponse::Ok().json(PushResponse { accepted_ids, server_high_water })
+    let (accepted_ids, server_high_water) = store
+        .append(&claims.sub, &claims.device_id, request.events)
+        .await;
+    HttpResponse::Ok().json(PushResponse {
+        accepted_ids,
+        server_high_water,
+    })
 }
 
 async fn pull(
@@ -130,9 +150,14 @@ async fn pull(
         Err(resp) => return resp,
     };
     let limit = query.limit.unwrap_or(500).clamp(1, 5_000) as usize;
-    let changes = store.since(&claims.sub, &claims.device_id, query.since, limit).await;
+    let changes = store
+        .since(&claims.sub, &claims.device_id, query.since, limit)
+        .await;
     let server_high_water = store.high_water(&claims.sub).await;
-    HttpResponse::Ok().json(PullResponse { changes, server_high_water })
+    HttpResponse::Ok().json(PullResponse {
+        changes,
+        server_high_water,
+    })
 }
 
 async fn put_blob(
@@ -168,7 +193,9 @@ async fn get_blob(
         Err(resp) => return resp,
     };
     match blobs.get(&claims.sub, &path.into_inner()).await {
-        Some(bytes) => HttpResponse::Ok().content_type("application/octet-stream").body(bytes),
+        Some(bytes) => HttpResponse::Ok()
+            .content_type("application/octet-stream")
+            .body(bytes),
         None => HttpResponse::NotFound().finish(),
     }
 }

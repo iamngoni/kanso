@@ -72,7 +72,7 @@ impl Engine {
         let row: Option<(Option<String>,)> =
             sqlx::query_as("SELECT parent_id FROM notebooks WHERE id = ? AND deleted_at IS NULL")
                 .bind(id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&mut *tx)
                 .await?;
         let (parent_id,) = row.ok_or_else(|| EngineError::NotFound(id.to_string()))?;
 
@@ -139,6 +139,12 @@ impl Engine {
 
     /// Reparent a notebook (pass `None` to move it to the root).
     pub async fn move_notebook(&self, id: &str, parent_id: Option<&str>) -> Result<()> {
+        if parent_id == Some(id) {
+            return Err(EngineError::Conflict(
+                "a notebook cannot be its own parent".to_string(),
+            ));
+        }
+
         let now = now_ms();
         let mut tx = self.pool.begin().await?;
 

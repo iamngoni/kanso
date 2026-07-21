@@ -81,7 +81,10 @@ impl EventStore for MemoryStore {
             accepted.push(event.id);
             user.log.push(LogEntry {
                 origin_device_id: device_id.to_string(),
-                change: RemoteChange { server_sequence, event },
+                change: RemoteChange {
+                    server_sequence,
+                    event,
+                },
             });
         }
         (accepted, user.high_water)
@@ -225,7 +228,10 @@ impl EventStore for PostgresStore {
                         .0,
                     local_sequence: row.try_get("local_sequence").ok()?,
                 };
-                Some(RemoteChange { server_sequence, event })
+                Some(RemoteChange {
+                    server_sequence,
+                    event,
+                })
             })
             .collect()
     }

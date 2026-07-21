@@ -78,13 +78,18 @@ impl AccountStore for MemoryAccountStore {
             return Err(AccountError::EmailTaken);
         }
         let user_id = format!("user:{}", Uuid::now_v7());
-        inner.by_email.insert(email.to_string(), (user_id.clone(), phc));
+        inner
+            .by_email
+            .insert(email.to_string(), (user_id.clone(), phc));
         Ok(user_id)
     }
 
     async fn login(&self, email: &str, password: &str) -> Result<String, AccountError> {
         let inner = self.inner.lock().expect("account mutex poisoned");
-        let (user_id, phc) = inner.by_email.get(email).ok_or(AccountError::InvalidCredentials)?;
+        let (user_id, phc) = inner
+            .by_email
+            .get(email)
+            .ok_or(AccountError::InvalidCredentials)?;
         if verify_password(password, phc) {
             Ok(user_id.clone())
         } else {
@@ -131,14 +136,13 @@ impl AccountStore for PostgresAccountStore {
     async fn register(&self, email: &str, password: &str) -> Result<String, AccountError> {
         let phc = hash_password(password)?;
         let user_id = format!("user:{}", uuid::Uuid::now_v7());
-        let result = sqlx::query(
-            "INSERT INTO users (user_id, email, password_hash) VALUES ($1, $2, $3)",
-        )
-        .bind(&user_id)
-        .bind(email)
-        .bind(&phc)
-        .execute(&self.pool)
-        .await;
+        let result =
+            sqlx::query("INSERT INTO users (user_id, email, password_hash) VALUES ($1, $2, $3)")
+                .bind(&user_id)
+                .bind(email)
+                .bind(&phc)
+                .execute(&self.pool)
+                .await;
 
         match result {
             Ok(_) => Ok(user_id),
@@ -151,17 +155,19 @@ impl AccountStore for PostgresAccountStore {
 
     async fn login(&self, email: &str, password: &str) -> Result<String, AccountError> {
         use sqlx::Row;
-        let row = sqlx::query(
-            "SELECT user_id, password_hash FROM users WHERE email = $1",
-        )
-        .bind(email)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| AccountError::Backend(e.to_string()))?;
+        let row = sqlx::query("SELECT user_id, password_hash FROM users WHERE email = $1")
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| AccountError::Backend(e.to_string()))?;
 
         let row = row.ok_or(AccountError::InvalidCredentials)?;
-        let user_id: String = row.try_get("user_id").map_err(|e| AccountError::Backend(e.to_string()))?;
-        let phc: String = row.try_get("password_hash").map_err(|e| AccountError::Backend(e.to_string()))?;
+        let user_id: String = row
+            .try_get("user_id")
+            .map_err(|e| AccountError::Backend(e.to_string()))?;
+        let phc: String = row
+            .try_get("password_hash")
+            .map_err(|e| AccountError::Backend(e.to_string()))?;
 
         if verify_password(password, &phc) {
             Ok(user_id)
@@ -172,15 +178,13 @@ impl AccountStore for PostgresAccountStore {
 
     async fn register_device(&self, user_id: &str, name: &str) -> Result<String, AccountError> {
         let device_id = format!("device:{}", uuid::Uuid::now_v7());
-        sqlx::query(
-            "INSERT INTO devices (device_id, user_id, name) VALUES ($1, $2, $3)",
-        )
-        .bind(&device_id)
-        .bind(user_id)
-        .bind(name)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| AccountError::Backend(e.to_string()))?;
+        sqlx::query("INSERT INTO devices (device_id, user_id, name) VALUES ($1, $2, $3)")
+            .bind(&device_id)
+            .bind(user_id)
+            .bind(name)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| AccountError::Backend(e.to_string()))?;
 
         Ok(device_id)
     }

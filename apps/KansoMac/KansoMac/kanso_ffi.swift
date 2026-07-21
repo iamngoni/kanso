@@ -352,7 +352,7 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-// Initial value and increment amount for handles. 
+// Initial value and increment amount for handles.
 // These ensure that SWIFT handles always have the lowest bit set
 fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
 fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
@@ -574,45 +574,151 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
  * on both sides.
  */
 public protocol KansoEngineProtocol: AnyObject, Sendable {
-    
+
+    func addShareMember(resourceType: String, resourceId: String, email: String, role: String) throws  -> ShareMemberDto
+
+    func attachFile(noteId: String, input: NewAttachmentDto) throws  -> AttachmentDto
+
+    func backlinks(noteId: String) throws  -> [NoteDto]
+
+    func completeSkillRun(runId: String, status: String, outputSummary: String) throws
+
+    func createDailyNote(notebookId: String) throws  -> NoteDto
+
     func createNote(notebookId: String, title: String, bodyMarkdown: String) throws  -> NoteDto
-    
+
     func createNotebook(name: String, parentId: String?) throws  -> NotebookDto
-    
+
     /**
      * Persist captured strokes as a sketch on a note. The native layer captures
      * raw stylus input and hands the normalized strokes here; the engine stores
      * the canonical CBOR document.
      */
     func createSketch(noteId: String, title: String?, strokes: [InkStroke]) throws  -> SketchDto
-    
+
+    func createSkill(title: String, bodyMarkdown: String, scope: String) throws  -> SkillDto
+
     func createTag(name: String) throws  -> TagDto
-    
-    func deleteNote(noteId: String) throws 
-    
+
+    func deleteAttachment(attachmentId: String) throws
+
+    func deleteNote(noteId: String) throws
+
+    func deleteNotebook(notebookId: String) throws
+
+    func deleteSkill(skillId: String) throws
+
+    func exportNotebookMarkdown(notebookId: String) throws  -> [ExportFileDto]
+
     func getNote(noteId: String) throws  -> NoteDto?
-    
+
+    func getSketchStrokes(sketchId: String) throws  -> [InkStroke]
+
+    func grantMcpCapability(clientId: String, capability: String) throws
+
+    func importMarkdown(notebookId: String, files: [ImportFileDto]) throws  -> [String]
+
+    func listAttachments(noteId: String) throws  -> [AttachmentDto]
+
+    func listChildNotebooks(parentId: String) throws  -> [NotebookDto]
+
+    func listConflicts(noteId: String) throws  -> [RevisionDto]
+
+    func listMcpCapabilities(clientId: String) throws  -> [String]
+
+    func listMcpClients() throws  -> [McpClientDto]
+
     func listNotebooks() throws  -> [NotebookDto]
-    
+
     func listNotes(notebookId: String) throws  -> [NoteDto]
-    
+
+    func listOpenTasks(notebookId: String) throws  -> [TaskItemDto]
+
+    func listRevisions(noteId: String) throws  -> [RevisionDto]
+
+    func listRootNotebooks() throws  -> [NotebookDto]
+
+    func listShareMembers(resourceType: String, resourceId: String) throws  -> [ShareMemberDto]
+
     func listSketches(noteId: String) throws  -> [SketchDto]
-    
+
+    func listSkillRuns(skillId: String) throws  -> [SkillRunDto]
+
+    func listSkills() throws  -> [SkillDto]
+
     func listTags() throws  -> [TagDto]
-    
-    func moveNote(noteId: String, notebookId: String) throws 
-    
+
+    func listTasks(notebookId: String) throws  -> [TaskItemDto]
+
+    func listTrash() throws  -> [NoteDto]
+
+    func loginHttp(baseUrl: String, email: String, password: String) throws  -> AuthSessionDto
+
+    func moveNote(noteId: String, notebookId: String) throws
+
+    func moveNotebook(notebookId: String, parentId: String?) throws
+
+    func notesWithTag(tagId: String) throws  -> [NoteDto]
+
+    func outgoingLinks(noteId: String) throws  -> [NoteLinkDto]
+
+    func purgeNote(noteId: String) throws
+
+    func refreshHttp(baseUrl: String, token: String) throws  -> AuthSessionDto
+
+    func registerHttp(baseUrl: String, email: String, password: String) throws  -> AuthSessionDto
+
+    func registerMcpClient(name: String) throws  -> McpClientDto
+
+    func removeShareMember(memberId: String) throws
+
+    func renameNote(noteId: String, title: String) throws
+
+    func renameNotebook(notebookId: String, name: String) throws
+
+    func renderNoteHtml(noteId: String) throws  -> String
+
     /**
      * Render a sketch preview to PNG bytes (headless `tiny-skia`).
      */
     func renderSketchPreview(sketchId: String, width: UInt32, height: UInt32) throws  -> Data
-    
+
+    func restoreNote(noteId: String) throws
+
+    func restoreRevision(noteId: String, revisionId: String) throws
+
+    func revokeMcpCapability(clientId: String, capability: String) throws
+
     func searchNotes(query: String) throws  -> [NoteDto]
-    
-    func tagNote(noteId: String, tagId: String) throws 
-    
-    func updateNoteBody(noteId: String, bodyMarkdown: String) throws 
-    
+
+    func setMcpClientTrusted(clientId: String, trusted: Bool) throws
+
+    func setNoteFavorite(noteId: String, favorite: Bool) throws
+
+    func setNotePinned(noteId: String, pinned: Bool) throws
+
+    func setNoteStatus(noteId: String, status: String) throws
+
+    func setTaskChecked(taskId: String, checked: Bool) throws
+
+    func startSkillRun(skillId: String, targetType: String?, targetId: String?, mode: String) throws  -> SkillRunDto
+
+    func syncHttp(baseUrl: String, token: String, deviceId: String) throws  -> SyncReportDto
+
+    func syncHttpWithBlobs(baseUrl: String, token: String, deviceId: String, attachmentDir: String) throws  -> SyncReportDto
+
+    func tagNote(noteId: String, tagId: String) throws
+
+    func tagsForNote(noteId: String) throws  -> [TagDto]
+
+    func untagNote(noteId: String, tagId: String) throws
+
+    func updateNoteBody(noteId: String, bodyMarkdown: String) throws
+
+    func updateSketch(sketchId: String, strokes: [InkStroke]) throws
+
+    func updateSkill(skillId: String, title: String, bodyMarkdown: String, scope: String, enabled: Bool) throws
+
 }
 /**
  * The primary FFI object.  Wraps an owned Tokio runtime so every method can
@@ -671,7 +777,7 @@ open class KansoEngine: KansoEngineProtocol, @unchecked Sendable {
         try! rustCall { uniffi_kanso_ffi_fn_free_kansoengine(handle, $0) }
     }
 
-    
+
     /**
      * Open (or create) a persistent database at `path`.
      */
@@ -682,7 +788,7 @@ public static func `open`(path: String)throws  -> KansoEngine  {
     )
 })
 }
-    
+
     /**
      * Open a transient in-memory database (useful for tests / previews).
      */
@@ -692,9 +798,87 @@ public static func openInMemory()throws  -> KansoEngine  {
     )
 })
 }
-    
 
-    
+    /**
+     * Open an encrypted transient in-memory database for tests/previews.
+     */
+public static func openInMemoryWithEncryptionPassphrase(passphrase: String, salt: String)throws  -> KansoEngine  {
+    return try  FfiConverterTypeKansoEngine_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_constructor_kansoengine_open_in_memory_with_encryption_passphrase(
+        FfiConverterString.lower(passphrase),
+        FfiConverterString.lower(salt),$0
+    )
+})
+}
+
+    /**
+     * Open a persistent database with client-side backup encryption enabled.
+     *
+     * Local SQLite remains plaintext for search/indexing. Outbound sync
+     * payloads encrypt note bodies and sketch blobs before they leave device.
+     */
+public static func openWithEncryptionPassphrase(path: String, passphrase: String, salt: String)throws  -> KansoEngine  {
+    return try  FfiConverterTypeKansoEngine_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_constructor_kansoengine_open_with_encryption_passphrase(
+        FfiConverterString.lower(path),
+        FfiConverterString.lower(passphrase),
+        FfiConverterString.lower(salt),$0
+    )
+})
+}
+
+
+
+open func addShareMember(resourceType: String, resourceId: String, email: String, role: String)throws  -> ShareMemberDto  {
+    return try  FfiConverterTypeShareMemberDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_add_share_member(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(resourceType),
+        FfiConverterString.lower(resourceId),
+        FfiConverterString.lower(email),
+        FfiConverterString.lower(role),$0
+    )
+})
+}
+
+open func attachFile(noteId: String, input: NewAttachmentDto)throws  -> AttachmentDto  {
+    return try  FfiConverterTypeAttachmentDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_attach_file(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),
+        FfiConverterTypeNewAttachmentDto_lower(input),$0
+    )
+})
+}
+
+open func backlinks(noteId: String)throws  -> [NoteDto]  {
+    return try  FfiConverterSequenceTypeNoteDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_backlinks(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+})
+}
+
+open func completeSkillRun(runId: String, status: String, outputSummary: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_complete_skill_run(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(runId),
+        FfiConverterString.lower(status),
+        FfiConverterString.lower(outputSummary),$0
+    )
+}
+}
+
+open func createDailyNote(notebookId: String)throws  -> NoteDto  {
+    return try  FfiConverterTypeNoteDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_create_daily_note(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),$0
+    )
+})
+}
+
 open func createNote(notebookId: String, title: String, bodyMarkdown: String)throws  -> NoteDto  {
     return try  FfiConverterTypeNoteDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_create_note(
@@ -705,7 +889,7 @@ open func createNote(notebookId: String, title: String, bodyMarkdown: String)thr
     )
 })
 }
-    
+
 open func createNotebook(name: String, parentId: String?)throws  -> NotebookDto  {
     return try  FfiConverterTypeNotebookDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_create_notebook(
@@ -715,7 +899,7 @@ open func createNotebook(name: String, parentId: String?)throws  -> NotebookDto 
     )
 })
 }
-    
+
     /**
      * Persist captured strokes as a sketch on a note. The native layer captures
      * raw stylus input and hands the normalized strokes here; the engine stores
@@ -731,7 +915,18 @@ open func createSketch(noteId: String, title: String?, strokes: [InkStroke])thro
     )
 })
 }
-    
+
+open func createSkill(title: String, bodyMarkdown: String, scope: String)throws  -> SkillDto  {
+    return try  FfiConverterTypeSkillDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_create_skill(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(title),
+        FfiConverterString.lower(bodyMarkdown),
+        FfiConverterString.lower(scope),$0
+    )
+})
+}
+
 open func createTag(name: String)throws  -> TagDto  {
     return try  FfiConverterTypeTagDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_create_tag(
@@ -740,7 +935,15 @@ open func createTag(name: String)throws  -> TagDto  {
     )
 })
 }
-    
+
+open func deleteAttachment(attachmentId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_delete_attachment(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(attachmentId),$0
+    )
+}
+}
+
 open func deleteNote(noteId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_delete_note(
             self.uniffiCloneHandle(),
@@ -748,7 +951,32 @@ open func deleteNote(noteId: String)throws   {try rustCallWithError(FfiConverter
     )
 }
 }
-    
+
+open func deleteNotebook(notebookId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_delete_notebook(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),$0
+    )
+}
+}
+
+open func deleteSkill(skillId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_delete_skill(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(skillId),$0
+    )
+}
+}
+
+open func exportNotebookMarkdown(notebookId: String)throws  -> [ExportFileDto]  {
+    return try  FfiConverterSequenceTypeExportFileDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_export_notebook_markdown(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),$0
+    )
+})
+}
+
 open func getNote(noteId: String)throws  -> NoteDto?  {
     return try  FfiConverterOptionTypeNoteDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_get_note(
@@ -757,7 +985,79 @@ open func getNote(noteId: String)throws  -> NoteDto?  {
     )
 })
 }
-    
+
+open func getSketchStrokes(sketchId: String)throws  -> [InkStroke]  {
+    return try  FfiConverterSequenceTypeInkStroke.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_get_sketch_strokes(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(sketchId),$0
+    )
+})
+}
+
+open func grantMcpCapability(clientId: String, capability: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_grant_mcp_capability(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clientId),
+        FfiConverterString.lower(capability),$0
+    )
+}
+}
+
+open func importMarkdown(notebookId: String, files: [ImportFileDto])throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_import_markdown(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),
+        FfiConverterSequenceTypeImportFileDto.lower(files),$0
+    )
+})
+}
+
+open func listAttachments(noteId: String)throws  -> [AttachmentDto]  {
+    return try  FfiConverterSequenceTypeAttachmentDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_attachments(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+})
+}
+
+open func listChildNotebooks(parentId: String)throws  -> [NotebookDto]  {
+    return try  FfiConverterSequenceTypeNotebookDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_child_notebooks(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(parentId),$0
+    )
+})
+}
+
+open func listConflicts(noteId: String)throws  -> [RevisionDto]  {
+    return try  FfiConverterSequenceTypeRevisionDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_conflicts(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+})
+}
+
+open func listMcpCapabilities(clientId: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_mcp_capabilities(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clientId),$0
+    )
+})
+}
+
+open func listMcpClients()throws  -> [McpClientDto]  {
+    return try  FfiConverterSequenceTypeMcpClientDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_mcp_clients(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+
 open func listNotebooks()throws  -> [NotebookDto]  {
     return try  FfiConverterSequenceTypeNotebookDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_list_notebooks(
@@ -765,7 +1065,7 @@ open func listNotebooks()throws  -> [NotebookDto]  {
     )
 })
 }
-    
+
 open func listNotes(notebookId: String)throws  -> [NoteDto]  {
     return try  FfiConverterSequenceTypeNoteDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_list_notes(
@@ -774,7 +1074,43 @@ open func listNotes(notebookId: String)throws  -> [NoteDto]  {
     )
 })
 }
-    
+
+open func listOpenTasks(notebookId: String)throws  -> [TaskItemDto]  {
+    return try  FfiConverterSequenceTypeTaskItemDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_open_tasks(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),$0
+    )
+})
+}
+
+open func listRevisions(noteId: String)throws  -> [RevisionDto]  {
+    return try  FfiConverterSequenceTypeRevisionDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_revisions(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+})
+}
+
+open func listRootNotebooks()throws  -> [NotebookDto]  {
+    return try  FfiConverterSequenceTypeNotebookDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_root_notebooks(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+
+open func listShareMembers(resourceType: String, resourceId: String)throws  -> [ShareMemberDto]  {
+    return try  FfiConverterSequenceTypeShareMemberDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_share_members(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(resourceType),
+        FfiConverterString.lower(resourceId),$0
+    )
+})
+}
+
 open func listSketches(noteId: String)throws  -> [SketchDto]  {
     return try  FfiConverterSequenceTypeSketchDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_list_sketches(
@@ -783,7 +1119,24 @@ open func listSketches(noteId: String)throws  -> [SketchDto]  {
     )
 })
 }
-    
+
+open func listSkillRuns(skillId: String)throws  -> [SkillRunDto]  {
+    return try  FfiConverterSequenceTypeSkillRunDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_skill_runs(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(skillId),$0
+    )
+})
+}
+
+open func listSkills()throws  -> [SkillDto]  {
+    return try  FfiConverterSequenceTypeSkillDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_skills(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+
 open func listTags()throws  -> [TagDto]  {
     return try  FfiConverterSequenceTypeTagDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_list_tags(
@@ -791,7 +1144,35 @@ open func listTags()throws  -> [TagDto]  {
     )
 })
 }
-    
+
+open func listTasks(notebookId: String)throws  -> [TaskItemDto]  {
+    return try  FfiConverterSequenceTypeTaskItemDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_tasks(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),$0
+    )
+})
+}
+
+open func listTrash()throws  -> [NoteDto]  {
+    return try  FfiConverterSequenceTypeNoteDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_list_trash(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+
+open func loginHttp(baseUrl: String, email: String, password: String)throws  -> AuthSessionDto  {
+    return try  FfiConverterTypeAuthSessionDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_login_http(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(baseUrl),
+        FfiConverterString.lower(email),
+        FfiConverterString.lower(password),$0
+    )
+})
+}
+
 open func moveNote(noteId: String, notebookId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_move_note(
             self.uniffiCloneHandle(),
@@ -800,7 +1181,107 @@ open func moveNote(noteId: String, notebookId: String)throws   {try rustCallWith
     )
 }
 }
-    
+
+open func moveNotebook(notebookId: String, parentId: String?)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_move_notebook(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),
+        FfiConverterOptionString.lower(parentId),$0
+    )
+}
+}
+
+open func notesWithTag(tagId: String)throws  -> [NoteDto]  {
+    return try  FfiConverterSequenceTypeNoteDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_notes_with_tag(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(tagId),$0
+    )
+})
+}
+
+open func outgoingLinks(noteId: String)throws  -> [NoteLinkDto]  {
+    return try  FfiConverterSequenceTypeNoteLinkDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_outgoing_links(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+})
+}
+
+open func purgeNote(noteId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_purge_note(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+}
+}
+
+open func refreshHttp(baseUrl: String, token: String)throws  -> AuthSessionDto  {
+    return try  FfiConverterTypeAuthSessionDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_refresh_http(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(baseUrl),
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+
+open func registerHttp(baseUrl: String, email: String, password: String)throws  -> AuthSessionDto  {
+    return try  FfiConverterTypeAuthSessionDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_register_http(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(baseUrl),
+        FfiConverterString.lower(email),
+        FfiConverterString.lower(password),$0
+    )
+})
+}
+
+open func registerMcpClient(name: String)throws  -> McpClientDto  {
+    return try  FfiConverterTypeMcpClientDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_register_mcp_client(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),$0
+    )
+})
+}
+
+open func removeShareMember(memberId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_remove_share_member(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(memberId),$0
+    )
+}
+}
+
+open func renameNote(noteId: String, title: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_rename_note(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),
+        FfiConverterString.lower(title),$0
+    )
+}
+}
+
+open func renameNotebook(notebookId: String, name: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_rename_notebook(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(notebookId),
+        FfiConverterString.lower(name),$0
+    )
+}
+}
+
+open func renderNoteHtml(noteId: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_render_note_html(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+})
+}
+
     /**
      * Render a sketch preview to PNG bytes (headless `tiny-skia`).
      */
@@ -814,7 +1295,33 @@ open func renderSketchPreview(sketchId: String, width: UInt32, height: UInt32)th
     )
 })
 }
-    
+
+open func restoreNote(noteId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_restore_note(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+}
+}
+
+open func restoreRevision(noteId: String, revisionId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_restore_revision(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),
+        FfiConverterString.lower(revisionId),$0
+    )
+}
+}
+
+open func revokeMcpCapability(clientId: String, capability: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_revoke_mcp_capability(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clientId),
+        FfiConverterString.lower(capability),$0
+    )
+}
+}
+
 open func searchNotes(query: String)throws  -> [NoteDto]  {
     return try  FfiConverterSequenceTypeNoteDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_search_notes(
@@ -823,7 +1330,87 @@ open func searchNotes(query: String)throws  -> [NoteDto]  {
     )
 })
 }
-    
+
+open func setMcpClientTrusted(clientId: String, trusted: Bool)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_set_mcp_client_trusted(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clientId),
+        FfiConverterBool.lower(trusted),$0
+    )
+}
+}
+
+open func setNoteFavorite(noteId: String, favorite: Bool)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_set_note_favorite(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),
+        FfiConverterBool.lower(favorite),$0
+    )
+}
+}
+
+open func setNotePinned(noteId: String, pinned: Bool)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_set_note_pinned(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),
+        FfiConverterBool.lower(pinned),$0
+    )
+}
+}
+
+open func setNoteStatus(noteId: String, status: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_set_note_status(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),
+        FfiConverterString.lower(status),$0
+    )
+}
+}
+
+open func setTaskChecked(taskId: String, checked: Bool)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_set_task_checked(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(taskId),
+        FfiConverterBool.lower(checked),$0
+    )
+}
+}
+
+open func startSkillRun(skillId: String, targetType: String?, targetId: String?, mode: String)throws  -> SkillRunDto  {
+    return try  FfiConverterTypeSkillRunDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_start_skill_run(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(skillId),
+        FfiConverterOptionString.lower(targetType),
+        FfiConverterOptionString.lower(targetId),
+        FfiConverterString.lower(mode),$0
+    )
+})
+}
+
+open func syncHttp(baseUrl: String, token: String, deviceId: String)throws  -> SyncReportDto  {
+    return try  FfiConverterTypeSyncReportDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_sync_http(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(baseUrl),
+        FfiConverterString.lower(token),
+        FfiConverterString.lower(deviceId),$0
+    )
+})
+}
+
+open func syncHttpWithBlobs(baseUrl: String, token: String, deviceId: String, attachmentDir: String)throws  -> SyncReportDto  {
+    return try  FfiConverterTypeSyncReportDto_lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_sync_http_with_blobs(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(baseUrl),
+        FfiConverterString.lower(token),
+        FfiConverterString.lower(deviceId),
+        FfiConverterString.lower(attachmentDir),$0
+    )
+})
+}
+
 open func tagNote(noteId: String, tagId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_tag_note(
             self.uniffiCloneHandle(),
@@ -832,7 +1419,25 @@ open func tagNote(noteId: String, tagId: String)throws   {try rustCallWithError(
     )
 }
 }
-    
+
+open func tagsForNote(noteId: String)throws  -> [TagDto]  {
+    return try  FfiConverterSequenceTypeTagDto.lift(try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_tags_for_note(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),$0
+    )
+})
+}
+
+open func untagNote(noteId: String, tagId: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_untag_note(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(noteId),
+        FfiConverterString.lower(tagId),$0
+    )
+}
+}
+
 open func updateNoteBody(noteId: String, bodyMarkdown: String)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
     uniffi_kanso_ffi_fn_method_kansoengine_update_note_body(
             self.uniffiCloneHandle(),
@@ -841,9 +1446,30 @@ open func updateNoteBody(noteId: String, bodyMarkdown: String)throws   {try rust
     )
 }
 }
-    
 
-    
+open func updateSketch(sketchId: String, strokes: [InkStroke])throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_update_sketch(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(sketchId),
+        FfiConverterSequenceTypeInkStroke.lower(strokes),$0
+    )
+}
+}
+
+open func updateSkill(skillId: String, title: String, bodyMarkdown: String, scope: String, enabled: Bool)throws   {try rustCallWithError(FfiConverterTypeKansoError_lift) {
+    uniffi_kanso_ffi_fn_method_kansoengine_update_skill(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(skillId),
+        FfiConverterString.lower(title),
+        FfiConverterString.lower(bodyMarkdown),
+        FfiConverterString.lower(scope),
+        FfiConverterBool.lower(enabled),$0
+    )
+}
+}
+
+
+
 }
 
 
@@ -890,6 +1516,150 @@ public func FfiConverterTypeKansoEngine_lower(_ value: KansoEngine) -> UInt64 {
 
 
 
+public struct AttachmentDto: Equatable, Hashable {
+    public var id: String
+    public var noteId: String
+    public var filename: String
+    public var mimeType: String
+    public var sizeBytes: Int64
+    public var contentHash: String
+    public var localPath: String?
+    public var remoteKey: String?
+    public var createdAt: Int64
+    public var updatedAt: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, noteId: String, filename: String, mimeType: String, sizeBytes: Int64, contentHash: String, localPath: String?, remoteKey: String?, createdAt: Int64, updatedAt: Int64) {
+        self.id = id
+        self.noteId = noteId
+        self.filename = filename
+        self.mimeType = mimeType
+        self.sizeBytes = sizeBytes
+        self.contentHash = contentHash
+        self.localPath = localPath
+        self.remoteKey = remoteKey
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AttachmentDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAttachmentDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttachmentDto {
+        return
+            try AttachmentDto(
+                id: FfiConverterString.read(from: &buf),
+                noteId: FfiConverterString.read(from: &buf),
+                filename: FfiConverterString.read(from: &buf),
+                mimeType: FfiConverterString.read(from: &buf),
+                sizeBytes: FfiConverterInt64.read(from: &buf),
+                contentHash: FfiConverterString.read(from: &buf),
+                localPath: FfiConverterOptionString.read(from: &buf),
+                remoteKey: FfiConverterOptionString.read(from: &buf),
+                createdAt: FfiConverterInt64.read(from: &buf),
+                updatedAt: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AttachmentDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.noteId, into: &buf)
+        FfiConverterString.write(value.filename, into: &buf)
+        FfiConverterString.write(value.mimeType, into: &buf)
+        FfiConverterInt64.write(value.sizeBytes, into: &buf)
+        FfiConverterString.write(value.contentHash, into: &buf)
+        FfiConverterOptionString.write(value.localPath, into: &buf)
+        FfiConverterOptionString.write(value.remoteKey, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterInt64.write(value.updatedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAttachmentDto_lift(_ buf: RustBuffer) throws -> AttachmentDto {
+    return try FfiConverterTypeAttachmentDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAttachmentDto_lower(_ value: AttachmentDto) -> RustBuffer {
+    return FfiConverterTypeAttachmentDto.lower(value)
+}
+
+
+public struct AuthSessionDto: Equatable, Hashable {
+    public var token: String
+    public var userId: String
+    public var deviceId: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(token: String, userId: String, deviceId: String) {
+        self.token = token
+        self.userId = userId
+        self.deviceId = deviceId
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AuthSessionDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAuthSessionDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AuthSessionDto {
+        return
+            try AuthSessionDto(
+                token: FfiConverterString.read(from: &buf),
+                userId: FfiConverterString.read(from: &buf),
+                deviceId: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AuthSessionDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.token, into: &buf)
+        FfiConverterString.write(value.userId, into: &buf)
+        FfiConverterString.write(value.deviceId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAuthSessionDto_lift(_ buf: RustBuffer) throws -> AuthSessionDto {
+    return try FfiConverterTypeAuthSessionDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAuthSessionDto_lower(_ value: AuthSessionDto) -> RustBuffer {
+    return FfiConverterTypeAuthSessionDto.lower(value)
+}
+
+
 public struct ColorRgba: Equatable, Hashable {
     public var r: UInt8
     public var g: UInt8
@@ -905,9 +1675,9 @@ public struct ColorRgba: Equatable, Hashable {
         self.a = a
     }
 
-    
 
-    
+
+
 }
 
 #if compiler(>=6)
@@ -921,9 +1691,9 @@ public struct FfiConverterTypeColorRgba: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ColorRgba {
         return
             try ColorRgba(
-                r: FfiConverterUInt8.read(from: &buf), 
-                g: FfiConverterUInt8.read(from: &buf), 
-                b: FfiConverterUInt8.read(from: &buf), 
+                r: FfiConverterUInt8.read(from: &buf),
+                g: FfiConverterUInt8.read(from: &buf),
+                b: FfiConverterUInt8.read(from: &buf),
                 a: FfiConverterUInt8.read(from: &buf)
         )
     }
@@ -952,6 +1722,114 @@ public func FfiConverterTypeColorRgba_lower(_ value: ColorRgba) -> RustBuffer {
 }
 
 
+public struct ExportFileDto: Equatable, Hashable {
+    public var path: String
+    public var content: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(path: String, content: String) {
+        self.path = path
+        self.content = content
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ExportFileDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportFileDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportFileDto {
+        return
+            try ExportFileDto(
+                path: FfiConverterString.read(from: &buf),
+                content: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExportFileDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportFileDto_lift(_ buf: RustBuffer) throws -> ExportFileDto {
+    return try FfiConverterTypeExportFileDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportFileDto_lower(_ value: ExportFileDto) -> RustBuffer {
+    return FfiConverterTypeExportFileDto.lower(value)
+}
+
+
+public struct ImportFileDto: Equatable, Hashable {
+    public var filename: String
+    public var content: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(filename: String, content: String) {
+        self.filename = filename
+        self.content = content
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ImportFileDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeImportFileDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ImportFileDto {
+        return
+            try ImportFileDto(
+                filename: FfiConverterString.read(from: &buf),
+                content: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ImportFileDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.filename, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImportFileDto_lift(_ buf: RustBuffer) throws -> ImportFileDto {
+    return try FfiConverterTypeImportFileDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeImportFileDto_lower(_ value: ImportFileDto) -> RustBuffer {
+    return FfiConverterTypeImportFileDto.lower(value)
+}
+
+
 /**
  * One captured stylus sample. The native layer (PencilKit-free; raw
  * `UITouch`/`NSEvent`/`MotionEvent`) normalizes its input into these.
@@ -966,7 +1844,7 @@ public struct InkPoint: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(x: Float, y: Float, 
+    public init(x: Float, y: Float,
         /**
          * 0.0–1.0 pen pressure; pass 1.0 for mouse/finger without force.
          */pressure: Float) {
@@ -975,9 +1853,9 @@ public struct InkPoint: Equatable, Hashable {
         self.pressure = pressure
     }
 
-    
 
-    
+
+
 }
 
 #if compiler(>=6)
@@ -991,8 +1869,8 @@ public struct FfiConverterTypeInkPoint: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InkPoint {
         return
             try InkPoint(
-                x: FfiConverterFloat.read(from: &buf), 
-                y: FfiConverterFloat.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf),
+                y: FfiConverterFloat.read(from: &buf),
                 pressure: FfiConverterFloat.read(from: &buf)
         )
     }
@@ -1036,9 +1914,9 @@ public struct InkStroke: Equatable, Hashable {
         self.width = width
     }
 
-    
 
-    
+
+
 }
 
 #if compiler(>=6)
@@ -1052,8 +1930,8 @@ public struct FfiConverterTypeInkStroke: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InkStroke {
         return
             try InkStroke(
-                points: FfiConverterSequenceTypeInkPoint.read(from: &buf), 
-                color: FfiConverterTypeColorRgba.read(from: &buf), 
+                points: FfiConverterSequenceTypeInkPoint.read(from: &buf),
+                color: FfiConverterTypeColorRgba.read(from: &buf),
                 width: FfiConverterFloat.read(from: &buf)
         )
     }
@@ -1078,6 +1956,134 @@ public func FfiConverterTypeInkStroke_lift(_ buf: RustBuffer) throws -> InkStrok
 #endif
 public func FfiConverterTypeInkStroke_lower(_ value: InkStroke) -> RustBuffer {
     return FfiConverterTypeInkStroke.lower(value)
+}
+
+
+public struct McpClientDto: Equatable, Hashable {
+    public var id: String
+    public var name: String
+    public var trusted: Bool
+    public var createdAt: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, name: String, trusted: Bool, createdAt: Int64) {
+        self.id = id
+        self.name = name
+        self.trusted = trusted
+        self.createdAt = createdAt
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension McpClientDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMcpClientDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> McpClientDto {
+        return
+            try McpClientDto(
+                id: FfiConverterString.read(from: &buf),
+                name: FfiConverterString.read(from: &buf),
+                trusted: FfiConverterBool.read(from: &buf),
+                createdAt: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: McpClientDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterBool.write(value.trusted, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMcpClientDto_lift(_ buf: RustBuffer) throws -> McpClientDto {
+    return try FfiConverterTypeMcpClientDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMcpClientDto_lower(_ value: McpClientDto) -> RustBuffer {
+    return FfiConverterTypeMcpClientDto.lower(value)
+}
+
+
+public struct NewAttachmentDto: Equatable, Hashable {
+    public var filename: String
+    public var mimeType: String
+    public var sizeBytes: Int64
+    public var contentHash: String
+    public var localPath: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(filename: String, mimeType: String, sizeBytes: Int64, contentHash: String, localPath: String?) {
+        self.filename = filename
+        self.mimeType = mimeType
+        self.sizeBytes = sizeBytes
+        self.contentHash = contentHash
+        self.localPath = localPath
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NewAttachmentDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNewAttachmentDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NewAttachmentDto {
+        return
+            try NewAttachmentDto(
+                filename: FfiConverterString.read(from: &buf),
+                mimeType: FfiConverterString.read(from: &buf),
+                sizeBytes: FfiConverterInt64.read(from: &buf),
+                contentHash: FfiConverterString.read(from: &buf),
+                localPath: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NewAttachmentDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.filename, into: &buf)
+        FfiConverterString.write(value.mimeType, into: &buf)
+        FfiConverterInt64.write(value.sizeBytes, into: &buf)
+        FfiConverterString.write(value.contentHash, into: &buf)
+        FfiConverterOptionString.write(value.localPath, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNewAttachmentDto_lift(_ buf: RustBuffer) throws -> NewAttachmentDto {
+    return try FfiConverterTypeNewAttachmentDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNewAttachmentDto_lower(_ value: NewAttachmentDto) -> RustBuffer {
+    return FfiConverterTypeNewAttachmentDto.lower(value)
 }
 
 
@@ -1112,9 +2118,9 @@ public struct NoteDto: Equatable, Hashable {
         self.status = status
     }
 
-    
 
-    
+
+
 }
 
 #if compiler(>=6)
@@ -1128,14 +2134,14 @@ public struct FfiConverterTypeNoteDto: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NoteDto {
         return
             try NoteDto(
-                id: FfiConverterString.read(from: &buf), 
-                notebookId: FfiConverterString.read(from: &buf), 
-                title: FfiConverterString.read(from: &buf), 
-                bodyMarkdown: FfiConverterString.read(from: &buf), 
-                createdAt: FfiConverterInt64.read(from: &buf), 
-                updatedAt: FfiConverterInt64.read(from: &buf), 
-                pinned: FfiConverterBool.read(from: &buf), 
-                favorite: FfiConverterBool.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf),
+                notebookId: FfiConverterString.read(from: &buf),
+                title: FfiConverterString.read(from: &buf),
+                bodyMarkdown: FfiConverterString.read(from: &buf),
+                createdAt: FfiConverterInt64.read(from: &buf),
+                updatedAt: FfiConverterInt64.read(from: &buf),
+                pinned: FfiConverterBool.read(from: &buf),
+                favorite: FfiConverterBool.read(from: &buf),
                 status: FfiConverterString.read(from: &buf)
         )
     }
@@ -1169,6 +2175,64 @@ public func FfiConverterTypeNoteDto_lower(_ value: NoteDto) -> RustBuffer {
 }
 
 
+public struct NoteLinkDto: Equatable, Hashable {
+    public var sourceNoteId: String
+    public var targetRef: String
+    public var linkKind: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(sourceNoteId: String, targetRef: String, linkKind: String) {
+        self.sourceNoteId = sourceNoteId
+        self.targetRef = targetRef
+        self.linkKind = linkKind
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NoteLinkDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNoteLinkDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NoteLinkDto {
+        return
+            try NoteLinkDto(
+                sourceNoteId: FfiConverterString.read(from: &buf),
+                targetRef: FfiConverterString.read(from: &buf),
+                linkKind: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NoteLinkDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sourceNoteId, into: &buf)
+        FfiConverterString.write(value.targetRef, into: &buf)
+        FfiConverterString.write(value.linkKind, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNoteLinkDto_lift(_ buf: RustBuffer) throws -> NoteLinkDto {
+    return try FfiConverterTypeNoteLinkDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNoteLinkDto_lower(_ value: NoteLinkDto) -> RustBuffer {
+    return FfiConverterTypeNoteLinkDto.lower(value)
+}
+
+
 /**
  * Flat representation of a notebook, safe to cross the FFI boundary.
  */
@@ -1185,9 +2249,9 @@ public struct NotebookDto: Equatable, Hashable {
         self.parentId = parentId
     }
 
-    
 
-    
+
+
 }
 
 #if compiler(>=6)
@@ -1201,8 +2265,8 @@ public struct FfiConverterTypeNotebookDto: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NotebookDto {
         return
             try NotebookDto(
-                id: FfiConverterString.read(from: &buf), 
-                name: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf),
+                name: FfiConverterString.read(from: &buf),
                 parentId: FfiConverterOptionString.read(from: &buf)
         )
     }
@@ -1230,6 +2294,158 @@ public func FfiConverterTypeNotebookDto_lower(_ value: NotebookDto) -> RustBuffe
 }
 
 
+public struct RevisionDto: Equatable, Hashable {
+    public var id: String
+    public var noteId: String
+    public var bodyMarkdown: String
+    public var reason: String?
+    public var source: String
+    public var createdAt: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, noteId: String, bodyMarkdown: String, reason: String?, source: String, createdAt: Int64) {
+        self.id = id
+        self.noteId = noteId
+        self.bodyMarkdown = bodyMarkdown
+        self.reason = reason
+        self.source = source
+        self.createdAt = createdAt
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RevisionDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRevisionDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RevisionDto {
+        return
+            try RevisionDto(
+                id: FfiConverterString.read(from: &buf),
+                noteId: FfiConverterString.read(from: &buf),
+                bodyMarkdown: FfiConverterString.read(from: &buf),
+                reason: FfiConverterOptionString.read(from: &buf),
+                source: FfiConverterString.read(from: &buf),
+                createdAt: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RevisionDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.noteId, into: &buf)
+        FfiConverterString.write(value.bodyMarkdown, into: &buf)
+        FfiConverterOptionString.write(value.reason, into: &buf)
+        FfiConverterString.write(value.source, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRevisionDto_lift(_ buf: RustBuffer) throws -> RevisionDto {
+    return try FfiConverterTypeRevisionDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRevisionDto_lower(_ value: RevisionDto) -> RustBuffer {
+    return FfiConverterTypeRevisionDto.lower(value)
+}
+
+
+public struct ShareMemberDto: Equatable, Hashable {
+    public var id: String
+    public var shareId: String
+    public var resourceType: String
+    public var resourceId: String
+    public var email: String
+    public var role: String
+    public var status: String
+    public var createdAt: Int64
+    public var updatedAt: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, shareId: String, resourceType: String, resourceId: String, email: String, role: String, status: String, createdAt: Int64, updatedAt: Int64) {
+        self.id = id
+        self.shareId = shareId
+        self.resourceType = resourceType
+        self.resourceId = resourceId
+        self.email = email
+        self.role = role
+        self.status = status
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ShareMemberDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeShareMemberDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ShareMemberDto {
+        return
+            try ShareMemberDto(
+                id: FfiConverterString.read(from: &buf),
+                shareId: FfiConverterString.read(from: &buf),
+                resourceType: FfiConverterString.read(from: &buf),
+                resourceId: FfiConverterString.read(from: &buf),
+                email: FfiConverterString.read(from: &buf),
+                role: FfiConverterString.read(from: &buf),
+                status: FfiConverterString.read(from: &buf),
+                createdAt: FfiConverterInt64.read(from: &buf),
+                updatedAt: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ShareMemberDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.shareId, into: &buf)
+        FfiConverterString.write(value.resourceType, into: &buf)
+        FfiConverterString.write(value.resourceId, into: &buf)
+        FfiConverterString.write(value.email, into: &buf)
+        FfiConverterString.write(value.role, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterInt64.write(value.updatedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShareMemberDto_lift(_ buf: RustBuffer) throws -> ShareMemberDto {
+    return try FfiConverterTypeShareMemberDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeShareMemberDto_lower(_ value: ShareMemberDto) -> RustBuffer {
+    return FfiConverterTypeShareMemberDto.lower(value)
+}
+
+
 /**
  * Flat representation of a sketch.
  */
@@ -1246,9 +2462,9 @@ public struct SketchDto: Equatable, Hashable {
         self.title = title
     }
 
-    
 
-    
+
+
 }
 
 #if compiler(>=6)
@@ -1262,8 +2478,8 @@ public struct FfiConverterTypeSketchDto: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SketchDto {
         return
             try SketchDto(
-                id: FfiConverterString.read(from: &buf), 
-                noteId: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf),
+                noteId: FfiConverterString.read(from: &buf),
                 title: FfiConverterOptionString.read(from: &buf)
         )
     }
@@ -1291,6 +2507,236 @@ public func FfiConverterTypeSketchDto_lower(_ value: SketchDto) -> RustBuffer {
 }
 
 
+public struct SkillDto: Equatable, Hashable {
+    public var id: String
+    public var title: String
+    public var bodyMarkdown: String
+    public var scope: String
+    public var enabled: Bool
+    public var createdAt: Int64
+    public var updatedAt: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, title: String, bodyMarkdown: String, scope: String, enabled: Bool, createdAt: Int64, updatedAt: Int64) {
+        self.id = id
+        self.title = title
+        self.bodyMarkdown = bodyMarkdown
+        self.scope = scope
+        self.enabled = enabled
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SkillDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSkillDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SkillDto {
+        return
+            try SkillDto(
+                id: FfiConverterString.read(from: &buf),
+                title: FfiConverterString.read(from: &buf),
+                bodyMarkdown: FfiConverterString.read(from: &buf),
+                scope: FfiConverterString.read(from: &buf),
+                enabled: FfiConverterBool.read(from: &buf),
+                createdAt: FfiConverterInt64.read(from: &buf),
+                updatedAt: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SkillDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.bodyMarkdown, into: &buf)
+        FfiConverterString.write(value.scope, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterInt64.write(value.updatedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSkillDto_lift(_ buf: RustBuffer) throws -> SkillDto {
+    return try FfiConverterTypeSkillDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSkillDto_lower(_ value: SkillDto) -> RustBuffer {
+    return FfiConverterTypeSkillDto.lower(value)
+}
+
+
+public struct SkillRunDto: Equatable, Hashable {
+    public var id: String
+    public var skillId: String
+    public var targetType: String?
+    public var targetId: String?
+    public var mode: String
+    public var status: String
+    public var outputSummary: String?
+    public var createdAt: Int64
+    public var completedAt: Int64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, skillId: String, targetType: String?, targetId: String?, mode: String, status: String, outputSummary: String?, createdAt: Int64, completedAt: Int64?) {
+        self.id = id
+        self.skillId = skillId
+        self.targetType = targetType
+        self.targetId = targetId
+        self.mode = mode
+        self.status = status
+        self.outputSummary = outputSummary
+        self.createdAt = createdAt
+        self.completedAt = completedAt
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SkillRunDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSkillRunDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SkillRunDto {
+        return
+            try SkillRunDto(
+                id: FfiConverterString.read(from: &buf),
+                skillId: FfiConverterString.read(from: &buf),
+                targetType: FfiConverterOptionString.read(from: &buf),
+                targetId: FfiConverterOptionString.read(from: &buf),
+                mode: FfiConverterString.read(from: &buf),
+                status: FfiConverterString.read(from: &buf),
+                outputSummary: FfiConverterOptionString.read(from: &buf),
+                createdAt: FfiConverterInt64.read(from: &buf),
+                completedAt: FfiConverterOptionInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SkillRunDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.skillId, into: &buf)
+        FfiConverterOptionString.write(value.targetType, into: &buf)
+        FfiConverterOptionString.write(value.targetId, into: &buf)
+        FfiConverterString.write(value.mode, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterOptionString.write(value.outputSummary, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterOptionInt64.write(value.completedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSkillRunDto_lift(_ buf: RustBuffer) throws -> SkillRunDto {
+    return try FfiConverterTypeSkillRunDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSkillRunDto_lower(_ value: SkillRunDto) -> RustBuffer {
+    return FfiConverterTypeSkillRunDto.lower(value)
+}
+
+
+public struct SyncReportDto: Equatable, Hashable {
+    public var pushed: UInt32
+    public var applied: UInt32
+    public var conflicted: UInt32
+    public var deleted: UInt32
+    public var skipped: UInt32
+    public var uploadedBlobs: UInt32
+    public var downloadedBlobs: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(pushed: UInt32, applied: UInt32, conflicted: UInt32, deleted: UInt32, skipped: UInt32, uploadedBlobs: UInt32, downloadedBlobs: UInt32) {
+        self.pushed = pushed
+        self.applied = applied
+        self.conflicted = conflicted
+        self.deleted = deleted
+        self.skipped = skipped
+        self.uploadedBlobs = uploadedBlobs
+        self.downloadedBlobs = downloadedBlobs
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SyncReportDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSyncReportDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SyncReportDto {
+        return
+            try SyncReportDto(
+                pushed: FfiConverterUInt32.read(from: &buf),
+                applied: FfiConverterUInt32.read(from: &buf),
+                conflicted: FfiConverterUInt32.read(from: &buf),
+                deleted: FfiConverterUInt32.read(from: &buf),
+                skipped: FfiConverterUInt32.read(from: &buf),
+                uploadedBlobs: FfiConverterUInt32.read(from: &buf),
+                downloadedBlobs: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SyncReportDto, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.pushed, into: &buf)
+        FfiConverterUInt32.write(value.applied, into: &buf)
+        FfiConverterUInt32.write(value.conflicted, into: &buf)
+        FfiConverterUInt32.write(value.deleted, into: &buf)
+        FfiConverterUInt32.write(value.skipped, into: &buf)
+        FfiConverterUInt32.write(value.uploadedBlobs, into: &buf)
+        FfiConverterUInt32.write(value.downloadedBlobs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSyncReportDto_lift(_ buf: RustBuffer) throws -> SyncReportDto {
+    return try FfiConverterTypeSyncReportDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSyncReportDto_lower(_ value: SyncReportDto) -> RustBuffer {
+    return FfiConverterTypeSyncReportDto.lower(value)
+}
+
+
 /**
  * Flat representation of a tag.
  */
@@ -1307,9 +2753,9 @@ public struct TagDto: Equatable, Hashable {
         self.color = color
     }
 
-    
 
-    
+
+
 }
 
 #if compiler(>=6)
@@ -1323,8 +2769,8 @@ public struct FfiConverterTypeTagDto: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TagDto {
         return
             try TagDto(
-                id: FfiConverterString.read(from: &buf), 
-                name: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf),
+                name: FfiConverterString.read(from: &buf),
                 color: FfiConverterOptionString.read(from: &buf)
         )
     }
@@ -1352,22 +2798,84 @@ public func FfiConverterTypeTagDto_lower(_ value: TagDto) -> RustBuffer {
 }
 
 
+public struct TaskItemDto: Equatable, Hashable {
+    public var id: String
+    public var noteId: String
+    public var text: String
+    public var checked: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, noteId: String, text: String, checked: Bool) {
+        self.id = id
+        self.noteId = noteId
+        self.text = text
+        self.checked = checked
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension TaskItemDto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTaskItemDto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TaskItemDto {
+        return
+            try TaskItemDto(
+                id: FfiConverterString.read(from: &buf),
+                noteId: FfiConverterString.read(from: &buf),
+                text: FfiConverterString.read(from: &buf),
+                checked: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TaskItemDto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.noteId, into: &buf)
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterBool.write(value.checked, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTaskItemDto_lift(_ buf: RustBuffer) throws -> TaskItemDto {
+    return try FfiConverterTypeTaskItemDto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTaskItemDto_lower(_ value: TaskItemDto) -> RustBuffer {
+    return FfiConverterTypeTaskItemDto.lower(value)
+}
+
+
 public enum KansoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
-    
-    
+
+
     case Engine(message: String
     )
 
-    
 
-    
 
-    
+
+
+
     public var errorDescription: String? {
         String(reflecting: self)
     }
-    
+
 }
 
 #if compiler(>=6)
@@ -1384,9 +2892,9 @@ public struct FfiConverterTypeKansoError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
-        
 
-        
+
+
         case 1: return .Engine(
             message: try FfiConverterString.read(from: &buf)
             )
@@ -1398,14 +2906,14 @@ public struct FfiConverterTypeKansoError: FfiConverterRustBuffer {
     public static func write(_ value: KansoError, into buf: inout [UInt8]) {
         switch value {
 
-        
 
-        
-        
+
+
+
         case let .Engine(message):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(message, into: &buf)
-            
+
         }
     }
 }
@@ -1423,6 +2931,30 @@ public func FfiConverterTypeKansoError_lift(_ buf: RustBuffer) throws -> KansoEr
 #endif
 public func FfiConverterTypeKansoError_lower(_ value: KansoError) -> RustBuffer {
     return FfiConverterTypeKansoError.lower(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
+    typealias SwiftType = Int64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
 }
 
 #if swift(>=5.8)
@@ -1470,6 +3002,106 @@ fileprivate struct FfiConverterOptionTypeNoteDto: FfiConverterRustBuffer {
         case 1: return try FfiConverterTypeNoteDto.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAttachmentDto: FfiConverterRustBuffer {
+    typealias SwiftType = [AttachmentDto]
+
+    public static func write(_ value: [AttachmentDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAttachmentDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AttachmentDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AttachmentDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAttachmentDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeExportFileDto: FfiConverterRustBuffer {
+    typealias SwiftType = [ExportFileDto]
+
+    public static func write(_ value: [ExportFileDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeExportFileDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ExportFileDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ExportFileDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeExportFileDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeImportFileDto: FfiConverterRustBuffer {
+    typealias SwiftType = [ImportFileDto]
+
+    public static func write(_ value: [ImportFileDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeImportFileDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ImportFileDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ImportFileDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeImportFileDto.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -1526,6 +3158,31 @@ fileprivate struct FfiConverterSequenceTypeInkStroke: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeMcpClientDto: FfiConverterRustBuffer {
+    typealias SwiftType = [McpClientDto]
+
+    public static func write(_ value: [McpClientDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMcpClientDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [McpClientDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [McpClientDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMcpClientDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeNoteDto: FfiConverterRustBuffer {
     typealias SwiftType = [NoteDto]
 
@@ -1543,6 +3200,31 @@ fileprivate struct FfiConverterSequenceTypeNoteDto: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeNoteDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeNoteLinkDto: FfiConverterRustBuffer {
+    typealias SwiftType = [NoteLinkDto]
+
+    public static func write(_ value: [NoteLinkDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeNoteLinkDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [NoteLinkDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [NoteLinkDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeNoteLinkDto.read(from: &buf))
         }
         return seq
     }
@@ -1576,6 +3258,56 @@ fileprivate struct FfiConverterSequenceTypeNotebookDto: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeRevisionDto: FfiConverterRustBuffer {
+    typealias SwiftType = [RevisionDto]
+
+    public static func write(_ value: [RevisionDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRevisionDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RevisionDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RevisionDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRevisionDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeShareMemberDto: FfiConverterRustBuffer {
+    typealias SwiftType = [ShareMemberDto]
+
+    public static func write(_ value: [ShareMemberDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeShareMemberDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ShareMemberDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ShareMemberDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeShareMemberDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeSketchDto: FfiConverterRustBuffer {
     typealias SwiftType = [SketchDto]
 
@@ -1593,6 +3325,56 @@ fileprivate struct FfiConverterSequenceTypeSketchDto: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeSketchDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSkillDto: FfiConverterRustBuffer {
+    typealias SwiftType = [SkillDto]
+
+    public static func write(_ value: [SkillDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSkillDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SkillDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SkillDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSkillDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSkillRunDto: FfiConverterRustBuffer {
+    typealias SwiftType = [SkillRunDto]
+
+    public static func write(_ value: [SkillRunDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSkillRunDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SkillRunDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SkillRunDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSkillRunDto.read(from: &buf))
         }
         return seq
     }
@@ -1623,6 +3405,31 @@ fileprivate struct FfiConverterSequenceTypeTagDto: FfiConverterRustBuffer {
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTaskItemDto: FfiConverterRustBuffer {
+    typealias SwiftType = [TaskItemDto]
+
+    public static func write(_ value: [TaskItemDto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTaskItemDto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TaskItemDto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TaskItemDto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTaskItemDto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 private enum InitializationResult {
     case ok
     case contractVersionMismatch
@@ -1638,6 +3445,21 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_add_share_member() != 45256) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_attach_file() != 2615) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_backlinks() != 63516) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_complete_skill_run() != 17811) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_create_daily_note() != 49741) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_create_note() != 19727) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -1647,13 +3469,52 @@ private let initializationResult: InitializationResult = {
     if (uniffi_kanso_ffi_checksum_method_kansoengine_create_sketch() != 47100) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_create_skill() != 1126) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_create_tag() != 30943) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_delete_attachment() != 53794) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_delete_note() != 61811) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_delete_notebook() != 54194) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_delete_skill() != 53748) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_export_notebook_markdown() != 4717) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_get_note() != 24197) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_get_sketch_strokes() != 51507) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_grant_mcp_capability() != 34893) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_import_markdown() != 40878) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_attachments() != 45437) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_child_notebooks() != 60007) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_conflicts() != 10436) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_mcp_capabilities() != 19937) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_mcp_clients() != 30921) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_list_notebooks() != 11176) {
@@ -1662,31 +3523,142 @@ private let initializationResult: InitializationResult = {
     if (uniffi_kanso_ffi_checksum_method_kansoengine_list_notes() != 891) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_open_tasks() != 22384) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_revisions() != 17756) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_root_notebooks() != 51787) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_share_members() != 63752) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_list_sketches() != 43733) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_skill_runs() != 26215) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_skills() != 62700) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_list_tags() != 22735) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_tasks() != 16096) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_list_trash() != 48772) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_login_http() != 13426) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_move_note() != 2739) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_move_notebook() != 50841) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_notes_with_tag() != 26982) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_outgoing_links() != 64548) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_purge_note() != 19661) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_refresh_http() != 3322) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_register_http() != 49415) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_register_mcp_client() != 65287) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_remove_share_member() != 14860) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_rename_note() != 18742) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_rename_notebook() != 54292) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_render_note_html() != 27215) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_render_sketch_preview() != 15163) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_restore_note() != 49334) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_restore_revision() != 53871) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_revoke_mcp_capability() != 4703) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_search_notes() != 37587) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_set_mcp_client_trusted() != 65045) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_set_note_favorite() != 54105) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_set_note_pinned() != 21078) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_set_note_status() != 16673) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_set_task_checked() != 300) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_start_skill_run() != 991) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_sync_http() != 31362) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_sync_http_with_blobs() != 51814) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_tag_note() != 32525) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_tags_for_note() != 20802) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_untag_note() != 45947) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_kanso_ffi_checksum_method_kansoengine_update_note_body() != 3144) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_update_sketch() != 1749) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_method_kansoengine_update_skill() != 43742) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_kanso_ffi_checksum_constructor_kansoengine_open() != 2314) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_kanso_ffi_checksum_constructor_kansoengine_open_in_memory() != 64353) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_constructor_kansoengine_open_in_memory_with_encryption_passphrase() != 59369) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_kanso_ffi_checksum_constructor_kansoengine_open_with_encryption_passphrase() != 63803) {
         return InitializationResult.apiChecksumMismatch
     }
 

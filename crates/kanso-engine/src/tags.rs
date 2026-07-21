@@ -22,7 +22,11 @@ impl Engine {
             .execute(&mut *tx)
             .await?;
 
-        let payload = TagPayload { name: name.to_string(), color: None, updated_at: now };
+        let payload = TagPayload {
+            name: name.to_string(),
+            color: None,
+            updated_at: now,
+        };
         enqueue_outbox(
             &mut tx,
             EntityType::Tag,
@@ -34,7 +38,11 @@ impl Engine {
         .await?;
 
         tx.commit().await?;
-        Ok(Tag { id, name: name.to_string(), color: None })
+        Ok(Tag {
+            id,
+            name: name.to_string(),
+            color: None,
+        })
     }
 
     pub async fn tag_note(&self, note_id: &str, tag_id: &str) -> Result<()> {
@@ -73,7 +81,10 @@ impl Engine {
             .bind(tag_id)
             .execute(&mut *tx)
             .await?;
-        let payload = NoteTagPayload { note_id: note_id.to_string(), tag_id: tag_id.to_string() };
+        let payload = NoteTagPayload {
+            note_id: note_id.to_string(),
+            tag_id: tag_id.to_string(),
+        };
         enqueue_outbox(
             &mut *tx,
             EntityType::NoteTag,

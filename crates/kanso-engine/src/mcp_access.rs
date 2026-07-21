@@ -20,7 +20,12 @@ impl Engine {
             .bind(now)
             .execute(&self.pool)
             .await?;
-        Ok(McpClient { id, name: name.to_string(), trusted: 0, created_at: now })
+        Ok(McpClient {
+            id,
+            name: name.to_string(),
+            trusted: 0,
+            created_at: now,
+        })
     }
 
     pub async fn list_mcp_clients(&self) -> Result<Vec<McpClient>> {
@@ -29,6 +34,16 @@ impl Engine {
         )
         .fetch_all(&self.pool)
         .await?)
+    }
+
+    pub async fn list_mcp_capabilities(&self, client_id: &str) -> Result<Vec<String>> {
+        let rows = sqlx::query_as::<_, (String,)>(
+            "SELECT capability FROM mcp_permissions WHERE client_id = ? ORDER BY capability",
+        )
+        .bind(client_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|(capability,)| capability).collect())
     }
 
     pub async fn grant_capability(&self, client_id: &str, capability: &str) -> Result<()> {

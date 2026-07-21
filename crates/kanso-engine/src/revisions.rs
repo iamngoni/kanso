@@ -18,7 +18,10 @@ impl Engine {
             "SELECT {REVISION_COLUMNS} FROM revisions WHERE note_id = ? \
              ORDER BY created_at DESC, id DESC"
         );
-        Ok(sqlx::query_as::<_, Revision>(&sql).bind(note_id).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_, Revision>(&sql)
+            .bind(note_id)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     /// Conflict copies for a note — remote versions preserved when local was
@@ -28,7 +31,10 @@ impl Engine {
             "SELECT {REVISION_COLUMNS} FROM revisions WHERE note_id = ? AND source = 'conflict' \
              ORDER BY created_at DESC, id DESC"
         );
-        Ok(sqlx::query_as::<_, Revision>(&sql).bind(note_id).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_, Revision>(&sql)
+            .bind(note_id)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     /// Restore a note's body to a prior revision (which itself snapshots the

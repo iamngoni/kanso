@@ -15,7 +15,12 @@ const RUN_COLUMNS: &str =
     "id, skill_id, target_type, target_id, mode, status, output_summary, created_at, completed_at";
 
 impl Engine {
-    pub async fn create_skill(&self, title: &str, body_markdown: &str, scope: &str) -> Result<Skill> {
+    pub async fn create_skill(
+        &self,
+        title: &str,
+        body_markdown: &str,
+        scope: &str,
+    ) -> Result<Skill> {
         let id = SkillId::new().0;
         let now = now_ms();
         sqlx::query(
@@ -43,7 +48,9 @@ impl Engine {
 
     pub async fn list_skills(&self) -> Result<Vec<Skill>> {
         let query = format!("SELECT {SKILL_COLUMNS} FROM skills ORDER BY title");
-        Ok(sqlx::query_as::<_, Skill>(&query).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_, Skill>(&query)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     pub async fn update_skill(
@@ -51,13 +58,15 @@ impl Engine {
         id: &str,
         title: &str,
         body_markdown: &str,
+        scope: &str,
         enabled: bool,
     ) -> Result<()> {
         let result = sqlx::query(
-            "UPDATE skills SET title = ?, body_markdown = ?, enabled = ?, updated_at = ? WHERE id = ?",
+            "UPDATE skills SET title = ?, body_markdown = ?, scope = ?, enabled = ?, updated_at = ? WHERE id = ?",
         )
         .bind(title)
         .bind(body_markdown)
+        .bind(scope)
         .bind(enabled as i64)
         .bind(now_ms())
         .bind(id)
@@ -144,7 +153,9 @@ impl Engine {
     }
 
     pub async fn list_skill_runs(&self, skill_id: &str) -> Result<Vec<SkillRun>> {
-        let query = format!("SELECT {RUN_COLUMNS} FROM skill_runs WHERE skill_id = ? ORDER BY created_at DESC");
+        let query = format!(
+            "SELECT {RUN_COLUMNS} FROM skill_runs WHERE skill_id = ? ORDER BY created_at DESC"
+        );
         Ok(sqlx::query_as::<_, SkillRun>(&query)
             .bind(skill_id)
             .fetch_all(&self.pool)

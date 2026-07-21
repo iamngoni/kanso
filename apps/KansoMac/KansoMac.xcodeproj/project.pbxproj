@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		346757F6007DCAE9D16C5E1B /* KansoFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 997BCBAE82D1BD75DB094B16 /* KansoFFI.xcframework */; };
-		A8E43B60989CB110F488E79D /* KansoFFI.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 997BCBAE82D1BD75DB094B16 /* KansoFFI.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,20 +26,6 @@
 			remoteInfo = KansoMac;
 		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		125A1AF59DA5CFCDCF90016C /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				A8E43B60989CB110F488E79D /* KansoFFI.xcframework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		997BCBAE82D1BD75DB094B16 /* KansoFFI.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; path = KansoFFI.xcframework; sourceTree = "<group>"; };
@@ -138,7 +123,6 @@
 				D62606B02FC97F3A006A8749 /* Sources */,
 				D62606B12FC97F3A006A8749 /* Frameworks */,
 				D62606B22FC97F3A006A8749 /* Resources */,
-				125A1AF59DA5CFCDCF90016C /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -431,6 +415,7 @@
 				DEVELOPMENT_TEAM = 4973Y692JU;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -447,12 +432,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = za.co.codecraftsolutions.KansoMac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+					STRING_CATALOG_GENERATE_SYMBOLS = YES;
+					SWIFT_APPROACHABLE_CONCURRENCY = YES;
+					SWIFT_EMIT_LOC_STRINGS = YES;
+					SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+					SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -467,6 +451,7 @@
 				DEVELOPMENT_TEAM = 4973Y692JU;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -483,12 +468,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = za.co.codecraftsolutions.KansoMac;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+					STRING_CATALOG_GENERATE_SYMBOLS = YES;
+					SWIFT_APPROACHABLE_CONCURRENCY = YES;
+					SWIFT_EMIT_LOC_STRINGS = YES;
+					SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+					SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};

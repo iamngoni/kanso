@@ -30,7 +30,7 @@ argon2.workspace = true
 jsonwebtoken.workspace = true
 thiserror.workspace = true
 sha2 = "0.10"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "macros", "uuid"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "macros", "migrate", "uuid"] }
 
 [dev-dependencies]
 tokio.workspace = true

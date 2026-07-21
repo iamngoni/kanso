@@ -8,15 +8,18 @@
 use async_trait::async_trait;
 use kanso_engine::SyncTransport;
 use kanso_types::{
-    AuthResponse, LoginRequest, OutboxEvent, PullResponse, PushRequest, PushResponse, RegisterRequest,
-    RemoteChange,
+    AuthResponse, LoginRequest, OutboxEvent, PullResponse, PushRequest, PushResponse,
+    RegisterRequest, RemoteChange,
 };
 use uuid::Uuid;
 
 /// Register a new account; returns a session token + ids for a fresh device.
 pub async fn register(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, String> {
     let base = base_url.trim_end_matches('/');
-    let body = RegisterRequest { email: email.to_string(), password: password.to_string() };
+    let body = RegisterRequest {
+        email: email.to_string(),
+        password: password.to_string(),
+    };
     let response = reqwest::Client::new()
         .post(format!("{base}/v1/auth/register"))
         .json(&body)
@@ -61,7 +64,9 @@ pub async fn get_blob(base_url: &str, token: &str, hash: &str) -> Result<Option<
     if !response.status().is_success() {
         return Err(format!("get_blob failed: HTTP {}", response.status()));
     }
-    Ok(Some(response.bytes().await.map_err(|e| e.to_string())?.to_vec()))
+    Ok(Some(
+        response.bytes().await.map_err(|e| e.to_string())?.to_vec(),
+    ))
 }
 
 /// Refresh a session token, returning a new one for the same user+device.
@@ -93,7 +98,10 @@ fn sha256_hex(bytes: &[u8]) -> String {
 /// Log in to an existing account; returns a token for a new device session.
 pub async fn login(base_url: &str, email: &str, password: &str) -> Result<AuthResponse, String> {
     let base = base_url.trim_end_matches('/');
-    let body = LoginRequest { email: email.to_string(), password: password.to_string() };
+    let body = LoginRequest {
+        email: email.to_string(),
+        password: password.to_string(),
+    };
     let response = reqwest::Client::new()
         .post(format!("{base}/v1/auth/login"))
         .json(&body)
@@ -147,7 +155,11 @@ impl SyncTransport for HttpSyncTransport {
             events,
         };
         let response = self
-            .with_auth(self.client.post(format!("{}/v1/sync/push", self.base_url)).json(&request))
+            .with_auth(
+                self.client
+                    .post(format!("{}/v1/sync/push", self.base_url))
+                    .json(&request),
+            )
             .send()
             .await
             .map_err(|e| e.to_string())?;

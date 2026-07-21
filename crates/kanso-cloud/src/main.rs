@@ -40,14 +40,19 @@ async fn main() -> std::io::Result<()> {
             }
             Err(_) => {
                 log::info!("DATABASE_URL not set — using in-memory stores (non-durable)");
-                (Arc::new(MemoryStore::default()), Arc::new(MemoryAccountStore::default()))
+                (
+                    Arc::new(MemoryStore::default()),
+                    Arc::new(MemoryAccountStore::default()),
+                )
             }
         };
 
     let secret = match std::env::var("KANSO_JWT_SECRET") {
         Ok(s) => s,
         Err(_) => {
-            log::warn!("KANSO_JWT_SECRET not set — using an ephemeral dev secret (tokens reset on restart)");
+            log::warn!(
+                "KANSO_JWT_SECRET not set — using an ephemeral dev secret (tokens reset on restart)"
+            );
             "dev-only-insecure-secret".to_string()
         }
     };
@@ -71,7 +76,12 @@ async fn main() -> std::io::Result<()> {
             .app_data(account_data.clone())
             .app_data(jwt_data.clone())
             .app_data(blob_data.clone())
-            .wrap(Cors::default().allow_any_origin().allow_any_method().allow_any_header())
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()
+                    .allow_any_method()
+                    .allow_any_header(),
+            )
             .wrap(Logger::default())
             .configure(routes)
     })

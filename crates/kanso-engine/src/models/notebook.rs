@@ -1,7 +1,5 @@
-use sqlx::FromRow;
-
 /// A user-facing container for notes.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct Notebook {
     pub id: String,
     pub name: String,
@@ -11,3 +9,13 @@ pub struct Notebook {
     pub updated_at: i64,
     pub deleted_at: Option<i64>,
 }
+
+impl_sqlite_from_row!(Notebook {
+    id,
+    name,
+    parent_id,
+    sort_order,
+    created_at,
+    updated_at,
+    deleted_at,
+});

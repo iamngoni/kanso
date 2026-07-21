@@ -8,7 +8,7 @@
 
 use kanso_types::payloads::{
     AttachmentPayload, DeletePayload, NoteCreatedPayload, NoteMovedPayload, NoteTagPayload,
-    NoteUpdatedPayload, NotebookPayload, SketchPayload, TagPayload,
+    NoteUpdatedPayload, NotebookPayload, ShareMemberPayload, SketchPayload, TagPayload,
 };
 use kanso_types::sync::{EntityType, Operation, RemoteChange};
 use sqlx::SqliteConnection;
@@ -33,7 +33,8 @@ impl Engine {
             }
             Operation::NotebookDeleted => {
                 let p: DeletePayload = serde_json::from_value(event.payload.clone())?;
-                apply_soft_delete(&mut tx, "notebooks", EntityType::Notebook, id, p.deleted_at).await?
+                apply_soft_delete(&mut tx, "notebooks", EntityType::Notebook, id, p.deleted_at)
+                    .await?
             }
             Operation::NoteCreated => {
                 let p: NoteCreatedPayload = serde_json::from_value(event.payload.clone())?;
@@ -125,11 +126,103 @@ impl Engine {
                 insert_tombstone(&mut tx, EntityType::Sketch, id, p.deleted_at).await?;
                 ApplyOutcome::Deleted
             }
+            Operation::ShareMemberAdded => {
+                let p: ShareMemberPayload = serde_json::from_value(event.payload.clone())?;
+                apply_share_member_upsert(&mut tx, id, &p).await?
+            }
+            Operation::ShareMemberRemoved => {
+                let p: DeletePayload = serde_json::from_value(event.payload.clone())?;
+                sqlx::query("DELETE FROM share_members WHERE id = ?")
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await?;
+                insert_tombstone(&mut tx, EntityType::ShareMember, id, p.deleted_at).await?;
+                ApplyOutcome::Deleted
+            }
         };
 
         tx.commit().await?;
         Ok(outcome)
     }
+}
+
+async fn apply_share_member_upsert(
+    conn: &mut SqliteConnection,
+    id: &str,
+    p: &ShareMemberPayload,
+) -> Result<ApplyOutcome> {
+    if tombstoned_after(&mut *conn, EntityType::ShareMember, id, p.updated_at).await? {
+        return Ok(ApplyOutcome::Skipped);
+    }
+
+    let share_id = ensure_share_for_member(&mut *conn, p).await?;
+    let existing: Option<(i64,)> =
+        sqlx::query_as("SELECT updated_at FROM share_members WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&mut *conn)
+            .await?;
+    if matches!(existing, Some((local_updated,)) if local_updated > p.updated_at) {
+        return Ok(ApplyOutcome::Skipped);
+    }
+
+    sqlx::query("DELETE FROM share_members WHERE share_id = ? AND email = ? AND id <> ?")
+        .bind(&share_id)
+        .bind(&p.email)
+        .bind(id)
+        .execute(&mut *conn)
+        .await?;
+
+    sqlx::query(
+        "INSERT INTO share_members (id, share_id, email, role, status, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?) \
+         ON CONFLICT(id) DO UPDATE SET \
+            share_id = excluded.share_id, \
+            email = excluded.email, \
+            role = excluded.role, \
+            status = excluded.status, \
+            updated_at = excluded.updated_at",
+    )
+    .bind(id)
+    .bind(&share_id)
+    .bind(&p.email)
+    .bind(&p.role)
+    .bind(&p.status)
+    .bind(p.created_at)
+    .bind(p.updated_at)
+    .execute(&mut *conn)
+    .await?;
+
+    Ok(ApplyOutcome::Applied)
+}
+
+async fn ensure_share_for_member(
+    conn: &mut SqliteConnection,
+    p: &ShareMemberPayload,
+) -> Result<String> {
+    if let Some((id,)) = sqlx::query_as::<_, (String,)>(
+        "SELECT id FROM shares WHERE resource_type = ? AND resource_id = ?",
+    )
+    .bind(&p.resource_type)
+    .bind(&p.resource_id)
+    .fetch_optional(&mut *conn)
+    .await?
+    {
+        return Ok(id);
+    }
+
+    let id = format!("share:{}", uuid::Uuid::now_v7());
+    sqlx::query(
+        "INSERT INTO shares (id, resource_type, resource_id, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&p.resource_type)
+    .bind(&p.resource_id)
+    .bind(p.created_at)
+    .bind(p.updated_at)
+    .execute(&mut *conn)
+    .await?;
+    Ok(id)
 }
 
 async fn apply_notebook_upsert(
@@ -187,7 +280,11 @@ async fn apply_soft_delete(
     deleted_at: i64,
 ) -> Result<ApplyOutcome> {
     let sql = format!("UPDATE {table} SET deleted_at = ? WHERE id = ?");
-    sqlx::query(&sql).bind(deleted_at).bind(id).execute(&mut *conn).await?;
+    sqlx::query(&sql)
+        .bind(deleted_at)
+        .bind(id)
+        .execute(&mut *conn)
+        .await?;
     insert_tombstone(&mut *conn, entity, id, deleted_at).await?;
     Ok(ApplyOutcome::Deleted)
 }

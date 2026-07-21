@@ -1,7 +1,5 @@
-use sqlx::FromRow;
-
 /// An approved MCP client (an AI agent / app granted scoped access).
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct McpClient {
     pub id: String,
     pub name: String,
@@ -9,3 +7,10 @@ pub struct McpClient {
     pub trusted: i64,
     pub created_at: i64,
 }
+
+impl_sqlite_from_row!(McpClient {
+    id,
+    name,
+    trusted,
+    created_at,
+});

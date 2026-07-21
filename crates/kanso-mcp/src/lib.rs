@@ -19,13 +19,19 @@ pub struct McpServer {
 impl McpServer {
     /// Wrap an already-opened engine in an unrestricted MCP server.
     pub fn new(engine: Engine) -> Self {
-        Self { engine, client_id: None }
+        Self {
+            engine,
+            client_id: None,
+        }
     }
 
     /// Wrap an engine for a specific approved client; tool calls are gated by
     /// that client's capabilities (see `Engine::client_can`).
     pub fn with_client(engine: Engine, client_id: impl Into<String>) -> Self {
-        Self { engine, client_id: Some(client_id.into()) }
+        Self {
+            engine,
+            client_id: Some(client_id.into()),
+        }
     }
 
     /// Handle one JSON-RPC request value. Returns `Some(response)` for requests
@@ -92,17 +98,33 @@ impl McpServer {
         // Enforce capability when scoped to a client.
         if let Some(client_id) = &self.client_id {
             let capability = capability_for(name);
-            if !self.engine.client_can(client_id, capability).await.map_err(|e| e.to_string())? {
-                return Err(format!("permission denied: '{name}' requires the '{capability}' capability"));
+            if !self
+                .engine
+                .client_can(client_id, capability)
+                .await
+                .map_err(|e| e.to_string())?
+            {
+                return Err(format!(
+                    "permission denied: '{name}' requires the '{capability}' capability"
+                ));
             }
         }
 
         // Helper: extract a string field from the arguments, defaulting to "".
-        let s = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+        let s = |k: &str| {
+            args.get(k)
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string()
+        };
 
         match name {
             "list_notebooks" => {
-                let nbs = self.engine.list_notebooks().await.map_err(|e| e.to_string())?;
+                let nbs = self
+                    .engine
+                    .list_notebooks()
+                    .await
+                    .map_err(|e| e.to_string())?;
                 Ok(nbs
                     .into_iter()
                     .map(|n| format!("{}\t{}", n.id, n.name))
@@ -193,7 +215,11 @@ impl McpServer {
             }
 
             "list_tasks" => {
-                let tasks = self.engine.list_tasks(&s("notebook_id")).await.map_err(|e| e.to_string())?;
+                let tasks = self
+                    .engine
+                    .list_tasks(&s("notebook_id"))
+                    .await
+                    .map_err(|e| e.to_string())?;
                 Ok(tasks
                     .into_iter()
                     .map(|t| format!("[{}] {}", if t.checked != 0 { "x" } else { " " }, t.text))
@@ -202,7 +228,11 @@ impl McpServer {
             }
 
             "backlinks" => {
-                let notes = self.engine.backlinks(&s("note_id")).await.map_err(|e| e.to_string())?;
+                let notes = self
+                    .engine
+                    .backlinks(&s("note_id"))
+                    .await
+                    .map_err(|e| e.to_string())?;
                 Ok(notes
                     .into_iter()
                     .map(|n| format!("{}\t{}", n.id, n.title))
@@ -211,17 +241,27 @@ impl McpServer {
             }
 
             "create_daily_note" => {
-                let note = self.engine.create_daily_note(&s("notebook_id")).await.map_err(|e| e.to_string())?;
+                let note = self
+                    .engine
+                    .create_daily_note(&s("notebook_id"))
+                    .await
+                    .map_err(|e| e.to_string())?;
                 Ok(format!("daily note {} ({})", note.title, note.id))
             }
 
             "delete_note" => {
-                self.engine.delete_note(&s("note_id")).await.map_err(|e| e.to_string())?;
+                self.engine
+                    .delete_note(&s("note_id"))
+                    .await
+                    .map_err(|e| e.to_string())?;
                 Ok("deleted".to_string())
             }
 
             "tag_note" => {
-                self.engine.tag_note(&s("note_id"), &s("tag_id")).await.map_err(|e| e.to_string())?;
+                self.engine
+                    .tag_note(&s("note_id"), &s("tag_id"))
+                    .await
+                    .map_err(|e| e.to_string())?;
                 Ok("tagged".to_string())
             }
 
@@ -229,13 +269,31 @@ impl McpServer {
                 let skills = self.engine.list_skills().await.map_err(|e| e.to_string())?;
                 Ok(skills
                     .into_iter()
-                    .map(|sk| format!("{}\t{}\t{}", sk.id, sk.title, if sk.enabled != 0 { "enabled" } else { "disabled" }))
+                    .map(|sk| {
+                        format!(
+                            "{}\t{}\t{}",
+                            sk.id,
+                            sk.title,
+                            if sk.enabled != 0 {
+                                "enabled"
+                            } else {
+                                "disabled"
+                            }
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join("\n"))
             }
 
             "create_skill" => {
-                let scope = { let v = s("scope"); if v.is_empty() { "global".to_string() } else { v } };
+                let scope = {
+                    let v = s("scope");
+                    if v.is_empty() {
+                        "global".to_string()
+                    } else {
+                        v
+                    }
+                };
                 let skill = self
                     .engine
                     .create_skill(&s("title"), &s("body_markdown"), &scope)
@@ -245,7 +303,14 @@ impl McpServer {
             }
 
             "run_skill" => {
-                let mode = { let v = s("mode"); if v.is_empty() { "dry_run".to_string() } else { v } };
+                let mode = {
+                    let v = s("mode");
+                    if v.is_empty() {
+                        "dry_run".to_string()
+                    } else {
+                        v
+                    }
+                };
                 let run = self
                     .engine
                     .start_skill_run(&s("skill_id"), None, None, &mode)
@@ -482,7 +547,9 @@ mod tests {
             .await
             .expect("tools/list should return a response");
 
-        let tools = resp["result"]["tools"].as_array().expect("tools must be an array");
+        let tools = resp["result"]["tools"]
+            .as_array()
+            .expect("tools must be an array");
         assert!(!tools.is_empty(), "tools array must not be empty");
 
         let has_create_note = tools.iter().any(|t| t["name"] == "create_note");
@@ -497,7 +564,10 @@ mod tests {
             .handle(json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }))
             .await;
 
-        assert!(result.is_none(), "notifications must not produce a response");
+        assert!(
+            result.is_none(),
+            "notifications must not produce a response"
+        );
     }
 
     /// `create_notebook` followed by `list_notebooks` reflects the new entry.
@@ -596,7 +666,10 @@ mod tests {
             .unwrap();
         assert_eq!(write["error"]["code"], -32000, "ungranted write must error");
         assert!(
-            write["error"]["message"].as_str().unwrap().contains("permission denied"),
+            write["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("permission denied"),
             "error should explain the denial"
         );
     }

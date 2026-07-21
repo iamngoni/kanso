@@ -1,7 +1,5 @@
-use sqlx::FromRow;
-
 /// A Markdown-defined, inspectable agent behavior.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct Skill {
     pub id: String,
     pub title: String,
@@ -12,9 +10,18 @@ pub struct Skill {
     pub created_at: i64,
     pub updated_at: i64,
 }
+impl_sqlite_from_row!(Skill {
+    id,
+    title,
+    body_markdown,
+    scope,
+    enabled,
+    created_at,
+    updated_at,
+});
 
 /// A record of one skill execution (dry run, review, or apply).
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone)]
 pub struct SkillRun {
     pub id: String,
     pub skill_id: String,
@@ -28,3 +35,14 @@ pub struct SkillRun {
     pub created_at: i64,
     pub completed_at: Option<i64>,
 }
+impl_sqlite_from_row!(SkillRun {
+    id,
+    skill_id,
+    target_type,
+    target_id,
+    mode,
+    status,
+    output_summary,
+    created_at,
+    completed_at,
+});

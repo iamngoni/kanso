@@ -7,6 +7,12 @@
 *.profraw
 .DS_Store
 .env
+.dev.vars
+
+# JavaScript / Cloudflare local state
+node_modules/
+dist/
+.wrangler/
 
 # SwiftPM
 .build/

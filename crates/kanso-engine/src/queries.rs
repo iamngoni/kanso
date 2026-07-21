@@ -3,10 +3,9 @@
 
 use crate::db::Engine;
 use crate::error::Result;
-use crate::models::{Note, NoteLink, TaskItem};
+use crate::models::{Note, NoteLink, Tag, TaskItem};
 
-const NOTE_COLUMNS_N: &str =
-    "n.id, n.notebook_id, n.title, n.body_markdown, n.created_at, n.updated_at, n.pinned, n.favorite, n.status";
+const NOTE_COLUMNS_N: &str = "n.id, n.notebook_id, n.title, n.body_markdown, n.created_at, n.updated_at, n.pinned, n.favorite, n.status";
 
 impl Engine {
     /// Notes that link to `note_id` by its title (`[[Title]]`).
@@ -18,7 +17,10 @@ impl Engine {
              WHERE l.link_kind = 'note' AND l.target_ref = target.title \
              AND n.deleted_at IS NULL"
         );
-        Ok(sqlx::query_as::<_, Note>(&sql).bind(note_id).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_, Note>(&sql)
+            .bind(note_id)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     /// All outgoing references from a note.
@@ -38,7 +40,9 @@ impl Engine {
             "SELECT {NOTE_COLUMNS_N} FROM notes n \
              WHERE n.deleted_at IS NOT NULL ORDER BY n.deleted_at DESC"
         );
-        Ok(sqlx::query_as::<_, Note>(&sql).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_, Note>(&sql)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     /// All pinned (non-deleted) notes across every notebook, most-recent first.
@@ -47,7 +51,9 @@ impl Engine {
             "SELECT {NOTE_COLUMNS_N} FROM notes n \
              WHERE n.pinned = 1 AND n.deleted_at IS NULL ORDER BY n.updated_at DESC"
         );
-        Ok(sqlx::query_as::<_, Note>(&sql).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_, Note>(&sql)
+            .fetch_all(&self.pool)
+            .await?)
     }
 
     /// All (non-deleted) notes carrying a given tag.
@@ -58,7 +64,24 @@ impl Engine {
              WHERE nt.tag_id = ? AND n.deleted_at IS NULL \
              ORDER BY n.updated_at DESC"
         );
-        Ok(sqlx::query_as::<_, Note>(&sql).bind(tag_id).fetch_all(&self.pool).await?)
+        Ok(sqlx::query_as::<_, Note>(&sql)
+            .bind(tag_id)
+            .fetch_all(&self.pool)
+            .await?)
+    }
+
+    /// Tags currently assigned to one non-deleted note.
+    pub async fn tags_for_note(&self, note_id: &str) -> Result<Vec<Tag>> {
+        Ok(sqlx::query_as::<_, Tag>(
+            "SELECT t.id, t.name, t.color FROM note_tags nt \
+             JOIN tags t ON t.id = nt.tag_id \
+             JOIN notes n ON n.id = nt.note_id \
+             WHERE nt.note_id = ? AND n.deleted_at IS NULL \
+             ORDER BY t.name",
+        )
+        .bind(note_id)
+        .fetch_all(&self.pool)
+        .await?)
     }
 
     /// All tasks across a notebook's (non-deleted) notes.

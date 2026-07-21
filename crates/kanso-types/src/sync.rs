@@ -17,6 +17,7 @@ pub enum EntityType {
     NoteTag,
     Attachment,
     Sketch,
+    ShareMember,
 }
 
 /// A mutation operation in the change log.
@@ -40,6 +41,8 @@ pub enum Operation {
     SketchCreated,
     SketchUpdated,
     SketchDeleted,
+    ShareMemberAdded,
+    ShareMemberRemoved,
 }
 
 /// A single local change awaiting (or completed) sync.

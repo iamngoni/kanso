@@ -56,7 +56,8 @@ impl Mesh {
     fn append(&mut self, other: Mesh) {
         let offset = self.vertices.len() as u32;
         self.vertices.extend(other.vertices);
-        self.indices.extend(other.indices.into_iter().map(|i| i + offset));
+        self.indices
+            .extend(other.indices.into_iter().map(|i| i + offset));
     }
 }
 
@@ -105,10 +106,22 @@ pub fn tessellate_stroke(stroke: &Stroke) -> Mesh {
         //   3: b - normal * hw_b   (b_right)
         let base = mesh.vertices.len() as u32;
 
-        mesh.vertices.push(Vertex { pos: [a.x + nx * hw_a, a.y + ny * hw_a], color });
-        mesh.vertices.push(Vertex { pos: [a.x - nx * hw_a, a.y - ny * hw_a], color });
-        mesh.vertices.push(Vertex { pos: [b.x + nx * hw_b, b.y + ny * hw_b], color });
-        mesh.vertices.push(Vertex { pos: [b.x - nx * hw_b, b.y - ny * hw_b], color });
+        mesh.vertices.push(Vertex {
+            pos: [a.x + nx * hw_a, a.y + ny * hw_a],
+            color,
+        });
+        mesh.vertices.push(Vertex {
+            pos: [a.x - nx * hw_a, a.y - ny * hw_a],
+            color,
+        });
+        mesh.vertices.push(Vertex {
+            pos: [b.x + nx * hw_b, b.y + ny * hw_b],
+            color,
+        });
+        mesh.vertices.push(Vertex {
+            pos: [b.x - nx * hw_b, b.y - ny * hw_b],
+            color,
+        });
 
         // Triangle 1: a_left, a_right, b_left  (CCW when y grows downward)
         mesh.indices.push(base);
@@ -160,11 +173,34 @@ mod tests {
     fn three_point_stroke() -> Stroke {
         Stroke {
             points: vec![
-                Point { x: 0.0, y: 0.0, pressure: 0.5, tilt: 0.0, t: 0.0 },
-                Point { x: 50.0, y: 25.0, pressure: 0.8, tilt: 0.0, t: 10.0 },
-                Point { x: 100.0, y: 0.0, pressure: 0.6, tilt: 0.0, t: 20.0 },
+                Point {
+                    x: 0.0,
+                    y: 0.0,
+                    pressure: 0.5,
+                    tilt: 0.0,
+                    t: 0.0,
+                },
+                Point {
+                    x: 50.0,
+                    y: 25.0,
+                    pressure: 0.8,
+                    tilt: 0.0,
+                    t: 10.0,
+                },
+                Point {
+                    x: 100.0,
+                    y: 0.0,
+                    pressure: 0.6,
+                    tilt: 0.0,
+                    t: 20.0,
+                },
             ],
-            color: Rgba { r: 0, g: 0, b: 0, a: 255 },
+            color: Rgba {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255,
+            },
             base_width: 4.0,
             tool: Tool::Pen,
         }
@@ -220,8 +256,19 @@ mod tests {
     #[test]
     fn single_point_stroke_produces_empty_mesh() {
         let stroke = Stroke {
-            points: vec![Point { x: 0.0, y: 0.0, pressure: 1.0, tilt: 0.0, t: 0.0 }],
-            color: Rgba { r: 0, g: 0, b: 0, a: 255 },
+            points: vec![Point {
+                x: 0.0,
+                y: 0.0,
+                pressure: 1.0,
+                tilt: 0.0,
+                t: 0.0,
+            }],
+            color: Rgba {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255,
+            },
             base_width: 2.0,
             tool: Tool::Pen,
         };
@@ -235,11 +282,34 @@ mod tests {
         // All three points are identical → all segments degenerate.
         let stroke = Stroke {
             points: vec![
-                Point { x: 10.0, y: 10.0, pressure: 1.0, tilt: 0.0, t: 0.0 },
-                Point { x: 10.0, y: 10.0, pressure: 1.0, tilt: 0.0, t: 0.0 },
-                Point { x: 10.0, y: 10.0, pressure: 1.0, tilt: 0.0, t: 0.0 },
+                Point {
+                    x: 10.0,
+                    y: 10.0,
+                    pressure: 1.0,
+                    tilt: 0.0,
+                    t: 0.0,
+                },
+                Point {
+                    x: 10.0,
+                    y: 10.0,
+                    pressure: 1.0,
+                    tilt: 0.0,
+                    t: 0.0,
+                },
+                Point {
+                    x: 10.0,
+                    y: 10.0,
+                    pressure: 1.0,
+                    tilt: 0.0,
+                    t: 0.0,
+                },
             ],
-            color: Rgba { r: 0, g: 0, b: 0, a: 255 },
+            color: Rgba {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255,
+            },
             base_width: 2.0,
             tool: Tool::Pen,
         };
@@ -288,7 +358,11 @@ mod tests {
         let mesh = tessellate_stroke(&three_point_stroke());
         for v in &mesh.vertices {
             for &c in &v.color {
-                assert!((0.0..=1.0).contains(&c), "color component {} out of [0,1]", c);
+                assert!(
+                    (0.0..=1.0).contains(&c),
+                    "color component {} out of [0,1]",
+                    c
+                );
             }
         }
     }

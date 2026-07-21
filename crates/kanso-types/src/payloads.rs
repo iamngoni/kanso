@@ -89,3 +89,14 @@ pub struct SketchPayload {
     pub data_cipher: Option<Vec<u8>>,
     pub updated_at: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShareMemberPayload {
+    pub resource_type: String,
+    pub resource_id: String,
+    pub email: String,
+    pub role: String,
+    pub status: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+}

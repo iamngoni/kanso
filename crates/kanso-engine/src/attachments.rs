@@ -79,6 +79,35 @@ impl Engine {
         Ok(attachments)
     }
 
+    /// Return every local attachment record. Used by sync adapters to upload
+    /// and restore content-addressed blobs alongside the event log metadata.
+    pub async fn list_all_attachments(&self) -> Result<Vec<Attachment>> {
+        let attachments = sqlx::query_as::<_, Attachment>(
+            "SELECT id, note_id, filename, mime_type, size_bytes, content_hash, \
+             local_path, remote_key, created_at, updated_at \
+             FROM attachments ORDER BY created_at",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(attachments)
+    }
+
+    /// Update the device-local file path for an attachment without creating a
+    /// sync event. `local_path` is intentionally not part of the cloud payload.
+    pub async fn set_attachment_local_path(&self, id: &str, local_path: &str) -> Result<()> {
+        let result = sqlx::query("UPDATE attachments SET local_path = ? WHERE id = ?")
+            .bind(local_path)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(EngineError::NotFound(id.to_string()));
+        }
+
+        Ok(())
+    }
+
     /// Hard-delete an attachment by `id`, record a tombstone, and enqueue a
     /// deletion event.  Returns [`EngineError::NotFound`] if no row is deleted.
     pub async fn delete_attachment(&self, id: &str) -> Result<()> {

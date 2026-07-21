@@ -1,13 +1,12 @@
 //! Engine handle, connection setup, and shared transaction helpers.
 
 use std::str::FromStr;
+use std::time::Instant;
 
 use kanso_types::sync::{EntityType, Operation};
 use sqlx::SqliteConnection;
 use sqlx::SqlitePool;
-use sqlx::sqlite::{
-    SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous,
-};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 use crate::error::Result;
 
@@ -39,6 +38,7 @@ impl Engine {
 
         let engine = Self { pool, enc: None };
         engine.migrate().await?;
+        engine.rebuild_note_indexes().await?;
         Ok(engine)
     }
 
@@ -55,14 +55,83 @@ impl Engine {
 
         let engine = Self { pool, enc: None };
         engine.migrate().await?;
+        engine.rebuild_note_indexes().await?;
         Ok(engine)
     }
 
     async fn migrate(&self) -> Result<()> {
-        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS _sqlx_migrations (
+                version BIGINT PRIMARY KEY,
+                description TEXT NOT NULL,
+                installed_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                success BOOLEAN NOT NULL,
+                checksum BLOB NOT NULL,
+                execution_time BIGINT NOT NULL
+            )",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        for migration in ENGINE_MIGRATIONS {
+            let applied: Option<(i64,)> =
+                sqlx::query_as("SELECT success FROM _sqlx_migrations WHERE version = ?")
+                    .bind(migration.version)
+                    .fetch_optional(&self.pool)
+                    .await?;
+            if applied.is_some_and(|(success,)| success != 0) {
+                continue;
+            }
+
+            let started = Instant::now();
+            let mut tx = self.pool.begin().await?;
+            sqlx::raw_sql(migration.sql).execute(&mut *tx).await?;
+            let elapsed_micros = i64::try_from(started.elapsed().as_micros()).unwrap_or(i64::MAX);
+            sqlx::query(
+                "INSERT OR REPLACE INTO _sqlx_migrations
+                    (version, description, success, checksum, execution_time)
+                 VALUES (?, ?, TRUE, ?, ?)",
+            )
+            .bind(migration.version)
+            .bind(migration.description)
+            .bind(migration.sql.as_bytes())
+            .bind(elapsed_micros)
+            .execute(&mut *tx)
+            .await?;
+            tx.commit().await?;
+        }
         Ok(())
     }
 }
+
+struct EngineMigration {
+    version: i64,
+    description: &'static str,
+    sql: &'static str,
+}
+
+const ENGINE_MIGRATIONS: &[EngineMigration] = &[
+    EngineMigration {
+        version: 1,
+        description: "init",
+        sql: include_str!("../migrations/0001_init.sql"),
+    },
+    EngineMigration {
+        version: 2,
+        description: "skills",
+        sql: include_str!("../migrations/0002_skills.sql"),
+    },
+    EngineMigration {
+        version: 3,
+        description: "mcp",
+        sql: include_str!("../migrations/0003_mcp.sql"),
+    },
+    EngineMigration {
+        version: 4,
+        description: "sharing",
+        sql: include_str!("../migrations/0004_sharing.sql"),
+    },
+];
 
 impl Engine {
     /// Enable end-to-end encryption with a 32-byte key (derive it via
@@ -222,12 +291,11 @@ pub(crate) async fn tombstoned_after(
     entity_id: &str,
     at_or_after: i64,
 ) -> Result<bool> {
-    let row: Option<(i64,)> = sqlx::query_as(
-        "SELECT deleted_at FROM tombstones WHERE entity_type = ? AND entity_id = ?",
-    )
-    .bind(enum_str(&entity_type))
-    .bind(entity_id)
-    .fetch_optional(&mut *conn)
-    .await?;
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT deleted_at FROM tombstones WHERE entity_type = ? AND entity_id = ?")
+            .bind(enum_str(&entity_type))
+            .bind(entity_id)
+            .fetch_optional(&mut *conn)
+            .await?;
     Ok(matches!(row, Some((deleted_at,)) if deleted_at >= at_or_after))
 }

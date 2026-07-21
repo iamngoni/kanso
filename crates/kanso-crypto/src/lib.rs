@@ -44,7 +44,9 @@ pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; KEY_LE
 pub fn encrypt(key: &[u8; KEY_LEN], plaintext: &[u8]) -> Result<Vec<u8>, CryptoError> {
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-    let ciphertext = cipher.encrypt(&nonce, plaintext).map_err(|_| CryptoError::Encrypt)?;
+    let ciphertext = cipher
+        .encrypt(&nonce, plaintext)
+        .map_err(|_| CryptoError::Encrypt)?;
 
     let mut out = Vec::with_capacity(NONCE_LEN + ciphertext.len());
     out.extend_from_slice(nonce.as_slice());
@@ -61,7 +63,9 @@ pub fn decrypt(key: &[u8; KEY_LEN], data: &[u8]) -> Result<Vec<u8>, CryptoError>
     let (nonce_bytes, ciphertext) = data.split_at(NONCE_LEN);
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key));
     let nonce = XNonce::from_slice(nonce_bytes);
-    cipher.decrypt(nonce, ciphertext).map_err(|_| CryptoError::Decrypt)
+    cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(|_| CryptoError::Decrypt)
 }
 
 #[cfg(test)]
@@ -108,6 +112,9 @@ mod tests {
     #[test]
     fn short_input_is_malformed() {
         let key = derive_key("pw", SALT).unwrap();
-        assert!(matches!(decrypt(&key, b"short"), Err(CryptoError::Malformed)));
+        assert!(matches!(
+            decrypt(&key, b"short"),
+            Err(CryptoError::Malformed)
+        ));
     }
 }

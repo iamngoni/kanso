@@ -34,7 +34,12 @@ pub fn render_preview(doc: &SketchDoc, width: u32, height: u32) -> Option<Vec<u8
                 if let Some(path) = pb.finish() {
                     let mut paint = Paint::default();
                     paint.anti_alias = true;
-                    paint.set_color_rgba8(stroke.color.r, stroke.color.g, stroke.color.b, stroke.color.a);
+                    paint.set_color_rgba8(
+                        stroke.color.r,
+                        stroke.color.g,
+                        stroke.color.b,
+                        stroke.color.a,
+                    );
 
                     let sk = SkStroke {
                         width: stroke.base_width.max(0.5),
@@ -70,7 +75,12 @@ pub fn render_preview(doc: &SketchDoc, width: u32, height: u32) -> Option<Vec<u8
                 if let Some(path) = pb.finish() {
                     let mut paint = Paint::default();
                     paint.anti_alias = true;
-                    paint.set_color_rgba8(shape.color.r, shape.color.g, shape.color.b, shape.color.a);
+                    paint.set_color_rgba8(
+                        shape.color.r,
+                        shape.color.g,
+                        shape.color.b,
+                        shape.color.a,
+                    );
                     let sk = SkStroke {
                         width: shape.stroke_width.max(0.5),
                         ..SkStroke::default()
@@ -85,7 +95,12 @@ pub fn render_preview(doc: &SketchDoc, width: u32, height: u32) -> Option<Vec<u8
                 if let Some(path) = pb.finish() {
                     let mut paint = Paint::default();
                     paint.anti_alias = true;
-                    paint.set_color_rgba8(arrow.color.r, arrow.color.g, arrow.color.b, arrow.color.a);
+                    paint.set_color_rgba8(
+                        arrow.color.r,
+                        arrow.color.g,
+                        arrow.color.b,
+                        arrow.color.a,
+                    );
                     let sk = SkStroke {
                         width: arrow.stroke_width.max(0.5),
                         line_cap: LineCap::Round,

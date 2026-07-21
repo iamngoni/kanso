@@ -88,11 +88,12 @@ impl Engine {
     }
 
     async fn last_pulled_server_seq(&self, device_id: &str) -> Result<i64> {
-        let row: Option<(i64,)> =
-            sqlx::query_as("SELECT last_pulled_server_sequence FROM sync_state WHERE device_id = ?")
-                .bind(device_id)
-                .fetch_optional(&self.pool)
-                .await?;
+        let row: Option<(i64,)> = sqlx::query_as(
+            "SELECT last_pulled_server_sequence FROM sync_state WHERE device_id = ?",
+        )
+        .bind(device_id)
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(row.map(|(seq,)| seq).unwrap_or(0))
     }
 

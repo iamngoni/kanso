@@ -10,11 +10,15 @@ version.workspace = true
 crate-type = ["cdylib", "staticlib", "lib"]
 
 [dependencies]
+kanso-client = { path = "../kanso-client" }
+kanso-crypto.workspace = true
 kanso-engine.workspace = true
 kanso-ink.workspace = true
+kanso-types.workspace = true
 uniffi = { workspace = true, features = ["cli"] }
 tokio = { workspace = true }
 pollster.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 
 [[bin]]

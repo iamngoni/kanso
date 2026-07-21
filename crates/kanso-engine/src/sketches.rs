@@ -78,11 +78,10 @@ impl Engine {
 
         let mut tx = self.pool.begin().await?;
 
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT note_id FROM sketches WHERE id = ?")
-                .bind(sketch_id)
-                .fetch_optional(&mut *tx)
-                .await?;
+        let row: Option<(String,)> = sqlx::query_as("SELECT note_id FROM sketches WHERE id = ?")
+            .bind(sketch_id)
+            .fetch_optional(&mut *tx)
+            .await?;
         let (note_id,) = row.ok_or_else(|| EngineError::NotFound(sketch_id.to_string()))?;
 
         sqlx::query(
@@ -155,11 +154,10 @@ impl Engine {
         width: u32,
         height: u32,
     ) -> Result<Vec<u8>> {
-        let row: Option<(Vec<u8>,)> =
-            sqlx::query_as("SELECT data_blob FROM sketches WHERE id = ?")
-                .bind(sketch_id)
-                .fetch_optional(&self.pool)
-                .await?;
+        let row: Option<(Vec<u8>,)> = sqlx::query_as("SELECT data_blob FROM sketches WHERE id = ?")
+            .bind(sketch_id)
+            .fetch_optional(&self.pool)
+            .await?;
         let Some((blob,)) = row else {
             return Err(EngineError::NotFound(sketch_id.to_string()));
         };

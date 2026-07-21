@@ -26,10 +26,11 @@ thiserror = "2.0.18"
 anyhow = "1.0.102"
 uuid = { version = "1.23.1", features = ["v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
 
 # Engine (embedded SQLite — the only DB-driver divergence from the
 # Postgres backends; the engine is local-first and on-device).
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
 comrak = "0.52.0"
 
 # Ink core

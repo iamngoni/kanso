@@ -100,21 +100,25 @@ async fn render_rgba_async(doc: &SketchDoc, width: u32, height: u32) -> Option<V
     let has_geometry = !gpu_verts.is_empty();
 
     let vertex_buffer = if has_geometry {
-        Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("kanso vertex buffer"),
-            contents: bytemuck::cast_slice(&gpu_verts),
-            usage: wgpu::BufferUsages::VERTEX,
-        }))
+        Some(
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("kanso vertex buffer"),
+                contents: bytemuck::cast_slice(&gpu_verts),
+                usage: wgpu::BufferUsages::VERTEX,
+            }),
+        )
     } else {
         None
     };
 
     let index_buffer = if has_geometry {
-        Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("kanso index buffer"),
-            contents: bytemuck::cast_slice(&cpu_mesh.indices),
-            usage: wgpu::BufferUsages::INDEX,
-        }))
+        Some(
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("kanso index buffer"),
+                contents: bytemuck::cast_slice(&cpu_mesh.indices),
+                usage: wgpu::BufferUsages::INDEX,
+            }),
+        )
     } else {
         None
     };
@@ -127,7 +131,11 @@ async fn render_rgba_async(doc: &SketchDoc, width: u32, height: u32) -> Option<V
 
     let render_texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("kanso render target"),
-        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -256,7 +264,11 @@ async fn render_rgba_async(doc: &SketchDoc, width: u32, height: u32) -> Option<V
                 rows_per_image: Some(height),
             },
         },
-        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
     );
 
     queue.submit(std::iter::once(encoder.finish()));
@@ -270,7 +282,10 @@ async fn render_rgba_async(doc: &SketchDoc, width: u32, height: u32) -> Option<V
     });
 
     // Poll until the GPU work is done and the map completes.
-    let _ = device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });
+    let _ = device.poll(wgpu::PollType::Wait {
+        submission_index: None,
+        timeout: None,
+    });
 
     rx.recv().ok()?.ok()?;
 

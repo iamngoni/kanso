@@ -128,7 +128,8 @@ impl SketchDoc {
     /// Encode to the canonical CBOR blob stored in `sketches.data_blob`.
     pub fn to_cbor(&self) -> Vec<u8> {
         let mut buf = Vec::new();
-        ciborium::into_writer(self, &mut buf).expect("sketch CBOR encoding is infallible into a Vec");
+        ciborium::into_writer(self, &mut buf)
+            .expect("sketch CBOR encoding is infallible into a Vec");
         buf
     }
 
