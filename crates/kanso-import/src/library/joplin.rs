@@ -193,10 +193,16 @@ pub struct JoplinSource {
 
 /// Opens a `.jex` file or a RAW export's folder.
 pub fn open(path: &Path) -> anyhow::Result<JoplinSource> {
+    // `Path::file_name`, not the tree's `/`-only helper: on Windows an OS
+    // path separates with `\`.
+    let base = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let name = if path.is_dir() {
-        file_name(&path.to_string_lossy()).to_owned()
+        base
     } else {
-        stem(file_name(&path.to_string_lossy())).to_owned()
+        stem(&base).to_owned()
     };
     let (tree, unpacked) = if path.is_dir() {
         (Tree::dir(path)?, None)
