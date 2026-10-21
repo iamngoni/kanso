@@ -9,7 +9,7 @@ import { evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type Account, base64url, resetServer, signUp } from "./helpers";
-import { type Socket, collab, envelope, envelopeOfSize, epochBody, openSocket, shareWith, unframe } from "./collab-helpers";
+import { type Message, type Socket, collab, envelope, envelopeOfSize, epochBody, openSocket, shareWith, unframe } from "./collab-helpers";
 
 let alice: Account;
 let bob: Account;
@@ -178,9 +178,20 @@ describe("presence and socket caps", () => {
 		const frames = await Promise.all(Array.from({ length: 30 }, () => envelope({ kind: "p", epoch: 1, shareId: id, by: bob })));
 		const started = Date.now();
 		frames.forEach((f, i) => (i % 2 === 0 ? b1 : b2).ws.send(f));
-		const refused = [...(await b1.drain(400)), ...(await b2.drain(100))].filter((m) => "text" in m);
-		const relayed = (await a.drain(100)).filter((m) => "bytes" in m);
+		// Every frame gets exactly one answer: relayed to alice, or refused to
+		// its sender. A loaded machine works through them slowly, so wait for
+		// all 30 (up to a deadline) rather than for a fixed time.
+		const refused: Message[] = [];
+		const relayed: Message[] = [];
+		const collect = async (ms: number) => {
+			refused.push(...[...(await b1.drain(ms)), ...(await b2.drain(0))].filter((m) => "text" in m));
+			relayed.push(...(await a.drain(0)).filter((m) => "bytes" in m));
+		};
+		const deadline = Date.now() + 10_000;
+		while (relayed.length + refused.length < 30 && Date.now() < deadline) await collect(50);
 		const refill = Math.ceil((10 * (Date.now() - started)) / 1000);
+		// Anything past the 30 would be an extra answer: give it time to show.
+		await collect(100);
 		for (const m of refused) expect(text(m)).toMatchObject({ type: "error", error: "rate_limited", limit: "presence", kind: "p" });
 		expect(relayed.length + refused.length).toBe(30);
 		expect(relayed.length).toBeGreaterThanOrEqual(20);
