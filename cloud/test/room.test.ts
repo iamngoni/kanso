@@ -162,8 +162,10 @@ describe("frames", () => {
 		const limited = answers.filter((m) => "text" in m && m.text.error === "rate_limited" && m.text.limit === "socket").slice(markers - 1);
 		expect(sent - limited.length).toBeLessThanOrEqual(60 + refilled);
 		expect(limited.length).toBeLessThanOrEqual(sent - 60);
-		if (60 + refilled < sent) expect(limited.length).toBeGreaterThan(0);
-		expect(text(limited[0])).toMatchObject({ type: "error", error: "rate_limited", limit: "socket" });
+		if (60 + refilled < sent) {
+			expect(limited.length).toBeGreaterThan(0);
+			expect(text(limited[0])).toMatchObject({ type: "error", error: "rate_limited", limit: "socket" });
+		}
 		b.ws.close();
 	});
 });
