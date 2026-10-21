@@ -93,6 +93,7 @@ pub fn system_week_start() -> usize {
 /// Foundation's first weekday (1 for Sunday through 7 for Saturday) as the
 /// grid counts it (0 for Monday through 6 for Sunday). Anything else is
 /// Monday.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn from_first_weekday(first: usize) -> usize {
     match first {
         1..=7 => (first + 5) % 7,
