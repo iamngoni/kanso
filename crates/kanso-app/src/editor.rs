@@ -4318,7 +4318,9 @@ mod tests {
             editor.show_live_transcript("Tea", window, cx)
         });
         open.with(cx, |editor, window, cx| {
-            editor.body.update(cx, |body, cx| body.unmark_text(window, cx))
+            editor
+                .body
+                .update(cx, |body, cx| body.unmark_text(window, cx))
         });
         open.select(cx, 0..0);
         open.with(cx, |editor, window, cx| {
@@ -4333,7 +4335,9 @@ mod tests {
             editor.show_live_transcript("Jam", window, cx);
         });
         open.with(cx, |editor, window, cx| {
-            editor.body.update(cx, |body, cx| body.unmark_text(window, cx))
+            editor
+                .body
+                .update(cx, |body, cx| body.unmark_text(window, cx))
         });
         open.with(cx, |editor, window, cx| {
             editor.drop_live_transcript(window, cx)
