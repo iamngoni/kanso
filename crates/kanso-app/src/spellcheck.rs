@@ -281,6 +281,8 @@ pub struct Speller {
 }
 
 impl Speller {
+    // Only the macOS system speller and tests make one.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub fn new(dictionary: Arc<dyn Dictionary>) -> Speller {
         Speller {
             dictionary,
