@@ -1,0 +1,39 @@
+[package]
+name = "kanso-mobile"
+description = "Experimental: Kanso's phone UI on gpui-pre-mobile (docs/MOBILE-SPIKE.md). Not part of the desktop build."
+version = "0.0.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+# Its own workspace: the desktop workspace (`crates/*`), its CI and the release
+# workflow never see this crate, its lockfile or its iOS-only dependencies.
+[workspace]
+
+[lib]
+name = "kanso_mobile"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+# The same GPUI and GPUI Kit as crates/kanso-app.
+gpui = { package = "gpui-pre", version = "=0.3.9", default-features = false }
+gpui-kit = { version = "=0.7.3", features = ["tree-sitter-markdown", "tree-sitter-markdown-inline"] }
+# The longbridge fork. Pinned to a commit: 0.1.0 on crates.io predates its move to gpui-pre 0.3.9.
+gpui-mobile = { package = "gpui-pre-mobile", git = "https://github.com/longbridge/gpui-mobile", rev = "c24a1308e1dcb47ce94d9ef8d8d05ca4d77d2aa7" }
+kanso-core = { path = "../../crates/kanso-core" }
+kanso-store = { path = "../../crates/kanso-store" }
+log = "0.4"
+serde_json = "1"
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev.package."*"]
+opt-level = 2

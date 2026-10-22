@@ -1,0 +1,61 @@
+name: KansoSpike
+options:
+  bundleIdPrefix: com.iamngoni
+  deploymentTarget:
+    iOS: "16.0"
+  generateEmptyDirectories: true
+
+targets:
+  KansoSpike:
+    type: application
+    platform: iOS
+    sources:
+      - path: gpui_ios.h
+        type: file
+        buildPhase: headers
+      - path: main.m
+        buildPhase: sources
+      - path: LaunchScreen.storyboard
+        type: file
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iamngoni.kanso.spike
+        PRODUCT_NAME: KansoSpike
+        INFOPLIST_FILE: Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGNING_ALLOWED: NO
+        CLANG_ENABLE_OBJC_ARC: YES
+        ENABLE_DEBUG_DYLIB: NO
+        DEAD_CODE_STRIPPING: NO
+        ARCHS: arm64
+        ONLY_ACTIVE_ARCH: YES
+        HEADER_SEARCH_PATHS: ["$(PROJECT_DIR)"]
+        GCC_PREPROCESSOR_DEFINITIONS: ["USE_GPUI_RUST=1", "$(inherited)"]
+        # build.sh sets KANSO_STATIC_LIB to the cargo output for the target in use.
+        OTHER_LDFLAGS:
+          - "-force_load"
+          - "$(KANSO_STATIC_LIB)"
+          - "-lc++"
+          - "-framework UIKit"
+          - "-framework Metal"
+          - "-framework MetalKit"
+          - "-framework QuartzCore"
+          - "-framework CoreGraphics"
+          - "-framework CoreText"
+          - "-framework CoreFoundation"
+          - "-framework Foundation"
+          - "-framework Security"
+          - "-framework SystemConfiguration"
+          - "-framework AudioToolbox"
+          - "-framework WebKit"
+          - "-framework CoreMedia"
+          - "-framework AVFoundation"
+          - "-framework LocalAuthentication"
+          - "-framework Contacts"
+          - "-framework EventKit"
+          - "-framework StoreKit"
+          - "-framework CoreMotion"
+          - "-ObjC"
