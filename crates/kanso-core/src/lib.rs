@@ -4,6 +4,7 @@
 //! `file:…`) so links inside note bodies, API clients and imported data keep
 //! working unchanged.
 
+pub mod canvas;
 pub mod dates;
 pub mod excerpt;
 pub mod id;
