@@ -455,7 +455,7 @@ describe("health sign-in advertisement", () => {
 		expect(healthAuth(testEnv(), ALL_ROUTES)).toEqual({ password: true, passkeys: null, providers: [] });
 	});
 
-	it("advertises nothing whose routes this Worker doesn't have yet, however it's configured", () => {
+	it("advertises a configured method only when this Worker serves its routes", () => {
 		const configured = testEnv({
 			PASSKEY_RP_ID: "sync.kansoapp.app",
 			PASSKEY_ORIGINS: '["https://sync.kansoapp.app"]',
@@ -463,7 +463,14 @@ describe("health sign-in advertisement", () => {
 			GOOGLE_CLIENT_SECRET: "secret",
 			GITHUB_CLIENT_ID: "github-client",
 		});
-		expect(healthAuth(configured)).toEqual({ password: true, passkeys: null, providers: [] });
+		expect(healthAuth(configured).passkeys).toEqual({
+			rp_id: "sync.kansoapp.app",
+			origins: ["https://sync.kansoapp.app"],
+			security_key: true,
+		});
+		// A provider whose routes are not in this Worker is never advertised,
+		// however it is configured.
+		expect(healthAuth(configured).providers).toEqual([]);
 		expect(healthAuth(configured, { ...ALL_ROUTES, google: false }).providers).toEqual(["github"]);
 	});
 

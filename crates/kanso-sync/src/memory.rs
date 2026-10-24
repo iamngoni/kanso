@@ -7,11 +7,15 @@ use std::time::Duration;
 
 use crate::account::{Session, SignupState};
 use crate::api::{
-    AccountResponse, Api, Backend, DeleteRequest, DeleteResponse, DeviceNameRequest, DeviceRow,
-    DevicesResponse, Health, LoginRequest, LoginResponse, NewDevice, PasswordRequest,
-    PasswordResponse, PreloginRequest, PreloginResponse, RecoverFinishRequest, RecoverStartRequest,
-    RecoverStartResponse, RecoveryKeyRequest, RecoveryKeyResponse, Route, SessionResponse,
-    SignupRequest, WireDevice, WireKdf, WireQuota, WireUsage,
+    AccountResponse, Api, AuthAdvertisement, Backend, DeleteRequest, DeleteResponse,
+    DeviceNameRequest, DeviceRow, DevicesResponse, Health, LoginRequest, LoginResponse, NewDevice,
+    PasskeyAdvertisement, PasskeyAllowedCredential, PasskeyFinishRequest, PasskeySelection,
+    PasskeySessionKind, PasskeySessionResponse, PasskeySignupFinishRequest,
+    PasskeySignupStartRequest, PasskeySignupStartResponse, PasskeyStartRequest,
+    PasskeyStartResponse, PasskeyUser, PasswordRequest, PasswordResponse, PreloginRequest,
+    PreloginResponse, RecoverFinishRequest, RecoverStartRequest, RecoverStartResponse,
+    RecoveryKeyRequest, RecoveryKeyResponse, Route, SessionResponse, SignupRequest, WireDevice,
+    WireKdf, WireQuota, WireUsage,
 };
 use crate::crypto::{KdfParams, b64, hex, hkdf32, hmac, random, sha256_hex, unb64};
 use crate::sealed::PlainView;
@@ -25,6 +29,10 @@ use crate::wire::{
     is_account_id, is_base64url, is_device_id, is_hex16, is_sealed_name, is_token, is_wire_file_id,
     is_wire_id, is_wire_rev,
 };
+
+/// Memory-only relying party; it is for client tests and is not a live RP.
+pub const MEMORY_PASSKEY_RP_ID: &str = "memory.kanso.test";
+const PASSKEY_FLOW_TTL_MS: i64 = 5 * 60_000;
 
 // ---------------------------------------------------------------------------
 // MemoryServer: the v2 test server (docs/ACCOUNTS.md › Modules, › Build order)
@@ -185,6 +193,38 @@ struct Account {
     quota: QuotaOverride,
     created_at: i64,
     disabled_at: Option<i64>,
+    has_password: bool,
+}
+
+#[derive(Clone, Debug)]
+struct PasskeyRow {
+    credential_id: String,
+    account_id: String,
+    alg: i32,
+    sign_count: u32,
+    transports: String,
+    wrapped_key: Option<String>,
+    created_at: i64,
+    last_used_at: Option<i64>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PasskeyFlowKind {
+    Signin,
+    Signup,
+}
+
+#[derive(Clone, Debug)]
+struct PasskeyFlow {
+    kind: PasskeyFlowKind,
+    account_id: Option<String>,
+    username: Option<String>,
+    device_id: String,
+    device_proof_hash: String,
+    challenge: String,
+    rp_id: String,
+    expires_at: i64,
+    consumed_at: Option<i64>,
 }
 
 /// A `sessions` row.
@@ -267,6 +307,8 @@ struct ServerState {
     /// Stands in for `AUTH_PEPPER`: fake prelogin answers derive from it.
     pepper: [u8; 32],
     accounts: BTreeMap<String, Account>,
+    passkeys: Vec<PasskeyRow>,
+    passkey_flows: BTreeMap<String, PasskeyFlow>,
     sessions: Vec<SessionRow>,
     docs: BTreeMap<DocKey, DocRow>,
     files: BTreeMap<DocKey, Vec<u8>>,
@@ -315,6 +357,14 @@ fn is_wrap(wrap: &str) -> bool {
     wrap.len() == 98 && is_base64url(wrap)
 }
 
+fn passkey_bytes(value: &str, min: usize, max: usize) -> Option<Vec<u8>> {
+    if !is_base64url(value) {
+        return None;
+    }
+    let bytes = unb64(value)?;
+    (bytes.len() >= min && bytes.len() <= max && b64(&bytes) == value).then_some(bytes)
+}
+
 fn signed_out(reason: SignOutReason) -> ApiError {
     ApiError::Unauthorized { reason }
 }
@@ -342,6 +392,8 @@ impl ServerState {
             default,
             pepper: random::<32>(),
             accounts: BTreeMap::new(),
+            passkeys: Vec::new(),
+            passkey_flows: BTreeMap::new(),
             sessions: Vec::new(),
             docs: BTreeMap::new(),
             files: BTreeMap::new(),
@@ -619,7 +671,460 @@ impl ServerState {
             ok: true,
             protocol: PROTOCOL_VERSION,
             signup,
+            auth: Some(AuthAdvertisement {
+                password: true,
+                passkeys: Some(PasskeyAdvertisement {
+                    rp_id: MEMORY_PASSKEY_RP_ID.into(),
+                    origins: vec!["https://memory.kanso.test".into()],
+                    security_key: true,
+                }),
+                providers: vec![],
+            }),
         }
+    }
+
+    // This fake checks ceremony shape and flow ownership, but never verifies
+    // WebAuthn signatures or attestation. It exists for client/UI tests and
+    // contract parity; only the Worker is a relying party.
+    fn passkey_start(
+        &mut self,
+        r: &PasskeyStartRequest,
+        now: i64,
+    ) -> Result<PasskeyStartResponse, ApiError> {
+        let device = Self::check_device(&NewDevice {
+            id: r.device.id.clone(),
+            sealed_name: None,
+            proof: r.device.proof.clone(),
+        })?;
+        let username = r
+            .username
+            .as_deref()
+            .map(normalize_username)
+            .transpose()
+            .map_err(|_| ApiError::InvalidUsername)?;
+        let account_id = username
+            .as_deref()
+            .and_then(|name| self.account_by_name(name).map(|a| a.id.clone()));
+        let challenge = b64(&random::<32>());
+        let flow_id = b64(&random::<32>());
+        self.passkey_flows.insert(
+            flow_id.clone(),
+            PasskeyFlow {
+                kind: PasskeyFlowKind::Signin,
+                account_id: account_id.clone(),
+                username,
+                device_id: device.id,
+                device_proof_hash: device.proof_hash,
+                challenge: challenge.clone(),
+                rp_id: MEMORY_PASSKEY_RP_ID.into(),
+                expires_at: now + PASSKEY_FLOW_TTL_MS,
+                consumed_at: None,
+            },
+        );
+        let allow_credentials = account_id
+            .as_deref()
+            .map(|id| {
+                let mut rows: Vec<_> = self
+                    .passkeys
+                    .iter()
+                    .filter(|p| p.account_id == id)
+                    .collect();
+                rows.sort_by(|a, b| {
+                    (a.created_at, &a.credential_id).cmp(&(b.created_at, &b.credential_id))
+                });
+                rows.into_iter()
+                    .map(|p| PasskeyAllowedCredential {
+                        id: p.credential_id.clone(),
+                        transports: p
+                            .transports
+                            .split_ascii_whitespace()
+                            .map(str::to_owned)
+                            .collect(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(PasskeyStartResponse {
+            flow_id,
+            challenge,
+            rp_id: MEMORY_PASSKEY_RP_ID.into(),
+            allow_credentials,
+            user_verification: "required".into(),
+            timeout: 300_000,
+        })
+    }
+
+    fn passkey_finish(
+        &mut self,
+        r: &PasskeyFinishRequest,
+        now: i64,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        let device = Self::check_device(&NewDevice {
+            id: r.device.id.clone(),
+            sealed_name: None,
+            proof: r.device.proof.clone(),
+        })?;
+        let credential_id =
+            passkey_bytes(&r.credential_id, 16, 1023).ok_or(ApiError::InvalidCredentials)?;
+        if passkey_bytes(&r.authenticator_data, 37, 8192).is_none()
+            || passkey_bytes(&r.client_data_json, 1, 8192).is_none()
+            || passkey_bytes(&r.signature, 1, 1024).is_none()
+        {
+            return Err(ApiError::BadRequest);
+        }
+        if r.flow_id.len() != 43
+            || !is_base64url(&r.flow_id)
+            || unb64(&r.flow_id).is_none_or(|b| b.len() != 32)
+        {
+            return Err(ApiError::BadRequest);
+        }
+        let flow = self
+            .passkey_flows
+            .get(&r.flow_id)
+            .cloned()
+            .filter(|f| f.expires_at > now && f.consumed_at.is_none())
+            .ok_or(ApiError::FlowExpired { gone: false })?;
+        if flow.kind != PasskeyFlowKind::Signin
+            || flow.device_id != device.id
+            || flow.device_proof_hash != device.proof_hash
+        {
+            return Err(ApiError::BadRequest);
+        }
+        if flow.rp_id != MEMORY_PASSKEY_RP_ID {
+            // The Worker would reject the assertion when it verifies against the
+            // configured RP; this fake has no signature check, so keep the same
+            // externally visible result.
+            return Err(ApiError::InvalidCredentials);
+        }
+        let credential_id = b64(&credential_id);
+        let index = self
+            .passkeys
+            .iter()
+            .position(|p| p.credential_id == credential_id)
+            .ok_or(ApiError::InvalidCredentials)?;
+        if ![-7, -8, -257].contains(&self.passkeys[index].alg) {
+            return Err(ApiError::InvalidCredentials);
+        }
+        if flow
+            .account_id
+            .as_ref()
+            .is_some_and(|id| id != &self.passkeys[index].account_id)
+        {
+            return Err(ApiError::InvalidCredentials);
+        }
+        if let Ok(data) = serde_json::from_slice::<serde_json::Value>(
+            &unb64(&r.client_data_json).unwrap_or_default(),
+        ) && data
+            .get("challenge")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|c| c != flow.challenge)
+        {
+            return Err(ApiError::InvalidCredentials);
+        }
+        let account_id = self.passkeys[index].account_id.clone();
+        let account = self
+            .accounts
+            .get(&account_id)
+            .ok_or(ApiError::InvalidCredentials)?;
+        if account.disabled_at.is_some() {
+            return Err(ApiError::AccountDisabled);
+        }
+        let account_info = (
+            account.id.clone(),
+            account.username.clone(),
+            account.key_id.clone(),
+            account.epoch.clone(),
+            account.has_password,
+        );
+        let wrapped_key = self.passkeys[index].wrapped_key.clone();
+        self.passkey_flows
+            .get_mut(&r.flow_id)
+            .expect("flow was checked")
+            .consumed_at = Some(now);
+        self.passkeys[index].sign_count = self.passkeys[index].sign_count.saturating_add(1);
+        self.passkeys[index].last_used_at = Some(now);
+        let (token, evicted_device) = self.start_session(&account_id, &device, now);
+        Ok(PasskeySessionResponse {
+            kind: PasskeySessionKind::Session,
+            account_id: account_info.0,
+            username: account_info.1,
+            token,
+            key_id: account_info.2,
+            epoch: account_info.3,
+            has_password: account_info.4,
+            passkey_wrapped_key: wrapped_key,
+            evicted_device,
+        })
+    }
+
+    fn passkey_signup_start(
+        &mut self,
+        r: &PasskeySignupStartRequest,
+        now: i64,
+    ) -> Result<PasskeySignupStartResponse, ApiError> {
+        let username = match check_new_username(&r.username) {
+            Ok(n) => n,
+            Err(UsernameError::Reserved) => return Err(ApiError::ReservedUsername),
+            Err(_) => return Err(ApiError::InvalidUsername),
+        };
+        if !is_account_id(&r.account_id) {
+            return Err(ApiError::BadRequest);
+        }
+        let device = Self::check_device(&r.device)?;
+        self.count(
+            Rule::SignupIp,
+            &format!("signup-ip:{CLIENT_IP}"),
+            now,
+            1,
+            10,
+        )?;
+        if self.account_by_name(&username).is_some() {
+            return Err(ApiError::UsernameTaken);
+        }
+        if self.accounts.contains_key(&r.account_id) {
+            return Err(ApiError::AccountIdTaken);
+        }
+        self.check_signup_allowed(&username, now)?;
+        let challenge = b64(&random::<32>());
+        let flow_id = b64(&random::<32>());
+        self.passkey_flows.insert(
+            flow_id.clone(),
+            PasskeyFlow {
+                kind: PasskeyFlowKind::Signup,
+                account_id: Some(r.account_id.clone()),
+                username: Some(username.clone()),
+                device_id: device.id,
+                device_proof_hash: device.proof_hash,
+                challenge: challenge.clone(),
+                rp_id: MEMORY_PASSKEY_RP_ID.into(),
+                expires_at: now + PASSKEY_FLOW_TTL_MS,
+                consumed_at: None,
+            },
+        );
+        Ok(PasskeySignupStartResponse {
+            flow_id,
+            challenge,
+            rp_id: MEMORY_PASSKEY_RP_ID.into(),
+            user: PasskeyUser {
+                id: b64(&crate::passkey::user_handle(&r.account_id)),
+                name: username.clone(),
+                display_name: username,
+            },
+            pub_key_cred_params: vec![-7, -8, -257],
+            authenticator_selection: PasskeySelection {
+                resident_key: "required".into(),
+                user_verification: "required".into(),
+            },
+            exclude_credentials: vec![],
+        })
+    }
+
+    fn check_signup_allowed(&self, username: &str, now: i64) -> Result<(), ApiError> {
+        let switch = self
+            .settings
+            .get("signup")
+            .map(String::as_str)
+            .unwrap_or("closed");
+        if switch != "open" && switch != format!("only:{username}") {
+            return Err(ApiError::SignupClosed {
+                reason: SignupClosedReason::Closed,
+            });
+        }
+        if self.accounts.len() as u64 >= self.setting("max_accounts") {
+            return Err(ApiError::SignupClosed {
+                reason: SignupClosedReason::Full,
+            });
+        }
+        if self.signups.today(now) >= self.setting("signups_per_day") {
+            return Err(ApiError::SignupClosed {
+                reason: SignupClosedReason::Busy,
+            });
+        }
+        Ok(())
+    }
+
+    fn passkey_signup_finish(
+        &mut self,
+        r: &PasskeySignupFinishRequest,
+        now: i64,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        if r.flow_id.len() != 43
+            || !is_base64url(&r.flow_id)
+            || unb64(&r.flow_id).is_none_or(|b| b.len() != 32)
+        {
+            return Err(ApiError::BadRequest);
+        }
+        let device = Self::check_device(&r.device)?;
+        let flow = self
+            .passkey_flows
+            .get(&r.flow_id)
+            .cloned()
+            .filter(|f| f.expires_at > now)
+            .ok_or(ApiError::FlowExpired { gone: false })?;
+        if flow.kind != PasskeyFlowKind::Signup
+            || flow.device_id != device.id
+            || flow.device_proof_hash != device.proof_hash
+        {
+            return Err(ApiError::BadRequest);
+        }
+        if flow.rp_id != MEMORY_PASSKEY_RP_ID {
+            // The Worker would reject the attestation when it verifies against
+            // the configured RP; this fake has no attestation check.
+            return Err(ApiError::InvalidCredentials);
+        }
+        let username = match check_new_username(&r.username) {
+            Ok(n) => n,
+            Err(UsernameError::Reserved) => return Err(ApiError::ReservedUsername),
+            Err(_) => return Err(ApiError::InvalidUsername),
+        };
+        if flow.username.as_deref() != Some(&username)
+            || flow.account_id.as_deref() != Some(&r.account_id)
+        {
+            return Err(ApiError::BadRequest);
+        }
+        let credential_bytes =
+            passkey_bytes(&r.credential_id, 16, 1023).ok_or(ApiError::BadRequest)?;
+        if passkey_bytes(&r.attestation_object, 1, 16384).is_none()
+            || passkey_bytes(&r.client_data_json, 1, 8192).is_none()
+        {
+            return Err(ApiError::BadRequest);
+        }
+        let credential_id = b64(&credential_bytes);
+        let recovery = key32(&r.recovery_auth_key).ok_or(ApiError::BadRequest)?;
+        if !is_wrap(&r.recovery_wrapped_key)
+            || !is_hex16(&r.key_id)
+            || r.passkey_wrapped_key
+                .as_deref()
+                .is_some_and(|w| !is_wrap(w))
+        {
+            return Err(ApiError::BadRequest);
+        }
+        if r.transports.len() > 32
+            || r.transports.iter().any(|t| {
+                t.is_empty()
+                    || t.len() > 32
+                    || !t
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+                    || !t.as_bytes()[0].is_ascii_lowercase()
+            })
+        {
+            return Err(ApiError::BadRequest);
+        }
+        if flow.consumed_at.is_some() {
+            let existing = self
+                .accounts
+                .get(&r.account_id)
+                .filter(|a| a.username == username)
+                .ok_or(ApiError::FlowExpired { gone: false })?;
+            if existing.key_id != r.key_id
+                || existing.recovery_wrapped_key != r.recovery_wrapped_key
+                || existing.recovery_hash != sha256_hex(&recovery)
+                || !self
+                    .passkeys
+                    .iter()
+                    .any(|p| p.account_id == r.account_id && p.credential_id == credential_id)
+            {
+                return Err(ApiError::FlowExpired { gone: false });
+            }
+            let (account_id, username, key_id, epoch, has_password) = (
+                existing.id.clone(),
+                existing.username.clone(),
+                existing.key_id.clone(),
+                existing.epoch.clone(),
+                existing.has_password,
+            );
+            let (token, evicted_device) = self.start_session(&account_id, &device, now);
+            return Ok(PasskeySessionResponse {
+                kind: PasskeySessionKind::Session,
+                account_id,
+                username,
+                token,
+                key_id,
+                epoch,
+                has_password,
+                passkey_wrapped_key: None,
+                evicted_device,
+            });
+        }
+        if self
+            .passkeys
+            .iter()
+            .any(|p| p.credential_id == credential_id)
+        {
+            return Err(ApiError::CredentialExists);
+        }
+        if self.account_by_name(&username).is_some() {
+            return Err(ApiError::UsernameTaken);
+        }
+        if self.accounts.contains_key(&r.account_id) {
+            return Err(ApiError::AccountIdTaken);
+        }
+        self.check_signup_allowed(&username, now)?;
+        let epoch = hex(&random::<8>());
+        let salt = b64(&random::<16>());
+        self.accounts.insert(
+            r.account_id.clone(),
+            Account {
+                id: r.account_id.clone(),
+                username: username.clone(),
+                kdf: self.default,
+                salt,
+                auth_hash: sha256_hex(&random::<32>()),
+                wrapped_key: b64(&random::<73>()),
+                recovery_hash: sha256_hex(&recovery),
+                recovery_wrapped_key: r.recovery_wrapped_key.clone(),
+                key_id: r.key_id.clone(),
+                epoch: epoch.clone(),
+                last_seq: 0,
+                docs: 0,
+                doc_bytes: 0,
+                files: 0,
+                file_bytes: 0,
+                quota: QuotaOverride::default(),
+                created_at: now,
+                disabled_at: None,
+                has_password: false,
+            },
+        );
+        let transports = {
+            let mut unique = Vec::new();
+            for t in &r.transports {
+                if !unique.contains(t) {
+                    unique.push(t.clone());
+                }
+            }
+            unique.join(" ")
+        };
+        self.passkeys.push(PasskeyRow {
+            credential_id,
+            account_id: r.account_id.clone(),
+            alg: -7,
+            sign_count: 0,
+            transports,
+            wrapped_key: r.passkey_wrapped_key.clone(),
+            created_at: now,
+            last_used_at: None,
+        });
+        self.signups.add(now, 1);
+        self.passkey_flows
+            .get_mut(&r.flow_id)
+            .expect("flow was checked")
+            .consumed_at = Some(now);
+        let (token, evicted_device) = self.start_session(&r.account_id, &device, now);
+        Ok(PasskeySessionResponse {
+            kind: PasskeySessionKind::Session,
+            account_id: r.account_id.clone(),
+            username,
+            token,
+            key_id: r.key_id.clone(),
+            epoch,
+            has_password: false,
+            // Fresh sign-up already holds the data key locally; the Worker does
+            // not echo the wrap on this answer.
+            passkey_wrapped_key: None,
+            evicted_device,
+        })
     }
 
     fn prelogin(&self, request: &PreloginRequest) -> Result<PreloginResponse, ApiError> {
@@ -748,6 +1253,7 @@ impl ServerState {
                 quota: QuotaOverride::default(),
                 created_at: now,
                 disabled_at: None,
+                has_password: true,
             },
         );
         self.signups.add(now, 1);
@@ -886,6 +1392,7 @@ impl ServerState {
             stored.wrapped_key = r.wrapped_key.clone();
             stored.recovery_hash = recovery_hash_new;
             stored.recovery_wrapped_key = r.recovery_wrapped_key_new.clone();
+            stored.has_password = true;
             return Ok(SessionResponse {
                 account_id: a.id.clone(),
                 username: a.username.clone(),
@@ -1967,6 +2474,41 @@ impl Api for MemoryApi<'_> {
             .call(Route::Signup, |s, now| s.signup(request, now))
     }
 
+    fn passkey_start(
+        &self,
+        request: &PasskeyStartRequest,
+    ) -> Result<PasskeyStartResponse, ApiError> {
+        self.server
+            .call(Route::PasskeyStart, |s, now| s.passkey_start(request, now))
+    }
+
+    fn passkey_finish(
+        &self,
+        request: &PasskeyFinishRequest,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        self.server.call(Route::PasskeyFinish, |s, now| {
+            s.passkey_finish(request, now)
+        })
+    }
+
+    fn passkey_signup_start(
+        &self,
+        request: &PasskeySignupStartRequest,
+    ) -> Result<PasskeySignupStartResponse, ApiError> {
+        self.server.call(Route::PasskeySignupStart, |s, now| {
+            s.passkey_signup_start(request, now)
+        })
+    }
+
+    fn passkey_signup_finish(
+        &self,
+        request: &PasskeySignupFinishRequest,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        self.server.call(Route::PasskeySignupFinish, |s, now| {
+            s.passkey_signup_finish(request, now)
+        })
+    }
+
     fn login(&self, request: &LoginRequest) -> Result<LoginResponse, ApiError> {
         self.server
             .call(Route::Login, |s, now| s.login(request, now))
@@ -2096,7 +2638,53 @@ impl Backend for MemoryServer {
 #[cfg(test)]
 mod server_tests {
     use super::*;
+    use crate::api::LoginDevice;
     use proptest::prelude::*;
+
+    fn device(id: &str) -> NewDevice {
+        NewDevice {
+            id: id.into(),
+            sealed_name: None,
+            proof: b64(&[9; 32]),
+        }
+    }
+
+    fn signup_flow(
+        api: &dyn Api,
+        name: &str,
+        id: &str,
+        device: &NewDevice,
+    ) -> PasskeySignupStartResponse {
+        api.passkey_signup_start(&PasskeySignupStartRequest {
+            username: name.into(),
+            account_id: id.into(),
+            device: device.clone(),
+        })
+        .unwrap()
+    }
+
+    fn signup_finish(
+        flow: &PasskeySignupStartResponse,
+        name: &str,
+        id: &str,
+        device: NewDevice,
+        credential: &str,
+    ) -> PasskeySignupFinishRequest {
+        PasskeySignupFinishRequest {
+            flow_id: flow.flow_id.clone(),
+            username: name.into(),
+            account_id: id.into(),
+            credential_id: credential.into(),
+            attestation_object: b64(&[1]),
+            client_data_json: b64(br#"{"challenge":""}"#),
+            transports: vec!["internal".into()],
+            passkey_wrapped_key: Some(b64(&[7; 73])),
+            recovery_auth_key: b64(&[3; 32]),
+            recovery_wrapped_key: b64(&[4; 73]),
+            key_id: "0011223344556677".into(),
+            device,
+        }
+    }
 
     /// `DEFAULT_SETTINGS` is exactly what the migration seeds.
     #[test]
@@ -2140,6 +2728,168 @@ mod server_tests {
         assert_eq!(server.server().settings["signup"], "only:alice");
         assert_eq!(server.kdf_floor(), KdfParams::TEST);
         assert_eq!(server.stats(), ServerStats::default());
+    }
+
+    #[test]
+    fn passkey_signup_creates_passwordless_account_and_session() {
+        let server = MemoryServer::new();
+        server.set_now(1_700_000_000_000);
+        let api = server.api("");
+        let d = device("d_00000000000000000000000000000001");
+        let id = "a_00000000000000000000000000000001";
+        let flow = signup_flow(api.as_ref(), "alice", id, &d);
+        let credential = b64(&[5; 16]);
+        let mut finish = signup_finish(&flow, "alice", id, d, &credential);
+        finish.client_data_json =
+            b64(format!(r#"{{"challenge":"{}"}}"#, flow.challenge).as_bytes());
+        let session = api.passkey_signup_finish(&finish).unwrap();
+        assert!(!session.has_password);
+        assert_eq!(session.passkey_wrapped_key, None);
+        assert_eq!(api.account(&session.token).unwrap().username, "alice");
+        // A lost answer is retried with the same request: the Worker answers a
+        // session again rather than `flow_expired`, and sends no passkey wrap.
+        let retried = api.passkey_signup_finish(&finish).unwrap();
+        assert_eq!(retried.account_id, session.account_id);
+        assert_eq!(retried.passkey_wrapped_key, None);
+        assert!(api.account(&retried.token).is_ok());
+    }
+
+    #[test]
+    fn passkey_signup_rejects_a_flow_from_another_device() {
+        let server = MemoryServer::new();
+        server.set_now(1_700_000_000_000);
+        let api = server.api("");
+        let first = device("d_00000000000000000000000000000001");
+        let second = device("d_00000000000000000000000000000002");
+        let id = "a_00000000000000000000000000000001";
+        let flow = signup_flow(api.as_ref(), "alice", id, &first);
+        let finish = signup_finish(&flow, "alice", id, second, &b64(&[5; 16]));
+        assert_eq!(
+            api.passkey_signup_finish(&finish),
+            Err(ApiError::BadRequest)
+        );
+    }
+
+    #[test]
+    fn passkey_signin_lists_only_typed_account_credentials_and_consumes_flow() {
+        let server = MemoryServer::new();
+        server.set_now(1_700_000_000_000);
+        let api = server.api("");
+        let d = device("d_00000000000000000000000000000002");
+        let id = "a_00000000000000000000000000000002";
+        let flow = signup_flow(api.as_ref(), "alice", id, &d);
+        let credential = b64(&[6; 16]);
+        let mut finish = signup_finish(&flow, "alice", id, d.clone(), &credential);
+        finish.client_data_json =
+            b64(format!(r#"{{"challenge":"{}"}}"#, flow.challenge).as_bytes());
+        api.passkey_signup_finish(&finish).unwrap();
+        let start = api
+            .passkey_start(&PasskeyStartRequest {
+                username: Some(" Alice ".into()),
+                device: LoginDevice {
+                    id: d.id.clone(),
+                    proof: d.proof.clone(),
+                },
+            })
+            .unwrap();
+        assert_eq!(
+            start.allow_credentials,
+            vec![PasskeyAllowedCredential {
+                id: credential.clone(),
+                transports: vec!["internal".into()]
+            }]
+        );
+        let unknown = api
+            .passkey_start(&PasskeyStartRequest {
+                username: Some("nobody".into()),
+                device: LoginDevice {
+                    id: d.id.clone(),
+                    proof: d.proof.clone(),
+                },
+            })
+            .unwrap();
+        assert!(unknown.allow_credentials.is_empty());
+        let assertion = PasskeyFinishRequest {
+            flow_id: start.flow_id.clone(),
+            credential_id: credential,
+            authenticator_data: b64(&[1; 37]),
+            client_data_json: b64(format!(r#"{{"challenge":"{}"}}"#, start.challenge).as_bytes()),
+            signature: b64(&[2]),
+            user_handle: None,
+            device: LoginDevice {
+                id: d.id.clone(),
+                proof: d.proof.clone(),
+            },
+        };
+        let session = api.passkey_finish(&assertion).unwrap();
+        assert!(!session.has_password);
+        assert_eq!(session.passkey_wrapped_key, finish.passkey_wrapped_key);
+        assert_eq!(
+            api.passkey_finish(&assertion),
+            Err(ApiError::FlowExpired { gone: false })
+        );
+    }
+
+    #[test]
+    fn passkey_finish_rejects_unknown_credentials_and_mismatched_devices() {
+        let server = MemoryServer::new();
+        server.set_now(1_700_000_000_000);
+        let api = server.api("");
+        let d = device("d_00000000000000000000000000000003");
+        let start = api
+            .passkey_start(&PasskeyStartRequest {
+                username: None,
+                device: LoginDevice {
+                    id: d.id.clone(),
+                    proof: d.proof.clone(),
+                },
+            })
+            .unwrap();
+        let req = PasskeyFinishRequest {
+            flow_id: start.flow_id,
+            credential_id: b64(&[1; 16]),
+            authenticator_data: b64(&[1; 37]),
+            client_data_json: b64(br#"{"challenge":"x"}"#),
+            signature: b64(&[2]),
+            user_handle: None,
+            device: LoginDevice {
+                id: d.id.clone(),
+                proof: d.proof.clone(),
+            },
+        };
+        assert_eq!(api.passkey_finish(&req), Err(ApiError::InvalidCredentials));
+        let next = api
+            .passkey_start(&PasskeyStartRequest {
+                username: None,
+                device: LoginDevice {
+                    id: d.id.clone(),
+                    proof: d.proof.clone(),
+                },
+            })
+            .unwrap();
+        let mismatch = PasskeyFinishRequest {
+            flow_id: next.flow_id,
+            ..req
+        };
+        let mut mismatch = mismatch;
+        mismatch.device.proof = b64(&[8; 32]);
+        assert_eq!(api.passkey_finish(&mismatch), Err(ApiError::BadRequest));
+        let mut malformed = mismatch;
+        malformed.credential_id = "not canonical!".into();
+        assert_eq!(
+            api.passkey_finish(&malformed),
+            Err(ApiError::InvalidCredentials)
+        );
+    }
+
+    #[test]
+    fn health_advertises_memory_passkey_rp() {
+        let health = MemoryServer::new().api("").health().unwrap();
+        let auth = health.auth.unwrap();
+        let rp = auth.passkeys.unwrap();
+        assert_eq!(rp.rp_id, MEMORY_PASSKEY_RP_ID);
+        assert_eq!(rp.origins, vec!["https://memory.kanso.test"]);
+        assert!(rp.security_key);
     }
 
     #[test]

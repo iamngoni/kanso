@@ -1,0 +1,18 @@
+[package]
+name = "kanso-fido"
+description = "The Linux CTAP2 client for FIDO2 security keys over USB HID and NFC: libfido2 bindings, the hmac-secret to PRF mapping, and WebAuthn-shaped results. No platform passkeys."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+hmac.workspace = true
+proptest.workspace = true
+ring = "0.17"

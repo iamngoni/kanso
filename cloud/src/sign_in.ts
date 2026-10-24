@@ -42,7 +42,7 @@ export interface SignInRoutes {
 	github: boolean;
 }
 
-export const SIGN_IN_ROUTES: SignInRoutes = { passkeys: false, apple: false, google: false, github: false };
+export const SIGN_IN_ROUTES: SignInRoutes = { passkeys: true, apple: false, google: false, github: false };
 
 export const isProvider = (value: string): value is Provider => (PROVIDERS as readonly string[]).includes(value);
 
@@ -283,7 +283,7 @@ export async function flowForDevice(
 	env: Env,
 	id: string,
 	kind: string,
-	device: { id: string; proof: string },
+	device: { id: string; proof: Uint8Array | string },
 	now: number,
 ): Promise<AuthFlowRow | Response> {
 	if (!isFlowId(id)) return badRequest("flow_id must be 32 bytes of canonical base64url.");

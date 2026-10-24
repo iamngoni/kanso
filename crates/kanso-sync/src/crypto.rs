@@ -463,6 +463,8 @@ pub enum WrapPurpose {
     Password,
     /// `0x52` (`R`): under the recovery KEK.
     Recovery,
+    /// `0x4B` (`K`): under a passkey's or security key's PRF-derived KEK.
+    Passkey,
 }
 
 impl WrapPurpose {
@@ -470,8 +472,35 @@ impl WrapPurpose {
         match self {
             WrapPurpose::Password => b'P',
             WrapPurpose::Recovery => b'R',
+            WrapPurpose::Passkey => b'K',
         }
     }
+}
+
+/// The fixed WebAuthn PRF input every Kanso passkey is asked for:
+/// `SHA-256("kanso/v1/passkey-prf" || 0x01)`, 32 bytes (docs/ACCOUNTS.md ›
+/// Keys for passkeys and security keys). It is a protocol constant: changing
+/// it makes every passkey wrap unopenable, so a golden vector pins it.
+pub const PRF_INPUT: [u8; 32] = [
+    0x98, 0x43, 0x20, 0xbf, 0xab, 0xbd, 0x34, 0x26, 0x97, 0xaf, 0x83, 0x64, 0x7d, 0xc7, 0x74, 0xe3,
+    0x07, 0xf9, 0x8e, 0x62, 0xec, 0xf2, 0x7d, 0xd5, 0xd8, 0x4f, 0x8f, 0x00, 0x6d, 0x86, 0xfd, 0x59,
+];
+
+/// `passkey_kek = HKDF(ikm = prf_out,
+///                     salt = "kanso/v1/passkey" || 0x01 || lp(origin),
+///                     info = "kanso/v1/passkey-kek" || 0x01 || lp(account_id)
+///                            || lp(credential_id))`.
+/// `credential_id` is the raw credential ID in unpadded base64url, so a wrap
+/// moved to another credential derives another key and fails to open.
+pub fn passkey_kek(prf_out: &[u8; 32], origin: &str, account_id: &str, credential_id: &str) -> Kek {
+    let mut salt = b"kanso/v1/passkey".to_vec();
+    salt.push(FORMAT_V1);
+    lp(&mut salt, origin);
+    let mut info = b"kanso/v1/passkey-kek".to_vec();
+    info.push(FORMAT_V1);
+    lp(&mut info, account_id);
+    lp(&mut info, credential_id);
+    Kek(hkdf32(prf_out, Some(&salt), &info))
 }
 
 /// Why opening keys failed.
@@ -1138,6 +1167,49 @@ mod tests {
             data_key
         );
         assert_eq!(key_id(&data_key), o["key_id"]);
+
+        // Passkeys: the fixed PRF input, the CTAP salt, the user handle, the
+        // passkey KEK's salt and info, and one wrap with purpose 0x4B.
+        let passkey = &i["passkey"];
+        let prf = unhex::<32>(&passkey["prf_out"]);
+        let credential = passkey["credential_id"].as_str().unwrap();
+        assert_eq!(hex(&PRF_INPUT), o["prf_input"]);
+        assert_eq!(hex(&crate::security_key::ctap_salt()), o["ctap_salt"]);
+        assert_eq!(hex(&crate::passkey::user_handle(account)), o["user_handle"]);
+        let mut passkey_salt = b"kanso/v1/passkey".to_vec();
+        passkey_salt.push(FORMAT_V1);
+        lp(&mut passkey_salt, &origin);
+        assert_eq!(hex(&passkey_salt), o["passkey_salt"]);
+        let mut passkey_info = b"kanso/v1/passkey-kek".to_vec();
+        passkey_info.push(FORMAT_V1);
+        lp(&mut passkey_info, account);
+        lp(&mut passkey_info, credential);
+        assert_eq!(hex(&passkey_info), o["passkey_info"]);
+        let passkey_kek = passkey_kek(&prf, &origin, account, credential);
+        assert_eq!(hex(passkey_kek.bytes()), o["passkey_kek"]);
+        assert_eq!(
+            hex(&wrap_aad(WrapPurpose::Passkey, account)),
+            o["passkey_aad"]
+        );
+        let wrapped_p = wrap_with_nonce(
+            &passkey_kek,
+            WrapPurpose::Passkey,
+            account,
+            &data_key,
+            &unhex::<24>(&passkey["nonce"]),
+        );
+        assert_eq!(wrapped_p, o["wrap_passkey"]);
+        assert_eq!(
+            crate::passkey::open_passkey_wrapped_key(
+                &prf,
+                &origin,
+                account,
+                &unb64(credential).unwrap(),
+                &wrapped_p
+            )
+            .unwrap(),
+            data_key
+        );
 
         let content = ContentKeys::derive(&data_key);
         let derived = [

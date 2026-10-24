@@ -94,6 +94,75 @@ pub trait Api {
     fn signup(&self, request: &SignupRequest) -> Result<SessionResponse, ApiError>;
     /// `POST /v2/auth/login`.
     fn login(&self, request: &LoginRequest) -> Result<LoginResponse, ApiError>;
+    /// `POST /v2/auth/passkey/start` (username-first to bind device proof).
+    fn passkey_start(
+        &self,
+        _request: &PasskeyStartRequest,
+    ) -> Result<PasskeyStartResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/passkey/finish`.
+    fn passkey_finish(
+        &self,
+        _request: &PasskeyFinishRequest,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/passkey/signup/start`.
+    fn passkey_signup_start(
+        &self,
+        _request: &PasskeySignupStartRequest,
+    ) -> Result<PasskeySignupStartResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/passkey/signup/finish`.
+    fn passkey_signup_finish(
+        &self,
+        _request: &PasskeySignupFinishRequest,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `GET /v2/account/sign-in` (specified in revision 3; handler absent
+    /// from this checkout's Worker).
+    fn account_sign_in_methods(
+        &self,
+        _token: &SessionToken,
+    ) -> Result<AccountSignInMethodsResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/proof/start`.
+    fn passkey_proof_start(
+        &self,
+        _token: &SessionToken,
+        _request: &PasskeyProofStartRequest,
+    ) -> Result<PasskeyProofStartResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/passkeys/start`.
+    fn account_passkeys_start(
+        &self,
+        _token: &SessionToken,
+        _request: &AccountPasskeysStartRequest,
+    ) -> Result<AccountPasskeysStartResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/passkeys/finish`.
+    fn account_passkeys_finish(
+        &self,
+        _token: &SessionToken,
+        _request: &AccountPasskeysFinishRequest,
+    ) -> Result<AccountPasskeysFinishResponse, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/passkeys/<credential_id>/remove` (204).
+    fn account_passkey_remove(
+        &self,
+        _token: &SessionToken,
+        _credential_id: &str,
+        _request: &PasskeyProofRequest,
+    ) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
     /// `POST /v2/auth/recover/start`.
     fn recover_start(
         &self,
@@ -154,8 +223,8 @@ pub trait Api {
     fn get_file(&self, token: &SessionToken, wire_id: &str) -> Result<Option<Vec<u8>>, ApiError>;
 }
 
-/// The routes, by the names the fixtures use (`"request": "recover_start"`),
-/// for [`crate::MemoryServer::drop_next_responses`] and its stats.
+/// The routes implemented by [`crate::MemoryServer`], by the names its
+/// fixtures use (`"request": "recover_start"`) and its stats.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Route {
@@ -163,6 +232,15 @@ pub enum Route {
     Prelogin,
     Signup,
     Login,
+    PasskeyStart,
+    PasskeyFinish,
+    PasskeySignupStart,
+    PasskeySignupFinish,
+    AccountSignInMethods,
+    PasskeyProofStart,
+    AccountPasskeysStart,
+    AccountPasskeysFinish,
+    AccountPasskeyRemove,
     RecoverStart,
     RecoverFinish,
     Logout,
@@ -180,6 +258,10 @@ pub enum Route {
 }
 
 impl Route {
+    /// Routes the shared conformance fixtures cover. The four public passkey
+    /// routes are implemented by `MemoryServer` and exercised by its own
+    /// tests, but have no fixture case yet; the account-management passkeys
+    /// are contracts only (neither the Worker nor `MemoryServer` serves them).
     pub const ALL: [Route; 18] = [
         Route::Health,
         Route::Prelogin,
@@ -201,6 +283,21 @@ impl Route {
         Route::GetFile,
     ];
 
+    /// Passkey HTTP contracts: the four public routes `MemoryServer` fakes,
+    /// plus account-management routes described by revision 3 but not yet
+    /// implemented by this checkout's Worker or `MemoryServer`.
+    pub const PASSKEYS: [Route; 9] = [
+        Route::PasskeyStart,
+        Route::PasskeyFinish,
+        Route::PasskeySignupStart,
+        Route::PasskeySignupFinish,
+        Route::AccountSignInMethods,
+        Route::PasskeyProofStart,
+        Route::AccountPasskeysStart,
+        Route::AccountPasskeysFinish,
+        Route::AccountPasskeyRemove,
+    ];
+
     /// The method and path (with `<…>` placeholders).
     pub fn http(self) -> (&'static str, &'static str) {
         match self {
@@ -208,6 +305,18 @@ impl Route {
             Route::Prelogin => ("POST", "/v2/auth/prelogin"),
             Route::Signup => ("POST", "/v2/auth/signup"),
             Route::Login => ("POST", "/v2/auth/login"),
+            Route::PasskeyStart => ("POST", "/v2/auth/passkey/start"),
+            Route::PasskeyFinish => ("POST", "/v2/auth/passkey/finish"),
+            Route::PasskeySignupStart => ("POST", "/v2/auth/passkey/signup/start"),
+            Route::PasskeySignupFinish => ("POST", "/v2/auth/passkey/signup/finish"),
+            Route::AccountSignInMethods => ("GET", "/v2/account/sign-in"),
+            Route::PasskeyProofStart => ("POST", "/v2/account/sign-in/proof/start"),
+            Route::AccountPasskeysStart => ("POST", "/v2/account/sign-in/passkeys/start"),
+            Route::AccountPasskeysFinish => ("POST", "/v2/account/sign-in/passkeys/finish"),
+            Route::AccountPasskeyRemove => (
+                "POST",
+                "/v2/account/sign-in/passkeys/<credential_id>/remove",
+            ),
             Route::RecoverStart => ("POST", "/v2/auth/recover/start"),
             Route::RecoverFinish => ("POST", "/v2/auth/recover/finish"),
             Route::Logout => ("POST", "/v2/auth/logout"),
@@ -233,6 +342,10 @@ impl Route {
                 | Route::Prelogin
                 | Route::Signup
                 | Route::Login
+                | Route::PasskeyStart
+                | Route::PasskeyFinish
+                | Route::PasskeySignupStart
+                | Route::PasskeySignupFinish
                 | Route::RecoverStart
                 | Route::RecoverFinish
         )
@@ -315,6 +428,26 @@ pub struct Health {
     pub ok: bool,
     pub protocol: u32,
     pub signup: SignupState,
+    /// Absent on older protocol-2 servers. An absent `passkeys` value means
+    /// this server does not advertise passkey ceremonies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<AuthAdvertisement>,
+}
+
+/// The sign-in methods advertised by the Worker.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuthAdvertisement {
+    pub password: bool,
+    pub passkeys: Option<PasskeyAdvertisement>,
+    pub providers: Vec<String>,
+}
+
+/// The passkey relying-party settings a local ceremony must use.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyAdvertisement {
+    pub rp_id: String,
+    pub origins: Vec<String>,
+    pub security_key: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -374,6 +507,232 @@ pub struct LoginResponse {
     pub key_id: String,
     pub epoch: String,
     pub evicted_device: Option<WireDevice>,
+}
+
+/// Device-bound username-first passkey sign-in start.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyStartRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    pub device: LoginDevice,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyStartResponse {
+    pub flow_id: String,
+    pub challenge: String,
+    pub rp_id: String,
+    pub allow_credentials: Vec<PasskeyAllowedCredential>,
+    pub user_verification: String,
+    pub timeout: u64,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyAllowedCredential {
+    pub id: String,
+    pub transports: Vec<String>,
+}
+
+/// Passkey assertion result from the platform ceremony.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyFinishRequest {
+    pub flow_id: String,
+    pub credential_id: String,
+    pub authenticator_data: String,
+    pub client_data_json: String,
+    pub signature: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_handle: Option<String>,
+    pub device: LoginDevice,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PasskeySessionKind {
+    Session,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeySessionResponse {
+    pub kind: PasskeySessionKind,
+    pub account_id: String,
+    pub username: String,
+    pub token: SessionToken,
+    pub key_id: String,
+    pub epoch: String,
+    pub has_password: bool,
+    pub passkey_wrapped_key: Option<String>,
+    pub evicted_device: Option<WireDevice>,
+}
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeySignupStartRequest {
+    pub username: String,
+    pub account_id: String,
+    pub device: NewDevice,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeySignupStartResponse {
+    pub flow_id: String,
+    pub challenge: String,
+    pub rp_id: String,
+    pub user: PasskeyUser,
+    pub pub_key_cred_params: Vec<i32>,
+    pub authenticator_selection: PasskeySelection,
+    pub exclude_credentials: Vec<PasskeyAllowedCredential>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyUser {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "displayName")]
+    pub display_name: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeySelection {
+    #[serde(rename = "residentKey")]
+    pub resident_key: String,
+    #[serde(rename = "userVerification")]
+    pub user_verification: String,
+}
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeySignupFinishRequest {
+    pub flow_id: String,
+    pub username: String,
+    pub account_id: String,
+    pub credential_id: String,
+    pub attestation_object: String,
+    pub client_data_json: String,
+    pub transports: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub passkey_wrapped_key: Option<String>,
+    pub recovery_auth_key: String,
+    pub recovery_wrapped_key: String,
+    pub key_id: String,
+    pub device: NewDevice,
+}
+
+// Account method/proof contracts mirror revision 3. This worktree's Worker
+// currently has no handlers for these session routes; the default Api methods
+// return NotFound until that server-side pass lands.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountSignInMethodsResponse {
+    pub username: String,
+    pub has_password: bool,
+    pub identities: Vec<LinkedIdentityResponse>,
+    pub passkeys: Vec<AccountPasskeyResponse>,
+    pub recovery: bool,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LinkedIdentityResponse {
+    pub provider: String,
+    pub created_at: i64,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountPasskeyResponse {
+    pub credential_id: String,
+    pub created_at: i64,
+    pub last_used_at: Option<i64>,
+    pub prf: bool,
+    pub transports: Vec<String>,
+}
+
+/// A fresh proof for a session-authenticated account change. `Debug` is
+/// omitted because password proofs and assertion bytes are credentials.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ProofRequest {
+    Password {
+        auth_key: String,
+    },
+    Passkey {
+        flow: String,
+        assertion: PasskeyProofAssertion,
+    },
+    Provider {
+        flow: String,
+    },
+}
+
+impl fmt::Debug for ProofRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProofRequest::Password { .. } => f
+                .debug_struct("Password")
+                .field("auth_key", &"<redacted>")
+                .finish(),
+            ProofRequest::Passkey { flow, assertion } => f
+                .debug_struct("Passkey")
+                .field("flow", flow)
+                .field("assertion", assertion)
+                .finish(),
+            ProofRequest::Provider { flow } => {
+                f.debug_struct("Provider").field("flow", flow).finish()
+            }
+        }
+    }
+}
+
+impl Drop for ProofRequest {
+    fn drop(&mut self) {
+        if let ProofRequest::Password { auth_key } = self {
+            auth_key.zeroize();
+        }
+    }
+}
+
+/// The assertion fields used by a sensitive-change proof. No user handle is
+/// sent because proof/start has already selected a credential.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyProofAssertion {
+    pub credential_id: String,
+    pub authenticator_data: String,
+    pub client_data_json: String,
+    pub signature: String,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyProofStartRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credential_id: Option<String>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyProofStartResponse {
+    pub flow_id: String,
+    pub challenge: String,
+    pub allow_credentials: Vec<PasskeyAllowedCredential>,
+    pub timeout: u64,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasskeyProofRequest {
+    pub proof: ProofRequest,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recovery_auth_key: Option<String>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountPasskeysStartResponse {
+    pub flow_id: String,
+    pub challenge: String,
+    pub rp_id: String,
+    pub pub_key_cred_params: Vec<i32>,
+    pub authenticator_selection: PasskeySelection,
+    pub exclude_credentials: Vec<PasskeyAllowedCredential>,
+}
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountPasskeysStartRequest {
+    pub proof: ProofRequest,
+}
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountPasskeysFinishRequest {
+    pub flow_id: String,
+    pub credential_id: String,
+    pub attestation_object: String,
+    pub client_data_json: String,
+    pub transports: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub passkey_wrapped_key: Option<String>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountPasskeysFinishResponse {
+    pub credential_id: String,
+    pub prf: bool,
+    pub created_at: i64,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -523,6 +882,180 @@ mod tests {
             .params(),
             None
         );
+    }
+
+    #[test]
+    fn passkey_contracts_match_worker_json_names() {
+        // This is the exact registration-options shape `cloud/src/passkeys.ts`
+        // returns: `pub_key_cred_params` is a list of COSE integer IDs, not
+        // WebAuthn `{type, alg}` objects.
+        let start: PasskeySignupStartResponse = serde_json::from_value(serde_json::json!({
+            "flow_id": "f",
+            "challenge": "c",
+            "rp_id": "sync.example",
+            "user": {"id": "u", "name": "alice", "displayName": "alice"},
+            "pub_key_cred_params": [-7, -8, -257],
+            "authenticator_selection": {"residentKey": "required", "userVerification": "required"},
+            "exclude_credentials": []
+        }))
+        .unwrap();
+        assert_eq!(start.user.display_name, "alice");
+        assert_eq!(start.authenticator_selection.resident_key, "required");
+        assert_eq!(start.authenticator_selection.user_verification, "required");
+        assert_eq!(start.pub_key_cred_params, vec![-7, -8, -257]);
+        assert_eq!(
+            Route::PasskeySignupFinish.http(),
+            ("POST", "/v2/auth/passkey/signup/finish")
+        );
+    }
+
+    #[test]
+    fn passkey_request_secrets_are_redacted() {
+        let proof = ProofRequest::Password {
+            auth_key: "SECRET-password-proof".into(),
+        };
+        assert!(!format!("{proof:?}").contains("SECRET-password-proof"));
+        let request = PasskeySignupFinishRequest {
+            flow_id: "f".into(),
+            username: "alice".into(),
+            account_id: "a_0123456789abcdef0123456789abcdef".into(),
+            credential_id: "credential".into(),
+            attestation_object: "attestation".into(),
+            client_data_json: "client-data".into(),
+            transports: vec![],
+            passkey_wrapped_key: None,
+            recovery_auth_key: "SECRET-recovery-auth".into(),
+            recovery_wrapped_key: "recovery-wrap".into(),
+            key_id: "0123456789abcdef".into(),
+            device: NewDevice {
+                id: "d_0123456789abcdef0123456789abcdef".into(),
+                sealed_name: None,
+                proof: "SECRET-device-proof".into(),
+            },
+        };
+        let printed = format!("{request:?}");
+        assert!(!printed.contains("SECRET-recovery-auth"));
+        assert!(!printed.contains("SECRET-device-proof"));
+        assert!(printed.contains("recovery-wrap"));
+    }
+
+    #[test]
+    fn passkey_signup_finish_body_and_session_response_match_the_worker() {
+        let request = PasskeySignupFinishRequest {
+            flow_id: "flow".into(),
+            username: "alice".into(),
+            account_id: "a_0123456789abcdef0123456789abcdef".into(),
+            credential_id: "credential".into(),
+            attestation_object: "attestation".into(),
+            client_data_json: "client-data".into(),
+            transports: vec!["usb".into()],
+            passkey_wrapped_key: Some("wrapped-passkey-key".into()),
+            recovery_auth_key: "recovery-proof".into(),
+            recovery_wrapped_key: "recovery-wrap".into(),
+            key_id: "0123456789abcdef".into(),
+            device: NewDevice {
+                id: "d_0123456789abcdef0123456789abcdef".into(),
+                sealed_name: Some("sealed-name".into()),
+                proof: "device-proof".into(),
+            },
+        };
+        let body = serde_json::to_value(request).unwrap();
+        assert_eq!(body["flow_id"], "flow");
+        assert_eq!(body["credential_id"], "credential");
+        assert_eq!(body["passkey_wrapped_key"], "wrapped-passkey-key");
+        assert_eq!(body["recovery_auth_key"], "recovery-proof");
+        assert_eq!(body["device"]["proof"], "device-proof");
+
+        let response: PasskeySessionResponse = serde_json::from_value(serde_json::json!({
+            "kind": "session",
+            "account_id": "a_0123456789abcdef0123456789abcdef",
+            "username": "alice",
+            "token": "kanso_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "key_id": "0123456789abcdef",
+            "epoch": "0123456789abcdef",
+            "has_password": false,
+            "passkey_wrapped_key": null,
+            "evicted_device": null
+        }))
+        .unwrap();
+        assert_eq!(response.kind, PasskeySessionKind::Session);
+        assert_eq!(response.account_id, "a_0123456789abcdef0123456789abcdef");
+        assert_eq!(
+            response.token.expose(),
+            "kanso_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        );
+        assert_eq!(response.passkey_wrapped_key, None);
+        assert_eq!(response.evicted_device, None);
+        assert!(!format!("{response:?}").contains("kanso_"));
+    }
+
+    #[test]
+    fn optional_assertion_user_handle_is_omitted_when_absent() {
+        let request = PasskeyFinishRequest {
+            flow_id: "flow".into(),
+            credential_id: "credential".into(),
+            authenticator_data: "auth-data".into(),
+            client_data_json: "client-data".into(),
+            signature: "signature".into(),
+            user_handle: None,
+            device: LoginDevice {
+                id: "d_0123456789abcdef0123456789abcdef".into(),
+                proof: "device-proof".into(),
+            },
+        };
+        let body = serde_json::to_value(request).unwrap();
+        assert!(body.get("user_handle").is_none());
+    }
+
+    #[test]
+    fn health_passkey_advertisement_is_optional_and_typed() {
+        let old: Health = serde_json::from_value(serde_json::json!({
+            "ok": true, "protocol": 2, "signup": "open"
+        }))
+        .unwrap();
+        assert!(old.auth.is_none());
+
+        let current: Health = serde_json::from_value(serde_json::json!({
+            "ok": true,
+            "protocol": 2,
+            "signup": "open",
+            "auth": {
+                "password": true,
+                "passkeys": {
+                    "rp_id": "sync.example",
+                    "origins": ["https://sync.example"],
+                    "security_key": true
+                },
+                "providers": []
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            current.auth.unwrap().passkeys.unwrap().rp_id,
+            "sync.example"
+        );
+    }
+
+    #[test]
+    fn account_sign_in_methods_use_the_specified_top_level_shape() {
+        let methods: AccountSignInMethodsResponse = serde_json::from_value(serde_json::json!({
+            "username": "alice",
+            "has_password": true,
+            "identities": [{"provider": "apple", "created_at": 1}],
+            "passkeys": [{
+                "credential_id": "credential",
+                "created_at": 2,
+                "last_used_at": null,
+                "prf": true,
+                "transports": ["usb"]
+            }],
+            "recovery": true
+        }))
+        .unwrap();
+        assert_eq!(methods.username, "alice");
+        assert!(methods.has_password && methods.recovery);
+        assert_eq!(methods.passkeys.len(), 1);
+        assert!(methods.passkeys[0].prf);
     }
 
     /// No request's `Debug` shows an auth key or a device proof, and every
@@ -714,4 +1247,28 @@ secret_fields!(RecoveryKeyRequest {
 secret_fields!(DeleteRequest {
     shown: [username],
     secret: [auth_key]
+});
+secret_fields!(PasskeySignupFinishRequest {
+    shown: [
+        flow_id,
+        username,
+        account_id,
+        credential_id,
+        attestation_object,
+        client_data_json,
+        transports,
+        passkey_wrapped_key,
+        recovery_wrapped_key,
+        key_id,
+        device
+    ],
+    secret: [recovery_auth_key]
+});
+secret_fields!(PasskeyProofRequest {
+    shown: [proof],
+    secret: [recovery_auth_key]
+});
+secret_fields!(PasskeyProofAssertion {
+    shown: [credential_id],
+    secret: [authenticator_data, client_data_json, signature]
 });

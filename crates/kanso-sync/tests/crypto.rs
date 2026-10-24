@@ -372,3 +372,142 @@ fn forged_tombstones_are_refused() {
     };
     assert_eq!(keys.open_doc(ACCOUNT, &short), Opened::Undecryptable);
 }
+
+// --------------------------------------------------------------- passkeys
+
+use kanso_sync::PRF_INPUT;
+use kanso_sync::PasskeyAssertion;
+use kanso_sync::passkey::{
+    client_data_json, open_passkey_wrapped_key, passkey_wrapped_key, prf_input, user_handle,
+};
+use kanso_sync::security_key::ctap_salt;
+
+const CREDENTIAL: &[u8] = &[7u8; 32];
+const OTHER_CREDENTIAL: &[u8] = &[8u8; 32];
+
+#[test]
+fn the_prf_input_and_ctap_salt_are_pinned() {
+    assert_eq!(
+        PRF_INPUT,
+        [
+            0x98, 0x43, 0x20, 0xbf, 0xab, 0xbd, 0x34, 0x26, 0x97, 0xaf, 0x83, 0x64, 0x7d, 0xc7,
+            0x74, 0xe3, 0x07, 0xf9, 0x8e, 0x62, 0xec, 0xf2, 0x7d, 0xd5, 0xd8, 0x4f, 0x8f, 0x00,
+            0x6d, 0x86, 0xfd, 0x59
+        ]
+    );
+    assert_eq!(prf_input(), PRF_INPUT);
+    // SHA-256("WebAuthn PRF" || 0x00 || PRF_INPUT): the authData the
+    // authenticator hashes the PRF input with.
+    assert_eq!(
+        ctap_salt(),
+        [
+            0x2b, 0x3e, 0xd9, 0x02, 0xb2, 0x5c, 0x43, 0xe8, 0x4d, 0xd6, 0x47, 0xaa, 0x61, 0x18,
+            0xa3, 0xc5, 0x30, 0x70, 0xaa, 0xaf, 0x23, 0x04, 0x54, 0x25, 0xf8, 0xa4, 0x1f, 0x1b,
+            0xa0, 0xc0, 0x4b, 0x40
+        ]
+    );
+}
+
+#[test]
+fn the_user_handle_is_sixteen_opaque_bytes() {
+    assert_eq!(user_handle(ACCOUNT).len(), 16);
+    assert_eq!(user_handle(ACCOUNT), user_handle(ACCOUNT));
+    assert_ne!(user_handle(ACCOUNT), user_handle(OTHER_ACCOUNT));
+}
+
+#[test]
+fn a_passkey_wrap_round_trips_and_is_bound_to_its_context() {
+    let key = DataKey::from_bytes([9u8; 32]);
+    let prf = [3u8; 32];
+    let wrapped = passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, CREDENTIAL, &key);
+    assert_eq!(wrapped.len(), 98);
+    assert_eq!(
+        open_passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, CREDENTIAL, &wrapped).unwrap(),
+        key
+    );
+    // A wrap moved to another credential, account or origin derives another
+    // KEK and fails to open. Another PRF output fails too.
+    for wrong in [
+        open_passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, OTHER_CREDENTIAL, &wrapped),
+        open_passkey_wrapped_key(&prf, ORIGIN, OTHER_ACCOUNT, CREDENTIAL, &wrapped),
+        open_passkey_wrapped_key(&prf, "https://other.example", ACCOUNT, CREDENTIAL, &wrapped),
+        open_passkey_wrapped_key(&[4u8; 32], ORIGIN, ACCOUNT, CREDENTIAL, &wrapped),
+    ] {
+        assert_eq!(wrong, Err(CryptoError::KeyMismatch));
+    }
+    // The same bytes under another purpose don't open either.
+    assert_eq!(
+        unwrap(
+            &kanso_sync::crypto::passkey_kek(&prf, ORIGIN, ACCOUNT, &encode(CREDENTIAL)),
+            WrapPurpose::Password,
+            ACCOUNT,
+            &wrapped
+        ),
+        Err(CryptoError::KeyMismatch)
+    );
+}
+
+proptest! {
+    #![proptest_config(config(128))]
+
+    /// Invariant: a wrap opens only with the same PRF output, origin, account
+    /// and credential, and every bit flip in it is refused. A credential
+    /// without a PRF output has no wrap to move.
+    #[test]
+    fn prop_passkey_wraps_open_only_in_their_context(
+        prf in any::<[u8; 32]>(),
+        other_prf in any::<[u8; 32]>(),
+        key in data_key(),
+        other_key in data_key(),
+        bit in any::<usize>(),
+    ) {
+        prop_assume!(prf != other_prf);
+        let wrapped = passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, CREDENTIAL, &key);
+        prop_assert_eq!(
+            open_passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, CREDENTIAL, &wrapped),
+            Ok(key.clone())
+        );
+        prop_assert_eq!(
+            open_passkey_wrapped_key(&other_prf, ORIGIN, ACCOUNT, CREDENTIAL, &wrapped),
+            Err(CryptoError::KeyMismatch)
+        );
+        let moved = passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, CREDENTIAL, &other_key);
+        if key != other_key {
+            prop_assert_ne!(&moved, &wrapped);
+        }
+        prop_assert_eq!(
+            open_passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, OTHER_CREDENTIAL, &wrapped),
+            Err(CryptoError::KeyMismatch)
+        );
+        prop_assert_eq!(
+            open_passkey_wrapped_key(&prf, ORIGIN, ACCOUNT, CREDENTIAL, &flipped(&wrapped, bit)),
+            Err(CryptoError::KeyMismatch)
+        );
+    }
+}
+
+#[test]
+fn passkey_shapes_never_print_the_prf_output() {
+    let registration = kanso_sync::PasskeyRegistration {
+        credential_id: CREDENTIAL.to_vec(),
+        attestation_object: vec![1, 2, 3],
+        client_data_json: b"{}".to_vec(),
+        transports: vec!["internal".into()],
+        prf: Some([0xab; 32]),
+    };
+    let assertion = PasskeyAssertion {
+        credential_id: CREDENTIAL.to_vec(),
+        authenticator_data: vec![1, 2, 3],
+        client_data_json: b"{}".to_vec(),
+        signature: vec![4, 5, 6],
+        user_handle: None,
+        prf: Some([0xcd; 32]),
+    };
+    for debug in [format!("{registration:?}"), format!("{assertion:?}")] {
+        assert!(debug.contains("<redacted>"));
+        assert!(!debug.contains("cdcd"));
+        assert!(!debug.contains("abab"));
+    }
+    let data = client_data_json("webauthn.get", &[1u8; 32], ORIGIN);
+    assert!(!String::from_utf8_lossy(&data).contains("prf"));
+}

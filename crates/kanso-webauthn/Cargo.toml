@@ -1,0 +1,29 @@
+[package]
+name = "kanso-webauthn"
+description = "Native platform passkey ceremonies: AuthenticationServices on macOS and the Win32 WebAuthn API on Windows. No web page, no network."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# AuthenticationServices is reached through the Objective-C runtime; GPUI
+# already links objc2 and block2.
+block2 = "0.6"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder", "NSWindow"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDate", "NSError", "NSObject", "NSRunLoop", "NSString"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+# webauthn.h: WebAuthNAuthenticatorMakeCredential and GetAssertion. The
+# version the app already builds.
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Networking_WindowsWebServices",
+    "Win32_UI_WindowsAndMessaging",
+] }

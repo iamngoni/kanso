@@ -5,7 +5,9 @@
     "HChaCha20 in JavaScript checked against draft-irtf-cfrg-xchacha-03); crypto.rs's tests check that kanso-sync",
     "gives every output from the inputs. Hex is lowercase; base64url is unpadded. Sealed values use the fixed",
     "nonces given. A document's plaintext is canonical JSON: id, rev, fields, with object keys sorted.",
-    "`production` repeats the password derivation at the production parameters (an #[ignore] test: 1 GiB)."
+    "`production` repeats the password derivation at the production parameters (an #[ignore] test: 1 GiB).",
+    "The passkey inputs pin docs/ACCOUNTS.md › Keys for passkeys and security keys: PRF_INPUT, the CTAP salt,",
+    "the user handle, passkey_kek and its salt and info, the wrap purpose 0x4B, and one fixed-nonce wrap."
   ],
   "inputs": {
     "origin": "https://kanso.example",
@@ -21,6 +23,11 @@
     "recovery_key_bytes": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
     "device_secret": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
     "account_id": "a_0123456789abcdef0123456789abcdef",
+    "passkey": {
+      "prf_out": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "credential_id": "AAECAwQFBgcICQoLDA0ODw",
+      "nonce": "070707070707070707070707070707070707070707070707"
+    },
     "nonces": {
       "wrap_password": "010101010101010101010101010101010101010101010101",
       "wrap_recovery": "020202020202020202020202020202020202020202020202",
@@ -67,6 +74,14 @@
     "wrap_password": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAeZHRXhAoEmg3UunDk4osnYSDUpvO2RaGeGYloG5c9N8E2NhDZSI1efvtDJBIA19bA",
     "wrap_recovery": "AQICAgICAgICAgICAgICAgICAgICAgICAhn6YelHE6jMO4WOmTIaem1CjEqGIaNgtnCvl89J9sPv36e-Xuy0ox4E5UX-0OxByg",
     "key_id": "92ecbe49a0c9ddc6",
+    "prf_input": "984320bfabbd342697af83647dc774e307f98e62ecf27dd5d84f8f006d86fd59",
+    "ctap_salt": "2b3ed902b25c43e84dd647aa6118a3c53070aaaf23045425f8a41f1ba0c04b40",
+    "user_handle": "2eaa5ecdf9ae9d60d7967da5e27da788",
+    "passkey_salt": "6b616e736f2f76312f706173736b657901001568747470733a2f2f6b616e736f2e6578616d706c65",
+    "passkey_info": "6b616e736f2f76312f706173736b65792d6b656b010022615f3031323334353637383961626364656630313233343536373839616263646566001641414543417751464267634943516f4c4441304f4477",
+    "passkey_kek": "f3732ac944486f202267e709b2ff7c3982b97012e0b349e1fc2631e874409df9",
+    "passkey_aad": "6b616e736f2d77726170014b0022615f3031323334353637383961626364656630313233343536373839616263646566",
+    "wrap_passkey": "AQcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHB1PunewgqJ5627QU3gzZvClzw4De21xgtKfUK5qarTreBAc3DlgXVdS1BmeGCRAH5A",
     "content_keys": {
       "doc": "80379a05e33b7d9630ca07249e76594174df7156c506d6d7dc1e725399e73079",
       "file": "b1bf3a5024eb63f455033dc7288bf351c63aa0efe0d32fc4cd9cd99b817f0e9e",

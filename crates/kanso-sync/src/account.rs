@@ -229,12 +229,19 @@ pub enum AccountError {
     UsernameMismatch,
     #[error("a file didn't match its checksum")]
     ChecksumMismatch,
+    #[error("this server doesn't offer that sign-in method")]
+    UnsupportedMethod,
+    #[error("the sign-in flow expired; try again")]
+    FlowExpired,
     /// 401 `unauthorized`: this Mac's session ended, for `reason`.
     #[error("signed out ({})", reason.as_str())]
     Unauthorized { reason: SignOutReason },
     /// 401: wrong password or recovery key, or an unknown username.
     #[error("invalid credentials")]
     InvalidCredentials,
+    /// 401: a sensitive change needs a fresh proof.
+    #[error("a fresh proof is required")]
+    ReauthRequired,
     #[error("the server refused a browser request")]
     ForbiddenOrigin,
     #[error("the account is turned off")]
@@ -250,6 +257,10 @@ pub enum AccountError {
     /// The client generates a new account ID and retries; it never surfaces.
     #[error("account ID taken")]
     AccountIdTaken,
+    #[error("that would remove the last way to sign in")]
+    LastMethod,
+    #[error("that passkey is already registered")]
+    CredentialExists,
     #[error("too large")]
     TooLarge,
     #[error("quota exceeded ({})", quota.as_str())]
@@ -337,8 +348,11 @@ impl From<ApiError> for AccountError {
             ApiError::WeakKdf => AccountError::WeakKdf,
             ApiError::UsernameMismatch => AccountError::UsernameMismatch,
             ApiError::ChecksumMismatch => AccountError::ChecksumMismatch,
+            ApiError::UnsupportedMethod => AccountError::UnsupportedMethod,
+            ApiError::FlowExpired { .. } => AccountError::FlowExpired,
             ApiError::Unauthorized { reason } => AccountError::Unauthorized { reason },
             ApiError::InvalidCredentials => AccountError::InvalidCredentials,
+            ApiError::ReauthRequired => AccountError::ReauthRequired,
             ApiError::ForbiddenOrigin => AccountError::ForbiddenOrigin,
             ApiError::AccountDisabled => AccountError::AccountDisabled,
             ApiError::SignupClosed { reason } => AccountError::SignupClosed { reason },
@@ -346,6 +360,8 @@ impl From<ApiError> for AccountError {
             ApiError::MethodNotAllowed => AccountError::MethodNotAllowed,
             ApiError::UsernameTaken => AccountError::UsernameTaken,
             ApiError::AccountIdTaken => AccountError::AccountIdTaken,
+            ApiError::LastMethod => AccountError::LastMethod,
+            ApiError::CredentialExists => AccountError::CredentialExists,
             ApiError::TooLarge => AccountError::TooLarge,
             ApiError::QuotaExceeded { quota, used, limit } => {
                 AccountError::QuotaExceeded { quota, used, limit }
@@ -1362,6 +1378,26 @@ mod tests {
         assert!(matches!(
             AccountError::from(ApiError::Transport("reset".into())),
             AccountError::Transport(_)
+        ));
+        assert!(matches!(
+            AccountError::from(ApiError::UnsupportedMethod),
+            AccountError::UnsupportedMethod
+        ));
+        assert!(matches!(
+            AccountError::from(ApiError::FlowExpired { gone: false }),
+            AccountError::FlowExpired
+        ));
+        assert!(matches!(
+            AccountError::from(ApiError::ReauthRequired),
+            AccountError::ReauthRequired
+        ));
+        assert!(matches!(
+            AccountError::from(ApiError::LastMethod),
+            AccountError::LastMethod
+        ));
+        assert!(matches!(
+            AccountError::from(ApiError::CredentialExists),
+            AccountError::CredentialExists
         ));
     }
 }

@@ -10,11 +10,15 @@ use ureq::Agent;
 use zeroize::Zeroizing;
 
 use crate::api::{
-    AccountResponse, Api, Backend, DeleteRequest, DeleteResponse, DeviceNameRequest,
-    DevicesResponse, Health, LoginRequest, LoginResponse, PasswordRequest, PasswordResponse,
-    PreloginRequest, PreloginResponse, RecoverFinishRequest, RecoverStartRequest,
-    RecoverStartResponse, RecoveryKeyRequest, RecoveryKeyResponse, Route, SessionResponse,
-    SignupRequest,
+    AccountPasskeysFinishRequest, AccountPasskeysFinishResponse, AccountPasskeysStartRequest,
+    AccountPasskeysStartResponse, AccountResponse, AccountSignInMethodsResponse, Api, Backend,
+    DeleteRequest, DeleteResponse, DeviceNameRequest, DevicesResponse, Health, LoginRequest,
+    LoginResponse, PasskeyFinishRequest, PasskeyProofRequest, PasskeyProofStartRequest,
+    PasskeyProofStartResponse, PasskeySessionResponse, PasskeySignupFinishRequest,
+    PasskeySignupStartRequest, PasskeySignupStartResponse, PasskeyStartRequest,
+    PasskeyStartResponse, PasswordRequest, PasswordResponse, PreloginRequest, PreloginResponse,
+    RecoverFinishRequest, RecoverStartRequest, RecoverStartResponse, RecoveryKeyRequest,
+    RecoveryKeyResponse, Route, SessionResponse, SignupRequest,
 };
 use crate::crypto::{KdfParams, sha256_hex};
 use crate::remote::encode_segment;
@@ -62,6 +66,15 @@ fn timeout(route: Route) -> Duration {
         | Route::Prelogin
         | Route::Signup
         | Route::Login
+        | Route::PasskeyStart
+        | Route::PasskeyFinish
+        | Route::PasskeySignupStart
+        | Route::PasskeySignupFinish
+        | Route::AccountSignInMethods
+        | Route::PasskeyProofStart
+        | Route::AccountPasskeysStart
+        | Route::AccountPasskeysFinish
+        | Route::AccountPasskeyRemove
         | Route::RecoverStart
         | Route::RecoverFinish
         | Route::Account
@@ -294,6 +307,123 @@ impl Api for HttpApi {
         )
     }
 
+    fn passkey_start(
+        &self,
+        request: &PasskeyStartRequest,
+    ) -> Result<PasskeyStartResponse, ApiError> {
+        self.json(
+            Route::PasskeyStart,
+            "/v2/auth/passkey/start",
+            None,
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
+    }
+    fn passkey_finish(
+        &self,
+        request: &PasskeyFinishRequest,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        self.json(
+            Route::PasskeyFinish,
+            "/v2/auth/passkey/finish",
+            None,
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
+    }
+    fn passkey_signup_start(
+        &self,
+        request: &PasskeySignupStartRequest,
+    ) -> Result<PasskeySignupStartResponse, ApiError> {
+        self.json(
+            Route::PasskeySignupStart,
+            "/v2/auth/passkey/signup/start",
+            None,
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
+    }
+    fn passkey_signup_finish(
+        &self,
+        request: &PasskeySignupFinishRequest,
+    ) -> Result<PasskeySessionResponse, ApiError> {
+        self.json(
+            Route::PasskeySignupFinish,
+            "/v2/auth/passkey/signup/finish",
+            None,
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
+    }
+
+    fn account_sign_in_methods(
+        &self,
+        token: &SessionToken,
+    ) -> Result<AccountSignInMethodsResponse, ApiError> {
+        self.json(
+            Route::AccountSignInMethods,
+            "/v2/account/sign-in",
+            Some(token),
+            NO_BODY,
+            MAX_AUTH_RESPONSE,
+        )
+    }
+
+    fn passkey_proof_start(
+        &self,
+        token: &SessionToken,
+        request: &PasskeyProofStartRequest,
+    ) -> Result<PasskeyProofStartResponse, ApiError> {
+        self.json(
+            Route::PasskeyProofStart,
+            "/v2/account/sign-in/proof/start",
+            Some(token),
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
+    }
+
+    fn account_passkeys_start(
+        &self,
+        token: &SessionToken,
+        request: &AccountPasskeysStartRequest,
+    ) -> Result<AccountPasskeysStartResponse, ApiError> {
+        self.json(
+            Route::AccountPasskeysStart,
+            "/v2/account/sign-in/passkeys/start",
+            Some(token),
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
+    }
+
+    fn account_passkeys_finish(
+        &self,
+        token: &SessionToken,
+        request: &AccountPasskeysFinishRequest,
+    ) -> Result<AccountPasskeysFinishResponse, ApiError> {
+        self.json(
+            Route::AccountPasskeysFinish,
+            "/v2/account/sign-in/passkeys/finish",
+            Some(token),
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
+    }
+
+    fn account_passkey_remove(
+        &self,
+        token: &SessionToken,
+        credential_id: &str,
+        request: &PasskeyProofRequest,
+    ) -> Result<(), ApiError> {
+        let path = format!(
+            "/v2/account/sign-in/passkeys/{}/remove",
+            encode_segment(credential_id)
+        );
+        self.empty(Route::AccountPasskeyRemove, &path, token, Some(request))
+    }
+
     fn recover_start(
         &self,
         request: &RecoverStartRequest,
@@ -481,7 +611,7 @@ mod tests {
     /// notes and files, 30 s for the rest.
     #[test]
     fn each_route_has_its_timeout() {
-        for route in Route::ALL {
+        for route in Route::ALL.into_iter().chain(Route::PASSKEYS) {
             let secs = timeout(route).as_secs();
             let expected = match route {
                 Route::Logout => 5,

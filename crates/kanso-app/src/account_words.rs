@@ -88,6 +88,15 @@ pub fn error_words(err: &AccountError, context: ErrorContext) -> String {
         AccountError::QuotaExceeded { .. } => {
             "Your account is full. Delete something or ask the server's owner for more space."
         }
+        AccountError::UnsupportedMethod => "That sign-in method isn't available on this server.",
+        AccountError::FlowExpired => "That sign-in expired. Try again.",
+        AccountError::ReauthRequired => {
+            "Confirm it's you with your password or a passkey, then try again."
+        }
+        AccountError::LastMethod => {
+            "This is the last way to sign in. Save your recovery key first."
+        }
+        AccountError::CredentialExists => "That passkey is already added.",
         AccountError::Keychain(_) => SECRET_STORE_TROUBLE,
         AccountError::UnsavedRecoveryKey { username } => {
             return format!(
@@ -648,6 +657,11 @@ mod tests {
             AccountError::InvalidCredentials,
             AccountError::ForbiddenOrigin,
             AccountError::AccountDisabled,
+            AccountError::UnsupportedMethod,
+            AccountError::FlowExpired,
+            AccountError::ReauthRequired,
+            AccountError::LastMethod,
+            AccountError::CredentialExists,
             AccountError::NotFound,
             AccountError::MethodNotAllowed,
             AccountError::UsernameTaken,

@@ -876,12 +876,14 @@ new passkey advertisement bit is `security_key` in health.
   secondary note under "Sources"), so the app detects PRF per ceremony and never assumes it.
 - **Windows 10 and 11:** the Win32 WebAuthn API (`webauthn.h`: `WebAuthNAuthenticatorMakeCredential`,
   `WebAuthNAuthenticatorGetAssertion`) with the same RP ID, which reaches Windows Hello and
-  security keys. Its options carry PRF as `pPRFGlobalEval` and `pHmacSecretSaltValues`. Where the
-  OS or the authenticator gives no PRF output, the credential registers without a wrap. If the API
-  call fails, the method isn't available and the app says so; it never falls back to a page. Step 2
-  records the `clientDataJSON.origin` each native API produces and pins `PASSKEY_ORIGINS` to it.
-- **Linux:** the app is the CTAP2 client. It uses a safe Rust wrapper around libfido2 1.17, which
-  drives USB HID and NFC security keys. USB HID is the required transport; NFC works where libfido2
+  security keys. Registration asks with `bEnablePrf` and, when the WebAuthn API is V8 or newer,
+  supplies the evaluation input as `pPRFGlobalEval` and reads the result from the attestation's
+  `pHmacSecret`; assertions use `pHmacSecretSaltValues`. Where the OS or the authenticator gives no
+  PRF output, the credential registers without a wrap. If the API call fails, the method isn't
+  available and the app says so; it never falls back to a page. Step 2 records the
+  `clientDataJSON.origin` each native API produces and pins `PASSKEY_ORIGINS` to it.
+- **Linux:** the app is the CTAP2 client. It uses a safe Rust wrapper around libfido2 1.12 or newer,
+  which drives USB HID and NFC security keys. USB HID is the required transport; NFC works where libfido2
   and the Linux host expose a reader, and PC/SC-only readers are not promised because distro builds
   vary. No Worker page is involved. `fido_dev_info_manifest` enumerates the authenticators; a udev
   monitor updates the button while the sign-in page is open, with enumeration when the form opens as

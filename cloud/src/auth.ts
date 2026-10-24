@@ -66,10 +66,10 @@ export interface Session {
 	username: string;
 }
 
-const respond = (checked: Checked<unknown> & { ok: false }): Response => error(checked.status, checked.code, checked.message);
+export const respond = (checked: Checked<unknown> & { ok: false }): Response => error(checked.status, checked.code, checked.message);
 
 /** Reads an auth or account body (8 KiB) that must be a JSON object. */
-async function readObject(request: Request): Promise<{ ok: true; value: Record<string, unknown> } | { ok: false; response: Response }> {
+export async function readObject(request: Request): Promise<{ ok: true; value: Record<string, unknown> } | { ok: false; response: Response }> {
 	const body = await readJson(request, MAX_AUTH_BODY);
 	if (!body.ok) return body;
 	if (!isObject(body.value)) return { ok: false, response: badRequest("The body must be a JSON object.") };
@@ -77,7 +77,7 @@ async function readObject(request: Request): Promise<{ ok: true; value: Record<s
 }
 
 /** The `username` field, normalized; a 400 when it isn't a string or isn't valid. */
-function username(body: Record<string, unknown>): Checked<string> {
+export function username(body: Record<string, unknown>): Checked<string> {
 	if (typeof body.username !== "string") return { ok: false, status: 400, code: "bad_request", message: "username must be a string." };
 	const normalized = normalizeUsername(body.username);
 	if (normalized === null) return { ok: false, status: 400, code: "invalid_username", message: "Not a valid username." };
@@ -138,7 +138,7 @@ export function withSession(handler: (request: Request, env: Env, now: number, s
 	};
 }
 
-type GuardColumn = "auth_hash" | "recovery_hash";
+export type GuardColumn = "auth_hash" | "recovery_hash";
 
 /**
  * The statements that make `device` this account's active session, in one
@@ -149,7 +149,7 @@ type GuardColumn = "auth_hash" | "recovery_hash";
  * Parameters: ?1 account, ?2 device, ?3 token hash, ?4 proof hash, ?5 now,
  * ?6 sealed name (null keeps the old one), ?7… guard values.
  */
-function sessionStatements(
+export function sessionStatements(
 	db: D1Database,
 	s: { accountId: string; deviceId: string; tokenHash: string; proofHash: string; sealedName: string | null; now: number },
 	guards: [GuardColumn, string][],
@@ -190,13 +190,13 @@ function sessionStatements(
 	];
 }
 
-interface SessionOutcome {
+export interface SessionOutcome {
 	ok: boolean;
 	evicted: { id: string; sealed_name: string | null } | null;
 }
 
 /** Reads `sessionStatements`' results, starting at `offset` in the batch. */
-function sessionOutcome(results: D1Result[], offset: number): SessionOutcome {
+export function sessionOutcome(results: D1Result[], offset: number): SessionOutcome {
 	const evicted = (results[offset].results as { device_id: string; sealed_name: string | null }[])[0];
 	return {
 		ok: results[offset + 1].results.length === 1,
@@ -204,13 +204,13 @@ function sessionOutcome(results: D1Result[], offset: number): SessionOutcome {
 	};
 }
 
-interface NewSession {
+export interface NewSession {
 	token: string;
 	tokenHash: string;
 	proofHash: string;
 }
 
-async function newSession(device: NewDevice): Promise<NewSession> {
+export async function newSession(device: NewDevice): Promise<NewSession> {
 	const token = newToken();
 	return { token, tokenHash: await hashToken(token), proofHash: await sha256Hex(device.proof) };
 }
@@ -541,6 +541,10 @@ export const recoverFinish: PepperHandler = async (request, env, now, keys) => {
 			).bind(account.id, now, old),
 			...sessionStatements(env.DB, { accountId: account.id, ...s }, [["recovery_hash", old]]),
 			env.DB.prepare(
+				`DELETE FROM account_passkeys WHERE account_id = ?1
+  AND EXISTS (SELECT 1 FROM accounts WHERE id = ?1 AND recovery_hash = ?2 AND disabled_at IS NULL)`,
+			).bind(account.id, old),
+			env.DB.prepare(
 				`UPDATE accounts SET kdf_m_kib = ?3, kdf_t = ?4, kdf_p = ?5, salt = ?6, auth_hash = ?7, wrapped_key = ?8,
   recovery_hash = ?9, recovery_wrapped_key = ?10
   WHERE id = ?1 AND recovery_hash = ?2 AND disabled_at IS NULL RETURNING id`,
@@ -557,7 +561,7 @@ export const recoverFinish: PepperHandler = async (request, env, now, keys) => {
 				b.recovery_wrapped_key_new,
 			),
 		]);
-		if (results[4].results.length === 1) {
+		if (results[5].results.length === 1) {
 			return json({ account_id: account.id, username: account.username, token: session.token, epoch: account.epoch });
 		}
 		account = await env.DB.prepare(ACCOUNT_BY_NAME).bind(name.value).first<AccountRow>();

@@ -22,6 +22,9 @@ export type Rule =
 	| "login-user"
 	| "login-ip"
 	| "recover-ip"
+	| "passkey-challenge"
+	| "passkey-manage"
+	| "proof-account"
 	| "password-account"
 	| "writes-account"
 	| "uploads-account"
@@ -49,6 +52,9 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"login-user": { window: 15 * 60_000, max: 10 },
 	"login-ip": { window: 15 * 60_000, max: 30 },
 	"recover-ip": { window: HOUR, max: 10 },
+	"passkey-challenge": { window: 15 * 60_000, max: 30 },
+	"passkey-manage": { window: HOUR, max: 20 },
+	"proof-account": { window: HOUR, max: 20 },
 	"password-account": { window: 15 * 60_000, max: 5 },
 	"writes-account": { window: DAY, max: null },
 	"uploads-account": { window: DAY, max: null },

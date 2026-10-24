@@ -62,6 +62,7 @@ import type { Env } from "./env";
 import { error, isContentType, methodNotAllowed, notFound } from "./http";
 import * as identity from "./identity";
 import { bindingFilter } from "./limits";
+import * as passkeys from "./passkeys";
 import { runCron } from "./purge";
 import * as shares from "./shares";
 import * as sync from "./sync";
@@ -100,6 +101,10 @@ const ROUTES: Record<string, Route> = {
 	"/v2/auth/login": { name: "login", binding: true, methods: { POST: json(auth.login, true) } },
 	"/v2/auth/recover/start": { name: "recover_start", binding: true, methods: { POST: json(auth.recoverStart, true) } },
 	"/v2/auth/recover/finish": { name: "recover_finish", binding: true, methods: { POST: json(auth.recoverFinish, true) } },
+	"/v2/auth/passkey/start": { name: "passkey_start", binding: true, methods: { POST: json(passkeys.passkeyStart, true) } },
+	"/v2/auth/passkey/finish": { name: "passkey_finish", binding: true, methods: { POST: json(passkeys.passkeyFinish, true) } },
+	"/v2/auth/passkey/signup/start": { name: "passkey_signup_start", binding: true, methods: { POST: json(passkeys.passkeySignupStart, true) } },
+	"/v2/auth/passkey/signup/finish": { name: "passkey_signup_finish", binding: true, methods: { POST: json(passkeys.passkeySignupFinish, true) } },
 	"/v2/auth/logout": { name: "logout", binding: true, methods: { POST: { handler: auth.logout } } },
 	"/v2/account": { name: "account", methods: { GET: { handler: auth.account } } },
 	"/v2/account/password": { name: "password", methods: { POST: json(auth.password) } },
