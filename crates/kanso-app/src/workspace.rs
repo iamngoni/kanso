@@ -651,6 +651,13 @@ impl Workspace {
             // The preview alone hides the text that had the keyboard, say:
             // the keyboard comes back here rather than going nowhere.
             cx.on_focus_lost(window, |this, window, cx| window.focus(&this.focus, cx)),
+            // Approval notifications are best-effort hints. Coming back to the
+            // app is one of the GET fallbacks; it never runs on a timer.
+            cx.observe_window_activation(window, |_, window, cx| {
+                if window.is_window_active() {
+                    crate::device_approval::refresh(cx);
+                }
+            }),
         ];
         window.focus(&focus, cx);
 

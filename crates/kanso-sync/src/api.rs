@@ -53,6 +53,18 @@ pub trait Backend: Send + Sync {
             _ => Duration::from_secs(4),
         }
     }
+
+    /// Opens `session`'s account event socket at `path` (what health
+    /// advertises) with this device's ID and proof ([`crate::events`]). A
+    /// backend without one refuses with 404, which ends the event loop.
+    fn events(
+        &self,
+        _session: &Session,
+        _device: &crate::DeviceIdentity,
+        _path: &str,
+    ) -> Result<Box<dyn crate::events::EventSource>, crate::events::EventError> {
+        Err(crate::events::EventError::Refused(ApiError::NotFound))
+    }
 }
 
 /// [`Backend::remote`]'s default: [`Api`]'s sync routes with one token.
@@ -152,6 +164,59 @@ pub trait Api {
     ) -> Result<PutFileResponse, ApiError>;
     /// `GET /v2/files/<wire_id>`; `None` on 404.
     fn get_file(&self, token: &SessionToken, wire_id: &str) -> Result<Option<Vec<u8>>, ApiError>;
+
+    // Device approval (docs/ACCOUNTS.md › Sign-in routes › Approvals). A
+    // server without them answers 404, which is also what these defaults
+    // give a backend that doesn't implement them.
+
+    /// `POST /v2/account/sign-in/approvals`.
+    fn create_approval(
+        &self,
+        _token: &SessionToken,
+        _request: &ApprovalCreateRequest,
+    ) -> Result<ApprovalCreated, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `GET /v2/account/sign-in/approvals`: the account's pending requests
+    /// other than the caller's own.
+    fn approvals(&self, _token: &SessionToken) -> Result<ApprovalList, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `GET /v2/account/sign-in/approvals/<id>`: the requester's poll.
+    fn approval(&self, _token: &SessionToken, _id: &str) -> Result<ApprovalPoll, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/approvals/<id>/challenge`.
+    fn challenge_approval(
+        &self,
+        _token: &SessionToken,
+        _id: &str,
+        _request: &ApprovalChallengeRequest,
+    ) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/approvals/<id>/name`.
+    fn name_approval(
+        &self,
+        _token: &SessionToken,
+        _id: &str,
+        _request: &ApprovalNameRequest,
+    ) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/approvals/<id>/approve`.
+    fn approve_approval(
+        &self,
+        _token: &SessionToken,
+        _id: &str,
+        _request: &ApprovalApproveRequest,
+    ) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `DELETE /v2/account/sign-in/approvals/<id>` (204): cancel or decline.
+    fn cancel_approval(&self, _token: &SessionToken, _id: &str) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
 }
 
 /// The routes, by the names the fixtures use (`"request": "recover_start"`),
@@ -177,10 +242,17 @@ pub enum Route {
     Changes,
     PutFile,
     GetFile,
+    ApprovalCreate,
+    ApprovalList,
+    ApprovalPoll,
+    ApprovalChallenge,
+    ApprovalName,
+    ApprovalApprove,
+    ApprovalCancel,
 }
 
 impl Route {
-    pub const ALL: [Route; 18] = [
+    pub const ALL: [Route; 25] = [
         Route::Health,
         Route::Prelogin,
         Route::Signup,
@@ -199,6 +271,13 @@ impl Route {
         Route::Changes,
         Route::PutFile,
         Route::GetFile,
+        Route::ApprovalCreate,
+        Route::ApprovalList,
+        Route::ApprovalPoll,
+        Route::ApprovalChallenge,
+        Route::ApprovalName,
+        Route::ApprovalApprove,
+        Route::ApprovalCancel,
     ];
 
     /// The method and path (with `<…>` placeholders).
@@ -222,6 +301,13 @@ impl Route {
             Route::Changes => ("GET", "/v2/changes"),
             Route::PutFile => ("PUT", "/v2/files/<wire_id>"),
             Route::GetFile => ("GET", "/v2/files/<wire_id>"),
+            Route::ApprovalCreate => ("POST", "/v2/account/sign-in/approvals"),
+            Route::ApprovalList => ("GET", "/v2/account/sign-in/approvals"),
+            Route::ApprovalPoll => ("GET", "/v2/account/sign-in/approvals/<id>"),
+            Route::ApprovalChallenge => ("POST", "/v2/account/sign-in/approvals/<id>/challenge"),
+            Route::ApprovalName => ("POST", "/v2/account/sign-in/approvals/<id>/name"),
+            Route::ApprovalApprove => ("POST", "/v2/account/sign-in/approvals/<id>/approve"),
+            Route::ApprovalCancel => ("DELETE", "/v2/account/sign-in/approvals/<id>"),
         }
     }
 
@@ -315,6 +401,18 @@ pub struct Health {
     pub ok: bool,
     pub protocol: u32,
     pub signup: SignupState,
+    /// The live channels this server offers; absent on an older server,
+    /// which means the app uses the GET fallbacks only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub events: Option<HealthEvents>,
+}
+
+/// `"events": {"account": "/v2/account/events"}`: the account event socket's
+/// path.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HealthEvents {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -493,6 +591,81 @@ pub struct DeviceRow {
     /// Updated when more than an hour old, so known to the hour.
     pub last_seen_at: i64,
     pub current: bool,
+}
+
+/// `POST /v2/account/sign-in/approvals`: the requester's commitment to its
+/// ephemeral key, which it reveals only after the challenge.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalCreateRequest {
+    pub commit: String,
+}
+
+/// The new request: its ID (43 base64url characters), when it expires (ms),
+/// and how many other active sessions the account has.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalCreated {
+    pub id: String,
+    pub expires_at: i64,
+    pub other_devices: u64,
+}
+
+/// `GET /v2/account/sign-in/approvals` 200, oldest first.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalList {
+    pub approvals: Vec<ApprovalRow>,
+}
+
+/// A pending request as the approver sees it. `epk` and `sealed_name`
+/// appear once the requester has posted them, after a challenge.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalRow {
+    pub id: String,
+    pub device_id: String,
+    pub commit: String,
+    #[serde(default)]
+    pub epk: Option<String>,
+    pub created_at: i64,
+    pub expires_at: i64,
+    #[serde(default)]
+    pub approver_epk: Option<String>,
+    #[serde(default)]
+    pub approver_device_id: Option<String>,
+    #[serde(default)]
+    pub sealed_name: Option<String>,
+    pub status: String,
+}
+
+/// `GET /v2/account/sign-in/approvals/<id>` 200: `status` is `waiting`,
+/// `challenged`, `approved`, `cancelled` or `expired`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalPoll {
+    pub status: String,
+    #[serde(default)]
+    pub expires_at: Option<i64>,
+    #[serde(default)]
+    pub approver_epk: Option<String>,
+    #[serde(default)]
+    pub approver_device_id: Option<String>,
+    #[serde(default)]
+    pub sealed_name: Option<String>,
+    #[serde(default)]
+    pub wrapped_key: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalChallengeRequest {
+    pub epk: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalNameRequest {
+    pub epk: String,
+    pub sealed_name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovalApproveRequest {
+    pub wrapped_key: String,
 }
 
 #[cfg(test)]

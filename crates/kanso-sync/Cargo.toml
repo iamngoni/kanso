@@ -16,6 +16,8 @@ anyhow.workspace = true
 argon2.workspace = true
 base64.workspace = true
 chacha20poly1305.workspace = true
+# Device approval's ephemeral X25519 exchange (docs/ACCOUNTS.md › Unlocking a new device).
+curve25519-dalek.workspace = true
 getrandom.workspace = true
 hkdf.workspace = true
 hmac.workspace = true
@@ -28,6 +30,11 @@ sha2.workspace = true
 thiserror.workspace = true
 unicode-normalization.workspace = true
 zeroize.workspace = true
+# The account event socket (events.rs) and shared notes' live room (kanso-collab): a
+# WebSocket over the rustls (ring) and web PKI roots ureq already uses.
+rustls.workspace = true
+tungstenite.workspace = true
+webpki-roots.workspace = true
 # Blocking HTTP with rustls: the GPUI app has no async runtime.
 ureq = "3.4"
 url = "2.5"

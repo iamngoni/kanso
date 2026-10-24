@@ -47,14 +47,24 @@
 //   GET    /v2/collab/notifications     your notifications                            (session)
 //   DELETE /v2/collab/notifications/<id> dismiss one                                  (session)
 //   GET    /j/<link_id>                 the page an invite link opens                 (public)
+//   POST   /v2/account/sign-in/approvals              ask another device to approve this one (session)
+//   GET    /v2/account/sign-in/approvals              other devices' pending requests       (session)
+//   GET    /v2/account/sign-in/approvals/<id>         the requester's poll                  (session)
+//   POST   /v2/account/sign-in/approvals/<id>/challenge  the approver's ephemeral key       (session)
+//   POST   /v2/account/sign-in/approvals/<id>/name    the requester's key and sealed name   (session)
+//   POST   /v2/account/sign-in/approvals/<id>/approve the approver's sealed data key       (session)
+//   DELETE /v2/account/sign-in/approvals/<id>         cancel or decline                     (session)
+//   GET    /v2/account/events           live approval hints, a WebSocket (session + device proof)
 //
 // /v1 and every other path answer 404. Any request with an Origin header gets
 // 403 before anything else, except on the three public routes, which hold no
 // credentials and only ever read; a body with the wrong Content-Type gets 415.
 //
 // Each shared note's log lives in its own Durable Object, NoteRoom (room.ts),
-// exported here so the runtime can find the class.
+// and each account's live event sockets in AccountRoom (account_room.ts),
+// both exported here so the runtime can find the classes.
 
+import * as approvals from "./approvals";
 import * as auth from "./auth";
 import * as collab from "./collab";
 import { pepperKeys } from "./crypto";
@@ -69,6 +79,7 @@ import * as sync from "./sync";
 export type { Env } from "./env";
 export { runCron } from "./purge";
 export { NoteRoom } from "./room";
+export { AccountRoom } from "./account_room";
 
 type Handler = (request: Request, env: Env, now: number) => Promise<Response>;
 type PepperHandler = (request: Request, env: Env, now: number, keys: import("./crypto").PepperKeys) => Promise<Response>;
@@ -112,7 +123,18 @@ const ROUTES: Record<string, Route> = {
 	"/v2/account/identity": { name: "identity", methods: { PUT: json(identity.putIdentity), GET: { handler: identity.getIdentity } } },
 	"/v2/collab/shares": { name: "collab_shares", methods: { POST: json(collab.createShare), GET: { handler: collab.listShares } } },
 	"/v2/collab/notifications": { name: "collab_notifications", methods: { POST: json(collab.notify), GET: { handler: collab.listNotifications } } },
+	"/v2/account/sign-in/approvals": { name: "approvals", methods: { POST: json(approvals.create), GET: { handler: approvals.list } } },
+	"/v2/account/events": { name: "account_events", methods: { GET: { handler: approvals.events } } },
 };
+
+/** The routes under /v2/account/sign-in/approvals/<id>, by what follows the ID. */
+function approvalRoute(id: string, rest: string): Route | null {
+	if (rest === "") return { name: "approval", methods: { GET: { handler: approvals.poll(id) }, DELETE: { handler: approvals.cancel(id) } } };
+	if (rest === "/challenge") return { name: "approval_challenge", methods: { POST: json(approvals.challenge(id)) } };
+	if (rest === "/name") return { name: "approval_name", methods: { POST: json(approvals.name(id)) } };
+	if (rest === "/approve") return { name: "approval_approve", methods: { POST: json(approvals.approve(id)) } };
+	return null;
+}
 
 /** The routes under /v2/collab/shares/<id>/, by what follows the ID. */
 function collabShareRoute(id: string, rest: string): Route | null {
@@ -167,6 +189,8 @@ function match(path: string): Route | null {
 	if (joinLink) return { name: "collab_join", methods: { POST: json(collab.join(segment(joinLink[1]))) } };
 	const notification = /^\/v2\/collab\/notifications\/([^/]+)$/.exec(path);
 	if (notification) return { name: "collab_notification", methods: { DELETE: { handler: collab.deleteNotification(segment(notification[1])) } } };
+	const approval = /^\/v2\/account\/sign-in\/approvals\/([^/]+)(\/[^/]+)?$/.exec(path);
+	if (approval) return approvalRoute(segment(approval[1]), approval[2] ?? "");
 	const invite = /^\/j\/([^/]+)$/.exec(path);
 	if (invite) return { name: "invite", public: true, methods: { GET: { handler: collab.invitePage(segment(invite[1])) } } };
 	const viewer = /^\/p\/([^/]+)$/.exec(path);

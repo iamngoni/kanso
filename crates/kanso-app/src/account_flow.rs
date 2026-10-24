@@ -20,9 +20,10 @@ use gpui_kit::*;
 use kanso_store::Store;
 use kanso_sync::keychain;
 use kanso_sync::{
-    AccountError, Backend, BindError, Choice, DeviceIdentity, DeviceInfo, Flow, LocalLibrary,
-    Machine, Password, Plan, RecoveryKey, RotationError, SecretError, SecretStore, Session,
-    SignOutReason, SignedUp, Step, meta_keys,
+    AccountError, ApprovalKeys, Backend, BindError, Choice, DeviceIdentity, DeviceInfo, Flow,
+    LocalLibrary, LockedSession, Machine, Password, Plan, RecoveryKey, RequestState, RotationError,
+    SecretError, SecretStore, Session, SignOutReason, SignedUp, Step, cancel_request,
+    complete_request, finish_unlock, meta_keys, name_device, poll_approval, request_approval,
 };
 
 use crate::account_words::{self as words, Answer, ErrorContext, Question};
@@ -595,11 +596,14 @@ fn signed_in(session: Session, library_id: String, turn_on: bool, cx: &mut App) 
     services.set_signed_in(Arc::new(session));
     services::apply_sync_settings(cx);
     refresh_details(cx);
+    crate::device_approval::start_events(cx);
+    crate::device_approval::refresh(cx);
 }
 
 /// Signed out here: the session, the details and the config's account go;
 /// the notes stay.
 fn forget_account(cx: &mut App) {
+    crate::device_approval::stop_events(cx);
     let services = cx.global_mut::<Services>();
     services.clear_session(AccountState::SignedOut);
     services.pending_key = None;
@@ -1622,6 +1626,8 @@ pub fn restore(cx: &mut App) {
                     services.set_signed_in(Arc::new(session));
                     services::apply_sync_settings(cx);
                     refresh_details(cx);
+                    crate::device_approval::start_events(cx);
+                    crate::device_approval::refresh(cx);
                 }
                 // The three don't agree: signed out, and the config says so.
                 Ok(None) => {
@@ -1637,4 +1643,261 @@ pub fn restore(cx: &mut App) {
         });
     })
     .detach();
+}
+
+// MARK: Device approval
+
+/// What the waiting flow tells the page.
+#[allow(dead_code)] // step 2's locked sign-in calls the flow below
+enum WaitUpdate {
+    OtherDevices(usize),
+    Request(String),
+    Code(String),
+    Tick,
+    Done(Result<(Session, String), WaitEnd>),
+}
+
+/// How the waiting flow ended without an unlocked session.
+#[allow(dead_code)] // step 2's locked sign-in calls the flow below
+enum WaitEnd {
+    NoDevices,
+    Cancelled,
+    Expired,
+    Failed(Failure),
+}
+
+impl WaitEnd {
+    fn phase(&self) -> crate::device_approval::WaitPhase {
+        match self {
+            WaitEnd::NoDevices => crate::device_approval::WaitPhase::NoDevices,
+            WaitEnd::Cancelled => crate::device_approval::WaitPhase::Cancelled,
+            WaitEnd::Expired => crate::device_approval::WaitPhase::Expired,
+            WaitEnd::Failed(failure) => {
+                crate::device_approval::WaitPhase::Failed(failure.words.clone())
+            }
+        }
+    }
+}
+
+/// Asks the account's other devices to approve `locked`, polls the request,
+/// posts the sealed name and unlocks. Runs at most one wait at a time; the
+/// Account page shows its code and offers the recovery key after two
+/// minutes (or at once with no other device).
+#[allow(dead_code)] // step 2's locked sign-in calls this
+pub fn wait_for_device_approval(locked: LockedSession, device: DeviceIdentity, cx: &mut App) {
+    let Some(seams) = Seams::get(cx) else {
+        return;
+    };
+    if cx
+        .try_global::<Services>()
+        .is_some_and(|services| services.task.is_some() || services.approval.waiting.is_some())
+    {
+        return;
+    }
+    let started = Clock::now_ms(cx);
+    let mut state = crate::device_approval::WaitingState::requesting(started);
+    state.phase = crate::device_approval::WaitPhase::Requesting;
+    let cancel = state.cancel.clone();
+    cx.global_mut::<Services>().approval.waiting = Some(state);
+    let (tx, rx) = async_channel::unbounded::<WaitUpdate>();
+    let thread_backend = seams.backend.clone();
+    let thread_secrets = seams.secrets.clone();
+    let thread_store = seams.store.clone();
+    let thread_backups = seams.backups.clone();
+    let thread = std::thread::Builder::new()
+        .name("kanso-account".into())
+        .spawn(move || {
+            let now = || {
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
+            };
+            let result = (|| -> Result<(Session, String), WaitEnd> {
+                let keys = ApprovalKeys::generate();
+                let request = request_approval(thread_backend.as_ref(), &locked, &keys)
+                    .map_err(|err| WaitEnd::Failed(Failure::account(err, ErrorContext::Account)))?;
+                tx.try_send(WaitUpdate::OtherDevices(request.other_devices))
+                    .ok();
+                tx.try_send(WaitUpdate::Request(request.id.clone())).ok();
+                if request.other_devices == 0 {
+                    // Nobody could answer: don't leave a request behind.
+                    cancel_request(thread_backend.as_ref(), &locked, &request.id).ok();
+                    return Err(WaitEnd::NoDevices);
+                }
+                let mut approval = None;
+                loop {
+                    if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+                        cancel_request(thread_backend.as_ref(), &locked, &request.id).ok();
+                        return Err(WaitEnd::Cancelled);
+                    }
+                    if now() >= request.expires_at {
+                        return Err(WaitEnd::Expired);
+                    }
+                    match poll_approval(thread_backend.as_ref(), &locked, &request) {
+                        Ok(RequestState::Waiting) => {}
+                        Ok(RequestState::Challenged { approver_epk, .. }) => {
+                            if approval.is_none() {
+                                let code =
+                                    complete_request(&locked, &request, &keys, &approver_epk)
+                                        .map_err(|err| {
+                                            WaitEnd::Failed(Failure::account(
+                                                err,
+                                                ErrorContext::Account,
+                                            ))
+                                        })?;
+                                tx.try_send(WaitUpdate::Code(code.code())).ok();
+                                name_device(
+                                    thread_backend.as_ref(),
+                                    &locked,
+                                    &request,
+                                    &code,
+                                    &device,
+                                )
+                                .map_err(|err| {
+                                    WaitEnd::Failed(Failure::account(err, ErrorContext::Account))
+                                })?;
+                                approval = Some(code);
+                            }
+                        }
+                        Ok(RequestState::Approved(approved)) => {
+                            let approval = approval.ok_or_else(|| {
+                                WaitEnd::Failed(Failure::account(
+                                    AccountError::Protocol("approved without a code".into()),
+                                    ErrorContext::Account,
+                                ))
+                            })?;
+                            let unlocked = finish_unlock(
+                                thread_backend.as_ref(),
+                                &locked,
+                                &approval,
+                                &approved,
+                                &device,
+                            )
+                            .map_err(|err| {
+                                WaitEnd::Failed(Failure::account(err, ErrorContext::Account))
+                            })?;
+                            let library = match kanso_sync::local_library(
+                                &thread_store,
+                                &unlocked.session.origin,
+                                &unlocked.session.account_id,
+                            ) {
+                                Ok(library) => library,
+                                Err(err) => return Err(WaitEnd::Failed(Failure::library(err))),
+                            };
+                            let choice = match kanso_sync::plan(Flow::SignIn, &library) {
+                                Plan::Resume => None,
+                                _ => Some(Choice::Add),
+                            };
+                            let seams = Seams {
+                                backend: thread_backend.clone(),
+                                secrets: thread_secrets.clone(),
+                                store: thread_store.clone(),
+                                machine: None,
+                                backups: thread_backups.clone(),
+                                now: now(),
+                            };
+                            save_and_bind(&seams, &device.library_id, &unlocked.session, choice)
+                                .map_err(WaitEnd::Failed)?;
+                            return Ok((unlocked.session, device.library_id));
+                        }
+                        Ok(RequestState::Cancelled) => return Err(WaitEnd::Cancelled),
+                        Ok(RequestState::Expired) => return Err(WaitEnd::Expired),
+                        Err(err) => {
+                            // A transient failure leaves the request open; the
+                            // next poll tries again. A final one ends the wait.
+                            if matches!(err, AccountError::Unauthorized { .. }) {
+                                return Err(WaitEnd::Failed(Failure::account(
+                                    err,
+                                    ErrorContext::Account,
+                                )));
+                            }
+                        }
+                    }
+                    tx.try_send(WaitUpdate::Tick).ok();
+                    std::thread::sleep(crate::device_approval::POLL_EVERY);
+                }
+            })();
+            tx.try_send(WaitUpdate::Done(result)).ok();
+        });
+    if thread.is_err() {
+        cx.global_mut::<Services>().approval.waiting = None;
+        return;
+    }
+    cx.spawn(async move |cx| {
+        while let Ok(update) = rx.recv().await {
+            let mut finish = None;
+            cx.update(|cx| {
+                let now = Clock::now_ms(cx);
+                let services = cx.global_mut::<Services>();
+                let Some(waiting) = services.approval.waiting.as_mut() else {
+                    return;
+                };
+                match update {
+                    WaitUpdate::OtherDevices(count) => {
+                        waiting.know_devices(count, now);
+                        if count == 0 {
+                            waiting.phase = crate::device_approval::WaitPhase::NoDevices;
+                        }
+                    }
+                    WaitUpdate::Request(id) => waiting.request_id = Some(id),
+                    WaitUpdate::Code(code) => {
+                        waiting.code = Some(code.clone());
+                        waiting.phase = crate::device_approval::WaitPhase::Compare { code };
+                    }
+                    WaitUpdate::Tick => waiting.offer_recovery(now),
+                    WaitUpdate::Done(result) => {
+                        finish = Some(result);
+                    }
+                }
+                cx.refresh_windows();
+            });
+            if let Some(result) = finish {
+                match result {
+                    Ok((session, library_id)) => {
+                        cx.update(|cx| {
+                            cx.global_mut::<Services>().approval.waiting = None;
+                            crate::account_flow::signed_in(session, library_id, true, cx);
+                            crate::device_approval::start_events(cx);
+                        });
+                    }
+                    Err(end) => {
+                        cx.update(|cx| {
+                            let services = cx.global_mut::<Services>();
+                            if let Some(waiting) = services.approval.waiting.as_mut() {
+                                waiting.phase = end.phase();
+                                waiting.recovery_offered = true;
+                                if let WaitEnd::Failed(failure) = &end {
+                                    eprintln!("kanso: device approval: {}", failure.words);
+                                }
+                            }
+                            cx.refresh_windows();
+                        });
+                    }
+                }
+                break;
+            }
+        }
+    })
+    .detach();
+    cx.refresh_windows();
+}
+
+/// Closes the waiting page after a cancellation or an expiry.
+pub fn dismiss_device_approval(cx: &mut App) {
+    cx.global_mut::<Services>().approval.waiting = None;
+    cx.refresh_windows();
+}
+
+/// The waiting page's Cancel: stops the poll and asks the server to cancel
+/// the request. A request that is gone counts as cancelled.
+pub fn cancel_device_approval(cx: &mut App) {
+    let services = cx.global_mut::<Services>();
+    let Some(waiting) = services.approval.waiting.as_mut() else {
+        return;
+    };
+    waiting
+        .cancel
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    waiting.phase = crate::device_approval::WaitPhase::Cancelled;
+    cx.refresh_windows();
 }

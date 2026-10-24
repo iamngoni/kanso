@@ -16,8 +16,10 @@ mod v2 {
     use base64::Engine as _;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use kanso_sync::api::{
-        DeleteRequest, DeviceNameRequest, LoginRequest, PasswordRequest, PreloginRequest,
-        RecoverFinishRequest, RecoverStartRequest, RecoveryKeyRequest, SignupRequest,
+        ApprovalApproveRequest, ApprovalChallengeRequest, ApprovalCreateRequest,
+        ApprovalNameRequest, DeleteRequest, DeviceNameRequest, LoginRequest, PasswordRequest,
+        PreloginRequest, RecoverFinishRequest, RecoverStartRequest, RecoveryKeyRequest,
+        SignupRequest,
     };
     use kanso_sync::wire::PushRequest;
     use kanso_sync::{ApiError, Backend, KdfParams, MemoryServer, SessionToken};
@@ -272,6 +274,13 @@ mod v2 {
                     Err(err) => answer::<()>(204, Err(err)),
                 }
             }
+            /// The three approval answers say `{"ok": true}` with 200.
+            fn ok(result: Result<(), ApiError>) -> Result<(u16, Option<Value>), String> {
+                match result {
+                    Ok(()) => Ok((200, Some(json!({ "ok": true })))),
+                    Err(err) => answer::<()>(200, Err(err)),
+                }
+            }
             let path_part = |key: &str| -> Result<String, String> {
                 path.get(key)
                     .and_then(Value::as_str)
@@ -310,6 +319,28 @@ mod v2 {
                 }
                 "devices" => answer(200, api.devices(token)),
                 "revoke_device" => empty(api.revoke_device(token, &path_part("device_id")?)),
+                "approval_create" => answer(
+                    200,
+                    api.create_approval(token, &parse::<ApprovalCreateRequest>(body)?),
+                ),
+                "approval_list" => answer(200, api.approvals(token)),
+                "approval_poll" => answer(200, api.approval(token, &path_part("id")?)),
+                "approval_challenge" => ok(api.challenge_approval(
+                    token,
+                    &path_part("id")?,
+                    &parse::<ApprovalChallengeRequest>(body)?,
+                )),
+                "approval_name" => ok(api.name_approval(
+                    token,
+                    &path_part("id")?,
+                    &parse::<ApprovalNameRequest>(body)?,
+                )),
+                "approval_approve" => ok(api.approve_approval(
+                    token,
+                    &path_part("id")?,
+                    &parse::<ApprovalApproveRequest>(body)?,
+                )),
+                "approval_cancel" => empty(api.cancel_approval(token, &path_part("id")?)),
                 "push" => answer(200, api.push(token, &parse::<PushRequest>(body)?)),
                 "changes" => {
                     let query = step.get("query");

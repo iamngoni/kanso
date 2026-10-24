@@ -148,6 +148,9 @@ impl AccountPage {
     /// The page came into view: storage and devices are fetched again, and
     /// the Create account form asks its server about new accounts.
     pub fn shown(&mut self, cx: &mut Context<Self>) {
+        if cx.try_global::<Services>().is_some_and(Services::signed_in) {
+            crate::device_approval::refresh(cx);
+        }
         if cx.global::<Services>().signed_in() {
             account_flow::refresh_details(cx);
         }
@@ -325,6 +328,7 @@ impl Render for AccountPage {
         let services = cx.global::<Services>();
         let account = services.account.clone();
         let pending = services.pending_key.clone();
+        let waiting = services.approval.waiting.clone();
         // An ended session fills in its name once, for Sign in.
         if let AccountState::SessionEnded { username, .. } = &account
             && self.prefilled.as_ref() != Some(username)
@@ -334,10 +338,13 @@ impl Render for AccountPage {
             self.username
                 .update(cx, |input, cx| input.set_value(name, window, cx));
         }
-        let body = match (&pending, &account) {
-            (Some(key), _) => self.key_screen(key, cx),
-            (None, AccountState::SignedIn { username }) => self.signed_in_page(username, cx),
-            (None, _) => self.signed_out_page(&account, cx),
+        let body = match (&pending, &waiting, &account) {
+            (Some(key), _, _) => self.key_screen(key, cx),
+            (None, Some(waiting), _) => {
+                vec![crate::device_approval::waiting_page(waiting, window, cx)]
+            }
+            (None, None, AccountState::SignedIn { username }) => self.signed_in_page(username, cx),
+            (None, None, _) => self.signed_out_page(&account, cx),
         };
         v_flex().w_full().children(body)
     }

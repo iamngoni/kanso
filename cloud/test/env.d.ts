@@ -4,6 +4,7 @@ declare namespace Cloudflare {
 		MIGRATION_DB: D1Database;
 		FILES: R2Bucket;
 		NOTE_ROOM: DurableObjectNamespace<import("../src/room").NoteRoom>;
+		ACCOUNT_ROOM: DurableObjectNamespace<import("../src/account_room").AccountRoom>;
 		AUTH_PEPPER?: string;
 		AUTH_LIMITER?: RateLimit;
 		SESSION_LIMITER?: RateLimit;

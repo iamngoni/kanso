@@ -34,6 +34,7 @@ mod collab_tests;
 mod collab_text;
 mod commands;
 mod config;
+mod device_approval;
 mod dialogs;
 mod dictation;
 mod due;

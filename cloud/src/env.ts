@@ -1,3 +1,4 @@
+import type { AccountRoom } from "./account_room";
 import type { NoteRoom } from "./room";
 
 /** The Worker's bindings (docs/ACCOUNTS.md › Worker configuration). */
@@ -6,6 +7,8 @@ export interface Env {
 	FILES: R2Bucket;
 	/** One NoteRoom per shared note, keyed by share ID (docs/ACCOUNTS.md › Collaboration). */
 	NOTE_ROOM: DurableObjectNamespace<NoteRoom>;
+	/** One AccountRoom per account, keyed by account ID: the live approval hints (design: Kanso accounts spec, revision 3). */
+	ACCOUNT_ROOM: DurableObjectNamespace<AccountRoom>;
 	/** 32 bytes of base64url; `wrangler secret put AUTH_PEPPER`. Missing or malformed answers 503 where it is needed. */
 	AUTH_PEPPER?: string;
 	/** The write-free front filter of the auth routes, keyed by IP group; absent in unit tests. */

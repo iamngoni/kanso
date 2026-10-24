@@ -32,6 +32,8 @@ describe("the default export", () => {
 			signup: "open",
 			// Nothing sign-in-related is configured in the test bindings.
 			auth: { password: true, passkeys: null, providers: [] },
+			// The live approval socket is always served.
+			events: { account: "/v2/account/events" },
 		});
 		expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
 	});

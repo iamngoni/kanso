@@ -584,7 +584,8 @@ export async function admin(args: string[], io: AdminIO, now: number = Date.now(
 				`DELETE FROM auth_flows WHERE account_id = ${id}`,
 				`DELETE FROM sessions WHERE account_id = ${id}`,
 				`DELETE FROM limits WHERE key IN ('login-user:' || ${id}, 'password-account:' || ${id}, 'writes-account:' || ${id},
-  'uploads-account:' || ${id}, 'lookup-account:' || ${id}, 'join-account:' || ${id}, 'notify-account:' || ${id})`,
+  'uploads-account:' || ${id}, 'lookup-account:' || ${id}, 'join-account:' || ${id}, 'notify-account:' || ${id},
+  'approval-create:' || ${id}, 'approval-poll:' || ${id}, 'approval-respond:' || ${id})`,
 				`INSERT INTO purges (prefix, requested_at) SELECT 'accounts/' || id || '/', ${now} FROM accounts WHERE username = ${sqlText(user)}
   ON CONFLICT (prefix) DO UPDATE SET requested_at = excluded.requested_at`,
 				`DELETE FROM accounts WHERE username = ${sqlText(user)} RETURNING id`,

@@ -11,6 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use kanso_sync::api::{
+    ApprovalApproveRequest, ApprovalChallengeRequest, ApprovalCreateRequest, ApprovalNameRequest,
     DeleteRequest, DeviceNameRequest, LoginRequest, PasswordRequest, PreloginRequest,
     RecoverFinishRequest, RecoverStartRequest, RecoveryKeyRequest, SignupRequest, WireKdf,
 };
@@ -74,6 +75,9 @@ fn check_body(route: Route, body: Option<&Value>, at: &str) {
             | Route::Changes
             | Route::PutFile
             | Route::GetFile
+            | Route::ApprovalList
+            | Route::ApprovalPoll
+            | Route::ApprovalCancel
     );
     assert_eq!(
         body.is_some(),
@@ -91,6 +95,10 @@ fn check_body(route: Route, body: Option<&Value>, at: &str) {
         Route::RecoveryKey => shape::<RecoveryKeyRequest>(body, at),
         Route::Delete => shape::<DeleteRequest>(body, at),
         Route::SetDevice => shape::<DeviceNameRequest>(body, at),
+        Route::ApprovalCreate => shape::<ApprovalCreateRequest>(body, at),
+        Route::ApprovalChallenge => shape::<ApprovalChallengeRequest>(body, at),
+        Route::ApprovalName => shape::<ApprovalNameRequest>(body, at),
+        Route::ApprovalApprove => shape::<ApprovalApproveRequest>(body, at),
         Route::Push => shape::<PushRequest>(body, at),
         _ => unreachable!(),
     }
@@ -198,7 +206,10 @@ fn check_fixture(name: &str) -> usize {
                             "writes-account",
                             "writes-global",
                             "uploads-account",
-                            "uploads-global"
+                            "uploads-global",
+                            "approval-create",
+                            "approval-poll",
+                            "approval-respond"
                         ]
                         .contains(&limit.as_str()),
                         "{at}: limit {limit}"
@@ -236,7 +247,9 @@ fn check_values(name: &str, values: &BTreeMap<String, Value>) {
             "s" => wire::is_sealed(text, wire::MIN_SEALED_LEN, wire::MAX_SEALED_LEN),
             "name" => wire::is_sealed_name(text),
             "salt" => text.len() == 22 && wire::is_base64url(text),
-            "auth" | "rauth" | "proof" => text.len() == 43 && wire::is_base64url(text),
+            "auth" | "rauth" | "proof" | "commit" | "epk" => {
+                text.len() == 43 && wire::is_base64url(text)
+            }
             "wrap" | "rwrap" => text.len() == 98 && wire::is_base64url(text),
             "f" => wire::is_base64url(text),
             "unknown" => wire::is_token(text),
@@ -300,6 +313,9 @@ fn the_fixtures_cover_every_route_and_error() {
         "method_not_allowed",
         "username_taken",
         "account_id_taken",
+        "self_approval",
+        "approval_used",
+        "approval_expired",
         "too_large",
         "quota_exceeded",
         "unsupported_media_type",

@@ -7,9 +7,11 @@ use std::time::Duration;
 
 use crate::account::{Session, SignupState};
 use crate::api::{
-    AccountResponse, Api, Backend, DeleteRequest, DeleteResponse, DeviceNameRequest, DeviceRow,
-    DevicesResponse, Health, LoginRequest, LoginResponse, NewDevice, PasswordRequest,
-    PasswordResponse, PreloginRequest, PreloginResponse, RecoverFinishRequest, RecoverStartRequest,
+    AccountResponse, Api, ApprovalApproveRequest, ApprovalChallengeRequest, ApprovalCreateRequest,
+    ApprovalCreated, ApprovalList, ApprovalNameRequest, ApprovalPoll, ApprovalRow, Backend,
+    DeleteRequest, DeleteResponse, DeviceNameRequest, DeviceRow, DevicesResponse, Health,
+    HealthEvents, LoginRequest, LoginResponse, NewDevice, PasswordRequest, PasswordResponse,
+    PreloginRequest, PreloginResponse, RecoverFinishRequest, RecoverStartRequest,
     RecoverStartResponse, RecoveryKeyRequest, RecoveryKeyResponse, Route, SessionResponse,
     SignupRequest, WireDevice, WireKdf, WireQuota, WireUsage,
 };
@@ -22,9 +24,10 @@ use crate::wire::{
     MAX_SEALED_LEN, MIN_SEALED_FILE, MIN_SEALED_LEN, PAGE_SEALED_BUDGET, PROTOCOL_VERSION,
     PushRequest, PushResponse, PutFileResponse, QuotaKind, SESSION_IDLE_MS, SessionToken,
     SignOutReason, SignupClosedReason, WireChange, WireDoc, WirePage, WirePushDoc, WirePushResult,
-    is_account_id, is_base64url, is_device_id, is_hex16, is_sealed_name, is_token, is_wire_file_id,
-    is_wire_id, is_wire_rev,
+    is_account_id, is_approval_id, is_base64url, is_device_id, is_hex16, is_sealed_name, is_token,
+    is_wire_file_id, is_wire_id, is_wire_rev,
 };
+use sha2::{Digest as _, Sha256};
 
 // ---------------------------------------------------------------------------
 // MemoryServer: the v2 test server (docs/ACCOUNTS.md › Modules, › Build order)
@@ -124,6 +127,8 @@ impl ServerStats {
 const HOUR_MS: i64 = 3_600_000;
 const DAY_MS: i64 = 86_400_000;
 const QUARTER_HOUR_MS: i64 = 900_000;
+/// A device approval lives five minutes (docs/ACCOUNTS.md › The protocol).
+const APPROVAL_TTL_MS: i64 = 300_000;
 /// How many revoked session rows an account keeps.
 const MAX_REVOKED_ROWS: usize = 90;
 /// The subject of every IP rule: one client, like the Worker without
@@ -140,6 +145,9 @@ enum Rule {
     PasswordAccount,
     WritesAccount,
     UploadsAccount,
+    ApprovalCreate,
+    ApprovalPoll,
+    ApprovalRespond,
 }
 
 impl Rule {
@@ -152,6 +160,9 @@ impl Rule {
             Rule::PasswordAccount => "password-account",
             Rule::WritesAccount => "writes-account",
             Rule::UploadsAccount => "uploads-account",
+            Rule::ApprovalCreate => "approval-create",
+            Rule::ApprovalPoll => "approval-poll",
+            Rule::ApprovalRespond => "approval-respond",
         }
     }
 
@@ -160,6 +171,7 @@ impl Rule {
             Rule::SignupIp | Rule::RecoverIp => HOUR_MS,
             Rule::LoginUser | Rule::LoginIp | Rule::PasswordAccount => QUARTER_HOUR_MS,
             Rule::WritesAccount | Rule::UploadsAccount => DAY_MS,
+            Rule::ApprovalCreate | Rule::ApprovalPoll | Rule::ApprovalRespond => HOUR_MS,
         }
     }
 }
@@ -199,6 +211,24 @@ struct SessionRow {
     last_seen_at: i64,
     revoked_at: Option<i64>,
     revoked: Option<SignOutReason>,
+}
+
+/// A `device_approvals` row.
+#[derive(Clone, Debug)]
+struct ApprovalRowState {
+    id: String,
+    account_id: String,
+    device_id: String,
+    commit_hash: String,
+    epk: Option<String>,
+    approver_device_id: Option<String>,
+    approver_epk: Option<String>,
+    sealed_name: Option<String>,
+    wrapped_key: Option<String>,
+    created_at: i64,
+    expires_at: i64,
+    completed_at: Option<i64>,
+    cancelled_at: Option<i64>,
 }
 
 /// An `account_docs` row.
@@ -268,6 +298,7 @@ struct ServerState {
     pepper: [u8; 32],
     accounts: BTreeMap<String, Account>,
     sessions: Vec<SessionRow>,
+    approvals: Vec<ApprovalRowState>,
     docs: BTreeMap<DocKey, DocRow>,
     files: BTreeMap<DocKey, Vec<u8>>,
     signups: Daily,
@@ -307,6 +338,16 @@ fn key32(text: &str) -> Option<Vec<u8>> {
     unb64(text).filter(|bytes| bytes.len() == 32)
 }
 
+/// `SHA-256("kanso/v1/approve-commit" || 0x01 || epk)` as 43 base64url
+/// characters, as the Worker checks a revealed key.
+fn approval_commit(epk: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"kanso/v1/approve-commit");
+    hasher.update([1u8]);
+    hasher.update(epk);
+    b64(&hasher.finalize())
+}
+
 fn is_salt(salt: &str) -> bool {
     salt.len() == 22 && is_base64url(salt)
 }
@@ -343,6 +384,7 @@ impl ServerState {
             pepper: random::<32>(),
             accounts: BTreeMap::new(),
             sessions: Vec::new(),
+            approvals: Vec::new(),
             docs: BTreeMap::new(),
             files: BTreeMap::new(),
             signups: Daily::default(),
@@ -619,6 +661,9 @@ impl ServerState {
             ok: true,
             protocol: PROTOCOL_VERSION,
             signup,
+            events: Some(HealthEvents {
+                account: Some(crate::events::ACCOUNT_EVENTS_PATH.to_owned()),
+            }),
         }
     }
 
@@ -1076,16 +1121,375 @@ impl ServerState {
         self.docs.retain(|(account, _), _| *account != id);
         self.files.retain(|(account, _), _| *account != id);
         self.sessions.retain(|s| s.account_id != id);
+        self.approvals.retain(|a| a.account_id != id);
         for rule in [
             "login-user",
             "password-account",
             "writes-account",
             "uploads-account",
+            "approval-create",
+            "approval-poll",
+            "approval-respond",
         ] {
             self.limits.remove(&format!("{rule}:{id}"));
         }
         self.accounts.remove(&id);
         Ok(DeleteResponse { deleted: true })
+    }
+
+    /// The approval's state, as the Worker's `approvalStatus`: cancelled,
+    /// expired, approved, challenged or waiting.
+    fn approval_status(row: &ApprovalRowState, now: i64) -> &'static str {
+        if row.cancelled_at.is_some() {
+            "cancelled"
+        } else if row.expires_at <= now {
+            "expired"
+        } else if row.completed_at.is_some() {
+            "approved"
+        } else if row.approver_epk.is_some() {
+            "challenged"
+        } else {
+            "waiting"
+        }
+    }
+
+    fn create_approval(
+        &mut self,
+        token: &SessionToken,
+        r: &ApprovalCreateRequest,
+        now: i64,
+    ) -> Result<ApprovalCreated, ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        self.count(
+            Rule::ApprovalCreate,
+            &format!("approval-create:{}", caller.account_id),
+            now,
+            1,
+            10,
+        )?;
+        key32(&r.commit).ok_or(ApiError::BadRequest)?;
+        let account = caller.account_id.clone();
+        let mut pending: Vec<usize> = self
+            .approvals
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| {
+                a.account_id == account
+                    && a.cancelled_at.is_none()
+                    && a.completed_at.is_none()
+                    && a.expires_at > now
+            })
+            .map(|(ix, _)| ix)
+            .collect();
+        pending.sort_by(|&a, &b| {
+            self.approvals[a]
+                .created_at
+                .cmp(&self.approvals[b].created_at)
+                .then_with(|| self.approvals[a].id.cmp(&self.approvals[b].id))
+        });
+        // Three may be pending; inserting a fourth cancels the oldest.
+        for &ix in pending.iter().take(pending.len().saturating_sub(2)) {
+            self.approvals[ix].cancelled_at = Some(now);
+        }
+        let id = b64(&random::<32>());
+        let expires_at = now + APPROVAL_TTL_MS;
+        self.approvals.push(ApprovalRowState {
+            id: id.clone(),
+            account_id: account.clone(),
+            device_id: caller.device_id.clone(),
+            commit_hash: r.commit.clone(),
+            epk: None,
+            approver_device_id: None,
+            approver_epk: None,
+            sealed_name: None,
+            wrapped_key: None,
+            created_at: now,
+            expires_at,
+            completed_at: None,
+            cancelled_at: None,
+        });
+        let other_devices = self
+            .sessions
+            .iter()
+            .filter(|s| {
+                s.account_id == account && s.revoked_at.is_none() && s.device_id != caller.device_id
+            })
+            .count();
+        Ok(ApprovalCreated {
+            id,
+            expires_at,
+            other_devices: other_devices as u64,
+        })
+    }
+
+    fn list_approvals(&mut self, token: &SessionToken, now: i64) -> Result<ApprovalList, ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        let mut rows: Vec<&ApprovalRowState> = self
+            .approvals
+            .iter()
+            .filter(|a| {
+                a.account_id == caller.account_id
+                    && a.device_id != caller.device_id
+                    && a.cancelled_at.is_none()
+                    && a.completed_at.is_none()
+                    && a.expires_at > now
+            })
+            .collect();
+        rows.sort_by(|a, b| {
+            a.created_at
+                .cmp(&b.created_at)
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        Ok(ApprovalList {
+            approvals: rows
+                .into_iter()
+                .map(|row| ApprovalRow {
+                    id: row.id.clone(),
+                    device_id: row.device_id.clone(),
+                    commit: row.commit_hash.clone(),
+                    epk: row.epk.clone(),
+                    created_at: row.created_at,
+                    expires_at: row.expires_at,
+                    approver_epk: row.approver_epk.clone(),
+                    approver_device_id: row.approver_device_id.clone(),
+                    sealed_name: row.sealed_name.clone(),
+                    status: Self::approval_status(row, now).to_owned(),
+                })
+                .collect(),
+        })
+    }
+
+    fn poll_approval(
+        &mut self,
+        token: &SessionToken,
+        id: &str,
+        now: i64,
+    ) -> Result<ApprovalPoll, ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        self.count(
+            Rule::ApprovalPoll,
+            &format!("approval-poll:{}", caller.account_id),
+            now,
+            1,
+            900,
+        )?;
+        if !is_approval_id(id) {
+            return Err(ApiError::BadRequest);
+        }
+        let row = self
+            .approvals
+            .iter()
+            .find(|a| a.id == id && a.account_id == caller.account_id)
+            .filter(|a| a.device_id == caller.device_id)
+            .ok_or(ApiError::NotFound)?;
+        let status = Self::approval_status(row, now);
+        let mut answer = ApprovalPoll {
+            status: status.to_owned(),
+            expires_at: Some(row.expires_at),
+            approver_epk: None,
+            approver_device_id: None,
+            sealed_name: None,
+            wrapped_key: None,
+        };
+        if matches!(status, "challenged" | "approved") {
+            answer.approver_epk = row.approver_epk.clone();
+            answer.approver_device_id = row.approver_device_id.clone();
+            answer.sealed_name = row.sealed_name.clone();
+            answer.wrapped_key = row.wrapped_key.clone();
+        }
+        Ok(answer)
+    }
+
+    fn challenge_approval(
+        &mut self,
+        token: &SessionToken,
+        id: &str,
+        r: &ApprovalChallengeRequest,
+        now: i64,
+    ) -> Result<(), ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        self.count(
+            Rule::ApprovalRespond,
+            &format!("approval-respond:{}", caller.account_id),
+            now,
+            1,
+            30,
+        )?;
+        if !is_approval_id(id) || key32(&r.epk).is_none() {
+            return Err(ApiError::BadRequest);
+        }
+        let row = self
+            .approvals
+            .iter_mut()
+            .find(|a| a.id == id && a.account_id == caller.account_id)
+            .ok_or(ApiError::NotFound)?;
+        if row.cancelled_at.is_some() {
+            return Err(ApiError::NotFound);
+        }
+        if row.device_id == caller.device_id {
+            return Err(ApiError::SelfApproval);
+        }
+        if row.expires_at <= now {
+            return Err(ApiError::ApprovalExpired);
+        }
+        match &row.approver_epk {
+            None => {
+                row.approver_device_id = Some(caller.device_id);
+                row.approver_epk = Some(r.epk.clone());
+                Ok(())
+            }
+            Some(epk)
+                if row.approver_device_id.as_deref() == Some(caller.device_id.as_str())
+                    && epk == &r.epk =>
+            {
+                Ok(())
+            }
+            Some(_) => Err(ApiError::ApprovalUsed),
+        }
+    }
+
+    fn name_approval(
+        &mut self,
+        token: &SessionToken,
+        id: &str,
+        r: &ApprovalNameRequest,
+        now: i64,
+    ) -> Result<(), ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        self.count(
+            Rule::ApprovalRespond,
+            &format!("approval-respond:{}", caller.account_id),
+            now,
+            1,
+            30,
+        )?;
+        if !is_approval_id(id) {
+            return Err(ApiError::BadRequest);
+        }
+        let epk = key32(&r.epk).ok_or(ApiError::BadRequest)?;
+        if !is_sealed_name(&r.sealed_name) {
+            return Err(ApiError::BadRequest);
+        }
+        let row = self
+            .approvals
+            .iter_mut()
+            .find(|a| a.id == id && a.account_id == caller.account_id)
+            .ok_or(ApiError::NotFound)?;
+        if row.cancelled_at.is_some() {
+            return Err(ApiError::NotFound);
+        }
+        if row.device_id != caller.device_id {
+            return Err(ApiError::NotFound);
+        }
+        if row.expires_at <= now {
+            return Err(ApiError::ApprovalExpired);
+        }
+        if row.approver_epk.is_none() {
+            return Err(ApiError::BadRequest);
+        }
+        if approval_commit(&epk) != row.commit_hash {
+            return Err(ApiError::BadRequest);
+        }
+        match &row.epk {
+            None => {
+                row.epk = Some(r.epk.clone());
+                row.sealed_name = Some(r.sealed_name.clone());
+                Ok(())
+            }
+            Some(stored)
+                if stored == &r.epk && row.sealed_name.as_deref() == Some(&r.sealed_name) =>
+            {
+                Ok(())
+            }
+            Some(_) => Err(ApiError::ApprovalUsed),
+        }
+    }
+
+    fn approve_approval(
+        &mut self,
+        token: &SessionToken,
+        id: &str,
+        r: &ApprovalApproveRequest,
+        now: i64,
+    ) -> Result<(), ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        self.count(
+            Rule::ApprovalRespond,
+            &format!("approval-respond:{}", caller.account_id),
+            now,
+            1,
+            30,
+        )?;
+        if !is_approval_id(id) || !is_wrap(&r.wrapped_key) {
+            return Err(ApiError::BadRequest);
+        }
+        let row = self
+            .approvals
+            .iter_mut()
+            .find(|a| a.id == id && a.account_id == caller.account_id)
+            .ok_or(ApiError::NotFound)?;
+        if row.cancelled_at.is_some() {
+            return Err(ApiError::NotFound);
+        }
+        if row.device_id == caller.device_id {
+            return Err(ApiError::SelfApproval);
+        }
+        if row.expires_at <= now {
+            return Err(ApiError::ApprovalExpired);
+        }
+        if row.approver_device_id.as_deref() != Some(caller.device_id.as_str()) {
+            return Err(ApiError::ApprovalUsed);
+        }
+        if row.epk.is_none() {
+            return Err(ApiError::BadRequest);
+        }
+        match &row.wrapped_key {
+            None => {
+                row.wrapped_key = Some(r.wrapped_key.clone());
+                row.completed_at = Some(now);
+                Ok(())
+            }
+            Some(stored) if stored == &r.wrapped_key => Ok(()),
+            Some(_) => Err(ApiError::ApprovalUsed),
+        }
+    }
+
+    fn cancel_approval(
+        &mut self,
+        token: &SessionToken,
+        id: &str,
+        now: i64,
+    ) -> Result<(), ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        if !is_approval_id(id) {
+            return Err(ApiError::BadRequest);
+        }
+        let Some(ix) = self
+            .approvals
+            .iter()
+            .position(|a| a.id == id && a.account_id == caller.account_id)
+        else {
+            return Err(ApiError::NotFound);
+        };
+        let row = &mut self.approvals[ix];
+        if row.cancelled_at.is_some() {
+            return Ok(());
+        }
+        if row.completed_at.is_some() {
+            if row.device_id != caller.device_id {
+                return Err(ApiError::ApprovalUsed);
+            }
+            self.approvals.remove(ix);
+            return Ok(());
+        }
+        let participant = row.device_id == caller.device_id
+            || row.approver_device_id.is_none()
+            || row.approver_device_id.as_deref() == Some(caller.device_id.as_str());
+        if !participant {
+            return Err(ApiError::NotFound);
+        }
+        row.cancelled_at = Some(now);
+        Ok(())
     }
 
     fn set_device_name(
@@ -2044,6 +2448,66 @@ impl Api for MemoryApi<'_> {
     fn revoke_device(&self, token: &SessionToken, device_id: &str) -> Result<(), ApiError> {
         self.server.call(Route::RevokeDevice, |s, now| {
             s.revoke_device(token, device_id, now)
+        })
+    }
+
+    fn create_approval(
+        &self,
+        token: &SessionToken,
+        request: &ApprovalCreateRequest,
+    ) -> Result<ApprovalCreated, ApiError> {
+        self.server.call(Route::ApprovalCreate, |s, now| {
+            s.create_approval(token, request, now)
+        })
+    }
+
+    fn approvals(&self, token: &SessionToken) -> Result<ApprovalList, ApiError> {
+        self.server
+            .call(Route::ApprovalList, |s, now| s.list_approvals(token, now))
+    }
+
+    fn approval(&self, token: &SessionToken, id: &str) -> Result<ApprovalPoll, ApiError> {
+        self.server.call(Route::ApprovalPoll, |s, now| {
+            s.poll_approval(token, id, now)
+        })
+    }
+
+    fn challenge_approval(
+        &self,
+        token: &SessionToken,
+        id: &str,
+        request: &ApprovalChallengeRequest,
+    ) -> Result<(), ApiError> {
+        self.server.call(Route::ApprovalChallenge, |s, now| {
+            s.challenge_approval(token, id, request, now)
+        })
+    }
+
+    fn name_approval(
+        &self,
+        token: &SessionToken,
+        id: &str,
+        request: &ApprovalNameRequest,
+    ) -> Result<(), ApiError> {
+        self.server.call(Route::ApprovalName, |s, now| {
+            s.name_approval(token, id, request, now)
+        })
+    }
+
+    fn approve_approval(
+        &self,
+        token: &SessionToken,
+        id: &str,
+        request: &ApprovalApproveRequest,
+    ) -> Result<(), ApiError> {
+        self.server.call(Route::ApprovalApprove, |s, now| {
+            s.approve_approval(token, id, request, now)
+        })
+    }
+
+    fn cancel_approval(&self, token: &SessionToken, id: &str) -> Result<(), ApiError> {
+        self.server.call(Route::ApprovalCancel, |s, now| {
+            s.cancel_approval(token, id, now)
         })
     }
 

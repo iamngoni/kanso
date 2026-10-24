@@ -105,6 +105,12 @@ impl Session {
         self.library_id = Some(library_id.to_owned());
     }
 
+    /// The data key's ID, as the server holds it (docs/ACCOUNTS.md › Keys).
+    /// Not secret: used to check a wrap and by the approval flow's tests.
+    pub fn key_id(&self) -> String {
+        crate::crypto::key_id(&self.data_key)
+    }
+
     /// The keys shared notes start from, derived from this session's data
     /// key (docs/ACCOUNTS.md › Collaboration).
     pub fn collab_roots(&self) -> crate::crypto::CollabRoots {
@@ -250,6 +256,20 @@ pub enum AccountError {
     /// The client generates a new account ID and retries; it never surfaces.
     #[error("account ID taken")]
     AccountIdTaken,
+    /// 403 `self_approval`: "A device can't approve itself."
+    #[error("a device can't approve itself")]
+    SelfApproval,
+    /// 409 `approval_used`: "That request was already answered. Ask again."
+    #[error("that approval request was already answered")]
+    ApprovalUsed,
+    /// 409 `approval_expired`: "That approval request expired. Ask again."
+    #[error("that approval request expired")]
+    ApprovalExpired,
+    /// The requester's key doesn't match its commitment, or its sealed name
+    /// doesn't open: "This request changed after it was made. Don't
+    /// approve." Nothing was sent.
+    #[error("the approval request changed after it was made")]
+    ApprovalChanged,
     #[error("too large")]
     TooLarge,
     #[error("quota exceeded ({})", quota.as_str())]
@@ -346,6 +366,9 @@ impl From<ApiError> for AccountError {
             ApiError::MethodNotAllowed => AccountError::MethodNotAllowed,
             ApiError::UsernameTaken => AccountError::UsernameTaken,
             ApiError::AccountIdTaken => AccountError::AccountIdTaken,
+            ApiError::SelfApproval => AccountError::SelfApproval,
+            ApiError::ApprovalUsed => AccountError::ApprovalUsed,
+            ApiError::ApprovalExpired => AccountError::ApprovalExpired,
             ApiError::TooLarge => AccountError::TooLarge,
             ApiError::QuotaExceeded { quota, used, limit } => {
                 AccountError::QuotaExceeded { quota, used, limit }
@@ -381,7 +404,10 @@ const ATTEMPTS: usize = 3;
 
 /// Sends the identical request again after a transport error, pausing as
 /// the backend says first (about 1 s, then 4 s).
-fn retrying<T>(b: &dyn Backend, send: impl FnMut() -> Result<T, ApiError>) -> Result<T, ApiError> {
+pub(crate) fn retrying<T>(
+    b: &dyn Backend,
+    send: impl FnMut() -> Result<T, ApiError>,
+) -> Result<T, ApiError> {
     retrying_noted(b, send).result
 }
 
@@ -543,7 +569,7 @@ impl<'a> Rotation<'a> {
 }
 
 /// The checked server URL and the origin the derivations bind.
-fn checked_server(server: &str) -> Result<(String, String), AccountError> {
+pub(crate) fn checked_server(server: &str) -> Result<(String, String), AccountError> {
     let server = crate::check_endpoint(server)?;
     let origin = crate::origin(&server)?;
     Ok((server, origin))

@@ -2,16 +2,14 @@
 //! redirects, no `Origin`, capped answers; and the live room over a
 //! WebSocket (`tungstenite`) on the same rustls and web PKI roots.
 
-use std::io::{self, Read, Write};
-use std::net::{TcpStream, ToSocketAddrs};
-use std::sync::Arc;
+use std::io;
 use std::time::Duration;
 
+use kanso_sync::ws::{Stream, WsError};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tungstenite::client::IntoClientRequest;
+use tungstenite::Message;
 use tungstenite::protocol::WebSocket;
-use tungstenite::{Message, http::HeaderValue};
 use ureq::Agent;
 
 use crate::api::{
@@ -289,59 +287,6 @@ impl CollabApi for HttpCollab {
     }
 }
 
-/// A plain or TLS stream under the WebSocket.
-enum Stream {
-    Plain(TcpStream),
-    Tls(Box<rustls::StreamOwned<rustls::ClientConnection, TcpStream>>),
-}
-
-impl Stream {
-    fn tcp(&self) -> &TcpStream {
-        match self {
-            Stream::Plain(tcp) => tcp,
-            Stream::Tls(tls) => tls.get_ref(),
-        }
-    }
-}
-
-impl Read for Stream {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match self {
-            Stream::Plain(tcp) => tcp.read(buf),
-            Stream::Tls(tls) => tls.read(buf),
-        }
-    }
-}
-
-impl Write for Stream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        match self {
-            Stream::Plain(tcp) => tcp.write(buf),
-            Stream::Tls(tls) => tls.write(buf),
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        match self {
-            Stream::Plain(tcp) => tcp.flush(),
-            Stream::Tls(tls) => tls.flush(),
-        }
-    }
-}
-
-fn tls_config() -> Arc<rustls::ClientConfig> {
-    let roots = rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    Arc::new(
-        rustls::ClientConfig::builder_with_provider(Arc::new(
-            rustls::crypto::ring::default_provider(),
-        ))
-        .with_safe_default_protocol_versions()
-        .expect("ring supports the default TLS versions")
-        .with_root_certificates(roots)
-        .with_no_client_auth(),
-    )
-}
-
 /// The live room over a WebSocket. The session's token goes in the upgrade
 /// request's `Authorization` header; there is no `Origin`.
 struct WsLink {
@@ -350,82 +295,17 @@ struct WsLink {
 
 impl WsLink {
     fn connect(caller: &Caller, share_id: &str) -> Result<WsLink> {
-        let base = url::Url::parse(&caller.server)
-            .map_err(|err| CollabError::Protocol(err.to_string()))?;
-        let tls = match base.scheme() {
-            "https" => true,
-            "http" => false,
-            other => return Err(CollabError::Protocol(format!("can't reach {other}://"))),
-        };
-        let host = base
-            .host_str()
-            .ok_or_else(|| CollabError::Protocol("no host".into()))?
-            .trim_start_matches('[')
-            .trim_end_matches(']')
-            .to_owned();
-        let port = base
-            .port_or_known_default()
-            .unwrap_or(if tls { 443 } else { 80 });
-        // Each address in turn, as the HTTP client does.
-        let mut last = CollabError::Transport("no address".into());
-        let mut connected = None;
-        for address in (host.as_str(), port)
-            .to_socket_addrs()
-            .map_err(|err| CollabError::Transport(err.to_string()))?
-        {
-            match TcpStream::connect_timeout(&address, Duration::from_secs(20)) {
-                Ok(tcp) => {
-                    connected = Some(tcp);
-                    break;
-                }
-                Err(err) => last = CollabError::Transport(err.to_string()),
-            }
-        }
-        let tcp = connected.ok_or(last)?;
-        tcp.set_nodelay(true).ok();
-        tcp.set_read_timeout(Some(Duration::from_secs(20))).ok();
-        // A stalled send fails rather than holding the room's thread.
-        tcp.set_write_timeout(Some(Duration::from_secs(20))).ok();
-        let stream = if tls {
-            let name = rustls::pki_types::ServerName::try_from(host.clone())
-                .map_err(|err| CollabError::Protocol(err.to_string()))?;
-            let connection = rustls::ClientConnection::new(tls_config(), name)
-                .map_err(|err| CollabError::Transport(err.to_string()))?;
-            Stream::Tls(Box::new(rustls::StreamOwned::new(connection, tcp)))
-        } else {
-            Stream::Plain(tcp)
-        };
-        // The server's own path, if it has one, as the HTTP calls keep it.
-        let ws_url = format!(
-            "{}://{}{}/v2/collab/shares/{}/live",
-            if tls { "wss" } else { "ws" },
-            base.host_str().unwrap_or_default().to_owned()
-                + &base.port().map(|p| format!(":{p}")).unwrap_or_default(),
-            base.path().trim_end_matches('/'),
-            segment(share_id)
-        );
-        let mut request = ws_url
-            .into_client_request()
-            .map_err(|err| CollabError::Protocol(err.to_string()))?;
-        let headers = request.headers_mut();
-        headers.insert(
-            "authorization",
-            HeaderValue::from_str(caller.authorization.as_str())
-                .map_err(|err| CollabError::Protocol(err.to_string()))?,
-        );
-        headers.insert("user-agent", HeaderValue::from_static(USER_AGENT));
-        let (socket, response) =
-            tungstenite::client::client(request, stream).map_err(|err| match err {
-                tungstenite::handshake::HandshakeError::Failure(tungstenite::Error::Http(
-                    response,
-                )) => {
-                    let status = response.status().as_u16();
-                    let body = response.body().clone().unwrap_or_default();
-                    CollabError::from_response(status, &body)
-                }
-                other => CollabError::Transport(other.to_string()),
-            })?;
-        let _ = response;
+        let path = format!("/v2/collab/shares/{}/live", segment(share_id));
+        let socket = kanso_sync::ws::connect(
+            &caller.server,
+            &path,
+            &[("authorization", caller.authorization.as_str())],
+        )
+        .map_err(|err| match err {
+            WsError::Request(message) => CollabError::Protocol(message),
+            WsError::Transport(message) => CollabError::Transport(message),
+            WsError::Refused { status, body } => CollabError::from_response(status, &body),
+        })?;
         Ok(WsLink { socket })
     }
 }
@@ -482,7 +362,7 @@ pub fn envelope_text(envelope: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{BufRead, BufReader};
+    use std::io::{BufRead, BufReader, Read, Write};
     use std::net::TcpListener;
     use std::sync::mpsc;
 

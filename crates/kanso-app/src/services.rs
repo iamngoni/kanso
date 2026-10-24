@@ -17,8 +17,8 @@ use kanso_server::{ServerConfig, ServerHandle};
 use kanso_store::{Change, Origin};
 use kanso_sync::keychain::PendingRecoveryKey;
 use kanso_sync::{
-    Backend, DeviceInfo, Machine, RecoveryKey, Schedule, SecretStore, Session, SignOutReason,
-    SignupState, Step, SyncError, SyncOptions, SyncProblem, SyncReport, Usage,
+    Backend, DeviceInfo, Machine, PendingApproval, RecoveryKey, Schedule, SecretStore, Session,
+    SignOutReason, SignupState, Step, SyncError, SyncOptions, SyncProblem, SyncReport, Usage,
 };
 
 use crate::config::ServerSettings;
@@ -138,6 +138,21 @@ pub struct AccountDetails {
     pub failed: Option<String>,
 }
 
+/// The live account approval UI: what the approver's sheet shows, and the
+/// new device's waiting page. The socket's stop flag lives here so a
+/// sign-out or a new session can end it.
+#[derive(Default)]
+pub struct ApprovalUi {
+    /// The open approver sheet, if any.
+    pub sheet: Option<Entity<crate::device_approval::ApprovalSheet>>,
+    /// The account's pending requests from other devices, as last read.
+    pub pending: Vec<PendingApproval>,
+    /// The new device's waiting page, once it asks to be approved.
+    pub waiting: Option<crate::device_approval::WaitingState>,
+    /// Stops the account event socket when set.
+    pub event_stop: Option<Arc<AtomicBool>>,
+}
+
 /// What keeps automatic syncs from running after a problem (the problems
 /// table's last column). "Sync now" always runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -199,6 +214,8 @@ pub struct Services {
     /// task runs (`recover/start` counts against a per-address limit).
     pub key_check_due: bool,
     pub details: AccountDetails,
+    /// Device approval's live UI and event socket.
+    pub approval: ApprovalUi,
     /// What a server last said about new accounts, for the Create account
     /// form: the server's URL and its answer.
     pub signup: Option<(String, SignupState)>,
@@ -730,6 +747,7 @@ pub fn notify_windows(
 /// while it still holds the ended session, never the one the recovery
 /// saved meanwhile.
 pub fn end_session(reason: SignOutReason, cx: &mut App) {
+    crate::device_approval::stop_events(cx);
     let services = cx.global_mut::<Services>();
     let own_recovery = services
         .task

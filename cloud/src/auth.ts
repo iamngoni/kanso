@@ -52,7 +52,7 @@ import {
 } from "./protocol";
 import { DELETE_PURGE_ROUNDS, accountPrefix, purgePrefix } from "./purge";
 import { accountShareStatements, runSharePurges } from "./shares";
-import { healthAuth } from "./sign_in";
+import { healthAuth, healthEvents } from "./sign_in";
 import { isReserved, normalizeUsername } from "./usernames";
 
 type Handler = (request: Request, env: Env, now: number) => Promise<Response>;
@@ -224,7 +224,7 @@ export const health: Handler = async (_request, env) => {
 	).first<{ signup: string | null; max_accounts: number | null; accounts: number }>();
 	let signup = "closed";
 	if (row?.signup === "open") signup = row.accounts >= (row.max_accounts ?? 0) ? "full" : "open";
-	return json({ ok: true, protocol: PROTOCOL_VERSION, signup, auth: healthAuth(env) });
+	return json({ ok: true, protocol: PROTOCOL_VERSION, signup, auth: healthAuth(env), events: healthEvents() });
 };
 
 // ------------------------------------------------------------------ prelogin
@@ -759,7 +759,8 @@ export function deletionStatements(db: D1Database, accountId: string, now: numbe
 		bind(`DELETE FROM sessions WHERE account_id = ?1 AND ${guard}`),
 		bind(
 			`DELETE FROM limits WHERE key IN ('login-user:' || ?1, 'password-account:' || ?1, 'writes-account:' || ?1, 'uploads-account:' || ?1,
-  'lookup-account:' || ?1, 'join-account:' || ?1, 'notify-account:' || ?1)
+  'lookup-account:' || ?1, 'join-account:' || ?1, 'notify-account:' || ?1,
+  'approval-create:' || ?1, 'approval-poll:' || ?1, 'approval-respond:' || ?1)
   AND ${guard}`,
 		),
 		db

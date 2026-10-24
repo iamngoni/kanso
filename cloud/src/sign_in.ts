@@ -7,8 +7,9 @@
 // (SIGN_IN_ROUTES) and it is configured: a provider when every value its flow
 // needs is present; passkeys when there is a usable RP ID and at least one
 // origin under it. Absence of `auth` means "username and password only",
-// which is what an older server sends. The `events` advertisement lands with
-// `/v2/account/events`; an absent `events` means the app uses GET fallbacks.
+// which is what an older server sends. `events` advertises the live account
+// socket (`/v2/account/events`); an absent `events` means the app uses the GET
+// fallbacks only.
 
 import { type PepperKeys, randomBytes, sha256Hex } from "./crypto";
 import type { Env } from "./env";
@@ -124,6 +125,16 @@ export function healthAuth(env: Env, routes: SignInRoutes = SIGN_IN_ROUTES): Aut
 		providers: PROVIDERS.filter((provider) => routes[provider] && providerConfigured(env, provider)),
 	};
 }
+
+/** `GET /v2/health`'s `events` object: where the live approval hints are. */
+export interface EventsAdvertisement {
+	account: string;
+}
+
+export const ACCOUNT_EVENTS_PATH = "/v2/account/events";
+
+/** Always present on this Worker, which serves the account event socket; an older one omits it. */
+export const healthEvents = (): EventsAdvertisement => ({ account: ACCOUNT_EVENTS_PATH });
 
 // ---------------------------------------------------------------- auth flows
 

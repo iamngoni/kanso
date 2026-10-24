@@ -46,6 +46,9 @@ pub const KEYS_WRONG: &str =
     "Something's wrong with the server's copy of your keys. Nothing was changed on this device.";
 pub const PASSWORDS_DIFFER: &str = "The passwords don't match.";
 const SERVER_TROUBLE: &str = "The server couldn't do that. Try again in a moment.";
+/// The approver found the request's key or name doesn't match what it
+/// committed to (docs/ACCOUNTS.md › The protocol, step 5).
+pub const APPROVAL_CHANGED: &str = "This request changed after it was made. Don't approve.";
 
 /// The words for a failed account task. Every variant has words, and none
 /// repeats text that came from the server or the network.
@@ -94,6 +97,10 @@ pub fn error_words(err: &AccountError, context: ErrorContext) -> String {
                 "Save the new recovery key for {username} first. Kanso shows it on the Account page."
             );
         }
+        AccountError::SelfApproval => "A device can't approve itself.",
+        AccountError::ApprovalUsed => "That request was already answered. Ask again.",
+        AccountError::ApprovalExpired => "That approval request expired. Ask again.",
+        AccountError::ApprovalChanged => APPROVAL_CHANGED,
         AccountError::BadRequest
         | AccountError::ChecksumMismatch
         | AccountError::MethodNotAllowed
@@ -652,6 +659,10 @@ mod tests {
             AccountError::MethodNotAllowed,
             AccountError::UsernameTaken,
             AccountError::AccountIdTaken,
+            AccountError::SelfApproval,
+            AccountError::ApprovalUsed,
+            AccountError::ApprovalExpired,
+            AccountError::ApprovalChanged,
             AccountError::TooLarge,
             AccountError::QuotaExceeded {
                 quota: QuotaKind::Docs,

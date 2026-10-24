@@ -38,6 +38,13 @@ const ROUTES: Record<string, { method: string; path: (p: Record<string, string>)
 	changes: { method: "GET", path: () => "/v2/changes" },
 	put_file: { method: "PUT", path: (p) => `/v2/files/${p.wire_id}`, body: "file" },
 	get_file: { method: "GET", path: (p) => `/v2/files/${p.wire_id}` },
+	approval_create: { method: "POST", path: () => "/v2/account/sign-in/approvals", body: "json" },
+	approval_list: { method: "GET", path: () => "/v2/account/sign-in/approvals" },
+	approval_poll: { method: "GET", path: (p) => `/v2/account/sign-in/approvals/${p.id}` },
+	approval_challenge: { method: "POST", path: (p) => `/v2/account/sign-in/approvals/${p.id}/challenge`, body: "json" },
+	approval_name: { method: "POST", path: (p) => `/v2/account/sign-in/approvals/${p.id}/name`, body: "json" },
+	approval_approve: { method: "POST", path: (p) => `/v2/account/sign-in/approvals/${p.id}/approve`, body: "json" },
+	approval_cancel: { method: "DELETE", path: (p) => `/v2/account/sign-in/approvals/${p.id}` },
 };
 
 class Values {

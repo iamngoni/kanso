@@ -44,10 +44,19 @@
   // holding the note's log in its own SQLite storage and its members' live WebSockets
   // (src/room.ts). Reachable only through the Worker. The v1 migration creates the class with
   // SQLite storage; D1's 0005_collab.sql must be applied (npm run migrate:remote) before deploying.
+  // Device approval: one AccountRoom per account, keyed by account ID, holding its devices'
+  // hibernating event sockets (src/account_room.ts). It stores nothing, so the v2 migration
+  // creates it without SQLite. v1 is deployed: append, never renumber.
   "durable_objects": {
-    "bindings": [{ "name": "NOTE_ROOM", "class_name": "NoteRoom" }]
+    "bindings": [
+      { "name": "NOTE_ROOM", "class_name": "NoteRoom" },
+      { "name": "ACCOUNT_ROOM", "class_name": "AccountRoom" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["NoteRoom"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["NoteRoom"] },
+    { "tag": "v2", "new_classes": ["AccountRoom"] }
+  ],
   "r2_buckets": [
     {
       "binding": "FILES",
