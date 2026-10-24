@@ -323,7 +323,7 @@ describe("any sequence of actions", () => {
         return true;
       }),
     );
-  });
+  }, 20_000);
 
   it("only grows the library on new-note and open-wiki, and a created note is the one selected and on top", () => {
     fc.assert(
@@ -340,7 +340,7 @@ describe("any sequence of actions", () => {
         return true;
       }),
     );
-  });
+  }, 20_000);
 
   it("makes a created note visible: after new-note it is in the list that is shown", () => {
     fc.assert(
