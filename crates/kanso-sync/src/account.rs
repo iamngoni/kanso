@@ -21,6 +21,12 @@ use crate::crypto::{
     unwrap, wrap,
 };
 use crate::keychain::{self, PendingLogout, PendingRecoveryKey, SecretError, SecretStore};
+use crate::provider::{
+    AccountMethods, GoogleFinishRequest, GoogleStartRequest, IdentityIntent, IdentityStartRequest,
+    LinkOutcome, Loopback, MethodsReply, Provider, ProviderPollRequest, ProviderSignIn,
+    ProviderStart, ProviderStartRequest, ProviderStep, ServerAuth, SocialSignupRequest,
+    UnlinkRequest,
+};
 use crate::username::{UsernameError, check_new_username, normalize_username};
 use crate::wire::{
     ApiError, PROTOCOL_VERSION, QuotaKind, SessionToken, SignOutReason, SignupClosedReason,
@@ -235,12 +241,31 @@ pub enum AccountError {
     /// 401: wrong password or recovery key, or an unknown username.
     #[error("invalid credentials")]
     InvalidCredentials,
+    /// 401 `reauth_required`: the change needs a fresh password or passkey
+    /// proof, not just this session.
+    #[error("this change needs your password or a passkey")]
+    ReauthRequired,
+    /// 400/410 `flow_expired`: the sign-in or proof flow is over.
+    #[error("this sign-in expired; try again")]
+    FlowExpired,
+    /// 400 `nonce_reused`: the token or flow was already used.
+    #[error("this sign-in was already used")]
+    NonceReused,
     #[error("the server refused a browser request")]
     ForbiddenOrigin,
     #[error("the account is turned off")]
     AccountDisabled,
     #[error("sign-ups are closed ({})", reason.as_str())]
     SignupClosed { reason: SignupClosedReason },
+    /// 403 `provider_disabled`: the server doesn't offer this provider.
+    #[error("that provider isn't available on this server")]
+    ProviderDisabled,
+    /// 403 `provider_denied`: the sign-in was declined at the provider.
+    #[error("the sign-in was declined")]
+    ProviderDenied,
+    /// 503 `provider_unavailable`: the provider's endpoint failed.
+    #[error("the provider is unavailable; try again")]
+    ProviderUnavailable,
     #[error("not found")]
     NotFound,
     #[error("method not allowed")]
@@ -250,6 +275,19 @@ pub enum AccountError {
     /// The client generates a new account ID and retries; it never surfaces.
     #[error("account ID taken")]
     AccountIdTaken,
+    /// 409 `identity_taken`: another account already owns that provider
+    /// identity. It never says which account.
+    #[error("that provider account is already linked to another Kanso account")]
+    IdentityTaken,
+    /// 409 `last_method`: removing this would leave no way to sign in.
+    #[error("this is the last way to sign in; use your recovery key")]
+    LastMethod,
+    /// 409 `already_has_password`.
+    #[error("this account already has a password")]
+    AlreadyHasPassword,
+    /// 409 `credential_exists`.
+    #[error("that passkey is already registered")]
+    CredentialExists,
     #[error("too large")]
     TooLarge,
     #[error("quota exceeded ({})", quota.as_str())]
@@ -339,13 +377,23 @@ impl From<ApiError> for AccountError {
             ApiError::ChecksumMismatch => AccountError::ChecksumMismatch,
             ApiError::Unauthorized { reason } => AccountError::Unauthorized { reason },
             ApiError::InvalidCredentials => AccountError::InvalidCredentials,
+            ApiError::ReauthRequired => AccountError::ReauthRequired,
+            ApiError::FlowExpired { .. } => AccountError::FlowExpired,
+            ApiError::NonceReused => AccountError::NonceReused,
             ApiError::ForbiddenOrigin => AccountError::ForbiddenOrigin,
             ApiError::AccountDisabled => AccountError::AccountDisabled,
             ApiError::SignupClosed { reason } => AccountError::SignupClosed { reason },
+            ApiError::ProviderDisabled => AccountError::ProviderDisabled,
+            ApiError::ProviderDenied => AccountError::ProviderDenied,
+            ApiError::ProviderUnavailable => AccountError::ProviderUnavailable,
             ApiError::NotFound => AccountError::NotFound,
             ApiError::MethodNotAllowed => AccountError::MethodNotAllowed,
             ApiError::UsernameTaken => AccountError::UsernameTaken,
             ApiError::AccountIdTaken => AccountError::AccountIdTaken,
+            ApiError::IdentityTaken => AccountError::IdentityTaken,
+            ApiError::LastMethod => AccountError::LastMethod,
+            ApiError::AlreadyHasPassword => AccountError::AlreadyHasPassword,
+            ApiError::CredentialExists => AccountError::CredentialExists,
             ApiError::TooLarge => AccountError::TooLarge,
             ApiError::QuotaExceeded { quota, used, limit } => {
                 AccountError::QuotaExceeded { quota, used, limit }
@@ -640,6 +688,22 @@ fn new_device(
     }
 }
 
+/// A provider sign-up keeps the identity bound to the provider flow. Its ID
+/// and proof must exactly match the values sent when that flow was started;
+/// only the device name is sealed with this account attempt's content keys.
+fn provider_signup_device(
+    identity: &DeviceIdentity,
+    login_device: &LoginDevice,
+    keys: &ContentKeys,
+    account_id: &str,
+) -> NewDevice {
+    NewDevice {
+        id: login_device.id.clone(),
+        sealed_name: Some(keys.seal_name(account_id, &login_device.id, &identity.name)),
+        proof: login_device.proof.clone(),
+    }
+}
+
 /// Checks a session answer (sign-up, recovery): its account and username,
 /// and the token's shape.
 fn check_answer(
@@ -668,6 +732,378 @@ pub fn server_info(b: &dyn Backend, server: &str) -> Result<SignupState, Account
         }
         Err(err) => Err(err.into()),
     }
+}
+
+/// `GET /v2/health`'s advertised sign-in methods. An older server omits
+/// `auth`, which means username and password only and no live approvals.
+pub fn server_auth(b: &dyn Backend, server: &str) -> Result<ServerAuth, AccountError> {
+    let (server, _) = checked_server(server)?;
+    let health = match b.api(&server).health() {
+        Ok(health) if health.ok && health.protocol == PROTOCOL_VERSION => health,
+        Ok(_) | Err(ApiError::NotFound | ApiError::Protocol(_) | ApiError::Unrecognized { .. }) => {
+            return Err(AccountError::ServerOutdated);
+        }
+        Err(err) => return Err(err.into()),
+    };
+    let Some(auth) = health.auth else {
+        return Ok(ServerAuth::default());
+    };
+    Ok(ServerAuth {
+        passkeys: auth
+            .passkeys
+            .map(|passkeys| crate::provider::PasskeyMethods {
+                rp_id: passkeys.rp_id,
+                security_key: passkeys.security_key,
+            }),
+        providers: auth.providers,
+        account_events: None,
+    })
+}
+
+/// `GET /v2/account/sign-in`, with the server's advertisement: the account's
+/// ways in, and which of the advertised providers it hasn't linked.
+pub fn methods(b: &dyn Backend, session: &Session) -> Result<AccountMethods, AccountError> {
+    let api = b.api(&session.server);
+    let auth = server_auth(b, &session.server)?;
+    let reply: MethodsReply =
+        retrying(b, || api.sign_in_methods(session.token())).map_err(AccountError::from)?;
+    Ok(reply.methods(auth.providers, auth.passkeys.map(|passkeys| passkeys.rp_id)))
+}
+
+/// A provider flow's device: its ID and proof. For a link it is the
+/// session's; for a sign-in this Mac builds one and keeps it for the whole
+/// flow (the Worker binds the flow to it).
+fn provider_device(device: &LoginDevice) -> LoginDevice {
+    device.clone()
+}
+
+/// Starts a provider sign-in or sign-up flow (docs/ACCOUNTS.md › Sign-in
+/// routes). Google needs the loopback and the S256 challenge the app made;
+/// the verifier stays in the app until [`finish_google`].
+pub fn start_provider(
+    b: &dyn Backend,
+    server: &str,
+    provider: &Provider,
+    device: &LoginDevice,
+    loopback: Option<&Loopback>,
+    code_challenge: Option<&str>,
+) -> Result<ProviderStart, AccountError> {
+    let (server, _) = checked_server(server)?;
+    let api = b.api(&server);
+    let device = provider_device(device);
+    match provider {
+        Provider::Google => {
+            let loopback = loopback.ok_or(AccountError::BadRequest)?;
+            let challenge = code_challenge.ok_or(AccountError::BadRequest)?;
+            retrying(b, || {
+                api.google_start(&GoogleStartRequest {
+                    device: device.clone(),
+                    redirect_uri: loopback.uri(),
+                    code_challenge: challenge.to_owned(),
+                })
+            })
+            .map_err(AccountError::from)
+        }
+        _ => retrying(b, || {
+            api.provider_start(
+                provider,
+                &ProviderStartRequest {
+                    device: device.clone(),
+                },
+            )
+        })
+        .map_err(AccountError::from),
+    }
+}
+
+/// One Apple or GitHub poll of a started flow.
+pub fn poll_provider(
+    b: &dyn Backend,
+    server: &str,
+    provider: &Provider,
+    flow: &str,
+    device: &LoginDevice,
+) -> Result<ProviderStep, AccountError> {
+    let (server, _) = checked_server(server)?;
+    let api = b.api(&server);
+    retrying(b, || {
+        api.provider_poll(
+            provider,
+            &ProviderPollRequest {
+                flow_id: flow.to_owned(),
+                device: provider_device(device),
+            },
+        )
+    })
+    .map_err(AccountError::from)
+}
+
+/// Google's finish: the loopback's code and the verifier whose challenge the
+/// start carried. The Worker exchanges and verifies; this crate never sees a
+/// token.
+pub fn finish_google(
+    b: &dyn Backend,
+    server: &str,
+    flow: &str,
+    code: &str,
+    code_verifier: &str,
+    device: &LoginDevice,
+) -> Result<ProviderStep, AccountError> {
+    let (server, _) = checked_server(server)?;
+    let api = b.api(&server);
+    retrying(b, || {
+        api.google_finish(&GoogleFinishRequest {
+            flow_id: flow.to_owned(),
+            code: code.to_owned(),
+            code_verifier: code_verifier.to_owned(),
+            device: provider_device(device),
+        })
+    })
+    .map_err(AccountError::from)
+}
+
+/// The provider sign-in's answer for Apple or GitHub, once the browser flow
+/// has been completed. Google's answer comes from [`finish_google`]. A
+/// pending flow is [`AccountError::Protocol`]: the app keeps polling with
+/// [`poll_provider`].
+pub fn sign_in_with_provider(
+    b: &dyn Backend,
+    server: &str,
+    provider: &Provider,
+    flow: &str,
+    device: &LoginDevice,
+    progress: &dyn Fn(Step),
+) -> Result<ProviderSignIn, AccountError> {
+    if matches!(provider, Provider::Google) {
+        return Err(AccountError::Protocol(
+            "Google's flow is answered by finish_google".into(),
+        ));
+    }
+    progress(Step::Contacting);
+    match poll_provider(b, server, provider, flow, device)? {
+        ProviderStep::Session(session) => Ok(ProviderSignIn::Session(session)),
+        ProviderStep::NewAccount(account) => Ok(ProviderSignIn::NewAccount(account)),
+        ProviderStep::Pending { .. } => Err(AccountError::Protocol(
+            "the provider sign-in is still pending".into(),
+        )),
+    }
+}
+
+/// Creates the passwordless account a provider ticket names
+/// (docs/ACCOUNTS.md › Sign in with Apple, Google and GitHub › Common
+/// rules): a random KDF salt, auth hash and password wrap that no client
+/// holds, the identity, the session and the recovery material in one insert.
+/// The new recovery key is saved in `sync-recovery-key:<library>` before the
+/// request is sent.
+#[allow(clippy::too_many_arguments, reason = "the flow's inputs")]
+pub fn sign_up_with_provider(
+    b: &dyn Backend,
+    secrets: &dyn SecretStore,
+    server: &str,
+    _provider: &Provider,
+    flow: &str,
+    username: &str,
+    device: &DeviceIdentity,
+    login_device: &LoginDevice,
+    progress: &dyn Fn(Step),
+) -> Result<SignedUp, RotationError> {
+    let username = check_new_username(username).map_err(AccountError::from)?;
+    let (server, origin) = checked_server(server)?;
+    progress(Step::Contacting);
+    match server_info(b, &server)? {
+        SignupState::Open => {}
+        SignupState::Closed => {
+            return Err(AccountError::SignupClosed {
+                reason: SignupClosedReason::Closed,
+            }
+            .into());
+        }
+        SignupState::Full => {
+            return Err(AccountError::SignupClosed {
+                reason: SignupClosedReason::Full,
+            }
+            .into());
+        }
+    }
+    let mut data_key = DataKey::generate();
+    let mut account_id = new_account_id();
+    let mut rotation = Rotation::choose(
+        secrets,
+        &device.library_id,
+        &server,
+        &origin,
+        &account_id,
+        &username,
+        None,
+    )?;
+    progress(Step::DerivingKeys);
+    let recovery = recovery_keys(rotation.key(), &origin, &username);
+    let mut content = ContentKeys::derive(&data_key);
+    let api = b.api(&server);
+    let mut fresh_ids = 0;
+    let mut reached = false;
+    loop {
+        let request = SocialSignupRequest {
+            ticket: flow.to_owned(),
+            username: username.clone(),
+            account_id: account_id.clone(),
+            recovery_auth_key: recovery.auth_key.to_base64url(),
+            recovery_wrapped_key: wrap(
+                &recovery.kek,
+                WrapPurpose::Recovery,
+                &account_id,
+                &data_key,
+            ),
+            key_id: key_id(&data_key),
+            device: provider_signup_device(device, login_device, &content, &account_id),
+        };
+        progress(Step::Contacting);
+        if let Err(err) = rotation.keep(&account_id) {
+            return Err(rotation.failed(err.into(), false));
+        }
+        let sent = retrying_noted(b, || api.social_signup(&request));
+        reached |= sent.reached;
+        match sent.result {
+            Ok(answer) => {
+                if answer.account_id != account_id
+                    || answer.username != username
+                    || !is_token(answer.token.expose())
+                    || answer.key_id != key_id(&data_key)
+                {
+                    return Err(rotation.failed(
+                        AccountError::Protocol("the server answered for another account".into()),
+                        true,
+                    ));
+                }
+                let recovery_key = rotation.accepted();
+                let mut session = Session::new(
+                    server,
+                    origin,
+                    account_id,
+                    username,
+                    request.device.id.clone(),
+                    answer.token,
+                    data_key,
+                );
+                session.set_library_id(&device.library_id);
+                return Ok(SignedUp {
+                    session,
+                    recovery_key,
+                });
+            }
+            Err(ApiError::AccountIdTaken) if fresh_ids < 3 => {
+                fresh_ids += 1;
+                account_id = new_account_id();
+                data_key = DataKey::generate();
+                content = ContentKeys::derive(&data_key);
+            }
+            Err(err) => return Err(rotation.failed_api(err, reached)),
+        }
+    }
+}
+
+/// `POST /v2/account/sign-in/identities/<provider>/start`: a link (with a
+/// password or passkey proof) or a provider proof (the session is enough).
+#[allow(clippy::too_many_arguments, reason = "the flow's inputs")]
+pub fn start_identity(
+    b: &dyn Backend,
+    session: &Session,
+    provider: &Provider,
+    intent: IdentityIntent,
+    proof: Option<crate::provider::ProofWire>,
+    loopback: Option<&Loopback>,
+    code_challenge: Option<&str>,
+    device: &LoginDevice,
+) -> Result<ProviderStart, AccountError> {
+    let api = b.api(&session.server);
+    retrying(b, || {
+        api.identity_start(
+            session.token(),
+            provider,
+            &IdentityStartRequest {
+                intent,
+                proof: proof.clone(),
+                redirect_uri: loopback.map(Loopback::uri),
+                code_challenge: code_challenge.map(str::to_owned),
+                device: provider_device(device),
+            },
+        )
+    })
+    .map_err(AccountError::from)
+}
+
+/// The completion of a link or proof flow on Apple or GitHub.
+pub fn finish_identity(
+    b: &dyn Backend,
+    session: &Session,
+    provider: &Provider,
+    flow: &str,
+    device: &LoginDevice,
+) -> Result<LinkOutcome, AccountError> {
+    let api = b.api(&session.server);
+    retrying(b, || {
+        api.identity_poll(
+            session.token(),
+            provider,
+            &ProviderPollRequest {
+                flow_id: flow.to_owned(),
+                device: provider_device(device),
+            },
+        )
+    })
+    .map_err(AccountError::from)
+}
+
+/// The completion of a link or proof flow on Google.
+pub fn finish_identity_google(
+    b: &dyn Backend,
+    session: &Session,
+    provider: &Provider,
+    flow: &str,
+    code: &str,
+    code_verifier: &str,
+    device: &LoginDevice,
+) -> Result<LinkOutcome, AccountError> {
+    let api = b.api(&session.server);
+    retrying(b, || {
+        api.identity_finish_google(
+            session.token(),
+            provider,
+            &GoogleFinishRequest {
+                flow_id: flow.to_owned(),
+                code: code.to_owned(),
+                code_verifier: code_verifier.to_owned(),
+                device: provider_device(device),
+            },
+        )
+    })
+    .map_err(AccountError::from)
+}
+
+/// Unlinks `provider`. A provider proof can only unlink its own provider;
+/// the Worker refuses `last_method` unless `recovery_auth_key` proves the
+/// recovery key.
+pub fn unlink_identity(
+    b: &dyn Backend,
+    session: &Session,
+    provider: &Provider,
+    proof: crate::provider::ProofWire,
+    recovery: Option<&RecoveryKey>,
+) -> Result<(), AccountError> {
+    let request = UnlinkRequest {
+        proof,
+        recovery_auth_key: recovery.map(|key| {
+            // The Worker checks SHA-256 of the recovery auth key.
+            recovery_keys(key, &session.origin, &session.username)
+                .auth_key
+                .to_base64url()
+        }),
+    };
+    let api = b.api(&session.server);
+    retrying(b, || {
+        api.unlink_identity(session.token(), provider, &request)
+    })
+    .map_err(AccountError::from)
 }
 
 /// Creates an account and this device's session (docs/ACCOUNTS.md › Account

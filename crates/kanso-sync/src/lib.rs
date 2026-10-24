@@ -22,6 +22,7 @@ mod http;
 pub mod keychain;
 pub mod lock;
 mod memory;
+pub mod provider;
 mod remote;
 mod sealed;
 pub mod share;
@@ -33,8 +34,10 @@ pub mod wire;
 pub use account::{
     AccountError, DEFAULT_SERVER, DeviceInfo, PasswordChanged, Quota, Recovered, RotationError,
     Session, SignedIn, SignedUp, SignupState, Step, Usage, change_password, delete_account,
-    devices, discard_session, flush_pending_logouts, new_recovery_key, recover, recovery_key_held,
-    revoke_device, server_info, sign_in, sign_out, sign_up, usage,
+    devices, discard_session, finish_google, finish_identity, finish_identity_google,
+    flush_pending_logouts, methods, new_recovery_key, poll_provider, recover, recovery_key_held,
+    revoke_device, server_auth, server_info, sign_in, sign_in_with_provider, sign_out, sign_up,
+    sign_up_with_provider, start_identity, start_provider, unlink_identity, usage,
 };
 pub use api::{Api, Backend, Route};
 pub use binding::{
@@ -52,6 +55,11 @@ pub use keychain::{Keychain, MemorySecrets, SecretError, SecretStore};
 pub use memory::{
     AccountSnapshot, DEFAULT_SETTINGS, Limits, MemoryServer, QuotaOverride, ServerDevice,
     ServerStats, Signup, is_valid_setting,
+};
+pub use provider::{
+    AccountMethods, AppleStart, GithubStart, GoogleStart, IdentityIntent, LinkOutcome,
+    LinkedProvider, Loopback, NewAccount, PasskeyInfo, PasskeyMethods, ProofWire, Provider,
+    ProviderSession, ProviderSignIn, ProviderStart, ProviderStep, ServerAuth, apple_callback_flow,
 };
 pub use remote::{
     PushResult, RemoteDoc, RemoteError, is_doc_id, is_file_id, is_md5_hex, is_rev, md5_hex,

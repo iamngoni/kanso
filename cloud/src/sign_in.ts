@@ -42,7 +42,7 @@ export interface SignInRoutes {
 	github: boolean;
 }
 
-export const SIGN_IN_ROUTES: SignInRoutes = { passkeys: false, apple: false, google: false, github: false };
+export const SIGN_IN_ROUTES: SignInRoutes = { passkeys: false, apple: true, google: true, github: true };
 
 export const isProvider = (value: string): value is Provider => (PROVIDERS as readonly string[]).includes(value);
 
@@ -144,17 +144,31 @@ export interface AuthFlowRow {
 	provider: string | null;
 	subject: string | null;
 	device_code: string | null;
+	poll_interval_seconds?: number | null;
 	next_poll_at: number | null;
 	created_at: number;
 	expires_at: number;
 	consumed_at: number | null;
+	completion_attempt_id: string | null;
+	completion_kind: "signin" | "link" | "social_signup" | null;
+	completion_account_id: string | null;
+	completion_succeeded: number;
 }
 
-export type FlowInput = Omit<AuthFlowRow, "id" | "created_at" | "consumed_at"> & { id?: string };
+export type FlowInput = Omit<
+	AuthFlowRow,
+	| "id"
+	| "created_at"
+	| "consumed_at"
+	| "completion_attempt_id"
+	| "completion_kind"
+	| "completion_account_id"
+	| "completion_succeeded"
+> & { id?: string };
 
 const FLOW_COLUMNS = `id, kind, intent, account_id, device_id, device_proof_hash, challenge, rp_id,
-  nonce_hash, state_hash, pkce_hash, redirect_uri, provider, subject, device_code, next_poll_at,
-  created_at, expires_at, consumed_at`;
+  nonce_hash, state_hash, pkce_hash, redirect_uri, provider, subject, device_code, poll_interval_seconds, next_poll_at,
+  created_at, expires_at, consumed_at, completion_attempt_id, completion_kind, completion_account_id, completion_succeeded`;
 
 const FLOW_LABEL = "kanso-flow\u0001";
 
@@ -236,7 +250,7 @@ export async function newFlow(env: Env, keys: PepperKeys, flow: FlowInput, now: 
 	const deviceCode =
 		flow.device_code === null ? null : await sealFlowSecret(keys, { id, kind: flow.kind, account_id: flow.account_id }, flow.device_code);
 	await env.DB.prepare(
-		`INSERT INTO auth_flows (${FLOW_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, NULL)`,
+		`INSERT INTO auth_flows (${FLOW_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, NULL, NULL, NULL, NULL, 0)`,
 	)
 		.bind(
 			id,
@@ -254,6 +268,7 @@ export async function newFlow(env: Env, keys: PepperKeys, flow: FlowInput, now: 
 			flow.provider,
 			flow.subject,
 			deviceCode,
+			flow.poll_interval_seconds ?? null,
 			flow.next_poll_at,
 			now,
 			flow.expires_at,

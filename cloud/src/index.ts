@@ -47,10 +47,23 @@
 //   GET    /v2/collab/notifications     your notifications                            (session)
 //   DELETE /v2/collab/notifications/<id> dismiss one                                  (session)
 //   GET    /j/<link_id>                 the page an invite link opens                 (public)
+//   POST   /v2/auth/apple/start         Sign in with Apple: the web flow's URL
+//   GET|POST /v2/auth/apple/callback    Apple's form_post (the one Origin exception)
+//   POST   /v2/auth/apple/poll          the app's completion of an Apple flow
+//   POST   /v2/auth/google/start        Sign in with Google: loopback and PKCE
+//   POST   /v2/auth/google/finish       the loopback's code and the PKCE verifier
+//   POST   /v2/auth/github/start        Sign in with GitHub: the device flow's code
+//   POST   /v2/auth/github/poll         one device-flow poll
+//   POST   /v2/auth/social/signup       the account a provider flow's ticket names
+//   GET    /v2/account/sign-in          the account's ways in                         (session)
+//   POST   /v2/account/sign-in/identities/<provider>/start   link, or a proof flow   (session)
+//   POST   /v2/account/sign-in/identities/<provider>/unlink  unlink a provider       (session)
 //
 // /v1 and every other path answer 404. Any request with an Origin header gets
 // 403 before anything else, except on the three public routes, which hold no
-// credentials and only ever read; a body with the wrong Content-Type gets 415.
+// credentials and only ever read, and Apple's callback, which takes Apple's
+// origin (or none) and relies on its state; a body with the wrong Content-Type
+// gets 415.
 //
 // Each shared note's log lives in its own Durable Object, NoteRoom (room.ts),
 // exported here so the runtime can find the class.
@@ -61,6 +74,7 @@ import { pepperKeys } from "./crypto";
 import type { Env } from "./env";
 import { error, isContentType, methodNotAllowed, notFound } from "./http";
 import * as identity from "./identity";
+import * as providers from "./providers";
 import { bindingFilter } from "./limits";
 import { runCron } from "./purge";
 import * as shares from "./shares";
@@ -89,6 +103,8 @@ interface Route {
 	binding?: boolean;
 	/** Readable by anyone, from a browser too: the Origin rule doesn't apply. */
 	public?: boolean;
+	/** The only Origin values this route accepts besides none (Apple's form post). */
+	origins?: readonly string[];
 }
 
 const json = (handler: Handler | PepperHandler, pepper = false): Method => ({ handler, body: "json", pepper });
@@ -112,6 +128,21 @@ const ROUTES: Record<string, Route> = {
 	"/v2/account/identity": { name: "identity", methods: { PUT: json(identity.putIdentity), GET: { handler: identity.getIdentity } } },
 	"/v2/collab/shares": { name: "collab_shares", methods: { POST: json(collab.createShare), GET: { handler: collab.listShares } } },
 	"/v2/collab/notifications": { name: "collab_notifications", methods: { POST: json(collab.notify), GET: { handler: collab.listNotifications } } },
+	"/v2/auth/apple/start": { name: "apple_start", binding: true, methods: { POST: json(providers.start("apple"), true) } },
+	"/v2/auth/apple/poll": { name: "apple_poll", binding: true, methods: { POST: json(providers.applePoll, true) } },
+	// Apple posts application/x-www-form-urlencoded from its own page; the handler checks the type.
+	"/v2/auth/apple/callback": {
+		name: "apple_callback",
+		binding: true,
+		origins: [providers.APPLE_FORM_ORIGIN],
+		methods: { GET: { handler: providers.appleCallback, pepper: true }, POST: { handler: providers.appleCallback, pepper: true } },
+	},
+	"/v2/auth/google/start": { name: "google_start", binding: true, methods: { POST: json(providers.start("google"), true) } },
+	"/v2/auth/google/finish": { name: "google_finish", binding: true, methods: { POST: json(providers.googleFinish, true) } },
+	"/v2/auth/github/start": { name: "github_start", binding: true, methods: { POST: json(providers.start("github"), true) } },
+	"/v2/auth/github/poll": { name: "github_poll", binding: true, methods: { POST: json(providers.githubPoll, true) } },
+	"/v2/auth/social/signup": { name: "social_signup", binding: true, methods: { POST: json(providers.socialSignup, true) } },
+	"/v2/account/sign-in": { name: "sign_in_methods", methods: { GET: { handler: providers.methods } } },
 };
 
 /** The routes under /v2/collab/shares/<id>/, by what follows the ID. */
@@ -165,6 +196,13 @@ function match(path: string): Route | null {
 	if (collabShare) return collabShareRoute(segment(collabShare[1]), collabShare[2]);
 	const joinLink = /^\/v2\/collab\/join\/([^/]+)$/.exec(path);
 	if (joinLink) return { name: "collab_join", methods: { POST: json(collab.join(segment(joinLink[1]))) } };
+	const identityRoute = /^\/v2\/account\/sign-in\/identities\/([^/]+)\/(start|unlink)$/.exec(path);
+	if (identityRoute) {
+		const provider = segment(identityRoute[1]);
+		return identityRoute[2] === "start"
+			? { name: "identity_start", methods: { POST: json(providers.identityStart(provider), true) } }
+			: { name: "identity_unlink", methods: { POST: json(providers.unlink(provider), true) } };
+	}
 	const notification = /^\/v2\/collab\/notifications\/([^/]+)$/.exec(path);
 	if (notification) return { name: "collab_notification", methods: { DELETE: { handler: collab.deleteNotification(segment(notification[1])) } } };
 	const invite = /^\/j\/([^/]+)$/.exec(path);
@@ -180,7 +218,10 @@ export async function handle(request: Request, env: Env, now: number): Promise<R
 	try {
 		const route = match(new URL(request.url).pathname);
 		// Browsers always send Origin on the requests that matter; the native client never does (M7).
-		if (request.headers.has("origin") && !route?.public) return error(403, "forbidden_origin", "Browser requests are refused.");
+		const origin = request.headers.get("origin");
+		if (origin !== null && !route?.public && !route?.origins?.includes(origin)) {
+			return error(403, "forbidden_origin", "Browser requests are refused.");
+		}
 		if (!route) return notFound();
 		name = route.name;
 		const method = route.methods[request.method];

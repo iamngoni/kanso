@@ -434,12 +434,29 @@ pub enum ApiError {
     /// 401: wrong proof, or an unknown username.
     #[error("401 invalid_credentials")]
     InvalidCredentials,
+    /// 401 `reauth_required`: a sensitive change needs a fresh password or
+    /// passkey proof.
+    #[error("401 reauth_required")]
+    ReauthRequired,
+    /// 400 `flow_expired`, or 410 when the provider itself expired the flow
+    /// (GitHub's `expired_token`).
+    #[error("flow_expired")]
+    FlowExpired { gone: bool },
+    /// 400 `nonce_reused`: a token or a flow was already used.
+    #[error("400 nonce_reused")]
+    NonceReused,
     #[error("403 forbidden_origin")]
     ForbiddenOrigin,
     #[error("403 account_disabled")]
     AccountDisabled,
     #[error("403 signup_closed ({})", reason.as_str())]
     SignupClosed { reason: SignupClosedReason },
+    /// 403 `provider_disabled`: this server has no such provider configured.
+    #[error("403 provider_disabled")]
+    ProviderDisabled,
+    /// 403 `provider_denied`: the person declined at the provider.
+    #[error("403 provider_denied")]
+    ProviderDenied,
     /// 404: unknown route, file, or well-formed but unknown device.
     #[error("404 not_found")]
     NotFound,
@@ -450,6 +467,18 @@ pub enum ApiError {
     UsernameTaken,
     #[error("409 account_id_taken")]
     AccountIdTaken,
+    /// 409 `identity_taken`: another account owns that provider identity.
+    #[error("409 identity_taken")]
+    IdentityTaken,
+    /// 409 `last_method`: removing this would leave no way to sign in.
+    #[error("409 last_method")]
+    LastMethod,
+    /// 409 `already_has_password`.
+    #[error("409 already_has_password")]
+    AlreadyHasPassword,
+    /// 409 `credential_exists`.
+    #[error("409 credential_exists")]
+    CredentialExists,
     #[error("413 too_large")]
     TooLarge,
     /// `used` is the usage before this request; for `server` it is the
@@ -475,6 +504,10 @@ pub enum ApiError {
     /// 503: `AUTH_PEPPER` missing or malformed.
     #[error("503 misconfigured")]
     Misconfigured,
+    /// 503 `provider_unavailable`: the provider's own endpoint failed or
+    /// timed out.
+    #[error("503 provider_unavailable")]
+    ProviderUnavailable,
     /// A status or code this client doesn't know.
     #[error("{status} {code}")]
     Unrecognized { status: u16, code: String },
@@ -528,18 +561,29 @@ impl ApiError {
             | ApiError::WeakKdf
             | ApiError::UsernameMismatch
             | ApiError::ChecksumMismatch => 400,
-            ApiError::Unauthorized { .. } | ApiError::InvalidCredentials => 401,
+            ApiError::Unauthorized { .. }
+            | ApiError::InvalidCredentials
+            | ApiError::ReauthRequired => 401,
+            ApiError::FlowExpired { gone: true } => 410,
+            ApiError::FlowExpired { gone: false } | ApiError::NonceReused => 400,
             ApiError::ForbiddenOrigin
             | ApiError::AccountDisabled
-            | ApiError::SignupClosed { .. } => 403,
+            | ApiError::SignupClosed { .. }
+            | ApiError::ProviderDisabled
+            | ApiError::ProviderDenied => 403,
             ApiError::NotFound => 404,
             ApiError::MethodNotAllowed => 405,
-            ApiError::UsernameTaken | ApiError::AccountIdTaken => 409,
+            ApiError::UsernameTaken
+            | ApiError::AccountIdTaken
+            | ApiError::IdentityTaken
+            | ApiError::LastMethod
+            | ApiError::AlreadyHasPassword
+            | ApiError::CredentialExists => 409,
             ApiError::TooLarge | ApiError::QuotaExceeded { .. } => 413,
             ApiError::UnsupportedMediaType => 415,
             ApiError::RateLimited { .. } => 429,
             ApiError::Internal => 500,
-            ApiError::Misconfigured => 503,
+            ApiError::Misconfigured | ApiError::ProviderUnavailable => 503,
             ApiError::Unrecognized { status, .. } => *status,
             ApiError::Transport(_) | ApiError::Protocol(_) => return None,
         })
@@ -557,6 +601,15 @@ impl ApiError {
             ApiError::ChecksumMismatch => "checksum_mismatch",
             ApiError::Unauthorized { .. } => "unauthorized",
             ApiError::InvalidCredentials => "invalid_credentials",
+            ApiError::ReauthRequired => "reauth_required",
+            ApiError::FlowExpired { .. } => "flow_expired",
+            ApiError::NonceReused => "nonce_reused",
+            ApiError::ProviderDisabled => "provider_disabled",
+            ApiError::ProviderDenied => "provider_denied",
+            ApiError::IdentityTaken => "identity_taken",
+            ApiError::LastMethod => "last_method",
+            ApiError::AlreadyHasPassword => "already_has_password",
+            ApiError::CredentialExists => "credential_exists",
             ApiError::ForbiddenOrigin => "forbidden_origin",
             ApiError::AccountDisabled => "account_disabled",
             ApiError::SignupClosed { .. } => "signup_closed",
@@ -570,6 +623,7 @@ impl ApiError {
             ApiError::RateLimited { .. } => "rate_limited",
             ApiError::Internal => "internal",
             ApiError::Misconfigured => "misconfigured",
+            ApiError::ProviderUnavailable => "provider_unavailable",
             ApiError::Unrecognized { code, .. } => code,
             ApiError::Transport(_) | ApiError::Protocol(_) => return None,
         })
@@ -582,6 +636,7 @@ impl ApiError {
         let mut body = json!({ "error": code });
         let extras = match self {
             ApiError::Unauthorized { reason } => json!({"reason": reason.as_str()}),
+            ApiError::ReauthRequired => json!({"reason": "reauth"}),
             ApiError::SignupClosed { reason } => json!({"reason": reason.as_str()}),
             ApiError::QuotaExceeded { quota, used, limit } => {
                 json!({"quota": quota.as_str(), "used": used, "limit": limit})
@@ -620,6 +675,17 @@ impl ApiError {
                 reason: SignOutReason::parse(text("reason")),
             },
             "invalid_credentials" => ApiError::InvalidCredentials,
+            "reauth_required" => ApiError::ReauthRequired,
+            "flow_expired" => ApiError::FlowExpired {
+                gone: status == 410,
+            },
+            "nonce_reused" => ApiError::NonceReused,
+            "provider_disabled" => ApiError::ProviderDisabled,
+            "provider_denied" => ApiError::ProviderDenied,
+            "identity_taken" => ApiError::IdentityTaken,
+            "last_method" => ApiError::LastMethod,
+            "already_has_password" => ApiError::AlreadyHasPassword,
+            "credential_exists" => ApiError::CredentialExists,
             "forbidden_origin" => ApiError::ForbiddenOrigin,
             "account_disabled" => ApiError::AccountDisabled,
             "signup_closed" => ApiError::SignupClosed {
@@ -649,6 +715,7 @@ impl ApiError {
             },
             "internal" => ApiError::Internal,
             "misconfigured" => ApiError::Misconfigured,
+            "provider_unavailable" => ApiError::ProviderUnavailable,
             _ => {
                 return ApiError::Unrecognized {
                     status,
@@ -716,6 +783,17 @@ mod tests {
             ApiError::UsernameMismatch,
             ApiError::ChecksumMismatch,
             ApiError::InvalidCredentials,
+            ApiError::ReauthRequired,
+            ApiError::FlowExpired { gone: false },
+            ApiError::FlowExpired { gone: true },
+            ApiError::NonceReused,
+            ApiError::ProviderDisabled,
+            ApiError::ProviderDenied,
+            ApiError::IdentityTaken,
+            ApiError::LastMethod,
+            ApiError::AlreadyHasPassword,
+            ApiError::CredentialExists,
+            ApiError::ProviderUnavailable,
             ApiError::ForbiddenOrigin,
             ApiError::AccountDisabled,
             ApiError::NotFound,

@@ -88,6 +88,23 @@ pub fn error_words(err: &AccountError, context: ErrorContext) -> String {
         AccountError::QuotaExceeded { .. } => {
             "Your account is full. Delete something or ask the server's owner for more space."
         }
+        AccountError::ReauthRequired => {
+            "Confirm it's you with your password or a passkey, then try again."
+        }
+        AccountError::FlowExpired | AccountError::NonceReused => "That sign-in expired. Try again.",
+        AccountError::ProviderDisabled => "That sign-in method isn't available on this server.",
+        AccountError::ProviderDenied => "The sign-in was cancelled at the provider.",
+        AccountError::ProviderUnavailable => {
+            "The provider couldn't be reached. Try again in a moment."
+        }
+        AccountError::IdentityTaken => "That account is already linked to another Kanso account.",
+        AccountError::LastMethod => {
+            "This is the last way to sign in. Save your recovery key first."
+        }
+        AccountError::AlreadyHasPassword => {
+            "This account already has a password. Change it instead."
+        }
+        AccountError::CredentialExists => "That passkey is already added.",
         AccountError::Keychain(_) => SECRET_STORE_TROUBLE,
         AccountError::UnsavedRecoveryKey { username } => {
             return format!(

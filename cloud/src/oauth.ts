@@ -453,8 +453,9 @@ export async function exchangeAppleCode(
 	env: Env,
 	code: string,
 	now: number,
+	redirect_uri: string,
 ): Promise<{ ok: true; id_token: string } | { ok: false; error: TokenFailure }> {
-	if (!required(env.APPLE_CLIENT_ID) || !required(env.APPLE_REDIRECT_URI)) return unavailable();
+	if (!required(env.APPLE_CLIENT_ID) || !required(redirect_uri)) return unavailable();
 	let clientSecret: string;
 	try {
 		clientSecret = await appleClientSecret(env, now);
@@ -466,7 +467,7 @@ export async function exchangeAppleCode(
 		client_secret: clientSecret,
 		code,
 		grant_type: "authorization_code",
-		redirect_uri: env.APPLE_REDIRECT_URI,
+		redirect_uri,
 	});
 	return exchangeToken(APPLE_TOKEN_URL, form);
 }
@@ -569,3 +570,63 @@ export async function githubSubject(token: string): Promise<{ ok: true; subject:
 	if (typeof body.id === "string" && /^[0-9]{1,255}$/.test(body.id)) return { ok: true, subject: body.id };
 	return unavailable();
 }
+
+export interface GithubDeviceCode {
+	device_code: string;
+	user_code: string;
+	verification_uri: string;
+	expires_in: number;
+	interval: number;
+}
+
+/**
+ * Starts GitHub's device flow with `client_id` and no scope, so the token it
+ * later mints reads only the public profile, of which the Worker keeps the
+ * numeric ID. The device code comes back for sealing; nothing logs it.
+ */
+export async function githubDeviceCode(
+	env: Env,
+): Promise<{ ok: true; value: GithubDeviceCode } | { ok: false; error: "provider_unavailable" }> {
+	if (!required(env.GITHUB_CLIENT_ID)) return unavailable();
+	let response: Response;
+	try {
+		response = await fetch(GITHUB_DEVICE_CODE_URL, {
+			method: "POST",
+			headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams({ client_id: env.GITHUB_CLIENT_ID }).toString(),
+			redirect: "error",
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+		});
+	} catch {
+		return unavailable();
+	}
+	if (!response.ok) return unavailable();
+	let body: unknown;
+	try {
+		body = await response.json();
+	} catch {
+		return unavailable();
+	}
+	if (!isObject(body)) return unavailable();
+	const { device_code, user_code, verification_uri, expires_in, interval } = body;
+	if (
+		typeof device_code !== "string" ||
+		!/^[\x21-\x7e]{1,256}$/.test(device_code) ||
+		typeof user_code !== "string" ||
+		!/^[A-Z0-9-]{4,16}$/.test(user_code) ||
+		verification_uri !== GITHUB_VERIFICATION_URI ||
+		typeof expires_in !== "number" ||
+		!Number.isSafeInteger(expires_in) ||
+		expires_in <= 0 ||
+		(interval !== undefined && (typeof interval !== "number" || !Number.isSafeInteger(interval) || interval < 0))
+	) {
+		return unavailable();
+	}
+	const seconds = typeof interval === "number" ? interval : GITHUB_MIN_INTERVAL;
+	return { ok: true, value: { device_code, user_code, verification_uri, expires_in, interval: Math.max(GITHUB_MIN_INTERVAL, seconds) } };
+}
+
+/** Where GitHub's device flow sends the person; the only value the app is told to open. */
+export const GITHUB_VERIFICATION_URI = "https://github.com/login/device";
+/** GitHub's default device-flow interval, which `slow_down` raises by the same again. */
+export const GITHUB_MIN_INTERVAL = 5;

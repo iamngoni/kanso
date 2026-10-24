@@ -17,6 +17,11 @@ use crate::api::{
     SignupRequest,
 };
 use crate::crypto::{KdfParams, sha256_hex};
+use crate::provider::{
+    GoogleFinishRequest, GoogleStartRequest, IdentityStartRequest, LinkOutcome, MethodsReply,
+    Provider, ProviderPollRequest, ProviderSession, ProviderStart, ProviderStartRequest,
+    ProviderStep, SocialSignupRequest, UnlinkRequest,
+};
 use crate::remote::encode_segment;
 use crate::wire::{
     ApiError, MAX_AUTH_RESPONSE, MAX_FILE_RESPONSE, MAX_SYNC_RESPONSE, PushRequest, PushResponse,
@@ -70,7 +75,15 @@ fn timeout(route: Route) -> Duration {
         | Route::Delete
         | Route::SetDevice
         | Route::Devices
-        | Route::RevokeDevice => Duration::from_secs(30),
+        | Route::RevokeDevice
+        | Route::ProviderStart
+        | Route::ProviderPoll
+        | Route::GoogleStart
+        | Route::GoogleFinish
+        | Route::SocialSignup
+        | Route::SignInMethods
+        | Route::IdentityStart
+        | Route::IdentityUnlink => Duration::from_secs(30),
     }
 }
 
@@ -471,6 +484,179 @@ impl Api for HttpApi {
             Err(err) => Err(err),
         }
     }
+
+    fn provider_start(
+        &self,
+        provider: &Provider,
+        request: &ProviderStartRequest,
+    ) -> Result<ProviderStart, ApiError> {
+        let path = format!("/v2/auth/{}/start", provider.as_str());
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::ProviderStart,
+                &path,
+                None,
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        ProviderStart::from_json(&bytes).map_err(ApiError::Protocol)
+    }
+
+    fn google_start(&self, request: &GoogleStartRequest) -> Result<ProviderStart, ApiError> {
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::GoogleStart,
+                "/v2/auth/google/start",
+                None,
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        ProviderStart::from_json(&bytes).map_err(ApiError::Protocol)
+    }
+
+    fn provider_poll(
+        &self,
+        provider: &Provider,
+        request: &ProviderPollRequest,
+    ) -> Result<ProviderStep, ApiError> {
+        let path = format!("/v2/auth/{}/poll", provider.as_str());
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::ProviderPoll,
+                &path,
+                None,
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        ProviderStep::from_json(&bytes).map_err(ApiError::Protocol)
+    }
+
+    fn google_finish(&self, request: &GoogleFinishRequest) -> Result<ProviderStep, ApiError> {
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::GoogleFinish,
+                "/v2/auth/google/finish",
+                None,
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        ProviderStep::from_json(&bytes).map_err(ApiError::Protocol)
+    }
+
+    fn social_signup(&self, request: &SocialSignupRequest) -> Result<ProviderSession, ApiError> {
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::SocialSignup,
+                "/v2/auth/social/signup",
+                None,
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        match ProviderStep::from_json(&bytes).map_err(ApiError::Protocol)? {
+            ProviderStep::Session(session) => Ok(session),
+            _ => Err(ApiError::Protocol("a sign-up without a session".into())),
+        }
+    }
+
+    fn sign_in_methods(&self, token: &SessionToken) -> Result<MethodsReply, ApiError> {
+        self.json(
+            Route::SignInMethods,
+            "/v2/account/sign-in",
+            Some(token),
+            NO_BODY,
+            MAX_AUTH_RESPONSE,
+        )
+    }
+
+    fn identity_start(
+        &self,
+        token: &SessionToken,
+        provider: &Provider,
+        request: &IdentityStartRequest,
+    ) -> Result<ProviderStart, ApiError> {
+        let path = format!("/v2/account/sign-in/identities/{}/start", provider.as_str());
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::IdentityStart,
+                &path,
+                Some(token),
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        ProviderStart::from_json(&bytes).map_err(ApiError::Protocol)
+    }
+
+    fn identity_poll(
+        &self,
+        token: &SessionToken,
+        provider: &Provider,
+        request: &ProviderPollRequest,
+    ) -> Result<LinkOutcome, ApiError> {
+        let path = format!("/v2/auth/{}/poll", provider.as_str());
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::ProviderPoll,
+                &path,
+                Some(token),
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        LinkOutcome::from_json(&bytes).map_err(ApiError::Protocol)
+    }
+
+    fn identity_finish_google(
+        &self,
+        token: &SessionToken,
+        _provider: &Provider,
+        request: &GoogleFinishRequest,
+    ) -> Result<LinkOutcome, ApiError> {
+        let path = "/v2/auth/google/finish";
+        let bytes = Zeroizing::new(
+            self.send(
+                Route::GoogleFinish,
+                path,
+                Some(token),
+                json_payload(request)?,
+                MAX_AUTH_RESPONSE,
+            )?
+            .1,
+        );
+        LinkOutcome::from_json(&bytes).map_err(ApiError::Protocol)
+    }
+
+    fn unlink_identity(
+        &self,
+        token: &SessionToken,
+        provider: &Provider,
+        request: &UnlinkRequest,
+    ) -> Result<(), ApiError> {
+        let path = format!(
+            "/v2/account/sign-in/identities/{}/unlink",
+            provider.as_str()
+        );
+        self.empty(Route::IdentityUnlink, &path, token, Some(request))
+    }
+}
+
+/// A JSON body for a route that parses its answer itself.
+fn json_payload(body: &impl Serialize) -> Result<Payload<'static>, ApiError> {
+    Ok(Payload::Json(Zeroizing::new(
+        serde_json::to_vec(body).map_err(|e| ApiError::Protocol(e.to_string()))?,
+    )))
 }
 
 #[cfg(test)]

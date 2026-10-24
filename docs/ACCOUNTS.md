@@ -2445,9 +2445,19 @@ CREATE TABLE auth_flows (
         OR (length(subject) BETWEEN 1 AND 255 AND subject NOT GLOB '*[^ -~]*')),
     device_code TEXT CHECK (device_code IS NULL OR length(device_code) <= 512),
     next_poll_at INTEGER,
+    -- Added by 0007_provider_completion.sql: GitHub's current polling interval.
+    poll_interval_seconds INTEGER CHECK (poll_interval_seconds IS NULL OR poll_interval_seconds >= 5),
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     consumed_at INTEGER,
+    -- Added by 0007_provider_completion.sql: the one completion attempt allowed
+    -- to write a session, identity or account for this flow.
+    completion_attempt_id TEXT CHECK (completion_attempt_id IS NULL OR (length(completion_attempt_id) = 43
+        AND completion_attempt_id NOT GLOB '*[^A-Za-z0-9_-]*')),
+    completion_kind TEXT CHECK (completion_kind IS NULL OR completion_kind IN ('signin', 'link', 'social_signup')),
+    completion_account_id TEXT CHECK (completion_account_id IS NULL OR (length(completion_account_id) = 34
+        AND substr(completion_account_id, 1, 2) = 'a_' AND substr(completion_account_id, 3) NOT GLOB '*[^0-9a-f]*')),
+    completion_succeeded INTEGER NOT NULL DEFAULT 0 CHECK (completion_succeeded IN (0, 1)),
     CHECK (expires_at > created_at),
     -- Provider flows name their provider; passkey and proof flows don't. A new provider's kind is
     -- just its name, so it needs no migration.
@@ -2455,6 +2465,8 @@ CREATE TABLE auth_flows (
            = (provider IS NULL))
 );
 CREATE INDEX auth_flows_expiry ON auth_flows (expires_at);
+CREATE UNIQUE INDEX auth_flows_completion_attempt ON auth_flows (completion_attempt_id)
+    WHERE completion_attempt_id IS NOT NULL;
 
 -- One row per device-approval request. The account, requesting device and requesting ephemeral
 -- key never change; the approver's key, the sealed name and the sealed data key are filled once.
@@ -2515,6 +2527,22 @@ BEGIN SELECT RAISE(ABORT, 'approval_immutable'); END;
   `account_passkeys`, `device_approvals`, and `auth_flows` by `account_id`).
 - D1 has no read replicas in this deployment, so a just-created flow is always read from the
   primary (L8).
+
+### Migration `cloud/migrations/0007_provider_completion.sql`
+
+The provider flows need two pieces of state the 0006 schema did not carry. Both are additive and
+leave old rows valid:
+
+- `poll_interval_seconds` keeps GitHub's current device-flow interval, so a `slow_down` raises the
+  next wait cumulatively instead of resetting to a fixed five seconds.
+- `completion_attempt_id`, `completion_kind`, `completion_account_id` and `completion_succeeded`
+  claim a provider completion before its session, identity or account write. The unique attempt ID
+  gates every write in the same D1 batch, so an expired or already-consumed flow cannot commit a
+  session; a lost-answer retry can still replay the successful answer. The success flag is set only
+  after the result exists in that transaction.
+
+`0007` is applied after `0006` by the same `npm run migrate:remote` step. It is the only additive
+migration this step introduces; no existing column, constraint, index or trigger changes.
 
 ### Sessions in the Worker
 
@@ -2875,6 +2903,7 @@ pub fn sign_in_with_passkey(b: &dyn Backend, server: &str, device: &DeviceIdenti
                             -> Result<PasskeySignIn, AccountError>;
 pub fn sign_up_with_provider(b: &dyn Backend, secrets: &dyn SecretStore, server: &str,
                              provider: Provider, flow: &str, username: &str, device: &DeviceIdentity,
+                             login_device: &LoginDevice,
                              progress: &dyn Fn(Step)) -> Result<SignedUp, RotationError>;
 pub fn sign_in_with_provider(b: &dyn Backend, server: &str, provider: Provider, flow: &str,
                              device: &DeviceIdentity, progress: &dyn Fn(Step))

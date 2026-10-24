@@ -15,6 +15,11 @@ use zeroize::Zeroize;
 
 use crate::account::{Session, SignupState};
 use crate::crypto::KdfParams;
+use crate::provider::{
+    GoogleFinishRequest, GoogleStartRequest, IdentityStartRequest, LinkOutcome, MethodsReply,
+    Provider, ProviderPollRequest, ProviderSession, ProviderStart, ProviderStartRequest,
+    ProviderStep, SocialSignupRequest, UnlinkRequest,
+};
 use crate::wire::{
     ApiError, PushRequest, PushResponse, PutFileResponse, SessionToken, WirePage, WirePushDoc,
     WirePushResult, WireRemote,
@@ -152,6 +157,79 @@ pub trait Api {
     ) -> Result<PutFileResponse, ApiError>;
     /// `GET /v2/files/<wire_id>`; `None` on 404.
     fn get_file(&self, token: &SessionToken, wire_id: &str) -> Result<Option<Vec<u8>>, ApiError>;
+
+    // Provider sign-in (docs/ACCOUNTS.md › Sign-in routes). A backend
+    // without these defaults to 404, which is also what an older server
+    // answers.
+
+    /// `POST /v2/auth/<apple|github>/start`.
+    fn provider_start(
+        &self,
+        _provider: &Provider,
+        _request: &ProviderStartRequest,
+    ) -> Result<ProviderStart, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/google/start`.
+    fn google_start(&self, _request: &GoogleStartRequest) -> Result<ProviderStart, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/<apple|github>/poll`.
+    fn provider_poll(
+        &self,
+        _provider: &Provider,
+        _request: &ProviderPollRequest,
+    ) -> Result<ProviderStep, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/google/finish`.
+    fn google_finish(&self, _request: &GoogleFinishRequest) -> Result<ProviderStep, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/social/signup` (201).
+    fn social_signup(&self, _request: &SocialSignupRequest) -> Result<ProviderSession, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `GET /v2/account/sign-in`.
+    fn sign_in_methods(&self, _token: &SessionToken) -> Result<MethodsReply, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/identities/<provider>/start`.
+    fn identity_start(
+        &self,
+        _token: &SessionToken,
+        _provider: &Provider,
+        _request: &IdentityStartRequest,
+    ) -> Result<ProviderStart, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// The completion of a link or proof flow on Apple or GitHub.
+    fn identity_poll(
+        &self,
+        _token: &SessionToken,
+        _provider: &Provider,
+        _request: &ProviderPollRequest,
+    ) -> Result<LinkOutcome, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// The completion of a link or proof flow on Google.
+    fn identity_finish_google(
+        &self,
+        _token: &SessionToken,
+        _provider: &Provider,
+        _request: &GoogleFinishRequest,
+    ) -> Result<LinkOutcome, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/account/sign-in/identities/<provider>/unlink` (204).
+    fn unlink_identity(
+        &self,
+        _token: &SessionToken,
+        _provider: &Provider,
+        _request: &UnlinkRequest,
+    ) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
 }
 
 /// The routes, by the names the fixtures use (`"request": "recover_start"`),
@@ -177,6 +255,14 @@ pub enum Route {
     Changes,
     PutFile,
     GetFile,
+    ProviderStart,
+    ProviderPoll,
+    GoogleStart,
+    GoogleFinish,
+    SocialSignup,
+    SignInMethods,
+    IdentityStart,
+    IdentityUnlink,
 }
 
 impl Route {
@@ -222,6 +308,14 @@ impl Route {
             Route::Changes => ("GET", "/v2/changes"),
             Route::PutFile => ("PUT", "/v2/files/<wire_id>"),
             Route::GetFile => ("GET", "/v2/files/<wire_id>"),
+            Route::ProviderStart => ("POST", "/v2/auth/<provider>/start"),
+            Route::ProviderPoll => ("POST", "/v2/auth/<provider>/poll"),
+            Route::GoogleStart => ("POST", "/v2/auth/google/start"),
+            Route::GoogleFinish => ("POST", "/v2/auth/google/finish"),
+            Route::SocialSignup => ("POST", "/v2/auth/social/signup"),
+            Route::SignInMethods => ("GET", "/v2/account/sign-in"),
+            Route::IdentityStart => ("POST", "/v2/account/sign-in/identities/<provider>/start"),
+            Route::IdentityUnlink => ("POST", "/v2/account/sign-in/identities/<provider>/unlink"),
         }
     }
 
@@ -235,6 +329,11 @@ impl Route {
                 | Route::Login
                 | Route::RecoverStart
                 | Route::RecoverFinish
+                | Route::ProviderStart
+                | Route::ProviderPoll
+                | Route::GoogleStart
+                | Route::GoogleFinish
+                | Route::SocialSignup
         )
     }
 }
@@ -315,6 +414,29 @@ pub struct Health {
     pub ok: bool,
     pub protocol: u32,
     pub signup: SignupState,
+    /// The sign-in methods this server offers. An older server omits it,
+    /// which means username and password only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<HealthAuth>,
+}
+
+/// `"auth"` in `GET /v2/health`: the deployment's advertisement.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HealthAuth {
+    pub password: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub passkeys: Option<HealthPasskeys>,
+    #[serde(default)]
+    pub providers: Vec<Provider>,
+}
+
+/// `"passkeys"` in the advertisement: the relying party and its origins.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HealthPasskeys {
+    pub rp_id: String,
+    #[serde(default)]
+    pub origins: Vec<String>,
+    pub security_key: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -348,6 +348,7 @@ describe("provider code exchanges", () => {
 			}),
 			"authorization-code",
 			NOW,
+			"https://sync.kansoapp.app/v2/auth/apple/callback",
 		);
 		expect(result).toEqual({ ok: true, id_token: "apple-id-token" });
 		expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -463,8 +464,10 @@ describe("health sign-in advertisement", () => {
 			GOOGLE_CLIENT_SECRET: "secret",
 			GITHUB_CLIENT_ID: "github-client",
 		});
-		expect(healthAuth(configured)).toEqual({ password: true, passkeys: null, providers: [] });
+		// The provider routes are served (step 4); passkeys' are not yet.
+		expect(healthAuth(configured)).toEqual({ password: true, passkeys: null, providers: ["google", "github"] });
 		expect(healthAuth(configured, { ...ALL_ROUTES, google: false }).providers).toEqual(["github"]);
+		expect(healthAuth(configured, { passkeys: false, apple: false, google: false, github: false }).providers).toEqual([]);
 	});
 
 	it("advertises passkeys with a valid RP ID and origin", () => {

@@ -619,6 +619,7 @@ impl ServerState {
             ok: true,
             protocol: PROTOCOL_VERSION,
             signup,
+            auth: None,
         }
     }
 

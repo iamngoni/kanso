@@ -27,7 +27,9 @@ export type Rule =
 	| "uploads-account"
 	| "lookup-account"
 	| "join-account"
-	| "notify-account";
+	| "notify-account"
+	| "proof-account"
+	| "provider-poll";
 
 /**
  * Window and maximum of each rule. The two per-account daily rules read their
@@ -43,6 +45,11 @@ export type Rule =
  * `lookup-account` every public-key lookup by username, `join-account` every
  * request to join through a link (each one is a guess at a link's proof), and
  * `notify-account` every notification sent.
+ *
+ * Sign-in methods (docs/ACCOUNTS.md › Rate limits): `proof-account` counts every
+ * provider flow started for a link or a proof, per account; `provider-poll` every
+ * GitHub poll and Apple callback or poll, per flow (its key is a keyed hash of the
+ * flow ID, like an IP), 20 a minute.
  */
 export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"signup-ip": { window: HOUR, max: 10 },
@@ -55,6 +62,8 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"lookup-account": { window: HOUR, max: 120 },
 	"join-account": { window: HOUR, max: 20 },
 	"notify-account": { window: DAY, max: 500 },
+	"proof-account": { window: HOUR, max: 20 },
+	"provider-poll": { window: 15 * 60_000, max: 300 },
 };
 
 /**
