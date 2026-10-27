@@ -1,6 +1,7 @@
 //! Edits to the Markdown source without a window: what the formatting
 //! toolbar does ([`markdown`]), auto-pairing as you type ([`pairing`]), Tab
-//! and Enter in lists ([`list`]) and tables ([`table`]). Each is pure: the
+//! and Enter in lists ([`list`]) and tables ([`table`]), and undoing and
+//! redoing them ([`history`]). Each is pure: the
 //! note's text and the selection in, at most one [`Edit`] out, which the
 //! editor applies as one change, so one undo step reverts it.
 //!
@@ -13,6 +14,7 @@
 
 use std::ops::Range;
 
+pub mod history;
 pub mod list;
 pub mod markdown;
 pub mod pairing;
@@ -72,6 +74,86 @@ pub fn enter_continuing_lists(
     format_tables: bool,
 ) -> Option<Edit> {
     enter(text, selection.clone(), format_tables).or_else(|| list::enter_in_list(text, selection))
+}
+
+/// What Tab types where [`tab`] has nothing to move: two spaces, the unit
+/// the desktop's text editor indents by.
+pub const INDENT: &str = "  ";
+
+/// The editor's own Tab (Shift-Tab, with `out`), for where [`tab`] gives
+/// `None`: a caret gets [`INDENT`] at the caret; a selection indents every
+/// line it touches. Shift-Tab takes [`INDENT`] off the start of the line a
+/// caret is on, or of every line a selection touches, where the line starts
+/// with it. `None` when there is nothing to take off. As the desktop's
+/// editor does.
+pub fn indent(text: &str, selection: Selection, out: bool) -> Option<Edit> {
+    let clamp = |mut at: usize| {
+        at = at.min(text.len());
+        while !text.is_char_boundary(at) {
+            at -= 1;
+        }
+        at
+    };
+    let (start, end) = (clamp(selection.start), clamp(selection.end));
+    let (start, end) = (start.min(end), start.max(end));
+    if start == end && !out {
+        return Some(Edit {
+            range: start..start,
+            text: INDENT.to_owned(),
+            selection: start + INDENT.len()..start + INDENT.len(),
+        });
+    }
+    // Every line the selection touches, the one its end is on included.
+    let block = markdown::line_start(text, start)..markdown::line_end(text, end);
+    let lines: Vec<&str> = text[block.clone()].split('\n').collect();
+    let mut at = block.start;
+    let mut edits = Vec::new();
+    for line in &lines {
+        if !out || line.starts_with(INDENT) {
+            edits.push(at);
+        }
+        at += line.len() + 1;
+    }
+    if edits.is_empty() {
+        return None;
+    }
+    let mut new = String::with_capacity(block.len() + INDENT.len() * lines.len());
+    let mut at = block.start;
+    for (ix, line) in lines.iter().enumerate() {
+        if ix > 0 {
+            new.push('\n');
+        }
+        match (out, edits.contains(&at)) {
+            (false, _) => {
+                new.push_str(INDENT);
+                new.push_str(line);
+            }
+            (true, true) => new.push_str(&line[INDENT.len()..]),
+            (true, false) => new.push_str(line),
+        }
+        at += line.len() + 1;
+    }
+    // Where an offset goes: past every indent put in at or before it; back
+    // over every indent taken out before it, and to the line's start from
+    // inside one.
+    let map = |offset: usize| -> usize {
+        let n = INDENT.len();
+        if out {
+            let before = edits.iter().filter(|&&line| line + n <= offset).count();
+            let inside = edits
+                .iter()
+                .find(|&&line| line <= offset && offset < line + n)
+                .map_or(0, |&line| offset - line);
+            offset - before * n - inside
+        } else {
+            offset + edits.iter().filter(|&&line| line <= offset).count() * n
+        }
+    };
+    Some(Edit {
+        range: block,
+        text: new,
+        selection: map(start)..map(end),
+    })
 }
 
 #[cfg(test)]
@@ -270,6 +352,65 @@ mod tests {
                     );
                 }
                 _ => prop_assert_eq!(now, old),
+            }
+        }
+
+        /// E1, E2 and E3 for cycling the heading and for the wiki
+        /// brackets: valid edits that lose no text; the brackets add only
+        /// themselves and leave the caret before the closers; the cycle is
+        /// the heading format at the level it moves to.
+        #[test]
+        fn prop_cycling_and_brackets_are_valid_and_lose_no_text((text, selection) in with_selection()) {
+            let cycled = markdown::cycle_heading(&text, selection.clone());
+            let new = check_valid(&text, &cycled)?;
+            prop_assert_eq!(letters(&new), letters(&text));
+            let wrapped = markdown::wiki_brackets(&text, selection.clone());
+            let new = check_valid(&text, &wrapped)?;
+            prop_assert_eq!(letters(&new), letters(&text));
+            prop_assert_eq!(wrapped.range.clone(), selection.clone());
+            prop_assert_eq!(&wrapped.text, &format!("[[{}]]", &text[selection]));
+            prop_assert!(wrapped.selection.is_empty());
+            prop_assert!(new[wrapped.selection.start..].starts_with("]]"));
+        }
+
+        /// Cycling a plain line four times gives the line back; each step
+        /// is a heading of the next level.
+        #[test]
+        fn prop_four_cycles_return_a_plain_line(line in "[a-zé日]{1,8}", caret in 0usize..8) {
+            let mut text = line.clone();
+            let mut selection = {
+                let mut at = caret.min(text.len());
+                while !text.is_char_boundary(at) { at -= 1; }
+                at..at
+            };
+            for level in [1, 2, 3, 0] {
+                let edit = markdown::cycle_heading(&text, selection);
+                text = edit.apply(&text);
+                selection = edit.selection;
+                let want = if level == 0 { line.clone() } else { format!("{} {line}", "#".repeat(level)) };
+                prop_assert_eq!(&text, &want);
+            }
+        }
+
+        /// E1, E2 and E3 for the editor's own Tab: a valid edit that adds
+        /// only spaces (or takes only spaces away); indenting then
+        /// outdenting the selection it leaves gives the text back.
+        #[test]
+        fn prop_indent_is_valid_and_reversible((text, selection) in with_selection()) {
+            let edit = indent(&text, selection.clone(), false).unwrap();
+            let new = check_valid(&text, &edit)?;
+            prop_assert_eq!(letters(&new), letters(&text));
+            if selection.is_empty() {
+                prop_assert_eq!(edit.range.clone(), selection.start..selection.start);
+            } else {
+                let back = indent(&new, edit.selection.clone(), true).unwrap();
+                prop_assert_eq!(back.apply(&new), text.clone());
+                prop_assert_eq!(back.selection, selection.clone());
+            }
+            if let Some(out) = indent(&text, selection, true) {
+                let new = check_valid(&text, &out)?;
+                prop_assert_eq!(letters(&new), letters(&text));
+                prop_assert!(new.len() < text.len());
             }
         }
 

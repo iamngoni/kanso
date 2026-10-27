@@ -72,6 +72,70 @@ class ColorRow {
           rgb == other.rgb;
 }
 
+class Completion {
+  final CompletionKind kind;
+  final Range16 replace;
+  final List<CompletionItem> items;
+
+  const Completion({
+    required this.kind,
+    required this.replace,
+    required this.items,
+  });
+
+  @override
+  int get hashCode => kind.hashCode ^ replace.hashCode ^ items.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Completion &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          replace == other.replace &&
+          items == other.items;
+}
+
+class CompletionItem {
+  final String label;
+  final String? detail;
+  final Range16? highlight;
+  final String insert;
+  final bool newNote;
+
+  const CompletionItem({
+    required this.label,
+    this.detail,
+    this.highlight,
+    required this.insert,
+    required this.newNote,
+  });
+
+  @override
+  int get hashCode =>
+      label.hashCode ^
+      detail.hashCode ^
+      highlight.hashCode ^
+      insert.hashCode ^
+      newNote.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompletionItem &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          detail == other.detail &&
+          highlight == other.highlight &&
+          insert == other.insert &&
+          newNote == other.newNote;
+}
+
+enum CompletionKind {
+  wiki,
+  tag,
+}
+
 enum DateField {
   updated,
   created,
@@ -80,6 +144,235 @@ enum DateField {
 enum DiagramKind {
   mermaid,
   excalidraw,
+}
+
+@freezed
+sealed class EditCommand with _$EditCommand {
+  const EditCommand._();
+
+  const factory EditCommand.enter({
+    required bool plain,
+  }) = EditCommand_Enter;
+  const factory EditCommand.tab({
+    required bool out,
+  }) = EditCommand_Tab;
+  const factory EditCommand.format({
+    required FormatKind format,
+  }) = EditCommand_Format;
+  const factory EditCommand.cycleHeading() = EditCommand_CycleHeading;
+  const factory EditCommand.wikiLink() = EditCommand_WikiLink;
+  const factory EditCommand.insert({
+    required Range16 range,
+    required String text,
+  }) = EditCommand_Insert;
+}
+
+class EditOutcome {
+  final int version;
+  final Replacement? replace;
+  final Range16 selection;
+  final HistoryState history;
+
+  const EditOutcome({
+    required this.version,
+    this.replace,
+    required this.selection,
+    required this.history,
+  });
+
+  @override
+  int get hashCode =>
+      version.hashCode ^
+      replace.hashCode ^
+      selection.hashCode ^
+      history.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditOutcome &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          replace == other.replace &&
+          selection == other.selection &&
+          history == other.history;
+}
+
+class EditorContext {
+  final bool inList;
+  final bool inTable;
+  final bool inCode;
+  final bool completionHere;
+  final HistoryState history;
+
+  const EditorContext({
+    required this.inList,
+    required this.inTable,
+    required this.inCode,
+    required this.completionHere,
+    required this.history,
+  });
+
+  @override
+  int get hashCode =>
+      inList.hashCode ^
+      inTable.hashCode ^
+      inCode.hashCode ^
+      completionHere.hashCode ^
+      history.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditorContext &&
+          runtimeType == other.runtimeType &&
+          inList == other.inList &&
+          inTable == other.inTable &&
+          inCode == other.inCode &&
+          completionHere == other.completionHere &&
+          history == other.history;
+}
+
+@freezed
+sealed class EditorEvent with _$EditorEvent {
+  const EditorEvent._();
+
+  const factory EditorEvent.saved({
+    required String rev,
+    required int atMs,
+  }) = EditorEvent_Saved;
+  const factory EditorEvent.incoming({
+    required bool deleted,
+  }) = EditorEvent_Incoming;
+  const factory EditorEvent.reloaded({
+    required EditorSnapshot snapshot,
+  }) = EditorEvent_Reloaded;
+  const factory EditorEvent.closed() = EditorEvent_Closed;
+  const factory EditorEvent.failed({
+    required String message,
+  }) = EditorEvent_Failed;
+}
+
+class EditorRun {
+  final Range16 range;
+  final int? color;
+  final bool? italic;
+  final int? weight;
+  final bool quiet;
+
+  const EditorRun({
+    required this.range,
+    this.color,
+    this.italic,
+    this.weight,
+    required this.quiet,
+  });
+
+  @override
+  int get hashCode =>
+      range.hashCode ^
+      color.hashCode ^
+      italic.hashCode ^
+      weight.hashCode ^
+      quiet.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditorRun &&
+          runtimeType == other.runtimeType &&
+          range == other.range &&
+          color == other.color &&
+          italic == other.italic &&
+          weight == other.weight &&
+          quiet == other.quiet;
+}
+
+class EditorSnapshot {
+  final String id;
+  final String title;
+  final String text;
+  final String rev;
+  final LockState lock;
+  final List<Property> properties;
+  final int version;
+  final HistoryState history;
+  final SaveState save;
+
+  const EditorSnapshot({
+    required this.id,
+    required this.title,
+    required this.text,
+    required this.rev,
+    required this.lock,
+    required this.properties,
+    required this.version,
+    required this.history,
+    required this.save,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      text.hashCode ^
+      rev.hashCode ^
+      lock.hashCode ^
+      properties.hashCode ^
+      version.hashCode ^
+      history.hashCode ^
+      save.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditorSnapshot &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          text == other.text &&
+          rev == other.rev &&
+          lock == other.lock &&
+          properties == other.properties &&
+          version == other.version &&
+          history == other.history &&
+          save == other.save;
+}
+
+enum FormatKind {
+  bold,
+  italic,
+  strikethrough,
+  code,
+  bulleted,
+  numbered,
+  task,
+  quote,
+  link,
+  image,
+  table,
+  rule,
+}
+
+class HistoryState {
+  final bool canUndo;
+  final bool canRedo;
+
+  const HistoryState({
+    required this.canUndo,
+    required this.canRedo,
+  });
+
+  @override
+  int get hashCode => canUndo.hashCode ^ canRedo.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryState &&
+          runtimeType == other.runtimeType &&
+          canUndo == other.canUndo &&
+          canRedo == other.canRedo;
 }
 
 class Hit {
@@ -160,6 +453,21 @@ class LibraryOverview {
           pinned == other.pinned &&
           recent == other.recent &&
           trash == other.trash;
+}
+
+@freezed
+sealed class LinkTarget with _$LinkTarget {
+  const LinkTarget._();
+
+  const factory LinkTarget.note({
+    required String id,
+  }) = LinkTarget_Note;
+  const factory LinkTarget.newNote({
+    required String title,
+  }) = LinkTarget_NewNote;
+  const factory LinkTarget.web({
+    required String url,
+  }) = LinkTarget_Web;
 }
 
 @freezed
@@ -271,15 +579,30 @@ class NewNote {
   final String? notebookId;
   final String title;
   final String body;
+  final ListPlace? place;
+  final String? preferredNotebookId;
+  final List<String> tags;
+  final bool pinned;
 
   const NewNote({
     this.notebookId,
     required this.title,
     required this.body,
+    this.place,
+    this.preferredNotebookId,
+    this.tags = const [],
+    this.pinned = false,
   });
 
   @override
-  int get hashCode => notebookId.hashCode ^ title.hashCode ^ body.hashCode;
+  int get hashCode =>
+      notebookId.hashCode ^
+      title.hashCode ^
+      body.hashCode ^
+      place.hashCode ^
+      preferredNotebookId.hashCode ^
+      tags.hashCode ^
+      pinned.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -288,7 +611,11 @@ class NewNote {
           runtimeType == other.runtimeType &&
           notebookId == other.notebookId &&
           title == other.title &&
-          body == other.body;
+          body == other.body &&
+          place == other.place &&
+          preferredNotebookId == other.preferredNotebookId &&
+          tags == other.tags &&
+          pinned == other.pinned;
 }
 
 @freezed
@@ -635,6 +962,68 @@ class Range16 {
           end == other.end;
 }
 
+class Replacement {
+  final int start;
+  final int end;
+  final String text;
+
+  const Replacement({
+    required this.start,
+    required this.end,
+    required this.text,
+  });
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode ^ text.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Replacement &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end &&
+          text == other.text;
+}
+
+class RunBatch {
+  final int version;
+  final List<EditorRun> runs;
+
+  const RunBatch({
+    required this.version,
+    required this.runs,
+  });
+
+  @override
+  int get hashCode => version.hashCode ^ runs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RunBatch &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          runs == other.runs;
+}
+
+@freezed
+sealed class SaveState with _$SaveState {
+  const SaveState._();
+
+  const factory SaveState.saved({
+    required String rev,
+    required int atMs,
+  }) = SaveState_Saved;
+  const factory SaveState.pending() = SaveState_Pending;
+  const factory SaveState.conflict({
+    required bool deleted,
+  }) = SaveState_Conflict;
+  const factory SaveState.failed({
+    required String message,
+  }) = SaveState_Failed;
+}
+
 class Saved {
   final String id;
   final String rev;
@@ -966,6 +1355,45 @@ class TagRow {
           name == other.name &&
           color == other.color &&
           count == other.count;
+}
+
+class TextChange {
+  final int baseVersion;
+  final int start;
+  final int end;
+  final String text;
+  final Range16 selection;
+  final Range16? composing;
+
+  const TextChange({
+    required this.baseVersion,
+    required this.start,
+    required this.end,
+    required this.text,
+    required this.selection,
+    this.composing,
+  });
+
+  @override
+  int get hashCode =>
+      baseVersion.hashCode ^
+      start.hashCode ^
+      end.hashCode ^
+      text.hashCode ^
+      selection.hashCode ^
+      composing.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TextChange &&
+          runtimeType == other.runtimeType &&
+          baseVersion == other.baseVersion &&
+          start == other.start &&
+          end == other.end &&
+          text == other.text &&
+          selection == other.selection &&
+          composing == other.composing;
 }
 
 class ThemeTokens {

@@ -346,6 +346,12 @@ abstract class AppLocalizations {
   /// **'Outdent'**
   String get accessoryOutdent;
 
+  /// What the undo key of the keyboard bar does when it is held, for a screen reader's list of actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get accessoryRedo;
+
   /// A keyboard shortcut that undoes the last change.
   ///
   /// In en, this message translates to:
@@ -363,6 +369,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get settingsClose;
+
+  /// A section of settings.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get settingsGeneral;
+
+  /// The notebook new notes go to.
+  ///
+  /// In en, this message translates to:
+  /// **'Default notebook'**
+  String get settingsDefaultNotebook;
+
+  /// The choice of the first notebook in the library as the one new notes go to.
+  ///
+  /// In en, this message translates to:
+  /// **'First notebook'**
+  String get defaultNotebookFirst;
+
+  /// The note under the notebooks that can be the default one.
+  ///
+  /// In en, this message translates to:
+  /// **'New notes go here, except those made from a notebook\'s own list. A locked notebook can\'t be chosen.'**
+  String get defaultNotebookFooter;
 
   /// A section of settings.
   ///
@@ -529,12 +559,6 @@ abstract class AppLocalizations {
   /// The name of a mock screen.
   ///
   /// In en, this message translates to:
-  /// **'Note, edit'**
-  String get screenNoteEdit;
-
-  /// The name of a mock screen.
-  ///
-  /// In en, this message translates to:
   /// **'Error card'**
   String get screenError;
 
@@ -687,6 +711,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Larger'**
   String get textSizeLarger;
+
+  /// What the empty title field of a note being edited says.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get editorTitleHint;
+
+  /// Says a note was changed elsewhere while it was being edited.
+  ///
+  /// In en, this message translates to:
+  /// **'This note was changed elsewhere while you were editing. The version you don\'t keep stays in its history.'**
+  String get editorChangedMessage;
+
+  /// Keeps the text typed here over a change made elsewhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep mine'**
+  String get editorKeepMine;
+
+  /// Takes a change made elsewhere over the text typed here.
+  ///
+  /// In en, this message translates to:
+  /// **'Use theirs'**
+  String get editorUseTheirs;
+
+  /// Says a note was deleted elsewhere while it was being edited.
+  ///
+  /// In en, this message translates to:
+  /// **'This note was deleted elsewhere while you were editing.'**
+  String get editorDeletedMessage;
+
+  /// Keeps a note that was deleted elsewhere, by saving it again.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it'**
+  String get editorKeepIt;
+
+  /// Lets go of a note that was deleted elsewhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get editorDiscard;
+
+  /// Says that saving a note failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your changes aren\'t saved yet.'**
+  String get editorSaveFailed;
+
+  /// What a screen reader says while a note is opened for editing.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the note'**
+  String get editorOpeningLabel;
+
+  /// Adds a property to the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Add property'**
+  String get propertiesAdd;
+
+  /// The hint of the field for the name of a new property.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get propertiesName;
+
+  /// The hint of the field for the value of a property.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get propertiesValue;
+
+  /// Removes a property from the note; for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}'**
+  String propertiesRemove(String name);
+
+  /// Adds the property that was just named.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get propertiesConfirmAdd;
+
+  /// Gives up on adding a property.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get propertiesCancelAdd;
+
+  /// Says that a property of the note could not be set.
+  ///
+  /// In en, this message translates to:
+  /// **'That property couldn\'t be set.'**
+  String get propertiesFailed;
+
+  /// What the row of properties does when it is closed, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Show properties'**
+  String get propertiesShow;
+
+  /// What the row of properties does when it is open, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide properties'**
+  String get propertiesHide;
 
   /// Names the switch between a rendered note and its text.
   ///
@@ -1006,6 +1138,60 @@ abstract class AppLocalizations {
   /// **'Locked notebooks can\'t take or give up notes here yet.'**
   String get noteListChangeLocked;
 
+  /// What the add button of the notebooks header does.
+  ///
+  /// In en, this message translates to:
+  /// **'New notebook'**
+  String get libraryNewNotebook;
+
+  /// The title of the sheet that makes a notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'New notebook'**
+  String get newNotebookTitle;
+
+  /// The hint, and the label, of the field for a new notebook's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get newNotebookNameHint;
+
+  /// The button that makes the notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get newNotebookCreate;
+
+  /// The line shown when a new notebook's name is empty or not accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the notebook a name.'**
+  String get newNotebookInvalid;
+
+  /// The line shown when a notebook could not be made.
+  ///
+  /// In en, this message translates to:
+  /// **'The notebook couldn\'t be made. Try again.'**
+  String get newNotebookFailed;
+
+  /// What the add button of the note list does.
+  ///
+  /// In en, this message translates to:
+  /// **'New note'**
+  String get noteListNewNote;
+
+  /// The line shown when a new note was asked for in a notebook that is locked.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock this notebook to add notes to it.'**
+  String get noteListNewNoteLocked;
+
+  /// The line shown when a new note could not be made.
+  ///
+  /// In en, this message translates to:
+  /// **'The note couldn\'t be made. Try again.'**
+  String get noteListNewNoteFailed;
+
   /// The button that closes the line that says a change did not happen.
   ///
   /// In en, this message translates to:
@@ -1071,6 +1257,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select All'**
   String get menuSelectAll;
+
+  /// The button of the spelling menu that deletes the misspelled word.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get menuDelete;
+
+  /// The button of the editor's menu that opens the link the caret is in.
+  ///
+  /// In en, this message translates to:
+  /// **'Open link'**
+  String get menuOpenLink;
+
+  /// What a screen reader says when suggestions for a link or a tag appear: how many, and which one is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 suggestion} other{{count} suggestions}}, {label} selected'**
+  String completionAnnouncement(int count, String label);
 
   /// The title shown under an empty search.
   ///

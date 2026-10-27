@@ -55,13 +55,24 @@ import 'crash/models/repos/abs/crash_report_repository.dart' as _i288;
 import 'crash/models/repos/impl/platform_crash_context_repository.dart'
     as _i756;
 import 'crash/state/crash_reports/crash_reports_bloc.dart' as _i815;
+import 'editor/models/repos/abs/editor_repository.dart' as _i979;
+import 'editor/models/repos/abs/web_link_repository.dart' as _i272;
+import 'editor/models/repos/impl/rust_editor_repository.dart' as _i606;
+import 'editor/models/repos/impl/url_launcher_web_link_repository.dart'
+    as _i635;
+import 'editor/state/editor/editor_bloc.dart' as _i964;
+import 'library/state/new_notebook/new_notebook_bloc.dart' as _i991;
+import 'note/models/repos/abs/note_place_repository.dart' as _i930;
+import 'note/models/repos/impl/memory_note_place_repository.dart' as _i503;
 import 'note/state/note/note_bloc.dart' as _i618;
 import 'note_list/state/note_list/note_list_bloc.dart' as _i351;
 import 'search/state/search/search_bloc.dart' as _i696;
 import 'settings/state/about/about_bloc.dart' as _i380;
 import 'settings/state/backup_notice/backup_notice_bloc.dart' as _i897;
+import 'settings/state/default_notebook/default_notebook_bloc.dart' as _i925;
 import 'settings/state/licences/licences_bloc.dart' as _i570;
 import 'shell/state/library_pane/library_pane_bloc.dart' as _i612;
+import 'shell/state/note_creation/note_creation_bloc.dart' as _i34;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
 
 const String _development = 'development';
@@ -83,8 +94,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i984.DiagnosticsRepository>(
       () => _i1062.RustDiagnosticsRepository(),
     );
+    gh.lazySingleton<_i930.NotePlaceRepository>(
+      () => _i503.MemoryNotePlaceRepository(),
+    );
     gh.lazySingleton<_i1056.HapticsRepository>(
       () => _i438.FlutterHapticsRepository(),
+    );
+    gh.lazySingleton<_i272.WebLinkRepository>(
+      () => _i635.UrlLauncherWebLinkRepository(),
     );
     await gh.singletonAsync<_i72.LibraryFolder>(
       () => coreModule.libraryFolder(),
@@ -138,6 +155,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i897.BackupNoticeBloc>(
       () => _i897.BackupNoticeBloc(gh<_i384.PreferencesRepository>()),
     );
+    gh.factory<_i925.DefaultNotebookBloc>(
+      () => _i925.DefaultNotebookBloc(gh<_i384.PreferencesRepository>()),
+    );
     gh.lazySingleton<_i288.CrashReportRepository>(
       () => crashModule.crashReports(
         gh<_i392.CrashFolder>(),
@@ -181,6 +201,16 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i38.LibraryRepository>(
       () => _i152.RustLibraryRepository(gh<_i455.KansoLibrary>()),
     );
+    gh.factory<_i618.NoteBloc>(
+      () => _i618.NoteBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i732.RendererRepository>(),
+        gh<_i930.NotePlaceRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i979.EditorRepository>(
+      () => _i606.RustEditorRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i861.LibraryIndexBloc>(
       () => _i861.LibraryIndexBloc(gh<_i38.LibraryRepository>()),
     );
@@ -190,20 +220,30 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i272.NavigationHistoryBloc>(
       () => _i272.NavigationHistoryBloc(gh<_i38.LibraryRepository>()),
     );
+    gh.factory<_i991.NewNotebookBloc>(
+      () => _i991.NewNotebookBloc(gh<_i38.LibraryRepository>()),
+    );
     gh.factory<_i696.SearchBloc>(
       () => _i696.SearchBloc(gh<_i38.LibraryRepository>()),
+    );
+    gh.factory<_i34.NoteCreationBloc>(
+      () => _i34.NoteCreationBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i930.NotePlaceRepository>(),
+        gh<_i384.PreferencesRepository>(),
+      ),
+    );
+    gh.factory<_i964.EditorBloc>(
+      () => _i964.EditorBloc(
+        gh<_i979.EditorRepository>(),
+        gh<_i272.WebLinkRepository>(),
+      ),
     );
     gh.factory<_i351.NoteListBloc>(
       () => _i351.NoteListBloc(
         gh<_i38.LibraryRepository>(),
         gh<_i384.PreferencesRepository>(),
         gh<_i1056.HapticsRepository>(),
-      ),
-    );
-    gh.factory<_i618.NoteBloc>(
-      () => _i618.NoteBloc(
-        gh<_i38.LibraryRepository>(),
-        gh<_i732.RendererRepository>(),
       ),
     );
     gh.lazySingleton<_i601.SyncRepository>(

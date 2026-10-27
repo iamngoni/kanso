@@ -12,6 +12,996 @@ part of 'types.dart';
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
+mixin _$EditCommand {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditCommand);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'EditCommand()';
+}
+
+
+}
+
+/// @nodoc
+class $EditCommandCopyWith<$Res>  {
+$EditCommandCopyWith(EditCommand _, $Res Function(EditCommand) __);
+}
+
+
+/// Adds pattern-matching-related methods to [EditCommand].
+extension EditCommandPatterns on EditCommand {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( EditCommand_Enter value)?  enter,TResult Function( EditCommand_Tab value)?  tab,TResult Function( EditCommand_Format value)?  format,TResult Function( EditCommand_CycleHeading value)?  cycleHeading,TResult Function( EditCommand_WikiLink value)?  wikiLink,TResult Function( EditCommand_Insert value)?  insert,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case EditCommand_Enter() when enter != null:
+return enter(_that);case EditCommand_Tab() when tab != null:
+return tab(_that);case EditCommand_Format() when format != null:
+return format(_that);case EditCommand_CycleHeading() when cycleHeading != null:
+return cycleHeading(_that);case EditCommand_WikiLink() when wikiLink != null:
+return wikiLink(_that);case EditCommand_Insert() when insert != null:
+return insert(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( EditCommand_Enter value)  enter,required TResult Function( EditCommand_Tab value)  tab,required TResult Function( EditCommand_Format value)  format,required TResult Function( EditCommand_CycleHeading value)  cycleHeading,required TResult Function( EditCommand_WikiLink value)  wikiLink,required TResult Function( EditCommand_Insert value)  insert,}){
+final _that = this;
+switch (_that) {
+case EditCommand_Enter():
+return enter(_that);case EditCommand_Tab():
+return tab(_that);case EditCommand_Format():
+return format(_that);case EditCommand_CycleHeading():
+return cycleHeading(_that);case EditCommand_WikiLink():
+return wikiLink(_that);case EditCommand_Insert():
+return insert(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( EditCommand_Enter value)?  enter,TResult? Function( EditCommand_Tab value)?  tab,TResult? Function( EditCommand_Format value)?  format,TResult? Function( EditCommand_CycleHeading value)?  cycleHeading,TResult? Function( EditCommand_WikiLink value)?  wikiLink,TResult? Function( EditCommand_Insert value)?  insert,}){
+final _that = this;
+switch (_that) {
+case EditCommand_Enter() when enter != null:
+return enter(_that);case EditCommand_Tab() when tab != null:
+return tab(_that);case EditCommand_Format() when format != null:
+return format(_that);case EditCommand_CycleHeading() when cycleHeading != null:
+return cycleHeading(_that);case EditCommand_WikiLink() when wikiLink != null:
+return wikiLink(_that);case EditCommand_Insert() when insert != null:
+return insert(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( bool plain)?  enter,TResult Function( bool out)?  tab,TResult Function( FormatKind format)?  format,TResult Function()?  cycleHeading,TResult Function()?  wikiLink,TResult Function( Range16 range,  String text)?  insert,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case EditCommand_Enter() when enter != null:
+return enter(_that.plain);case EditCommand_Tab() when tab != null:
+return tab(_that.out);case EditCommand_Format() when format != null:
+return format(_that.format);case EditCommand_CycleHeading() when cycleHeading != null:
+return cycleHeading();case EditCommand_WikiLink() when wikiLink != null:
+return wikiLink();case EditCommand_Insert() when insert != null:
+return insert(_that.range,_that.text);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( bool plain)  enter,required TResult Function( bool out)  tab,required TResult Function( FormatKind format)  format,required TResult Function()  cycleHeading,required TResult Function()  wikiLink,required TResult Function( Range16 range,  String text)  insert,}) {final _that = this;
+switch (_that) {
+case EditCommand_Enter():
+return enter(_that.plain);case EditCommand_Tab():
+return tab(_that.out);case EditCommand_Format():
+return format(_that.format);case EditCommand_CycleHeading():
+return cycleHeading();case EditCommand_WikiLink():
+return wikiLink();case EditCommand_Insert():
+return insert(_that.range,_that.text);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( bool plain)?  enter,TResult? Function( bool out)?  tab,TResult? Function( FormatKind format)?  format,TResult? Function()?  cycleHeading,TResult? Function()?  wikiLink,TResult? Function( Range16 range,  String text)?  insert,}) {final _that = this;
+switch (_that) {
+case EditCommand_Enter() when enter != null:
+return enter(_that.plain);case EditCommand_Tab() when tab != null:
+return tab(_that.out);case EditCommand_Format() when format != null:
+return format(_that.format);case EditCommand_CycleHeading() when cycleHeading != null:
+return cycleHeading();case EditCommand_WikiLink() when wikiLink != null:
+return wikiLink();case EditCommand_Insert() when insert != null:
+return insert(_that.range,_that.text);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class EditCommand_Enter extends EditCommand {
+  const EditCommand_Enter({required this.plain}): super._();
+  
+
+ final  bool plain;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditCommand_EnterCopyWith<EditCommand_Enter> get copyWith => _$EditCommand_EnterCopyWithImpl<EditCommand_Enter>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditCommand_Enter&&(identical(other.plain, plain) || other.plain == plain));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,plain);
+
+@override
+String toString() {
+  return 'EditCommand.enter(plain: $plain)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditCommand_EnterCopyWith<$Res> implements $EditCommandCopyWith<$Res> {
+  factory $EditCommand_EnterCopyWith(EditCommand_Enter value, $Res Function(EditCommand_Enter) _then) = _$EditCommand_EnterCopyWithImpl;
+@useResult
+$Res call({
+ bool plain
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditCommand_EnterCopyWithImpl<$Res>
+    implements $EditCommand_EnterCopyWith<$Res> {
+  _$EditCommand_EnterCopyWithImpl(this._self, this._then);
+
+  final EditCommand_Enter _self;
+  final $Res Function(EditCommand_Enter) _then;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? plain = null,}) {
+  return _then(EditCommand_Enter(
+plain: null == plain ? _self.plain : plain // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class EditCommand_Tab extends EditCommand {
+  const EditCommand_Tab({required this.out}): super._();
+  
+
+ final  bool out;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditCommand_TabCopyWith<EditCommand_Tab> get copyWith => _$EditCommand_TabCopyWithImpl<EditCommand_Tab>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditCommand_Tab&&(identical(other.out, out) || other.out == out));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,out);
+
+@override
+String toString() {
+  return 'EditCommand.tab(out: $out)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditCommand_TabCopyWith<$Res> implements $EditCommandCopyWith<$Res> {
+  factory $EditCommand_TabCopyWith(EditCommand_Tab value, $Res Function(EditCommand_Tab) _then) = _$EditCommand_TabCopyWithImpl;
+@useResult
+$Res call({
+ bool out
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditCommand_TabCopyWithImpl<$Res>
+    implements $EditCommand_TabCopyWith<$Res> {
+  _$EditCommand_TabCopyWithImpl(this._self, this._then);
+
+  final EditCommand_Tab _self;
+  final $Res Function(EditCommand_Tab) _then;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? out = null,}) {
+  return _then(EditCommand_Tab(
+out: null == out ? _self.out : out // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class EditCommand_Format extends EditCommand {
+  const EditCommand_Format({required this.format}): super._();
+  
+
+ final  FormatKind format;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditCommand_FormatCopyWith<EditCommand_Format> get copyWith => _$EditCommand_FormatCopyWithImpl<EditCommand_Format>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditCommand_Format&&(identical(other.format, format) || other.format == format));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,format);
+
+@override
+String toString() {
+  return 'EditCommand.format(format: $format)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditCommand_FormatCopyWith<$Res> implements $EditCommandCopyWith<$Res> {
+  factory $EditCommand_FormatCopyWith(EditCommand_Format value, $Res Function(EditCommand_Format) _then) = _$EditCommand_FormatCopyWithImpl;
+@useResult
+$Res call({
+ FormatKind format
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditCommand_FormatCopyWithImpl<$Res>
+    implements $EditCommand_FormatCopyWith<$Res> {
+  _$EditCommand_FormatCopyWithImpl(this._self, this._then);
+
+  final EditCommand_Format _self;
+  final $Res Function(EditCommand_Format) _then;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? format = null,}) {
+  return _then(EditCommand_Format(
+format: null == format ? _self.format : format // ignore: cast_nullable_to_non_nullable
+as FormatKind,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class EditCommand_CycleHeading extends EditCommand {
+  const EditCommand_CycleHeading(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditCommand_CycleHeading);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'EditCommand.cycleHeading()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class EditCommand_WikiLink extends EditCommand {
+  const EditCommand_WikiLink(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditCommand_WikiLink);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'EditCommand.wikiLink()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class EditCommand_Insert extends EditCommand {
+  const EditCommand_Insert({required this.range, required this.text}): super._();
+  
+
+ final  Range16 range;
+ final  String text;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditCommand_InsertCopyWith<EditCommand_Insert> get copyWith => _$EditCommand_InsertCopyWithImpl<EditCommand_Insert>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditCommand_Insert&&(identical(other.range, range) || other.range == range)&&(identical(other.text, text) || other.text == text));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,range,text);
+
+@override
+String toString() {
+  return 'EditCommand.insert(range: $range, text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditCommand_InsertCopyWith<$Res> implements $EditCommandCopyWith<$Res> {
+  factory $EditCommand_InsertCopyWith(EditCommand_Insert value, $Res Function(EditCommand_Insert) _then) = _$EditCommand_InsertCopyWithImpl;
+@useResult
+$Res call({
+ Range16 range, String text
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditCommand_InsertCopyWithImpl<$Res>
+    implements $EditCommand_InsertCopyWith<$Res> {
+  _$EditCommand_InsertCopyWithImpl(this._self, this._then);
+
+  final EditCommand_Insert _self;
+  final $Res Function(EditCommand_Insert) _then;
+
+/// Create a copy of EditCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? range = null,Object? text = null,}) {
+  return _then(EditCommand_Insert(
+range: null == range ? _self.range : range // ignore: cast_nullable_to_non_nullable
+as Range16,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+mixin _$EditorEvent {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'EditorEvent()';
+}
+
+
+}
+
+/// @nodoc
+class $EditorEventCopyWith<$Res>  {
+$EditorEventCopyWith(EditorEvent _, $Res Function(EditorEvent) __);
+}
+
+
+/// Adds pattern-matching-related methods to [EditorEvent].
+extension EditorEventPatterns on EditorEvent {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( EditorEvent_Saved value)?  saved,TResult Function( EditorEvent_Incoming value)?  incoming,TResult Function( EditorEvent_Reloaded value)?  reloaded,TResult Function( EditorEvent_Closed value)?  closed,TResult Function( EditorEvent_Failed value)?  failed,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case EditorEvent_Saved() when saved != null:
+return saved(_that);case EditorEvent_Incoming() when incoming != null:
+return incoming(_that);case EditorEvent_Reloaded() when reloaded != null:
+return reloaded(_that);case EditorEvent_Closed() when closed != null:
+return closed(_that);case EditorEvent_Failed() when failed != null:
+return failed(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( EditorEvent_Saved value)  saved,required TResult Function( EditorEvent_Incoming value)  incoming,required TResult Function( EditorEvent_Reloaded value)  reloaded,required TResult Function( EditorEvent_Closed value)  closed,required TResult Function( EditorEvent_Failed value)  failed,}){
+final _that = this;
+switch (_that) {
+case EditorEvent_Saved():
+return saved(_that);case EditorEvent_Incoming():
+return incoming(_that);case EditorEvent_Reloaded():
+return reloaded(_that);case EditorEvent_Closed():
+return closed(_that);case EditorEvent_Failed():
+return failed(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( EditorEvent_Saved value)?  saved,TResult? Function( EditorEvent_Incoming value)?  incoming,TResult? Function( EditorEvent_Reloaded value)?  reloaded,TResult? Function( EditorEvent_Closed value)?  closed,TResult? Function( EditorEvent_Failed value)?  failed,}){
+final _that = this;
+switch (_that) {
+case EditorEvent_Saved() when saved != null:
+return saved(_that);case EditorEvent_Incoming() when incoming != null:
+return incoming(_that);case EditorEvent_Reloaded() when reloaded != null:
+return reloaded(_that);case EditorEvent_Closed() when closed != null:
+return closed(_that);case EditorEvent_Failed() when failed != null:
+return failed(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String rev,  int atMs)?  saved,TResult Function( bool deleted)?  incoming,TResult Function( EditorSnapshot snapshot)?  reloaded,TResult Function()?  closed,TResult Function( String message)?  failed,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case EditorEvent_Saved() when saved != null:
+return saved(_that.rev,_that.atMs);case EditorEvent_Incoming() when incoming != null:
+return incoming(_that.deleted);case EditorEvent_Reloaded() when reloaded != null:
+return reloaded(_that.snapshot);case EditorEvent_Closed() when closed != null:
+return closed();case EditorEvent_Failed() when failed != null:
+return failed(_that.message);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String rev,  int atMs)  saved,required TResult Function( bool deleted)  incoming,required TResult Function( EditorSnapshot snapshot)  reloaded,required TResult Function()  closed,required TResult Function( String message)  failed,}) {final _that = this;
+switch (_that) {
+case EditorEvent_Saved():
+return saved(_that.rev,_that.atMs);case EditorEvent_Incoming():
+return incoming(_that.deleted);case EditorEvent_Reloaded():
+return reloaded(_that.snapshot);case EditorEvent_Closed():
+return closed();case EditorEvent_Failed():
+return failed(_that.message);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String rev,  int atMs)?  saved,TResult? Function( bool deleted)?  incoming,TResult? Function( EditorSnapshot snapshot)?  reloaded,TResult? Function()?  closed,TResult? Function( String message)?  failed,}) {final _that = this;
+switch (_that) {
+case EditorEvent_Saved() when saved != null:
+return saved(_that.rev,_that.atMs);case EditorEvent_Incoming() when incoming != null:
+return incoming(_that.deleted);case EditorEvent_Reloaded() when reloaded != null:
+return reloaded(_that.snapshot);case EditorEvent_Closed() when closed != null:
+return closed();case EditorEvent_Failed() when failed != null:
+return failed(_that.message);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class EditorEvent_Saved extends EditorEvent {
+  const EditorEvent_Saved({required this.rev, required this.atMs}): super._();
+  
+
+ final  String rev;
+ final  int atMs;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditorEvent_SavedCopyWith<EditorEvent_Saved> get copyWith => _$EditorEvent_SavedCopyWithImpl<EditorEvent_Saved>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorEvent_Saved&&(identical(other.rev, rev) || other.rev == rev)&&(identical(other.atMs, atMs) || other.atMs == atMs));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,rev,atMs);
+
+@override
+String toString() {
+  return 'EditorEvent.saved(rev: $rev, atMs: $atMs)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditorEvent_SavedCopyWith<$Res> implements $EditorEventCopyWith<$Res> {
+  factory $EditorEvent_SavedCopyWith(EditorEvent_Saved value, $Res Function(EditorEvent_Saved) _then) = _$EditorEvent_SavedCopyWithImpl;
+@useResult
+$Res call({
+ String rev, int atMs
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditorEvent_SavedCopyWithImpl<$Res>
+    implements $EditorEvent_SavedCopyWith<$Res> {
+  _$EditorEvent_SavedCopyWithImpl(this._self, this._then);
+
+  final EditorEvent_Saved _self;
+  final $Res Function(EditorEvent_Saved) _then;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? rev = null,Object? atMs = null,}) {
+  return _then(EditorEvent_Saved(
+rev: null == rev ? _self.rev : rev // ignore: cast_nullable_to_non_nullable
+as String,atMs: null == atMs ? _self.atMs : atMs // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class EditorEvent_Incoming extends EditorEvent {
+  const EditorEvent_Incoming({required this.deleted}): super._();
+  
+
+ final  bool deleted;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditorEvent_IncomingCopyWith<EditorEvent_Incoming> get copyWith => _$EditorEvent_IncomingCopyWithImpl<EditorEvent_Incoming>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorEvent_Incoming&&(identical(other.deleted, deleted) || other.deleted == deleted));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,deleted);
+
+@override
+String toString() {
+  return 'EditorEvent.incoming(deleted: $deleted)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditorEvent_IncomingCopyWith<$Res> implements $EditorEventCopyWith<$Res> {
+  factory $EditorEvent_IncomingCopyWith(EditorEvent_Incoming value, $Res Function(EditorEvent_Incoming) _then) = _$EditorEvent_IncomingCopyWithImpl;
+@useResult
+$Res call({
+ bool deleted
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditorEvent_IncomingCopyWithImpl<$Res>
+    implements $EditorEvent_IncomingCopyWith<$Res> {
+  _$EditorEvent_IncomingCopyWithImpl(this._self, this._then);
+
+  final EditorEvent_Incoming _self;
+  final $Res Function(EditorEvent_Incoming) _then;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? deleted = null,}) {
+  return _then(EditorEvent_Incoming(
+deleted: null == deleted ? _self.deleted : deleted // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class EditorEvent_Reloaded extends EditorEvent {
+  const EditorEvent_Reloaded({required this.snapshot}): super._();
+  
+
+ final  EditorSnapshot snapshot;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditorEvent_ReloadedCopyWith<EditorEvent_Reloaded> get copyWith => _$EditorEvent_ReloadedCopyWithImpl<EditorEvent_Reloaded>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorEvent_Reloaded&&(identical(other.snapshot, snapshot) || other.snapshot == snapshot));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,snapshot);
+
+@override
+String toString() {
+  return 'EditorEvent.reloaded(snapshot: $snapshot)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditorEvent_ReloadedCopyWith<$Res> implements $EditorEventCopyWith<$Res> {
+  factory $EditorEvent_ReloadedCopyWith(EditorEvent_Reloaded value, $Res Function(EditorEvent_Reloaded) _then) = _$EditorEvent_ReloadedCopyWithImpl;
+@useResult
+$Res call({
+ EditorSnapshot snapshot
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditorEvent_ReloadedCopyWithImpl<$Res>
+    implements $EditorEvent_ReloadedCopyWith<$Res> {
+  _$EditorEvent_ReloadedCopyWithImpl(this._self, this._then);
+
+  final EditorEvent_Reloaded _self;
+  final $Res Function(EditorEvent_Reloaded) _then;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? snapshot = null,}) {
+  return _then(EditorEvent_Reloaded(
+snapshot: null == snapshot ? _self.snapshot : snapshot // ignore: cast_nullable_to_non_nullable
+as EditorSnapshot,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class EditorEvent_Closed extends EditorEvent {
+  const EditorEvent_Closed(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorEvent_Closed);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'EditorEvent.closed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class EditorEvent_Failed extends EditorEvent {
+  const EditorEvent_Failed({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$EditorEvent_FailedCopyWith<EditorEvent_Failed> get copyWith => _$EditorEvent_FailedCopyWithImpl<EditorEvent_Failed>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorEvent_Failed&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'EditorEvent.failed(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $EditorEvent_FailedCopyWith<$Res> implements $EditorEventCopyWith<$Res> {
+  factory $EditorEvent_FailedCopyWith(EditorEvent_Failed value, $Res Function(EditorEvent_Failed) _then) = _$EditorEvent_FailedCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$EditorEvent_FailedCopyWithImpl<$Res>
+    implements $EditorEvent_FailedCopyWith<$Res> {
+  _$EditorEvent_FailedCopyWithImpl(this._self, this._then);
+
+  final EditorEvent_Failed _self;
+  final $Res Function(EditorEvent_Failed) _then;
+
+/// Create a copy of EditorEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(EditorEvent_Failed(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$KansoError {
 
 
@@ -698,6 +1688,370 @@ class _$KansoError_InternalCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
   return _then(KansoError_Internal(
 message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+mixin _$LinkTarget {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkTarget);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'LinkTarget()';
+}
+
+
+}
+
+/// @nodoc
+class $LinkTargetCopyWith<$Res>  {
+$LinkTargetCopyWith(LinkTarget _, $Res Function(LinkTarget) __);
+}
+
+
+/// Adds pattern-matching-related methods to [LinkTarget].
+extension LinkTargetPatterns on LinkTarget {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LinkTarget_Note value)?  note,TResult Function( LinkTarget_NewNote value)?  newNote,TResult Function( LinkTarget_Web value)?  web,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case LinkTarget_Note() when note != null:
+return note(_that);case LinkTarget_NewNote() when newNote != null:
+return newNote(_that);case LinkTarget_Web() when web != null:
+return web(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LinkTarget_Note value)  note,required TResult Function( LinkTarget_NewNote value)  newNote,required TResult Function( LinkTarget_Web value)  web,}){
+final _that = this;
+switch (_that) {
+case LinkTarget_Note():
+return note(_that);case LinkTarget_NewNote():
+return newNote(_that);case LinkTarget_Web():
+return web(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LinkTarget_Note value)?  note,TResult? Function( LinkTarget_NewNote value)?  newNote,TResult? Function( LinkTarget_Web value)?  web,}){
+final _that = this;
+switch (_that) {
+case LinkTarget_Note() when note != null:
+return note(_that);case LinkTarget_NewNote() when newNote != null:
+return newNote(_that);case LinkTarget_Web() when web != null:
+return web(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String id)?  note,TResult Function( String title)?  newNote,TResult Function( String url)?  web,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case LinkTarget_Note() when note != null:
+return note(_that.id);case LinkTarget_NewNote() when newNote != null:
+return newNote(_that.title);case LinkTarget_Web() when web != null:
+return web(_that.url);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String id)  note,required TResult Function( String title)  newNote,required TResult Function( String url)  web,}) {final _that = this;
+switch (_that) {
+case LinkTarget_Note():
+return note(_that.id);case LinkTarget_NewNote():
+return newNote(_that.title);case LinkTarget_Web():
+return web(_that.url);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String id)?  note,TResult? Function( String title)?  newNote,TResult? Function( String url)?  web,}) {final _that = this;
+switch (_that) {
+case LinkTarget_Note() when note != null:
+return note(_that.id);case LinkTarget_NewNote() when newNote != null:
+return newNote(_that.title);case LinkTarget_Web() when web != null:
+return web(_that.url);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class LinkTarget_Note extends LinkTarget {
+  const LinkTarget_Note({required this.id}): super._();
+  
+
+ final  String id;
+
+/// Create a copy of LinkTarget
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LinkTarget_NoteCopyWith<LinkTarget_Note> get copyWith => _$LinkTarget_NoteCopyWithImpl<LinkTarget_Note>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkTarget_Note&&(identical(other.id, id) || other.id == id));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id);
+
+@override
+String toString() {
+  return 'LinkTarget.note(id: $id)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LinkTarget_NoteCopyWith<$Res> implements $LinkTargetCopyWith<$Res> {
+  factory $LinkTarget_NoteCopyWith(LinkTarget_Note value, $Res Function(LinkTarget_Note) _then) = _$LinkTarget_NoteCopyWithImpl;
+@useResult
+$Res call({
+ String id
+});
+
+
+
+
+}
+/// @nodoc
+class _$LinkTarget_NoteCopyWithImpl<$Res>
+    implements $LinkTarget_NoteCopyWith<$Res> {
+  _$LinkTarget_NoteCopyWithImpl(this._self, this._then);
+
+  final LinkTarget_Note _self;
+  final $Res Function(LinkTarget_Note) _then;
+
+/// Create a copy of LinkTarget
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+  return _then(LinkTarget_Note(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LinkTarget_NewNote extends LinkTarget {
+  const LinkTarget_NewNote({required this.title}): super._();
+  
+
+ final  String title;
+
+/// Create a copy of LinkTarget
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LinkTarget_NewNoteCopyWith<LinkTarget_NewNote> get copyWith => _$LinkTarget_NewNoteCopyWithImpl<LinkTarget_NewNote>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkTarget_NewNote&&(identical(other.title, title) || other.title == title));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,title);
+
+@override
+String toString() {
+  return 'LinkTarget.newNote(title: $title)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LinkTarget_NewNoteCopyWith<$Res> implements $LinkTargetCopyWith<$Res> {
+  factory $LinkTarget_NewNoteCopyWith(LinkTarget_NewNote value, $Res Function(LinkTarget_NewNote) _then) = _$LinkTarget_NewNoteCopyWithImpl;
+@useResult
+$Res call({
+ String title
+});
+
+
+
+
+}
+/// @nodoc
+class _$LinkTarget_NewNoteCopyWithImpl<$Res>
+    implements $LinkTarget_NewNoteCopyWith<$Res> {
+  _$LinkTarget_NewNoteCopyWithImpl(this._self, this._then);
+
+  final LinkTarget_NewNote _self;
+  final $Res Function(LinkTarget_NewNote) _then;
+
+/// Create a copy of LinkTarget
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? title = null,}) {
+  return _then(LinkTarget_NewNote(
+title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LinkTarget_Web extends LinkTarget {
+  const LinkTarget_Web({required this.url}): super._();
+  
+
+ final  String url;
+
+/// Create a copy of LinkTarget
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LinkTarget_WebCopyWith<LinkTarget_Web> get copyWith => _$LinkTarget_WebCopyWithImpl<LinkTarget_Web>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LinkTarget_Web&&(identical(other.url, url) || other.url == url));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,url);
+
+@override
+String toString() {
+  return 'LinkTarget.web(url: $url)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LinkTarget_WebCopyWith<$Res> implements $LinkTargetCopyWith<$Res> {
+  factory $LinkTarget_WebCopyWith(LinkTarget_Web value, $Res Function(LinkTarget_Web) _then) = _$LinkTarget_WebCopyWithImpl;
+@useResult
+$Res call({
+ String url
+});
+
+
+
+
+}
+/// @nodoc
+class _$LinkTarget_WebCopyWithImpl<$Res>
+    implements $LinkTarget_WebCopyWith<$Res> {
+  _$LinkTarget_WebCopyWithImpl(this._self, this._then);
+
+  final LinkTarget_Web _self;
+  final $Res Function(LinkTarget_Web) _then;
+
+/// Create a copy of LinkTarget
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? url = null,}) {
+  return _then(LinkTarget_Web(
+url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -1998,6 +3352,410 @@ String toString() {
 
 
 
+
+/// @nodoc
+mixin _$SaveState {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SaveState);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SaveState()';
+}
+
+
+}
+
+/// @nodoc
+class $SaveStateCopyWith<$Res>  {
+$SaveStateCopyWith(SaveState _, $Res Function(SaveState) __);
+}
+
+
+/// Adds pattern-matching-related methods to [SaveState].
+extension SaveStatePatterns on SaveState {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SaveState_Saved value)?  saved,TResult Function( SaveState_Pending value)?  pending,TResult Function( SaveState_Conflict value)?  conflict,TResult Function( SaveState_Failed value)?  failed,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case SaveState_Saved() when saved != null:
+return saved(_that);case SaveState_Pending() when pending != null:
+return pending(_that);case SaveState_Conflict() when conflict != null:
+return conflict(_that);case SaveState_Failed() when failed != null:
+return failed(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SaveState_Saved value)  saved,required TResult Function( SaveState_Pending value)  pending,required TResult Function( SaveState_Conflict value)  conflict,required TResult Function( SaveState_Failed value)  failed,}){
+final _that = this;
+switch (_that) {
+case SaveState_Saved():
+return saved(_that);case SaveState_Pending():
+return pending(_that);case SaveState_Conflict():
+return conflict(_that);case SaveState_Failed():
+return failed(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SaveState_Saved value)?  saved,TResult? Function( SaveState_Pending value)?  pending,TResult? Function( SaveState_Conflict value)?  conflict,TResult? Function( SaveState_Failed value)?  failed,}){
+final _that = this;
+switch (_that) {
+case SaveState_Saved() when saved != null:
+return saved(_that);case SaveState_Pending() when pending != null:
+return pending(_that);case SaveState_Conflict() when conflict != null:
+return conflict(_that);case SaveState_Failed() when failed != null:
+return failed(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String rev,  int atMs)?  saved,TResult Function()?  pending,TResult Function( bool deleted)?  conflict,TResult Function( String message)?  failed,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case SaveState_Saved() when saved != null:
+return saved(_that.rev,_that.atMs);case SaveState_Pending() when pending != null:
+return pending();case SaveState_Conflict() when conflict != null:
+return conflict(_that.deleted);case SaveState_Failed() when failed != null:
+return failed(_that.message);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String rev,  int atMs)  saved,required TResult Function()  pending,required TResult Function( bool deleted)  conflict,required TResult Function( String message)  failed,}) {final _that = this;
+switch (_that) {
+case SaveState_Saved():
+return saved(_that.rev,_that.atMs);case SaveState_Pending():
+return pending();case SaveState_Conflict():
+return conflict(_that.deleted);case SaveState_Failed():
+return failed(_that.message);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String rev,  int atMs)?  saved,TResult? Function()?  pending,TResult? Function( bool deleted)?  conflict,TResult? Function( String message)?  failed,}) {final _that = this;
+switch (_that) {
+case SaveState_Saved() when saved != null:
+return saved(_that.rev,_that.atMs);case SaveState_Pending() when pending != null:
+return pending();case SaveState_Conflict() when conflict != null:
+return conflict(_that.deleted);case SaveState_Failed() when failed != null:
+return failed(_that.message);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class SaveState_Saved extends SaveState {
+  const SaveState_Saved({required this.rev, required this.atMs}): super._();
+  
+
+ final  String rev;
+ final  int atMs;
+
+/// Create a copy of SaveState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SaveState_SavedCopyWith<SaveState_Saved> get copyWith => _$SaveState_SavedCopyWithImpl<SaveState_Saved>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SaveState_Saved&&(identical(other.rev, rev) || other.rev == rev)&&(identical(other.atMs, atMs) || other.atMs == atMs));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,rev,atMs);
+
+@override
+String toString() {
+  return 'SaveState.saved(rev: $rev, atMs: $atMs)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SaveState_SavedCopyWith<$Res> implements $SaveStateCopyWith<$Res> {
+  factory $SaveState_SavedCopyWith(SaveState_Saved value, $Res Function(SaveState_Saved) _then) = _$SaveState_SavedCopyWithImpl;
+@useResult
+$Res call({
+ String rev, int atMs
+});
+
+
+
+
+}
+/// @nodoc
+class _$SaveState_SavedCopyWithImpl<$Res>
+    implements $SaveState_SavedCopyWith<$Res> {
+  _$SaveState_SavedCopyWithImpl(this._self, this._then);
+
+  final SaveState_Saved _self;
+  final $Res Function(SaveState_Saved) _then;
+
+/// Create a copy of SaveState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? rev = null,Object? atMs = null,}) {
+  return _then(SaveState_Saved(
+rev: null == rev ? _self.rev : rev // ignore: cast_nullable_to_non_nullable
+as String,atMs: null == atMs ? _self.atMs : atMs // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SaveState_Pending extends SaveState {
+  const SaveState_Pending(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SaveState_Pending);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SaveState.pending()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class SaveState_Conflict extends SaveState {
+  const SaveState_Conflict({required this.deleted}): super._();
+  
+
+ final  bool deleted;
+
+/// Create a copy of SaveState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SaveState_ConflictCopyWith<SaveState_Conflict> get copyWith => _$SaveState_ConflictCopyWithImpl<SaveState_Conflict>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SaveState_Conflict&&(identical(other.deleted, deleted) || other.deleted == deleted));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,deleted);
+
+@override
+String toString() {
+  return 'SaveState.conflict(deleted: $deleted)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SaveState_ConflictCopyWith<$Res> implements $SaveStateCopyWith<$Res> {
+  factory $SaveState_ConflictCopyWith(SaveState_Conflict value, $Res Function(SaveState_Conflict) _then) = _$SaveState_ConflictCopyWithImpl;
+@useResult
+$Res call({
+ bool deleted
+});
+
+
+
+
+}
+/// @nodoc
+class _$SaveState_ConflictCopyWithImpl<$Res>
+    implements $SaveState_ConflictCopyWith<$Res> {
+  _$SaveState_ConflictCopyWithImpl(this._self, this._then);
+
+  final SaveState_Conflict _self;
+  final $Res Function(SaveState_Conflict) _then;
+
+/// Create a copy of SaveState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? deleted = null,}) {
+  return _then(SaveState_Conflict(
+deleted: null == deleted ? _self.deleted : deleted // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SaveState_Failed extends SaveState {
+  const SaveState_Failed({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of SaveState
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SaveState_FailedCopyWith<SaveState_Failed> get copyWith => _$SaveState_FailedCopyWithImpl<SaveState_Failed>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SaveState_Failed&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'SaveState.failed(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SaveState_FailedCopyWith<$Res> implements $SaveStateCopyWith<$Res> {
+  factory $SaveState_FailedCopyWith(SaveState_Failed value, $Res Function(SaveState_Failed) _then) = _$SaveState_FailedCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$SaveState_FailedCopyWithImpl<$Res>
+    implements $SaveState_FailedCopyWith<$Res> {
+  _$SaveState_FailedCopyWithImpl(this._self, this._then);
+
+  final SaveState_Failed _self;
+  final $Res Function(SaveState_Failed) _then;
+
+/// Create a copy of SaveState
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(SaveState_Failed(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$SearchScope {

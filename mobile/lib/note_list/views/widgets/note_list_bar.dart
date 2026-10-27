@@ -23,10 +23,19 @@ import 'note_list_top_bar.dart';
 /// The bar of a list: its title and what to do with the list, or, while
 /// several notes are chosen, how many and what to do with them.
 class NoteListBar extends StatelessWidget {
-  const NoteListBar({required this.state, required this.index, super.key});
+  const NoteListBar({
+    required this.state,
+    required this.index,
+    this.newNote,
+    super.key,
+  });
 
   final NoteListState state;
   final LibraryIndexState index;
+
+  /// Makes a new note, from a button in the bar; null where the list has a
+  /// button afloat over it instead.
+  final VoidCallback? newNote;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +68,7 @@ class NoteListBar extends StatelessWidget {
     }
     final place = state.place;
     return NoteListTopBar(
+      onNewNote: newNote,
       title: placeTitle(l10n, place, index),
       subtitle: state.status == NoteListStatus.ready
           ? l10n.noteListCount(state.rows.length)

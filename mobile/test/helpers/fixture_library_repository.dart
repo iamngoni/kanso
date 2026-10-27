@@ -141,19 +141,59 @@ class FixtureLibraryRepository implements LibraryRepository {
     required String body,
   }) => throw UnimplementedError();
 
+  /// The notes `create` was asked to make.
+  final List<NewNote> created = <NewNote>[];
+
+  /// What `create` answers when it is set; a note with an id of its own
+  /// otherwise.
+  Either<ApplicationError, Saved>? createResult;
+
   @override
-  Future<Either<ApplicationError, Saved>> create(NewNote note) =>
-      throw UnimplementedError();
+  Future<Either<ApplicationError, Saved>> create(NewNote note) async {
+    created.add(note);
+    return createResult ??
+        Right<ApplicationError, Saved>(
+          Saved(id: 'note:new-${created.length}', rev: '1-new'),
+        );
+  }
 
   @override
   Future<Either<ApplicationError, Unit>> trash(String id) =>
       throw UnimplementedError();
 
+  /// The notebooks `createNotebook` was asked to make, with their parents.
+  final List<(String, String?)> notebooksCreated = <(String, String?)>[];
+
+  /// What `createNotebook` answers when it is set; the notebook, appended
+  /// to the notebooks, otherwise.
+  Either<ApplicationError, NotebookRow>? createNotebookResult;
+
+  /// When set, `createNotebook` waits for it: a notebook still being made.
+  Completer<void>? notebookGate;
+
   @override
   Future<Either<ApplicationError, NotebookRow>> createNotebook(
     String name, {
     String? parentId,
-  }) => throw UnimplementedError();
+  }) async {
+    notebooksCreated.add((name, parentId));
+    await notebookGate?.future;
+    final fixed = createNotebookResult;
+    if (fixed != null) {
+      return fixed;
+    }
+    final made = NotebookRow(
+      id: 'book:made-${notebooksCreated.length}',
+      name: name,
+      parentId: parentId,
+      count: 0,
+      locked: false,
+      depth: 0,
+    );
+    notebookRows = <NotebookRow>[...notebookRows, made];
+    changeStream.add(<String>[made.id]);
+    return Right<ApplicationError, NotebookRow>(made);
+  }
 
   @override
   Future<Either<ApplicationError, List<Property>>> properties(String id) =>

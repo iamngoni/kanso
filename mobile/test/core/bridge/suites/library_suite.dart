@@ -77,6 +77,78 @@ void librarySuite(OpenLibrary open) {
       },
     );
 
+    test(
+      "a new note takes its list's place and the preferred notebook",
+      () async {
+        final library = await open();
+        final first = await library.createNotebook(name: 'Archive');
+        final second = await library.createNotebook(name: 'Zed');
+        await makeNote(library, 'Seed', 'plan #veg');
+        final tag = (await library.tags()).single;
+
+        Future<NoteView> made(NewNote note) async =>
+            library.note(id: (await library.create(note: note)).id);
+
+        // Nothing said: the first notebook; a preference is taken when it
+        // exists, and passed over when it doesn't.
+        expect(
+          (await made(const NewNote(title: 'A', body: ''))).notebookId,
+          first.id,
+        );
+        expect(
+          (await made(
+            NewNote(title: 'B', body: '', preferredNotebookId: second.id),
+          )).notebookId,
+          second.id,
+        );
+        expect(
+          (await made(
+            const NewNote(
+              title: 'C',
+              body: '',
+              preferredNotebookId: 'book:gone',
+            ),
+          )).notebookId,
+          first.id,
+        );
+        // A notebook's own list wins over the preference.
+        expect(
+          (await made(
+            NewNote(
+              title: 'D',
+              body: '',
+              place: ListPlace.notebook(id: first.id),
+              preferredNotebookId: second.id,
+            ),
+          )).notebookId,
+          first.id,
+        );
+        // A tag's list tags the note; Pinned pins it; the trash's goes nowhere.
+        final tagged = await made(
+          NewNote(
+            title: 'E',
+            body: '',
+            place: ListPlace.tag(id: tag.id),
+          ),
+        );
+        expect(tagged.tags, <String>[tag.id]);
+        final pinned = await made(
+          const NewNote(title: 'F', body: '', place: ListPlace.pinned()),
+        );
+        expect(pinned.pinned, isTrue);
+        final fromTrash = await made(
+          const NewNote(title: 'G', body: '', place: ListPlace.trash()),
+        );
+        expect(fromTrash.notebookId, first.id);
+        expect(
+          (await made(
+            const NewNote(title: 'H', body: '', pinned: true),
+          )).pinned,
+          isTrue,
+        );
+      },
+    );
+
     test('lists notebooks with their counts', () async {
       final library = await open();
       await makeNote(library, 'One', 'text');

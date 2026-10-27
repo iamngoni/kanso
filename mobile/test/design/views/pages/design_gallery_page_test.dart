@@ -53,7 +53,7 @@ void main() {
         expect(find.text('Phone'), findsOneWidget);
         expect(find.text('Tablet'), findsOneWidget);
         // Every screen that is not built yet is listed once per layout.
-        expect(find.text('Note, edit'), findsNWidgets(2));
+        expect(find.text('Note, edit'), findsNothing);
         expect(find.text('Error card'), findsNWidgets(2));
         // The screens that are built are not mocks any more.
         expect(find.text('Note list'), findsNothing);

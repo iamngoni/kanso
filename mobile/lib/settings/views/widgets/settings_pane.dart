@@ -11,6 +11,7 @@ import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/load_status.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/appearance/appearance_bloc.dart';
+import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/state/sync_status/sync_status_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/font_labels.dart';
@@ -20,6 +21,7 @@ import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../state/about/about_bloc.dart';
+import '../../state/default_notebook/default_notebook_bloc.dart';
 
 /// Settings: a close button, a centred title and rows grouped in rounded
 /// sections, each with an icon, a label and its current value.
@@ -63,6 +65,38 @@ class SettingsPane extends StatelessWidget {
                 bottom + KansoSpacing.lg,
               ),
               children: <Widget>[
+                BlocBuilder<LibraryIndexBloc, LibraryIndexState>(
+                  builder: (context, index) {
+                    return BlocBuilder<
+                      DefaultNotebookBloc,
+                      DefaultNotebookState
+                    >(
+                      builder: (context, chosen) {
+                        final id = chosen.notebookId;
+                        final book = id == null ? null : index.notebook(id);
+                        return KansoGroupedSection(
+                          title: l10n.settingsGeneral,
+                          dividerIndent: iconInset,
+                          children: <Widget>[
+                            KansoSettingsRow(
+                              icon: KansoIcons.notebook,
+                              label: l10n.settingsDefaultNotebook,
+                              // A notebook that is gone or locked is not the
+                              // one new notes go in.
+                              value: book == null || book.locked
+                                  ? l10n.defaultNotebookFirst
+                                  : book.name,
+                              chevron: true,
+                              onTap: () =>
+                                  context.push(KansoRoutes.settingsNotebook),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: KansoSpacing.lg),
                 BlocBuilder<AppearanceBloc, AppearanceState>(
                   builder: (context, appearance) {
                     final theme =

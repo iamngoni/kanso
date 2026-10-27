@@ -35,6 +35,7 @@ class NoteListView extends StatelessWidget {
     required this.index,
     required this.location,
     this.openNoteId,
+    this.bottomClearance = 0,
     super.key,
   });
 
@@ -42,6 +43,10 @@ class NoteListView extends StatelessWidget {
   final LibraryIndexState index;
   final BrowseLocation location;
   final String? openNoteId;
+
+  /// How much room the list leaves below its last row for something afloat
+  /// over it, besides the usual gutter.
+  final double bottomClearance;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +78,10 @@ class NoteListView extends StatelessWidget {
           SliverPadding(
             padding: EdgeInsets.only(
               top: KansoSpacing.xxs,
-              bottom: MediaQuery.paddingOf(context).bottom + KansoSpacing.md,
+              bottom:
+                  MediaQuery.paddingOf(context).bottom +
+                  KansoSpacing.md +
+                  bottomClearance,
             ),
             sliver: SliverList.builder(
               itemCount: entries.length,

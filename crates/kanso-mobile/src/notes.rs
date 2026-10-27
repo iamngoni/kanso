@@ -248,13 +248,15 @@ impl Library {
     /// open ([`KansoError::Locked`] otherwise).
     pub fn create(&self, new: NewNote) -> Result<Saved, KansoError> {
         guard(|| {
-            let book_id = self.notebook_for(new.notebook_id.as_deref())?;
+            let (book_id, tags, pinned) = self.destination(&new)?;
             let now = now_ms();
             let mut note: Note = serde_json::from_value(json!({
                 "_id": new_id(DocType::Note),
                 "title": new.title,
                 "body": new.body,
                 "bookId": book_id,
+                "tags": tags,
+                "pinned": pinned,
                 "createdAt": now,
                 "updatedAt": now,
             }))
@@ -427,7 +429,7 @@ impl Library {
             }
             Ok(kanso_core::properties::parse(&note.body)
                 .into_iter()
-                .map(|(key, value)| property(key, &value))
+                .map(|(key, value)| property_row(key, &value))
                 .collect())
         })
     }
@@ -489,30 +491,54 @@ impl Library {
         Ok(Some((note, text)))
     }
 
-    /// The notebook a new note goes in: `wanted`, which must exist, or the
-    /// first one, made if there is none.
-    fn notebook_for(&self, wanted: Option<&str>) -> Result<String, KansoError> {
+    /// The notebook, tags and pin a new note starts with: what the engine
+    /// decides for its place and preference, and the explicit notebook
+    /// (which must exist) over it.
+    fn destination(&self, new: &NewNote) -> Result<(String, Vec<String>, bool), KansoError> {
         let books = self.inner.store.books()?;
-        match wanted {
-            Some(id) => books
+        let filter = match &new.place {
+            None | Some(ListPlace::All) => Filter::All,
+            Some(ListPlace::Pinned) => Filter::Pinned,
+            Some(ListPlace::Recent) => Filter::Recent,
+            Some(ListPlace::Notebook { id }) => Filter::Book(id.clone()),
+            Some(ListPlace::Tag { id }) => Filter::Tag(id.clone()),
+            Some(ListPlace::Trash) => Filter::Trash,
+        };
+        let target = list::new_note_target(
+            &filter,
+            list::Narrowing {
+                status: None,
+                pinned: new.pinned,
+            },
+            new.preferred_notebook_id.as_deref(),
+            &books,
+        );
+        let book_id = match (&new.notebook_id, target.book_id) {
+            (Some(id), _) => books
                 .iter()
-                .find(|book| book.id == id)
+                .find(|book| &book.id == id)
                 .map(|book| book.id.clone())
-                .ok_or(KansoError::NotFound),
-            None => match books.first() {
-                Some(book) => Ok(book.id.clone()),
-                None => Ok(self
-                    .inner
+                .ok_or(KansoError::NotFound)?,
+            (None, Some(id)) => id,
+            (None, None) => {
+                self.inner
                     .store
                     .put(
                         DocType::Book,
-                        json!({"name": "Notes"}),
+                        json!({"name": list::FALLBACK_BOOK_NAME}),
                         Put::Upsert,
                         Origin::Ui,
                     )?
-                    .id),
-            },
+                    .id
+            }
+        };
+        let mut tags = target.tags;
+        for tag in &new.tags {
+            if !tags.contains(tag) {
+                tags.push(tag.clone());
+            }
         }
+        Ok((book_id, tags, target.pinned))
     }
 }
 
@@ -634,7 +660,7 @@ fn view(note: Note, state: LockView) -> NoteView {
     }
 }
 
-fn property(key: String, value: &kanso_core::properties::Value) -> Property {
+pub(crate) fn property_row(key: String, value: &kanso_core::properties::Value) -> Property {
     use kanso_core::properties::Value as V;
     let (kind, items) = match value {
         V::Text(_) => (PropertyKind::Text, Vec::new()),

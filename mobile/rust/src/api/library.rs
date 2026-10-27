@@ -9,6 +9,7 @@ use kanso_mobile::{
     NotebookRow, Property, Saved, SearchScope, Table, TagRow,
 };
 
+use super::editor::KansoEditor;
 use super::locks::KansoLocks;
 use super::renderer::KansoRenderer;
 use super::sync::KansoSync;
@@ -45,6 +46,11 @@ impl KansoLibrary {
 
     pub fn create(&self, note: NewNote) -> Result<Saved, KansoError> {
         self.0.create(note)
+    }
+
+    /// Opens note `id` for editing. Locked while it is locked and closed.
+    pub fn edit(&self, id: String) -> Result<KansoEditor, KansoError> {
+        self.0.edit(&id).map(KansoEditor::new)
     }
 
     pub fn trash(&self, id: String) -> Result<(), KansoError> {

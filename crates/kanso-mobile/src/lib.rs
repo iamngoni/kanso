@@ -19,6 +19,11 @@
 //!   locked note's text, snippet, properties, tasks and preview never come
 //!   back while it is closed; only its title and its lock show in a list.
 //!   Keys never cross this edge.
+//! - [`EditorSession`] (`library.edit(id)`) is a note open for editing: the
+//!   text the shell's field shows, with the undo history, the editor's
+//!   commands, the colors of the text, completion, autosave and the
+//!   desktop's choice between versions when a note changes elsewhere while
+//!   it is typed in.
 //! - [`SyncHandle`] (`library.sync()`) signs in to a server, syncs and
 //!   reports its status.
 //! - [`Renderer`] (`library.renderer()`) draws a note's preview, highlights
@@ -45,6 +50,7 @@ mod backup;
 pub mod boundary;
 mod builtin_themes;
 pub mod diagnostics;
+mod editing;
 mod errors;
 mod library;
 mod locks;
@@ -57,6 +63,7 @@ mod stream;
 mod syncing;
 mod theme_tokens;
 
+pub use editing::EditorSession;
 pub use errors::KansoError;
 pub use library::Library;
 pub use locks::LockSession;

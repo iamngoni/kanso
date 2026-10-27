@@ -38,6 +38,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::{DocType, Note, NoteStatus};
+use kanso_engine::saving::{AUTOSAVE_DELAY, same_content};
 use kanso_store::{Backlink, Change, Origin, Put, Store, StoreError};
 
 use crate::clock::Clock;
@@ -92,7 +93,6 @@ mod vim_glue;
 #[path = "editor_vim_tests.rs"]
 mod vim_tests;
 
-const AUTOSAVE_DELAY: Duration = Duration::from_millis(600);
 /// While typing goes on, the preview beside the source catches up at most
 /// this often: the first change shows at once, later ones on the next tick.
 const PREVIEW_INTERVAL: Duration = Duration::from_millis(60);
@@ -205,20 +205,6 @@ fn day_arrows(tab_stop: bool, cx: &App) -> impl IntoElement {
                     window.dispatch_action(Box::new(crate::calendar_view::ShowCalendar), cx)
                 }),
         )
-}
-
-/// Whether two versions of a note say the same thing: equal apart from the
-/// revision and the task counts the store derives from the body. A sync that
-/// only moved the revision (a local win, a stale rebase, a repair) leaves the
-/// two versions the same. Pure.
-pub(crate) fn same_content(a: &Note, b: &Note) -> bool {
-    let plain = |note: &Note| Note {
-        rev: None,
-        num_of_tasks: 0,
-        num_of_checked_tasks: 0,
-        ..note.clone()
-    };
-    plain(a) == plain(b)
 }
 
 /// What happened elsewhere to the open note while it had unsaved edits.

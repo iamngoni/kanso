@@ -16,12 +16,21 @@ import '../widgets/note_list_pane.dart';
 /// The notes of a library place. Each place has its own list, read when it
 /// is opened and given up when it is left.
 class NoteListPage extends StatelessWidget {
-  const NoteListPage({required this.place, this.openNoteId, super.key});
+  const NoteListPage({
+    required this.place,
+    this.openNoteId,
+    this.beside = false,
+    super.key,
+  });
 
   final ListPlace place;
 
   /// The note open beside the list, in a window with room for both.
   final String? openNoteId;
+
+  /// Whether the list is beside the note it opens, in a window with room
+  /// for both, rather than a page of its own.
+  final bool beside;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +48,7 @@ class NoteListPage extends StatelessWidget {
         child: Scaffold(
           resizeToAvoidBottomInset: false,
           backgroundColor: context.colors.list,
-          body: NoteListPane(openNoteId: openNoteId),
+          body: NoteListPane(openNoteId: openNoteId, beside: beside),
         ),
       ),
     );

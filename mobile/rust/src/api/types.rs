@@ -9,11 +9,14 @@
 use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
-    BuiltinTheme, ColorRow, DateField, DiagramKind, Hit, KansoError, LibraryOverview, ListPlace,
-    ListQuery, ListShape, LockEvent, LockReason, LockState, NewNote, NoteChange, NoteList, NoteRow,
-    NoteView, NotebookRole, NotebookRow, PaletteDto, Property, PropertyKind, Range16, Saved,
-    SearchScope, ServerInfo, SortKey, SpanRow, StyledRun, SvgRow, SyncPhase, SyncProblemKind,
-    SyncReportRow, SyncStatus, SyntaxStyleRow, Table, TableRow, TagRow, ThemeTokens,
+    BuiltinTheme, ColorRow, Completion, CompletionItem, CompletionKind, DateField, DiagramKind,
+    EditCommand, EditOutcome, EditorContext, EditorEvent, EditorRun, EditorSnapshot, FormatKind,
+    HistoryState, Hit, KansoError, LibraryOverview, LinkTarget, ListPlace, ListQuery, ListShape,
+    LockEvent, LockReason, LockState, NewNote, NoteChange, NoteList, NoteRow, NoteView,
+    NotebookRole, NotebookRow, PaletteDto, Property, PropertyKind, Range16, Replacement, RunBatch,
+    SaveState, Saved, SearchScope, ServerInfo, SortKey, SpanRow, StyledRun, SvgRow, SyncPhase,
+    SyncProblemKind, SyncReportRow, SyncStatus, SyntaxStyleRow, Table, TableRow, TagRow,
+    TextChange, ThemeTokens,
 };
 
 #[frb(mirror(KansoError))]
@@ -149,6 +152,12 @@ pub struct _NewNote {
     pub notebook_id: Option<String>,
     pub title: String,
     pub body: String,
+    pub place: Option<ListPlace>,
+    pub preferred_notebook_id: Option<String>,
+    #[frb(default = "const []")]
+    pub tags: Vec<String>,
+    #[frb(default = false)]
+    pub pinned: bool,
 }
 
 #[frb(mirror(Saved))]
@@ -365,4 +374,144 @@ pub struct _SvgRow {
     pub width: f32,
     pub height: f32,
     pub baseline: Option<f32>,
+}
+
+#[frb(mirror(TextChange))]
+pub struct _TextChange {
+    pub base_version: u64,
+    pub start: u32,
+    pub end: u32,
+    pub text: String,
+    pub selection: Range16,
+    pub composing: Option<Range16>,
+}
+
+#[frb(mirror(Replacement))]
+pub struct _Replacement {
+    pub start: u32,
+    pub end: u32,
+    pub text: String,
+}
+
+#[frb(mirror(HistoryState))]
+pub struct _HistoryState {
+    pub can_undo: bool,
+    pub can_redo: bool,
+}
+
+#[frb(mirror(EditOutcome))]
+pub struct _EditOutcome {
+    pub version: u64,
+    pub replace: Option<Replacement>,
+    pub selection: Range16,
+    pub history: HistoryState,
+}
+
+#[frb(mirror(EditorContext))]
+pub struct _EditorContext {
+    pub in_list: bool,
+    pub in_table: bool,
+    pub in_code: bool,
+    pub completion_here: bool,
+    pub history: HistoryState,
+}
+
+#[frb(mirror(FormatKind))]
+pub enum _FormatKind {
+    Bold,
+    Italic,
+    Strikethrough,
+    Code,
+    Bulleted,
+    Numbered,
+    Task,
+    Quote,
+    Link,
+    Image,
+    Table,
+    Rule,
+}
+
+#[frb(mirror(EditCommand))]
+pub enum _EditCommand {
+    Enter { plain: bool },
+    Tab { out: bool },
+    Format { format: FormatKind },
+    CycleHeading,
+    WikiLink,
+    Insert { range: Range16, text: String },
+}
+
+#[frb(mirror(SaveState))]
+pub enum _SaveState {
+    Saved { rev: String, at_ms: i64 },
+    Pending,
+    Conflict { deleted: bool },
+    Failed { message: String },
+}
+
+#[frb(mirror(EditorSnapshot))]
+pub struct _EditorSnapshot {
+    pub id: String,
+    pub title: String,
+    pub text: String,
+    pub rev: String,
+    pub lock: LockState,
+    pub properties: Vec<Property>,
+    pub version: u64,
+    pub history: HistoryState,
+    pub save: SaveState,
+}
+
+#[frb(mirror(EditorEvent))]
+pub enum _EditorEvent {
+    Saved { rev: String, at_ms: i64 },
+    Incoming { deleted: bool },
+    Reloaded { snapshot: EditorSnapshot },
+    Closed,
+    Failed { message: String },
+}
+
+#[frb(mirror(EditorRun))]
+pub struct _EditorRun {
+    pub range: Range16,
+    pub color: Option<u32>,
+    pub italic: Option<bool>,
+    pub weight: Option<u16>,
+    pub quiet: bool,
+}
+
+#[frb(mirror(RunBatch))]
+pub struct _RunBatch {
+    pub version: u64,
+    pub runs: Vec<EditorRun>,
+}
+
+#[frb(mirror(CompletionKind))]
+pub enum _CompletionKind {
+    Wiki,
+    Tag,
+}
+
+#[frb(mirror(CompletionItem))]
+pub struct _CompletionItem {
+    pub label: String,
+    pub detail: Option<String>,
+    pub highlight: Option<Range16>,
+    pub insert: String,
+    pub new_note: bool,
+}
+
+#[frb(mirror(Completion))]
+pub struct _Completion {
+    pub kind: CompletionKind,
+    pub replace: Range16,
+    pub items: Vec<CompletionItem>,
+}
+
+#[frb(mirror(LinkTarget))]
+pub enum _LinkTarget {
+    Note { id: String },
+    NewNote { title: String },
+    Web { url: String },
 }

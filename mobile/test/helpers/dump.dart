@@ -48,6 +48,40 @@ String dump(Object? value) {
           '${value.trash})',
     TagRow() =>
       'TagRow(${value.id}, ${value.name}, ${value.color}, ${value.count})',
+    EditorSnapshot() =>
+      'EditorSnapshot(${value.id}, ${value.title}, ${value.text}, '
+          '${value.rev}, ${value.lock}, ${dump(value.properties)}, '
+          '${value.version}, ${dump(value.history)}, ${dump(value.save)})',
+    HistoryState() => 'HistoryState(${value.canUndo}, ${value.canRedo})',
+    SaveState() => switch (value) {
+      SaveState_Saved(:final rev, :final atMs) => 'Saved($rev, $atMs)',
+      SaveState_Pending() => 'Pending',
+      SaveState_Conflict(:final deleted) => 'Conflict($deleted)',
+      SaveState_Failed(:final message) => 'Failed($message)',
+    },
+    EditOutcome() =>
+      'EditOutcome(${value.version}, ${dump(value.replace)}, '
+          '${dump(value.selection)}, ${dump(value.history)})',
+    Replacement() => 'Replacement(${value.start}, ${value.end}, ${value.text})',
+    EditorContext() =>
+      'EditorContext(${value.inList}, ${value.inTable}, ${value.inCode}, '
+          '${value.completionHere}, ${dump(value.history)})',
+    RunBatch() => 'RunBatch(${value.version}, ${dump(value.runs)})',
+    EditorRun() =>
+      'EditorRun(${dump(value.range)}, ${value.color}, ${value.italic}, '
+          '${value.weight}, ${value.quiet})',
+    Completion() =>
+      'Completion(${value.kind}, ${dump(value.replace)}, ${dump(value.items)})',
+    CompletionItem() =>
+      'CompletionItem(${value.label}, ${value.detail}, '
+          '${dump(value.highlight)}, ${value.insert}, ${value.newNote})',
+    EditorEvent() => switch (value) {
+      EditorEvent_Saved(:final rev, :final atMs) => 'Saved($rev, $atMs)',
+      EditorEvent_Incoming(:final deleted) => 'Incoming($deleted)',
+      EditorEvent_Reloaded(:final snapshot) => 'Reloaded(${dump(snapshot)})',
+      EditorEvent_Closed() => 'Closed',
+      EditorEvent_Failed(:final message) => 'Failed($message)',
+    },
     _ => '$value',
   };
 }

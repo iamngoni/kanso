@@ -195,13 +195,30 @@ pub enum SortKey {
 }
 
 /// A new note.
+///
+/// Where it goes is decided in `kanso_engine::list::new_note_target`, which
+/// the desktop's New Note asks too: `notebook_id` if given, else the notebook
+/// `place` is, else `preferred_notebook_id` if that exists and isn't locked,
+/// else the first notebook (made if there is none).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NewNote {
-    /// The notebook it goes in; `None` is the first notebook (made if there
-    /// is none). A locked notebook takes it sealed, and needs the lock open.
+    /// The notebook it goes in, whatever else is given; it must exist
+    /// ([`KansoError::NotFound`]). A locked notebook takes it sealed, and
+    /// needs the lock open.
     pub notebook_id: Option<String>,
     pub title: String,
     pub body: String,
+    /// The list it is made from: a notebook's list is that notebook, a tag's
+    /// list tags the note, Pinned pins it. Trash and the rest leave it to the
+    /// preferred notebook.
+    pub place: Option<ListPlace>,
+    /// The notebook to use when `place` doesn't name one (the Default
+    /// notebook setting). Unknown and locked ones are ignored.
+    pub preferred_notebook_id: Option<String>,
+    /// Tags (their IDs) the note starts with, besides the place's.
+    pub tags: Vec<String>,
+    /// Pinned from the start (a list narrowed to pinned notes).
+    pub pinned: bool,
 }
 
 /// A write's result: the document and its new revision.
@@ -493,4 +510,224 @@ pub struct SvgRow {
     pub height: f32,
     /// For inline math: how far below the top the text's baseline falls.
     pub baseline: Option<f32>,
+}
+
+// MARK: The editing session
+
+/// One change to the text, as the shell's text field made it. Offsets are
+/// UTF-16 units of the visible text (a note's front matter is not in it).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TextChange {
+    /// The version of the text this change was made against. A change made
+    /// against an older text is refused.
+    pub base_version: u64,
+    /// The units replaced, in the text before the change.
+    pub start: u32,
+    pub end: u32,
+    /// What they became.
+    pub text: String,
+    /// The selection after the change.
+    pub selection: Range16,
+    /// The text an input method is composing after the change, if any.
+    pub composing: Option<Range16>,
+}
+
+/// A replacement of units `start..end` of the text before an outcome by
+/// `text`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Replacement {
+    pub start: u32,
+    pub end: u32,
+    pub text: String,
+}
+
+/// Whether undo and redo have a step to take.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct HistoryState {
+    pub can_undo: bool,
+    pub can_redo: bool,
+}
+
+/// What an edit, a command, an undo or a redo did to the session's text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditOutcome {
+    /// The version of the text now; the next change is made against it.
+    pub version: u64,
+    /// What the shell's text must have done to it to be the session's text:
+    /// `None` when it already is (the shell typed the change itself).
+    pub replace: Option<Replacement>,
+    /// The selection the text has now.
+    pub selection: Range16,
+    pub history: HistoryState,
+}
+
+/// Where the caret is, for the shell's keys and popups. Answered with every
+/// selection, so it is cheap.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EditorContext {
+    pub in_list: bool,
+    pub in_table: bool,
+    pub in_code: bool,
+    /// The caret is in an open `[[…` or `#tag`: a completion is worth asking
+    /// for.
+    pub completion_here: bool,
+    pub history: HistoryState,
+}
+
+/// The text formats of the accessory bar.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FormatKind {
+    Bold,
+    Italic,
+    Strikethrough,
+    Code,
+    Bulleted,
+    Numbered,
+    Task,
+    Quote,
+    Link,
+    Image,
+    Table,
+    Rule,
+}
+
+/// A change the editor decides on, from a key or a button.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EditCommand {
+    /// Enter: continues a table or a list. `plain` types the newline as it
+    /// is (Shift-Enter).
+    Enter {
+        plain: bool,
+    },
+    /// Tab (Shift-Tab, `out`): moves a table cell or a list item, else
+    /// indents.
+    Tab {
+        out: bool,
+    },
+    Format {
+        format: FormatKind,
+    },
+    /// The heading button: no heading, H1, H2, H3, none.
+    CycleHeading,
+    /// `[[` and `]]` around the selection.
+    WikiLink,
+    /// Puts `text` in place of `range` (UTF-16 units): a completion chosen.
+    Insert {
+        range: Range16,
+        text: String,
+    },
+}
+
+/// Why a save is or isn't done.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SaveState {
+    /// Everything typed is in the library, as revision `rev`, at `at_ms`.
+    Saved { rev: String, at_ms: i64 },
+    /// Typing waits for its turn to be saved.
+    Pending,
+    /// The note was changed (or deleted) elsewhere while it had unsaved
+    /// typing; nothing is saved until the person chooses.
+    Conflict { deleted: bool },
+    /// The last save failed; `message` says why.
+    Failed { message: String },
+}
+
+/// A note open for editing, as of one version of its text.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EditorSnapshot {
+    pub id: String,
+    pub title: String,
+    /// The visible text: the note without its front matter.
+    pub text: String,
+    pub rev: String,
+    pub lock: LockState,
+    pub properties: Vec<Property>,
+    pub version: u64,
+    pub history: HistoryState,
+    pub save: SaveState,
+}
+
+/// Something that happened to an open note that the shell didn't ask for.
+#[derive(Clone, Debug, PartialEq)]
+pub enum EditorEvent {
+    /// Typing was saved.
+    Saved { rev: String, at_ms: i64 },
+    /// The note was changed elsewhere while it had unsaved typing: the
+    /// person chooses which version to keep. `deleted` when it was deleted.
+    Incoming { deleted: bool },
+    /// The note was changed elsewhere and had no unsaved typing: this is
+    /// its text now, and the history starts over.
+    Reloaded { snapshot: EditorSnapshot },
+    /// The session is over: the note was locked, deleted, or discarded.
+    /// Nothing of its text is kept.
+    Closed,
+    /// A save failed.
+    Failed { message: String },
+}
+
+/// A run of the visible text in a theme's colors.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditorRun {
+    /// `[start, end)` in UTF-16 units of the visible text.
+    pub range: Range16,
+    pub color: Option<u32>,
+    pub italic: Option<bool>,
+    pub weight: Option<u16>,
+    /// Code, code blocks, addresses, HTML and front matter: where a spell
+    /// checker's complaints are not shown.
+    pub quiet: bool,
+}
+
+/// The runs of a range of the text, as of one version of it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunBatch {
+    pub version: u64,
+    pub runs: Vec<EditorRun>,
+}
+
+/// What a completion completes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompletionKind {
+    /// `[[` and a title.
+    Wiki,
+    /// `#` and a tag.
+    Tag,
+}
+
+/// One choice of a completion.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompletionItem {
+    pub label: String,
+    /// A note's notebook, as a path (`Projects / Kanso`).
+    pub detail: Option<String>,
+    /// The part of the label to highlight, in UTF-16 units of the label.
+    pub highlight: Option<Range16>,
+    /// What replaces [`Completion::replace`] when it is chosen.
+    pub insert: String,
+    /// The choice that writes a link to a note that doesn't exist yet.
+    pub new_note: bool,
+}
+
+/// What the caret is completing.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Completion {
+    pub kind: CompletionKind,
+    /// The units of the text a choice replaces.
+    pub replace: Range16,
+    pub items: Vec<CompletionItem>,
+}
+
+/// Where a link in the text leads.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LinkTarget {
+    Note {
+        id: String,
+    },
+    /// A link to a title no note has.
+    NewNote {
+        title: String,
+    },
+    Web {
+        url: String,
+    },
 }

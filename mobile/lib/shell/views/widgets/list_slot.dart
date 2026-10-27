@@ -21,6 +21,7 @@ class ListSlot extends StatelessWidget {
       PlaceLocation(:final place, :final noteId) => NoteListPage(
         place: place,
         openNoteId: noteId,
+        beside: true,
       ),
       SearchLocation(
         :final query,

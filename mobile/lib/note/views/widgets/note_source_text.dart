@@ -3,23 +3,35 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 
-import '../../../core/bridge/api/types.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../core/utils/run_style.dart';
 import '../../models/data/source_line.dart';
 
 /// A note's Markdown as the editor will show it, read-only: its text in the
 /// editor font, each run in the colour, slant and weight the theme gives
 /// it. It is a sliver, laid out line by line as it scrolls into view, so
 /// the size of the note costs nothing until it is read.
+///
+/// A double tap on a line asks to edit there ([onEditAt]), with the offset in
+/// the text the tap fell on.
 class NoteSourceText extends StatelessWidget {
-  const NoteSourceText({required this.text, required this.lines, super.key});
+  const NoteSourceText({
+    required this.text,
+    required this.lines,
+    this.onEditAt,
+    super.key,
+  });
 
   /// The note's text.
   final String text;
 
   /// The text cut into lines, each with its styled runs.
   final List<SourceLine> lines;
+
+  /// Called with the offset in [text] a double tap fell on.
+  final ValueChanged<int>? onEditAt;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +45,11 @@ class NoteSourceText extends StatelessWidget {
       itemBuilder: (context, at) {
         final line = lines[at];
         if (line.end == line.start) {
-          return ExcludeSemantics(child: SizedBox(height: blankHeight));
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onDoubleTap: onEditAt == null ? null : () => onEditAt!(line.start),
+            child: ExcludeSemantics(child: SizedBox(height: blankHeight)),
+          );
         }
         final spans = <InlineSpan>[];
         var cursor = line.start;
@@ -46,7 +62,11 @@ class NoteSourceText extends StatelessWidget {
           spans.add(
             TextSpan(
               text: text.substring(run.range.start, run.range.end),
-              style: styleOf(run),
+              style: runStyle(
+                color: run.color,
+                italic: run.italic,
+                weight: run.weight,
+              ),
             ),
           );
           cursor = run.range.end;
@@ -54,20 +74,47 @@ class NoteSourceText extends StatelessWidget {
         if (cursor < line.end) {
           spans.add(TextSpan(text: text.substring(cursor, line.end)));
         }
-        return Text.rich(TextSpan(style: base, children: spans));
+        final span = TextSpan(style: base, children: spans);
+        if (onEditAt == null) {
+          return Text.rich(span);
+        }
+        return Builder(
+          builder: (lineContext) {
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTapDown: (tap) {
+                final paragraph = paragraphIn(lineContext);
+                if (paragraph != null) {
+                  final at = paragraph.getPositionForOffset(tap.localPosition);
+                  onEditAt!(line.start + at.offset);
+                }
+              },
+              child: Text.rich(span),
+            );
+          },
+        );
       },
     );
   }
 
-  /// The style a run asks for: only what it names, over the plain text.
-  static TextStyle styleOf(StyledRun run) {
-    final weight = run.weight;
-    return TextStyle(
-      color: run.color == null ? null : Color(0xFF000000 | run.color!),
-      fontStyle: run.italic ?? false ? FontStyle.italic : null,
-      fontWeight: weight == null
-          ? null
-          : FontWeight.values[((weight / 100).round() - 1).clamp(0, 8)],
-    );
+  /// The paragraph a line is drawn in, found below [context].
+  static RenderParagraph? paragraphIn(BuildContext context) {
+    RenderParagraph? found;
+    void visit(RenderObject object) {
+      if (found != null) {
+        return;
+      }
+      if (object is RenderParagraph) {
+        found = object;
+      } else {
+        object.visitChildren(visit);
+      }
+    }
+
+    final root = context.findRenderObject();
+    if (root != null) {
+      visit(root);
+    }
+    return found;
   }
 }

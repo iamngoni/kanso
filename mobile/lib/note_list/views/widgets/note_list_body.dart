@@ -27,6 +27,7 @@ class NoteListBody extends StatelessWidget {
     required this.state,
     required this.index,
     this.openNoteId,
+    this.bottomClearance = 0,
     super.key,
   });
 
@@ -35,6 +36,9 @@ class NoteListBody extends StatelessWidget {
 
   /// The note open beside the list.
   final String? openNoteId;
+
+  /// How much room the notes leave below the last one for a button afloat.
+  final double bottomClearance;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +80,7 @@ class NoteListBody extends StatelessWidget {
         index: index,
         location: BrowseLocation.place(place),
         openNoteId: openNoteId,
+        bottomClearance: bottomClearance,
       ),
     };
   }

@@ -41,7 +41,7 @@ Widget _threePanes() {
   return _scaffold(
     const TabletLayout(
       library: LibraryPane(location: _allNotes),
-      list: NoteListPane(openNoteId: MockIds.syncDesign),
+      list: NoteListPane(openNoteId: MockIds.syncDesign, beside: true),
       note: NotePane(inPane: true),
     ),
   );
@@ -124,7 +124,10 @@ void main() {
                 edgeDragEnabled: true,
                 child: _scaffold(
                   const ListNoteLayout(
-                    list: NoteListPane(openNoteId: MockIds.syncDesign),
+                    list: NoteListPane(
+                      openNoteId: MockIds.syncDesign,
+                      beside: true,
+                    ),
                     note: NotePane(inPane: true),
                   ),
                 ),

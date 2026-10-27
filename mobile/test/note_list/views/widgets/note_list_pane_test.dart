@@ -15,6 +15,7 @@ import 'package:kanso/core/views/widgets/kanso_skeleton.dart';
 import 'package:kanso/core/views/widgets/kanso_top_bar.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
 import 'package:kanso/note_list/views/widgets/list_options_sheet.dart';
+import 'package:kanso/note_list/views/widgets/new_note_button.dart';
 import 'package:kanso/note_list/views/widgets/note_list_pane.dart';
 import 'package:kanso/note_list/views/widgets/note_list_row.dart';
 
@@ -512,5 +513,91 @@ void main() {
         );
       });
     }
+  });
+
+  group('NoteListPane new notes', () {
+    testWidgets('a phone has a button afloat that asks for a note in the '
+        'place', (tester) async {
+      final blocs = await BrowseBlocs.start();
+      final list = await blocs.listOf(const ListPlace.pinned());
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NoteListPane(), list: list),
+        ),
+      );
+      expect(find.byType(NewNoteButton), findsOneWidget);
+      // The bar has no button of its own then.
+      expect(
+        find.descendant(
+          of: find.byType(KansoTopBar),
+          matching: find.bySemanticsLabel('New note'),
+        ),
+        findsNothing,
+      );
+      await tester.tap(find.byType(NewNoteButton));
+      await tester.pump();
+      expect(blocs.library.created.single.place, const ListPlace.pinned());
+    });
+
+    testWidgets('beside the note the button is in the bar, not afloat', (
+      tester,
+    ) async {
+      final blocs = await BrowseBlocs.start();
+      final list = await blocs.listOf(const ListPlace.all());
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NoteListPane(beside: true), list: list),
+        ),
+      );
+      expect(find.byType(NewNoteButton), findsNothing);
+      await tester.tap(find.bySemanticsLabel('New note'));
+      await tester.pump();
+      expect(blocs.library.created.single.place, const ListPlace.all());
+    });
+
+    testWidgets('the button is not afloat while notes are being chosen', (
+      tester,
+    ) async {
+      final blocs = await BrowseBlocs.start();
+      final list = await blocs.listOf(const ListPlace.all());
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NoteListPane(), list: list),
+        ),
+      );
+      list.add(const NoteListEvent.selectionStarted(MockIds.syncDesign));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(NewNoteButton), findsNothing);
+    });
+
+    testWidgets('a locked notebook says it has to be unlocked, until the '
+        'line is dismissed', (tester) async {
+      final blocs = await BrowseBlocs.start();
+      blocs.library.createResult = const Left<ApplicationError, Saved>(
+        ApplicationError.locked(message: 'locked'),
+      );
+      final list = await blocs.listOf(
+        const ListPlace.notebook(id: MockIds.kanso),
+      );
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NoteListPane(), list: list),
+        ),
+      );
+      await tester.tap(find.byType(NewNoteButton));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Unlock this notebook to add notes to it.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Unlock this notebook'), findsNothing);
+    });
   });
 }

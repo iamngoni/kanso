@@ -394,10 +394,13 @@ impl Library {
 
     /// The notebook a new note goes into: the selected one, else the first.
     pub fn default_book(&self) -> Option<String> {
-        match &self.filter {
-            Filter::Book(id) => Some(id.clone()),
-            _ => self.books.first().map(|b| b.id.clone()),
-        }
+        kanso_engine::list::new_note_target(
+            &self.filter,
+            kanso_engine::list::Narrowing::default(),
+            None,
+            &self.books,
+        )
+        .book_id
     }
 
     /// Notebooks in tree order with their depth.

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
+import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/library_index_status.dart';
@@ -18,6 +19,7 @@ import '../../../core/utils/tag_row_color.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_dot.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
+import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_search_field.dart';
@@ -26,6 +28,7 @@ import '../../../core/views/widgets/kanso_sidebar_row.dart';
 import 'library_header.dart';
 import 'library_loading_rows.dart';
 import 'library_place_row.dart';
+import 'new_notebook_sheet.dart';
 
 /// The library: the app's mark and settings, a search field, then All
 /// Notes, Templates (when there is a notebook of that role), Pinned and
@@ -149,7 +152,17 @@ class LibraryPane extends StatelessWidget {
                         label: l10n.libraryRecent,
                         selected: current == const ListPlace.recent(),
                       ),
-                      KansoSectionHeader(label: l10n.libraryNotebooks),
+                      KansoSectionHeader(
+                        label: l10n.libraryNotebooks,
+                        trailing: <Widget>[
+                          KansoIconButton(
+                            icon: KansoIcons.plus,
+                            semanticLabel: l10n.libraryNewNotebook,
+                            iconSize: KansoSizes.iconSmall + 2,
+                            onPressed: () => NewNotebookSheet.open(context),
+                          ),
+                        ],
+                      ),
                       if (index.notebooks.every(
                         (book) => book.role == NotebookRole.templates,
                       ))

@@ -13,6 +13,7 @@ use kanso_engine::lock::{self, Session as KeySession};
 use kanso_sync::lock::{Envelope, LockError, LockKey};
 
 use crate::boundary::{guard, held};
+use crate::editing::Editors;
 use crate::errors::KansoError;
 use crate::library::{Inner, Library};
 use crate::model::{LockEvent, LockReason, Saved};
@@ -148,14 +149,18 @@ impl LockSession {
         }
     }
 
-    /// Forgets the keys, and tells listeners if any were held.
+    /// Forgets the keys, and tells listeners if any were held. The notes
+    /// open for editing are saved, sealed, before the keys go, and their
+    /// text is wiped from memory after.
     fn close(&self, reason: LockReason) {
+        let editing = self.inner.editors.begin_lock();
         let was_open = {
             let mut keys = held(&self.inner.keys);
             let was_open = keys.is_unlocked();
             keys.replace(None, Instant::now());
             was_open
         };
+        Editors::finish_lock(editing);
         if was_open {
             self.inner.lock_events.send(LockEvent::Locked { reason });
         }

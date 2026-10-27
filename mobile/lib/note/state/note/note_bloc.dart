@@ -15,8 +15,11 @@ import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/models/repos/abs/renderer_repository.dart';
 import '../../../core/utils/debounce.dart';
 import '../../../core/utils/source_lines.dart';
+import '../../models/data/note_mode.dart';
+import '../../models/data/note_place.dart';
 import '../../models/data/note_screen_status.dart';
 import '../../models/data/source_line.dart';
+import '../../models/repos/abs/note_place_repository.dart';
 
 part 'note_bloc.freezed.dart';
 part 'note_event.dart';
@@ -32,14 +35,21 @@ const Duration noteDebounce = Duration(milliseconds: 100);
 ///
 /// A note that is locked and closed is its title and its lock: its text is
 /// never highlighted, cut or kept, whatever the library handed over.
+///
+/// While the note is edited ([NoteMode.edit]) the editor has the text; the
+/// library's writes (the editor's own saves) are not read again until the
+/// note is read again, in Preview.
 @injectable
 class NoteBloc extends Bloc<NoteEvent, NoteState> {
-  NoteBloc(this._library, this._renderer) : super(const NoteState()) {
+  NoteBloc(this._library, this._renderer, this._places)
+    : super(const NoteState()) {
     on<NoteStartedEvent>(_onStarted, transformer: restartable());
     on<NoteChangesReceivedEvent>(
-      (event, emit) => _read(emit),
+      _onChangesReceived,
       transformer: debounceRestartable<NoteChangesReceivedEvent>(noteDebounce),
     );
+    on<NoteModeChangedEvent>(_onModeChanged);
+    on<NotePlaceKeptEvent>(_onPlaceKept);
     on<NoteSyntaxThemeChangedEvent>(
       _onSyntaxThemeChanged,
       transformer: restartable(),
@@ -52,14 +62,29 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
 
   final LibraryRepository _library;
   final RendererRepository _renderer;
+  final NotePlaceRepository _places;
   StreamSubscription<List<String>>? _changes;
   int _reading = 0;
+
+  /// Whether the note was written while it was edited, and so is out of
+  /// date in the state.
+  bool _stale = false;
 
   Future<void> _onStarted(
     NoteStartedEvent event,
     Emitter<NoteState> emit,
   ) async {
-    emit(NoteState(noteId: event.id, themeId: event.themeId));
+    // A note just made opens ready to write in.
+    final fresh = _places.takeOpenedNew(event.id);
+    emit(
+      NoteState(
+        noteId: event.id,
+        themeId: event.themeId,
+        mode: fresh ? NoteMode.edit : NoteMode.preview,
+        openedNew: fresh,
+      ),
+    );
+    _stale = false;
     await _changes?.cancel();
     _changes = _library.changes().listen((ids) {
       // Only a write to this note reads it again.
@@ -68,6 +93,48 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
       }
     });
     await _read(emit);
+  }
+
+  Future<void> _onChangesReceived(
+    NoteChangesReceivedEvent event,
+    Emitter<NoteState> emit,
+  ) async {
+    if (state.mode == NoteMode.edit) {
+      _stale = true;
+      return;
+    }
+    await _read(emit);
+  }
+
+  Future<void> _onModeChanged(
+    NoteModeChangedEvent event,
+    Emitter<NoteState> emit,
+  ) async {
+    final editing = event.mode == NoteMode.edit;
+    final tapped = event.bodyCaret;
+    final place = editing ? _places.placeOf(state.noteId) : null;
+    emit(
+      state.copyWith(
+        mode: event.mode,
+        caret: !editing ? null : tapped ?? place?.caret,
+        caretInBody: editing && tapped != null,
+        // A tap names where to look; otherwise the page is where it was.
+        scroll: tapped == null ? place?.scroll ?? 0 : 0,
+      ),
+    );
+    if (!editing && _stale) {
+      _stale = false;
+      await _read(emit);
+    }
+  }
+
+  void _onPlaceKept(NotePlaceKeptEvent event, Emitter<NoteState> emit) {
+    if (state.noteId.isNotEmpty) {
+      _places.keep(
+        state.noteId,
+        NotePlace(caret: event.caret, scroll: event.scroll),
+      );
+    }
   }
 
   Future<void> _onSyntaxThemeChanged(

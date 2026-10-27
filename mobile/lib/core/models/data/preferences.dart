@@ -44,6 +44,10 @@ abstract class Preferences with _$Preferences {
     /// Whether the notice that this phone's notes are not in device backups
     /// has been shown.
     @Default(false) bool backupNoticeSeen,
+
+    /// The notebook new notes go in, unless they are made from a notebook's
+    /// own list. Null, or one that is gone or locked, is the first notebook.
+    String? defaultNotebookId,
   }) = _Preferences;
 
   factory Preferences.fromJson(Map<String, dynamic> json) =>

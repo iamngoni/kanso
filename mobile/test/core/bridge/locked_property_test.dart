@@ -4,14 +4,18 @@
 
 import 'dart:math';
 
+import 'package:dartz/dartz.dart' show Either;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glados/glados.dart'
     show ExploreConfig, Glados2, IntAnys, ListAnys, any;
 import 'package:kanso/core/bridge/api/library.dart';
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/repos/impl/rust_library_repository.dart';
 import 'package:kanso/core/models/repos/impl/rust_renderer_repository.dart';
 import 'package:kanso/core/models/repos/impl/rust_session_repository.dart';
+import 'package:kanso/editor/models/repos/abs/editor_repository.dart';
+import 'package:kanso/editor/models/repos/impl/rust_editor_repository.dart';
 
 import '../../helpers/core_library.dart';
 import '../../helpers/dump.dart';
@@ -42,9 +46,51 @@ void main() {
     expect(dump(await notes.library.note(id)), isNot(contains(_marker)));
   });
 
+  // The same for a note open for editing: its session shows the text while
+  // the lock is open, and once it closes the session is over and says only so.
+  test(
+    'control: a session shows the marker while open, nothing after',
+    () async {
+      final library = await openTestLibrary();
+      final notes = LibraryRepositoryUnderTest(library);
+      final id = await makeNote(
+        library,
+        'Title',
+        '---\nowner: $_marker\n---\nbody of $_marker',
+      );
+      await library.locks().lockNote(id: id, password: lockPassword);
+      final document = (await notes.editor.open(id)).getOrElse(
+        () => throw StateError('the open note did not open'),
+      );
+      expect(dump(await document.snapshot()), contains(_marker));
+      expect(
+        dump(
+          await document.styledRuns(start: 0, end: 20, themeId: 'kanso-light'),
+        ),
+        isNotEmpty,
+      );
+      await library.locks().lock();
+      for (final result in <Either<ApplicationError, Object?>>[
+        await document.snapshot(),
+        await document.styledRuns(start: 0, end: 20, themeId: 'kanso-light'),
+        await document.completion(),
+        await document.flush(),
+        document.undo(),
+        await notes.editor.open(id),
+      ]) {
+        expect(dump(result), isNot(contains(_marker)));
+        expect(
+          result.isLeft(),
+          isTrue,
+          reason: dump(result),
+        );
+      }
+    },
+  );
+
   Glados2<int, List<int>>(
     any.intInRange(1, 8),
-    any.listWithLengthInRange(1, 14, any.intInRange(0, 50)),
+    any.listWithLengthInRange(1, 14, any.intInRange(0, 85)),
     ExploreConfig(random: Random(20261017), numRuns: 10),
   ).test(
     'a closed note never returns its text, whatever is asked',
@@ -75,10 +121,13 @@ void main() {
       var closed = true;
       var unlocks = 0;
       final seen = StringBuffer();
+      // The notes open for editing, and those whose session the lock ended.
+      final documents = <int, EditorDocument>{};
+      final ended = <int>{};
 
       Future<String> perform(int operation) async {
-        final index = operation ~/ 10 % 3;
-        switch (operation % 10) {
+        final index = operation ~/ 14 % 3;
+        switch (operation % 14) {
           case 0:
             final place = <ListPlace>[
               const ListPlace.all(),
@@ -136,7 +185,83 @@ void main() {
             );
           case 8:
             closed = true;
-            return dump(await notes.session.lock());
+            final locked = await notes.session.lock();
+            // Sessions on locked notes end with the lock.
+            ended.addAll(
+              documents.keys.where(lockedIndexes.contains),
+            );
+            return dump(locked);
+          case 10:
+            // Opening a note for editing: refused while it is closed.
+            final opened = await notes.editor.open(ids[index]);
+            final isClosed = closed && lockedIndexes.contains(index);
+            expect(opened.isLeft(), isClosed, reason: 'opening $index');
+            opened.fold(
+              (error) {
+                expect(error, isA<LockedError>());
+              },
+              (document) {
+                documents[index] = document;
+                ended.remove(index);
+              },
+            );
+            return dump(opened.map((_) => 'a document'));
+          case 11:
+            // Every call of a session: all of them refused once it ended,
+            // none of them holding a closed note's text.
+            final document = documents[index];
+            if (document == null) {
+              return 'no session';
+            }
+            final snapshot = await document.snapshot();
+            final version = snapshot.fold((_) => 0, (s) => s.version);
+            final results = <Either<ApplicationError, Object?>>[
+              snapshot,
+              await document.styledRuns(
+                start: 0,
+                end: 200,
+                themeId: 'kanso-light',
+              ),
+              await document.completion(),
+              await document.linkAt(0),
+              await document.setProperty(key: 'added', value: '1'),
+              await document.flush(),
+              document.select(
+                const Range16(start: 0, end: 0),
+                composing: false,
+              ),
+              document.undo(),
+              document.apply(
+                TextChange(
+                  baseVersion: version,
+                  start: 0,
+                  end: 0,
+                  text: '[[T',
+                  selection: const Range16(start: 3, end: 3),
+                ),
+              ),
+            ];
+            for (final result in results) {
+              final failed = result.swap().toOption();
+              if (ended.contains(index)) {
+                expect(failed.isSome(), isTrue, reason: 'an ended session');
+                expect(failed.toNullable(), isA<LockedError>());
+              } else {
+                expect(failed.isNone(), isTrue, reason: dump(result));
+              }
+            }
+            return dump(results);
+          case 12:
+            // Typing `[[` and asking what it completes: titles.
+            final document = documents[index];
+            if (document == null) {
+              return 'no session';
+            }
+            final completion = await document.completion();
+            final text = dump(completion);
+            // Titles only, whoever asks and whatever is open.
+            expect(text, isNot(contains(_marker)));
+            return text;
           default:
             // Real key derivation: a few times a case, not more.
             if (unlocks >= 2) {
@@ -191,9 +316,11 @@ class LibraryRepositoryUnderTest {
   LibraryRepositoryUnderTest(KansoLibrary library)
     : library = RustLibraryRepository(library),
       session = RustSessionRepository(library.locks()),
-      renderer = RustRendererRepository(library.renderer());
+      renderer = RustRendererRepository(library.renderer()),
+      editor = RustEditorRepository(library);
 
   final RustLibraryRepository library;
   final RustSessionRepository session;
   final RustRendererRepository renderer;
+  final RustEditorRepository editor;
 }

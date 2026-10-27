@@ -17,7 +17,8 @@
 //! against candidates; [`daily`] makes daily notes and notes from templates;
 //! [`tasks`] reads due dates and decides reminders; [`edit`] turns the
 //! formatting toolbar, auto-pairing and Tab and Enter in lists and tables
-//! into one change to the text; [`text`] converts offsets between UTF-8 and
+//! into one change to the text; [`saving`] decides when typing is written
+//! and when another writer's version is no conflict; [`text`] converts offsets between UTF-8 and
 //! UTF-16; [`theme`] has the palettes, the theme file format and how three
 //! themes are fitted together for drawing; and `highlight` (the `highlight`
 //! feature, with the `code-grammars` feature for the code in fenced blocks)
@@ -44,6 +45,7 @@ pub mod highlight;
 pub mod links;
 pub mod list;
 pub mod lock;
+pub mod saving;
 #[cfg(any(test, feature = "test-support"))]
 pub mod strategies;
 pub mod sync;

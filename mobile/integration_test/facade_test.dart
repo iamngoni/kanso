@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../test/core/bridge/suites/diagnostics_suite.dart';
+import '../test/core/bridge/suites/editor_suite.dart';
 import '../test/core/bridge/suites/library_suite.dart';
 import '../test/core/bridge/suites/locks_suite.dart';
 import '../test/core/bridge/suites/renderer_suite.dart';
@@ -43,6 +44,7 @@ void main() {
   syncSuite(openDeviceLibrary);
   rendererSuite(openDeviceLibrary);
   diagnosticsSuite(openDeviceLibrary);
+  editorSuite(openDeviceLibrary);
 
   group('the platform verifier', () {
     test(

@@ -17,7 +17,13 @@ import 'injection.dart';
 import 'providers.dart';
 
 /// Prepares the app and runs it for [environment].
-Future<void> bootstrap(AppEnvironment environment) async {
+///
+/// [beforeRun], for the performance bench, is awaited once the app's parts
+/// are ready and before the first frame (to set up a library, say).
+Future<void> bootstrap(
+  AppEnvironment environment, {
+  Future<void> Function()? beforeRun,
+}) async {
   WidgetsFlutterBinding.ensureInitialized();
   registerBundledLicenses();
   // The Rust core: its library is loaded (the build puts it in the app)
@@ -36,6 +42,7 @@ Future<void> bootstrap(AppEnvironment environment) async {
   await appearance.stream.firstWhere(
     (state) => state.status != AppearanceStatus.loading,
   );
+  await beforeRun?.call();
   runApp(
     AppProviders(
       appearance: appearance,

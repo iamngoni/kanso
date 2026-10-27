@@ -12,6 +12,7 @@ import '../../note/views/pages/note_page.dart';
 import '../../note/views/widgets/no_note_selected_pane.dart';
 import '../../note_list/views/pages/note_list_page.dart';
 import '../../search/views/pages/search_page.dart';
+import '../../settings/views/pages/default_notebook_page.dart';
 import '../../settings/views/pages/fonts_page.dart';
 import '../../settings/views/pages/licences_page.dart';
 import '../../settings/views/pages/settings_page.dart';
@@ -138,6 +139,13 @@ class KansoRouter {
                 child: const SettingsPage(),
               ),
               routes: <RouteBase>[
+                GoRoute(
+                  path: 'notebook',
+                  pageBuilder: (context, state) => CupertinoPage<void>(
+                    key: state.pageKey,
+                    child: const DefaultNotebookPage(),
+                  ),
+                ),
                 GoRoute(
                   path: 'theme',
                   pageBuilder: (context, state) => CupertinoPage<void>(

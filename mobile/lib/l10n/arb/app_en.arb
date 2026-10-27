@@ -183,6 +183,10 @@
   "@accessoryOutdent": {
     "description": "A keyboard shortcut that outdents a line."
   },
+  "accessoryRedo": "Redo",
+  "@accessoryRedo": {
+    "description": "What the undo key of the keyboard bar does when it is held, for a screen reader's list of actions."
+  },
   "accessoryUndo": "Undo",
   "@accessoryUndo": {
     "description": "A keyboard shortcut that undoes the last change."
@@ -194,6 +198,22 @@
   "settingsClose": "Close",
   "@settingsClose": {
     "description": "Closes a page."
+  },
+  "settingsGeneral": "General",
+  "@settingsGeneral": {
+    "description": "A section of settings."
+  },
+  "settingsDefaultNotebook": "Default notebook",
+  "@settingsDefaultNotebook": {
+    "description": "The notebook new notes go to."
+  },
+  "defaultNotebookFirst": "First notebook",
+  "@defaultNotebookFirst": {
+    "description": "The choice of the first notebook in the library as the one new notes go to."
+  },
+  "defaultNotebookFooter": "New notes go here, except those made from a notebook's own list. A locked notebook can't be chosen.",
+  "@defaultNotebookFooter": {
+    "description": "The note under the notebooks that can be the default one."
   },
   "settingsAppearance": "Appearance",
   "@settingsAppearance": {
@@ -303,10 +323,6 @@
   "@appearanceDark": {
     "description": "Always dark."
   },
-  "screenNoteEdit": "Note, edit",
-  "@screenNoteEdit": {
-    "description": "The name of a mock screen."
-  },
   "screenError": "Error card",
   "@screenError": {
     "description": "The name of a mock screen."
@@ -410,6 +426,81 @@
   "textSizeLarger": "Larger",
   "@textSizeLarger": {
     "description": "The largest text size."
+  },
+  "editorTitleHint": "Title",
+  "@editorTitleHint": {
+    "description": "What the empty title field of a note being edited says."
+  },
+  "editorChangedMessage": "This note was changed elsewhere while you were editing. The version you don't keep stays in its history.",
+  "@editorChangedMessage": {
+    "description": "Says a note was changed elsewhere while it was being edited."
+  },
+  "editorKeepMine": "Keep mine",
+  "@editorKeepMine": {
+    "description": "Keeps the text typed here over a change made elsewhere."
+  },
+  "editorUseTheirs": "Use theirs",
+  "@editorUseTheirs": {
+    "description": "Takes a change made elsewhere over the text typed here."
+  },
+  "editorDeletedMessage": "This note was deleted elsewhere while you were editing.",
+  "@editorDeletedMessage": {
+    "description": "Says a note was deleted elsewhere while it was being edited."
+  },
+  "editorKeepIt": "Keep it",
+  "@editorKeepIt": {
+    "description": "Keeps a note that was deleted elsewhere, by saving it again."
+  },
+  "editorDiscard": "Discard",
+  "@editorDiscard": {
+    "description": "Lets go of a note that was deleted elsewhere."
+  },
+  "editorSaveFailed": "Your changes aren't saved yet.",
+  "@editorSaveFailed": {
+    "description": "Says that saving a note failed."
+  },
+  "editorOpeningLabel": "Opening the note",
+  "@editorOpeningLabel": {
+    "description": "What a screen reader says while a note is opened for editing."
+  },
+  "propertiesAdd": "Add property",
+  "@propertiesAdd": {
+    "description": "Adds a property to the note."
+  },
+  "propertiesName": "Name",
+  "@propertiesName": {
+    "description": "The hint of the field for the name of a new property."
+  },
+  "propertiesValue": "Value",
+  "@propertiesValue": {
+    "description": "The hint of the field for the value of a property."
+  },
+  "propertiesRemove": "Remove {name}",
+  "@propertiesRemove": {
+    "description": "Removes a property from the note; for a screen reader.",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "propertiesConfirmAdd": "Add",
+  "@propertiesConfirmAdd": {
+    "description": "Adds the property that was just named."
+  },
+  "propertiesCancelAdd": "Cancel",
+  "@propertiesCancelAdd": {
+    "description": "Gives up on adding a property."
+  },
+  "propertiesFailed": "That property couldn't be set.",
+  "@propertiesFailed": {
+    "description": "Says that a property of the note could not be set."
+  },
+  "propertiesShow": "Show properties",
+  "@propertiesShow": {
+    "description": "What the row of properties does when it is closed, for a screen reader."
+  },
+  "propertiesHide": "Hide properties",
+  "@propertiesHide": {
+    "description": "What the row of properties does when it is open, for a screen reader."
   },
   "noteModeLabel": "View mode",
   "@noteModeLabel": {
@@ -643,6 +734,42 @@
   "@noteListChangeLocked": {
     "description": "The line shown when notes could not be moved into or out of a locked notebook."
   },
+  "libraryNewNotebook": "New notebook",
+  "@libraryNewNotebook": {
+    "description": "What the add button of the notebooks header does."
+  },
+  "newNotebookTitle": "New notebook",
+  "@newNotebookTitle": {
+    "description": "The title of the sheet that makes a notebook."
+  },
+  "newNotebookNameHint": "Name",
+  "@newNotebookNameHint": {
+    "description": "The hint, and the label, of the field for a new notebook's name."
+  },
+  "newNotebookCreate": "Create",
+  "@newNotebookCreate": {
+    "description": "The button that makes the notebook."
+  },
+  "newNotebookInvalid": "Give the notebook a name.",
+  "@newNotebookInvalid": {
+    "description": "The line shown when a new notebook's name is empty or not accepted."
+  },
+  "newNotebookFailed": "The notebook couldn't be made. Try again.",
+  "@newNotebookFailed": {
+    "description": "The line shown when a notebook could not be made."
+  },
+  "noteListNewNote": "New note",
+  "@noteListNewNote": {
+    "description": "What the add button of the note list does."
+  },
+  "noteListNewNoteLocked": "Unlock this notebook to add notes to it.",
+  "@noteListNewNoteLocked": {
+    "description": "The line shown when a new note was asked for in a notebook that is locked."
+  },
+  "noteListNewNoteFailed": "The note couldn't be made. Try again.",
+  "@noteListNewNoteFailed": {
+    "description": "The line shown when a new note could not be made."
+  },
   "noteListDismiss": "OK",
   "@noteListDismiss": {
     "description": "The button that closes the line that says a change did not happen."
@@ -686,6 +813,22 @@
   "menuSelectAll": "Select All",
   "@menuSelectAll": {
     "description": "The button of a text field's menu that selects all of its text."
+  },
+  "menuDelete": "Delete",
+  "@menuDelete": {
+    "description": "The button of the spelling menu that deletes the misspelled word."
+  },
+  "menuOpenLink": "Open link",
+  "@menuOpenLink": {
+    "description": "The button of the editor's menu that opens the link the caret is in."
+  },
+  "completionAnnouncement": "{count, plural, =1{1 suggestion} other{{count} suggestions}}, {label} selected",
+  "@completionAnnouncement": {
+    "description": "What a screen reader says when suggestions for a link or a tag appear: how many, and which one is selected.",
+    "placeholders": {
+      "count": {"type": "int"},
+      "label": {"type": "String"}
+    }
   },
   "searchIdleTitle": "Search your notes",
   "@searchIdleTitle": {

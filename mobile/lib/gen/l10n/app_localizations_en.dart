@@ -153,6 +153,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accessoryOutdent => 'Outdent';
 
   @override
+  String get accessoryRedo => 'Redo';
+
+  @override
   String get accessoryUndo => 'Undo';
 
   @override
@@ -160,6 +163,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsClose => 'Close';
+
+  @override
+  String get settingsGeneral => 'General';
+
+  @override
+  String get settingsDefaultNotebook => 'Default notebook';
+
+  @override
+  String get defaultNotebookFirst => 'First notebook';
+
+  @override
+  String get defaultNotebookFooter =>
+      'New notes go here, except those made from a notebook\'s own list. A locked notebook can\'t be chosen.';
 
   @override
   String get settingsAppearance => 'Appearance';
@@ -245,9 +261,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceDark => 'Dark';
 
   @override
-  String get screenNoteEdit => 'Note, edit';
-
-  @override
   String get screenError => 'Error card';
 
   @override
@@ -326,6 +339,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get textSizeLarger => 'Larger';
+
+  @override
+  String get editorTitleHint => 'Title';
+
+  @override
+  String get editorChangedMessage =>
+      'This note was changed elsewhere while you were editing. The version you don\'t keep stays in its history.';
+
+  @override
+  String get editorKeepMine => 'Keep mine';
+
+  @override
+  String get editorUseTheirs => 'Use theirs';
+
+  @override
+  String get editorDeletedMessage =>
+      'This note was deleted elsewhere while you were editing.';
+
+  @override
+  String get editorKeepIt => 'Keep it';
+
+  @override
+  String get editorDiscard => 'Discard';
+
+  @override
+  String get editorSaveFailed => 'Your changes aren\'t saved yet.';
+
+  @override
+  String get editorOpeningLabel => 'Opening the note';
+
+  @override
+  String get propertiesAdd => 'Add property';
+
+  @override
+  String get propertiesName => 'Name';
+
+  @override
+  String get propertiesValue => 'Value';
+
+  @override
+  String propertiesRemove(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String get propertiesConfirmAdd => 'Add';
+
+  @override
+  String get propertiesCancelAdd => 'Cancel';
+
+  @override
+  String get propertiesFailed => 'That property couldn\'t be set.';
+
+  @override
+  String get propertiesShow => 'Show properties';
+
+  @override
+  String get propertiesHide => 'Hide properties';
 
   @override
   String get noteModeLabel => 'View mode';
@@ -510,6 +581,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'Locked notebooks can\'t take or give up notes here yet.';
 
   @override
+  String get libraryNewNotebook => 'New notebook';
+
+  @override
+  String get newNotebookTitle => 'New notebook';
+
+  @override
+  String get newNotebookNameHint => 'Name';
+
+  @override
+  String get newNotebookCreate => 'Create';
+
+  @override
+  String get newNotebookInvalid => 'Give the notebook a name.';
+
+  @override
+  String get newNotebookFailed => 'The notebook couldn\'t be made. Try again.';
+
+  @override
+  String get noteListNewNote => 'New note';
+
+  @override
+  String get noteListNewNoteLocked =>
+      'Unlock this notebook to add notes to it.';
+
+  @override
+  String get noteListNewNoteFailed => 'The note couldn\'t be made. Try again.';
+
+  @override
   String get noteListDismiss => 'OK';
 
   @override
@@ -544,6 +643,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get menuSelectAll => 'Select All';
+
+  @override
+  String get menuDelete => 'Delete';
+
+  @override
+  String get menuOpenLink => 'Open link';
+
+  @override
+  String completionAnnouncement(int count, String label) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count suggestions',
+      one: '1 suggestion',
+    );
+    return '$_temp0, $label selected';
+  }
 
   @override
   String get searchIdleTitle => 'Search your notes';

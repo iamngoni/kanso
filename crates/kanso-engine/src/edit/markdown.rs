@@ -194,6 +194,36 @@ fn heading(text: &str, selection: Range<usize>, level: u8) -> Edit {
     change_lines(text, block, vec![Some(change)], selection)
 }
 
+/// The heading button pressed again and again on the cursor's line: no
+/// heading becomes H1, H1 becomes H2, H2 becomes H3, and H3 (or deeper) is
+/// plain again.
+pub fn cycle_heading(text: &str, selection: Range<usize>) -> Edit {
+    let selection = clamp(text, selection);
+    let block = selected_lines(text, &(selection.start..selection.start));
+    let current = heading_marker(&text[block]).map(|(level, _)| level);
+    let level = match current {
+        None => 1,
+        Some(1) => 2,
+        Some(2) => 3,
+        // Taking it off is applying the level it has.
+        Some(level) => level,
+    };
+    heading(text, selection, level)
+}
+
+/// `[[` and `]]` around the selection (or nothing), with the caret before
+/// the closing brackets, where a title is typed or finished.
+pub fn wiki_brackets(text: &str, selection: Range<usize>) -> Edit {
+    let selection = clamp(text, selection);
+    let selected = &text[selection.clone()];
+    let caret = selection.start + 2 + selected.len();
+    Edit {
+        range: selection,
+        text: format!("[[{selected}]]"),
+        selection: caret..caret,
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ListKind {
     Bulleted,
@@ -796,6 +826,34 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn cycling_headings_goes_one_two_three_and_off() {
+        let mut text = "Goals\nnext".to_owned();
+        let mut selection = 2..2;
+        let mut seen = Vec::new();
+        for _ in 0..5 {
+            let edit = cycle_heading(&text, selection.clone());
+            text = edit.apply(&text);
+            selection = edit.selection;
+            seen.push(text.lines().next().unwrap().to_owned());
+        }
+        assert_eq!(
+            seen,
+            ["# Goals", "## Goals", "### Goals", "Goals", "# Goals"]
+        );
+        // Deeper headings are plain again at once.
+        assert_eq!(cycle_heading("#### Deep", 5..5).apply("#### Deep"), "Deep");
+    }
+
+    #[test]
+    fn brackets_wrap_the_selection_and_wait_before_the_closers() {
+        let edit = wiki_brackets("see Plan now", 4..8);
+        assert_eq!(edit.apply("see Plan now"), "see [[Plan]] now");
+        assert_eq!(edit.selection, 10..10);
+        let edit = wiki_brackets("a", 1..1);
+        assert_eq!((edit.apply("a"), edit.selection), ("a[[]]".into(), 3..3));
     }
 
     fn apply(format_: Format, text: &str, selection: Range<usize>) -> (String, String) {

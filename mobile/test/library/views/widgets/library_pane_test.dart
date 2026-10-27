@@ -14,6 +14,7 @@ import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer.dart';
+import 'package:kanso/core/views/widgets/kanso_icon_button.dart';
 import 'package:kanso/core/views/widgets/kanso_sidebar_row.dart';
 import 'package:kanso/library/views/widgets/library_pane.dart';
 
@@ -22,6 +23,7 @@ import '../../../helpers/fixture_library_repository.dart';
 import '../../../helpers/golden.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/pump_routed.dart';
+import '../../../helpers/register_page_blocs.dart';
 
 Future<LibraryIndexBloc> _readyIndex(
   WidgetTester tester,
@@ -58,9 +60,30 @@ void main() {
   setUp(() {
     library = FixtureLibraryRepository();
     addTearDown(() => unawaited(library.close()));
+    registerPageBlocs(library);
   });
 
   group('LibraryPane', () {
+    testWidgets('the notebooks header has a button that asks for a name and '
+        'goes to the new notebook', (tester) async {
+      final bloc = await _readyIndex(tester, library);
+      final router = await pumpRouted(tester, _pane(bloc));
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is KansoIconButton &&
+              widget.semanticLabel == 'New notebook',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(EditableText), 'Recipes');
+      await tester.pump();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      expect(library.notebooksCreated.single.$1, 'Recipes');
+      expect(topOf(router), startsWith('/notebooks/'));
+    });
+
     testWidgets('lists the places, notebooks and tags with their counts', (
       tester,
     ) async {

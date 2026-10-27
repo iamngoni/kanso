@@ -14,13 +14,16 @@ import '../../../core/views/widgets/kanso_top_bar.dart';
 ///
 /// Where the library is a drawer it has the menu that opens it and the
 /// button that opens search; with the library beside the list it has
-/// neither. [onOptions] opens how the list is sorted and narrowed.
+/// neither. [onOptions] opens how the list is sorted and narrowed, and
+/// [onNewNote], when the list has no button afloat over it, makes a new
+/// note.
 class NoteListTopBar extends StatelessWidget {
   const NoteListTopBar({
     required this.title,
     this.subtitle,
     this.onSearch,
     this.onOptions,
+    this.onNewNote,
     super.key,
   });
 
@@ -28,6 +31,7 @@ class NoteListTopBar extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onSearch;
   final VoidCallback? onOptions;
+  final VoidCallback? onNewNote;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +49,12 @@ class NoteListTopBar extends StatelessWidget {
       title: title,
       subtitle: subtitle,
       trailing: <Widget>[
+        if (onNewNote != null)
+          KansoIconButton(
+            icon: KansoIcons.plus,
+            semanticLabel: l10n.noteListNewNote,
+            onPressed: onNewNote,
+          ),
         if (drawer != null)
           KansoIconButton(
             icon: KansoIcons.search,

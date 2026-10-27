@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'editor.dart';
 import 'locks.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'renderer.dart';
@@ -20,6 +21,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<Saved> create({required NewNote note});
 
   Future<NotebookRow> createNotebook({required String name, String? parentId});
+
+  /// Opens note `id` for editing. Locked while it is locked and closed.
+  Future<KansoEditor> edit({required String id});
 
   Future<NoteList> list({required ListQuery query});
 

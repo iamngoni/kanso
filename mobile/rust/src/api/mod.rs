@@ -8,6 +8,7 @@
 //! data types field by field, so the compiler checks that they still match.
 
 pub mod diagnostics;
+pub mod editor;
 pub mod library;
 pub mod locks;
 pub mod renderer;

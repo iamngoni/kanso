@@ -7,7 +7,6 @@ import 'package:flutter/widgets.dart';
 import '../models/data/design_layout.dart';
 import '../models/data/design_screen.dart';
 import '../views/pages/error_mock_page.dart';
-import '../views/pages/note_edit_mock_page.dart';
 import '../views/pages/tablet_mock_page.dart';
 
 /// The page that draws [screen] for [layout].
@@ -16,7 +15,6 @@ Widget pageForScreen(DesignScreen screen, DesignLayout layout) {
     return TabletMockPage(screen: screen);
   }
   return switch (screen) {
-    DesignScreen.noteEdit => const NoteEditMockPage(),
     DesignScreen.error => const ErrorMockPage(),
   };
 }

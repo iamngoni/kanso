@@ -10,7 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/utils/source_lines.dart';
+import 'package:kanso/note/models/data/note_mode.dart';
+import 'package:kanso/note/models/data/note_place.dart';
 import 'package:kanso/note/models/data/note_screen_status.dart';
+import 'package:kanso/note/models/repos/impl/memory_note_place_repository.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -25,10 +28,12 @@ void main() {
   late MockLibraryRepository library;
   late MockRendererRepository renderer;
   late StreamController<List<String>> changes;
+  late MemoryNotePlaceRepository places;
   var note = mockOpenNote;
 
   setUp(() {
     note = mockOpenNote;
+    places = MemoryNotePlaceRepository();
     changes = StreamController<List<String>>.broadcast();
     addTearDown(changes.close);
     library = MockLibraryRepository();
@@ -51,7 +56,7 @@ void main() {
     );
   });
 
-  NoteBloc build() => NoteBloc(library, renderer);
+  NoteBloc build() => NoteBloc(library, renderer, places);
 
   void expectNoHighlighting() {
     verifyNever(
@@ -418,6 +423,102 @@ void main() {
         expect(bloc.state.status, NoteScreenStatus.locked);
       },
     );
+
+    group('the mode', () {
+      Future<NoteBloc> started() async {
+        final bloc = build()
+          ..add(const NoteEvent.started(MockIds.syncDesign, 'kanso-light'));
+        addTearDown(bloc.close);
+        await bloc.stream.firstWhere(
+          (state) => state.status == NoteScreenStatus.ready,
+        );
+        return bloc;
+      }
+
+      test('a note opens to read', () async {
+        final bloc = await started();
+        expect(bloc.state.mode, NoteMode.preview);
+        expect(bloc.state.caret, isNull);
+      });
+
+      test('a note just made opens to edit, once', () async {
+        places.markOpenedNew(MockIds.syncDesign);
+        final bloc = await started();
+        expect(bloc.state.mode, NoteMode.edit);
+        expect(bloc.state.openedNew, isTrue);
+        final again = build()
+          ..add(const NoteEvent.started(MockIds.syncDesign, 'kanso-light'));
+        addTearDown(again.close);
+        await again.stream.firstWhere(
+          (state) => state.status == NoteScreenStatus.ready,
+        );
+        expect(again.state.mode, NoteMode.preview);
+        expect(again.state.openedNew, isFalse);
+      });
+
+      test('edit with a tap names the caret in the whole body', () async {
+        final bloc = await started();
+        bloc.add(const NoteEvent.modeChanged(NoteMode.edit, bodyCaret: 42));
+        await bloc.stream.firstWhere((state) => state.mode == NoteMode.edit);
+        expect(bloc.state.caret, 42);
+        expect(bloc.state.caretInBody, isTrue);
+        expect(bloc.state.scroll, 0);
+        bloc.add(const NoteEvent.modeChanged(NoteMode.preview));
+        await bloc.stream.firstWhere((state) => state.mode == NoteMode.preview);
+        expect(bloc.state.caret, isNull);
+        expect(bloc.state.caretInBody, isFalse);
+      });
+
+      test('edit with no tap comes back to where it was left', () async {
+        final bloc = await started();
+        bloc
+          ..add(const NoteEvent.modeChanged(NoteMode.edit))
+          ..add(const NoteEvent.placeKept(17, 240.5))
+          ..add(const NoteEvent.modeChanged(NoteMode.preview));
+        await bloc.stream.firstWhere((state) => state.mode == NoteMode.preview);
+        expect(
+          places.placeOf(MockIds.syncDesign),
+          const NotePlace(caret: 17, scroll: 240.5),
+        );
+        bloc.add(const NoteEvent.modeChanged(NoteMode.edit));
+        final state = await bloc.stream.firstWhere(
+          (state) => state.mode == NoteMode.edit,
+        );
+        expect(state.caret, 17);
+        expect(state.caretInBody, isFalse);
+        expect(state.scroll, 240.5);
+      });
+
+      test('writes while editing are read once, on turning to read', () async {
+        final bloc = await started();
+        clearInteractions(library);
+        bloc.add(const NoteEvent.modeChanged(NoteMode.edit));
+        await bloc.stream.firstWhere((state) => state.mode == NoteMode.edit);
+        note = mockNote(title: 'Saved while editing', body: note.body);
+        changes.add(<String>[MockIds.syncDesign]);
+        await Future<void>.delayed(noteDebounce * 3);
+        verifyNever(() => library.note(any()));
+        expect(bloc.state.note?.title, isNot('Saved while editing'));
+        bloc.add(const NoteEvent.modeChanged(NoteMode.preview));
+        await bloc.stream.firstWhere(
+          (state) => state.note?.title == 'Saved while editing',
+        );
+        verify(() => library.note(MockIds.syncDesign)).called(1);
+      });
+
+      test('writes that came while reading are not read again', () async {
+        final bloc = await started();
+        clearInteractions(library);
+        changes.add(<String>[MockIds.syncDesign]);
+        await Future<void>.delayed(noteDebounce * 3);
+        verify(() => library.note(MockIds.syncDesign)).called(1);
+        bloc
+          ..add(const NoteEvent.modeChanged(NoteMode.edit))
+          ..add(const NoteEvent.modeChanged(NoteMode.preview));
+        await Future<void>.delayed(noteDebounce);
+        verifyNoMoreInteractions(library);
+      });
+    });
 
     test('stops listening to the library when it is closed', () async {
       final bloc = build()

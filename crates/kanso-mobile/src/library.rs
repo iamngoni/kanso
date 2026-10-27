@@ -14,6 +14,7 @@ use kanso_sync::{Backend, HttpBackend, KdfParams};
 
 use crate::backup;
 use crate::boundary::{guard, held};
+use crate::editing::Editors;
 use crate::errors::KansoError;
 use crate::locks::LockSession;
 use crate::model::{LockEvent, SyncStatus};
@@ -42,6 +43,8 @@ pub(crate) struct Inner {
     pub(crate) sync_gate: Mutex<()>,
     /// Set to stop the sync that is running.
     pub(crate) sync_cancel: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
+    /// The notes open for editing.
+    pub(crate) editors: Editors,
 }
 
 /// The libraries open in this process, by their database path. A background
@@ -101,6 +104,13 @@ impl Library {
         open.get(&key)
             .and_then(Weak::upgrade)
             .map(|inner| Library { inner })
+    }
+
+    /// The library's store, for tests that write to it as a sync would.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn store(&self) -> &kanso_store::Store {
+        &self.inner.store
     }
 
     /// The database file this library is.
@@ -205,6 +215,7 @@ fn open_inner(
     }
     let store = Arc::new(Store::open(&key)?);
     let mut keys = KeySession::default();
+    let manual_autosave = params.is_some();
     if let Some(params) = params {
         keys.set_params(params);
     }
@@ -219,6 +230,8 @@ fn open_inner(
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),
         sync_cancel: Mutex::new(None),
+        // A library made for tests saves typing when a test says so.
+        editors: Editors::new(manual_autosave),
     });
     open.retain(|_, inner| inner.strong_count() > 0);
     open.insert(key, Arc::downgrade(&inner));

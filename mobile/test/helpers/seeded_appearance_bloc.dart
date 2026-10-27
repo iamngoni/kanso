@@ -28,6 +28,26 @@ class ForgetfulPreferencesRepository implements PreferencesRepository {
   ) async => Right<ApplicationError, Preferences>(change(const Preferences()));
 }
 
+/// A preferences repository that starts with its seed and keeps what is saved
+/// for the run.
+class SeededPreferencesRepository implements PreferencesRepository {
+  SeededPreferencesRepository(this.current);
+
+  Preferences current;
+
+  @override
+  Future<Either<ApplicationError, Preferences>> load() async =>
+      Right<ApplicationError, Preferences>(current);
+
+  @override
+  Future<Either<ApplicationError, Preferences>> update(
+    Preferences Function(Preferences current) change,
+  ) async {
+    current = change(current);
+    return Right<ApplicationError, Preferences>(current);
+  }
+}
+
 /// An `AppearanceBloc` that starts in `seed` rather than the defaults, for
 /// pages whose picture depends on the person's choices. It saves nothing and
 /// has no themes to read besides Kanso's.

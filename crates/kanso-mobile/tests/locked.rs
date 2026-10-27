@@ -10,6 +10,14 @@
 //! payloads, which only ever carry IDs and states, are checked at the end for
 //! any marker at all. A model of which notes are closed (locked, and the
 //! session not open) decides what "closed" means; it never asks the library.
+//!
+//! Notes open for editing are in the sequence too: a session on a closed note
+//! is refused, every call of a session on an open one is checked like the
+//! rest (snapshots, runs, completions, links, properties), and when the lock
+//! closes the sessions on locked notes are saved sealed first, then return
+//! `Locked` and send `Closed` and nothing after it. What was typed in them
+//! comes back when the notes are opened again; the store holds none of it in
+//! the clear.
 
 mod common;
 
@@ -19,8 +27,8 @@ use std::time::{Duration, Instant};
 use common::*;
 use kanso_engine::lock::AUTO_LOCK;
 use kanso_mobile::{
-    KansoError, ListPlace, ListQuery, LockEvent, NoteChange, NoteRow, PaletteDto, Renderer,
-    SearchScope, SortKey,
+    EditorSession, KansoError, ListPlace, ListQuery, LockEvent, NoteChange, NoteRow, PaletteDto,
+    Range16, Renderer, SearchScope, SortKey, TextChange,
 };
 use proptest::prelude::*;
 
@@ -98,6 +106,10 @@ enum Op {
     SearchIn(usize, usize),
     CreateNotebook,
     SaveWithTag(usize),
+    EditOpen(usize),
+    EditCalls(usize),
+    EditType(usize),
+    TypeThenLock(usize),
 }
 
 fn ops() -> impl Strategy<Value = Vec<Op>> {
@@ -127,9 +139,48 @@ fn ops() -> impl Strategy<Value = Vec<Op>> {
             3 => (0..4usize, 0..5usize).prop_map(|(s, w)| Op::SearchIn(s, w)),
             1 => Just(Op::CreateNotebook),
             1 => index.clone().prop_map(Op::SaveWithTag),
+            3 => index.clone().prop_map(Op::EditOpen),
+            3 => index.clone().prop_map(Op::EditCalls),
+            2 => index.clone().prop_map(Op::EditType),
+            2 => index.clone().prop_map(Op::TypeThenLock),
         ],
         1..24,
     )
+}
+
+/// The events of a session, as debug text, in the order they came.
+type Log = Arc<Mutex<Vec<String>>>;
+
+fn listen(session: &EditorSession) -> Log {
+    let log: Log = Arc::default();
+    let sink = log.clone();
+    session.events(move |event| {
+        sink.lock().unwrap().push(format!("{event:?}"));
+        true
+    });
+    log
+}
+
+fn caret(at: u32) -> Range16 {
+    Range16 { start: at, end: at }
+}
+
+/// Types `text` at the start of the session's text. `Ok(false)` when the
+/// text changed under it meanwhile.
+fn type_first(session: &EditorSession, text: &str) -> Result<bool, KansoError> {
+    let version = session.snapshot()?.version;
+    match session.apply(TextChange {
+        base_version: version,
+        start: 0,
+        end: 0,
+        text: text.to_owned(),
+        selection: caret(text.encode_utf16().count() as u32),
+        composing: None,
+    }) {
+        Ok(_) => Ok(true),
+        Err(KansoError::Invalid { .. }) => Ok(false),
+        Err(err) => Err(err),
+    }
 }
 
 proptest! {
@@ -169,6 +220,11 @@ proptest! {
             }
         }
         let mut trashed = [false; NOTES];
+        // The sessions open for editing, which of them still work, and the
+        // events each one sent.
+        let mut sessions: Vec<Option<EditorSession>> = (0..NOTES).map(|_| None).collect();
+        let mut alive = [false; NOTES];
+        let mut logs: Vec<(usize, Log)> = Vec::new();
 
         for op in ops {
             // What is closed as this call starts, and what it returns, as text.
@@ -360,12 +416,100 @@ proptest! {
                         }
                     }
                 }
+                Op::EditOpen(i) => {
+                    match library.edit(&ids[*i]) {
+                        Ok(session) => {
+                            prop_assert!(!is_closed(&locked, open, *i));
+                            let snapshot = session.snapshot().unwrap();
+                            returned.push(format!("{snapshot:?}"));
+                            let log = listen(&session);
+                            logs.push((*i, log.clone()));
+                            sessions[*i] = Some(session);
+                            alive[*i] = true;
+                        }
+                        Err(err) => {
+                            prop_assert_eq!(err, KansoError::Locked);
+                            prop_assert!(is_closed(&locked, open, *i));
+                        }
+                    }
+                }
+                Op::EditCalls(i) => {
+                    if let Some(session) = &sessions[*i] {
+                        let shown = [
+                            session.snapshot().map(|s| format!("{s:?}")),
+                            session.styled_runs(0, 400, "kanso-light".into()).map(|r| format!("{r:?}")),
+                            session.completion().map(|c| {
+                                let text = format!("{c:?}");
+                                // Titles only: nothing of any note's text.
+                                assert!(!text.contains("SECRET-MARKER"), "{text}");
+                                text
+                            }),
+                            session.link_at(0).map(|l| format!("{l:?}")),
+                            session.select(caret(0), false).map(|c| format!("{c:?}")),
+                            session.undo().map(|o| format!("{o:?}")),
+                            session.set_property(None, "added".into(), "1".into()).map(|p| format!("{p:?}")),
+                        ];
+                        for result in shown {
+                            match result {
+                                Ok(text) => {
+                                    prop_assert!(alive[*i], "a call of an ended session worked: {text}");
+                                    returned.push(text);
+                                }
+                                Err(err) => {
+                                    prop_assert_eq!(err, KansoError::Locked);
+                                    prop_assert!(!alive[*i]);
+                                }
+                            }
+                        }
+                    }
+                }
+                Op::EditType(i) => {
+                    if let Some(session) = &sessions[*i] {
+                        // `[[N` and a caret after it: titles to complete.
+                        match type_first(session, "[[N") {
+                            Ok(_) => prop_assert!(alive[*i]),
+                            Err(err) => {
+                                prop_assert_eq!(err, KansoError::Locked);
+                                prop_assert!(!alive[*i]);
+                            }
+                        }
+                    }
+                }
+                Op::TypeThenLock(i) => {
+                    // Typing in an open locked note, then the lock closing:
+                    // the typing is saved, sealed, first.
+                    if locked[*i] && open {
+                        let session = library.edit(&ids[*i]).unwrap();
+                        let log = listen(&session);
+                        logs.push((*i, log.clone()));
+                        let typed = format!("TYPED-{i} ");
+                        prop_assert!(type_first(&session, &typed).unwrap());
+                        locks.lock().unwrap();
+                        for j in 0..NOTES {
+                            alive[j] &= !locked[j];
+                        }
+                        // The session is over, and said so.
+                        prop_assert_eq!(session.snapshot().map(|_| ()), Err(KansoError::Locked));
+                        prop_assert_eq!(session.flush().map(|_| ()), Err(KansoError::Locked));
+                        prop_assert_eq!(type_first(&session, "more"), Err(KansoError::Locked));
+                        prop_assert!(log.lock().unwrap().last().is_some_and(|e| e == "Closed"));
+                        // The store has the typing, and not in the clear.
+                        let raw = library.store().note(&ids[*i]).unwrap().unwrap();
+                        prop_assert!(raw.is_locked() && raw.body.is_empty());
+                        // Open again, it is there.
+                        prop_assert!(locks.unlock(LOCK_PASSWORD.into()).unwrap());
+                        open = true;
+                        let view = library.note(&ids[*i]).unwrap();
+                        prop_assert!(view.body.as_deref().is_some_and(|b| b.contains(&typed)), "{:?}", view.body);
+                    }
+                }
                 Op::Create => {
                     let saved = library
                         .create(kanso_mobile::NewNote {
                             notebook_id: None,
                             title: "Fresh".into(),
                             body: "fresh note".into(),
+                            ..Default::default()
                         })
                         .unwrap();
                     returned.push(format!("{saved:?}"));
@@ -391,6 +535,10 @@ proptest! {
                 Op::LockSession => {
                     locks.lock().unwrap();
                     open = false;
+                    for i in 0..NOTES {
+                        // Sessions on locked notes end with the lock.
+                        alive[i] &= !locked[i];
+                    }
                 }
                 Op::UnlockRight => match locks.unlock(LOCK_PASSWORD.into()) {
                     Ok(true) => { prop_assert!(any_lock); open = true; }
@@ -408,6 +556,9 @@ proptest! {
                     let later = Instant::now() + AUTO_LOCK + Duration::from_secs(1);
                     prop_assert_eq!(locks.lock_if_idle(later), open);
                     open = false;
+                    for i in 0..NOTES {
+                        alive[i] &= !locked[i];
+                    }
                 }
             }
             prop_assert_eq!(locks.is_unlocked().unwrap(), open, "the session after {:?}", op);
@@ -420,6 +571,15 @@ proptest! {
                     prop_assert!(!text.contains(&m), "{m} leaked from {op:?}: {text}");
                 }
             }
+        }
+
+        // A session says it is over once, and nothing of the note after.
+        for (i, log) in &logs {
+            let events = log.lock().unwrap();
+            if let Some(closed) = events.iter().position(|e| e == "Closed") {
+                prop_assert_eq!(closed + 1, events.len(), "events after Closed for {}: {:?}", i, events);
+            }
+            prop_assert!(events.iter().all(|e| !e.contains("TYPED-") || e.starts_with("Reloaded")));
         }
 
         // Streams only ever carry IDs and states: no marker at all.

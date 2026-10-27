@@ -133,6 +133,18 @@ scripts/mobile-background-check.sh       # the background sync entry, called fro
   library for this computer and calls the entry from a C program
   (`mobile/rust/tests/c_abi/main.c`), as the system's job calls it, with no
   Dart in the process.
+- A note open for editing is a `kanso_mobile::EditorSession`
+  (`Library::edit`, `crates/kanso-mobile/src/editing.rs`). The text, its undo
+  history (`kanso_engine::edit::history`), the commands (Enter in a list, Tab,
+  formats), the colours, completion and saving are Rust's; the app's text field
+  draws the text and hands over each change. Typing is saved 600 ms after the
+  last change (`kanso_engine::saving`, which the desktop editor follows too) by
+  the library's `kanso-editors` thread, and a note changed elsewhere meanwhile
+  asks which version to keep, as on the desktop. A library made by
+  `open_for_test` has no autosave thread: a test saves with
+  `EditorSession::tick(now)`. When the lock closes, sessions on locked notes
+  are saved sealed, then wiped. `tests/editor.rs` and `tests/locked.rs` hold
+  the properties.
 - Secrets (the session, the data key) are kept by Rust in the platform's
   store: the Keychain on iOS, the Keystore on Android through a Kotlin class
   (`kanso_mobile::secrets::android` lists its three methods), memory on a

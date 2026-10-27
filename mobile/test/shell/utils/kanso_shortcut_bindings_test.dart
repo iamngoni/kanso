@@ -25,8 +25,12 @@ void main() {
           NextNoteIntent,
           PreviousNoteIntent,
           PinNoteIntent,
+          NewNoteIntent,
+          NewNotebookIntent,
+          EditNoteIntent,
+          PreviewNoteIntent,
         });
-        expect(bindings, hasLength(8));
+        expect(bindings, hasLength(12));
       }
     });
 
@@ -69,6 +73,12 @@ void main() {
       expect(bindings[PreviousNoteIntent]!.alt, isTrue);
       expect(bindings[PinNoteIntent]!.trigger, LogicalKeyboardKey.keyP);
       expect(bindings[PinNoteIntent]!.shift, isTrue);
+      expect(bindings[NewNoteIntent]!.trigger, LogicalKeyboardKey.keyN);
+      expect(bindings[NewNoteIntent]!.shift, isFalse);
+      expect(bindings[NewNotebookIntent]!.trigger, LogicalKeyboardKey.keyN);
+      expect(bindings[NewNotebookIntent]!.shift, isTrue);
+      expect(bindings[EditNoteIntent]!.trigger, LogicalKeyboardKey.digit1);
+      expect(bindings[PreviewNoteIntent]!.trigger, LogicalKeyboardKey.digit3);
     });
 
     test('there is no shortcut for what is not built yet', () {
@@ -76,11 +86,9 @@ void main() {
         TargetPlatform.iOS,
       ).keys.map((a) => _activator(a).trigger).toSet();
       for (final key in <LogicalKeyboardKey>[
-        LogicalKeyboardKey.keyN,
         LogicalKeyboardKey.keyK,
-        LogicalKeyboardKey.digit1,
+        // The phone has no split view of a note.
         LogicalKeyboardKey.digit2,
-        LogicalKeyboardKey.digit3,
       ]) {
         expect(triggers, isNot(contains(key)));
       }

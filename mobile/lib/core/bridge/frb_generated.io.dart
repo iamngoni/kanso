@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/diagnostics.dart';
+import 'api/editor.dart';
 import 'api/library.dart';
 import 'api/locks.dart';
 import 'api/renderer.dart';
@@ -24,6 +25,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   });
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoEditorPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditorPtr;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoLibraryPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibraryPtr;
 
@@ -41,6 +46,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  KansoEditor
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    dynamic raw,
+  );
 
   @protected
   KansoLibrary
@@ -63,6 +74,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoSync
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
+    dynamic raw,
+  );
+
+  @protected
+  KansoEditor
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
     dynamic raw,
   );
 
@@ -94,6 +111,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   int dco_decode_CastedPrimitive_i_64(dynamic raw);
 
   @protected
+  int dco_decode_CastedPrimitive_u_64(dynamic raw);
+
+  @protected
+  KansoEditor
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    dynamic raw,
+  );
+
+  @protected
   KansoLibrary
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     dynamic raw,
@@ -118,6 +144,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  RustStreamSink<EditorEvent> dco_decode_StreamSink_editor_event_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<List<String>> dco_decode_StreamSink_list_String_Sse(
     dynamic raw,
   );
@@ -138,7 +169,25 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  Completion dco_decode_box_autoadd_completion(dynamic raw);
+
+  @protected
+  EditCommand dco_decode_box_autoadd_edit_command(dynamic raw);
+
+  @protected
+  EditOutcome dco_decode_box_autoadd_edit_outcome(dynamic raw);
+
+  @protected
+  EditorSnapshot dco_decode_box_autoadd_editor_snapshot(dynamic raw);
+
+  @protected
   double dco_decode_box_autoadd_f_32(dynamic raw);
+
+  @protected
+  LinkTarget dco_decode_box_autoadd_link_target(dynamic raw);
+
+  @protected
+  ListPlace dco_decode_box_autoadd_list_place(dynamic raw);
 
   @protected
   ListQuery dco_decode_box_autoadd_list_query(dynamic raw);
@@ -156,10 +205,19 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PaletteDto dco_decode_box_autoadd_palette_dto(dynamic raw);
 
   @protected
+  Range16 dco_decode_box_autoadd_range_16(dynamic raw);
+
+  @protected
+  Replacement dco_decode_box_autoadd_replacement(dynamic raw);
+
+  @protected
   SearchScope dco_decode_box_autoadd_search_scope(dynamic raw);
 
   @protected
   SyncProblemKind dco_decode_box_autoadd_sync_problem_kind(dynamic raw);
+
+  @protected
+  TextChange dco_decode_box_autoadd_text_change(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_16(dynamic raw);
@@ -174,13 +232,46 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ColorRow dco_decode_color_row(dynamic raw);
 
   @protected
+  Completion dco_decode_completion(dynamic raw);
+
+  @protected
+  CompletionItem dco_decode_completion_item(dynamic raw);
+
+  @protected
+  CompletionKind dco_decode_completion_kind(dynamic raw);
+
+  @protected
   DateField dco_decode_date_field(dynamic raw);
 
   @protected
   DiagramKind dco_decode_diagram_kind(dynamic raw);
 
   @protected
+  EditCommand dco_decode_edit_command(dynamic raw);
+
+  @protected
+  EditOutcome dco_decode_edit_outcome(dynamic raw);
+
+  @protected
+  EditorContext dco_decode_editor_context(dynamic raw);
+
+  @protected
+  EditorEvent dco_decode_editor_event(dynamic raw);
+
+  @protected
+  EditorRun dco_decode_editor_run(dynamic raw);
+
+  @protected
+  EditorSnapshot dco_decode_editor_snapshot(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
+
+  @protected
+  FormatKind dco_decode_format_kind(dynamic raw);
+
+  @protected
+  HistoryState dco_decode_history_state(dynamic raw);
 
   @protected
   Hit dco_decode_hit(dynamic raw);
@@ -198,6 +289,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LibraryOverview dco_decode_library_overview(dynamic raw);
 
   @protected
+  LinkTarget dco_decode_link_target(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -205,6 +299,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ColorRow> dco_decode_list_color_row(dynamic raw);
+
+  @protected
+  List<CompletionItem> dco_decode_list_completion_item(dynamic raw);
+
+  @protected
+  List<EditorRun> dco_decode_list_editor_run(dynamic raw);
 
   @protected
   List<Hit> dco_decode_list_hit(dynamic raw);
@@ -294,10 +394,28 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
   @protected
+  Completion? dco_decode_opt_box_autoadd_completion(dynamic raw);
+
+  @protected
+  EditOutcome? dco_decode_opt_box_autoadd_edit_outcome(dynamic raw);
+
+  @protected
   double? dco_decode_opt_box_autoadd_f_32(dynamic raw);
 
   @protected
+  LinkTarget? dco_decode_opt_box_autoadd_link_target(dynamic raw);
+
+  @protected
+  ListPlace? dco_decode_opt_box_autoadd_list_place(dynamic raw);
+
+  @protected
   NotebookRole? dco_decode_opt_box_autoadd_notebook_role(dynamic raw);
+
+  @protected
+  Range16? dco_decode_opt_box_autoadd_range_16(dynamic raw);
+
+  @protected
+  Replacement? dco_decode_opt_box_autoadd_replacement(dynamic raw);
 
   @protected
   SyncProblemKind? dco_decode_opt_box_autoadd_sync_problem_kind(dynamic raw);
@@ -319,6 +437,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Range16 dco_decode_range_16(dynamic raw);
+
+  @protected
+  Replacement dco_decode_replacement(dynamic raw);
+
+  @protected
+  RunBatch dco_decode_run_batch(dynamic raw);
+
+  @protected
+  SaveState dco_decode_save_state(dynamic raw);
 
   @protected
   Saved dco_decode_saved(dynamic raw);
@@ -366,6 +493,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TagRow dco_decode_tag_row(dynamic raw);
 
   @protected
+  TextChange dco_decode_text_change(dynamic raw);
+
+  @protected
   ThemeTokens dco_decode_theme_tokens(dynamic raw);
 
   @protected
@@ -373,6 +503,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   int dco_decode_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -385,6 +518,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  KansoEditor
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    SseDeserializer deserializer,
+  );
 
   @protected
   KansoLibrary
@@ -407,6 +546,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoSync
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoEditor
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
     SseDeserializer deserializer,
   );
 
@@ -438,6 +583,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   int sse_decode_CastedPrimitive_i_64(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_CastedPrimitive_u_64(SseDeserializer deserializer);
+
+  @protected
+  KansoEditor
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoLibrary
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     SseDeserializer deserializer,
@@ -458,6 +612,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoSync
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<EditorEvent> sse_decode_StreamSink_editor_event_Sse(
     SseDeserializer deserializer,
   );
 
@@ -486,7 +645,27 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  Completion sse_decode_box_autoadd_completion(SseDeserializer deserializer);
+
+  @protected
+  EditCommand sse_decode_box_autoadd_edit_command(SseDeserializer deserializer);
+
+  @protected
+  EditOutcome sse_decode_box_autoadd_edit_outcome(SseDeserializer deserializer);
+
+  @protected
+  EditorSnapshot sse_decode_box_autoadd_editor_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   double sse_decode_box_autoadd_f_32(SseDeserializer deserializer);
+
+  @protected
+  LinkTarget sse_decode_box_autoadd_link_target(SseDeserializer deserializer);
+
+  @protected
+  ListPlace sse_decode_box_autoadd_list_place(SseDeserializer deserializer);
 
   @protected
   ListQuery sse_decode_box_autoadd_list_query(SseDeserializer deserializer);
@@ -506,12 +685,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PaletteDto sse_decode_box_autoadd_palette_dto(SseDeserializer deserializer);
 
   @protected
+  Range16 sse_decode_box_autoadd_range_16(SseDeserializer deserializer);
+
+  @protected
+  Replacement sse_decode_box_autoadd_replacement(SseDeserializer deserializer);
+
+  @protected
   SearchScope sse_decode_box_autoadd_search_scope(SseDeserializer deserializer);
 
   @protected
   SyncProblemKind sse_decode_box_autoadd_sync_problem_kind(
     SseDeserializer deserializer,
   );
+
+  @protected
+  TextChange sse_decode_box_autoadd_text_change(SseDeserializer deserializer);
 
   @protected
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer);
@@ -526,13 +714,46 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ColorRow sse_decode_color_row(SseDeserializer deserializer);
 
   @protected
+  Completion sse_decode_completion(SseDeserializer deserializer);
+
+  @protected
+  CompletionItem sse_decode_completion_item(SseDeserializer deserializer);
+
+  @protected
+  CompletionKind sse_decode_completion_kind(SseDeserializer deserializer);
+
+  @protected
   DateField sse_decode_date_field(SseDeserializer deserializer);
 
   @protected
   DiagramKind sse_decode_diagram_kind(SseDeserializer deserializer);
 
   @protected
+  EditCommand sse_decode_edit_command(SseDeserializer deserializer);
+
+  @protected
+  EditOutcome sse_decode_edit_outcome(SseDeserializer deserializer);
+
+  @protected
+  EditorContext sse_decode_editor_context(SseDeserializer deserializer);
+
+  @protected
+  EditorEvent sse_decode_editor_event(SseDeserializer deserializer);
+
+  @protected
+  EditorRun sse_decode_editor_run(SseDeserializer deserializer);
+
+  @protected
+  EditorSnapshot sse_decode_editor_snapshot(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
+
+  @protected
+  FormatKind sse_decode_format_kind(SseDeserializer deserializer);
+
+  @protected
+  HistoryState sse_decode_history_state(SseDeserializer deserializer);
 
   @protected
   Hit sse_decode_hit(SseDeserializer deserializer);
@@ -550,6 +771,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LibraryOverview sse_decode_library_overview(SseDeserializer deserializer);
 
   @protected
+  LinkTarget sse_decode_link_target(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -559,6 +783,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ColorRow> sse_decode_list_color_row(SseDeserializer deserializer);
+
+  @protected
+  List<CompletionItem> sse_decode_list_completion_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EditorRun> sse_decode_list_editor_run(SseDeserializer deserializer);
 
   @protected
   List<Hit> sse_decode_list_hit(SseDeserializer deserializer);
@@ -652,10 +884,38 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  Completion? sse_decode_opt_box_autoadd_completion(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EditOutcome? sse_decode_opt_box_autoadd_edit_outcome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   double? sse_decode_opt_box_autoadd_f_32(SseDeserializer deserializer);
 
   @protected
+  LinkTarget? sse_decode_opt_box_autoadd_link_target(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ListPlace? sse_decode_opt_box_autoadd_list_place(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   NotebookRole? sse_decode_opt_box_autoadd_notebook_role(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Range16? sse_decode_opt_box_autoadd_range_16(SseDeserializer deserializer);
+
+  @protected
+  Replacement? sse_decode_opt_box_autoadd_replacement(
     SseDeserializer deserializer,
   );
 
@@ -681,6 +941,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Range16 sse_decode_range_16(SseDeserializer deserializer);
+
+  @protected
+  Replacement sse_decode_replacement(SseDeserializer deserializer);
+
+  @protected
+  RunBatch sse_decode_run_batch(SseDeserializer deserializer);
+
+  @protected
+  SaveState sse_decode_save_state(SseDeserializer deserializer);
 
   @protected
   Saved sse_decode_saved(SseDeserializer deserializer);
@@ -728,6 +997,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TagRow sse_decode_tag_row(SseDeserializer deserializer);
 
   @protected
+  TextChange sse_decode_text_change(SseDeserializer deserializer);
+
+  @protected
   ThemeTokens sse_decode_theme_tokens(SseDeserializer deserializer);
 
   @protected
@@ -735,6 +1007,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -748,6 +1023,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    KansoEditor self,
     SseSerializer serializer,
   );
 
@@ -776,6 +1058,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
     KansoSync self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    KansoEditor self,
     SseSerializer serializer,
   );
 
@@ -811,6 +1100,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_CastedPrimitive_i_64(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_CastedPrimitive_u_64(int self, SseSerializer serializer);
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    KansoEditor self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     KansoLibrary self,
@@ -835,6 +1134,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
     KansoSync self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_editor_event_Sse(
+    RustStreamSink<EditorEvent> self,
     SseSerializer serializer,
   );
 
@@ -866,7 +1171,43 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_completion(
+    Completion self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_edit_command(
+    EditCommand self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_edit_outcome(
+    EditOutcome self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_editor_snapshot(
+    EditorSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_f_32(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_link_target(
+    LinkTarget self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_list_place(
+    ListPlace self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_list_query(
@@ -896,6 +1237,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_range_16(Range16 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_replacement(
+    Replacement self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_search_scope(
     SearchScope self,
     SseSerializer serializer,
@@ -904,6 +1254,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_sync_problem_kind(
     SyncProblemKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_text_change(
+    TextChange self,
     SseSerializer serializer,
   );
 
@@ -920,13 +1276,55 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_color_row(ColorRow self, SseSerializer serializer);
 
   @protected
+  void sse_encode_completion(Completion self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_completion_item(
+    CompletionItem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_completion_kind(
+    CompletionKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_date_field(DateField self, SseSerializer serializer);
 
   @protected
   void sse_encode_diagram_kind(DiagramKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_edit_command(EditCommand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_edit_outcome(EditOutcome self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_editor_context(EditorContext self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_editor_event(EditorEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_editor_run(EditorRun self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_editor_snapshot(
+    EditorSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_format_kind(FormatKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_history_state(HistoryState self, SseSerializer serializer);
 
   @protected
   void sse_encode_hit(Hit self, SseSerializer serializer);
@@ -947,6 +1345,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_link_target(LinkTarget self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -957,6 +1358,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_list_color_row(List<ColorRow> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_completion_item(
+    List<CompletionItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_editor_run(
+    List<EditorRun> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_hit(List<Hit> self, SseSerializer serializer);
@@ -1061,11 +1474,47 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_completion(
+    Completion? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_edit_outcome(
+    EditOutcome? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_f_32(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_link_target(
+    LinkTarget? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_list_place(
+    ListPlace? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_notebook_role(
     NotebookRole? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_range_16(
+    Range16? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_replacement(
+    Replacement? self,
     SseSerializer serializer,
   );
 
@@ -1092,6 +1541,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_range_16(Range16 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_replacement(Replacement self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_run_batch(RunBatch self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_save_state(SaveState self, SseSerializer serializer);
 
   @protected
   void sse_encode_saved(Saved self, SseSerializer serializer);
@@ -1145,6 +1603,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_tag_row(TagRow self, SseSerializer serializer);
 
   @protected
+  void sse_encode_text_change(TextChange self, SseSerializer serializer);
+
+  @protected
   void sse_encode_theme_tokens(ThemeTokens self, SseSerializer serializer);
 
   @protected
@@ -1152,6 +1613,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
@@ -1176,6 +1640,40 @@ class KansoCoreWire implements BaseWire {
   /// The symbols are looked up in [dynamicLibrary].
   KansoCoreWire(ffi.DynamicLibrary dynamicLibrary)
     : _lookup = dynamicLibrary.lookup;
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditorPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditorPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditorPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditorPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(

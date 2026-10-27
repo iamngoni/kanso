@@ -117,7 +117,10 @@ void main() {
                   library: LibraryPane(
                     location: BrowseLocation.place(ListPlace.all()),
                   ),
-                  list: NoteListPane(openNoteId: MockIds.syncDesign),
+                  list: NoteListPane(
+                    openNoteId: MockIds.syncDesign,
+                    beside: true,
+                  ),
                   note: NotePane(inPane: true),
                 ),
               ),
@@ -144,7 +147,10 @@ void main() {
             blocs.provide(
               _scaffold(
                 const ListNoteLayout(
-                  list: NoteListPane(openNoteId: MockIds.syncDesign),
+                  list: NoteListPane(
+                    openNoteId: MockIds.syncDesign,
+                    beside: true,
+                  ),
                   note: NotePane(inPane: true),
                 ),
               ),
@@ -171,7 +177,10 @@ void main() {
                   library: LibraryPane(
                     location: BrowseLocation.place(ListPlace.all()),
                   ),
-                  list: NoteListPane(openNoteId: MockIds.privateJournal),
+                  list: NoteListPane(
+                    openNoteId: MockIds.privateJournal,
+                    beside: true,
+                  ),
                   note: NotePane(inPane: true),
                 ),
               ),
@@ -197,7 +206,7 @@ void main() {
                   library: LibraryPane(
                     location: BrowseLocation.place(ListPlace.all()),
                   ),
-                  list: NoteListPane(),
+                  list: NoteListPane(beside: true),
                   note: NoNoteSelectedPane(),
                 ),
               ),

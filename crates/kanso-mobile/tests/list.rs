@@ -361,7 +361,7 @@ proptest! {
             format!("Notes {}\n", tags.join(" "))
         };
         let saved = library
-            .create(NewNote { notebook_id: None, title: "T".into(), body: text(&words) })
+            .create(NewNote { title: "T".into(), body: text(&words), ..NewNote::default() })
             .unwrap();
         let tag_names = |id: &str| -> BTreeSet<String> {
             let all = library.tags().unwrap();
