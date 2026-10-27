@@ -63,7 +63,7 @@ impl Store {
             return Ok(MeaningSearch::Found(Vec::new()));
         };
         self.read(|conn| {
-            let candidates = embedded_notes(conn, &model, &HashSet::new(), false)?;
+            let candidates = embedded_notes(conn, &model, &HashSet::new())?;
             Ok(MeaningSearch::Found(nearest(&vector, &candidates, k)))
         })
     }
@@ -82,7 +82,7 @@ impl Store {
                 return Ok(None);
             };
             let skip = HashSet::from([id.to_owned()]);
-            let candidates = embedded_notes(conn, model, &skip, false)?;
+            let candidates = embedded_notes(conn, model, &skip)?;
             let near = nearest(&query, &candidates, TAG_NEIGHBOURS);
             let neighbours: Vec<(f32, Vec<String>)> = near
                 .iter()
@@ -106,8 +106,9 @@ impl Store {
     }
 
     /// The note that says nearly the same as note `id` by `model`, at least
-    /// [`DUPLICATE_SIMILARITY`] similar, if there is one. Locked notes are
-    /// left out on both sides: their embedding is made from the title only.
+    /// [`DUPLICATE_SIMILARITY`] similar, if there is one. Locked notes and
+    /// notes tagged `#ai-exclude` are never embedded, so they are left out
+    /// on both sides.
     pub fn near_duplicate(&self, id: &str, model: &str) -> Result<Option<RelatedNote>> {
         self.read(|conn| {
             if is_locked(conn, id)? {
@@ -117,7 +118,7 @@ impl Store {
                 return Ok(None);
             };
             let skip = HashSet::from([id.to_owned()]);
-            let candidates = embedded_notes(conn, model, &skip, true)?;
+            let candidates = embedded_notes(conn, model, &skip)?;
             Ok(nearest(&query, &candidates, 1)
                 .into_iter()
                 .find(|note| note.score >= DUPLICATE_SIMILARITY))

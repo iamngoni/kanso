@@ -494,3 +494,162 @@ pub struct SvgRow {
     /// For inline math: how far below the top the text's baseline falls.
     pub baseline: Option<f32>,
 }
+
+// MARK: Discovery
+
+/// Where related notes stand (`kanso_engine::discovery::related::Status`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum RelatedStatus {
+    #[default]
+    Off,
+    /// Fetching the model: bytes so far, of all.
+    Downloading { done: u64, total: u64 },
+    /// Checking and loading the model.
+    Loading,
+    /// Embedding notes: how many are done, of all.
+    Indexing { done: u32, total: u32 },
+    /// Every note is embedded.
+    Ready { notes: u32 },
+    /// Something went wrong; turning related notes on again starts over.
+    Failed { message: String },
+}
+
+/// Related notes' status, with the words the desktop's Settings tells it in.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RelatedState {
+    pub status: RelatedStatus,
+    /// The status row's title and line; `None` while it is off.
+    pub title: Option<String>,
+    pub detail: Option<String>,
+}
+
+/// A note close in meaning to another, or to a search.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RelatedRow {
+    pub id: String,
+    pub title: String,
+    /// The cosine similarity, from -1 to 1.
+    pub score: f32,
+    /// How close, in words: "Very close", "Close", "Related" or "Loosely
+    /// related".
+    pub label: String,
+}
+
+/// A tag the note's nearest notes have and it hasn't.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SuggestedTag {
+    pub tag_id: String,
+    pub name: String,
+    /// The similarities of the near notes that have it, added up.
+    pub weight: f32,
+}
+
+/// A note that says nearly the same as another.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TwinRow {
+    pub id: String,
+    pub title: String,
+    /// How alike the two are, from 0 to 100.
+    pub percent: u32,
+}
+
+/// What the stored embeddings say about a note.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct NoteMeaning {
+    /// At most five, heaviest first, without the note's own tags.
+    pub tags: Vec<SuggestedTag>,
+    /// Unless it was dismissed this session.
+    pub twin: Option<TwinRow>,
+}
+
+/// What a search by meaning found.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MeaningResult {
+    /// Related notes are off.
+    Off,
+    /// Related notes are on, but the model isn't loaded yet.
+    NoModel,
+    /// Notes close in meaning to the search, closest first; none when the
+    /// search is too short or has qualifiers (`meaning_query`).
+    Found { rows: Vec<RelatedRow> },
+}
+
+/// Which graph to lay out.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GraphRequest {
+    /// Every note, or the notes of one notebook (and the notebooks inside
+    /// it) or tag.
+    Library { filter: GraphFilter },
+    /// A note and the notes up to `hops` links from it (1 to 3).
+    Local { center: String, hops: u8 },
+}
+
+/// What the library's graph is narrowed to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GraphFilter {
+    All,
+    Book { id: String },
+    Tag { id: String },
+}
+
+/// A note in the graph, placed.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GraphNodeRow {
+    pub id: String,
+    pub title: String,
+    pub notebook_id: String,
+    /// How many other notes it links with.
+    pub degree: u32,
+    /// Where it goes, in layout units around the origin.
+    pub x: f32,
+    pub y: f32,
+    /// How big, in layout units: bigger the more it links.
+    pub radius: f32,
+    /// Its notebook's color in the light and the dark theme, `0xAARRGGBB`
+    /// and opaque.
+    pub color_light: u32,
+    pub color_dark: u32,
+    /// The local graph's middle.
+    pub is_center: bool,
+}
+
+/// A link between two notes, as indexes into the graph's nodes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GraphEdgeRow {
+    pub from: u32,
+    pub to: u32,
+}
+
+/// A laid-out graph.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct GraphLayout {
+    pub nodes: Vec<GraphNodeRow>,
+    pub edges: Vec<GraphEdgeRow>,
+    /// How many links it draws, a note linking to itself left out.
+    pub link_count: u32,
+}
+
+/// An image waiting to be read for its words.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImageToRead {
+    pub id: String,
+    /// Give it back with the words, so new bytes are read again.
+    pub md5: String,
+    pub bytes: Vec<u8>,
+}
+
+/// What the embedding model costs on this phone.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DiscoveryMeasure {
+    /// The model's files on disk, in bytes.
+    pub model_bytes: u64,
+    /// Checking and loading the model, in milliseconds.
+    pub load_ms: u64,
+    /// The app's resident memory before and after loading, in bytes, when
+    /// the phone says.
+    pub resident_before: Option<u64>,
+    pub resident_after: Option<u64>,
+    /// Sample notes embedded, and how many a second.
+    pub notes: u32,
+    pub notes_per_second: f64,
+}

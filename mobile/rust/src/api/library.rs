@@ -9,6 +9,7 @@ use kanso_mobile::{
     NotebookRow, Property, Saved, SearchScope, Table, TagRow,
 };
 
+use super::discovery::KansoDiscovery;
 use super::locks::KansoLocks;
 use super::renderer::KansoRenderer;
 use super::sync::KansoSync;
@@ -92,6 +93,11 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn locks(&self) -> KansoLocks {
         KansoLocks::new(self.0.locks())
+    }
+
+    #[frb(sync)]
+    pub fn discovery(&self) -> KansoDiscovery {
+        KansoDiscovery::new(self.0.discovery())
     }
 
     #[frb(sync)]

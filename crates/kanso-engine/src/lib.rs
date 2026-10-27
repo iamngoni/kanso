@@ -27,6 +27,12 @@
 //! component library compiles in, with the same queries, and a test in
 //! `kanso-app` holds the two to the same colors on a corpus of notes.
 //!
+//! `discovery` (the `discovery` feature) is what finds notes by their
+//! meaning and their links: the note graph and its layout, the embedding
+//! model with its download and the indexer that keeps notes embedded, the
+//! tags and twin a note's nearest notes suggest, and reading the words in
+//! images through whatever reader the platform has.
+//!
 //! Nothing here opens a window, reads a clock of its own or touches the
 //! system's secret store: the caller passes the time, and secrets go through
 //! [`Secrets`].
@@ -37,6 +43,8 @@
 pub mod account;
 pub mod batch;
 pub mod daily;
+#[cfg(feature = "discovery")]
+pub mod discovery;
 pub mod edit;
 pub mod fuzzy;
 #[cfg(feature = "highlight")]

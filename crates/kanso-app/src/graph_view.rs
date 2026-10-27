@@ -23,17 +23,15 @@ use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::{Sizable as _, StyledExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use kanso_core::TagColor;
 use kanso_store::Store;
 
-use crate::graph::{
-    Graph, Viewport, hit, layout, node_radius, screen_radius, segment_visible, stand_tall,
-};
+use crate::graph::{self, Graph, Viewport, arrange, hit, screen_radius, segment_visible};
+pub use crate::graph::{GraphFilter, Scope, book_color, in_notebook};
 use crate::icon_themes::{Slot, library_icon};
 use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT, inset_after};
 use crate::library::{Library, LibraryEvent};
 use crate::note_list::quiet_empty;
-use crate::theme::{Colors, muted_tag_color};
+use crate::theme::Colors;
 use crate::workspace::Workspace;
 use crate::zoom::px;
 
@@ -44,8 +42,6 @@ actions!(kanso, [GraphZoomIn, GraphZoomOut, GraphShowAll]);
 /// How far one press of a zoom button or key zooms the graph.
 const GRAPH_ZOOM_STEP: f32 = 1.4;
 
-/// The seed every layout uses: the same library draws the same picture.
-const SEED: u64 = 0x6B61_6E73_6F67_7261;
 /// How long the library stays still before a shown graph is read again.
 const RELOAD_DELAY: Duration = Duration::from_millis(600);
 /// The most labels drawn at once in the library's graph.
@@ -63,25 +59,6 @@ pub fn bind_keys(cx: &mut App) {
     ]);
 }
 
-/// Which graph a view shows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Scope {
-    /// The open note and its neighbours, in the inspector.
-    Local,
-    /// Every note, over the window.
-    Library,
-}
-
-/// What the library's graph is narrowed to.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum GraphFilter {
-    #[default]
-    All,
-    /// A notebook and the notebooks inside it.
-    Book(String),
-    Tag(String),
-}
-
 /// What a laid-out graph was made for: when this changes, it is made
 /// again.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -90,6 +67,9 @@ struct Key {
     center: Option<String>,
     hops: u8,
     filter: GraphFilter,
+    /// The lock password has opened the locked notes: they are in the graph.
+    /// While it is closed they and their links are left out.
+    unlocked: bool,
 }
 
 /// A graph laid out, ready to draw.
@@ -213,17 +193,20 @@ impl GraphView {
             .map(|s| (s.graph.len(), s.graph.link_count()))
     }
 
-    fn key(&self) -> Key {
+    fn key(&self, cx: &App) -> Key {
+        let unlocked = crate::locked::LockKeys::is_unlocked(cx);
         match self.scope {
             Scope::Local => Key {
                 center: self.center.clone(),
                 hops: self.hops,
                 filter: GraphFilter::All,
+                unlocked,
             },
             Scope::Library => Key {
                 center: None,
                 hops: 0,
                 filter: self.filter.clone(),
+                unlocked,
             },
         }
     }
@@ -243,7 +226,7 @@ impl GraphView {
     /// Starts reading and laying out the graph when what is shown isn't
     /// what should be.
     fn ensure_loaded(&mut self, cx: &mut Context<Self>) {
-        let key = self.key();
+        let key = self.key(cx);
         let current = self.shown.as_ref().is_some_and(|s| s.key == key) && !self.stale;
         let underway = self.loading.as_ref().is_some_and(|(k, _)| *k == key);
         if current || underway || self.reload.is_some() {
@@ -265,34 +248,20 @@ impl GraphView {
         let scope = self.scope;
         let for_key = key.clone();
         let work = cx.background_executor().spawn(async move {
-            let (notes, links) = store.graph_rows().unwrap_or_default();
-            let full = Graph::build(notes, &links);
-            let graph = match (scope, &for_key.center) {
-                (Scope::Local, Some(center)) => match full.index_of(center) {
-                    Some(ix) => full.subgraph(&full.neighbourhood(ix, for_key.hops)),
-                    None => Graph::default(),
-                },
-                (Scope::Local, None) => Graph::default(),
-                (Scope::Library, _) => match &for_key.filter {
-                    GraphFilter::All => full,
-                    GraphFilter::Book(book) => {
-                        full.filtered(|n| in_notebook(&n.book_id, book, &books))
-                    }
-                    GraphFilter::Tag(tag) => full.filtered(|n| n.tags.contains(tag)),
-                },
-            };
-            let mut pos = layout(&graph, SEED);
-            if scope == Scope::Local {
-                stand_tall(&mut pos);
-            }
-            let radii = (0..graph.len())
-                .map(|ix| node_radius(graph.degree(ix)))
-                .collect();
+            let full = graph::read(&store, for_key.unlocked).unwrap_or_default();
+            let arranged = arrange(
+                full,
+                scope,
+                for_key.center.as_deref(),
+                for_key.hops,
+                &for_key.filter,
+                &books,
+            );
             Shown {
                 key: for_key,
-                graph,
-                pos,
-                radii,
+                graph: arranged.graph,
+                pos: arranged.pos,
+                radii: arranged.radii,
             }
         });
         let task = cx.spawn(async move |this, cx| {
@@ -300,7 +269,7 @@ impl GraphView {
             this.update(cx, |this, cx| {
                 if this.loading.as_ref().is_some_and(|(k, _)| *k == shown.key) {
                     this.loading = None;
-                    this.stale = this.stale && shown.key != this.key();
+                    this.stale = this.stale && shown.key != this.key(cx);
                     let new_place = this.shown.as_ref().is_none_or(|s| s.key != shown.key);
                     if new_place {
                         this.fit.set(true);
@@ -746,46 +715,6 @@ impl Render for GraphView {
 // The library graph closes in the workspace, which holds it.
 actions!(kanso, [CloseGraphView]);
 
-/// Whether notebook `id` is `book` or inside it, by `books`' `(id, parent)`
-/// pairs: up the parents, at most as deep as there are notebooks.
-pub fn in_notebook(id: &str, book: &str, books: &[(String, Option<String>)]) -> bool {
-    let mut current = Some(id);
-    for _ in 0..=books.len() {
-        let Some(at) = current else { return false };
-        if at == book {
-            return true;
-        }
-        current = books
-            .iter()
-            .find(|(b, _)| b == at)
-            .and_then(|(_, parent)| parent.as_deref());
-    }
-    false
-}
-
-/// A notebook's color: one of the tag colors, picked by its ID, so it stays
-/// the same between runs and devices; calmed for the theme like tags are.
-pub fn book_color(book_id: &str, dark: bool) -> u32 {
-    // Not blue: that is the accent, which marks the open note.
-    const HUES: [TagColor; 10] = [
-        TagColor::Brown,
-        TagColor::Green,
-        TagColor::Orange,
-        TagColor::Violet,
-        TagColor::Teal,
-        TagColor::Red,
-        TagColor::Yellow,
-        TagColor::Pink,
-        TagColor::Olive,
-        TagColor::Purple,
-    ];
-    // FNV-1a: stable, unlike the standard library's hasher.
-    let hash = book_id.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
-        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-    });
-    muted_tag_color(HUES[(hash % HUES.len() as u64) as usize].rgb(), dark)
-}
-
 /// Draws `shown` through `view` in `bounds`, in the window's own pixels
 /// (`gpui_kit::px`, not the app zoom's): the graph zooms itself, and the
 /// pointer finds nodes in those pixels.
@@ -1108,18 +1037,7 @@ pub fn overlay(workspace: &Workspace) -> Option<impl IntoElement> {
 
 #[cfg(test)]
 mod tests {
-    use super::book_color;
     use crate::graph::ZOOM_RANGE;
-    use proptest::prelude::*;
-
-    proptest! {
-        /// A notebook's color is stable and differs between the themes.
-        #[test]
-        fn prop_book_colors_are_stable(id in "book:[a-zA-Z0-9]{1,12}") {
-            prop_assert_eq!(book_color(&id, true), book_color(&id, true));
-            prop_assert_ne!(book_color(&id, true), book_color(&id, false));
-        }
-    }
 
     #[test]
     fn zoom_range_holds_the_fitted_views() {

@@ -330,9 +330,9 @@ fn served_anywhere(store: &Store, id: &str) -> bool {
             .any(|note| note.id == id && note.snippet.contains(CANARY))
 }
 
+/// Whether note `id` has a vector that reads can use.
 fn embedded(store: &Store, id: &str) -> bool {
-    let queue = store.embedding_queue("m").unwrap();
-    !queue.pending.iter().any(|pending| pending.id == id)
+    store.related_notes(id, "m", 1).unwrap().is_some()
 }
 
 fn embed_everything(store: &Store) {
@@ -522,9 +522,10 @@ fn an_embedding_made_before_a_lock_is_not_kept_after_it() {
         .unwrap();
     store.put_embeddings("m", &stale).unwrap();
     assert_eq!(store.embedded_count("m").unwrap(), 0);
-    // Embedded again as it reads now: by its title alone.
+    // A locked note is not embedded again, not even by its title.
     embed_everything(&store);
-    assert_eq!(store.embedded_count("m").unwrap(), 1);
+    assert_eq!(store.embedded_count("m").unwrap(), 0);
+    assert_eq!(store.embedding_queue("m").unwrap().total, 0);
 }
 
 #[test]
@@ -550,7 +551,15 @@ fn a_notebook_locked_by_sync_hides_the_text_of_notes_not_sealed_here_yet() {
     assert_eq!(search(&store, CANARY), 0);
     assert!(store.revisions(&a).unwrap().is_empty());
     assert_eq!(store.derived_rows(&a).unwrap(), (0, 0, 0));
-    assert!(!embedded(&store, &a));
+    assert!(
+        !store
+            .embedding_queue("m")
+            .unwrap()
+            .pending
+            .iter()
+            .any(|pending| pending.id == a)
+    );
+    assert_eq!(store.embedded_count("m").unwrap(), 0);
     assert!(
         !store
             .embedding_queue("m")

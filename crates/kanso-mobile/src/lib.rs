@@ -25,6 +25,11 @@
 //!   source, fits a theme (the built-in ones are in, as the desktop has
 //!   them, and source can be colored in any of them) and draws math and
 //!   diagrams.
+//! - [`Discovery`] (`library.discovery()`) finds notes by meaning and by
+//!   links: related notes on a thread of the library's, tags and twins
+//!   suggested by the nearest notes, search by meaning, the note graph
+//!   laid out, and the words in images read through the phone's reader.
+//!   A locked note or one tagged `#ai-exclude` is never embedded.
 //! - [`background`] is the sync that runs with no app: the code behind the
 //!   C entry `kanso_background_sync` that `mobile/rust` exports.
 //! - [`diagnostics`] has the version, the TLS check and the panic probe.
@@ -45,6 +50,7 @@ mod backup;
 pub mod boundary;
 mod builtin_themes;
 pub mod diagnostics;
+mod discovery;
 mod errors;
 mod library;
 mod locks;
@@ -57,6 +63,7 @@ mod stream;
 mod syncing;
 mod theme_tokens;
 
+pub use discovery::{Discovery, IndexerStart};
 pub use errors::KansoError;
 pub use library::Library;
 pub use locks::LockSession;

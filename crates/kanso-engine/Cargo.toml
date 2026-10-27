@@ -25,6 +25,21 @@ unicode-width.workspace = true
 # The generators the apps' view tests share (strategies.rs).
 proptest = { workspace = true, optional = true }
 
+# Discovery (discovery/): related notes' embedding model and the download that
+# fetches it. Their dependencies build for iOS and Android with the same
+# compilers as SQLite's.
+# Without its Hugging Face client or Oniguruma: `discovery::related` fetches
+# the model and checks it against pinned SHA-256s, and the tokenizer uses
+# pure-Rust regexes.
+model2vec-rs = { version = "=0.3.0", default-features = false, optional = true }
+# Model2Vec's tokenizer, at the version it uses, with pure-Rust regexes.
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"], optional = true }
+# The model downloads over HTTPS (discovery::model_fetch), trusting what
+# `kanso-tls` says: the web's roots on a computer, the phone's own store on
+# iOS and Android. The sync client already builds both.
+kanso-tls = { workspace = true, features = ["ureq"], optional = true }
+ureq = { version = "3.4", optional = true }
+
 # Highlighting (highlight/): the runtime and the Markdown grammar, then a
 # grammar for each language a fence names. Their C code builds for iOS and
 # Android with the same compilers as SQLite's.
@@ -89,6 +104,9 @@ code-grammars = [
     "dep:tree-sitter-typescript",
     "dep:tree-sitter-yaml",
 ]
+# `discovery`: the graph, the embedding model with its download and indexer,
+# the meaning of a note and reading the words in images.
+discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
 # `strategies`: generators for kanso-app's view tests.
 test-support = ["dep:proptest"]
 

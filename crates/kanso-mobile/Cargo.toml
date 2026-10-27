@@ -11,8 +11,9 @@ publish = false
 async-channel.workspace = true
 kanso-core.workspace = true
 # The highlighter (`highlight`, with the grammars for fenced code) is the
-# phones' editor colors.
-kanso-engine.workspace = true
+# phones' editor colors, and `discovery` their related notes, graph and the
+# words in images.
+kanso-engine = { workspace = true, features = ["discovery"] }
 kanso-render.workspace = true
 kanso-store.workspace = true
 # Without the desktop Keychain: secrets go through `Secrets`, and the phones'
@@ -49,6 +50,8 @@ jni = { version = "0.22", default-features = false }
 test-support = []
 
 [dev-dependencies]
+# Image attachments the discovery tests make.
+base64.workspace = true
 # This crate's integration tests use the test-support constructors.
 kanso-mobile = { path = ".", features = ["test-support"] }
 # Generators for the sync problems the status maps.

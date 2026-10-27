@@ -14,6 +14,7 @@ use kanso_sync::{Backend, HttpBackend, KdfParams};
 
 use crate::backup;
 use crate::boundary::{guard, held};
+use crate::discovery::DiscoveryState;
 use crate::errors::KansoError;
 use crate::locks::LockSession;
 use crate::model::{LockEvent, SyncStatus};
@@ -42,6 +43,8 @@ pub(crate) struct Inner {
     pub(crate) sync_gate: Mutex<()>,
     /// Set to stop the sync that is running.
     pub(crate) sync_cancel: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
+    /// Related notes' thread and status, and the twins dismissed.
+    pub(crate) discovery: DiscoveryState,
 }
 
 /// The libraries open in this process, by their database path. A background
@@ -219,12 +222,16 @@ fn open_inner(
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),
         sync_cancel: Mutex::new(None),
+        discovery: DiscoveryState::default(),
     });
     open.retain(|_, inner| inner.strong_count() > 0);
     open.insert(key, Arc::downgrade(&inner));
     drop(open);
     spawn_auto_lock(Arc::downgrade(&inner));
-    Ok(Library { inner })
+    let library = Library { inner };
+    // Related notes left on start again.
+    library.discovery().resume();
+    Ok(library)
 }
 
 /// The timer that closes locked notes once the auto-lock time has passed. It

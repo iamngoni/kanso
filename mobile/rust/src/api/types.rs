@@ -9,11 +9,13 @@
 use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
-    BuiltinTheme, ColorRow, DateField, DiagramKind, Hit, KansoError, LibraryOverview, ListPlace,
-    ListQuery, ListShape, LockEvent, LockReason, LockState, NewNote, NoteChange, NoteList, NoteRow,
-    NoteView, NotebookRole, NotebookRow, PaletteDto, Property, PropertyKind, Range16, Saved,
-    SearchScope, ServerInfo, SortKey, SpanRow, StyledRun, SvgRow, SyncPhase, SyncProblemKind,
-    SyncReportRow, SyncStatus, SyntaxStyleRow, Table, TableRow, TagRow, ThemeTokens,
+    BuiltinTheme, ColorRow, DateField, DiagramKind, DiscoveryMeasure, GraphEdgeRow, GraphFilter,
+    GraphLayout, GraphNodeRow, GraphRequest, Hit, ImageToRead, KansoError, LibraryOverview,
+    ListPlace, ListQuery, ListShape, LockEvent, LockReason, LockState, MeaningResult, NewNote,
+    NoteChange, NoteList, NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, PaletteDto,
+    Property, PropertyKind, Range16, RelatedRow, RelatedState, RelatedStatus, Saved, SearchScope,
+    ServerInfo, SortKey, SpanRow, StyledRun, SuggestedTag, SvgRow, SyncPhase, SyncProblemKind,
+    SyncReportRow, SyncStatus, SyntaxStyleRow, Table, TableRow, TagRow, ThemeTokens, TwinRow,
 };
 
 #[frb(mirror(KansoError))]
@@ -365,4 +367,113 @@ pub struct _SvgRow {
     pub width: f32,
     pub height: f32,
     pub baseline: Option<f32>,
+}
+
+#[frb(mirror(RelatedStatus))]
+pub enum _RelatedStatus {
+    Off,
+    Downloading { done: u64, total: u64 },
+    Loading,
+    Indexing { done: u32, total: u32 },
+    Ready { notes: u32 },
+    Failed { message: String },
+}
+
+#[frb(mirror(RelatedState))]
+pub struct _RelatedState {
+    pub status: RelatedStatus,
+    pub title: Option<String>,
+    pub detail: Option<String>,
+}
+
+#[frb(mirror(RelatedRow))]
+pub struct _RelatedRow {
+    pub id: String,
+    pub title: String,
+    pub score: f32,
+    pub label: String,
+}
+
+#[frb(mirror(SuggestedTag))]
+pub struct _SuggestedTag {
+    pub tag_id: String,
+    pub name: String,
+    pub weight: f32,
+}
+
+#[frb(mirror(TwinRow))]
+pub struct _TwinRow {
+    pub id: String,
+    pub title: String,
+    pub percent: u32,
+}
+
+#[frb(mirror(NoteMeaning))]
+pub struct _NoteMeaning {
+    pub tags: Vec<SuggestedTag>,
+    pub twin: Option<TwinRow>,
+}
+
+#[frb(mirror(MeaningResult))]
+pub enum _MeaningResult {
+    Off,
+    NoModel,
+    Found { rows: Vec<RelatedRow> },
+}
+
+#[frb(mirror(GraphFilter))]
+pub enum _GraphFilter {
+    All,
+    Book { id: String },
+    Tag { id: String },
+}
+
+#[frb(mirror(GraphRequest))]
+pub enum _GraphRequest {
+    Library { filter: GraphFilter },
+    Local { center: String, hops: u8 },
+}
+
+#[frb(mirror(GraphNodeRow))]
+pub struct _GraphNodeRow {
+    pub id: String,
+    pub title: String,
+    pub notebook_id: String,
+    pub degree: u32,
+    pub x: f32,
+    pub y: f32,
+    pub radius: f32,
+    pub color_light: u32,
+    pub color_dark: u32,
+    pub is_center: bool,
+}
+
+#[frb(mirror(GraphEdgeRow))]
+pub struct _GraphEdgeRow {
+    pub from: u32,
+    pub to: u32,
+}
+
+#[frb(mirror(GraphLayout))]
+pub struct _GraphLayout {
+    pub nodes: Vec<GraphNodeRow>,
+    pub edges: Vec<GraphEdgeRow>,
+    pub link_count: u32,
+}
+
+#[frb(mirror(ImageToRead))]
+pub struct _ImageToRead {
+    pub id: String,
+    pub md5: String,
+    pub bytes: Vec<u8>,
+}
+
+#[frb(mirror(DiscoveryMeasure))]
+pub struct _DiscoveryMeasure {
+    pub model_bytes: u64,
+    pub load_ms: u64,
+    pub resident_before: Option<u64>,
+    pub resident_after: Option<u64>,
+    pub notes: u32,
+    pub notes_per_second: f64,
 }

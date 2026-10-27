@@ -216,7 +216,7 @@ pub(super) fn library_graph_large(
             .unwrap();
     }
     let started = std::time::Instant::now();
-    let (notes, links) = store.graph_rows().unwrap();
+    let (notes, links) = store.graph_rows(true).unwrap();
     let graph = crate::graph::Graph::build(notes, &links);
     crate::graph::layout(&graph, 1);
     println!(
