@@ -16,6 +16,26 @@ abstract class KansoSync implements RustOpaqueInterface {
   static Future<String> defaultServer() =>
       KansoCore.instance.api.crateApiSyncKansoSyncDefaultServer();
 
+  static String intervalLabel({required int minutes}) => KansoCore.instance.api
+      .crateApiSyncKansoSyncIntervalLabel(minutes: minutes);
+
+  /// The choices for how often sync runs.
+  static List<SyncIntervalOption> intervalOptions() =>
+      KansoCore.instance.api.crateApiSyncKansoSyncIntervalOptions();
+
+  static String intervalPhrase({required int minutes}) => KansoCore.instance.api
+      .crateApiSyncKansoSyncIntervalPhrase(minutes: minutes);
+
+  /// The app is in front (`true`) or not.
+  Future<void> setForeground({required bool foreground});
+
+  Future<SyncSettingsRow> setSettings({
+    required bool enabled,
+    required int intervalSecs,
+  });
+
+  Future<SyncSettingsRow> settings();
+
   Future<SyncStatus> signInPassword({
     required String server,
     required String username,
@@ -26,6 +46,20 @@ abstract class KansoSync implements RustOpaqueInterface {
   Future<void> signOut();
 
   Future<SyncStatus> status();
+
+  /// The status line in the desktop's words. `when` and `resume` are the
+  /// shell's words for `last_synced_ms` and `resume_at_ms`.
+  static SyncStatusLine statusLine({
+    required SyncStatus status,
+    required SyncSettingsRow settings,
+    required String when,
+    required String resume,
+  }) => KansoCore.instance.api.crateApiSyncKansoSyncStatusLine(
+    status: status,
+    settings: settings,
+    when: when,
+    resume: resume,
+  );
 
   /// The status now and each time it changes, until Dart stops listening.
   Stream<SyncStatus> statusStream();

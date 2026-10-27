@@ -20,9 +20,7 @@ abstract final class AnrParser {
   static final RegExp _native = RegExp(
     r'^\s+native:\s+#[0-9]+\s+pc\s+([0-9a-fA-F]{1,16})\s+(.*?)\s*$',
   );
-  static final RegExp _buildId = RegExp(
-    r'\s+\(BuildId:\s*([0-9a-fA-F]+)\)$',
-  );
+  static final RegExp _buildId = RegExp(r'\s+\(BuildId:\s*([0-9a-fA-F]+)\)$');
   static final RegExp _java = RegExp(r'^\s+at\s+(\S+)\.([^.\s(]+)\((.*)\)\s*$');
   static final RegExp _symbolOffset = RegExp(r'^(.*)\+([0-9]+)$');
   static final RegExp _lineNumber = RegExp(r':([0-9]+)$');

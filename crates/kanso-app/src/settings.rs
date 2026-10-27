@@ -30,10 +30,7 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
-use kanso_sync::{QuotaKind, SyncProblem};
-
 use crate::account_page::AccountPage;
-use crate::account_words::{quota_words, signed_out_sentence};
 use crate::clock::Clock;
 use crate::config::{
     DEFAULT_FONT_SIZE, DiagramRenderer, EditorFont, EditorSettings, SyncSettings, Typewriter,
@@ -41,7 +38,7 @@ use crate::config::{
 use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT};
 use crate::library::Library;
 use crate::services::{self, AccountState, ApiState, Services, SyncState};
-use crate::sidebar::{Tone, sync_line, tone_color};
+use crate::sidebar::{Tone, tone_color};
 use crate::text_stats::format_count;
 use crate::theme::Colors;
 use crate::word_goal::PRESETS;
@@ -176,77 +173,11 @@ impl SettingsPage {
 /// What a saved password shows instead of itself, whatever its length.
 pub const MASK: &str = "••••••••";
 
-/// A status line for the top of a page: a colored dot with a few words, and
-/// a sentence that says what it means or what to do.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StatusLine {
-    pub tone: Tone,
-    pub label: String,
-    pub detail: String,
-}
+pub use kanso_engine::sync::StatusLine;
+pub use kanso_engine::sync::words::{SYNC_INTERVALS, interval_label, problem_help};
 
-/// What to do about a sync problem, as Settings › Account and the sidebar's
-/// tooltip say it (docs/ACCOUNTS.md › Problems). `resume` names when a
-/// pause ends, to follow "Sync resumes".
-pub fn problem_help(problem: &SyncProblem, resume: impl FnOnce(i64) -> String) -> String {
-    match problem {
-        SyncProblem::SignedOut(reason) => format!(
-            "{} Sign in again to keep syncing.",
-            signed_out_sentence(*reason)
-        ),
-        SyncProblem::AccountDisabled => {
-            "This account is turned off on the server. Ask the server's owner.".to_owned()
-        }
-        SyncProblem::Paused { until } => format!(
-            "This account made a lot of changes today. Sync resumes {}.",
-            resume(*until)
-        ),
-        SyncProblem::ServerBusy { until } => format!(
-            "The server has taken all the changes it can for today. Sync resumes {}.",
-            resume(*until)
-        ),
-        SyncProblem::BackOff { .. } => {
-            "This device sent the server a lot of requests at once. Sync resumes in a moment."
-                .to_owned()
-        }
-        SyncProblem::QuotaExceeded(QuotaKind::Server) | SyncProblem::ServerFull => {
-            "The server is out of space. Ask its owner.".to_owned()
-        }
-        SyncProblem::QuotaExceeded(kind) => format!(
-            "Your account is full ({}). Delete something or ask the server's owner for more space.",
-            quota_words(*kind)
-        ),
-        SyncProblem::Skipped { count: 1 } => {
-            "1 item on the server couldn't be read. It was skipped; your copy here is unchanged."
-                .to_owned()
-        }
-        SyncProblem::Skipped { count } => format!(
-            "{count} items on the server couldn't be read. They were skipped; your copies here are unchanged."
-        ),
-        SyncProblem::UpdateKanso => {
-            "Another device uses a newer Kanso. Update this one to keep syncing.".to_owned()
-        }
-        SyncProblem::WrongKey => "The server's account keys don't match this device's. Sync is stopped; your notes are safe here. Sign out and in again.".to_owned(),
-        SyncProblem::ServerOutdated => {
-            "That server doesn't run this version of Kanso sync.".to_owned()
-        }
-        SyncProblem::Offline => {
-            "Can't reach the server. Your notes are safe on this device.".to_owned()
-        }
-        SyncProblem::Other => "Something went wrong. Try Sync now.".to_owned(),
-    }
-}
-
-/// What the Account page's status says while signed out.
-pub const NOT_SIGNED_IN: &str = "Sync is off";
-pub const SIGNED_OUT_DETAIL: &str = "Your notes are only on this device. With a free account they sync to all your devices and are backed up, locked so only you can read them.";
-
-/// The Account page's status: the sidebar's words ("Synced just now",
-/// "Syncing…", a problem's label) and what they mean here, with `when`
-/// naming the last sync's time as the sidebar does (see [`sync_line`]) and
-/// `resume` the end of a pause (see [`problem_help`]). Signed out, it reads
-/// "Sync is off". A conflict names the note it was in, by
-/// `conflicted_title` when that is known.
+/// The Account page's status (see [`kanso_engine::sync::words::sync_status_line`]),
+/// for these sync settings.
 pub fn sync_status_line(
     state: &SyncState,
     account: &AccountState,
@@ -255,66 +186,15 @@ pub fn sync_status_line(
     resume: impl FnOnce(i64) -> String,
     conflicted_title: Option<&str>,
 ) -> StatusLine {
-    let (tone, label) = sync_line(state, account, when);
-    let every = sync_every((settings.interval_secs / 60).max(1));
-    let (label, detail) = match account {
-        AccountState::SignedOut => (NOT_SIGNED_IN.to_owned(), SIGNED_OUT_DETAIL.to_owned()),
-        AccountState::SignedInLocked { .. } => (
-            label,
-            "Open Kanso on a device that's already signed in and approve this one.".to_owned(),
-        ),
-        AccountState::SessionEnded { reason, .. } => (
-            label,
-            problem_help(&SyncProblem::SignedOut(*reason), resume),
-        ),
-        AccountState::Busy(_) => (
-            label,
-            "This takes a few seconds. Your notes stay on this device.".to_owned(),
-        ),
-        AccountState::SignedIn { .. } => {
-            let detail = match state {
-                SyncState::Failed(problem)
-                | SyncState::Synced {
-                    problem: Some(problem),
-                    ..
-                } => problem_help(problem, resume),
-                SyncState::Syncing => {
-                    "Sending and fetching changes. Writing carries on as usual.".to_owned()
-                }
-                SyncState::Off | SyncState::Synced { conflicts: 0, .. } if settings.enabled => {
-                    format!("Kanso syncs {every} and soon after you edit.")
-                }
-                SyncState::Off => {
-                    "Turn on Sync automatically, or sync once with Sync now.".to_owned()
-                }
-                SyncState::Synced { conflicts: 0, .. } => {
-                    "Automatic sync is off; Sync now syncs again.".to_owned()
-                }
-                SyncState::Synced { conflicts: 1, .. } => match conflicted_title {
-                    Some(title) => format!(
-                        "“{title}” changed on two devices at once. Both versions are kept: the other one is in its history."
-                    ),
-                    None => "A note changed on two devices at once. Both versions are kept: the other one is in the note's history.".to_owned(),
-                },
-                SyncState::Synced { conflicts, .. } => match conflicted_title {
-                    Some(title) => format!(
-                        "“{title}” and {} other {} changed on two devices at once. Both versions of each are kept: the others are in their history.",
-                        conflicts - 1,
-                        if *conflicts == 2 { "note" } else { "notes" },
-                    ),
-                    None => format!(
-                        "{conflicts} notes changed on two devices at once. Both versions of each are kept: the others are in their history."
-                    ),
-                },
-            };
-            (label, detail)
-        }
-    };
-    StatusLine {
-        tone,
-        label,
-        detail,
-    }
+    kanso_engine::sync::words::sync_status_line(
+        state,
+        account,
+        settings.enabled,
+        settings.interval_secs,
+        when,
+        resume,
+        conflicted_title,
+    )
 }
 
 /// The Local API page's status. A failure's own reason only shows in the
@@ -370,28 +250,6 @@ pub fn mcp_endpoint(bind_address: &str, port: u16) -> String {
         ip => ip,
     };
     format!("http://{}/mcp", SocketAddr::new(ip, port))
-}
-
-/// The choices for how often sync runs, in minutes.
-pub const SYNC_INTERVALS: [u64; 6] = [1, 5, 15, 30, 60, 240];
-
-/// "1 minute", "15 minutes", "1 hour", "4 hours".
-pub fn interval_label(minutes: u64) -> String {
-    match minutes {
-        1 => "1 minute".to_owned(),
-        60 => "1 hour".to_owned(),
-        m if m > 0 && m % 60 == 0 => format!("{} hours", m / 60),
-        m => format!("{m} minutes"),
-    }
-}
-
-/// "every minute", "every 15 minutes", "every hour".
-pub(crate) fn sync_every(minutes: u64) -> String {
-    match minutes {
-        1 => "every minute".to_owned(),
-        60 => "every hour".to_owned(),
-        m => format!("every {}", interval_label(m)),
-    }
 }
 
 /// How small and large the editor's text can be.
@@ -951,13 +809,13 @@ impl SettingsView {
         }
         let state = cx.global::<AppState>();
         let store = state.store.clone();
-        let dir = paths::backups_dir(&state.data_dir);
+        let folder = state.data_dir.clone();
+        let dir = paths::backups_dir(&folder);
         let now = Clock::now_ms(cx);
         // Beside the daily backups but out of their rotation, so a copy
         // made on request never costs an older daily one.
         let backup = cx.background_spawn({
-            let dir = dir.clone();
-            async move { store.backup_now(&dir, now).map(drop) }
+            async move { kanso_engine::backup::back_up_now(&store, &folder, now).map(drop) }
         });
         self.backing_up = true;
         cx.notify();
@@ -1188,7 +1046,7 @@ impl SettingsView {
                                 .on_click(move |_, _, cx| cx.reveal_path(&dir)),
                         ),
                     Row::new(Lucide::DatabaseBackup, "Backups")
-                        .detail("Kanso backs up its database once a day and keeps the last 14. A backup made with Back up now is kept until you delete it.")
+                        .detail(kanso_engine::backup::SUMMARY)
                         .trailing(
                             Button::new("backup-now")
                                 .outline()
@@ -2168,19 +2026,19 @@ mod tests {
     use std::net::{IpAddr, SocketAddr};
     use std::path::Path;
 
-    use kanso_sync::{QuotaKind, SignOutReason, Step, SyncProblem};
+    use kanso_sync::{SignOutReason, Step, SyncProblem};
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
 
     use super::{
-        FONT_SIZES, NOT_SIGNED_IN, SIGNED_OUT_DETAIL, SYNC_INTERVALS, SettingsPage,
-        api_status_line, display_path, interval_label, mcp_endpoint, parse_port, parse_username,
-        problem_help, step_font_size, sync_every, sync_status_line,
+        FONT_SIZES, SYNC_INTERVALS, SettingsPage, api_status_line, display_path, interval_label,
+        mcp_endpoint, parse_port, parse_username, problem_help, step_font_size, sync_status_line,
     };
     use crate::config::{DEFAULT_FONT_SIZE, SyncSettings};
     use crate::grouping::utc_label;
     use crate::services::{AccountState, ApiState, SyncState, strategies};
     use crate::sidebar::{Tone, sync_line};
+    use kanso_engine::sync::words::{NOT_SIGNED_IN, SIGNED_OUT_DETAIL, sync_every};
 
     /// Shortcuts in Settings' text read as this platform writes them.
     #[test]
@@ -2455,87 +2313,6 @@ mod tests {
         assert_eq!(SettingsPage::Account.title(), "Account");
     }
 
-    /// Every problem in the table has its help, as the table words it.
-    #[test]
-    fn every_sync_problem_has_help() {
-        let cases = [
-            (
-                SyncProblem::SignedOut(SignOutReason::Revoked),
-                "This device was signed out from another device. Sign in again to keep syncing.",
-            ),
-            (
-                SyncProblem::SignedOut(SignOutReason::Recovered),
-                "Your account was recovered with its recovery key. Sign in again to keep syncing.",
-            ),
-            (
-                SyncProblem::SignedOut(SignOutReason::Evicted),
-                "Signed out to make room for another device. Sign in again to keep syncing.",
-            ),
-            (
-                SyncProblem::SignedOut(SignOutReason::Expired),
-                "Signed out after 180 days without syncing. Sign in again to keep syncing.",
-            ),
-            (
-                SyncProblem::SignedOut(SignOutReason::Unknown),
-                "This device was signed out. Sign in again to keep syncing.",
-            ),
-            (
-                SyncProblem::AccountDisabled,
-                "This account is turned off on the server. Ask the server's owner.",
-            ),
-            (
-                SyncProblem::Paused { until: 1 },
-                "This account made a lot of changes today. Sync resumes at 1.",
-            ),
-            (
-                SyncProblem::QuotaExceeded(QuotaKind::DocBytes),
-                "Your account is full (notes and notebooks). Delete something or ask the server's owner for more space.",
-            ),
-            (
-                SyncProblem::QuotaExceeded(QuotaKind::Files),
-                "Your account is full (number of attachments). Delete something or ask the server's owner for more space.",
-            ),
-            (
-                SyncProblem::ServerFull,
-                "The server is out of space. Ask its owner.",
-            ),
-            (
-                SyncProblem::Skipped { count: 3 },
-                "3 items on the server couldn't be read. They were skipped; your copies here are unchanged.",
-            ),
-            (
-                SyncProblem::UpdateKanso,
-                "Another device uses a newer Kanso. Update this one to keep syncing.",
-            ),
-            (
-                SyncProblem::WrongKey,
-                "The server's account keys don't match this device's. Sync is stopped; your notes are safe here. Sign out and in again.",
-            ),
-            (
-                SyncProblem::ServerOutdated,
-                "That server doesn't run this version of Kanso sync.",
-            ),
-            (
-                SyncProblem::Offline,
-                "Can't reach the server. Your notes are safe on this device.",
-            ),
-            (SyncProblem::Other, "Something went wrong. Try Sync now."),
-        ];
-        let settings = sync_settings(true, 5);
-        for (problem, help) in cases {
-            assert_eq!(problem_help(&problem, resume), help);
-            let line = sync_status_line(
-                &SyncState::Failed(problem),
-                &signed_in(),
-                &settings,
-                utc_label(0),
-                resume,
-                None,
-            );
-            assert_eq!(line.detail, help);
-        }
-    }
-
     proptest! {
         #![proptest_config(config())]
 
@@ -2557,23 +2334,6 @@ mod tests {
             if let Ok(name) = parse_username(&value) {
                 prop_assert!(!name.is_empty() && !name.contains(':'));
                 prop_assert_eq!(name.trim(), name.as_str());
-            }
-        }
-
-        /// Every problem's help is a sentence of its own, and a pause (the
-        /// account's or the server's) names when it ends.
-        #[test]
-        fn prop_problem_help_says_what_to_do(problem in strategies::problem()) {
-            let help = problem_help(&problem, |at| format!("at zq{at}"));
-            prop_assert!(help.ends_with('.'), "{}", help);
-            prop_assert_eq!(
-                help.contains("zq"),
-                matches!(problem, SyncProblem::Paused { .. } | SyncProblem::ServerBusy { .. }),
-                "{}",
-                help
-            );
-            if let SyncProblem::SignedOut(_) = problem {
-                prop_assert!(help.ends_with("Sign in again to keep syncing."), "{}", help);
             }
         }
     }
@@ -2660,22 +2420,6 @@ mod tests {
 
     proptest! {
         #![proptest_config(config())]
-
-        /// Round-trip: an interval's label reads back as the same number of
-        /// minutes, singular exactly for one.
-        #[test]
-        fn prop_interval_labels_read_back(minutes in 1u64..100_000) {
-            let label = interval_label(minutes);
-            let (count, unit) = label.split_once(' ').expect("a count and a unit");
-            let count: u64 = count.parse().expect("a number");
-            let back = match unit {
-                "minute" | "minutes" => count,
-                "hour" | "hours" => count * 60,
-                other => panic!("unit {other}"),
-            };
-            prop_assert_eq!(back, minutes);
-            prop_assert_eq!(unit.ends_with('s'), count != 1);
-        }
 
         /// Text size steps stay whole points in range, move the way asked,
         /// and undo each other away from the ends.

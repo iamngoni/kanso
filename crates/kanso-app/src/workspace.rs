@@ -1,6 +1,7 @@
 //! The main window: sidebar, note list and editor, plus the operations that
 //! need more than one of them (dialogs, moving notes, deleting notebooks).
 
+use kanso_engine::list::{FALLBACK_BOOK_NAME, Narrowing, NewNoteTarget, new_note_target};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -811,47 +812,44 @@ impl Workspace {
     fn new_note(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.flush(cx);
         let library = self.library.read(cx);
-        let book = match library.default_book() {
-            Some(book) => book,
-            None => match self.store.put(
-                DocType::Book,
-                json!({"name": "Notes"}),
-                Put::Upsert,
-                Origin::Ui,
-            ) {
-                Ok(created) => created.id,
-                Err(err) => {
-                    return self.notify_error(
-                        format!("Couldn't create a notebook: {err}"),
-                        window,
-                        cx,
-                    );
-                }
+        // The engine decides where the note goes and what it starts with;
+        // the phones ask it the same.
+        let target = new_note_target(
+            &library.filter,
+            Narrowing {
+                status: library.status_only,
+                pinned: library.pinned_only,
             },
+            None,
+            &library.books,
+        );
+        let trash = matches!(library.filter, Filter::Trash);
+        let book = match self.target_book(&target, window, cx) {
+            Some(book) => book,
+            None => return,
         };
         let mut note = json!({"title": "", "body": "", "bookId": book});
-        match &library.filter {
-            Filter::Tag(tag) => note["tags"] = json!([tag]),
-            // A level of the tag tree: its own tag, made if only tags
-            // inside it exist so far.
-            Filter::TagPath(path) => match self.store.tag_named(path, Origin::Ui) {
-                Ok(tag) => note["tags"] = json!([tag]),
+        let mut tags = target.tags.clone();
+        // A level of the tag tree: its own tag, made if only tags inside it
+        // exist so far.
+        if let Some(path) = &target.tag_path {
+            match self.store.tag_named(path, Origin::Ui) {
+                Ok(tag) => tags.push(tag),
                 Err(err) => {
                     return self.notify_error(format!("Couldn't tag the note: {err}"), window, cx);
                 }
-            },
-            Filter::Status(status) => note["status"] = json!(status.as_str()),
-            Filter::Pinned => note["pinned"] = json!(true),
-            _ => {}
+            }
         }
-        // The list's own narrowing too, so the new note shows in it.
-        if let Some(status) = library.status_only {
+        if !tags.is_empty() {
+            note["tags"] = json!(tags);
+        }
+        if let Some(status) = target.status {
             note["status"] = json!(status.as_str());
         }
-        if library.pinned_only {
+        if target.pinned {
             note["pinned"] = json!(true);
         }
-        if matches!(library.filter, Filter::Trash) {
+        if trash {
             self.library.update(cx, |library, cx| {
                 library.set_filter(Filter::Book(book.clone()), cx)
             });
@@ -864,6 +862,30 @@ impl Workspace {
                     .update(cx, |editor, cx| editor.focus_title(window, cx));
             }
             Err(err) => self.notify_error(format!("Couldn't create the note: {err}"), window, cx),
+        }
+    }
+
+    /// The notebook `target` names, made when the library has none.
+    fn target_book(
+        &mut self,
+        target: &NewNoteTarget,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<String> {
+        if let Some(book) = &target.book_id {
+            return Some(book.clone());
+        }
+        match self.store.put(
+            DocType::Book,
+            json!({"name": FALLBACK_BOOK_NAME}),
+            Put::Upsert,
+            Origin::Ui,
+        ) {
+            Ok(created) => Some(created.id),
+            Err(err) => {
+                self.notify_error(format!("Couldn't create a notebook: {err}"), window, cx);
+                None
+            }
         }
     }
 
@@ -894,23 +916,12 @@ impl Workspace {
                 .update(cx, |library, cx| library.select(Some(id), cx));
             return;
         }
-        let book = match self.library.read(cx).default_book() {
-            Some(book) => book,
-            None => match self.store.put(
-                DocType::Book,
-                json!({"name": "Notes"}),
-                Put::Upsert,
-                Origin::Ui,
-            ) {
-                Ok(created) => created.id,
-                Err(err) => {
-                    return self.notify_error(
-                        format!("Couldn't create a notebook: {err}"),
-                        window,
-                        cx,
-                    );
-                }
-            },
+        let target = {
+            let library = self.library.read(cx);
+            new_note_target(&library.filter, Narrowing::default(), None, &library.books)
+        };
+        let Some(book) = self.target_book(&target, window, cx) else {
+            return;
         };
         let note = json!({"title": title, "body": "", "bookId": book});
         match self.store.put(DocType::Note, note, Put::Upsert, Origin::Ui) {
@@ -1211,7 +1222,7 @@ impl Workspace {
                     return;
                 }
                 let copy = json!({
-                    "title": format!("{} (copy)", note.title),
+                    "title": kanso_engine::notes::copy_title(&note.title),
                     "body": if note.is_locked() { "" } else { note.body.as_str() },
                     "bookId": note.book_id,
                     "tags": note.tags,
@@ -1663,7 +1674,7 @@ impl Workspace {
                 .background_executor()
                 .spawn({
                     let root = root.clone();
-                    async move { crate::export::export(&store, &root, only.as_deref()) }
+                    async move { kanso_engine::export::export(&store, &root, only.as_deref()) }
                 })
                 .await;
             cx.update(|window, cx| match result {

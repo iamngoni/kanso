@@ -43,6 +43,14 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
         libraryIndexDebounce,
       ),
     );
+    on<LibraryIndexPlaceChangedEvent>(_onPlaceChanged);
+    on<LibraryIndexNotebookFoldedEvent>(_onNotebookFolded);
+    on<LibraryIndexTagToggledEvent>(_onTagToggled);
+    on<LibraryIndexAllTagsToggledEvent>(_onAllTagsToggled);
+    on<LibraryIndexStatusGroupToggledEvent>(
+      (event, emit) =>
+          emit(state.copyWith(statusOpen: !state.statusOpen)),
+    );
   }
 
   final LibraryRepository _library;
@@ -68,11 +76,13 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
       _library.notebooks(),
       _library.tags(),
       _library.overview(),
+      _library.overdueTasks(),
+      _library.statuses(),
     ).wait;
     if (reading != _reading || emit.isDone) {
       return;
     }
-    final (notebooks, tags, overview) = results;
+    final (notebooks, tags, overview, overdue, statuses) = results;
     ApplicationError? failure;
     for (final result in <Either<ApplicationError, Object?>>[
       notebooks,
@@ -86,14 +96,126 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
       emit(state.copyWith(status: LibraryIndexStatus.failed, error: error));
       return;
     }
-    emit(
-      LibraryIndexState(
-        status: LibraryIndexStatus.ready,
-        notebooks: notebooks.getOrElse(() => <NotebookRow>[]),
-        tags: tags.getOrElse(() => <TagRow>[]),
-        overview: overview.getOrElse(() => state.overview),
-      ),
+    final read = state.copyWith(
+      status: LibraryIndexStatus.ready,
+      notebooks: notebooks.getOrElse(() => <NotebookRow>[]),
+      tags: tags.getOrElse(() => <TagRow>[]),
+      overview: overview.getOrElse(() => state.overview),
+      // The badge is a nicety: a failure to count shows none.
+      overdueTasks: overdue.getOrElse(() => 0),
+      statuses: statuses.getOrElse(() => state.statuses),
+      error: null,
     );
+    // The tree reads the state it will be drawn with, not the one before.
+    final tree = await _tree(read);
+    if (reading != _reading || emit.isDone) {
+      return;
+    }
+    emit(read.copyWith(visibleNotebooks: tree.$1, tagPlaces: tree.$2));
+  }
+
+  Future<void> _onPlaceChanged(
+    LibraryIndexPlaceChangedEvent event,
+    Emitter<LibraryIndexState> emit,
+  ) async {
+    if (state.place == event.place) {
+      return;
+    }
+    final next = state;
+    emit(next.copyWith(place: event.place));
+    await _readTree(emit, from: next.copyWith(place: event.place));
+  }
+
+  /// A tap on notebook [id]'s arrow: the folds change, then the rows.
+  Future<void> _onNotebookFolded(
+    LibraryIndexNotebookFoldedEvent event,
+    Emitter<LibraryIndexState> emit,
+  ) async {
+    final folds = await _library.toggleFold(
+      state.folds,
+      event.id,
+      showing: _showingNotebook,
+    );
+    final next = folds.fold(
+      (error) => state,
+      (folds) => state.copyWith(folds: folds),
+    );
+    emit(next);
+    await _readTree(emit, from: next);
+  }
+
+  /// A tap on the tags' "…" or "Fewer".
+  Future<void> _onAllTagsToggled(
+    LibraryIndexAllTagsToggledEvent event,
+    Emitter<LibraryIndexState> emit,
+  ) async {
+    final next = state.copyWith(allTags: !state.allTags);
+    emit(next);
+    await _readTree(emit, from: next);
+  }
+
+  /// A tap on the arrow of a tag level.
+  Future<void> _onTagToggled(
+    LibraryIndexTagToggledEvent event,
+    Emitter<LibraryIndexState> emit,
+  ) async {
+    final path = event.path.toLowerCase();
+    final open = List<String>.of(state.openTags);
+    if (!open.remove(path)) {
+      open.add(path);
+    }
+    final next = state.copyWith(openTags: open);
+    emit(next);
+    await _readTree(emit, from: next);
+  }
+
+  /// Reads the notebook rows and the tag chips and rows for [from]'s folds,
+  /// open levels and place.
+  Future<void> _readTree(
+    Emitter<LibraryIndexState> emit, {
+    LibraryIndexState? from,
+  }) async {
+    final base = from ?? state;
+    final tree = await _tree(base);
+    if (emit.isDone) {
+      return;
+    }
+    emit(base.copyWith(visibleNotebooks: tree.$1, tagPlaces: tree.$2));
+  }
+
+  /// The notebook rows and tag places [base] shows. A failure keeps what was
+  /// there: the tree is a view of the library, not the library itself.
+  Future<(List<VisibleNotebook>, TagPlaces)> _tree(
+    LibraryIndexState base,
+  ) async {
+    final place = base.place;
+    final showingTag = switch (place) {
+      ListPlace_Tag(:final id) => base.tag(id)?.name,
+      ListPlace_TagPath(:final path) => path,
+      _ => null,
+    };
+    final results = await (
+      _library.visibleNotebooks(
+        base.folds,
+        showing: place is ListPlace_Notebook ? place.id : null,
+      ),
+      _library.tagPlaces(
+        all: base.allTags,
+        selected: place is ListPlace_Tag ? place.id : null,
+        openPaths: base.openTags,
+        showing: showingTag,
+      ),
+    ).wait;
+    return (
+      results.$1.getOrElse(() => base.visibleNotebooks),
+      results.$2.getOrElse(() => base.tagPlaces),
+    );
+  }
+
+  /// The notebook whose notes are listed, if one is.
+  String? get _showingNotebook {
+    final place = state.place;
+    return place is ListPlace_Notebook ? place.id : null;
   }
 
   @override

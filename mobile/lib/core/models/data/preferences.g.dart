@@ -20,20 +20,7 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
         unknownValue: KansoTextSize.standard,
       ) ??
       KansoTextSize.standard,
-  previewTextSize:
-      $enumDecodeNullable(
-        _$KansoTextSizeEnumMap,
-        json['previewTextSize'],
-        unknownValue: KansoTextSize.standard,
-      ) ??
-      KansoTextSize.standard,
-  diagramRenderer:
-      $enumDecodeNullable(
-        _$DiagramRendererEnumMap,
-        json['diagramRenderer'],
-        unknownValue: DiagramRenderer.pele,
-      ) ??
-      DiagramRenderer.pele,
+  iconTheme: json['iconTheme'] as String? ?? KansoIconSet.lucideId,
   sort:
       $enumDecodeNullable(
         _$SortKeyEnumMap,
@@ -43,6 +30,8 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
       SortKey.updated,
   descending: json['descending'] as bool? ?? true,
   backupNoticeSeen: json['backupNoticeSeen'] as bool? ?? false,
+  biometricOfferSeen: json['biometricOfferSeen'] as bool? ?? false,
+  defaultNotebookId: json['defaultNotebookId'] as String?,
 );
 
 Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
@@ -50,11 +39,12 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'themeSelection': instance.themeSelection.toJson(),
       'fonts': instance.fonts.toJson(),
       'textSize': _$KansoTextSizeEnumMap[instance.textSize]!,
-      'previewTextSize': _$KansoTextSizeEnumMap[instance.previewTextSize]!,
-      'diagramRenderer': _$DiagramRendererEnumMap[instance.diagramRenderer]!,
+      'iconTheme': instance.iconTheme,
       'sort': _$SortKeyEnumMap[instance.sort]!,
       'descending': instance.descending,
       'backupNoticeSeen': instance.backupNoticeSeen,
+      'biometricOfferSeen': instance.biometricOfferSeen,
+      'defaultNotebookId': ?instance.defaultNotebookId,
     };
 
 const _$KansoTextSizeEnumMap = {

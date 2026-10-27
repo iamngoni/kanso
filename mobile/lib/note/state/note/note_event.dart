@@ -19,6 +19,17 @@ sealed class NoteEvent with _$NoteEvent {
   const factory NoteEvent.syntaxThemeChanged(String themeId) =
       NoteSyntaxThemeChangedEvent;
 
+  /// The note is shown in [mode]. Edit starts with the caret at [bodyCaret],
+  /// an offset in the note's whole body as the preview shows it (front
+  /// matter included), or where it was left.
+  const factory NoteEvent.modeChanged(NoteMode mode, {int? bodyCaret}) =
+      NoteModeChangedEvent;
+
+  /// The editor was left with the caret at [caret], the page scrolled to
+  /// [scroll].
+  const factory NoteEvent.placeKept(int caret, double scroll) =
+      NotePlaceKeptEvent;
+
   /// The person asked to try again after a failure.
   const factory NoteEvent.retried() = NoteRetriedEvent;
 }

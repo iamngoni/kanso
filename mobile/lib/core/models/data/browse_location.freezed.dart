@@ -86,12 +86,13 @@ extension BrowseLocationPatterns on BrowseLocation {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PlaceLocation value)?  place,TResult Function( SearchLocation value)?  search,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PlaceLocation value)?  place,TResult Function( SearchLocation value)?  search,TResult Function( TasksLocation value)?  tasks,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PlaceLocation() when place != null:
 return place(_that);case SearchLocation() when search != null:
-return search(_that);case _:
+return search(_that);case TasksLocation() when tasks != null:
+return tasks(_that);case _:
   return orElse();
 
 }
@@ -109,12 +110,13 @@ return search(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PlaceLocation value)  place,required TResult Function( SearchLocation value)  search,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PlaceLocation value)  place,required TResult Function( SearchLocation value)  search,required TResult Function( TasksLocation value)  tasks,}){
 final _that = this;
 switch (_that) {
 case PlaceLocation():
 return place(_that);case SearchLocation():
-return search(_that);}
+return search(_that);case TasksLocation():
+return tasks(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -128,12 +130,13 @@ return search(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PlaceLocation value)?  place,TResult? Function( SearchLocation value)?  search,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PlaceLocation value)?  place,TResult? Function( SearchLocation value)?  search,TResult? Function( TasksLocation value)?  tasks,}){
 final _that = this;
 switch (_that) {
 case PlaceLocation() when place != null:
 return place(_that);case SearchLocation() when search != null:
-return search(_that);case _:
+return search(_that);case TasksLocation() when tasks != null:
+return tasks(_that);case _:
   return null;
 
 }
@@ -150,11 +153,12 @@ return search(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ListPlace place,  String? noteId)?  place,TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ListPlace place,  String? noteId)?  place,TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,TResult Function( String? noteId)?  tasks,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PlaceLocation() when place != null:
 return place(_that.place,_that.noteId);case SearchLocation() when search != null:
-return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case _:
+return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case TasksLocation() when tasks != null:
+return tasks(_that.noteId);case _:
   return orElse();
 
 }
@@ -172,11 +176,12 @@ return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ListPlace place,  String? noteId)  place,required TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)  search,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ListPlace place,  String? noteId)  place,required TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)  search,required TResult Function( String? noteId)  tasks,}) {final _that = this;
 switch (_that) {
 case PlaceLocation():
 return place(_that.place,_that.noteId);case SearchLocation():
-return search(_that.query,_that.scope,_that.notebookId,_that.noteId);}
+return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case TasksLocation():
+return tasks(_that.noteId);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -190,11 +195,12 @@ return search(_that.query,_that.scope,_that.notebookId,_that.noteId);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ListPlace place,  String? noteId)?  place,TResult? Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ListPlace place,  String? noteId)?  place,TResult? Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,TResult? Function( String? noteId)?  tasks,}) {final _that = this;
 switch (_that) {
 case PlaceLocation() when place != null:
 return place(_that.place,_that.noteId);case SearchLocation() when search != null:
-return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case _:
+return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case TasksLocation() when tasks != null:
+return tasks(_that.noteId);case _:
   return null;
 
 }
@@ -344,6 +350,72 @@ query: null == query ? _self.query : query // ignore: cast_nullable_to_non_nulla
 as String,scope: null == scope ? _self.scope : scope // ignore: cast_nullable_to_non_nullable
 as SearchScopeKind,notebookId: freezed == notebookId ? _self.notebookId : notebookId // ignore: cast_nullable_to_non_nullable
 as String?,noteId: freezed == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class TasksLocation extends BrowseLocation {
+  const TasksLocation({this.noteId}): super._();
+  
+
+@override final  String? noteId;
+
+/// Create a copy of BrowseLocation
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$TasksLocationCopyWith<TasksLocation> get copyWith => _$TasksLocationCopyWithImpl<TasksLocation>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TasksLocation&&(identical(other.noteId, noteId) || other.noteId == noteId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,noteId);
+
+@override
+String toString() {
+  return 'BrowseLocation.tasks(noteId: $noteId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $TasksLocationCopyWith<$Res> implements $BrowseLocationCopyWith<$Res> {
+  factory $TasksLocationCopyWith(TasksLocation value, $Res Function(TasksLocation) _then) = _$TasksLocationCopyWithImpl;
+@override @useResult
+$Res call({
+ String? noteId
+});
+
+
+
+
+}
+/// @nodoc
+class _$TasksLocationCopyWithImpl<$Res>
+    implements $TasksLocationCopyWith<$Res> {
+  _$TasksLocationCopyWithImpl(this._self, this._then);
+
+  final TasksLocation _self;
+  final $Res Function(TasksLocation) _then;
+
+/// Create a copy of BrowseLocation
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? noteId = freezed,}) {
+  return _then(TasksLocation(
+noteId: freezed == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

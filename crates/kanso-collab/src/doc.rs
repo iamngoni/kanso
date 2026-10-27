@@ -11,6 +11,7 @@
 use std::time::Duration;
 
 use similar::{Algorithm, DiffOp, TextDiff};
+use yrs::branch::BranchPtr;
 use yrs::updates::decoder::Decode;
 use yrs::updates::encoder::Encode;
 use yrs::{
@@ -71,7 +72,11 @@ impl CollabDoc {
     pub fn new() -> CollabDoc {
         let doc = Doc::with_options(Options {
             client_id: client_id(),
-            offset_kind: OffsetKind::Bytes,
+            // UTF-16 units, the unit the CRDT keeps positions in. With bytes it
+            // counts some offsets in bytes and others in units, so a position
+            // after a wide character lands on the wrong one. Offsets in and
+            // out of this type are bytes of the text; they are converted here.
+            offset_kind: OffsetKind::Utf16,
             ..Options::default()
         });
         let title = doc.get_or_insert_text("title");
@@ -130,12 +135,23 @@ impl CollabDoc {
             return Vec::new();
         }
         let edits = edits(&old, new);
+        // Where each edit starts and how much it deletes, in UTF-16 units of
+        // the old text, counted in one pass.
+        let mut spans = Vec::with_capacity(edits.len());
+        let (mut byte, mut unit) = (0, 0);
+        for edit in &edits {
+            unit += units(&old[byte..edit.at]);
+            let delete = units(&old[edit.at..edit.at + edit.delete]);
+            spans.push((unit, delete));
+            unit += delete;
+            byte = edit.at + edit.delete;
+        }
         let text = self.text_ref(field);
         let mut updates = Vec::new();
         let mut txn = self.doc.transact_mut();
         let mut inserted = 0;
         // From the end, so every offset still refers to the old text.
-        for edit in edits.iter().rev() {
+        for (edit, &(start, delete)) in edits.iter().zip(&spans).rev() {
             if edit.delete > 0 {
                 if inserted >= part {
                     updates.push(txn.encode_update_v1());
@@ -143,10 +159,10 @@ impl CollabDoc {
                     txn = self.doc.transact_mut();
                     inserted = 0;
                 }
-                text.remove_range(&mut txn, edit.at as u32, edit.delete as u32);
+                text.remove_range(&mut txn, start, delete);
                 inserted += OP_COST;
             }
-            let mut at = edit.at;
+            let mut at = start;
             let mut rest = edit.insert.as_str();
             while !rest.is_empty() {
                 if inserted >= part {
@@ -159,8 +175,8 @@ impl CollabDoc {
                 while !rest.is_char_boundary(take) {
                     take += 1;
                 }
-                text.insert(&mut txn, at as u32, &rest[..take]);
-                at += take;
+                text.insert(&mut txn, at, &rest[..take]);
+                at += units(&rest[..take]);
                 inserted += take + OP_COST;
                 rest = &rest[take..];
             }
@@ -187,27 +203,56 @@ impl CollabDoc {
         })
     }
 
-    /// A position in `field` that follows the text around it through every
-    /// later edit, as base64url. Past the end it sticks to the end.
+    /// A position in `field` (a byte offset of its text) that follows the
+    /// text around it through every later edit, as base64url. Past the end
+    /// it sticks to the end.
     pub fn sticky(&self, field: Field, offset: usize) -> String {
         let txn = self.doc.transact();
         let text = self.text_ref(field);
-        let len = text.len(&txn) as usize;
-        let offset = offset.min(len) as u32;
+        let body = text.get_string(&txn);
+        let mut offset = offset.min(body.len());
+        while !body.is_char_boundary(offset) {
+            offset -= 1;
+        }
+        let unit = units(&body[..offset]);
         let index = text
-            .sticky_index(&txn, offset, Assoc::After)
-            .or_else(|| text.sticky_index(&txn, offset, Assoc::Before))
+            .sticky_index(&txn, unit, Assoc::After)
+            .or_else(|| text.sticky_index(&txn, unit, Assoc::Before))
             .expect("an offset within the text has a sticky position");
         b64(&index.encode_v1())
     }
 
-    /// Where a sticky position is now, or `None` for one that isn't this
-    /// document's.
+    /// Where a sticky position is now, as a byte offset of its text, or
+    /// `None` for one that isn't this document's.
     pub fn resolve(&self, sticky: &str) -> Option<usize> {
         let index = StickyIndex::decode_v1(&unb64(sticky)?).ok()?;
         let txn = self.doc.transact();
-        index.get_offset(&txn).map(|offset| offset.index as usize)
+        let offset = index.get_offset(&txn)?;
+        let field = [Field::Title, Field::Body].into_iter().find(|&field| {
+            let branch: &yrs::branch::Branch = self.text_ref(field).as_ref();
+            BranchPtr::from(branch) == offset.branch
+        })?;
+        let body = self.text_ref(field).get_string(&txn);
+        Some(byte_at_unit(&body, offset.index as usize))
     }
+}
+
+/// How many UTF-16 units `text` is: the unit the CRDT counts positions in.
+fn units(text: &str) -> u32 {
+    u32::try_from(text.encode_utf16().count()).unwrap_or(u32::MAX)
+}
+
+/// The byte offset in `text` of `units` UTF-16 units in, the end past it;
+/// a unit in the middle of a wide character counts from its start.
+fn byte_at_unit(text: &str, units: usize) -> usize {
+    let mut seen = 0;
+    for (at, c) in text.char_indices() {
+        seen += c.len_utf16();
+        if seen > units {
+            return at;
+        }
+    }
+    text.len()
 }
 
 /// What one insert or delete adds to an encoded update besides its text, at
@@ -513,6 +558,25 @@ mod tests {
             }
         }
 
+        /// In a text of wide characters, a position is found where it was
+        /// made, the end included, and text put in front of it moves it on
+        /// by just that text's bytes.
+        #[test]
+        fn prop_sticky_positions_count_bytes_past_wide_characters(
+            start in "[a-cé😀\u{301}]{1,20}",
+            // Letters the text has none of, so the edit is just this text
+            // put in front, whatever the diff prefers.
+            front in "[xyñ🙂]{1,6}",
+            at in any::<prop::sample::Index>(),
+        ) {
+            let doc = CollabDoc::from_text("", &start);
+            let offset = floor_boundary(&start, at.index(start.len() + 1));
+            let sticky = doc.sticky(Field::Body, offset);
+            prop_assert_eq!(doc.resolve(&sticky), Some(offset));
+            doc.set_text(Field::Body, &format!("{front}{start}"));
+            prop_assert_eq!(doc.resolve(&sticky), Some(offset + front.len()));
+        }
+
         /// The caret's remap never leaves the text or splits a character.
         #[test]
         fn prop_remap_stays_on_boundaries(old in "[a-cé🙂]{0,20}", new in "[a-cé🙂]{0,20}", at in any::<prop::sample::Index>()) {
@@ -541,5 +605,17 @@ mod tests {
         let doc = CollabDoc::new();
         assert_eq!(doc.apply(&[0xff, 0x00, 0x13]), Err(DocError::Malformed));
         assert_eq!(doc.text(Field::Body), "");
+    }
+
+    // no-prop-test: pins the end of a text, which the property above reaches
+    // only by chance.
+    #[test]
+    fn the_end_of_the_text_is_found_again_and_follows_its_text() {
+        let doc = CollabDoc::from_text("", "Alpha 😀 delta");
+        let len = doc.text(Field::Body).len();
+        let end = doc.sticky(Field::Body, len);
+        assert_eq!(doc.resolve(&end), Some(len));
+        doc.set_text(Field::Body, "Intro 😀 Alpha 😀 delta");
+        assert_eq!(doc.resolve(&end), Some(doc.text(Field::Body).len()));
     }
 }

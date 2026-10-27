@@ -27,6 +27,8 @@ class NoteListBody extends StatelessWidget {
     required this.state,
     required this.index,
     this.openNoteId,
+    this.bottomClearance = 0,
+    this.largeTitle = false,
     super.key,
   });
 
@@ -35,6 +37,17 @@ class NoteListBody extends StatelessWidget {
 
   /// The note open beside the list.
   final String? openNoteId;
+
+  /// How much room the notes leave below the last one for a button afloat.
+  final double bottomClearance;
+
+  /// Whether the notes start with the list's title, large (a phone's list).
+  final bool largeTitle;
+
+  /// Whether a body in [state] starts with the large title, so the bar
+  /// waits for it to scroll away before it shows its own.
+  static bool showsLargeTitle(NoteListState state) =>
+      state.status == NoteListStatus.ready && state.rows.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +89,11 @@ class NoteListBody extends StatelessWidget {
         index: index,
         location: BrowseLocation.place(place),
         openNoteId: openNoteId,
+        bottomClearance: bottomClearance,
+        largeTitle: largeTitle ? placeTitle(l10n, place, index) : null,
+        largeSubtitle: largeTitle
+            ? l10n.noteListCount(state.rows.length)
+            : null,
       ),
     };
   }

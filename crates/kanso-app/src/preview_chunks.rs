@@ -52,7 +52,7 @@ pub struct Chunk {
 
 /// The parse options gpui-base's Markdown view uses, so blocks are found
 /// where it finds them.
-fn parse_options() -> ParseOptions {
+pub(crate) fn parse_options() -> ParseOptions {
     let mut options = ParseOptions::gfm();
     // Front matter is a block, so the preview can hide it instead of
     // drawing its `---` lines as a rule and a heading.

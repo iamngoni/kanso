@@ -2,6 +2,8 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart' show Fake;
 import 'package:kanso/core/bridge/api/types.dart';
@@ -10,6 +12,13 @@ import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/repos/abs/renderer_repository.dart';
 
 import 'theme_tokens.dart';
+
+/// A simple square icon, for a fixture icon theme.
+const String fixtureIconSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">\n'
+    '<rect x="4" y="4" width="16" height="16" rx="3" fill="none" '
+    'stroke="black" stroke-width="2"/>\n'
+    '</svg>';
 
 /// The colours of the runs [FixtureRendererRepository] makes.
 abstract final class FixtureRunColors {
@@ -29,6 +38,46 @@ class FixtureRendererRepository extends Fake implements RendererRepository {
 
   /// What it answers instead of runs, to test a text that cannot be styled.
   ApplicationError? failure;
+
+  /// What the icon themes call answers instead of the fixture's themes, and
+  /// what holds it back until it completes.
+  Either<ApplicationError, List<IconThemeRow>>? iconThemesResult;
+  Completer<void>? iconThemesGate;
+
+  @override
+  Future<Either<ApplicationError, List<IconThemeRow>>> iconThemes() async {
+    await iconThemesGate?.future;
+    return iconThemesResult ??
+        const Right<ApplicationError, List<IconThemeRow>>(
+          <IconThemeRow>[
+            IconThemeRow(
+              id: 'lucide',
+              name: 'Lucide',
+              author: 'Lucide Contributors',
+              license: 'ISC',
+              preview: <ThemedIcon>[ThemedIcon(name: 'notebook')],
+            ),
+            IconThemeRow(
+              id: 'outline',
+              name: 'Outline',
+              author: 'Someone',
+              license: 'MIT',
+              preview: <ThemedIcon>[
+                ThemedIcon(name: 'notebook', svg: fixtureIconSvg),
+              ],
+            ),
+          ],
+        );
+  }
+
+  @override
+  Future<Either<ApplicationError, List<ThemedIcon>>> iconThemeIcons(
+    String id,
+  ) async => Right<ApplicationError, List<ThemedIcon>>(
+    id == 'outline'
+        ? const <ThemedIcon>[ThemedIcon(name: 'notebook', svg: fixtureIconSvg)]
+        : const <ThemedIcon>[ThemedIcon(name: 'notebook')],
+  );
 
   @override
   Future<Either<ApplicationError, List<BuiltinTheme>>> builtinThemes() async =>

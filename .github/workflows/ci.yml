@@ -115,17 +115,18 @@ jobs:
   # The core the mobile app shares (#48): the engine, store, renderer, shared
   # notes, importers, sync client and AI client have to build for iOS and
   # Android, with no window system, no desktop Keychain and no agent process
-  # in their trees, and their tests run on the iOS Simulator. On GitHub's
-  # own runner, not the self-hosted Mac: this repository is public, and the
-  # hosted image has Xcode, the simulators and the Android NDK. The Android
+  # in their trees, and their tests run on the iOS Simulator. On the
+  # self-hosted Mac, which has Xcode, the simulators and the Android NDK, so
+  # never for a pull request (a fork's would run a stranger's code on the
+  # owner's machine). The Android
   # tests run in mobile-core.yml, on a Linux runner that can run an emulator.
   # The C code in SQLite, ring, QuickJS and tree-sitter needs the NDK's clang
   # for each Android target, and rquickjs's bindings need libclang: both are
   # set up by scripts/mobile/env.sh. The rust-toolchain.toml doesn't list the
   # phones' targets: the desktop builds never need them.
   engine-mobile:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: macos-latest
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, macOS]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

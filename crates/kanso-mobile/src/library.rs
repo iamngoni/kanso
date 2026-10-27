@@ -4,24 +4,36 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, LazyLock, Mutex, Weak};
 use std::time::Duration;
 
+use kanso_collab::CollabApi;
+use kanso_collab::http::HttpCollab;
 use kanso_engine::lock::Session as KeySession;
 use kanso_engine::sync::SyncState;
 use kanso_store::Store;
 use kanso_sync::{Backend, HttpBackend, KdfParams};
 
+use crate::account::AccountHandle;
+use crate::account_settings::AccountSettings;
+use crate::approvals::Approvals;
+use crate::approver_model::Approver;
 use crate::backup;
 use crate::boundary::{guard, held};
+use crate::editing::Editors;
 use crate::errors::KansoError;
+use crate::gallery::Gallery;
+use crate::linking::Linking;
 use crate::locks::LockSession;
 use crate::model::{LockEvent, SyncStatus};
 use crate::renderer::Renderer;
+use crate::schedule::AutoSync;
 use crate::secrets;
+use crate::sharing::{SharedNotes, SharedState};
 use crate::stream::Listeners;
 use crate::syncing::SyncHandle;
-use crate::themes::Themes;
+use crate::undo::UndoBook;
 use crate::{Secrets, boundary};
 
 /// How often the auto-lock timer looks at the clock.
@@ -33,8 +45,16 @@ pub(crate) struct Inner {
     pub(crate) store: Arc<Store>,
     pub(crate) secrets: Arc<dyn Secrets>,
     pub(crate) backend: Arc<dyn Backend>,
+    /// What the account tasks share: the question that waits, the provider
+    /// flow that runs, the passkey listeners.
+    pub(crate) account: crate::account_runtime::Runtime,
     /// The lock keys typed this session.
     pub(crate) keys: Mutex<KeySession>,
+    /// How many times the notes were locked. A password or biometric unlock
+    /// notes it when it starts and adds its key only if it is unchanged, so
+    /// a lock that happens meanwhile is not undone. Changed only under the
+    /// `keys` mutex.
+    pub(crate) lock_gen: AtomicU64,
     pub(crate) lock_events: Listeners<LockEvent>,
     /// What the last sync said.
     pub(crate) sync_state: Mutex<SyncState>,
@@ -43,6 +63,22 @@ pub(crate) struct Inner {
     pub(crate) sync_gate: Mutex<()>,
     /// Set to stop the sync that is running.
     pub(crate) sync_cancel: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
+    /// Shared notes: the collab server client, the engine of the signed-in
+    /// session, the open rooms (`sharing.rs`).
+    pub(crate) shared: SharedState,
+    /// The sync schedule while the app is in front (`schedule.rs`).
+    pub(crate) auto: AutoSync,
+    /// The session the server ended, until the person signs in or out.
+    pub(crate) ended: Mutex<Option<crate::syncing::Ended>>,
+    /// Where the gallery reads its index from and what it trusts; `None` is
+    /// the real server and the keys compiled in. Tests set their own.
+    pub(crate) gallery_source: Mutex<Option<crate::gallery_net::Source>>,
+    /// What this phone keeps while it approves other devices (`approvals`).
+    pub(crate) approver: Approver,
+    /// The changes the Undo notice can take back.
+    pub(crate) undo: Mutex<UndoBook>,
+    /// The notes open for editing.
+    pub(crate) editors: Editors,
 }
 
 /// The libraries open in this process, by their database path. A background
@@ -81,18 +117,40 @@ impl Library {
         secrets: Arc<dyn Secrets>,
         backend: Arc<dyn Backend>,
     ) -> Result<Library, KansoError> {
-        guard(|| open_inner(path, secrets, backend, None))
+        guard(|| open_inner(path, secrets, backend, Arc::new(HttpCollab), None))
     }
 
     /// [`Library::open_with`], with cheap key derivation settings for new
-    /// lock passwords, so tests derive in milliseconds.
+    /// lock passwords, so tests derive in milliseconds, and a shared-note
+    /// server of its own in memory: a test never reaches a real one.
     #[cfg(any(test, feature = "test-support"))]
     pub fn open_for_test(
         path: &Path,
         secrets: Arc<dyn Secrets>,
         backend: Arc<dyn Backend>,
     ) -> Result<Library, KansoError> {
-        guard(|| open_inner(path, secrets, backend, Some(KdfParams::TEST)))
+        guard(|| {
+            open_inner(
+                path,
+                secrets,
+                backend,
+                Arc::new(kanso_collab::memory::MemoryCollab::new()),
+                Some(KdfParams::TEST),
+            )
+        })
+    }
+
+    /// [`Library::open_for_test`] with the shared-note server given too
+    /// (`kanso_collab::memory::MemoryCollab`), so two libraries can share
+    /// notes without a network.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn open_for_test_with_collab(
+        path: &Path,
+        secrets: Arc<dyn Secrets>,
+        backend: Arc<dyn Backend>,
+        collab: Arc<dyn CollabApi>,
+    ) -> Result<Library, KansoError> {
+        guard(|| open_inner(path, secrets, backend, collab, Some(KdfParams::TEST)))
     }
 
     /// The library already open at `path` in this process, if any.
@@ -102,6 +160,13 @@ impl Library {
         open.get(&key)
             .and_then(Weak::upgrade)
             .map(|inner| Library { inner })
+    }
+
+    /// The library's store, for tests that write to it as a sync would.
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn store(&self) -> &kanso_store::Store {
+        &self.inner.store
     }
 
     /// The database file this library is.
@@ -116,9 +181,51 @@ impl Library {
         }
     }
 
+    /// Outline, links, Open Note and the command palette.
+    pub fn linking(&self) -> Linking {
+        Linking {
+            inner: self.inner.clone(),
+        }
+    }
+
     /// Sign-in and sync.
     pub fn sync(&self) -> SyncHandle {
         SyncHandle {
+            inner: self.inner.clone(),
+        }
+    }
+
+    /// Signing in and up, and opening a locked account.
+    pub fn account(&self) -> AccountHandle {
+        AccountHandle {
+            inner: self.inner.clone(),
+        }
+    }
+
+    /// The signed-in account's page.
+    pub fn account_settings(&self) -> AccountSettings {
+        AccountSettings {
+            inner: self.inner.clone(),
+        }
+    }
+
+    /// Requests from other devices this phone may approve.
+    pub fn approvals(&self) -> Approvals {
+        Approvals {
+            inner: self.inner.clone(),
+        }
+    }
+
+    /// Shared notes.
+    pub fn shared(&self) -> SharedNotes {
+        SharedNotes {
+            inner: self.inner.clone(),
+        }
+    }
+
+    /// The theme gallery.
+    pub fn gallery(&self) -> Gallery {
+        Gallery {
             inner: self.inner.clone(),
         }
     }
@@ -196,6 +303,7 @@ fn open_inner(
     path: &Path,
     secrets: Arc<dyn Secrets>,
     backend: Arc<dyn Backend>,
+    collab: Arc<dyn CollabApi>,
     params: Option<KdfParams>,
 ) -> Result<Library, KansoError> {
     if let Some(dir) = path.parent().filter(|dir| !dir.as_os_str().is_empty()) {
@@ -213,7 +321,9 @@ fn open_inner(
         return Ok(Library { inner });
     }
     let store = Arc::new(Store::open(&key)?);
+    let settings = crate::sync_words::read_settings(&store).unwrap_or_default();
     let mut keys = KeySession::default();
+    let manual_autosave = params.is_some();
     if let Some(params) = params {
         keys.set_params(params);
     }
@@ -222,12 +332,22 @@ fn open_inner(
         store,
         secrets,
         backend,
+        account: crate::account_runtime::Runtime::default(),
         keys: Mutex::new(keys),
+        lock_gen: AtomicU64::new(0),
         lock_events: Listeners::default(),
         sync_state: Mutex::new(SyncState::Off),
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),
         sync_cancel: Mutex::new(None),
+        shared: SharedState::new(collab),
+        auto: AutoSync::new(settings),
+        ended: Mutex::new(None),
+        gallery_source: Mutex::new(None),
+        approver: Approver::default(),
+        undo: Mutex::new(UndoBook::default()),
+        // A library made for tests saves typing when a test says so.
+        editors: Editors::new(manual_autosave),
     });
     open.retain(|_, inner| inner.strong_count() > 0);
     open.insert(key, Arc::downgrade(&inner));

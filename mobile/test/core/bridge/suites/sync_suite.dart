@@ -54,6 +54,59 @@ void syncSuite(OpenLibrary open) {
       expect((await sync.status()).phase, SyncPhase.signedOut);
     });
 
+    test('the app can say it is in front or behind', () async {
+      final sync = (await open()).syncing();
+      await sync.setForeground(foreground: true);
+      await sync.setForeground(foreground: false);
+      expect((await sync.status()).phase, SyncPhase.signedOut);
+    });
+
+    test('the settings start on, every five minutes, take only the desktop’s '
+        'choices and are kept', () async {
+      final sync = (await open()).syncing();
+      final first = await sync.settings();
+      expect(first.enabled, isTrue);
+      expect(first.intervalSecs, 300);
+      final options = KansoSync.intervalOptions();
+      expect(options.map((option) => option.minutes), <int>[
+        1,
+        5,
+        15,
+        30,
+        60,
+        240,
+      ]);
+      expect(options.map((option) => option.label), contains('1 hour'));
+      expect(KansoSync.intervalLabel(minutes: 240), '4 hours');
+      expect(KansoSync.intervalPhrase(minutes: 15), 'every 15 minutes');
+      final changed = await sync.setSettings(
+        enabled: false,
+        intervalSecs: 3600,
+      );
+      expect(changed.enabled, isFalse);
+      expect(changed.intervalSecs, 3600);
+      expect(await sync.settings(), changed);
+      await expectLater(
+        sync.setSettings(enabled: true, intervalSecs: 7),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+      expect(await sync.settings(), changed);
+    });
+
+    test('the status line says what the desktop says', () async {
+      final sync = (await open()).syncing();
+      final status = await sync.status();
+      final line = KansoSync.statusLine(
+        status: status,
+        settings: await sync.settings(),
+        when: 'just now',
+        resume: 'at 10:00',
+      );
+      expect(line.label, 'Sync is off');
+      expect(line.tone, SyncTone.quiet);
+      expect(line.detail, contains('only on this device'));
+    });
+
     test('syncing while signed out says so, and signing out is fine', () async {
       final sync = (await open()).syncing();
       await expectLater(

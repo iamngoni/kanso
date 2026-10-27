@@ -465,6 +465,33 @@ fn files_store_bytes_and_return_them_on_request() {
 }
 
 #[test]
+fn files_take_pdfs_and_still_refuse_other_documents() {
+    let (_dir, store) = store();
+    let data = base64::engine::general_purpose::STANDARD.encode(b"%PDF-1.7 fake");
+    let file = |content_type: &str| {
+        json!({"name": "a.pdf", "contentType": content_type,
+               "_attachments": {"index": {"content_type": content_type, "data": data}}})
+    };
+    let pdf = store
+        .put(
+            DocType::File,
+            file("application/pdf"),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap();
+    let (content_type, blob) = store.attachment(&pdf.id).unwrap().unwrap();
+    assert_eq!(content_type, "application/pdf");
+    assert_eq!(blob.data, b"%PDF-1.7 fake");
+    for other in ["application/msword", "application/zip", "text/html"] {
+        let err = store
+            .put(DocType::File, file(other), Put::Upsert, Origin::Api)
+            .unwrap_err();
+        assert!(matches!(err, StoreError::Invalid(_)), "{other}: {err}");
+    }
+}
+
+#[test]
 fn api_writes_are_snapshotted_and_ui_autosaves_throttled() {
     let (_dir, store) = store();
     let book = create(&store, DocType::Book, json!({"name": "B"}));

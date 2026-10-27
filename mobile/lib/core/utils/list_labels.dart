@@ -28,11 +28,7 @@ String dayLabel(AppLocalizations l10n, int day, {required int today}) {
 }
 
 /// What a header of the note list says: "Pinned", or the day's [dayLabel].
-String bucketLabel(
-  AppLocalizations l10n,
-  Bucket bucket, {
-  required int today,
-}) {
+String bucketLabel(AppLocalizations l10n, Bucket bucket, {required int today}) {
   return switch (bucket) {
     PinnedBucket() => l10n.libraryPinned,
     DayBucket(:final localDay) => dayLabel(l10n, localDay, today: today),
@@ -53,11 +49,7 @@ String rowTimeLabel(AppLocalizations l10n, int atMs, {required DateTime now}) {
 
 /// A date and time in a note's facts: "Today, 09:41", "Yesterday, 18:30",
 /// "Oct 21, 14:20".
-String dateTimeLabel(
-  AppLocalizations l10n,
-  int atMs, {
-  required DateTime now,
-}) {
+String dateTimeLabel(AppLocalizations l10n, int atMs, {required DateTime now}) {
   final today = localDayOf(now.millisecondsSinceEpoch);
   final day = dayLabel(l10n, localDayOf(atMs), today: today);
   final time = DateFormat.Hm(

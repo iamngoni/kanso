@@ -3,12 +3,14 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../configs/kanso_icons.dart';
-import '../../utils/context_extensions.dart';
+import 'kanso_icon_set_scope.dart';
+import 'kanso_themed_icon.dart';
 
-/// One of Kanso's [KansoIcons], drawn from its bundled SVG.
+/// One of Kanso's [KansoIcons], drawn in the icon theme in use: the theme's
+/// SVG for it (see [KansoIconSetScope]), or the bundled Lucide SVG where the
+/// theme leaves it out.
 ///
 /// The colour defaults to the surrounding [IconTheme], then to the theme's
 /// text colour. Pass [semanticLabel] when the icon carries meaning of its
@@ -29,15 +31,12 @@ class KansoIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved =
-        color ?? IconTheme.of(context).color ?? context.colors.text;
-    return SvgPicture.asset(
-      icon.assetPath,
-      width: size,
-      height: size,
-      colorFilter: ColorFilter.mode(resolved, BlendMode.srcIn),
-      semanticsLabel: semanticLabel,
-      excludeFromSemantics: semanticLabel == null,
+    return KansoThemedIcon(
+      lucideName: icon.lucideName,
+      svg: KansoIconSetScope.of(context).svgFor(icon.lucideName),
+      size: size,
+      color: color,
+      semanticLabel: semanticLabel,
     );
   }
 }

@@ -157,7 +157,7 @@ proptest! {
             1 => NoteChange::Trash,
             _ => NoteChange::Move { notebook_id: books[1].clone() },
         };
-        let written = library.change(chosen.clone(), change.clone()).unwrap();
+        let written = library.change(chosen.clone(), change.clone()).unwrap().count;
         let after: Vec<_> = chosen.iter().map(|id| library.note(id).unwrap()).collect();
         let changed = before.iter().zip(&after).filter(|(b, a)| b.rev != a.rev).count();
         prop_assert_eq!(written as usize, changed);
@@ -170,10 +170,12 @@ proptest! {
             NoteChange::Move { ref notebook_id } => {
                 prop_assert!(after.iter().all(|n| &n.notebook_id == notebook_id));
             }
+            // The actions have their own tests (`tests/actions.rs`).
+            _ => unreachable!("only three kinds are drawn"),
         }
         // Asked again, a move or a trash writes nothing.
         if kind != 0 {
-            prop_assert_eq!(library.change(chosen, change).unwrap(), 0);
+            prop_assert_eq!(library.change(chosen, change).unwrap().count, 0);
         }
     }
 }
@@ -253,14 +255,18 @@ fn a_change_that_cannot_be_made_writes_nothing() {
     assert_eq!(
         library
             .change(note_ids.clone(), NoteChange::TogglePin)
-            .unwrap(),
+            .unwrap()
+            .count,
         2
     );
     assert_eq!(
-        library.change(note_ids.clone(), NoteChange::Trash).unwrap(),
+        library
+            .change(note_ids.clone(), NoteChange::Trash)
+            .unwrap()
+            .count,
         2
     );
-    assert_eq!(library.change(vec![], NoteChange::Trash).unwrap(), 0);
+    assert_eq!(library.change(vec![], NoteChange::Trash).unwrap().count, 0);
 }
 
 // no-prop-test: the order of a small fixed tree and its roles.
@@ -361,7 +367,7 @@ proptest! {
             format!("Notes {}\n", tags.join(" "))
         };
         let saved = library
-            .create(NewNote { notebook_id: None, title: "T".into(), body: text(&words) })
+            .create(NewNote { title: "T".into(), body: text(&words), ..NewNote::default() })
             .unwrap();
         let tag_names = |id: &str| -> BTreeSet<String> {
             let all = library.tags().unwrap();

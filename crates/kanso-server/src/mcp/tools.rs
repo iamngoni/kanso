@@ -1,5 +1,5 @@
-//! The 17 tools and the note resource, implemented on the store, and
-//! Kanso's own `kanso-…` tools after them.
+//! Kanso's native MCP implementation: the Inkdrop-compatible tools, the
+//! note resource, and Kanso's own `kanso-…` tools after them.
 //!
 //! Each tool does what `@inkdropapp/mcp-server` 1.5.0 does with the HTTP API,
 //! through the same operations the REST handlers use, and formats its result
@@ -71,12 +71,20 @@ pub(crate) fn call(
         ("read-note", vis) => read_note(store, vis, &args),
         ("search-notes", vis) => search_notes(store, vis, &args),
         ("list-notes", vis) => list_notes(store, vis, &args),
+        ("list-templates", vis) => list_templates(store, vis, &args),
         ("list-notebooks", Some(vis)) => list_visible_books(store, vis),
         ("kanso-get-outline", vis) => get_outline(store, vis, &args),
         ("kanso-list-tasks", vis) => list_tasks(store, vis, &args),
         ("kanso-related-notes", vis) => related_notes(store, vis, &args),
         ("kanso-resolve-wikilink", vis) => resolve_wikilink(store, vis, &args),
         ("kanso-search-by-meaning", vis) => search_by_meaning(store, vis, &args),
+        ("kanso-list-tags", vis) => list_visible_tags(store, vis),
+        ("kanso-get-properties", vis) => get_properties(store, vis, &args),
+        ("kanso-list-note-links", vis) => list_note_links(store, vis, &args),
+        ("kanso-list-backlinks", vis) => list_backlinks(store, vis, &args),
+        ("kanso-run-query-view", vis) => run_query_view(store, vis, &args),
+        ("kanso-list-versions", vis) => list_versions(store, vis, &args),
+        ("kanso-read-version", vis) => read_version(store, vis, &args),
         // Nothing else is ever an agent's; the scope is checked before this.
         (_, Some(_)) => Err(ToolError(super::READ_ONLY.to_owned())),
         (name, None) => call_full(state, name, args),
@@ -105,6 +113,11 @@ fn call_full(state: &AppState, name: &str, args: Args) -> ToolResult {
         "kanso-create-daily-note" => create_daily_note(store, &args),
         "kanso-create-from-template" => create_from_template(store, &args),
         "kanso-export-html" => export_html(store, &args),
+        "kanso-set-task-done" => set_task_done(store, &args),
+        "kanso-move-note" => move_note(store, &args),
+        "kanso-attach-file" => attach_file(store, &args),
+        "kanso-list-attachments" => list_attachments(store, &args),
+        "kanso-read-attachment" => read_attachment(store, &args),
         _ => Err(ToolError(format!(
             "MCP error -32602: Tool {name} not found"
         ))),
@@ -123,6 +136,37 @@ fn visible_note(store: &Store, vis: Option<&Visibility>, id: &str) -> ToolResult
         return Ok(scope::strip(note));
     }
     Ok(api::get_doc(store, id, None, false)?)
+}
+
+/// A note exposed by Kanso-native reads: live, unlocked, and not excluded.
+fn native_visible_note(store: &Store, vis: Option<&Visibility>, id: &str) -> ToolResult {
+    let note = visible_note(store, vis, id)?;
+    if !native_note_is_visible(store, id) {
+        return Err(ApiError::not_found().into());
+    }
+    Ok(note)
+}
+
+/// Whether a Kanso-native read may mention a note, regardless of caller kind.
+fn native_note_is_visible(store: &Store, id: &str) -> bool {
+    if store.note_is_locked(id).unwrap_or(true) || store.note_in_locked_book(id).unwrap_or(true) {
+        return false;
+    }
+    let Ok(Some(note)) = store.note(id) else {
+        return false;
+    };
+    if note.is_trashed() {
+        return false;
+    }
+    let Ok(tags) = store.tags() else {
+        return false;
+    };
+    !note.tags.iter().any(|tag| {
+        kanso_core::tags::is_ai_exclude(tag)
+            || tags
+                .iter()
+                .any(|known| known.id == *tag && kanso_core::tags::is_ai_exclude(&known.name))
+    })
 }
 
 /// `list-notebooks` for an agent: only notebooks in scope and unlocked, so a
@@ -253,6 +297,293 @@ fn export_html(store: &Store, args: &Args) -> ToolResult {
         &attachments,
     );
     result(vec![text(html)])
+}
+
+/// Lists tags with counts computed only from notes the caller may see.
+fn list_visible_tags(store: &Store, vis: Option<&Visibility>) -> ToolResult {
+    let tags = store.tags().map_err(|err| ToolError(err.to_string()))?;
+    let notes = store
+        .query_view_notes_with_body(false)
+        .map_err(|err| ToolError(err.to_string()))?;
+    let visible = notes.into_iter().filter(|note| {
+        !note.locked
+            && !note.trashed
+            && native_note_is_visible(store, &note.id)
+            && vis.is_none_or(|vis| vis.allows(&note.id))
+    });
+    let memberships = visible
+        .flat_map(|note| {
+            note.tag_ids
+                .into_iter()
+                .map(move |tag| (tag, note.id.clone()))
+        })
+        .fold(
+            std::collections::HashMap::<String, Vec<String>>::new(),
+            |mut memberships, (tag, note)| {
+                memberships.entry(tag).or_default().push(note);
+                memberships
+            },
+        );
+    let rows: Vec<Value> = tags
+        .into_iter()
+        .filter_map(|tag| {
+            let note_ids = memberships.get(&tag.id).cloned().unwrap_or_default();
+            if note_ids.is_empty() {
+                return None;
+            }
+            Some(json!({ "_id": tag.id, "name": tag.name, "color": tag.color, "count": note_ids.len(), "noteIds": note_ids }))
+        })
+        .collect();
+    result(vec![text(pretty(&Value::Array(rows)))])
+}
+
+/// Returns Kanso properties parsed from a visible note's body.
+fn get_properties(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let note = native_visible_note(store, vis, &id)?;
+    let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
+    let properties: Vec<Value> = kanso_core::properties::parse(body)
+        .into_iter()
+        .map(|(key, value)| json!({ "key": key, "value": property_value(&value) }))
+        .collect();
+    result(vec![text(pretty(
+        &json!({ "noteId": id, "properties": properties }),
+    ))])
+}
+
+fn property_value(value: &kanso_core::properties::Value) -> Value {
+    use kanso_core::properties::Value as Property;
+    match value {
+        Property::Text(value) | Property::Date(value) | Property::Raw(value) => json!(value),
+        Property::Number(value) => json!(value),
+        Property::Bool(value) => json!(value),
+        Property::List(values) => Value::Array(values.iter().map(property_value).collect()),
+    }
+}
+
+/// Lists resolved outgoing links in a visible note.
+fn list_note_links(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let note = native_visible_note(store, vis, &id)?;
+    let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
+    let mut links = Vec::new();
+    for link in kanso_core::links::note_links(body) {
+        let resolved = match link.target {
+            kanso_core::links::LinkTarget::Note(target) => store
+                .note(&target).map_err(|err| ToolError(err.to_string()))?
+                .filter(|note| native_note_is_visible(store, &note.id) && vis.is_none_or(|vis| vis.allows(&note.id)))
+                .map(|note| json!({ "noteId": note.id, "title": note.title, "uri": note_uri(&note.id) })),
+            kanso_core::links::LinkTarget::Title(title) => store.resolve_title(&title)
+                .map_err(|err| ToolError(err.to_string()))?
+                .filter(|(target, _)| native_note_is_visible(store, target) && vis.is_none_or(|vis| vis.allows(target)))
+                .map(|(id, title)| json!({ "noteId": id, "title": title, "uri": note_uri(&id) })),
+        };
+        links.push(json!({ "line": link.line, "heading": link.heading, "target": resolved }));
+    }
+    result(vec![text(pretty(&Value::Array(links)))])
+}
+
+/// Lists backlinks only after checking both the requested note and each result.
+fn list_backlinks(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    native_visible_note(store, vis, &id)?;
+    let backlinks = store
+        .backlinks(&id)
+        .map_err(|err| ToolError(err.to_string()))?;
+    let rows: Vec<Value> = backlinks.into_iter().filter(|link| native_note_is_visible(store, &link.id) && vis.is_none_or(|vis| vis.allows(&link.id)))
+        .inspect(|link| if let Some(vis) = vis { vis.show(&link.id); })
+        .map(|link| json!({ "noteId": link.id, "title": link.title, "uri": note_uri(&link.id), "line": link.line, "context": link.context }))
+        .collect();
+    result(vec![text(pretty(&Value::Array(rows)))])
+}
+
+/// Runs the first saved query fence in a visible note through the core evaluator.
+fn run_query_view(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let note = native_visible_note(store, vis, &id)?;
+    let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
+    let fence = kanso_core::query_view::query_fences(body)
+        .into_iter()
+        .next()
+        .ok_or_else(|| ToolError("This note has no saved query view.".into()))?;
+    let spec =
+        kanso_core::query_view::parse(&fence.source).map_err(|err| ToolError(err.to_string()))?;
+    let notes = store
+        .query_view_notes()
+        .map_err(|err| ToolError(err.to_string()))?;
+    let notes: Vec<kanso_core::query_view::ViewNote> = notes
+        .into_iter()
+        .filter(|row| {
+            native_note_is_visible(store, &row.id) && vis.is_none_or(|vis| vis.allows(&row.id))
+        })
+        .map(Into::into)
+        .collect();
+    let rows = kanso_core::query_view::evaluate(&spec, &notes, Some(&id));
+    for row in &rows {
+        if let Some(vis) = vis {
+            vis.show(&row.id);
+        }
+    }
+    let output = json!({ "columns": spec.labels(), "rows": rows.iter().map(|row| json!({ "noteId": row.id, "title": row.title, "uri": note_uri(&row.id), "cells": row.cells.iter().map(|cell| cell.as_ref().map(property_value)).collect::<Vec<_>>() })).collect::<Vec<_>>() });
+    result(vec![text(pretty(&output))])
+}
+
+/// Lists revision metadata without returning historical note text.
+fn list_versions(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    native_visible_note(store, vis, &id)?;
+    let versions = store
+        .revisions(&id)
+        .map_err(|err| ToolError(err.to_string()))?;
+    let versions: Vec<Value> = versions.into_iter().map(|version| json!({ "rev": version.rev, "savedAt": version.saved_at, "origin": version.origin, "author": version.author, "agent": version.agent })).collect();
+    result(vec![text(pretty(&Value::Array(versions)))])
+}
+
+/// Reads one saved revision after checking the current note's visibility.
+fn read_version(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    native_visible_note(store, vis, &id)?;
+    let rev = str_arg(args, "rev");
+    let version = store
+        .revisions(&id)
+        .map_err(|err| ToolError(err.to_string()))?
+        .into_iter()
+        .find(|version| version.rev == rev)
+        .ok_or_else(|| ToolError("That note version was not found.".into()))?;
+    let mut fields = version.fields;
+    fields.insert("_id".into(), id.into());
+    fields.insert("_rev".into(), rev.into());
+    fields.remove(kanso_core::model::LOCK_FIELD);
+    result(vec![text(pretty(&Value::Object(fields)))])
+}
+
+/// Ticks or clears the identified task through the store's atomic task edit.
+fn set_task_done(store: &Store, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let line = args.get("line").and_then(Value::as_u64).unwrap_or_default() as u32;
+    let task_text = str_arg(args, "text");
+    let done = bool_arg(args, "done");
+    let change = store
+        .set_task_checked(
+            &id,
+            line,
+            task_text,
+            done,
+            now_ms(),
+            kanso_store::Origin::Api,
+        )
+        .map_err(|err| ToolError(err.to_string()))?;
+    match change {
+        kanso_store::CheckOff::Changed { rev } => result(vec![text(format!(
+            "Task updated in {id} at revision {rev}."
+        ))]),
+        kanso_store::CheckOff::Unchanged => result(vec![text("The task already has that status.")]),
+        kanso_store::CheckOff::Missing => Err(ToolError(
+            "The task changed or could not be identified; no note was changed.".into(),
+        )),
+    }
+}
+
+/// Moves a note to an explicitly named notebook.
+fn move_note(store: &Store, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let mut note = native_visible_note(store, None, &id)?
+        .as_object()
+        .cloned()
+        .ok_or_else(|| ToolError("The note could not be read.".into()))?;
+    note.insert(
+        "bookId".into(),
+        json!(with_prefix(DocType::Book, str_arg(args, "bookId"))),
+    );
+    note.insert("updatedAt".into(), json!(now_ms()));
+    let saved = api::upsert(store, DocType::Note, Value::Object(note))?;
+    result(vec![text(pretty(&saved))])
+}
+
+/// Creates an attachment from base64 and explicitly adds its image link to a note.
+fn attach_file(store: &Store, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let mut note = api::get_doc(store, &id, None, false)?
+        .as_object()
+        .cloned()
+        .ok_or_else(|| ToolError("The note could not be read.".into()))?;
+    let bytes = decode_base64_leniently(str_arg(args, "data"));
+    if bytes.len() > MAX_ATTACHMENT_SIZE {
+        return Err(ToolError(format!(
+            "The file is {} bytes, over the {} byte limit.",
+            bytes.len(),
+            MAX_ATTACHMENT_SIZE
+        )));
+    }
+    let content_type = str_arg(args, "contentType");
+    if !SUPPORTED_IMAGE_TYPES.contains(&content_type) {
+        return Err(ToolError(format!(
+            "Unsupported attachment type. Supported types: {}.",
+            SUPPORTED_IMAGE_TYPES.join(", ")
+        )));
+    }
+    let name = str_arg(args, "name");
+    let encoded = STANDARD.encode(&bytes);
+    let content_length = bytes.len();
+    let file = api::upsert(
+        store,
+        DocType::File,
+        json!({ "name": name, "contentType": content_type, "contentLength": content_length, "publicIn": [], "md5digest": Attachment::new(bytes).md5_hex(), "_attachments": { "index": { "content_type": content_type, "data": encoded } } }),
+    )?;
+    let file_id = js_string(file.get("id"));
+    let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
+    let separator = if body.is_empty() || body.ends_with('\n') {
+        ""
+    } else {
+        "\n"
+    };
+    note.insert(
+        "body".into(),
+        json!(format!(
+            "{body}{separator}\n![{name}]({})\n",
+            file_uri(&file_id)
+        )),
+    );
+    note.insert("updatedAt".into(), json!(now_ms()));
+    api::upsert(store, DocType::Note, Value::Object(note))?;
+    result(vec![text(pretty(
+        &json!({ "noteId": id, "fileId": file_id, "name": name, "contentType": content_type, "contentLength": content_length, "uri": file_uri(&file_id) }),
+    ))])
+}
+
+/// Lists attachment metadata for files embedded in a visible note.
+fn list_attachments(store: &Store, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let note = native_visible_note(store, None, &id)?;
+    let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
+    let files: Vec<Value> = kanso_core::tasks::linked_file_ids(body)
+        .into_iter()
+        .filter_map(|file_id| {
+            api::get_doc(store, &file_id, None, false).ok().map(|file| {
+                json!({
+                    "fileId": file_id,
+                    "name": file.get("name"),
+                    "contentType": file.get("contentType"),
+                    "contentLength": file.get("contentLength"),
+                    "uri": file_uri(&file_id),
+                })
+            })
+        })
+        .collect();
+    result(vec![text(pretty(&Value::Array(files)))])
+}
+
+/// Reads an attachment's metadata and base64 bytes.
+fn read_attachment(store: &Store, args: &Args) -> ToolResult {
+    let note_id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let note = native_visible_note(store, None, &note_id)?;
+    let id = with_prefix(DocType::File, str_arg(args, "fileId"));
+    let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
+    if !kanso_core::tasks::linked_file_ids(body).contains(&id) {
+        return Err(ApiError::not_found().into());
+    }
+    let file = api::get_doc(store, &id, None, true)?;
+    result(vec![text(pretty(&file))])
 }
 
 /// Runs `resources/read` for a note link ([`NOTE_LINK_PREFIX`]`{noteId}`);
@@ -446,6 +777,35 @@ fn read_backlinks(store: &Store, args: &Args) -> ToolResult {
     )
 }
 
+/// Lists custom template notes from Kanso's Templates notebook.
+fn list_templates(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let Some(book) = store
+        .find_role_book(kanso_core::roles::Role::Templates)
+        .map_err(|err| ToolError(err.to_string()))?
+    else {
+        return summaries(Vec::new());
+    };
+    let query = NoteQuery {
+        keyword: list_notes_keyword(Some(&book), &[], opt_str(args, "keyword")),
+        limit: Some(100),
+        ..NoteQuery::default()
+    };
+    let notes = api::list_notes(store, &query)?
+        .into_iter()
+        .filter(|note| {
+            note.get("_id").and_then(Value::as_str).is_some_and(|id| {
+                native_note_is_visible(store, id) && vis.is_none_or(|vis| vis.allows(id))
+            })
+        })
+        .inspect(|note| {
+            if let (Some(vis), Some(id)) = (vis, note.get("_id").and_then(Value::as_str)) {
+                vis.show(id);
+            }
+        })
+        .collect();
+    summaries(notes)
+}
+
 /// `kanso-get-outline`: the note's headings as JSON.
 fn get_outline(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
@@ -488,7 +848,10 @@ fn list_tasks(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
         .map_err(|err| ToolError(err.to_string()))?
         .into_iter()
         .filter(|t| status != "done" || t.checked)
-        .filter(|t| vis.is_none_or(|vis| vis.allows(&t.note_id)))
+        .filter(|t| {
+            native_note_is_visible(store, &t.note_id)
+                && vis.is_none_or(|vis| vis.allows(&t.note_id))
+        })
         .take(limit)
         .inspect(|t| {
             if let Some(vis) = vis {
@@ -520,7 +883,7 @@ fn list_tasks(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
 fn related_notes(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
     // The same failure as reading a note that isn't there.
-    visible_note(store, vis, &id)?;
+    native_visible_note(store, vis, &id)?;
     let limit = args
         .get("limit")
         .and_then(Value::as_i64)
@@ -556,7 +919,9 @@ fn related_notes(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolRe
     };
     let notes: Vec<Value> = found
         .into_iter()
-        .filter(|note| vis.is_none_or(|vis| vis.allows(&note.id)))
+        .filter(|note| {
+            native_note_is_visible(store, &note.id) && vis.is_none_or(|vis| vis.allows(&note.id))
+        })
         .take(limit)
         .inspect(|note| {
             if let Some(vis) = vis {
@@ -617,7 +982,9 @@ fn search_by_meaning(store: &Store, vis: Option<&Visibility>, args: &Args) -> To
     };
     let found = found
         .into_iter()
-        .filter(|note| vis.is_none_or(|vis| vis.allows(&note.id)))
+        .filter(|note| {
+            native_note_is_visible(store, &note.id) && vis.is_none_or(|vis| vis.allows(&note.id))
+        })
         .collect();
     let notes: Vec<Value> = kanso_store::blend_meaning(&[], found, MEANING_SIMILARITY, limit)
         .into_iter()
@@ -659,7 +1026,9 @@ fn resolve_wikilink(store: &Store, vis: Option<&Visibility>, args: &Args) -> Too
     let found = store
         .resolve_title(&title)
         .map_err(|err| ToolError(err.to_string()))?
-        .filter(|(id, _)| vis.is_none_or(|vis| vis.allows(id)));
+        .filter(|(id, _)| {
+            native_note_is_visible(store, id) && vis.is_none_or(|vis| vis.allows(id))
+        });
     let Some((id, note_title)) = found else {
         return Err(ToolError(format!("No note is titled \"{title}\".")));
     };

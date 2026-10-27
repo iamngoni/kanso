@@ -319,6 +319,10 @@ pub const SUPPORTED_AUDIO_TYPES: [&str; 7] = [
     "audio/ogg",
 ];
 
+/// Document types the app attaches, so a PDF shared from another app can
+/// sit in a note. The local API's MCP tools keep to images.
+pub const SUPPORTED_DOCUMENT_TYPES: [&str; 1] = ["application/pdf"];
+
 /// Largest attachment the API accepts, in bytes.
 pub const MAX_ATTACHMENT_SIZE: usize = 10 * 1024 * 1024;
 

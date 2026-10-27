@@ -29,6 +29,7 @@ use crate::origin::Origin;
 use crate::theme::{self, Colors};
 use crate::theme_file::{PreviewColors, ResolvedTheme, ThemeFile};
 use crate::workspace::AppState;
+use kanso_engine::export::CodeColors;
 use kanso_engine::theme::Tokens;
 
 pub use kanso_engine::theme::builtin::BUILTIN;
@@ -75,19 +76,7 @@ impl ThemeEntry {
     }
 }
 
-/// A theme file that couldn't be used, and why, in words for the Themes
-/// page.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Notice {
-    pub file: String,
-    pub message: String,
-}
-
-impl Notice {
-    pub fn sentence(&self) -> String {
-        format!("{} {}.", self.file, self.message.trim_end_matches('.'))
-    }
-}
+pub use kanso_engine::icons::model::Notice;
 
 /// The built-in themes, read once.
 // no-prop-test: fixed files; `builtin_themes_load` and the contrast tests
@@ -330,8 +319,10 @@ pub struct ActiveTheme {
     pub colors: &'static Colors,
     /// The preview theme's colors, fitted to the UI's editor surface.
     pub preview: PreviewColors,
-    /// The colors a preview's code blocks are drawn in, for exports too.
-    pub code: Option<Arc<HighlightTheme>>,
+    /// The colors a page's code is drawn in (an export, a published note),
+    /// which the engine sets. The component library's preview code is
+    /// installed separately; a test holds the two to the same colors.
+    pub page_code: CodeColors,
 }
 
 impl Global for ActiveTheme {}
@@ -428,36 +419,52 @@ pub fn apply(window: Option<&mut Window>, cx: &mut App) {
     Theme::change(mode, window, cx);
     crate::zoom::apply_to_theme(cx);
 
-    let code = if preview_theme.name() != syntax.name() {
-        let highlight = preview_code::build(&preview_theme.resolved, &tokens.code);
-        if let Some(highlight) = &highlight {
-            preview_code::install(highlight.clone(), cx);
-        }
-        highlight
-    } else {
-        preview_code::build(&syntax.resolved, &tokens.code)
-    };
+    let code = code_highlight(&syntax.resolved, &preview_theme.resolved, &tokens);
+    if preview_theme.name() != syntax.name()
+        && let Some(highlight) = &code
+    {
+        preview_code::install(highlight.clone(), cx);
+    }
+    let page_code = CodeColors::for_themes(&ui.resolved, &syntax.resolved, &preview_theme.resolved);
     let preview = tokens.preview.into();
     cx.set_global(ActiveTheme {
         ui,
         colors,
         preview,
-        code,
+        page_code,
     });
     cx.refresh_windows();
 }
 
+/// The component library's colors for a preview's code blocks, given the
+/// themes in use and how they fit (`Tokens::fit`): the preview theme's own
+/// when it isn't the syntax theme, else the syntax theme's.
+pub(crate) fn code_highlight(
+    syntax: &ResolvedTheme,
+    preview: &ResolvedTheme,
+    tokens: &Tokens,
+) -> Option<Arc<HighlightTheme>> {
+    let theme = if preview.name != syntax.name {
+        preview
+    } else {
+        syntax
+    };
+    preview_code::build(theme, &tokens.code)
+}
+
 /// The colors `theme`'s code is drawn in, as `apply` builds them when the
-/// theme is the UI, syntax and preview theme at once.
+/// theme is the UI, syntax and preview theme at once. The engine's
+/// `CodeColors::of_theme` is the same for a page; a test compares them.
+#[cfg(test)]
 pub fn code_colors(theme: &ThemeEntry) -> Option<Arc<HighlightTheme>> {
     let tokens = Tokens::fit(&theme.resolved, &theme.resolved, &theme.resolved);
-    preview_code::build(&theme.resolved, &tokens.code)
+    code_highlight(&theme.resolved, &theme.resolved, &tokens)
 }
 
 /// The code colors of the person's light theme, for a light page while a
 /// dark theme is active. Kanso Light's when that theme can't be found or
 /// isn't light.
-pub fn light_code(cx: &App) -> Option<Arc<HighlightTheme>> {
+pub fn light_code(cx: &App) -> CodeColors {
     let configured = cx
         .try_global::<Themes>()
         .and_then(|themes| themes.get(&settings(cx).light).cloned())
@@ -469,7 +476,7 @@ pub fn light_code(cx: &App) -> Option<Arc<HighlightTheme>> {
             .unwrap_or(&builtins()[0])
             .clone()
     });
-    code_colors(&theme)
+    CodeColors::of_theme(&theme.resolved)
 }
 
 /// The preview's colors in use; Kanso's own before a theme is applied.

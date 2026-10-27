@@ -35,10 +35,7 @@ class LibraryHeader extends StatelessWidget {
               const KansoMark(),
               const SizedBox(width: KansoSpacing.sm),
               Expanded(
-                child: Text(
-                  l10n.appName,
-                  style: context.typography.barTitle,
-                ),
+                child: Text(l10n.appName, style: context.typography.barTitle),
               ),
               KansoIconButton(
                 icon: KansoIcons.settings,

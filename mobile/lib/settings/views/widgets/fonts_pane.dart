@@ -109,9 +109,8 @@ class FontsPane extends StatelessWidget {
                         const SizedBox(height: KansoSpacing.lg),
                         TextSizeSection(
                           selected: state.textSize,
-                          onChanged: (size) => bloc.add(
-                            AppearanceEvent.textSizeChanged(size),
-                          ),
+                          onChanged: (size) =>
+                              bloc.add(AppearanceEvent.textSizeChanged(size)),
                         ),
                         const SizedBox(height: KansoSpacing.lg),
                         TextSizeSection(

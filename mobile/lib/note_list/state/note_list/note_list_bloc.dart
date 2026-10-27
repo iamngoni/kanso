@@ -15,6 +15,7 @@ import '../../../core/models/data/list_options.dart';
 import '../../../core/models/repos/abs/haptics_repository.dart';
 import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/models/repos/abs/preferences_repository.dart';
+import '../../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../../core/utils/day_grouping.dart';
 import '../../../core/utils/debounce.dart';
 import '../../models/data/note_list_entry.dart';
@@ -33,8 +34,12 @@ const Duration noteListDebounce = Duration(milliseconds: 100);
 /// library changes, and chosen and changed several at a time.
 @injectable
 class NoteListBloc extends Bloc<NoteListEvent, NoteListState> {
-  NoteListBloc(this._library, this._preferences, this._haptics)
-    : super(const NoteListState()) {
+  NoteListBloc(
+    this._library,
+    this._preferences,
+    this._haptics,
+    this._undoNotice,
+  ) : super(const NoteListState()) {
     on<NoteListStartedEvent>(_onStarted, transformer: restartable());
     on<NoteListOptionsChangedEvent>(
       _onOptionsChanged,
@@ -65,6 +70,7 @@ class NoteListBloc extends Bloc<NoteListEvent, NoteListState> {
   final LibraryRepository _library;
   final PreferencesRepository _preferences;
   final HapticsRepository _haptics;
+  final UndoNoticeBloc _undoNotice;
   StreamSubscription<List<String>>? _changes;
   int _reading = 0;
 
@@ -119,9 +125,8 @@ class NoteListBloc extends Bloc<NoteListEvent, NoteListState> {
       return;
     }
     result.fold(
-      (error) => emit(
-        state.copyWith(status: NoteListStatus.failed, error: error),
-      ),
+      (error) =>
+          emit(state.copyWith(status: NoteListStatus.failed, error: error)),
       (list) {
         final present = <String>{for (final row in list.rows) row.id};
         emit(
@@ -168,7 +173,11 @@ class NoteListBloc extends Bloc<NoteListEvent, NoteListState> {
     }
     await result.fold(
       (error) async => emit(state.copyWith(actionError: error)),
-      (_) async {
+      (changed) async {
+        final ticket = changed.undo;
+        if (ticket != null) {
+          _undoNotice.add(UndoNoticeEvent.shown(ticket, changed.message));
+        }
         // What was chosen has been dealt with.
         emit(state.copyWith(selected: const <String>{}, actionError: null));
         if (event.change is NoteChange_TogglePin) {

@@ -21,6 +21,9 @@ abstract class AppearanceState with _$AppearanceState {
     /// is followed, the fixed theme otherwise (so the same as [light]).
     @Default(KansoPalette.kansoDark) KansoPalette dark,
 
+    /// The icon theme every icon is drawn in.
+    @Default(KansoIconSet.lucide) KansoIconSet iconSet,
+
     @Default(KansoFonts()) KansoFonts fonts,
 
     /// The size of the editor's text.

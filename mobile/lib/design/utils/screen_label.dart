@@ -10,7 +10,6 @@ extension DesignScreenLabel on AppLocalizations {
   /// What the gallery calls [screen].
   String screenName(DesignScreen screen) {
     return switch (screen) {
-      DesignScreen.noteEdit => screenNoteEdit,
       DesignScreen.error => screenError,
     };
   }

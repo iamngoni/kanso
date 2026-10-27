@@ -6,14 +6,14 @@ import 'package:flutter/painting.dart';
 
 /// Corner radii: the desktop's 6 and 10, 14 for sheets and cards, and pills.
 abstract final class KansoRadii {
-  /// 6: rows, fields and small controls.
-  static const double small = 6;
+  /// 8: rows and small controls.
+  static const double small = 8;
 
-  /// 10: buttons and menus.
-  static const double medium = 10;
+  /// 12: fields and menus.
+  static const double medium = 12;
 
-  /// 14: sheets and cards.
-  static const double large = 14;
+  /// 18: buttons, sheets and cards.
+  static const double large = 18;
 
   /// 999: chips and the knob of a switch.
   static const double pill = 999;

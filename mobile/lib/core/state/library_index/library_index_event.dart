@@ -16,4 +16,25 @@ sealed class LibraryIndexEvent with _$LibraryIndexEvent {
 
   /// The person asked to try again after a failure.
   const factory LibraryIndexEvent.retried() = LibraryIndexRetriedEvent;
+
+  /// The library pane shows [place] now: the notebooks and tag levels
+  /// around it stay open.
+  const factory LibraryIndexEvent.placeChanged(ListPlace? place) =
+      LibraryIndexPlaceChangedEvent;
+
+  /// A tap on notebook [id]'s arrow.
+  const factory LibraryIndexEvent.notebookFolded(String id) =
+      LibraryIndexNotebookFoldedEvent;
+
+  /// A tap on the arrow of the tag level [path].
+  const factory LibraryIndexEvent.tagToggled(String path) =
+      LibraryIndexTagToggledEvent;
+
+  /// A tap on the tags' "…" or "Fewer": every chip or the most used few.
+  const factory LibraryIndexEvent.allTagsToggled() =
+      LibraryIndexAllTagsToggledEvent;
+
+  /// A tap on the Status group's header.
+  const factory LibraryIndexEvent.statusGroupToggled() =
+      LibraryIndexStatusGroupToggledEvent;
 }

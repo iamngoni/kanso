@@ -950,7 +950,7 @@ fn publish_site_sheet(
         .expect("the open note has a notebook");
     if published {
         let now = cx.update(|cx| Clock::now_ms(cx));
-        let plan = crate::site::plan(store, &book).unwrap();
+        let plan = kanso_engine::publish::site::plan(store, &book).unwrap();
         let publish = kanso_sync::share::KansoPublish {
             share_id: "r4U0yX3MnO9wQa5SlZ8bCw".into(),
             key: kanso_sync::share::ShareKey::from_bytes([0x3c; 32]).to_text(),
@@ -964,7 +964,7 @@ fn publish_site_sheet(
             short_url: None,
             other: Default::default(),
         };
-        crate::site::store_book_publish(store, &book, Some(&publish)).unwrap();
+        kanso_engine::publish::site::store_book_publish(store, &book, Some(&publish)).unwrap();
     }
     cx.update_window(window, |_, window, cx| {
         workspace.update(cx, |workspace, cx| {

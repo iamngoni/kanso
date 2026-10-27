@@ -15,7 +15,9 @@ getrandom.workspace = true
 hkdf.workspace = true
 kanso-core.workspace = true
 kanso-store.workspace = true
-kanso-sync.workspace = true
+# Without the desktop Keychain: the phones' library (kanso-mobile) uses this
+# crate and keeps its secrets elsewhere.
+kanso-sync = { path = "../kanso-sync", default-features = false }
 kanso-tls = { workspace = true, features = ["ureq"] }
 serde.workspace = true
 serde_json.workspace = true

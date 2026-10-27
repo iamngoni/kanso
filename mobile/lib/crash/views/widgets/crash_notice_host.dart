@@ -28,9 +28,7 @@ class CrashNoticeHost extends StatelessWidget {
           children: <Widget>[
             Positioned.fill(child: child),
             if (state.noticeVisible) ...<Widget>[
-              const Positioned.fill(
-                child: AbsorbPointer(child: KansoScrim()),
-              ),
+              const Positioned.fill(child: AbsorbPointer(child: KansoScrim())),
               Positioned.fill(
                 // Above the app's navigator there is no page to give the
                 // text its style, so the card sets plain text itself.

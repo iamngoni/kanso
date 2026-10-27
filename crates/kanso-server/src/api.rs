@@ -1,4 +1,4 @@
-//! The operations behind the HTTP API, shared by the REST handlers and the
+//! Kanso's HTTP API operations, shared by the REST handlers and the
 //! native MCP tools so both answer identically. All of them are synchronous;
 //! callers run them on a blocking thread.
 
@@ -111,6 +111,13 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
 
 /// `POST /notes` and friends: create, or replace when `_id` exists.
 pub(crate) fn upsert(store: &Store, doc_type: DocType, body: Value) -> ApiResult<Value> {
+    let mut body = body;
+    if doc_type == DocType::Note && body.get("bookId").and_then(Value::as_str) == Some("template") {
+        let book = store.role_book(kanso_core::roles::Role::Templates, Origin::Api)?;
+        if let Some(fields) = body.as_object_mut() {
+            fields.insert("bookId".into(), Value::String(book));
+        }
+    }
     Ok(write_response(store.put_keeping(
         doc_type,
         body,

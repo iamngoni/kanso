@@ -292,11 +292,87 @@ pub fn notebook_tree(books: &[Book]) -> Vec<(usize, &Book)> {
     out
 }
 
+/// What narrows the list a new note is made from, beyond its place: the
+/// note shows in that list only if it carries the same status or pin.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Narrowing {
+    pub status: Option<NoteStatus>,
+    pub pinned: bool,
+}
+
+/// Where a new note goes and what it starts with.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NewNoteTarget {
+    /// The notebook, which exists; `None` when there is no notebook at all
+    /// and the caller makes one named [`FALLBACK_BOOK_NAME`].
+    pub book_id: Option<String>,
+    /// Tag IDs the note starts with.
+    pub tags: Vec<String>,
+    /// A level of the tag tree the note is tagged with. Making that tag may
+    /// need the store, so the caller does it.
+    pub tag_path: Option<String>,
+    pub status: Option<NoteStatus>,
+    pub pinned: bool,
+}
+
+/// The name of the notebook made when there is none.
+pub const FALLBACK_BOOK_NAME: &str = "Notes";
+
+/// Where a new note made from the list at `filter` goes (issue #48).
+///
+/// - A notebook's list: that notebook, even when it is locked (the caller
+///   seals the note, or refuses when the lock is closed).
+/// - Anything else: `preferred`, if it names a notebook that exists and isn't
+///   locked, otherwise the first notebook, otherwise none (the caller makes
+///   one).
+/// - A tag's list tags the note, the pinned list pins it, a status list sets
+///   the status, and the trash's list is the same as any other that isn't a
+///   notebook: a note never goes into the trash.
+///
+/// The list's own narrowing carries over, so the new note shows in it.
+pub fn new_note_target(
+    filter: &Filter,
+    narrowing: Narrowing,
+    preferred: Option<&str>,
+    books: &[Book],
+) -> NewNoteTarget {
+    let real = |book: &&Book| book.id != TRASH_BOOK_ID;
+    let existing = |id: &str| books.iter().filter(real).find(|book| book.id == id);
+    let own = match filter {
+        Filter::Book(id) => existing(id).map(|book| book.id.clone()),
+        _ => None,
+    };
+    let preferred = || {
+        preferred
+            .and_then(existing)
+            .filter(|book| !is_book_locked(&book.id, books))
+            .map(|book| book.id.clone())
+    };
+    let book_id = own
+        .or_else(preferred)
+        .or_else(|| books.iter().find(real).map(|book| book.id.clone()));
+    let mut target = NewNoteTarget {
+        book_id,
+        status: narrowing.status,
+        pinned: narrowing.pinned,
+        ..NewNoteTarget::default()
+    };
+    match filter {
+        Filter::Tag(tag) => target.tags.push(tag.clone()),
+        Filter::TagPath(path) => target.tag_path = Some(path.clone()),
+        Filter::Status(status) => target.status = narrowing.status.or(Some(*status)),
+        Filter::Pinned => target.pinned = true,
+        _ => {}
+    }
+    target
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        DateKey, Filter, book_path, has_notes_inside, is_book_locked, list_notes, notebook_tree,
-        pinned_first, recent_first, recent_notes, refine_status, search_params, shape,
+        DateKey, Filter, Narrowing, book_path, has_notes_inside, is_book_locked, list_notes,
+        new_note_target, notebook_tree, pinned_first, recent_first, recent_notes, refine_status,
+        search_params, shape,
     };
     use crate::lock::book_subtree;
     use kanso_core::{Book, NoteFacts, NoteStatus, Query};
@@ -845,6 +921,114 @@ mod tests {
             // The Pinned place is the same list.
             let place = list_notes(&store, &Filter::Pinned, &params, false, 0).unwrap();
             prop_assert_eq!(place, only);
+        }
+    }
+    /// A filter of every kind, over the notebooks `book:0..20` and a few tags.
+    fn gen_filter() -> impl Strategy<Value = Filter> {
+        prop_oneof![
+            Just(Filter::All),
+            Just(Filter::Pinned),
+            Just(Filter::Recent),
+            Just(Filter::Trash),
+            Just(Filter::Tasks),
+            (0usize..24).prop_map(|ix| Filter::Book(format!("book:{ix}"))),
+            "[a-c]{1,2}".prop_map(Filter::Tag),
+            "[a-c]{1,2}(/[a-c]{1,2})?".prop_map(Filter::TagPath),
+            Just(Filter::Status(NoteStatus::Active)),
+        ]
+    }
+
+    fn gen_narrowing() -> impl Strategy<Value = Narrowing> {
+        (prop::option::of(Just(NoteStatus::Completed)), any::<bool>())
+            .prop_map(|(status, pinned)| Narrowing { status, pinned })
+    }
+
+    /// Books, some of them locked.
+    fn gen_locked_books() -> impl Strategy<Value = Vec<Book>> {
+        (gen_books(), prop::collection::vec(any::<bool>(), 20)).prop_map(|(mut books, locks)| {
+            for (book, locked) in books.iter_mut().zip(locks) {
+                if locked {
+                    book.extra.insert(
+                        kanso_core::model::LOCK_FIELD.to_owned(),
+                        serde_json::json!({}),
+                    );
+                }
+            }
+            books
+        })
+    }
+
+    proptest! {
+        #![proptest_config(config())]
+
+        /// Invariant: a new note goes into a notebook that exists and isn't
+        /// the trash, and only a library with no notebook gets none.
+        #[test]
+        fn prop_new_note_goes_into_an_existing_notebook(
+            books in gen_locked_books(),
+            filter in gen_filter(),
+            narrowing in gen_narrowing(),
+            preferred in prop::option::of((0usize..24).prop_map(|ix| format!("book:{ix}"))),
+        ) {
+            let target = new_note_target(&filter, narrowing, preferred.as_deref(), &books);
+            match &target.book_id {
+                Some(id) => prop_assert!(books.iter().any(|b| &b.id == id) && id != "trash"),
+                None => prop_assert!(books.is_empty()),
+            }
+        }
+
+        /// A notebook's own list wins over the preference.
+        #[test]
+        fn prop_a_notebook_place_wins(
+            books in gen_locked_books().prop_filter("some", |b| !b.is_empty()),
+            at in 0usize..20,
+            preferred in prop::option::of((0usize..24).prop_map(|ix| format!("book:{ix}"))),
+        ) {
+            let id = books[at % books.len()].id.clone();
+            let target = new_note_target(&Filter::Book(id.clone()), Narrowing::default(), preferred.as_deref(), &books);
+            prop_assert_eq!(target.book_id, Some(id));
+        }
+
+        /// Outside a notebook's list the preference is used when it exists
+        /// and is unlocked, and is otherwise ignored for the first notebook.
+        #[test]
+        fn prop_a_locked_or_unknown_preference_falls_back(
+            books in gen_locked_books(),
+            preferred in (0usize..24).prop_map(|ix| format!("book:{ix}")),
+        ) {
+            let target = new_note_target(&Filter::All, Narrowing::default(), Some(&preferred), &books);
+            let usable = books.iter().any(|b| b.id == preferred) && !is_book_locked(&preferred, &books);
+            if usable {
+                prop_assert_eq!(target.book_id.as_deref(), Some(preferred.as_str()));
+            } else {
+                prop_assert_eq!(target.book_id, books.first().map(|b| b.id.clone()));
+            }
+        }
+
+        /// A tag, pinned or status place carries over to the note, and the
+        /// list's narrowing is kept.
+        #[test]
+        fn prop_the_place_and_narrowing_carry_over(
+            books in gen_books(),
+            filter in gen_filter(),
+            narrowing in gen_narrowing(),
+        ) {
+            let target = new_note_target(&filter, narrowing, None, &books);
+            match &filter {
+                Filter::Tag(tag) => prop_assert_eq!(&target.tags, &vec![tag.clone()]),
+                Filter::TagPath(path) => prop_assert_eq!(target.tag_path.as_ref(), Some(path)),
+                _ => {
+                    prop_assert!(target.tags.is_empty());
+                    prop_assert!(target.tag_path.is_none());
+                }
+            }
+            prop_assert_eq!(target.pinned, narrowing.pinned || filter == Filter::Pinned);
+            match &filter {
+                Filter::Status(status) => {
+                    prop_assert_eq!(target.status, narrowing.status.or(Some(*status)));
+                }
+                _ => prop_assert_eq!(target.status, narrowing.status),
+            }
         }
     }
 }

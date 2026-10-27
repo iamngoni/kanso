@@ -72,11 +72,7 @@ final class ProtobufReader {
     if (length < 0 || length > _end - _position) {
       throw const FormatException('length past the end');
     }
-    final view = Uint8List.sublistView(
-      _bytes,
-      _position,
-      _position + length,
-    );
+    final view = Uint8List.sublistView(_bytes, _position, _position + length);
     _position += length;
     return view;
   }

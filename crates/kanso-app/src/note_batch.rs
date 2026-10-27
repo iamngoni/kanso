@@ -8,34 +8,12 @@ use gpui_kit::component::button::Button;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 use kanso_core::DocType;
-use kanso_core::model::TRASH_BOOK_ID;
 pub use kanso_engine::batch::Change;
-use kanso_engine::batch::{self, Edit};
+use kanso_engine::batch::{self, Edit, summary, turned_on};
 use kanso_store::{NoteSummary, Origin};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::library::Library;
-
-/// What the notice says once `count` notes changed. `place` names the
-/// notebook, tag or status the change is about; `on` is whether a toggle
-/// turned the tag or pin on.
-pub fn summary(change: &Change, count: usize, place: &str, on: bool) -> String {
-    let notes = if count == 1 {
-        "1 note".to_owned()
-    } else {
-        format!("{count} notes")
-    };
-    match change {
-        Change::Move(book) if book == TRASH_BOOK_ID => format!("Moved {notes} to the trash."),
-        Change::Move(_) => format!("Moved {notes} to {place}."),
-        Change::AddTag(_) => format!("Added #{place} to {notes}."),
-        Change::ToggleTag(_) if on => format!("Added #{place} to {notes}."),
-        Change::ToggleTag(_) => format!("Took #{place} off {notes}."),
-        Change::TogglePin if on => format!("Pinned {notes}."),
-        Change::TogglePin => format!("Unpinned {notes}."),
-        Change::Status(_) => format!("Set {notes} to {place}."),
-    }
-}
 
 /// Whether the notes must go one at a time, as [`batch::needs_one_by_one`]
 /// says it, for the notebooks the library has locked.
@@ -79,7 +57,7 @@ pub fn apply(
         let place = match &change {
             Change::Move(book) => library.book(book).map(|b| b.name.clone()),
             // A tag just made isn't in the library until it reloads.
-            Change::AddTag(tag) | Change::ToggleTag(tag) => {
+            Change::AddTag(tag) | Change::RemoveTag(tag) | Change::ToggleTag(tag) => {
                 library.tag(tag).map(|t| t.name.clone()).or_else(|| {
                     let tags = library.store.tags().ok()?;
                     tags.into_iter().find(|t| &t.id == tag).map(|t| t.name)
@@ -94,13 +72,7 @@ pub fn apply(
     if edits.is_empty() {
         return;
     }
-    let on = match &change {
-        Change::TogglePin => edits[0].change["pinned"] == json!(true),
-        Change::ToggleTag(tag) => edits[0].change["tags"]
-            .as_array()
-            .is_some_and(|tags| tags.iter().any(|t| t == tag)),
-        _ => true,
-    };
+    let on = turned_on(&change, &edits);
     crate::editor::peers::flush_everywhere(cx);
     let store = library.read(cx).store.clone();
     let changes: Vec<Value> = edits.iter().map(|edit| edit.change.clone()).collect();
@@ -146,31 +118,4 @@ pub fn apply(
                 })
         });
     window.push_notification(notification, cx);
-}
-
-#[cfg(test)]
-mod tests {
-    use kanso_core::model::TRASH_BOOK_ID;
-
-    use super::{Change, summary};
-
-    #[test]
-    fn notices() {
-        assert_eq!(
-            summary(&Change::Move(TRASH_BOOK_ID.into()), 3, "", true),
-            "Moved 3 notes to the trash."
-        );
-        assert_eq!(
-            summary(&Change::Move("book:a".into()), 1, "Work", true),
-            "Moved 1 note to Work."
-        );
-        assert_eq!(
-            summary(&Change::ToggleTag("t".into()), 2, "ideas", false),
-            "Took #ideas off 2 notes."
-        );
-        assert_eq!(
-            summary(&Change::TogglePin, 2, "", false),
-            "Unpinned 2 notes."
-        );
-    }
 }

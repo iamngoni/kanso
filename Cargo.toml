@@ -159,6 +159,8 @@ strip = "symbols"
 panic = "unwind"
 
 # GPUI Kit's component crate with one small hook added, so an icon theme
-# restyles the component library's own icons too (vendor/README.md).
+# restyles the component library's own icons too, and its text view with
+# another, so the preview can tick a task box (vendor/README.md).
 [patch.crates-io]
+gpui-base = { path = "vendor/gpui-base" }
 gpui-component = { path = "vendor/gpui-component" }

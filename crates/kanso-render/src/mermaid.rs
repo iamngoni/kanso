@@ -219,7 +219,7 @@ pub fn set_engine(engine: Engine) {
     PELE.store(engine == Engine::Pele, Ordering::Relaxed);
 }
 
-/// The engine new jobs draw with (the one [`set_engine`] last chose).
+/// The engine new jobs draw with.
 pub fn engine() -> Engine {
     if PELE.load(Ordering::Relaxed) {
         Engine::Pele

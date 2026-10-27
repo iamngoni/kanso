@@ -16,7 +16,13 @@ import 'package:mocktail/mocktail.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/mock_repositories.dart';
 
-const _overview = LibraryOverview(all: 7, pinned: 2, recent: 3, trash: 1);
+const _overview = LibraryOverview(
+  all: 7,
+  pinned: 2,
+  recent: 3,
+  trash: 1,
+  byStatus: <StatusCount>[],
+);
 const _failure = ApplicationError.storage(message: 'Disk error.');
 
 void main() {
@@ -25,6 +31,12 @@ void main() {
   var notebooks = <NotebookRow>[];
   var tags = <TagRow>[];
   var overview = _overview;
+
+  setUpAll(() {
+    registerFallbackValue(
+      const FoldState(open: <String>[], folded: <String>[]),
+    );
+  });
 
   setUp(() {
     notebooks = <NotebookRow>[
@@ -46,6 +58,38 @@ void main() {
     when(() => library.overview()).thenAnswer(
       (_) async => Right<ApplicationError, LibraryOverview>(overview),
     );
+    when(() => library.overdueTasks()).thenAnswer(
+      (_) async => const Right<ApplicationError, int>(2),
+    );
+    when(() => library.statuses()).thenAnswer(
+      (_) async =>
+          const Right<ApplicationError, List<StatusChoice>>(<StatusChoice>[]),
+    );
+    // The bloc reads the tree for whatever it is about to show; the rows
+    // themselves are the engine's to decide, so these stay empty here.
+    when(
+      () => library.visibleNotebooks(any(), showing: any(named: 'showing')),
+    ).thenAnswer(
+      (_) async => const Right<ApplicationError, List<VisibleNotebook>>(
+        <VisibleNotebook>[],
+      ),
+    );
+    when(
+      () => library.tagPlaces(
+        all: any(named: 'all'),
+        selected: any(named: 'selected'),
+        openPaths: any(named: 'openPaths'),
+        showing: any(named: 'showing'),
+      ),
+    ).thenAnswer(
+      (_) async => const Right<ApplicationError, TagPlaces>(
+        TagPlaces(
+          chips: <TagRow>[],
+          more: false,
+          tree: <TagTreeRow>[],
+        ),
+      ),
+    );
   });
 
   LibraryIndexBloc build() => LibraryIndexBloc(library);
@@ -55,6 +99,7 @@ void main() {
     notebooks: notebooks,
     tags: tags,
     overview: overview,
+    overdueTasks: 2,
   );
 
   group('LibraryIndexBloc', () {
@@ -90,13 +135,30 @@ void main() {
           pinned: 0,
           recent: 0,
           trash: 0,
+          byStatus: <StatusCount>[],
         );
       },
       build: build,
       act: (bloc) => bloc.add(const LibraryIndexEvent.started()),
       expect: () => <LibraryIndexState>[
-        const LibraryIndexState(status: LibraryIndexStatus.ready),
+        const LibraryIndexState(
+          status: LibraryIndexStatus.ready,
+          overdueTasks: 2,
+        ),
       ],
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'a count of overdue tasks that fails shows none, and nothing else fails',
+      setUp: () => when(() => library.overdueTasks()).thenAnswer(
+        (_) async => const Left<ApplicationError, int>(_failure),
+      ),
+      build: build,
+      act: (bloc) => bloc.add(const LibraryIndexEvent.started()),
+      verify: (bloc) {
+        expect(bloc.state.status, LibraryIndexStatus.ready);
+        expect(bloc.state.overdueTasks, 0);
+      },
     );
 
     blocTest<LibraryIndexBloc, LibraryIndexState>(
@@ -174,6 +236,7 @@ void main() {
           pinned: 2,
           recent: 4,
           trash: 1,
+          byStatus: <StatusCount>[],
         );
         notebooks = <NotebookRow>[
           ...notebooks,

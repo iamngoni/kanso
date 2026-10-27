@@ -18,6 +18,7 @@ class KansoPressable extends StatefulWidget {
     this.onTap,
     this.onLongPress,
     this.semanticLabel,
+    this.scale = 1,
     super.key,
   });
 
@@ -27,6 +28,10 @@ class KansoPressable extends StatefulWidget {
   /// What a press that is held does.
   final VoidCallback? onLongPress;
   final String? semanticLabel;
+
+  /// How far it shrinks while pressed: [KansoEffects.pressScale] for a
+  /// button, 1 (none) for a row that spans the page.
+  final double scale;
 
   @override
   State<KansoPressable> createState() => _KansoPressableState();
@@ -59,10 +64,17 @@ class _KansoPressableState extends State<KansoPressable> {
         child: ValueListenableBuilder<bool>(
           valueListenable: pressed,
           builder: (context, isPressed, child) {
+            final duration = KansoMotion.resolve(context, KansoMotion.fast);
             return AnimatedOpacity(
               opacity: isPressed ? KansoEffects.pressed : 1,
-              duration: KansoMotion.resolve(context, KansoMotion.fast),
-              child: child,
+              duration: duration,
+              curve: Curves.easeOut,
+              child: AnimatedScale(
+                scale: isPressed ? widget.scale : 1,
+                duration: duration,
+                curve: Curves.easeOut,
+                child: child,
+              ),
             );
           },
           child: widget.child,

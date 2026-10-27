@@ -18,6 +18,7 @@ import 'package:glados/glados.dart'
         ListAnys,
         StringAnys;
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/configs/kanso_icons.dart';
 import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/data/kanso_font_family.dart';
 import 'package:kanso/core/models/data/kanso_fonts.dart';
@@ -40,6 +41,11 @@ extension KansoAny on Any {
     intInRange(0, 256),
     (int r, int g, int b) => Color.fromARGB(255, r, g, b),
   );
+}
+
+extension KansoIconsAny on Any {
+  /// Any of the icons Kanso draws.
+  Generator<KansoIcons> get kansoIcon => choose(KansoIcons.values);
 }
 
 extension KansoFontsAny on Any {
@@ -158,7 +164,15 @@ extension KansoThemeSelectionAny on Any {
       choose(DiagramRenderer.values);
 
   /// Any preferences.
-  Generator<Preferences> get preferences => combine8(
+  Generator<Preferences> get preferences => combine2(
+    appearanceAndLists,
+    choose(<String>['lucide', 'phosphor', 'material-icon-theme', 'x']),
+    (Preferences before, String iconTheme) =>
+        before.copyWith(iconTheme: iconTheme),
+  );
+
+  /// Preferences with the icon theme left as the default.
+  Generator<Preferences> get appearanceAndLists => combine6(
     themeSelection,
     fonts,
     textSize,
@@ -232,7 +246,7 @@ extension KansoLocationAny on Any {
     },
   );
 
-  /// Any place or search, with or without a note open.
+  /// Any place, search or the tasks, with or without a note open.
   Generator<BrowseLocation> get browseLocation => combine6(
     this.bool,
     listPlace,
@@ -256,6 +270,8 @@ extension KansoLocationAny on Any {
               notebookId: scope == SearchScopeKind.notebook ? id : null,
               noteId: noteId,
             )
+          : query.length == 5
+          ? BrowseLocation.tasks(noteId: noteId)
           : BrowseLocation.place(place, noteId: noteId);
     },
   );

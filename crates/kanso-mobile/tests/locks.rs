@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use common::*;
 use kanso_engine::lock::AUTO_LOCK;
-use kanso_mobile::{KansoError, ListQuery, LockEvent, LockReason, LockState, NewNote};
+use kanso_mobile::{KansoError, ListPlace, ListQuery, LockEvent, LockReason, LockState, NewNote};
 use kanso_store::{SearchParams, Store};
 use kanso_sync::KdfParams;
 use kanso_sync::lock::{LockKey, LockPassword};
@@ -216,9 +216,23 @@ fn the_notes_of_a_locked_notebook_are_locked_with_it() {
         notebook_id: Some(vault.clone()),
         title: "New".into(),
         body: "NEW-VAULT-TEXT".into(),
+        ..NewNote::default()
     };
     assert_eq!(
         phone.library.create(into_vault.clone()),
+        Err(KansoError::Locked)
+    );
+    // Made from the locked notebook's own list is the same refusal, with
+    // nothing written; a preference for it is passed over for another.
+    let from_its_list = NewNote {
+        place: Some(ListPlace::Notebook { id: vault.clone() }),
+        ..into_vault.clone()
+    };
+    assert_eq!(
+        phone.library.create(NewNote {
+            notebook_id: None,
+            ..from_its_list
+        }),
         Err(KansoError::Locked)
     );
     assert_eq!(locks.unlock("wrong password".into()), Ok(false));

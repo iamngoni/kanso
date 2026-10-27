@@ -2921,8 +2921,6 @@ dependencies = [
 [[package]]
 name = "gpui-base"
 version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e9955b6f4b048fd50ca15fc8e225d80bb00ba9ebc8fecdddde5ad26dbef9270"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -4452,7 +4450,6 @@ dependencies = [
  "gpui-pre",
  "gpui-pre-apple",
  "gpui-pre-platform",
- "htmd",
  "image",
  "kanso-acp",
  "kanso-ai",
@@ -4496,7 +4493,6 @@ dependencies = [
  "toml 0.8.23",
  "tree-sitter-c-sharp",
  "tree-sitter-swift",
- "unicode-segmentation",
  "ureq",
  "url",
  "windows 0.62.2",
@@ -4552,18 +4548,23 @@ dependencies = [
 name = "kanso-engine"
 version = "0.8.4"
 dependencies = [
+ "anyhow",
  "base64 0.22.1",
  "chrono",
  "fastrand",
- "flate2",
+ "htmd",
+ "image",
  "kanso-core",
+ "kanso-import",
+ "kanso-render",
  "kanso-store",
  "kanso-sync",
  "proptest",
  "rusqlite",
+ "serde",
  "serde_json",
  "sha2 0.11.1",
- "tar",
+ "similar",
  "tempfile",
  "tree-sitter",
  "tree-sitter-bash",
@@ -4589,6 +4590,7 @@ dependencies = [
  "tree-sitter-toml-ng",
  "tree-sitter-typescript",
  "tree-sitter-yaml",
+ "unicode-segmentation",
  "unicode-width",
 ]
 
@@ -4659,24 +4661,40 @@ name = "kanso-mobile"
 version = "0.8.4"
 dependencies = [
  "async-channel",
+ "base64 0.22.1",
+ "chacha20poly1305",
+ "chrono",
  "core-foundation 0.10.1",
  "core-foundation-sys",
+ "curve25519-dalek",
+ "ed25519-dalek",
+ "fastrand",
  "flate2",
+ "getrandom 0.4.3",
+ "hkdf 0.13.0",
  "jni",
+ "kanso-collab",
  "kanso-core",
  "kanso-engine",
  "kanso-gallery",
+ "kanso-import",
  "kanso-mobile",
  "kanso-render",
  "kanso-store",
  "kanso-sync",
  "kanso-tls",
+ "kanso-update",
  "proptest",
  "security-framework 3.7.0",
+ "semver",
+ "serde",
  "serde_json",
+ "sha2 0.11.1",
  "tar",
  "tempfile",
  "thiserror 2.0.21",
+ "ureq",
+ "url",
  "zeroize",
 ]
 
@@ -4691,6 +4709,7 @@ dependencies = [
  "kanso-tls",
  "proptest",
  "tempfile",
+ "zeroize",
 ]
 
 [[package]]
@@ -4736,6 +4755,7 @@ version = "0.8.4"
 dependencies = [
  "base64 0.22.1",
  "flate2",
+ "kanso-core",
  "markdown",
  "mermaid-svg",
  "proptest",

@@ -8,11 +8,7 @@ import 'kanso_swipe_group.dart';
 
 /// Gives the rows of a list their [KansoSwipeGroup].
 class KansoSwipeScope extends InheritedWidget {
-  const KansoSwipeScope({
-    required this.group,
-    required super.child,
-    super.key,
-  });
+  const KansoSwipeScope({required this.group, required super.child, super.key});
 
   final KansoSwipeGroup group;
 

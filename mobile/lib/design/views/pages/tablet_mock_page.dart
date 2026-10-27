@@ -7,9 +7,7 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_scrim.dart';
 import '../../../shell/views/widgets/tablet_layout.dart';
-import '../../models/data/design_layout.dart';
 import '../../models/data/design_screen.dart';
-import '../widgets/note_edit_pane.dart';
 import '../widgets/signed_out_card.dart';
 
 /// A tablet screen in landscape: the library, the list and the note side by
@@ -29,13 +27,8 @@ class TabletMockPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    const tablet = DesignLayout.tablet;
-    final Widget note = screen == DesignScreen.noteEdit
-        ? const NoteEditPane(layout: tablet)
-        : ColoredBox(color: colors.editor);
-    final Widget? overlay = switch (screen) {
+    final Widget overlay = switch (screen) {
       DesignScreen.error => const SignedOutCard(),
-      _ => null,
     };
     final content = SizedBox.fromSize(
       size: designSize,
@@ -48,13 +41,11 @@ class TabletMockPage extends StatelessWidget {
               child: TabletLayout(
                 library: ColoredBox(color: colors.sidebar),
                 list: ColoredBox(color: colors.list),
-                note: note,
+                note: ColoredBox(color: colors.editor),
               ),
             ),
-            if (overlay != null) ...<Widget>[
-              const Positioned.fill(child: KansoScrim()),
-              Center(child: overlay),
-            ],
+            const Positioned.fill(child: KansoScrim()),
+            Center(child: overlay),
           ],
         ),
       ),

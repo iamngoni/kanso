@@ -45,9 +45,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
         }
         return _run(emit, query: event.text);
       },
-      transformer: debounceRestartable<SearchQueryChangedEvent>(
-        searchDebounce,
-      ),
+      transformer: debounceRestartable<SearchQueryChangedEvent>(searchDebounce),
     );
     on<SearchScopeChangedEvent>(
       (event, emit) => _run(emit, scope: event.scope),
@@ -137,23 +135,15 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       status: next.hits.isEmpty ? SearchStatus.searching : next.status,
     );
     emit(next);
-    final result = await _library.search(
-      next.query,
-      scope: next.libraryScope,
-    );
+    final result = await _library.search(next.query, scope: next.libraryScope);
     if (searching != _searching || emit.isDone) {
       return;
     }
     result.fold(
-      (error) => emit(
-        state.copyWith(status: SearchStatus.failed, error: error),
-      ),
+      (error) =>
+          emit(state.copyWith(status: SearchStatus.failed, error: error)),
       (hits) => emit(
-        state.copyWith(
-          status: SearchStatus.ready,
-          hits: hits,
-          error: null,
-        ),
+        state.copyWith(status: SearchStatus.ready, hits: hits, error: null),
       ),
     );
   }

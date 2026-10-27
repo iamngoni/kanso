@@ -8,33 +8,55 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
+import '../../../core/configs/kanso_radii.dart';
+import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/library_index_status.dart';
+import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../core/utils/muted_tag_color.dart';
+import '../../../core/utils/notebook_tint.dart';
+import '../../../core/utils/status_label.dart';
 import '../../../core/utils/tag_row_color.dart';
 import '../../../core/views/widgets/kanso_button.dart';
-import '../../../core/views/widgets/kanso_dot.dart';
+import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
+import '../../../core/views/widgets/kanso_icon.dart';
+import '../../../core/views/widgets/kanso_icon_button.dart';
+import '../../../core/views/widgets/kanso_icon_set_scope.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_search_field.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_sidebar_row.dart';
+import '../../../core/views/widgets/kanso_status_glyph.dart';
+import '../../../core/views/widgets/kanso_themed_icon.dart';
+import '../../../injection.dart';
+import '../../../lock/utils/notebook_lock_rule.dart';
+import '../../../sharing/views/widgets/shared_with_you_row.dart';
+import 'library_actions.dart';
 import 'library_header.dart';
 import 'library_loading_rows.dart';
 import 'library_place_row.dart';
+import 'library_tasks_row.dart';
+import 'new_notebook_sheet.dart';
+import 'notebook_actions_sheet.dart';
+import 'tag_actions_sheet.dart';
 
 /// The library: the app's mark and settings, a search field, then All
-/// Notes, Templates (when there is a notebook of that role), Pinned and
-/// Recent, the notebooks with their counts, the tags and Trash.
+/// Notes, Templates (when there is a notebook of that role), Pinned,
+/// Recent and Tasks (with the overdue ones counted), Shared with you (with
+/// how many invitations wait), the notebooks with their counts, folded by
+/// their arrows, the notes' Statuses, the tags as chips and a nested tree,
+/// and Trash.
 ///
 /// A drawer on a phone, the first pane on a tablet. The place [location]
 /// is listing is selected. Its rows come from the `LibraryIndexBloc`
 /// above it, and stay up to date as the library changes.
-class LibraryPane extends StatelessWidget {
+class LibraryPane extends StatefulWidget {
   const LibraryPane({
     required this.location,
     this.designGallery = false,
@@ -48,10 +70,47 @@ class LibraryPane extends StatelessWidget {
   final bool designGallery;
 
   @override
+  State<LibraryPane> createState() => _LibraryPaneState();
+}
+
+class _LibraryPaneState extends State<LibraryPane> {
+  /// The place the tree is drawn around: the place of the list showing.
+  ListPlace? get _place {
+    final here = widget.location;
+    return here is PlaceLocation ? here.place : null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final place = _place;
+    if (place != null) {
+      // After the first frame: a bloc may not be changed while building.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<LibraryIndexBloc>().add(
+            LibraryIndexEvent.placeChanged(place),
+          );
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(LibraryPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.location != oldWidget.location) {
+      context.read<LibraryIndexBloc>().add(
+        LibraryIndexEvent.placeChanged(_place),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final here = location;
-    final current = here is PlaceLocation ? here.place : null;
+    final here = widget.location;
+    final current = _place;
     final bottom = MediaQuery.paddingOf(context).bottom;
     void leave(VoidCallback go) {
       // A drawer slides away as the page behind it changes.
@@ -149,53 +208,43 @@ class LibraryPane extends StatelessWidget {
                         label: l10n.libraryRecent,
                         selected: current == const ListPlace.recent(),
                       ),
-                      KansoSectionHeader(label: l10n.libraryNotebooks),
-                      if (index.notebooks.every(
-                        (book) => book.role == NotebookRole.templates,
-                      ))
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: KansoSpacing.md,
-                            vertical: KansoSpacing.xs,
+                      SharedWithYouRow(
+                        onOpen: () =>
+                            leave(() => context.push(KansoRoutes.shared)),
+                      ),
+                      LibraryTasksRow(
+                        overdue: index.overdueTasks,
+                        selected: here is TasksLocation,
+                      ),
+                      KansoSectionHeader(
+                        label: l10n.libraryNotebooks,
+                        trailing: <Widget>[
+                          KansoIconButton(
+                            icon: KansoIcons.plus,
+                            semanticLabel: l10n.libraryNewNotebook,
+                            iconSize: KansoSizes.iconSmall + 2,
+                            onPressed: () => NewNotebookSheet.open(context),
                           ),
-                          child: Text(
-                            l10n.libraryNoNotebooks,
-                            style: context.typography.secondary,
-                          ),
-                        ),
-                      for (final notebook in index.notebooks)
-                        if (notebook.role != NotebookRole.templates)
-                          LibraryPlaceRow(
-                            place: ListPlace.notebook(id: notebook.id),
-                            icon: KansoIcons.notebook,
-                            label: notebook.name,
-                            count: notebook.count,
-                            depth: notebook.depth,
-                            chevron: true,
-                            selected:
-                                current == ListPlace.notebook(id: notebook.id),
-                          ),
+                        ],
+                      ),
+                      if (_notebooks(index).isEmpty)
+                        _EmptyNote(text: l10n.libraryNoNotebooks)
+                      else
+                        for (final notebook in _notebooks(index))
+                          _notebookRow(context, index, current, notebook),
+                      const SizedBox(height: KansoSpacing.xs),
+                      _StatusSection(
+                        index: index,
+                        current: current,
+                        onLeave: leave,
+                      ),
                       const SizedBox(height: KansoSpacing.xs),
                       KansoSectionHeader(label: l10n.libraryTags),
-                      if (index.tags.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: KansoSpacing.md,
-                            vertical: KansoSpacing.xs,
-                          ),
-                          child: Text(
-                            l10n.libraryNoTags,
-                            style: context.typography.secondary,
-                          ),
-                        ),
-                      for (final tag in index.tags)
-                        LibraryPlaceRow(
-                          place: ListPlace.tag(id: tag.id),
-                          leading: KansoDot(color: tag.tint),
-                          label: tag.name,
-                          count: tag.count,
-                          selected: current == ListPlace.tag(id: tag.id),
-                        ),
+                      _TagSection(
+                        index: index,
+                        current: current,
+                        onLeave: leave,
+                      ),
                       const SizedBox(height: KansoSpacing.xs),
                       LibraryPlaceRow(
                         place: const ListPlace.trash(),
@@ -203,8 +252,16 @@ class LibraryPane extends StatelessWidget {
                         label: l10n.libraryTrash,
                         count: index.overview.trash,
                         selected: current == const ListPlace.trash(),
+                        onLongPress: () => _emptyTrash(context, index),
                       ),
-                      if (designGallery)
+                      KansoSidebarRow(
+                        icon: KansoIcons.replaceAll,
+                        label: l10n.libraryReplace,
+                        onTap: () => leave(
+                          () => context.push(KansoRoutes.replace),
+                        ),
+                      ),
+                      if (widget.designGallery)
                         KansoSidebarRow(
                           icon: KansoIcons.palette,
                           label: l10n.libraryDesignGallery,
@@ -218,6 +275,332 @@ class LibraryPane extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// The notebook rows that show, without the Templates notebook.
+  List<VisibleNotebook> _notebooks(
+    LibraryIndexState index,
+  ) => <VisibleNotebook>[
+    for (final notebook in index.visibleNotebooks)
+      if (notebook.row.role != NotebookRole.templates) notebook,
+  ];
+
+  Widget _notebookRow(
+    BuildContext context,
+    LibraryIndexState index,
+    ListPlace? current,
+    VisibleNotebook shown,
+  ) {
+    final notebook = shown.row;
+    final place = ListPlace.notebook(id: notebook.id);
+    final selected = current == place;
+    final color = notebookColor(notebook.color);
+    final dark = Theme.brightnessOf(context) == Brightness.dark;
+    final icon = notebook.icon ?? KansoIcons.notebook.lucideName;
+    return LibraryPlaceRow(
+      place: place,
+      label: notebook.name,
+      count: notebook.count,
+      depth: notebook.depth,
+      leading: KansoThemedIcon(
+        lucideName: icon,
+        svg: KansoIconSetScope.of(context).svgFor(icon),
+        color: selected
+            ? context.colors.text
+            : color == null
+            ? context.colors.textSecondary
+            : mutedTagColor(color, dark: dark),
+      ),
+      wash: color,
+      foldOpen: shown.parent ? shown.open : null,
+      onFold: shown.parent
+          ? () => context.read<LibraryIndexBloc>().add(
+              LibraryIndexEvent.notebookFolded(notebook.id),
+            )
+          : null,
+      chevron: !shown.parent,
+      selected: selected,
+      locked:
+          notebookLockRule(notebook, index.notebooks) != NotebookLockRule.lock,
+      onLongPress: () => NotebookActionsSheet.show(context, notebook),
+    );
+  }
+
+  /// Empties the trash, as the Trash row's long press does on the desktop,
+  /// after asking.
+  Future<void> _emptyTrash(
+    BuildContext context,
+    LibraryIndexState index,
+  ) async {
+    if (index.overview.trash < 1) {
+      return;
+    }
+    final l10n = context.l10n;
+    final bloc = context.read<LibraryIndexBloc>();
+    final host = Navigator.of(context, rootNavigator: true).overlay!.context;
+    final yes = await KansoConfirmSheet.show(
+      host,
+      title: l10n.libraryEmptyTrashTitle(index.overview.trash),
+      message: l10n.libraryEmptyTrashMessage,
+      confirmLabel: l10n.libraryEmptyTrashConfirm,
+    );
+    if (!yes) {
+      return;
+    }
+    await runLibraryAction(
+      host,
+      index: bloc,
+      action: getIt<LibraryRepository>().emptyTrash,
+    );
+  }
+}
+
+/// A quiet line where a section has no rows.
+class _EmptyNote extends StatelessWidget {
+  const _EmptyNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KansoSpacing.md,
+        vertical: KansoSpacing.xs,
+      ),
+      child: Text(text, style: context.typography.secondary),
+    );
+  }
+}
+
+/// The Status group: a header that opens and folds it, and a row for each
+/// status the desktop lists, with how many notes have it.
+class _StatusSection extends StatelessWidget {
+  const _StatusSection({
+    required this.index,
+    required this.current,
+    required this.onLeave,
+  });
+
+  final LibraryIndexState index;
+  final ListPlace? current;
+  final void Function(VoidCallback) onLeave;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final bloc = context.read<LibraryIndexBloc>();
+    final open = index.statusOpen;
+    // None is a status a note can be given, but the group lists the four
+    // the desktop lists.
+    final rows = <StatusChoice>[
+      for (final choice in index.statuses)
+        if (choice.status != 'none') choice,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        KansoPressable(
+          onTap: () => bloc.add(const LibraryIndexEvent.statusGroupToggled()),
+          semanticLabel: l10n.libraryStatuses,
+          child: KansoSectionHeader(
+            label: l10n.libraryStatuses,
+            trailing: <Widget>[
+              KansoIcon(
+                open ? KansoIcons.chevronDown : KansoIcons.chevronRight,
+                size: KansoSizes.iconSmall,
+                color: context.colors.textMuted,
+              ),
+            ],
+          ),
+        ),
+        if (open)
+          for (final choice in rows)
+            LibraryPlaceRow(
+              place: ListPlace.status(status: choice.status),
+              leading: KansoStatusGlyph(
+                status: noteStatusOf(choice.status),
+              ),
+              label: choice.label,
+              count: index.statusCount(choice.status),
+              selected: current == ListPlace.status(status: choice.status),
+            ),
+      ],
+    );
+  }
+}
+
+/// The tags: the chips of the tags with no tags inside them, a "…" or
+/// "Fewer" toggle, and the nested tags as a tree folded by their arrows.
+class _TagSection extends StatelessWidget {
+  const _TagSection({
+    required this.index,
+    required this.current,
+    required this.onLeave,
+  });
+
+  final LibraryIndexState index;
+  final ListPlace? current;
+  final void Function(VoidCallback) onLeave;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final bloc = context.read<LibraryIndexBloc>();
+    final places = index.tagPlaces;
+    if (index.tags.isEmpty) {
+      return _EmptyNote(text: l10n.libraryNoTags);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: KansoSpacing.md),
+          child: Wrap(
+            spacing: KansoSpacing.xs,
+            runSpacing: KansoSpacing.xxs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: <Widget>[
+              for (final tag in places.chips)
+                _TagChip(
+                  tag: tag,
+                  selected: current == ListPlace.tag(id: tag.id),
+                  onTap: () => onLeave(
+                    () => context.go(
+                      BrowseLocation.place(ListPlace.tag(id: tag.id)).location,
+                    ),
+                  ),
+                  onLongPress: () => TagActionsSheet.show(context, tag),
+                ),
+              if (places.more)
+                KansoPressable(
+                  onTap: () =>
+                      bloc.add(const LibraryIndexEvent.allTagsToggled()),
+                  semanticLabel: index.allTags
+                      ? l10n.libraryTagsFewer
+                      : l10n.libraryTagsMore,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: KansoSpacing.xs,
+                      vertical: KansoSpacing.xxs,
+                    ),
+                    child: Text(
+                      index.allTags ? l10n.libraryTagsFewer : '…',
+                      style: context.typography.secondary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: KansoSpacing.xxs),
+        for (final row in places.tree)
+          LibraryPlaceRow(
+            place: row.tagId == null
+                ? ListPlace.tagPath(path: row.path)
+                : ListPlace.tag(id: row.tagId!),
+            leading: _Hash(),
+            label: row.label,
+            count: row.count,
+            depth: row.depth,
+            foldOpen: row.parent ? row.open : null,
+            onFold: row.parent
+                ? () => bloc.add(LibraryIndexEvent.tagToggled(row.path))
+                : null,
+            selected:
+                current ==
+                (row.tagId == null
+                    ? ListPlace.tagPath(path: row.path)
+                    : ListPlace.tag(id: row.tagId!)),
+            onLongPress: () {
+              final tag = row.tagId == null ? null : index.tag(row.tagId!);
+              if (tag != null) {
+                TagActionsSheet.show(context, tag);
+              }
+            },
+          ),
+      ],
+    );
+  }
+}
+
+/// The `#` before a tag's name in the tree.
+class _Hash extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '#',
+      style: context.typography.secondary.copyWith(
+        color: context.colors.textMuted,
+      ),
+    );
+  }
+}
+
+/// One chip of the tag list.
+class _TagChip extends StatelessWidget {
+  const _TagChip({
+    required this.tag,
+    required this.selected,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  final TagRow tag;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Semantics(
+      selected: selected,
+      label: '#${tag.name}',
+      child: KansoPressable(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          height: KansoSizes.chip + 4,
+          padding: const EdgeInsets.symmetric(horizontal: KansoSpacing.xs),
+          decoration: BoxDecoration(
+            color: selected ? colors.sidebarActive : null,
+            border: Border.all(
+              color: selected ? colors.sidebarActive : colors.divider,
+            ),
+            borderRadius: KansoRadii.smallBorder,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                '#',
+                style: context.typography.secondary.copyWith(
+                  color: mutedTagColor(
+                    tag.tint,
+                    dark: Theme.brightnessOf(context) == Brightness.dark,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              Text(
+                tag.name,
+                style: context.typography.secondary.copyWith(
+                  color: selected ? colors.text : colors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: KansoSpacing.xxs),
+              Text(
+                '${tag.count}',
+                style: context.typography.secondary.copyWith(
+                  color: colors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

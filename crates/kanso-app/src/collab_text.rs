@@ -8,6 +8,7 @@
 
 use std::ops::Range;
 
+pub use kanso_collab::comments::{comment_groups, comments_summary, mention_runs};
 use kanso_collab::{CommentView, Placement, Problem, RemoteCursor, Role, SizeUse, Splice, remap};
 
 use crate::collab_model::RemoteMark;
@@ -171,27 +172,6 @@ pub fn days_until(at_ms: i64, now_ms: i64) -> i64 {
     }
 }
 
-/// The Comments tab's two groups, as indices into `comments`: those whose
-/// words are still in the text, in text order, then those whose words were
-/// deleted ("Orphaned"), by where their words were. Earlier comments first
-/// where two start at the same place.
-pub fn comment_groups(comments: &[CommentView]) -> (Vec<usize>, Vec<usize>) {
-    let mut anchored = Vec::new();
-    let mut orphaned = Vec::new();
-    for (ix, view) in comments.iter().enumerate() {
-        match &view.placement {
-            Placement::Anchored(range) => anchored.push((range.start, view.comment.created_at, ix)),
-            Placement::Orphaned(at) => orphaned.push((*at, view.comment.created_at, ix)),
-        }
-    }
-    anchored.sort();
-    orphaned.sort();
-    (
-        anchored.into_iter().map(|(_, _, ix)| ix).collect(),
-        orphaned.into_iter().map(|(_, _, ix)| ix).collect(),
-    )
-}
-
 /// What clicking a comment selects in the editor: its words, or a caret
 /// where an orphaned comment's words were; inside `text`, on character
 /// boundaries.
@@ -206,64 +186,6 @@ pub fn comment_target(placement: &Placement, text: &str) -> Range<usize> {
             at..at
         }
     }
-}
-
-/// A comment's words in runs, each marked when it is an @mention of one of
-/// `members` (usernames): `@` at the start or after a non-letter, then the
-/// name, as the engine finds mentions. The runs cover `body` in order.
-pub fn mention_runs(body: &str, members: &[String]) -> Vec<(Range<usize>, bool)> {
-    let mut runs = Vec::new();
-    let mut plain = 0;
-    for (i, _) in body.match_indices('@') {
-        if i < plain {
-            continue;
-        }
-        let after_word = body[..i]
-            .chars()
-            .next_back()
-            .is_some_and(|c| c.is_ascii_alphanumeric());
-        if after_word {
-            continue;
-        }
-        let name: &str = {
-            let rest = &body[i + 1..];
-            let end = rest
-                .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-')))
-                .unwrap_or(rest.len());
-            rest[..end].trim_end_matches(['-', '_'])
-        };
-        if name.is_empty()
-            || !members
-                .iter()
-                .any(|member| member.eq_ignore_ascii_case(name))
-        {
-            continue;
-        }
-        if plain < i {
-            runs.push((plain..i, false));
-        }
-        let end = i + 1 + name.len();
-        runs.push((i..end, true));
-        plain = end;
-    }
-    if plain < body.len() {
-        runs.push((plain..body.len(), false));
-    }
-    runs
-}
-
-/// The Comments tab's summary: "2 open · 1 resolved"; empty with none.
-pub fn comments_summary(comments: &[CommentView]) -> String {
-    let resolved = comments.iter().filter(|v| v.comment.resolved).count();
-    let open = comments.len() - resolved;
-    let mut parts = Vec::new();
-    if open > 0 {
-        parts.push(format!("{open} open"));
-    }
-    if resolved > 0 {
-        parts.push(format!("{resolved} resolved"));
-    }
-    parts.join(" · ")
 }
 
 #[cfg(test)]
@@ -445,33 +367,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn mentions_of_members_stand_out() {
-        let members = vec!["user2".to_owned(), "ann-b".to_owned()];
-        let runs = |body: &str| -> Vec<(String, bool)> {
-            mention_runs(body, &members)
-                .into_iter()
-                .map(|(r, m)| (body[r].to_owned(), m))
-                .collect()
-        };
-        assert_eq!(
-            runs("Ask @User2, and @ann-b_."),
-            [
-                ("Ask ".into(), false),
-                ("@User2".into(), true),
-                (", and ".into(), false),
-                ("@ann-b".into(), true),
-                ("_.".into(), false),
-            ]
-        );
-        // Not a member, or inside a word: plain.
-        assert_eq!(
-            runs("mail me@user2 or @nobody"),
-            [("mail me@user2 or @nobody".into(), false)]
-        );
-        assert!(mention_runs("", &members).is_empty());
-    }
-
     proptest! {
         #![proptest_config(config(256))]
 
@@ -503,42 +398,6 @@ mod tests {
             }
         }
 
-        /// Every comment is in exactly one group; the anchored ones in text
-        /// order, the orphaned ones in the order their words were.
-        #[test]
-        fn prop_comment_groups_cover_every_comment(specs in prop::collection::vec((0usize..60, 0usize..10, any::<bool>(), 0i64..5), 0..12)) {
-            let comments: Vec<CommentView> = specs
-                .iter()
-                .enumerate()
-                .map(|(i, (start, len, orphaned, at))| {
-                    let placement = if *orphaned {
-                        Placement::Orphaned(*start)
-                    } else {
-                        Placement::Anchored(*start..start + len)
-                    };
-                    view(&format!("c{i}"), placement, false, *at)
-                })
-                .collect();
-            let (anchored, orphaned) = comment_groups(&comments);
-            let mut all: Vec<usize> = anchored.iter().chain(&orphaned).copied().collect();
-            all.sort_unstable();
-            prop_assert_eq!(all, (0..comments.len()).collect::<Vec<_>>());
-            let start = |ix: usize| match &comments[ix].placement {
-                Placement::Anchored(r) => r.start,
-                Placement::Orphaned(at) => *at,
-            };
-            for pair in anchored.windows(2) {
-                prop_assert!(matches!(comments[pair[0]].placement, Placement::Anchored(_)));
-                prop_assert!(start(pair[0]) <= start(pair[1]));
-            }
-            for pair in orphaned.windows(2) {
-                prop_assert!(start(pair[0]) <= start(pair[1]));
-            }
-            for &ix in &orphaned {
-                prop_assert!(matches!(comments[ix].placement, Placement::Orphaned(_)));
-            }
-        }
-
         /// What a click selects is inside the text, on character boundaries,
         /// and a caret for an orphaned comment.
         #[test]
@@ -550,27 +409,6 @@ mod tests {
             if orphaned {
                 prop_assert!(range.is_empty());
             }
-        }
-
-        /// The runs cover the words exactly, in order, and every marked run
-        /// is `@` and a member's name.
-        #[test]
-        fn prop_mention_runs_cover_the_words(words in prop::collection::vec(prop::sample::select(vec!["@user2", "@USER2", "@ann", "x@user2", "@", "@nobody", " ", "é", "-", "_", "hi"]), 0..12)) {
-            let body: String = words.concat();
-            let members = vec!["user2".to_owned(), "ann".to_owned()];
-            let runs = mention_runs(&body, &members);
-            let mut at = 0;
-            for (range, mention) in &runs {
-                prop_assert_eq!(range.start, at);
-                prop_assert!(range.start < range.end);
-                at = range.end;
-                if *mention {
-                    let name = &body[range.start + 1..range.end];
-                    prop_assert!(body[range.clone()].starts_with('@'));
-                    prop_assert!(members.iter().any(|m| m.eq_ignore_ascii_case(name)));
-                }
-            }
-            prop_assert_eq!(at, body.len());
         }
 
         /// The splices take the editor's text to the merged text, and the

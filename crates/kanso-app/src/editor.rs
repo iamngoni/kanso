@@ -38,6 +38,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::{DocType, Note, NoteStatus};
+use kanso_engine::saving::{AUTOSAVE_DELAY, same_content};
 use kanso_store::{Backlink, Change, Origin, Put, Store, StoreError};
 
 use crate::clock::Clock;
@@ -53,6 +54,7 @@ use crate::models::note_visit::NotePlace;
 use crate::note_meaning::NoteMeaning;
 use crate::pairing::Pairs;
 use crate::preview::{ImageResize, LinkSender, Preview, PreviewEdit, TEXT_INSET, readable_width};
+use crate::preview_tasks::{self, TaskTick};
 use crate::smart_paste;
 use crate::spellcheck::{
     self, CorrectSpelling, IgnoreSpelling, LearnSpelling, Misspelling, SpellMarks,
@@ -92,7 +94,6 @@ mod vim_glue;
 #[path = "editor_vim_tests.rs"]
 mod vim_tests;
 
-const AUTOSAVE_DELAY: Duration = Duration::from_millis(600);
 /// While typing goes on, the preview beside the source catches up at most
 /// this often: the first change shows at once, later ones on the next tick.
 const PREVIEW_INTERVAL: Duration = Duration::from_millis(60);
@@ -205,20 +206,6 @@ fn day_arrows(tab_stop: bool, cx: &App) -> impl IntoElement {
                     window.dispatch_action(Box::new(crate::calendar_view::ShowCalendar), cx)
                 }),
         )
-}
-
-/// Whether two versions of a note say the same thing: equal apart from the
-/// revision and the task counts the store derives from the body. A sync that
-/// only moved the revision (a local win, a stale rebase, a repair) leaves the
-/// two versions the same. Pure.
-pub(crate) fn same_content(a: &Note, b: &Note) -> bool {
-    let plain = |note: &Note| Note {
-        rev: None,
-        num_of_tasks: 0,
-        num_of_checked_tasks: 0,
-        ..note.clone()
-    };
-    plain(a) == plain(b)
 }
 
 /// What happened elsewhere to the open note while it had unsaved edits.
@@ -416,6 +403,7 @@ impl NoteEditor {
                             source,
                             replacement,
                         } => this.replace_block(&source, replacement, window, cx),
+                        PreviewEdit::Task(tick) => this.tick_task(&tick, window, cx),
                     })
                     .is_err()
                 {
@@ -638,10 +626,10 @@ impl NoteEditor {
 
     /// What the Publish sheet works from: the open note's ID, its title and
     /// body as typed, its revision, and the link it keeps, if any.
-    pub fn publish_source(&self, cx: &App) -> Option<crate::publish::Source> {
+    pub fn publish_source(&self, cx: &App) -> Option<kanso_engine::publish::Source> {
         let note = self.note.as_ref()?;
         let (title, body) = self.current_text(cx);
-        Some(crate::publish::Source {
+        Some(kanso_engine::publish::Source {
             id: note.id.clone(),
             title,
             body,
@@ -2569,6 +2557,41 @@ impl NoteEditor {
             None => smart_paste::sized_image(&resize.src, &resize.alt, resize.width),
         };
         self.replace_block(&resize.source, replacement, window, cx);
+    }
+
+    /// A task box ticked in the preview: its `[ ]` becomes `[x]` (or back) in
+    /// the note's text, as one undo step with the cursor kept where it was,
+    /// saved like typing. Nothing is written where the editor takes no
+    /// typing, or when the note no longer has that task where the click
+    /// found it.
+    // no-prop-test: glue; `preview_tasks` has the properties and
+    // `ticking_a_task_in_the_preview_rewrites_the_markdown` goes through it.
+    fn tick_task(&mut self, tick: &TaskTick, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.takes_preview_edits(cx) {
+            return;
+        }
+        self.smart_edit(window, cx, |_, text, selection| {
+            body_edit(text, &preview_tasks::toggled(text, tick)?, selection)
+        });
+    }
+
+    /// Whether the preview may rewrite the note's text: it is open for
+    /// editing, not in the trash, not locked shut, not shared to view only,
+    /// not held by an account lock or an unanswered change made elsewhere,
+    /// and the preview shows the text as it is now, so a box clicked is the
+    /// task it was drawn for.
+    fn takes_preview_edits(&self, cx: &App) -> bool {
+        let editable = self
+            .note
+            .as_ref()
+            .is_some_and(|note| note.book_id != TRASH_BOOK_ID);
+        editable
+            && !self.lock.is_closed()
+            && !self.text_read_only
+            && !self.collab_read_only()
+            && self.incoming.is_none()
+            && !self.preview_stale
+            && !writes_held(cx)
     }
 
     /// The image on the cursor's line in the note's text, if that line is
@@ -5683,6 +5706,244 @@ mod writing_tests {
         );
         open.keys(cx, "cmd-z");
         assert_eq!(open.text(cx).0, format!("Intro\n\n{source}\n\nEnd"));
+    }
+
+    /// A note for ticking tasks in the preview. The task list counts the
+    /// YAML line as its first task, though the preview draws no box there,
+    /// and skips the fence's line: the three boxes drawn are the list's
+    /// second to fourth, which a click must not mix up.
+    const TICK_NOTE: &str = "---\ntags:\n  - [ ] yaml\n---\n\n- [ ] one\n  - [x] two\n\n```\n- [ ] code\n```\n\n- [ ] three\n";
+
+    /// Draws the open note's window, so the preview's boxes have bounds,
+    /// after the preview has caught up with the text.
+    fn draw_window(open: &Open, cx: &mut TestAppContext) {
+        for _ in 0..4 {
+            cx.run_until_parked();
+            cx.executor()
+                .advance_clock(std::time::Duration::from_millis(200));
+            cx.update_window(open.window, |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            })
+            .unwrap();
+        }
+        cx.run_until_parked();
+    }
+
+    /// Shows the note beside its source, drawn.
+    fn show_preview(open: &Open, cx: &mut TestAppContext) {
+        open.with(cx, |editor, _, cx| {
+            editor.set_view_mode(crate::config::ViewMode::Split, cx)
+        });
+        draw_window(open, cx);
+    }
+
+    /// Clicks the box of the task item that starts with `item` (the note is
+    /// one chunk, so a box's place in the chunk is its place in the note).
+    /// Whether that box was drawn to click.
+    fn click_task_box(open: &Open, cx: &mut TestAppContext, item: &str) -> bool {
+        let at = open.text(cx).0.find(item).unwrap();
+        let selector: &'static str = Box::leak(format!("task-box-{at}").into_boxed_str());
+        let mut vcx = gpui_kit::VisualTestContext::from_window(open.window, cx);
+        let Some(bounds) = vcx.debug_bounds(selector) else {
+            return false;
+        };
+        vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+        draw_window(open, cx);
+        true
+    }
+
+    /// A click on a task's box in the preview toggles that task in the
+    /// note's Markdown, as one undo step, saved like typing, with the task
+    /// counts and the preview following. A task in a fence, in front matter
+    /// or in indented code is no box, and the boxes after them are the
+    /// ones clicked.
+    // no-prop-test: drives the preview through clicks; `preview_tasks` has
+    // the properties.
+    #[gpui_kit::test]
+    fn ticking_a_task_in_the_preview_rewrites_the_markdown(cx: &mut TestAppContext) {
+        let open = Open::new(cx, TICK_NOTE);
+        let end = TICK_NOTE.len();
+        open.select(cx, end..end);
+        show_preview(&open, cx);
+        assert_eq!(
+            open.store
+                .note(&open.id)
+                .unwrap()
+                .unwrap()
+                .num_of_checked_tasks,
+            1
+        );
+
+        assert!(click_task_box(&open, cx, "- [ ] three"));
+        let ticked = TICK_NOTE.replace("- [ ] three", "- [x] three");
+        let (text, selection) = open.text(cx);
+        assert_eq!(text, ticked);
+        assert_eq!(selection, end..end);
+        // The preview shows the new text, and the save carries the counts.
+        assert_eq!(
+            open.with(cx, |editor, _, cx| editor
+                .preview
+                .read(cx)
+                .shown()
+                .to_string()),
+            ticked
+        );
+        open.with(cx, |editor, _, cx| editor.flush(cx));
+        let saved = open.store.note(&open.id).unwrap().unwrap();
+        assert_eq!(
+            (saved.body.as_str(), saved.num_of_checked_tasks),
+            (ticked.as_str(), 2)
+        );
+
+        // One undo step puts it back.
+        open.with(cx, |editor, window, cx| editor.focus_body(window, cx));
+        open.keys(cx, "cmd-z");
+        assert_eq!(open.text(cx).0, TICK_NOTE);
+
+        // A ticked box clears, and a nested one is its own task.
+        assert!(click_task_box(&open, cx, "- [x] two"));
+        assert_eq!(open.text(cx).0, TICK_NOTE.replace("- [x] two", "- [ ] two"));
+        assert!(click_task_box(&open, cx, "- [ ] two"));
+        assert_eq!(open.text(cx).0, TICK_NOTE);
+        // The fence's line has no box at all.
+        assert!(!click_task_box(&open, cx, "- [ ] code"));
+        assert_eq!(open.text(cx).0, TICK_NOTE);
+    }
+
+    /// Nothing is written when the editor takes no typing.
+    fn assert_preview_leaves_note_alone(open: &Open, cx: &mut TestAppContext) {
+        let before = open.store.note(&open.id).unwrap().unwrap();
+        assert!(click_task_box(open, cx, "- [ ] three"));
+        assert_eq!(open.text(cx).0, TICK_NOTE);
+        open.with(cx, |editor, _, cx| editor.flush(cx));
+        assert_eq!(open.store.note(&open.id).unwrap().unwrap(), before);
+    }
+
+    /// A note shared to view only, and one held by a locked account, can't
+    /// be changed from the preview.
+    // no-prop-test: drives the preview through clicks.
+    #[gpui_kit::test]
+    fn a_read_only_note_is_not_ticked_in_the_preview(cx: &mut TestAppContext) {
+        let open = Open::new(cx, TICK_NOTE);
+        show_preview(&open, cx);
+        open.with(cx, |editor, _, cx| {
+            editor.collab_read_only = true;
+            editor.refresh_text_read_only(cx);
+        });
+        assert_preview_leaves_note_alone(&open, cx);
+        // Editable again: the same click now writes.
+        open.with(cx, |editor, _, cx| {
+            editor.collab_read_only = false;
+            editor.refresh_text_read_only(cx);
+        });
+        draw_window(&open, cx);
+        assert!(click_task_box(&open, cx, "- [ ] three"));
+        assert_ne!(open.text(cx).0, TICK_NOTE);
+    }
+
+    #[gpui_kit::test]
+    fn a_locked_account_does_not_tick_in_the_preview(cx: &mut TestAppContext) {
+        let open = Open::new(cx, TICK_NOTE);
+        show_preview(&open, cx);
+        cx.update(|cx| {
+            let mut services = crate::services::Services::default();
+            services.account = crate::services::AccountState::SignedInLocked {
+                username: "ngoni".into(),
+            };
+            cx.set_global(services);
+            cx.refresh_windows();
+        });
+        draw_window(&open, cx);
+        assert!(cx.read(|cx| open.editor.read(cx).text_read_only));
+        assert_preview_leaves_note_alone(&open, cx);
+    }
+
+    /// A trashed note is not written from the preview.
+    // no-prop-test: drives the preview through clicks.
+    #[gpui_kit::test]
+    fn a_trashed_note_is_not_ticked_in_the_preview(cx: &mut TestAppContext) {
+        let open = Open::new(cx, TICK_NOTE);
+        show_preview(&open, cx);
+        open.with(cx, |editor, _, _| {
+            editor.note.as_mut().unwrap().book_id = kanso_core::model::TRASH_BOOK_ID.into();
+        });
+        assert_preview_leaves_note_alone(&open, cx);
+    }
+
+    /// A note waiting on a change made elsewhere is not written from the
+    /// preview: the editor's text stays as it was typed.
+    #[gpui_kit::test]
+    fn a_conflicted_note_is_not_ticked_in_the_preview(cx: &mut TestAppContext) {
+        let open = Open::new(cx, TICK_NOTE);
+        show_preview(&open, cx);
+        let typed = format!("{TICK_NOTE}typed\n");
+        open.with(cx, |editor, window, cx| {
+            editor.edit_for_test(&typed, window, cx)
+        });
+        // Saved elsewhere while the editor holds a change of its own.
+        open.store
+            .put(
+                DocType::Note,
+                json!({"_id": open.id, "body": "theirs"}),
+                Put::Merge,
+                Origin::Api,
+            )
+            .unwrap();
+        let rev = open.store.note(&open.id).unwrap().unwrap().rev.unwrap();
+        let id = open.id.clone();
+        open.with(cx, |editor, window, cx| {
+            let change = kanso_store::Change {
+                id,
+                rev,
+                seq: 0,
+                deleted: false,
+                origin: Origin::Api,
+            };
+            editor.on_store_change(&change, window, cx)
+        });
+        assert!(open.with(cx, |editor, _, _| editor.has_incoming()));
+        draw_window(&open, cx);
+        assert!(click_task_box(&open, cx, "- [ ] three"));
+        assert_eq!(open.text(cx).0, typed);
+    }
+
+    /// A note locked shut is never written from the preview, whatever
+    /// reaches the editor.
+    #[gpui_kit::test]
+    fn a_locked_note_is_not_ticked(cx: &mut TestAppContext) {
+        use crate::preview_tasks::tick_at;
+        let open = Open::new(cx, TICK_NOTE);
+        let tick = tick_at(TICK_NOTE, TICK_NOTE.find("- [ ] three").unwrap()).unwrap();
+        open.with(cx, |editor, window, cx| {
+            editor.lock = crate::locked::LockView::Closed(None);
+            editor.tick_task(&tick, window, cx);
+        });
+        assert_eq!(open.text(cx).0, TICK_NOTE);
+        open.with(cx, |editor, window, cx| {
+            editor.lock = crate::locked::LockView::Plain;
+            editor.tick_task(&tick, window, cx);
+        });
+        assert_eq!(
+            open.text(cx).0,
+            TICK_NOTE.replace("- [ ] three", "- [x] three")
+        );
+    }
+
+    /// A tick that no longer matches the note (typed above it since the
+    /// click was read) writes nothing.
+    #[gpui_kit::test]
+    fn a_tick_for_a_task_that_moved_writes_nothing(cx: &mut TestAppContext) {
+        use crate::preview_tasks::tick_at;
+        let open = Open::new(cx, TICK_NOTE);
+        let tick = tick_at(TICK_NOTE, TICK_NOTE.find("- [ ] three").unwrap()).unwrap();
+        let moved =
+            format!("{TICK_NOTE}- [ ] four\n").replace("- [ ] one", "- [ ] zero\n- [ ] one");
+        open.with(cx, |editor, window, cx| {
+            editor.edit_for_test(&moved, window, cx)
+        });
+        open.with(cx, |editor, window, cx| editor.tick_task(&tick, window, cx));
+        assert_eq!(open.text(cx).0, moved);
     }
 
     /// "Resize image…" gives the image on the cursor's line a width, as one

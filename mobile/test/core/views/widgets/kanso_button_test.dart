@@ -56,11 +56,11 @@ void main() {
       expect((box.decoration! as BoxDecoration).color, isNull);
     });
 
-    testWidgets('is 48 points tall, a 44 point target when compact', (
+    testWidgets('is 52 points tall, a 44 point target when compact', (
       tester,
     ) async {
       await pumpKanso(tester, KansoButton(label: 'Go', onPressed: () {}));
-      expect(tester.getSize(find.byType(KansoButton)).height, 48);
+      expect(tester.getSize(find.byType(KansoButton)).height, 52);
       await pumpKanso(
         tester,
         KansoButton(label: 'Go', compact: true, onPressed: () {}),

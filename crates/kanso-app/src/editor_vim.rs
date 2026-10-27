@@ -30,7 +30,9 @@ use gpui_kit::*;
 
 use super::{NoteEditor, apply_edit};
 use crate::markdown_edit::Edit;
-use crate::vim::{Clipboard, Effect, Key, Mode, Outcome, Vim, clamp_normal, diff};
+use crate::vim::{
+    Clipboard, Effect, Input, Key, Keyed, Left, Mode, Route, Session, Step, clamp_normal,
+};
 use crate::zoom::px;
 
 /// What marks the start of an Insert mode session in the undo history: a
@@ -38,27 +40,14 @@ use crate::zoom::px;
 const MARK: &str = "\u{200B}";
 
 pub(super) struct VimState {
-    vim: Vim,
+    session: Session,
     _intercept: Subscription,
-    /// The text before the command that began Insert mode, and where the
-    /// mark went in it.
-    base: Option<(SharedString, usize)>,
-    /// The text as Insert mode began, and where.
-    entry: Option<(SharedString, usize)>,
-    /// Edits since Insert mode began: as many undo steps as there can be.
-    edits: usize,
-    /// The selection a Visual mode last showed, to tell a click from it.
-    shown: Option<Range<usize>>,
-    /// Where Visual mode's cursor is.
-    head: usize,
 }
 
 impl VimState {
     /// One more edit to the text while Insert mode lasts.
     pub(super) fn count_edit(&mut self) {
-        if self.vim.mode() == Mode::Insert {
-            self.edits += 1;
-        }
+        self.session.count_edit();
     }
 }
 
@@ -114,7 +103,7 @@ impl NoteEditor {
     pub(super) fn vim_holds_keys(&self) -> bool {
         self.vim
             .as_ref()
-            .is_some_and(|state| state.vim.mode() != Mode::Insert)
+            .is_some_and(|state| state.session.holds_keys())
     }
 
     /// Turns Vim keys on (in Normal mode) or off.
@@ -134,13 +123,8 @@ impl NoteEditor {
                 }
             });
             VimState {
-                vim: Vim::new(),
+                session: Session::new(),
                 _intercept: intercept,
-                base: None,
-                entry: None,
-                edits: 0,
-                shown: None,
-                head: 0,
             }
         });
         self.vim_footer(cx);
@@ -150,11 +134,7 @@ impl NoteEditor {
     /// Back to Normal mode, as when another note opens.
     pub(super) fn vim_reset(&mut self, cx: &mut Context<Self>) {
         if let Some(state) = self.vim.as_mut() {
-            state.vim.reset();
-            state.base = None;
-            state.entry = None;
-            state.shown = None;
-            state.edits = 0;
+            state.session.reset();
             self.vim_footer(cx);
         }
     }
@@ -163,8 +143,7 @@ impl NoteEditor {
     /// session going on can't be made one step any more.
     pub(super) fn vim_forget_session(&mut self) {
         if let Some(state) = self.vim.as_mut() {
-            state.base = None;
-            state.entry = None;
+            state.session.forget_session();
         }
     }
 
@@ -181,13 +160,15 @@ impl NoteEditor {
         let Some(state) = self.vim.as_mut() else {
             return;
         };
-        let normal = state.vim.mode() == Mode::Normal;
-        let (head, shown) =
-            crate::collab_text::map_vim(state.head, state.shown.clone(), normal, splices, &text);
-        state.head = head;
-        state.shown = shown;
-        state.base = None;
-        state.entry = None;
+        let normal = state.session.mode() == Mode::Normal;
+        let (head, shown) = crate::collab_text::map_vim(
+            state.session.head(),
+            state.session.shown().cloned(),
+            normal,
+            splices,
+            &text,
+        );
+        state.session.follow(head, shown);
         if normal {
             let at = clamp_normal(&text, self.body.read(cx).cursor());
             self.body
@@ -199,13 +180,14 @@ impl NoteEditor {
     /// The mode in the footer, and in Visual modes where Vim's cursor is
     /// (the editor's is at the selection's end).
     fn vim_footer(&self, cx: &mut Context<Self>) {
-        let status = self.vim.as_ref().map(|state| state.vim.status());
+        let status = self.vim.as_ref().map(|state| state.session.status());
         let cursor = self.vim.as_ref().and_then(|state| {
-            state
-                .vim
-                .mode()
-                .is_visual()
-                .then(|| self.body.read(cx).text().offset_to_position(state.head))
+            state.session.mode().is_visual().then(|| {
+                self.body
+                    .read(cx)
+                    .text()
+                    .offset_to_position(state.session.head())
+            })
         });
         self.footer
             .update(cx, |footer, cx| footer.set_vim(status, cursor, cx));
@@ -246,16 +228,16 @@ impl NoteEditor {
         let Some(key) = vim_key(keystroke) else {
             return;
         };
-        let insert = state.vim.mode() == Mode::Insert;
+        let route = state.session.route(key);
         // Typing is the editor's own: only Escape leaves Insert mode.
-        if insert && key != Key::Esc {
+        if route == Route::Typing {
             return;
         }
         // The keyboard elsewhere, or an input method composing: not Vim's.
         if !self.body_takes_edits(window, cx) {
             return;
         }
-        if insert {
+        if route == Route::Leave {
             cx.stop_propagation();
             self.vim_leave_insert(window, cx);
             return;
@@ -264,57 +246,43 @@ impl NoteEditor {
             let body = self.body.read(cx);
             (body.value(), body.selected_range(), body.cursor())
         };
-        let Some(state) = self.vim.as_mut() else {
-            return;
-        };
-        // A selection Vim didn't make (a click or drag, ⌘A, ⌘Z) ends a
-        // Visual mode; in Normal mode the cursor is where it starts.
-        if state.vim.mode().is_visual() && state.shown.as_ref() != Some(&selection) {
-            state.vim.reset();
-        }
-        let cursor = if selection.is_empty() {
-            caret
-        } else {
-            selection.start
-        };
-        let was = state.vim.mode();
         let view = self.vim_view(cx);
+        let read_only = self.text_read_only;
         let Some(state) = self.vim.as_mut() else {
             return;
         };
-        state.vim.set_view(view);
-        let out = state
-            .vim
-            .handle_key(key, &text, cursor, &mut AppClipboard(cx));
-        if !out.consumed {
-            return;
+        let input = Input {
+            text: &text,
+            selection,
+            caret,
+            view,
+            read_only,
+        };
+        match state.session.key(key, &input, &mut AppClipboard(cx)) {
+            Keyed::Ignored => {}
+            Keyed::Refused => {
+                cx.stop_propagation();
+                self.vim_footer(cx);
+            }
+            Keyed::Handled(step) => {
+                cx.stop_propagation();
+                self.vim_apply(step, &text, window, cx);
+            }
         }
-        cx.stop_propagation();
-        self.vim_apply(out, was, &text, cursor, window, cx);
     }
 
     /// Makes what a key did show in the editor.
     // no-prop-test: editor glue; the window tests check each part.
     fn vim_apply(
         &mut self,
-        out: Outcome,
-        was: Mode,
+        step: Step,
         text: &SharedString,
-        cursor: usize,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // A note shared to read: Vim moves through it, but changes nothing.
-        if self.text_read_only && (out.edit.is_some() || out.mode == Mode::Insert) {
-            if let Some(state) = self.vim.as_mut() {
-                state.vim.reset();
-            }
-            self.vim_footer(cx);
-            return;
-        }
-        let entering = out.mode == Mode::Insert && was != Mode::Insert;
-        if entering {
+        if step.entering {
             // The mark the session's undo steps are gathered back to.
+            let cursor = step.cursor;
             self.body.update(cx, |state, cx| {
                 apply_edit(state, text, edit(cursor..cursor, MARK, cursor), window, cx);
                 let marked = state.value();
@@ -322,25 +290,17 @@ impl NoteEditor {
                 apply_edit(state, &marked, edit(cursor..end, "", cursor), window, cx);
             });
         }
-        let selection = out.selection.clone().unwrap_or(out.cursor..out.cursor);
-        self.body.update(cx, |state, cx| match &out.edit {
-            Some((range, with)) => {
-                let change = Edit {
-                    range: range.clone(),
-                    text: with.clone(),
-                    selection: selection.clone(),
-                };
-                apply_edit(state, text, change, window, cx);
-            }
+        let selection = step.selection();
+        self.body.update(cx, |state, cx| match step.change() {
+            Some(change) => apply_edit(state, text, change, window, cx),
             None => {
                 if state.selected_range() != selection {
                     state.set_selected_range(selection.clone(), cx);
                 }
             }
         });
-        let entry = entering.then(|| self.body.read(cx).value());
         let mut undo = None;
-        for effect in &out.effects {
+        for effect in &step.outcome.effects {
             match effect {
                 Effect::Copy(text) => {
                     cx.write_to_clipboard(ClipboardItem::new_string(text.clone()))
@@ -352,15 +312,6 @@ impl NoteEditor {
                     self.flush(cx);
                     window.dispatch_action(Box::new(crate::workspace::FocusNoteList), cx);
                 }
-            }
-        }
-        if let Some(state) = self.vim.as_mut() {
-            state.shown = out.selection.clone();
-            state.head = out.cursor;
-            if entering {
-                state.base = Some((text.clone(), cursor));
-                state.entry = entry.map(|entry| (entry, out.cursor));
-                state.edits = 0;
             }
         }
         if let Some((back, n)) = undo {
@@ -411,68 +362,36 @@ impl NoteEditor {
         let Some(state) = self.vim.as_mut() else {
             return;
         };
-        let (entry, entry_cursor) = state.entry.take().unwrap_or((now.clone(), caret));
-        let out = state.vim.leave_insert(&entry, entry_cursor, &now, caret);
-        let base = state.base.take();
-        let edits = std::mem::take(&mut state.edits);
-        let mut done = now.to_string();
-        if let Some((range, with)) = &out.edit {
-            done.replace_range(range.clone(), with);
-        }
-        let cursor = out.cursor;
-        let collapsed = base.is_some_and(|(base, mark)| {
-            self.vim_collapse(&base, mark, &done, edits, cursor, window, cx)
-        });
-        if !collapsed {
+        let left = state.session.leave_insert(&now, caret);
+        if !self.vim_collapse(&left, window, cx) {
             self.body.update(cx, |state, cx| {
-                let change = match out.edit.clone() {
-                    Some((range, text)) => Edit {
-                        range,
-                        text,
-                        selection: cursor..cursor,
-                    },
-                    None => edit(cursor..cursor, "", cursor),
-                };
-                apply_edit(state, &now, change, window, cx);
+                apply_edit(state, &now, left.last(), window, cx)
             });
-        }
-        if let Some(state) = self.vim.as_mut() {
-            state.shown = None;
         }
         self.vim_footer(cx);
         cx.notify();
     }
 
     /// Makes the Insert mode session one undo step: undoes back to its mark
-    /// (at most `edits` steps and a few), then makes the change from `base`
-    /// to `done` as one edit. Whether it could; if not, the history is put
-    /// back as it was.
+    /// (at most `edits` steps and a few), then makes the change from the
+    /// base to `done` as one edit. Whether it could; if not, the history is
+    /// put back as it was.
     // no-prop-test: drives the editor's undo; `one_change_is_one_undo_step`
     // checks it, the fallback included.
-    #[allow(clippy::too_many_arguments)]
-    fn vim_collapse(
-        &mut self,
-        base: &str,
-        mark: usize,
-        done: &str,
-        edits: usize,
-        cursor: usize,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> bool {
-        let Some(marked) = base
-            .get(..mark)
-            .map(|before| format!("{before}{MARK}{}", &base[mark..]))
+    fn vim_collapse(&mut self, left: &Left, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let (Some(base), Some(marked), Some(change)) =
+            (left.base.as_ref(), left.marked(MARK), left.whole())
         else {
             return false;
         };
+        let base = base.text.as_str();
         let is = |this: &Self, text: &str, cx: &App| {
             let body = this.body.read(cx);
             body.text().len() == text.len() && body.value() == text
         };
         let mut undone = 0;
         let mut found = false;
-        while undone < edits + 4 {
+        while undone < left.edits + 4 {
             self.body_action(&Undo, window, cx);
             undone += 1;
             if is(self, &marked, cx) {
@@ -492,14 +411,6 @@ impl NoteEditor {
             }
             return false;
         }
-        let change = match diff(base, done) {
-            Some((range, text)) => Edit {
-                range,
-                text,
-                selection: cursor..cursor,
-            },
-            None => edit(cursor..cursor, "", cursor),
-        };
         self.body
             .update(cx, |state, cx| apply_edit(state, base, change, window, cx));
         true
@@ -510,7 +421,7 @@ impl NoteEditor {
     // no-prop-test: painting; the Vim snapshots show it.
     pub(super) fn vim_caret(&self, window: &Window, cx: &App) -> Option<AnyElement> {
         let state = self.vim.as_ref()?;
-        let mode = state.vim.mode();
+        let mode = state.session.mode();
         if mode == Mode::Insert {
             return None;
         }
@@ -519,7 +430,7 @@ impl NoteEditor {
             return None;
         }
         let at = if mode.is_visual() {
-            state.head
+            state.session.head()
         } else {
             body.cursor()
         };
@@ -637,6 +548,6 @@ fn edit(range: Range<usize>, text: &str, cursor: usize) -> Edit {
 impl NoteEditor {
     /// The Vim mode, with Vim keys on.
     pub fn vim_mode(&self) -> Option<Mode> {
-        self.vim.as_ref().map(|state| state.vim.mode())
+        self.vim.as_ref().map(|state| state.session.mode())
     }
 }

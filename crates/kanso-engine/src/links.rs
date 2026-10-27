@@ -24,6 +24,7 @@ use kanso_core::links::{
 };
 use kanso_store::Store;
 
+pub mod mention;
 pub mod tags;
 
 pub use kanso_core::links::retitle_wiki_links;
@@ -68,23 +69,24 @@ impl WikiIndex {
     }
 }
 
-/// `kanso-new:<title>`, with everything but letters, digits and a few safe
-/// marks percent-encoded, so the title survives as a link target.
-pub fn new_note_url(title: &str) -> String {
-    let mut url = String::from(NEW_NOTE_SCHEME);
-    for byte in title.bytes() {
+/// Text as a link target can carry it: everything but letters, digits and
+/// a few safe marks percent-encoded. Pure.
+pub fn percent_encode(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
-            url.push(byte as char);
+            out.push(byte as char);
         } else {
-            url.push_str(&format!("%{byte:02X}"));
+            out.push_str(&format!("%{byte:02X}"));
         }
     }
-    url
+    out
 }
 
-/// The title a `kanso-new:` link asks to create.
-pub fn new_note_title(url: &str) -> Option<String> {
-    let encoded = url.strip_prefix(NEW_NOTE_SCHEME)?;
+/// Text from a link target, percent-decoded; bytes that don't decode stay
+/// as they are, and so does text that isn't UTF-8 once decoded (`None`).
+/// Pure.
+pub fn percent_decode(encoded: &str) -> Option<String> {
     let bytes = encoded.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -100,7 +102,18 @@ pub fn new_note_title(url: &str) -> Option<String> {
             i += 1;
         }
     }
-    let title = String::from_utf8(out).ok()?;
+    String::from_utf8(out).ok()
+}
+
+/// `kanso-new:<title>`, with everything but letters, digits and a few safe
+/// marks percent-encoded, so the title survives as a link target.
+pub fn new_note_url(title: &str) -> String {
+    format!("{NEW_NOTE_SCHEME}{}", percent_encode(title))
+}
+
+/// The title a `kanso-new:` link asks to create.
+pub fn new_note_title(url: &str) -> Option<String> {
+    let title = percent_decode(url.strip_prefix(NEW_NOTE_SCHEME)?)?;
     let title = title.trim();
     (!title.is_empty()).then(|| title.to_owned())
 }
@@ -110,6 +123,17 @@ pub fn new_note_title(url: &str) -> Option<String> {
 /// `kanso-new:` link. Text without wiki-links comes back as it is
 /// (borrowed). Pure.
 pub fn rewrite_for_preview<'a>(text: &'a str, index: &WikiIndex) -> Cow<'a, str> {
+    rewrite(text, index, false)
+}
+
+/// [`rewrite_for_preview`] for the phone's page: a wiki-link to a heading
+/// (`[[Title#Heading]]`) keeps it, as `…#Heading` (percent-encoded) after the
+/// note's address, so the app can open the note at the heading. Pure.
+pub fn rewrite_for_app<'a>(text: &'a str, index: &WikiIndex) -> Cow<'a, str> {
+    rewrite(text, index, true)
+}
+
+fn rewrite<'a>(text: &'a str, index: &WikiIndex, keep_heading: bool) -> Cow<'a, str> {
     if !text.contains("[[") {
         return Cow::Borrowed(text);
     }
@@ -124,8 +148,12 @@ pub fn rewrite_for_preview<'a>(text: &'a str, index: &WikiIndex) -> Cow<'a, str>
         let label = escape_label(&link.label());
         let target = match index.resolve(&link.title) {
             Some((id, _)) => format!(
-                "{NOTE_LINK_PREFIX}{}",
-                id.strip_prefix("note:").unwrap_or(id)
+                "{NOTE_LINK_PREFIX}{}{}",
+                id.strip_prefix("note:").unwrap_or(id),
+                match &link.heading {
+                    Some(heading) if keep_heading => format!("#{}", percent_encode(heading)),
+                    _ => String::new(),
+                }
             ),
             None => new_note_url(&link.title),
         };
@@ -371,6 +399,206 @@ pub fn linked_note(url: &str) -> Option<String> {
     (!suffix.is_empty()).then(|| format!("note:{suffix}"))
 }
 
+// MARK: The link at the caret
+
+/// What a link points at, as the editor opens it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LinkAtTarget {
+    /// A note by ID (`note:…`), from a Kanso link.
+    Note { id: String },
+    /// A note by title: a wiki-link, or a link to a note that doesn't exist
+    /// yet. Resolving it, or creating it, is the caller's.
+    Wiki { title: String },
+    /// A web address (or any other address the system opens).
+    Url { url: String },
+}
+
+/// A link on a line and what it points at.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LinkAt {
+    /// The bytes of the whole link in the line: `[[…]]`, `[text](…)` with
+    /// its `!` when an image, or the bare address.
+    pub range: Range<usize>,
+    pub target: LinkAtTarget,
+}
+
+/// The link the caret at byte `caret` is in or touches on `line` (without
+/// its line break): a wiki-link, a Markdown link or image, an `<address>`
+/// or a bare `http(s)://` address, outside code. Links don't nest, and
+/// where two touch at the caret the first wins. Pure.
+pub fn link_at(line: &str, caret: usize) -> Option<LinkAt> {
+    let mut caret = caret.min(line.len());
+    while !line.is_char_boundary(caret) {
+        caret -= 1;
+    }
+    let code = code_ranges(line);
+    let mut found: Vec<LinkAt> = wiki_links(line)
+        .into_iter()
+        .map(|link| LinkAt {
+            range: link.range,
+            target: LinkAtTarget::Wiki { title: link.title },
+        })
+        .collect();
+    found.extend(markdown_links(line, &code));
+    found.sort_by_key(|link| link.range.start);
+    // Addresses written out, where no link already is.
+    let taken: Vec<Range<usize>> = found.iter().map(|link| link.range.clone()).collect();
+    for range in bare_addresses(line) {
+        let inside = |r: &Range<usize>| r.start < range.end && range.start < r.end;
+        if !taken.iter().any(inside) && !code.iter().any(inside) {
+            found.push(LinkAt {
+                target: LinkAtTarget::Url {
+                    url: line[range.clone()].to_owned(),
+                },
+                range,
+            });
+        }
+    }
+    found.sort_by_key(|link| link.range.start);
+    found
+        .into_iter()
+        .find(|link| link.range.start <= caret && caret <= link.range.end)
+}
+
+/// The `[text](destination)` links and images in `line` outside `code`.
+fn markdown_links(line: &str, code: &[Range<usize>]) -> Vec<LinkAt> {
+    let bytes = line.as_bytes();
+    let in_code = |at: usize| code.iter().any(|r| r.start <= at && at < r.end);
+    let mut links = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' {
+            i += 2;
+            continue;
+        }
+        if bytes[i] != b'[' || in_code(i) {
+            i += 1;
+            continue;
+        }
+        // The text, up to its matching bracket.
+        let mut depth = 0;
+        let mut j = i;
+        let mut close = None;
+        while j < bytes.len() {
+            match bytes[j] {
+                b'\\' => j += 1,
+                b'[' => depth += 1,
+                b']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(j);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            j += 1;
+        }
+        let Some(close) = close else { break };
+        if bytes.get(close + 1) != Some(&b'(') {
+            i += 1;
+            continue;
+        }
+        // The destination, up to the matching parenthesis.
+        let mut depth = 0;
+        let mut k = close + 1;
+        let mut end = None;
+        while k < bytes.len() {
+            match bytes[k] {
+                b'\\' => k += 1,
+                b'(' => depth += 1,
+                b')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(k);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            k += 1;
+        }
+        let Some(end) = end else {
+            i += 1;
+            continue;
+        };
+        let inner = line[close + 2..end].trim();
+        // `<destination>`, or the destination up to a space and a title.
+        let destination = match inner.strip_prefix('<') {
+            Some(rest) => rest.split('>').next().unwrap_or(""),
+            None => inner.split_whitespace().next().unwrap_or(""),
+        };
+        let start = if i > 0 && bytes[i - 1] == b'!' && !in_code(i - 1) {
+            i - 1
+        } else {
+            i
+        };
+        if let Some(target) = destination_target(destination) {
+            links.push(LinkAt {
+                range: start..end + 1,
+                target,
+            });
+        }
+        i = end + 1;
+    }
+    links
+}
+
+/// What a link destination points at; `None` for an empty one or one that
+/// is only a placeholder.
+fn destination_target(destination: &str) -> Option<LinkAtTarget> {
+    if destination.is_empty() || destination.starts_with('#') {
+        return None;
+    }
+    if let Some(id) = linked_note(destination) {
+        return Some(LinkAtTarget::Note { id });
+    }
+    if let Some(title) = new_note_title(destination) {
+        return Some(LinkAtTarget::Wiki { title });
+    }
+    // The placeholder a new link starts with.
+    if matches!(destination, "http://" | "https://") {
+        return None;
+    }
+    Some(LinkAtTarget::Url {
+        url: destination.to_owned(),
+    })
+}
+
+/// The `http://` and `https://` addresses in `line`, up to a space or a
+/// closing bracket or quote, without the punctuation a sentence puts after
+/// one.
+fn bare_addresses(line: &str) -> Vec<Range<usize>> {
+    let mut found = Vec::new();
+    let mut from = 0;
+    while from < line.len() {
+        let rest = &line[from..];
+        let Some(at) = ["https://", "http://"]
+            .iter()
+            .filter_map(|scheme| rest.find(scheme))
+            .min()
+        else {
+            break;
+        };
+        let start = from + at;
+        let tail = &line[start..];
+        let len = tail
+            .find(|c: char| c.is_whitespace() || matches!(c, '<' | '>' | '"' | '\'' | '`'))
+            .unwrap_or(tail.len());
+        let address = tail[..len].trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']']);
+        let scheme = if address.starts_with("https://") {
+            8
+        } else {
+            7
+        };
+        if address.len() > scheme {
+            found.push(start..start + address.len());
+        }
+        from = start + len.max(1);
+    }
+    found
+}
+
 // MARK: Renaming
 
 /// After note `id` was renamed from `old` to `new`: how many wiki-links
@@ -511,6 +739,49 @@ mod tests {
         assert_eq!(
             choices.items[0].insert,
             format!("[Untitled]({NOTE_LINK_PREFIX}z)")
+        );
+    }
+
+    #[test]
+    fn link_at_examples() {
+        let line = "see [[Plan|the plan]], [docs](https://a.b/c \"t\") and https://x.y/z.";
+        let at = |caret| link_at(line, caret).map(|l| (line[l.range].to_owned(), l.target));
+        assert_eq!(
+            at(8),
+            Some((
+                "[[Plan|the plan]]".into(),
+                LinkAtTarget::Wiki {
+                    title: "Plan".into()
+                }
+            ))
+        );
+        assert_eq!(
+            at(26),
+            Some((
+                "[docs](https://a.b/c \"t\")".into(),
+                LinkAtTarget::Url {
+                    url: "https://a.b/c".into()
+                }
+            ))
+        );
+        // A sentence's full stop is not the address's.
+        assert_eq!(
+            at(line.len() - 3),
+            Some((
+                "https://x.y/z".into(),
+                LinkAtTarget::Url {
+                    url: "https://x.y/z".into()
+                }
+            ))
+        );
+        assert_eq!(at(2), None);
+        assert_eq!(link_at("`[[a]]`", 3), None);
+        // A new link's placeholder is not an address yet.
+        assert_eq!(link_at("[x](https://)", 4), None);
+        // An image is a link to its address.
+        assert_eq!(
+            link_at("![i](https://a.b/i.png)", 5).map(|l| l.range),
+            Some(0..23)
         );
     }
 
@@ -797,6 +1068,83 @@ mod tests {
                     title.trim().is_empty() || title.contains(['#', '|', '[', ']']),
                     "a plain title gave no link: {:?}", title
                 );
+            }
+        }
+
+        /// `link_at` on a line made of known pieces: a caret on or at the
+        /// edge of a link finds exactly that link, with its target, and
+        /// anywhere else finds nothing.
+        #[test]
+        fn prop_link_at_finds_the_piece_under_the_caret(
+            pieces in prop::collection::vec(
+                prop_oneof![
+                    "[a-z]{1,6}".prop_map(|t| (t, None)),
+                    "[A-Za-z]{1,6}( [A-Za-z]{1,5})?".prop_map(|t: String| (
+                        format!("[[{t}]]"),
+                        Some(LinkAtTarget::Wiki { title: t }),
+                    )),
+                    ("[A-Za-z]{1,5}", "[a-z0-9]{1,6}").prop_map(|(t, id)| (
+                        format!("[{t}]({NOTE_LINK_PREFIX}{id})"),
+                        Some(LinkAtTarget::Note { id: format!("note:{id}") }),
+                    )),
+                    "[A-Za-z]{1,6}".prop_map(|t| (
+                        format!("[{t}]({})", new_note_url(&t)),
+                        Some(LinkAtTarget::Wiki { title: t }),
+                    )),
+                    ("[A-Za-z]{1,5}", "[a-z]{1,6}").prop_map(|(t, host)| {
+                        let url = format!("https://{host}.example/p");
+                        (format!("[{t}]({url})"), Some(LinkAtTarget::Url { url }))
+                    }),
+                    "[a-z]{1,6}".prop_map(|host| {
+                        let url = format!("http://{host}.example/q?x=1");
+                        (url.clone(), Some(LinkAtTarget::Url { url }))
+                    }),
+                ],
+                1..6,
+            ),
+        ) {
+            let mut line = String::new();
+            let mut spans = Vec::new();
+            for (text, target) in &pieces {
+                if !line.is_empty() {
+                    line.push(' ');
+                }
+                let start = line.len();
+                line.push_str(text);
+                if let Some(target) = target {
+                    spans.push((start..line.len(), target.clone()));
+                }
+            }
+            for caret in 0..=line.len() {
+                let found = link_at(&line, caret);
+                let expected = spans.iter().find(|(range, _)| range.start <= caret && caret <= range.end);
+                match (found, expected) {
+                    (Some(found), Some((range, target))) => {
+                        prop_assert_eq!(&found.range, range);
+                        prop_assert_eq!(&found.target, target);
+                    }
+                    (None, None) => {}
+                    (found, expected) => prop_assert!(false, "{caret} in {line:?}: {found:?} vs {expected:?}"),
+                }
+            }
+        }
+
+        /// Whatever the line and the caret, a link found has its range in
+        /// the line, on character boundaries, around the caret; and none is
+        /// found in code.
+        #[test]
+        fn prop_link_at_is_in_bounds_and_never_in_code(line in "[a-z\\[\\]()!<>:/. `é日🙂]{0,40}", caret in 0usize..60) {
+            if let Some(found) = link_at(&line, caret) {
+                prop_assert!(found.range.start <= found.range.end && found.range.end <= line.len());
+                prop_assert!(line.is_char_boundary(found.range.start) && line.is_char_boundary(found.range.end));
+                let mut caret = caret.min(line.len());
+                while !line.is_char_boundary(caret) { caret -= 1; }
+                prop_assert!(found.range.start <= caret && caret <= found.range.end);
+            }
+            let fenced = format!("`{line}`");
+            let at = fenced.len() / 2;
+            if !line.contains('`') {
+                prop_assert_eq!(link_at(&fenced, at), None);
             }
         }
 

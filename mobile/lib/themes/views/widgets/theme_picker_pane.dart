@@ -25,15 +25,15 @@ import '../../state/theme_picker/theme_picker_bloc.dart';
 import '../../utils/themes_in_use_first.dart';
 import 'installed_theme_loading_row.dart';
 import 'installed_theme_row.dart';
-import 'theme_files_section.dart';
-import 'theme_picker_section.dart';
+import 'theme_gallery_section.dart';
 
 /// The theme picker: a switch to follow the system's light and dark mode,
-/// and the installed themes in a row, each a preview of Markdown in its own
-/// colours, with the ones in use outlined and first.
+/// the installed themes in a row, each a preview of Markdown in its own
+/// colours, with the ones in use outlined and first, and below them the
+/// gallery of the community's themes to install.
 ///
 /// Choosing a card is the `AppearanceBloc`'s to apply, and shows at once. It
-/// needs a [ThemePickerBloc] above it too.
+/// needs a [ThemePickerBloc] and a `ThemeGalleryBloc` above it too.
 class ThemePickerPane extends StatelessWidget {
   const ThemePickerPane({super.key});
 
@@ -117,28 +117,22 @@ class ThemePickerPane extends StatelessWidget {
                               actions: <Widget>[
                                 KansoButton(
                                   label: l10n.retry,
-                                  onPressed: () =>
-                                      context.read<ThemePickerBloc>().add(
-                                        const ThemePickerEvent.started(),
-                                      ),
+                                  onPressed: () => context
+                                      .read<ThemePickerBloc>()
+                                      .add(const ThemePickerEvent.started()),
                                 ),
                               ],
                             ),
                           ),
-                          LoadStatus.ready => _Grids(
-                            themes: picker.themes,
+                          LoadStatus.ready => InstalledThemeRow(
+                            themes: themesInUseFirst(picker.themes, selection),
                             selection: selection,
                           ),
                         };
                       },
                     ),
-                    const SizedBox(height: KansoSpacing.lg),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: KansoSpacing.md,
-                      ),
-                      child: ThemeFilesSection(),
-                    ),
+                    const SizedBox(height: KansoSpacing.xs),
+                    const ThemeGallerySection(),
                   ],
                 );
               },

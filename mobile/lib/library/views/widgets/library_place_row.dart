@@ -22,7 +22,12 @@ class LibraryPlaceRow extends StatelessWidget {
     this.count,
     this.depth = 0,
     this.chevron = false,
+    this.foldOpen,
+    this.onFold,
+    this.wash,
     this.selected = false,
+    this.locked = false,
+    this.onLongPress,
     super.key,
   });
 
@@ -35,7 +40,22 @@ class LibraryPlaceRow extends StatelessWidget {
   final int? count;
   final int depth;
   final bool chevron;
+
+  /// Whether the notebooks inside show, for the arrow that folds them.
+  final bool? foldOpen;
+
+  /// What a tap on that arrow does.
+  final VoidCallback? onFold;
+
+  /// A notebook's colour, washing its row.
+  final Color? wash;
   final bool selected;
+
+  /// Whether the place is a locked notebook.
+  final bool locked;
+
+  /// What a long press does: a notebook's menu.
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +66,12 @@ class LibraryPlaceRow extends StatelessWidget {
       count: count,
       depth: depth,
       chevron: chevron,
+      foldOpen: foldOpen,
+      onFold: onFold,
+      wash: wash,
       selected: selected,
+      locked: locked,
+      onLongPress: onLongPress,
       onTap: () {
         KansoDrawerScope.maybeOf(context)?.close();
         context.go(BrowseLocation.place(place).location);

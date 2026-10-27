@@ -27,6 +27,36 @@ class RustRendererRepository implements RendererRepository {
   ) => attempt(() => _renderer.previewHtml(id: id, palette: palette));
 
   @override
+  Future<Either<ApplicationError, String>> previewPage(
+    String id,
+    PaletteDto palette,
+    PreviewOptions options,
+  ) => attempt(
+    () => _renderer.previewHtmlWith(id: id, palette: palette, options: options),
+  );
+
+  @override
+  Future<Either<ApplicationError, ExportedPage>> pageHtml(
+    String id,
+    PaletteDto palette,
+    PreviewOptions options,
+  ) => attempt(
+    () => _renderer.pageHtml(id: id, palette: palette, options: options),
+  );
+
+  @override
+  Future<Either<ApplicationError, PreviewLink>> linkTarget(
+    String noteId,
+    String url,
+  ) => attempt(() => _renderer.linkTarget(noteId: noteId, url: url));
+
+  @override
+  Future<Either<ApplicationError, String>> codeBlock(
+    String noteId,
+    int index,
+  ) => attempt(() => _renderer.codeBlock(noteId: noteId, index: index));
+
+  @override
   Future<Either<ApplicationError, List<SpanRow>>> highlight(
     String text, {
     required int start,
@@ -36,18 +66,25 @@ class RustRendererRepository implements RendererRepository {
   );
 
   @override
-  Future<Either<ApplicationError, ThemeTokens>> themeTokens(
-    String themeJson,
-  ) => attempt(() => KansoRenderer.themeTokens(themeJson: themeJson));
+  Future<Either<ApplicationError, ThemeTokens>> themeTokens(String themeJson) =>
+      attempt(() => KansoRenderer.themeTokens(themeJson: themeJson));
 
   @override
   Future<Either<ApplicationError, List<BuiltinTheme>>> builtinThemes() =>
       attempt(KansoRenderer.builtinThemes);
 
   @override
-  Future<Either<ApplicationError, ThemeTokens>> builtinThemeTokens(
+  Future<Either<ApplicationError, ThemeTokens>> builtinThemeTokens(String id) =>
+      attempt(() => KansoRenderer.builtinThemeTokens(id: id));
+
+  @override
+  Future<Either<ApplicationError, List<IconThemeRow>>> iconThemes() =>
+      attempt(KansoRenderer.iconThemes);
+
+  @override
+  Future<Either<ApplicationError, List<ThemedIcon>>> iconThemeIcons(
     String id,
-  ) => attempt(() => KansoRenderer.builtinThemeTokens(id: id));
+  ) => attempt(() => KansoRenderer.iconThemeIcons(id: id));
 
   @override
   Future<Either<ApplicationError, List<StyledRun>>> styledRuns(
@@ -83,11 +120,8 @@ class RustRendererRepository implements RendererRepository {
     String source,
     PaletteDto palette,
   ) => attempt(
-    () => KansoRenderer.diagramSvg(
-      kind: kind,
-      source: source,
-      palette: palette,
-    ),
+    () =>
+        KansoRenderer.diagramSvg(kind: kind, source: source, palette: palette),
   );
 
   @override

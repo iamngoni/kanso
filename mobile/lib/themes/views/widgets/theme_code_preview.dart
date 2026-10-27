@@ -59,10 +59,7 @@ class ThemeCodePreview extends StatelessWidget {
           ),
           TextSpan(
             text: l10n.themesSampleHeading,
-            style: TextStyle(
-              color: theme.heading,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(color: theme.heading, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -76,10 +73,7 @@ class ThemeCodePreview extends StatelessWidget {
           ),
           TextSpan(
             text: l10n.themesSampleQuote,
-            style: TextStyle(
-              color: theme.quote,
-              fontStyle: FontStyle.italic,
-            ),
+            style: TextStyle(color: theme.quote, fontStyle: FontStyle.italic),
           ),
         ],
       ),

@@ -2,7 +2,10 @@
 
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
-use kanso_mobile::{KansoError, ServerInfo, SyncHandle, SyncReportRow, SyncStatus};
+use kanso_mobile::{
+    KansoError, ServerInfo, SyncHandle, SyncIntervalOption, SyncReportRow, SyncSettingsRow,
+    SyncStatus, SyncStatusLine,
+};
 
 #[frb(opaque)]
 pub struct KansoSync(SyncHandle);
@@ -44,7 +47,52 @@ impl KansoSync {
         self.0.sign_out()
     }
 
+    /// The app is in front (`true`) or not.
+    pub fn set_foreground(&self, foreground: bool) {
+        self.0.set_foreground(foreground);
+    }
+
     pub fn sync_now(&self) -> Result<SyncReportRow, KansoError> {
         self.0.sync_now()
+    }
+
+    /// The status line in the desktop's words. `when` and `resume` are the
+    /// shell's words for `last_synced_ms` and `resume_at_ms`.
+    #[frb(sync)]
+    pub fn status_line(
+        status: SyncStatus,
+        settings: SyncSettingsRow,
+        when: String,
+        resume: String,
+    ) -> SyncStatusLine {
+        SyncHandle::status_line(status, settings, when, resume)
+    }
+
+    /// The choices for how often sync runs.
+    #[frb(sync)]
+    pub fn interval_options() -> Vec<SyncIntervalOption> {
+        SyncHandle::interval_options()
+    }
+
+    #[frb(sync)]
+    pub fn interval_label(minutes: u32) -> String {
+        SyncHandle::interval_label(minutes)
+    }
+
+    #[frb(sync)]
+    pub fn interval_phrase(minutes: u32) -> String {
+        SyncHandle::interval_phrase(minutes)
+    }
+
+    pub fn settings(&self) -> Result<SyncSettingsRow, KansoError> {
+        self.0.settings()
+    }
+
+    pub fn set_settings(
+        &self,
+        enabled: bool,
+        interval_secs: u32,
+    ) -> Result<SyncSettingsRow, KansoError> {
+        self.0.set_settings(enabled, interval_secs)
     }
 }

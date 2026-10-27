@@ -22,6 +22,7 @@ pub mod apple_journal;
 pub mod apple_notes;
 pub mod bear;
 pub mod dates;
+pub mod detect;
 pub mod enex;
 pub mod frontmatter;
 pub mod google_keep;
@@ -31,12 +32,14 @@ pub mod jsonexports;
 pub mod links;
 pub mod markdown;
 pub mod notion;
+pub mod open_files;
 mod report;
 pub mod resolve;
 pub mod roam;
 pub mod textbundle;
 pub mod tomboy;
 pub mod tree;
+pub mod words;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io;
@@ -52,6 +55,8 @@ use kanso_store::{Attachment, Origin, Store, StoreError};
 use serde_json::{Map, Value, json};
 use sha1::{Digest as _, Sha1};
 
+pub use detect::kinds_for;
+pub use open_files::{open_note_files, staged_path, staging_folder_name};
 pub use report::{Counts, LibraryReport, Outcomes, Skipped};
 
 use crate::library::links::Kind;

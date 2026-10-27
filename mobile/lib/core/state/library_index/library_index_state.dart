@@ -15,9 +15,46 @@ abstract class LibraryIndexState with _$LibraryIndexState {
 
     /// How many notes each place lists.
     @Default(
-      LibraryOverview(all: 0, pinned: 0, recent: 0, trash: 0),
+      LibraryOverview(
+        all: 0,
+        pinned: 0,
+        recent: 0,
+        trash: 0,
+        byStatus: <StatusCount>[],
+      ),
     )
     LibraryOverview overview,
+
+    /// How many open tasks are overdue: the badge of the Tasks row.
+    @Default(0) int overdueTasks,
+
+    /// The notebook rows that show, opened and folded as [folds] and the
+    /// place say.
+    @Default(<VisibleNotebook>[]) List<VisibleNotebook> visibleNotebooks,
+
+    /// The tag chips and the rows of the nested tag tree that show.
+    @Default(TagPlaces(chips: <TagRow>[], more: false, tree: <TagTreeRow>[]))
+    TagPlaces tagPlaces,
+
+    /// The statuses a note can have, in the desktop's order.
+    @Default(<StatusChoice>[]) List<StatusChoice> statuses,
+
+    /// The notebooks opened or folded with their arrows.
+    @Default(FoldState(open: <String>[], folded: <String>[]))
+    FoldState folds,
+
+    /// The tag levels opened with their arrows, by lower-case path.
+    @Default(<String>[]) List<String> openTags,
+
+    /// Whether every tag shows as a chip, not only the most used few.
+    @Default(false) bool allTags,
+
+    /// Whether the Status group shows its rows.
+    @Default(true) bool statusOpen,
+
+    /// The place the library pane is drawing, which keeps the notebooks and
+    /// tag levels around it open.
+    ListPlace? place,
 
     /// Why the last reading failed, while [status] is failed.
     ApplicationError? error,
@@ -47,6 +84,36 @@ abstract class LibraryIndexState with _$LibraryIndexState {
 
   /// The name of the notebook [id], or null when there is none.
   String? notebookName(String id) => notebook(id)?.name;
+
+  /// How many notes have [status] (`active`, ...).
+  int statusCount(String status) {
+    for (final counted in overview.byStatus) {
+      if (counted.status == status) {
+        return counted.count;
+      }
+    }
+    return 0;
+  }
+
+  /// Whether the tag level [path] shows open: opened with its arrow, or
+  /// around the tag whose notes are listed.
+  bool tagOpen(String path) {
+    final lower = path.toLowerCase();
+    if (openTags.contains(lower)) {
+      return true;
+    }
+    final here = place;
+    final shown = switch (here) {
+      ListPlace_Tag(:final id) => tag(id)?.name,
+      ListPlace_TagPath(:final path) => path,
+      _ => null,
+    };
+    if (shown == null) {
+      return false;
+    }
+    final below = shown.toLowerCase();
+    return lower != below && below.startsWith('$lower/');
+  }
 
   /// The names of the notebook [id] and the ones it is inside, outermost
   /// first, joined by " / " (`Projects / Kanso`); null when there is no such

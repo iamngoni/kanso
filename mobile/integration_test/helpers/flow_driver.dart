@@ -105,7 +105,10 @@ Future<void> leaveNote(WidgetTester tester) async {
 /// Closes the library's drawer with a tap on what is left of the window
 /// beside it; there is nothing to close where the library is a pane.
 Future<void> closeLibrary(WidgetTester tester) async {
-  if (find.bySemanticsLabel('Library').evaluate().isEmpty) {
+  // The menu is there whether the drawer is open or not: look for the
+  // drawer itself.
+  if (find.bySemanticsLabel('Library').evaluate().isEmpty ||
+      find.byType(LibraryNavigation).evaluate().isEmpty) {
     return;
   }
   final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
@@ -175,7 +178,10 @@ Future<void> pumpUntilTrue(
 /// the list has it open already.
 Future<void> openLibrary(WidgetTester tester) async {
   final menu = find.bySemanticsLabel('Library');
-  if (menu.evaluate().isNotEmpty) {
+  // A tap where the menu is, with the drawer open, lands on the veil beside
+  // it and closes it: tap only while it is closed.
+  if (menu.evaluate().isNotEmpty &&
+      find.byType(LibraryNavigation).evaluate().isEmpty) {
     await tester.tap(menu);
     await tester.pumpAndSettle();
   }

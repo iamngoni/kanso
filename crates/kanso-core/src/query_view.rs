@@ -412,6 +412,20 @@ fn date_of(ms: i64) -> String {
     crate::dates::Date::from_days(ms.div_euclid(86_400_000)).iso()
 }
 
+/// A cell as the app writes it: dates named, a boolean a check or a blank,
+/// lists comma-separated. Pure.
+pub fn cell_text(value: &Value) -> String {
+    match value {
+        Value::Bool(true) => "✓".into(),
+        Value::Bool(false) => String::new(),
+        Value::Date(date) => crate::dates::Date::parse_iso(date)
+            .map(crate::dates::Date::long_label)
+            .unwrap_or_else(|| date.clone()),
+        Value::List(items) => items.iter().map(cell_text).collect::<Vec<_>>().join(", "),
+        other => other.text(),
+    }
+}
+
 /// A `query` fence found in a note: where it is in the source and the text
 /// between its fences.
 #[derive(Clone, Debug, PartialEq, Eq)]

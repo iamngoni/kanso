@@ -65,14 +65,15 @@ defaults:
 jobs:
   # On macOS because the golden images are generated on a Mac; text and
   # image rendering differs slightly between operating systems, so they are
-  # only compared on the system that wrote them. GitHub-hosted: this is a
-  # public repository, and the self-hosted runners are for Rust.
+  # only compared on the system that wrote them. Every job here runs on the
+  # owner's self-hosted runners, so never for a pull request: a fork's would
+  # run a stranger's code on the owner's machines.
   #
   # `flutter test` runs the hook too, so the binding tests call the real
   # library, built for the runner.
   analyze-and-test:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: macos-latest
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, macOS]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -167,8 +168,8 @@ jobs:
   # ships. Checks the library is in the app with the symbols the background
   # task and the bridge need, then records what the app weighs.
   build-ios:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: macos-latest
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, macOS]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -202,8 +203,8 @@ jobs:
   # else exercises that: the check looks the classes the library calls by
   # name up in the APK.
   build-android:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -235,16 +236,16 @@ jobs:
         run: ../scripts/mobile-size.sh android --no-build | tee -a "$GITHUB_STEP_SUMMARY"
 
   # The integration tests in an iPhone simulator and in an iPad simulator,
-  # which lays the app out in two or three panes. macos-latest is Apple
-  # silicon, which the arm64-only library needs; the simulator is the first
+  # which lays the app out in two or three panes. The self-hosted Mac is
+  # Apple silicon, which the arm64-only library needs; the simulator is the first
   # one of its kind the runner has (the first iPad is an iPad Pro or an Air,
   # both 11 inch or larger). The iPad runs both orientations: the runner
   # cannot turn a simulator, so a turn that the system ignores resizes the
   # window the app is laid out in (see `turnDevice` in
   # integration_test/helpers/flow_driver.dart).
   integration-ios:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: macos-latest
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, macOS]
     strategy:
       fail-fast: false
       matrix:
@@ -299,10 +300,21 @@ jobs:
       - run: flutter test integration_test/browse_flow_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
       - run: flutter test integration_test/search_flow_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
       - run: flutter test integration_test/open_flow_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+      - run: flutter test integration_test/edit_flow_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+      - run: flutter test integration_test/conflict_flow_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+      - run: flutter test integration_test/locked_edit_flow_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+      # Composition, autocorrect, dictation and spell check through the
+      # editor with the real core.
+      - run: flutter test integration_test/editor_ime_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+      - run: flutter test integration_test/icons_flow_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
       # Scrolling 2,000 notes. A simulator draws at 60 Hz in debug mode, so
       # this only proves the frame report is made; the limits apply in
       # profile mode, on a device (see mobile/README.md).
       - run: flutter test integration_test/scroll_performance_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+      # Typing into a note in the same way: a short script on a small note,
+      # which only proves the report is made. The gate's limits apply in
+      # profile mode, on a device (see mobile/docs/editor-gate.md).
+      - run: flutter test integration_test/editor_typing_performance_test.dart -d "$KANSO_IOS_SIM_UDID" --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
 
   # The integration tests in an Android 10 (API 29) phone emulator and in a
   # Pixel Tablet emulator (Android 14, API 34), the tablet in both
@@ -318,8 +330,8 @@ jobs:
   # runner removes the app it installed, so the debug APK it built goes on
   # again first.
   integration-android:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, Linux, X64]
     strategy:
       fail-fast: false
       matrix:
@@ -363,12 +375,15 @@ jobs:
           key: hooks-${{ runner.os }}-android-x86_64-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'mobile/rust/rust-toolchain.toml') }}
           restore-keys: hooks-${{ runner.os }}-android-x86_64-
       - run: flutter pub get --enforce-lockfile
-      # The emulator needs /dev/kvm to be usable by this user.
+      # The emulator needs /dev/kvm to be usable by this user. The runner
+      # keeps the rule between runs, so it is only written once.
       - name: Enable KVM
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
+          if [ ! -w /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+          fi
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ matrix.api-level }}
@@ -386,6 +401,13 @@ jobs:
             flutter test integration_test/browse_flow_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
             flutter test integration_test/search_flow_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
             flutter test integration_test/open_flow_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+            flutter test integration_test/edit_flow_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+            flutter test integration_test/conflict_flow_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+            flutter test integration_test/locked_edit_flow_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+            flutter test integration_test/editor_ime_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+            flutter test integration_test/icons_flow_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
             flutter test integration_test/scroll_performance_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+            flutter test integration_test/editor_typing_performance_test.dart -d emulator-5554 --dart-define=KANSO_ORIENTATION=${{ matrix.orientation }}
+
             adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk
             ../scripts/mobile-backup-check.sh emulator-5554

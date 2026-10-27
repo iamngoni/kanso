@@ -1,0 +1,5 @@
+# The plugins are built by the app, which has the one lock file.
+pubspec.lock
+build/
+.gradle/
+.swiftpm/

@@ -58,7 +58,8 @@ impl BackgroundOutcome {
 }
 
 /// Syncs the library at `path` (its database file) once, in at most
-/// `budget`. A panic anywhere in it is caught and returned as
+/// `budget`. A library whose sync settings turn automatic sync off is left
+/// alone and answers `Done { changed: false }`. A panic anywhere in it is caught and returned as
 /// [`BackgroundOutcome::Internal`].
 pub fn run(
     path: &Path,
@@ -94,6 +95,16 @@ fn sync_within(
             }
         },
     };
+    // With "sync automatically" off, the system's job has nothing to do
+    // (Sync now, in the app, still works). A signed-out library is still
+    // told so. There is no code of its own for this: it is "done, nothing
+    // changed", the C entry's `0`.
+    let sync = library.sync();
+    if matches!(sync.load_session(), Ok(Some(_)))
+        && sync.settings().is_ok_and(|settings| !settings.enabled)
+    {
+        return BackgroundOutcome::Done { changed: false };
+    }
     // An empty budget is spent before it starts.
     let cancel = Arc::new(AtomicBool::new(budget.is_zero()));
     let _deadline = Deadline::after(budget, cancel.clone());

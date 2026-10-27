@@ -37,6 +37,11 @@ void main() {
       );
     });
 
+    test("opens today's note by the daily address", () {
+      expect(redirectLocation(Uri.parse('kanso://open/daily')), '/daily');
+      expect(redirectLocation(Uri.parse('/daily')), isNull);
+    });
+
     test('opens any other address of the app', () {
       expect(
         redirectLocation(Uri.parse('kanso://open/settings/theme')),

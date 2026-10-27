@@ -20,7 +20,9 @@ pub(super) struct Grammar {
     pub language: Language,
     highlights: String,
     injections: String,
+    locals: String,
     highlight_query: OnceLock<Option<Highlights>>,
+    main_query: OnceLock<Option<Highlights>>,
     injection_query: OnceLock<Option<Injections>>,
 }
 
@@ -44,13 +46,16 @@ impl Grammar {
         language: Language,
         highlights: impl Into<String>,
         injections: impl Into<String>,
+        locals: impl Into<String>,
     ) -> Self {
         Grammar {
             name,
             language,
             highlights: highlights.into(),
             injections: injections.into(),
+            locals: locals.into(),
             highlight_query: OnceLock::new(),
+            main_query: OnceLock::new(),
             injection_query: OnceLock::new(),
         }
     }
@@ -61,6 +66,30 @@ impl Grammar {
         self.highlight_query
             .get_or_init(|| {
                 let query = Query::new(&self.language, &self.highlights).ok()?;
+                let tokens = query
+                    .capture_names()
+                    .iter()
+                    .map(|name| Token::from_capture(name))
+                    .collect();
+                Some(Highlights { query, tokens })
+            })
+            .as_ref()
+    }
+
+    /// The query the component library uses for the language itself: its
+    /// locals query, then its highlights, as one query. Locals captures keep
+    /// their place in the capture order, which is what makes a declaration
+    /// keep the name of the capture already over it.
+    pub fn main_highlights(&self) -> Option<&Highlights> {
+        if self.locals.is_empty() {
+            return self.highlights();
+        }
+        self.main_query
+            .get_or_init(|| {
+                let mut source = String::with_capacity(self.locals.len() + self.highlights.len());
+                source.push_str(&self.locals);
+                source.push_str(&self.highlights);
+                let query = Query::new(&self.language, &source).ok()?;
                 let tokens = query
                     .capture_names()
                     .iter()
@@ -116,11 +145,13 @@ fn build() -> Vec<Grammar> {
             tree_sitter_md::LANGUAGE.into(),
             markdown.highlights.as_str(),
             markdown.injections.as_str(),
+            "",
         ),
         Grammar::new(
             "markdown_inline",
             tree_sitter_md::INLINE_LANGUAGE.into(),
             markdown.inline_highlights.as_str(),
+            "",
             "",
         ),
     ];
@@ -140,7 +171,16 @@ fn code_grammars() -> Vec<Grammar> {
     // queries in their crates, which the library compiles in without them
     // (the desktop registers them in `code_lang::ensure_registered`).
     fn plain(name: &'static str, language: impl Into<Language>, highlights: &str) -> Grammar {
-        Grammar::new(name, language.into(), highlights, "")
+        Grammar::new(name, language.into(), highlights, "", "")
+    }
+
+    fn with_locals(
+        name: &'static str,
+        language: impl Into<Language>,
+        highlights: &str,
+        locals: &str,
+    ) -> Grammar {
+        Grammar::new(name, language.into(), highlights, "", locals)
     }
     vec![
         plain(
@@ -184,10 +224,11 @@ fn code_grammars() -> Vec<Grammar> {
             tree_sitter_java::LANGUAGE,
             tree_sitter_java::HIGHLIGHTS_QUERY,
         ),
-        plain(
+        with_locals(
             "javascript",
             tree_sitter_javascript::LANGUAGE,
             include_str!("queries/javascript.scm"),
+            tree_sitter_javascript::LOCALS_QUERY,
         ),
         plain(
             "json",
@@ -199,10 +240,11 @@ fn code_grammars() -> Vec<Grammar> {
             tree_sitter_kotlin_sg::LANGUAGE,
             include_str!("queries/kotlin.scm"),
         ),
-        plain(
+        with_locals(
             "lua",
             tree_sitter_lua::LANGUAGE,
             include_str!("queries/lua.scm"),
+            tree_sitter_lua::LOCALS_QUERY,
         ),
         plain(
             "php",
@@ -214,10 +256,11 @@ fn code_grammars() -> Vec<Grammar> {
             tree_sitter_python::LANGUAGE,
             tree_sitter_python::HIGHLIGHTS_QUERY,
         ),
-        plain(
+        with_locals(
             "ruby",
             tree_sitter_ruby::LANGUAGE,
             tree_sitter_ruby::HIGHLIGHTS_QUERY,
+            tree_sitter_ruby::LOCALS_QUERY,
         ),
         plain(
             "rust",
@@ -239,15 +282,17 @@ fn code_grammars() -> Vec<Grammar> {
             tree_sitter_toml_ng::LANGUAGE,
             tree_sitter_toml_ng::HIGHLIGHTS_QUERY,
         ),
-        plain(
+        with_locals(
             "tsx",
             tree_sitter_typescript::LANGUAGE_TSX,
             tree_sitter_typescript::HIGHLIGHTS_QUERY,
+            tree_sitter_typescript::LOCALS_QUERY,
         ),
-        plain(
+        with_locals(
             "typescript",
             tree_sitter_typescript::LANGUAGE_TYPESCRIPT,
             include_str!("queries/typescript.scm"),
+            tree_sitter_typescript::LOCALS_QUERY,
         ),
         plain(
             "yaml",

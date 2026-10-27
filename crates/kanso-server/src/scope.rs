@@ -1,4 +1,4 @@
-//! Who is asking, and what an agent may see.
+//! Kanso's agent visibility and permission boundary.
 //!
 //! A request signed in with the local API's credentials is [`Caller::Full`]:
 //! everything the API serves. One with an agent's token is
@@ -26,16 +26,24 @@ use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
 /// attachments. Everything else is denied.
-pub const READ_TOOLS: [&str; 9] = [
+pub const READ_TOOLS: [&str; 17] = [
     "search-notes",
     "read-note",
     "list-notes",
     "list-notebooks",
+    "list-templates",
     "kanso-get-outline",
     "kanso-list-tasks",
     "kanso-search-by-meaning",
     "kanso-related-notes",
     "kanso-resolve-wikilink",
+    "kanso-list-tags",
+    "kanso-get-properties",
+    "kanso-list-note-links",
+    "kanso-list-backlinks",
+    "kanso-run-query-view",
+    "kanso-list-versions",
+    "kanso-read-version",
 ];
 
 /// The tools Ask your notes gives an agent: the same two a model with an

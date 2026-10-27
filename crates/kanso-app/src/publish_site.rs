@@ -2,7 +2,8 @@
 //! sealed on this device like a note's page, so the sync server keeps only a
 //! copy it can't read (docs/ACCOUNTS.md › Published notebooks).
 //!
-//! `site.rs` reads what would be published and builds the site; the sheet
+//! `kanso_engine::publish::site` reads what would be published and builds the
+//! site (the mobile app calls it too); the sheet
 //! shows that first (the notes, the locked notes left out, the images and
 //! files), then publishes, updates or unpublishes the link. The link and
 //! its key are kept in the notebook (`kansoPublish`), so the account's
@@ -17,14 +18,17 @@ use gpui_kit::component::{
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+use kanso_engine::publish::site::{
+    PublishError, SitePlan, contents_line, error_text, locked_line, lowercase_first,
+};
+use kanso_engine::publish::{Busy, Phase, expiry_choice, needs_update, phase};
 use kanso_store::Store;
-use kanso_sync::share::{self, Expiry, KansoPublish, ShareError};
+use kanso_sync::share::{self, Expiry, KansoPublish};
 
 use crate::clock::Clock;
 use crate::editor::NoteEditor;
-use crate::publish::{Busy, Phase, expiry_choice, expiry_row, needs_update, paragraph, phase};
+use crate::publish::{expiry_row, paragraph};
 use crate::services::Services;
-use crate::site::{PublishError, SitePlan};
 use crate::theme::Colors;
 use crate::workspace::Workspace;
 use crate::zoom::px;
@@ -33,55 +37,6 @@ actions!(kanso, [PublishNotebook]);
 
 /// The sheet's width.
 pub const SHEET_WIDTH: f32 = 480.;
-
-/// "3 notes, 2 images and 1 file." Pure.
-pub fn contents_line(plan: &SitePlan) -> String {
-    let images = plan.files.iter().filter(|f| f.is_image()).count();
-    let others = plan.files.len() - images;
-    let mut parts = vec![count(plan.notes.len(), "note", "notes")];
-    if images > 0 {
-        parts.push(count(images, "image", "images"));
-    }
-    if others > 0 {
-        parts.push(count(others, "file", "files"));
-    }
-    let last = parts.pop().unwrap_or_default();
-    if parts.is_empty() {
-        format!("{last}.")
-    } else {
-        format!("{} and {last}.", parts.join(", "))
-    }
-}
-
-/// "Left out because it is locked: Diary." Pure; empty with none.
-pub fn locked_line(plan: &SitePlan) -> String {
-    match plan.locked.len() {
-        0 => String::new(),
-        1 => format!("Left out because it is locked: {}.", plan.locked[0]),
-        _ => format!(
-            "Left out because they are locked: {}.",
-            plan.locked.join(", ")
-        ),
-    }
-}
-
-fn count(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
-}
-
-/// What an error means to the person publishing. Pure.
-pub fn error_text(err: &PublishError) -> String {
-    match err {
-        PublishError::Share(ShareError::TooLarge(_)) => {
-            "This notebook is too large to publish: with its images it is over 10 MB. Publish a smaller notebook, or remove some images.".into()
-        }
-        PublishError::Share(ShareError::Undecryptable) => {
-            "Kanso couldn't seal the notebook. Try again.".into()
-        }
-        PublishError::Share(other) => crate::publish::error_text(other),
-        PublishError::Site(err) => format!("Kanso couldn't make the site ({err})."),
-    }
-}
 
 pub struct PublishSiteView {
     editor: Entity<NoteEditor>,
@@ -150,7 +105,7 @@ impl PublishSiteView {
     /// Reads the notebook again, with the open note as typed.
     fn reread(&mut self, cx: &mut Context<Self>) -> bool {
         self.editor.update(cx, |editor, cx| editor.flush(cx));
-        match crate::site::plan(&self.store, &self.plan.book_id) {
+        match kanso_engine::publish::site::plan(&self.store, &self.plan.book_id) {
             Ok(plan) => {
                 self.plan = plan;
                 true
@@ -182,8 +137,8 @@ impl PublishSiteView {
             cx.notify();
             return;
         }
-        let palette = crate::export_html::print_palette(crate::preview_rich::palette(cx));
-        let style = crate::export_style::PageStyle::for_palette(cx, &palette);
+        let palette = kanso_engine::export::print_palette(crate::preview_rich::palette(cx));
+        let style = crate::export_style::for_palette(cx, &palette);
         let now = Clock::now_ms(cx);
         let expires_at = self.expiry.at(now);
         let store = self.store.clone();
@@ -200,7 +155,7 @@ impl PublishSiteView {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    crate::site::publish(
+                    kanso_engine::publish::site::publish(
                         &*api, &session, &plan, &store, &palette, &style, expires_at, now,
                     )
                 })
@@ -256,7 +211,7 @@ impl PublishSiteView {
         self.confirm_unpublish = false;
         match result {
             Ok(publish) => {
-                if let Err(err) = crate::site::store_book_publish(
+                if let Err(err) = kanso_engine::publish::site::store_book_publish(
                     &self.store,
                     &self.plan.book_id,
                     publish.as_ref(),
@@ -360,13 +315,6 @@ impl PublishSiteView {
     }
 }
 
-fn lowercase_first(text: &str) -> String {
-    let mut chars = text.chars();
-    chars.next().map_or_else(String::new, |first| {
-        first.to_lowercase().chain(chars).collect()
-    })
-}
-
 // no-prop-test: drawing; the notebook publish snapshots show each phase,
 // and `contents_line`, `locked_line` and `error_text` carry the wording.
 impl Render for PublishSiteView {
@@ -405,11 +353,11 @@ impl Render for PublishSiteView {
                 let publish = self.plan.publish.clone().expect("published");
                 let link = self.link().unwrap_or_default();
                 let mono = cx.theme().mono_font_family.clone();
-                let published = crate::publish::when_label(Clock::local_ms(cx, publish.published_at));
+                let published = kanso_engine::publish::when_label(Clock::local_ms(cx, publish.published_at));
                 let expires = match publish.expires_at {
                     None => "The link doesn't expire.".to_owned(),
-                    Some(at) if at <= now => format!("The link expired on {}.", crate::publish::when_label(Clock::local_ms(cx, at))),
-                    Some(at) => format!("The link stops working on {}.", crate::publish::when_label(Clock::local_ms(cx, at))),
+                    Some(at) if at <= now => format!("The link expired on {}.", kanso_engine::publish::when_label(Clock::local_ms(cx, at))),
+                    Some(at) => format!("The link stops working on {}.", kanso_engine::publish::when_label(Clock::local_ms(cx, at))),
                 };
                 let changed = self.plan.is_outdated(&publish);
                 body.child(paragraph(
@@ -606,7 +554,7 @@ pub fn open_publish_site(
 ) -> Option<Entity<PublishSiteView>> {
     workspace.flush(cx);
     let store = workspace.store.clone();
-    let plan = match crate::site::plan(&store, book_id) {
+    let plan = match kanso_engine::publish::site::plan(&store, book_id) {
         Ok(plan) => plan,
         Err(err) => {
             workspace.notify_error(format!("Couldn't read the notebook: {err}"), window, cx);
@@ -694,93 +642,6 @@ pub fn on_actions(el: Div, cx: &mut Context<Workspace>) -> Div {
 
 #[cfg(test)]
 mod tests {
-    use super::{PublishError, contents_line, error_text, locked_line};
-    use crate::site::{PlannedFile, PlannedNote, SitePlan};
-    use kanso_sync::share::ShareError;
-    use kanso_sync::site::SiteError;
-    use proptest::prelude::*;
-    use proptest::test_runner::FileFailurePersistence;
-
-    fn config() -> ProptestConfig {
-        ProptestConfig {
-            cases: 256,
-            failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
-            ..ProptestConfig::default()
-        }
-    }
-
-    fn plan(notes: usize, images: usize, others: usize, locked: &[&str]) -> SitePlan {
-        let file = |ix: usize, content_type: &str| PlannedFile {
-            id: format!("file:{ix}"),
-            name: format!("f{ix}"),
-            content_type: content_type.into(),
-            size: 1,
-        };
-        SitePlan {
-            book_id: "book:b".into(),
-            name: "B".into(),
-            notes: (0..notes)
-                .map(|ix| PlannedNote {
-                    id: format!("note:{ix}"),
-                    title: format!("N{ix}"),
-                    slug: format!("n{ix}"),
-                    ..PlannedNote::default()
-                })
-                .collect(),
-            locked: locked.iter().map(|s| (*s).to_owned()).collect(),
-            files: (0..images)
-                .map(|ix| file(ix, "image/png"))
-                .chain((0..others).map(|ix| file(100 + ix, "application/pdf")))
-                .collect(),
-            publish: None,
-        }
-    }
-
-    #[test]
-    fn the_sheet_says_what_goes_and_what_stays() {
-        assert_eq!(contents_line(&plan(1, 0, 0, &[])), "1 note.");
-        assert_eq!(contents_line(&plan(3, 1, 0, &[])), "3 notes and 1 image.");
-        assert_eq!(
-            contents_line(&plan(3, 2, 1, &[])),
-            "3 notes, 2 images and 1 file."
-        );
-        assert_eq!(locked_line(&plan(1, 0, 0, &[])), "");
-        assert_eq!(
-            locked_line(&plan(1, 0, 0, &["Diary"])),
-            "Left out because it is locked: Diary."
-        );
-        assert_eq!(
-            locked_line(&plan(1, 0, 0, &["Diary", "Keys"])),
-            "Left out because they are locked: Diary, Keys."
-        );
-        assert!(
-            error_text(&PublishError::Share(ShareError::TooLarge(1)))
-                .contains("notebook is too large")
-        );
-        assert!(
-            error_text(&PublishError::Site(SiteError::MissingFile(3)))
-                .contains("couldn't make the site")
-        );
-    }
-
-    proptest! {
-        #![proptest_config(config())]
-
-        /// The line counts what the plan holds: each number appears, with
-        /// the singular for one, and nothing is named that isn't there.
-        #[test]
-        fn prop_contents_line_counts_the_plan(notes in 0usize..30, images in 0usize..5, others in 0usize..5) {
-            let line = contents_line(&plan(notes, images, others, &[]));
-            let plural = |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
-            prop_assert!(line.starts_with(&plural(notes, "note", "notes")), "{}", line);
-            prop_assert_eq!(line.contains("image"), images > 0);
-            prop_assert_eq!(line.contains("file"), others > 0);
-            if images > 0 { prop_assert!(line.contains(&plural(images, "image", "images"))); }
-            if others > 0 { prop_assert!(line.contains(&plural(others, "file", "files"))); }
-            prop_assert!(line.ends_with('.'));
-        }
-    }
-
     mod flow {
         use std::sync::Arc;
 
@@ -796,9 +657,9 @@ mod tests {
 
         use super::super::{PublishSiteView, open_publish_site};
         use crate::config::AppConfig;
-        use crate::publish::Phase;
         use crate::services::Services;
         use crate::workspace::{AppState, Workspace};
+        use kanso_engine::publish::Phase;
 
         struct Fixture {
             _dir: tempfile::TempDir,

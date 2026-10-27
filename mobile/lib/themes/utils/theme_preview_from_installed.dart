@@ -6,9 +6,13 @@ import '../../core/models/data/installed_theme.dart';
 import '../../core/utils/palette_from_tokens.dart';
 import '../models/data/theme_preview.dart';
 
-/// The preview of the installed [theme]: the colours of its tokens, as the
-/// app would draw a few lines of Markdown, or a rendered note, in it.
-ThemePreview themePreviewFromInstalled(InstalledTheme theme) {
+/// The preview of [theme]: the colours of its fitted tokens, as the app would
+/// draw a few lines of Markdown in it. An installed gallery theme is fitted
+/// as a built-in one is; [builtIn] says which it is.
+ThemePreview themePreviewFromBuiltin(
+  BuiltinTheme theme, {
+  bool builtIn = true,
+}) {
   final palette = paletteFromTokens(theme.id, theme.tokens);
   final colors = palette.colors;
   final syntax = palette.syntax;
@@ -33,8 +37,6 @@ ThemePreview themePreviewFromInstalled(InstalledTheme theme) {
     code: syntax.code,
     strong: strong == null ? colors.text : opaqueColor(strong),
     emphasis: emphasis == null ? colors.text : opaqueColor(emphasis),
-    origin: theme.origin,
-    author: theme.author,
-    palette: palette,
+    builtIn: builtIn,
   );
 }

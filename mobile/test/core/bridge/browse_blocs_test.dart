@@ -7,7 +7,9 @@ import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/search_scope_kind.dart';
 import 'package:kanso/core/models/repos/impl/rust_library_repository.dart';
 import 'package:kanso/core/models/repos/impl/rust_renderer_repository.dart';
+import 'package:kanso/core/state/undo_notice/undo_notice_bloc.dart';
 import 'package:kanso/note/models/data/note_screen_status.dart';
+import 'package:kanso/note/models/repos/impl/memory_note_place_repository.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
 import 'package:kanso/note_list/models/data/note_list_status.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
@@ -42,6 +44,7 @@ void main() {
     final bloc = NoteBloc(
       RustLibraryRepository(library),
       RustRendererRepository(library.renderer()),
+      MemoryNotePlaceRepository(),
     )..add(NoteEvent.started(id, 'nord'));
     addTearDown(bloc.close);
     final state = await bloc.stream.firstWhere(
@@ -82,7 +85,7 @@ void main() {
     await library.locks().lock();
 
     // The note screen.
-    final note = NoteBloc(repository, renderer)
+    final note = NoteBloc(repository, renderer, MemoryNotePlaceRepository())
       ..add(NoteEvent.started(locked, 'nord'));
     addTearDown(note.close);
     final noteState = await note.stream.firstWhere(
@@ -98,6 +101,7 @@ void main() {
       repository,
       ForgetfulPreferencesRepository(),
       haptics,
+      UndoNoticeBloc(repository, haptics),
     )..add(const NoteListEvent.started(ListPlace.all()));
     addTearDown(list.close);
     final listState = await list.stream.firstWhere(

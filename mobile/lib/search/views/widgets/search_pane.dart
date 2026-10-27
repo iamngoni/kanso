@@ -109,9 +109,7 @@ class SearchPane extends StatelessWidget {
                       label: l10n.searchFilterTitles,
                       selected: state.scope == SearchScopeKind.titles,
                       onTap: () => bloc.add(
-                        const SearchEvent.scopeChanged(
-                          SearchScopeKind.titles,
-                        ),
+                        const SearchEvent.scopeChanged(SearchScopeKind.titles),
                       ),
                     ),
                     KansoChip(

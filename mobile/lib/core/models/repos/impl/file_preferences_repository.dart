@@ -33,9 +33,7 @@ class FilePreferencesRepository implements PreferencesRepository {
   @override
   Future<Either<ApplicationError, Preferences>> load() {
     return _serialised(
-      () async => Right<ApplicationError, Preferences>(
-        await _read(),
-      ),
+      () async => Right<ApplicationError, Preferences>(await _read()),
     );
   }
 

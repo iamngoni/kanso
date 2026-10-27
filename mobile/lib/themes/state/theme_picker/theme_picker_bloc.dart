@@ -7,11 +7,10 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/load_status.dart';
-import '../../../core/models/data/theme_file_notice.dart';
-import '../../../core/models/repos/abs/file_picker_repository.dart';
-import '../../../core/models/repos/abs/themes_repository.dart';
-import '../../models/data/theme_import_outcome.dart';
+import '../../../core/models/repos/abs/gallery_repository.dart';
+import '../../../core/models/repos/abs/renderer_repository.dart';
 import '../../models/data/theme_preview.dart';
 import '../../utils/theme_preview_from_installed.dart';
 
@@ -19,61 +18,43 @@ part 'theme_picker_bloc.freezed.dart';
 part 'theme_picker_event.dart';
 part 'theme_picker_state.dart';
 
-/// The themes the picker offers: every installed theme (built in, the
-/// person's own and the gallery's) in the desktop's order, each with the
-/// preview drawn from its tokens; the theme files that were left out; and
-/// importing a theme from a file.
+/// The themes the picker offers: the built-in ones in the desktop's order,
+/// then the ones installed from the gallery, each with the preview drawn
+/// from its tokens.
 ///
 /// Which are in use, and picking one, are the `AppearanceBloc`'s.
 @injectable
 class ThemePickerBloc extends Bloc<ThemePickerEvent, ThemePickerState> {
-  ThemePickerBloc(this._themes, this._files) : super(const ThemePickerState()) {
+  ThemePickerBloc(this._renderer, this._gallery)
+    : super(const ThemePickerState()) {
     on<ThemePickerStartedEvent>(_onStarted, transformer: restartable());
-    // A second tap while a file is being imported does nothing.
-    on<ThemePickerImportRequestedEvent>(
-      _onImportRequested,
-      transformer: droppable(),
+    on<ThemePickerInstalledChangedEvent>(
+      _onInstalledChanged,
+      transformer: restartable(),
     );
   }
 
-  final ThemesRepository _themes;
-  final FilePickerRepository _files;
+  final RendererRepository _renderer;
+  final GalleryRepository _gallery;
 
   Future<void> _onStarted(
     ThemePickerStartedEvent event,
     Emitter<ThemePickerState> emit,
   ) async {
     emit(const ThemePickerState());
-    emit(await _loaded(const ThemePickerState()));
-  }
-
-  Future<void> _onImportRequested(
-    ThemePickerImportRequestedEvent event,
-    Emitter<ThemePickerState> emit,
-  ) async {
-    final picked = await _files.pickFile();
-    final path = picked.fold<String?>((error) => null, (path) => path);
-    final pickError = picked.fold<String?>(
-      (error) => error.message,
-      (_) => null,
-    );
-    if (pickError != null) {
-      emit(
-        state.copyWith(outcome: ThemeImportOutcome.failed(message: pickError)),
-      );
+    final result = await _renderer.builtinThemes();
+    final builtIn = result.fold<List<BuiltinTheme>?>((_) => null, (all) => all);
+    if (builtIn == null) {
+      emit(const ThemePickerState(status: LoadStatus.failed));
       return;
     }
-    if (path == null) {
-      return;
-    }
-    emit(state.copyWith(importing: true, outcome: null));
-    final imported = await _themes.importTheme(path);
-    await imported.fold(
-      (error) async => emit(
-        state.copyWith(
-          importing: false,
-          outcome: ThemeImportOutcome.failed(message: error.message),
-        ),
+    emit(
+      ThemePickerState(
+        status: LoadStatus.ready,
+        themes: <ThemePreview>[
+          ...builtIn.map(themePreviewFromBuiltin),
+          ...await _installed(),
+        ],
       ),
       (result) async {
         final reloaded = await _loaded(state.copyWith(importing: false));
@@ -98,6 +79,37 @@ class ThemePickerBloc extends Bloc<ThemePickerEvent, ThemePickerState> {
         themes: <ThemePreview>[...themes.map(themePreviewFromInstalled)],
         notices: noticed.getOrElse(() => const <ThemeFileNotice>[]),
       ),
+    );
+  }
+
+  Future<void> _onInstalledChanged(
+    ThemePickerInstalledChangedEvent event,
+    Emitter<ThemePickerState> emit,
+  ) async {
+    if (state.status != LoadStatus.ready) {
+      return;
+    }
+    final installed = await _installed();
+    emit(
+      state.copyWith(
+        themes: <ThemePreview>[
+          ...state.themes.where((theme) => theme.builtIn),
+          ...installed,
+        ],
+      ),
+    );
+  }
+
+  /// The previews of the themes installed from the gallery. Themes that
+  /// can't be read are left out: the picker still has the built-in ones.
+  Future<List<ThemePreview>> _installed() async {
+    final read = await _gallery.installedThemes();
+    return read.fold(
+      (_) => const <ThemePreview>[],
+      (themes) => <ThemePreview>[
+        for (final theme in themes)
+          themePreviewFromBuiltin(theme, builtIn: false),
+      ],
     );
   }
 }

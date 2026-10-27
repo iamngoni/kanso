@@ -91,7 +91,13 @@ class KansoTypography extends ThemeExtension<KansoTypography> {
     final editor = fonts.editorFont;
     final preview = fonts.previewFont;
     return KansoTypography(
-      largeTitle: ui(22, FontWeight.w700, 1.25, colors.text),
+      largeTitle: ui(
+        30,
+        FontWeight.w700,
+        1.15,
+        colors.text,
+        letterSpacing: -0.8,
+      ),
       barTitle: ui(17, FontWeight.w600, 1.3, colors.text),
       heading1: ui(20, FontWeight.w700, 1.3, colors.text),
       heading2: ui(17, FontWeight.w600, 1.3, colors.text),
@@ -168,7 +174,7 @@ class KansoTypography extends ThemeExtension<KansoTypography> {
   /// The family of the interface.
   static const String sansFamily = 'Instrument Sans';
 
-  /// A page's heading: 22, bold.
+  /// A page's heading, at the top of what scrolls: 30, bold, set tight.
   final TextStyle largeTitle;
 
   /// A top bar's title: 17, semibold.
@@ -314,16 +320,8 @@ class KansoTypography extends ThemeExtension<KansoTypography> {
       meta: TextStyle.lerp(meta, other.meta, t)!,
       sectionLabel: TextStyle.lerp(sectionLabel, other.sectionLabel, t)!,
       editorTitle: TextStyle.lerp(editorTitle, other.editorTitle, t)!,
-      editorHeading1: TextStyle.lerp(
-        editorHeading1,
-        other.editorHeading1,
-        t,
-      )!,
-      editorHeading2: TextStyle.lerp(
-        editorHeading2,
-        other.editorHeading2,
-        t,
-      )!,
+      editorHeading1: TextStyle.lerp(editorHeading1, other.editorHeading1, t)!,
+      editorHeading2: TextStyle.lerp(editorHeading2, other.editorHeading2, t)!,
       editorBody: TextStyle.lerp(editorBody, other.editorBody, t)!,
       previewTitle: TextStyle.lerp(previewTitle, other.previewTitle, t)!,
       previewHeading1: TextStyle.lerp(

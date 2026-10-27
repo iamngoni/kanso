@@ -13,376 +13,173 @@ use gpui_kit::component::{Disableable as _, Icon, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::Book;
-use kanso_core::model::BOOK_ICON_FIELD;
-use kanso_core::roles::{ROLE_FIELD, Role};
+use kanso_core::roles::Role;
+pub use kanso_engine::catalogue::book_icons::{CHOICES, chosen, matches, role, split_key, words};
 
-use crate::icon_theme_file::is_valid_name;
 use crate::icon_themes::{self, IconTheme, Slot};
 use crate::theme::Colors;
 use crate::zoom::px;
-
-/// One icon a notebook can show.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Choice {
-    /// What the notebook keeps: the Lucide name.
-    pub name: &'static str,
-    /// What the picker's tooltip says.
-    pub label: &'static str,
-    /// More words the search finds it by, spaced.
-    pub keywords: &'static str,
-    pub icon: Lucide,
-}
-
-const fn choice(
-    name: &'static str,
-    label: &'static str,
-    keywords: &'static str,
-    icon: Lucide,
-) -> Choice {
-    Choice {
-        name,
-        label,
-        keywords,
-        icon,
-    }
-}
 
 /// The first choice in the picker, which stands for the default: a
 /// notebook keeps no icon for it.
 pub const DEFAULT: Lucide = Lucide::Notebook;
 
-/// The icons to choose from, in the picker's order: notebooks and files,
-/// work and code, plans, study and making things, then life.
-pub const CHOICES: &[Choice] = &[
-    choice(
-        "notebook",
-        "Notebook",
-        "book journal default",
-        Lucide::Notebook,
-    ),
-    choice(
-        "notebook-pen",
-        "Journal",
-        "diary writing log",
-        Lucide::NotebookPen,
-    ),
-    choice(
-        "notebook-text",
-        "Notes",
-        "text writing",
-        Lucide::NotebookText,
-    ),
-    choice("book-open", "Book", "reading library", Lucide::BookOpen),
-    choice(
-        "book-marked",
-        "Bookmarked",
-        "reading saved",
-        Lucide::BookMarked,
-    ),
-    choice("library", "Library", "books shelf reading", Lucide::Library),
-    choice("folder", "Folder", "files directory", Lucide::Folder),
-    choice(
-        "folder-open",
-        "Open folder",
-        "files directory",
-        Lucide::FolderOpen,
-    ),
-    choice(
-        "folder-heart",
-        "Favourite folder",
-        "files love",
-        Lucide::FolderHeart,
-    ),
-    choice(
-        "folder-lock",
-        "Locked folder",
-        "private secret files",
-        Lucide::FolderLock,
-    ),
-    choice("archive", "Archive", "old storage box", Lucide::Archive),
-    choice("inbox", "Inbox", "mail incoming", Lucide::Inbox),
-    choice("mail", "Mail", "email letter", Lucide::Mail),
-    choice("file-text", "Document", "page doc paper", Lucide::FileText),
-    choice("files", "Files", "documents pages", Lucide::Files),
-    choice(
-        "scroll-text",
-        "Scroll",
-        "history story text",
-        Lucide::ScrollText,
-    ),
-    choice(
-        "sticky-note",
-        "Sticky note",
-        "memo post-it",
-        Lucide::StickyNote,
-    ),
-    choice("bookmark", "Bookmark", "saved later", Lucide::Bookmark),
-    choice(
-        "briefcase",
-        "Work",
-        "job office business",
-        Lucide::Briefcase,
-    ),
-    choice(
-        "building-2",
-        "Company",
-        "office business org",
-        Lucide::Building2,
-    ),
-    choice(
-        "landmark",
-        "Institution",
-        "bank government",
-        Lucide::Landmark,
-    ),
-    choice("users", "People", "team group", Lucide::Users),
-    choice("user", "Person", "me profile", Lucide::User),
-    choice("contact", "Contacts", "people address", Lucide::Contact),
-    choice(
-        "handshake",
-        "Deals",
-        "partners clients agreement",
-        Lucide::Handshake,
-    ),
-    choice("bot", "Agents", "ai robot assistant", Lucide::Bot),
-    choice("brain", "Brain", "mind thinking ai", Lucide::Brain),
-    choice("cpu", "Hardware", "chip computer", Lucide::Cpu),
-    choice("code", "Code", "programming dev", Lucide::Code),
-    choice(
-        "terminal",
-        "Terminal",
-        "shell command cli",
-        Lucide::Terminal,
-    ),
-    choice(
-        "git-branch",
-        "Git",
-        "branch version source",
-        Lucide::GitBranch,
-    ),
-    choice("database", "Database", "data sql storage", Lucide::Database),
-    choice("server", "Server", "backend hosting", Lucide::Server),
-    choice("cloud", "Cloud", "hosting sky", Lucide::Cloud),
-    choice("bug", "Bugs", "issues debug", Lucide::Bug),
-    choice("wrench", "Tools", "fix settings repair", Lucide::Wrench),
-    choice("hammer", "Build", "construct make", Lucide::Hammer),
-    choice("rocket", "Project", "launch startup", Lucide::Rocket),
-    choice("lightbulb", "Ideas", "idea thought", Lucide::Lightbulb),
-    choice("target", "Goals", "aim objective", Lucide::Target),
-    choice("flag", "Milestones", "goal marker", Lucide::Flag),
-    choice("trophy", "Wins", "award achievement", Lucide::Trophy),
-    choice(
-        "chart-line",
-        "Metrics",
-        "stats analytics graph",
-        Lucide::ChartLine,
-    ),
-    choice("chart-pie", "Reports", "stats analytics", Lucide::ChartPie),
-    choice(
-        "presentation",
-        "Presentations",
-        "slides talk",
-        Lucide::Presentation,
-    ),
-    choice(
-        "clipboard-list",
-        "Tasks",
-        "todo checklist",
-        Lucide::ClipboardList,
-    ),
-    choice("list-checks", "Checklists", "todo done", Lucide::ListChecks),
-    choice("calendar", "Calendar", "date schedule", Lucide::Calendar),
-    choice(
-        "calendar-days",
-        "Plans",
-        "schedule week",
-        Lucide::CalendarDays,
-    ),
-    choice("clock", "Time", "hours schedule", Lucide::Clock),
-    choice("alarm-clock", "Reminders", "alarm wake", Lucide::AlarmClock),
-    choice("hourglass", "Waiting", "later time", Lucide::Hourglass),
-    choice(
-        "graduation-cap",
-        "Study",
-        "school learning education",
-        Lucide::GraduationCap,
-    ),
-    choice("school", "School", "education class", Lucide::School),
-    choice(
-        "flask-conical",
-        "Research",
-        "science lab experiment",
-        Lucide::FlaskConical,
-    ),
-    choice("microscope", "Science", "research lab", Lucide::Microscope),
-    choice("atom", "Physics", "science atom", Lucide::Atom),
-    choice(
-        "calculator",
-        "Maths",
-        "numbers calculate",
-        Lucide::Calculator,
-    ),
-    choice(
-        "languages",
-        "Languages",
-        "translate words",
-        Lucide::Languages,
-    ),
-    choice("palette", "Design", "art colour", Lucide::Palette),
-    choice("pen-tool", "Drawing", "vector design", Lucide::PenTool),
-    choice("brush", "Painting", "art paint", Lucide::Brush),
-    choice("pencil", "Writing", "draft edit", Lucide::Pencil),
-    choice("feather", "Poetry", "writing quill", Lucide::Feather),
-    choice("image", "Images", "pictures photos", Lucide::Image),
-    choice("camera", "Photos", "photography pictures", Lucide::Camera),
-    choice("film", "Film", "movies video", Lucide::Film),
-    choice(
-        "clapperboard",
-        "Production",
-        "video movie",
-        Lucide::Clapperboard,
-    ),
-    choice("mic", "Podcast", "audio recording voice", Lucide::Mic),
-    choice("music", "Music", "songs audio", Lucide::Music),
-    choice("headphones", "Listening", "audio music", Lucide::Headphones),
-    choice("guitar", "Guitar", "music instrument", Lucide::Guitar),
-    choice("gamepad-2", "Games", "gaming play", Lucide::Gamepad2),
-    choice("dices", "Board games", "dice games", Lucide::Dices),
-    choice("puzzle", "Puzzles", "games pieces", Lucide::Puzzle),
-    choice("heart", "Favourites", "love liked", Lucide::Heart),
-    choice("star", "Starred", "favourite important", Lucide::Star),
-    choice("sparkles", "Inspiration", "magic ideas", Lucide::Sparkles),
-    choice("gift", "Gifts", "presents birthday", Lucide::Gift),
-    choice(
-        "party-popper",
-        "Celebrations",
-        "party events",
-        Lucide::PartyPopper,
-    ),
-    choice("house", "Home", "house family", Lucide::House),
-    choice("bed", "Sleep", "rest bedroom", Lucide::Bed),
-    choice("sofa", "Living", "home furniture", Lucide::Sofa),
-    choice("key", "Keys", "access passwords", Lucide::Key),
-    choice("lock", "Locked", "private secret", Lucide::Lock),
-    choice("shield", "Private", "security safe", Lucide::Shield),
-    choice("plane", "Travel", "trips flight", Lucide::Plane),
-    choice("map", "Maps", "places directions", Lucide::Map),
-    choice("map-pin", "Places", "location address", Lucide::MapPin),
-    choice(
-        "compass",
-        "Explore",
-        "navigation direction",
-        Lucide::Compass,
-    ),
-    choice("mountain", "Outdoors", "hiking nature", Lucide::Mountain),
-    choice("tent", "Camping", "outdoors trip", Lucide::Tent),
-    choice("car", "Car", "driving vehicle", Lucide::Car),
-    choice("bike", "Cycling", "bicycle ride", Lucide::Bike),
-    choice(
-        "truck",
-        "Logistics",
-        "delivery shipping fleet",
-        Lucide::Truck,
-    ),
-    choice("bus", "Transport", "commute bus", Lucide::Bus),
-    choice("train-front", "Trains", "rail commute", Lucide::TrainFront),
-    choice("ship", "Shipping", "boat sea", Lucide::Ship),
-    choice("globe", "World", "international web", Lucide::Globe),
-    choice("wallet", "Money", "finance budget", Lucide::Wallet),
-    choice("piggy-bank", "Savings", "money budget", Lucide::PiggyBank),
-    choice("coins", "Coins", "money cash", Lucide::Coins),
-    choice("credit-card", "Payments", "card money", Lucide::CreditCard),
-    choice("receipt", "Receipts", "expenses bills", Lucide::Receipt),
-    choice("banknote", "Cash", "money bills", Lucide::Banknote),
-    choice(
-        "shopping-cart",
-        "Shopping",
-        "groceries buy",
-        Lucide::ShoppingCart,
-    ),
-    choice(
-        "shopping-bag",
-        "Purchases",
-        "shopping buy",
-        Lucide::ShoppingBag,
-    ),
-    choice("store", "Store", "shop retail", Lucide::Store),
-    choice("tag", "Labels", "tag price", Lucide::Tag),
-    choice(
-        "utensils",
-        "Food",
-        "recipes meals cooking",
-        Lucide::Utensils,
-    ),
-    choice("chef-hat", "Cooking", "recipes kitchen", Lucide::ChefHat),
-    choice("coffee", "Coffee", "cafe drink", Lucide::Coffee),
-    choice("cake", "Baking", "dessert birthday", Lucide::Cake),
-    choice("apple", "Health food", "fruit nutrition", Lucide::Apple),
-    choice("dumbbell", "Fitness", "gym workout", Lucide::Dumbbell),
-    choice(
-        "heart-pulse",
-        "Health",
-        "medical wellbeing",
-        Lucide::HeartPulse,
-    ),
-    choice(
-        "stethoscope",
-        "Medical",
-        "doctor health",
-        Lucide::Stethoscope,
-    ),
-    choice("pill", "Medicine", "health pharmacy", Lucide::Pill),
-    choice("baby", "Baby", "kids family", Lucide::Baby),
-    choice("dog", "Pets", "dog animals", Lucide::Dog),
-    choice("cat", "Cat", "pets animals", Lucide::Cat),
-    choice("paw-print", "Animals", "pets", Lucide::PawPrint),
-    choice("leaf", "Nature", "plants green", Lucide::Leaf),
-    choice("flower", "Garden", "flowers plants", Lucide::Flower),
-    choice("trees", "Forest", "trees nature", Lucide::Trees),
-    choice("sun", "Summer", "sunny weather", Lucide::Sun),
-    choice("moon", "Night", "dreams evening", Lucide::Moon),
-    choice("cloud-rain", "Weather", "rain forecast", Lucide::CloudRain),
-    choice("snowflake", "Winter", "snow cold", Lucide::Snowflake),
-    choice("flame", "Hot", "fire trending", Lucide::Flame),
-    choice("zap", "Energy", "power fast", Lucide::Zap),
-    choice("droplet", "Water", "drop liquid", Lucide::Droplet),
-    choice("church", "Faith", "church religion", Lucide::Church),
-    choice(
-        "hand-heart",
-        "Charity",
-        "giving care volunteer",
-        Lucide::HandHeart,
-    ),
-    choice("newspaper", "News", "articles press", Lucide::Newspaper),
-    choice("rss", "Feeds", "blogs subscriptions", Lucide::Rss),
-    choice("link", "Links", "bookmarks web", Lucide::Link),
-    choice(
-        "message-circle",
-        "Chats",
-        "messages talk",
-        Lucide::MessageCircle,
-    ),
-    choice("phone", "Calls", "phone contacts", Lucide::Phone),
-    choice("video", "Meetings", "video calls", Lucide::Video),
-    choice(
-        "megaphone",
-        "Marketing",
-        "announcements promo",
-        Lucide::Megaphone,
-    ),
-    choice(
-        "lock-keyhole",
-        "Vault",
-        "secure private",
-        Lucide::LockKeyhole,
-    ),
-    choice("eye", "Watching", "watchlist view", Lucide::Eye),
-    choice("infinity", "Ongoing", "forever loop", Lucide::Infinity),
+/// The Lucide icon that draws each of [`CHOICES`], in the same order: the
+/// choice at an index has the icon at that index. A test holds the two lists
+/// together.
+pub const ICONS: &[Lucide] = &[
+    Lucide::Notebook,
+    Lucide::NotebookPen,
+    Lucide::NotebookText,
+    Lucide::BookOpen,
+    Lucide::BookMarked,
+    Lucide::Library,
+    Lucide::Folder,
+    Lucide::FolderOpen,
+    Lucide::FolderHeart,
+    Lucide::FolderLock,
+    Lucide::Archive,
+    Lucide::Inbox,
+    Lucide::Mail,
+    Lucide::FileText,
+    Lucide::Files,
+    Lucide::ScrollText,
+    Lucide::StickyNote,
+    Lucide::Bookmark,
+    Lucide::Briefcase,
+    Lucide::Building2,
+    Lucide::Landmark,
+    Lucide::Users,
+    Lucide::User,
+    Lucide::Contact,
+    Lucide::Handshake,
+    Lucide::Bot,
+    Lucide::Brain,
+    Lucide::Cpu,
+    Lucide::Code,
+    Lucide::Terminal,
+    Lucide::GitBranch,
+    Lucide::Database,
+    Lucide::Server,
+    Lucide::Cloud,
+    Lucide::Bug,
+    Lucide::Wrench,
+    Lucide::Hammer,
+    Lucide::Rocket,
+    Lucide::Lightbulb,
+    Lucide::Target,
+    Lucide::Flag,
+    Lucide::Trophy,
+    Lucide::ChartLine,
+    Lucide::ChartPie,
+    Lucide::Presentation,
+    Lucide::ClipboardList,
+    Lucide::ListChecks,
+    Lucide::Calendar,
+    Lucide::CalendarDays,
+    Lucide::Clock,
+    Lucide::AlarmClock,
+    Lucide::Hourglass,
+    Lucide::GraduationCap,
+    Lucide::School,
+    Lucide::FlaskConical,
+    Lucide::Microscope,
+    Lucide::Atom,
+    Lucide::Calculator,
+    Lucide::Languages,
+    Lucide::Palette,
+    Lucide::PenTool,
+    Lucide::Brush,
+    Lucide::Pencil,
+    Lucide::Feather,
+    Lucide::Image,
+    Lucide::Camera,
+    Lucide::Film,
+    Lucide::Clapperboard,
+    Lucide::Mic,
+    Lucide::Music,
+    Lucide::Headphones,
+    Lucide::Guitar,
+    Lucide::Gamepad2,
+    Lucide::Dices,
+    Lucide::Puzzle,
+    Lucide::Heart,
+    Lucide::Star,
+    Lucide::Sparkles,
+    Lucide::Gift,
+    Lucide::PartyPopper,
+    Lucide::House,
+    Lucide::Bed,
+    Lucide::Sofa,
+    Lucide::Key,
+    Lucide::Lock,
+    Lucide::Shield,
+    Lucide::Plane,
+    Lucide::Map,
+    Lucide::MapPin,
+    Lucide::Compass,
+    Lucide::Mountain,
+    Lucide::Tent,
+    Lucide::Car,
+    Lucide::Bike,
+    Lucide::Truck,
+    Lucide::Bus,
+    Lucide::TrainFront,
+    Lucide::Ship,
+    Lucide::Globe,
+    Lucide::Wallet,
+    Lucide::PiggyBank,
+    Lucide::Coins,
+    Lucide::CreditCard,
+    Lucide::Receipt,
+    Lucide::Banknote,
+    Lucide::ShoppingCart,
+    Lucide::ShoppingBag,
+    Lucide::Store,
+    Lucide::Tag,
+    Lucide::Utensils,
+    Lucide::ChefHat,
+    Lucide::Coffee,
+    Lucide::Cake,
+    Lucide::Apple,
+    Lucide::Dumbbell,
+    Lucide::HeartPulse,
+    Lucide::Stethoscope,
+    Lucide::Pill,
+    Lucide::Baby,
+    Lucide::Dog,
+    Lucide::Cat,
+    Lucide::PawPrint,
+    Lucide::Leaf,
+    Lucide::Flower,
+    Lucide::Trees,
+    Lucide::Sun,
+    Lucide::Moon,
+    Lucide::CloudRain,
+    Lucide::Snowflake,
+    Lucide::Flame,
+    Lucide::Zap,
+    Lucide::Droplet,
+    Lucide::Church,
+    Lucide::HandHeart,
+    Lucide::Newspaper,
+    Lucide::Rss,
+    Lucide::Link,
+    Lucide::MessageCircle,
+    Lucide::Phone,
+    Lucide::Video,
+    Lucide::Megaphone,
+    Lucide::LockKeyhole,
+    Lucide::Eye,
+    Lucide::Infinity,
 ];
 
-/// The choice named `name`, if it is one.
-pub fn find(name: &str) -> Option<&'static Choice> {
-    CHOICES.iter().find(|choice| choice.name == name)
+/// The Lucide icon that draws the choice named `name`, if it is one.
+pub fn icon_of(name: &str) -> Option<Lucide> {
+    CHOICES
+        .iter()
+        .position(|choice| choice.name == name)
+        .map(|ix| ICONS[ix])
 }
 
 /// What a notebook shows.
@@ -414,35 +211,13 @@ impl From<NotebookIcon> for Icon {
     }
 }
 
-/// `<theme>/<icon>` as its two names, if it has that shape. Pure.
-pub fn split_key(key: &str) -> Option<(&str, &str)> {
-    let (theme, icon) = key.split_once('/')?;
-    (is_valid_name(theme) && is_valid_name(icon)).then_some((theme, icon))
-}
-
-/// The icon `book` keeps, as kept: a built-in choice's name, or
-/// `<theme>/<icon>` for an icon theme's, whether or not that theme is in use
-/// (an icon pack's from before icon themes is kept the same way).
-pub fn chosen(book: &Book) -> Option<String> {
-    let name = book.extra.get(BOOK_ICON_FIELD)?.as_str()?;
-    (find(name).is_some() || split_key(name).is_some()).then(|| name.to_owned())
-}
-
-/// The job `book` has, if any.
-pub fn role(book: &Book) -> Option<Role> {
-    Role::of_book(
-        &book.id,
-        book.extra.get(ROLE_FIELD).and_then(|value| value.as_str()),
-    )
-}
-
 /// The icon a kept name shows under `theme`: its built-in choice, the
 /// theme's own icon when it is the theme's, else the library's icon for a
 /// notebook with `role`, or for any notebook. Pure.
 pub fn icon_for(name: Option<&str>, role: Option<Role>, theme: &IconTheme) -> NotebookIcon {
     if let Some(name) = name {
-        if let Some(choice) = find(name) {
-            return NotebookIcon::Choice(choice.icon);
+        if let Some(icon) = icon_of(name) {
+            return NotebookIcon::Choice(icon);
         }
         if let Some((id, icon)) = split_key(name)
             && id == theme.id
@@ -489,36 +264,6 @@ pub fn opened(icon: NotebookIcon, open: bool) -> NotebookIcon {
     }
 }
 
-/// The words of `query`, lowercased, split at spaces and dashes.
-fn words(query: &str) -> Vec<String> {
-    query
-        .split(|c: char| c.is_whitespace() || c == '-' || c == '_')
-        .filter(|word| !word.is_empty())
-        .map(str::to_lowercase)
-        .collect()
-}
-
-/// Whether every word of `query` starts a word of `label`, `name` or
-/// `keywords`, ignoring case. No words match everything. Pure.
-pub fn matches(query: &[String], label: &str, name: &str, keywords: &str) -> bool {
-    let text = format!("{label} {name} {keywords}");
-    let theirs = words(&text);
-    query
-        .iter()
-        .all(|word| theirs.iter().any(|their| their.starts_with(word.as_str())))
-}
-
-/// The built-in choices a search for `query` finds, in the picker's order:
-/// see [`matches`]. Pure.
-#[cfg(test)]
-pub fn matching(query: &str) -> Vec<&'static Choice> {
-    let query = words(query);
-    CHOICES
-        .iter()
-        .filter(|choice| matches(&query, choice.label, choice.name, choice.keywords))
-        .collect()
-}
-
 /// One icon in the picker.
 #[derive(Clone)]
 struct Entry {
@@ -534,11 +279,12 @@ struct Entry {
 fn sections(theme: &IconTheme) -> Vec<(SharedString, Vec<Entry>)> {
     let builtin = CHOICES
         .iter()
-        .map(|choice| Entry {
+        .zip(ICONS)
+        .map(|(choice, icon)| Entry {
             key: choice.name.into(),
             label: choice.label.into(),
             keywords: choice.keywords.into(),
-            icon: NotebookIcon::Choice(choice.icon),
+            icon: NotebookIcon::Choice(*icon),
         })
         .collect();
     let mut sections = vec![(SharedString::from("Kanso"), builtin)];
@@ -876,15 +622,15 @@ pub fn open_picker(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use gpui_kit::AssetSource as _;
     use kanso_core::Book;
-    use proptest::prelude::*;
-    use proptest::test_runner::FileFailurePersistence;
     use serde_json::json;
 
-    use super::{CHOICES, DEFAULT, NotebookIcon, chosen, icon_for, matching, opened, role, shown};
+    use kanso_engine::catalogue::book_icons::{DEFAULT_NAME, matching};
+
+    use super::{
+        CHOICES, DEFAULT, ICONS, NotebookIcon, chosen, icon_for, icon_of, opened, role, shown,
+    };
     use crate::assets::KansoAssets;
     use crate::icon_themes::{self, Slot};
 
@@ -899,14 +645,13 @@ mod tests {
             .collect()
     }
 
+    /// The desktop draws the engine's choices with Lucide's icons, in the
+    /// same order, so the two lists cannot drift apart.
     #[test]
-    fn every_choice_is_bundled_and_named_once() {
-        let mut names = HashSet::new();
-        let mut labels = HashSet::new();
-        for choice in CHOICES {
-            assert!(names.insert(choice.name), "{} twice", choice.name);
-            assert!(labels.insert(choice.label), "label {} twice", choice.label);
-            let path = gpui_kit::component::IconNamed::path(choice.icon);
+    fn every_choice_has_its_icon_and_it_is_bundled() {
+        assert_eq!(CHOICES.len(), ICONS.len());
+        for (choice, icon) in CHOICES.iter().zip(ICONS) {
+            let path = gpui_kit::component::IconNamed::path(*icon);
             assert!(
                 matches!(KansoAssets.load(&path), Ok(Some(_))),
                 "{}: {path}",
@@ -914,9 +659,11 @@ mod tests {
             );
             // The name kept is the icon's own file name.
             assert!(path.ends_with(&format!("/{}.svg", choice.name)), "{path}");
+            assert_eq!(icon_of(choice.name), Some(*icon));
         }
-        assert!(CHOICES.len() >= 120, "{}", CHOICES.len());
-        assert_eq!(CHOICES[0].icon, DEFAULT);
+        assert_eq!(icon_of("not-an-icon"), None);
+        assert_eq!(CHOICES[0].name, DEFAULT_NAME);
+        assert_eq!(ICONS[0], DEFAULT);
     }
 
     #[test]
@@ -1195,31 +942,5 @@ mod tests {
             rows(cx)[1],
             ("Trips".to_owned(), NotebookIcon::Slot(Slot::Notebook))
         );
-    }
-
-    fn config() -> ProptestConfig {
-        ProptestConfig {
-            cases: 256,
-            failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
-            ..ProptestConfig::default()
-        }
-    }
-
-    proptest! {
-        #![proptest_config(config())]
-
-        /// Invariants: whatever is typed, the icons found keep the picker's
-        /// order, and typing more words never finds more.
-        #[test]
-        fn prop_more_words_find_fewer_icons(first in "[a-z]{0,4}", second in "[a-z]{0,4}") {
-            let one = names(&first);
-            let both = names(&format!("{first} {second}"));
-            prop_assert!(both.iter().all(|name| one.contains(name)));
-            let order: Vec<usize> = one
-                .iter()
-                .map(|name| CHOICES.iter().position(|c| c.name == *name).unwrap())
-                .collect();
-            prop_assert!(order.windows(2).all(|pair| pair[0] < pair[1]));
-        }
     }
 }

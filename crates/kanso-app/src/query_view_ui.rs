@@ -14,8 +14,6 @@ use gpui_kit::base::text::{MarkdownExtensions, MarkdownNode, MarkdownParseContex
 use gpui_kit::component::{h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use kanso_core::dates::Date;
-use kanso_core::properties::Value;
 use kanso_core::query_view::{self, ViewNote, ViewRow, ViewSpec};
 use kanso_store::Store;
 
@@ -463,19 +461,8 @@ fn header(labels: &[String], colors: &Colors) -> AnyElement {
         .into_any_element()
 }
 
-/// A cell as the app writes it: dates named, a boolean a check or a blank,
-/// lists comma-separated.
-pub fn cell_text(value: &Value) -> String {
-    match value {
-        Value::Bool(true) => "✓".into(),
-        Value::Bool(false) => String::new(),
-        Value::Date(date) => Date::parse_iso(date)
-            .map(Date::long_label)
-            .unwrap_or_else(|| date.clone()),
-        Value::List(items) => items.iter().map(cell_text).collect::<Vec<_>>().join(", "),
-        other => other.text(),
-    }
-}
+/// A cell as the app writes it (see `kanso_core::query_view::cell_text`).
+pub use kanso_core::query_view::cell_text;
 
 #[cfg(test)]
 mod tests {

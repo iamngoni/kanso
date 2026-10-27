@@ -27,6 +27,11 @@ sealed class AppearanceEvent with _$AppearanceEvent {
   const factory AppearanceEvent.followSystemChanged({required bool follow}) =
       AppearanceFollowSystemChangedEvent;
 
+  /// The person picked the icon theme [id] (`phosphor`); "lucide" is Kanso's
+  /// own icons.
+  const factory AppearanceEvent.iconThemePicked(String id) =
+      AppearanceIconThemePickedEvent;
+
   /// The person picked [font] for writing in the editor.
   const factory AppearanceEvent.editorFontChanged(KansoFontFamily font) =
       AppearanceEditorFontChangedEvent;
@@ -44,12 +49,9 @@ sealed class AppearanceEvent with _$AppearanceEvent {
   const factory AppearanceEvent.textSizeChanged(KansoTextSize size) =
       AppearanceTextSizeChangedEvent;
 
-  /// The person picked [size] for the text of the rendered preview.
-  const factory AppearanceEvent.previewTextSizeChanged(KansoTextSize size) =
-      AppearancePreviewTextSizeChangedEvent;
-
-  /// The person picked [renderer] to draw diagrams.
-  const factory AppearanceEvent.diagramRendererChanged(
-    DiagramRenderer renderer,
-  ) = AppearanceDiagramRendererChangedEvent;
+  /// The theme [id] installed from the gallery was installed again (updated)
+  /// or removed: a theme in use is drawn again from its new tokens, and one
+  /// that is gone is replaced, in any slot that used it, by Kanso's own.
+  const factory AppearanceEvent.themeChanged(String id) =
+      AppearanceThemeChangedEvent;
 }

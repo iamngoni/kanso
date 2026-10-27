@@ -9,11 +9,22 @@ publish = false
 
 [dependencies]
 async-channel.workspace = true
+# The ID of a share made in the app.
+fastrand.workspace = true
+kanso-collab.workspace = true
+# Unpadded base64url for a passkey's credential ID and the native plugin's
+# answers (MIT or Apache-2.0; already in the tree through kanso-sync).
+base64.workspace = true
+# The local time the Tasks place groups by (`tasks.rs`).
+chrono.workspace = true
 kanso-core.workspace = true
 # The highlighter (`highlight`, with the grammars for fenced code) is the
 # phones' editor colors.
 kanso-engine.workspace = true
-# Which gallery themes are disabled, and which names the gallery may use.
+# Importing: another app's export, or a folder of Markdown, and opening files.
+kanso-import.workspace = true
+# The theme gallery: the signed catalog, its checks and the installer, and the
+# updater's fetch (every redirect hop is held to the gallery's address rules).
 kanso-gallery.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true
@@ -22,11 +33,28 @@ kanso-store.workspace = true
 kanso-sync = { path = "../kanso-sync", default-features = false }
 # Whether Android has handed over its Context yet (`Library::open`) and the
 # phone's certificate store.
-kanso-tls.workspace = true
+kanso-tls = { workspace = true, features = ["ureq"] }
+kanso-update.workspace = true
+semver.workspace = true
+# The native plugin's answers are read with derive.
+serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+# The gallery's transport, with the phone's certificate store (the version
+# kanso-sync already uses).
+ureq = "3.4"
+# The pages a provider sign-in asks the shell to open are checked once more
+# before they leave (MIT or Apache-2.0; already in the tree through kanso-sync).
+url = "2.5"
 # The secret stores hand values back zeroed on drop.
 zeroize.workspace = true
+# Biometric unlock (`biometrics`): the X25519 pair, the key derivation and the
+# sealing of the kept lock keys, the same primitives `kanso-sync` uses.
+chacha20poly1305.workspace = true
+curve25519-dalek.workspace = true
+getrandom.workspace = true
+hkdf.workspace = true
+sha2.workspace = true
 
 # The Keychain: generic passwords, readable after the first unlock and never
 # leaving the device. Already in the iOS tree, through the certificate
@@ -57,6 +85,26 @@ kanso-mobile = { path = ".", features = ["test-support"] }
 kanso-engine = { workspace = true, features = ["test-support"] }
 proptest.workspace = true
 tempfile.workspace = true
-# Theme package fixtures are packed in the tests (tests/themes.rs).
-flate2.workspace = true
+# `TestAuthenticator`, a software passkey, plays the platform's sheet.
+kanso-sync = { path = "../kanso-sync", default-features = false, features = ["test-support"] }
+# `examples/e2e_peer.rs`: the other device in the end-to-end flows, which
+# shares notes and picks an identity for itself.
+kanso-collab.workspace = true
+getrandom.workspace = true
+# The gallery tests build an icon theme's bundle (already in the tree through
+# kanso-gallery; MIT/Apache-2.0).
+# The key a test signs its index with (BSD-3-Clause, already in the tree).
+ed25519-dalek = { version = "3", default-features = false, features = ["fast", "zeroize"] }
+flate2 = "1.1"
 tar = "0.4.45"
+
+# The command-line peer for the phone's end-to-end flows (scripts/mobile-sync-e2e.sh).
+# Its argument and server checks have unit tests, which `cargo test` runs.
+[[example]]
+name = "e2e_peer"
+test = true
+
+[build-dependencies]
+# build.rs reads the built-in icon themes' JSON to pick the SVGs the phone
+# draws.
+serde_json.workspace = true

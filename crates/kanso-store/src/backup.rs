@@ -42,6 +42,36 @@ fn daily_stamp(name: &str) -> Option<i64> {
         .ok()
 }
 
+/// What a backup file's name says.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BackupName {
+    /// When the backup was made, in milliseconds.
+    pub made_at_ms: i64,
+    /// Made on request ([`manual_backup_path`]), not by the daily schedule.
+    pub manual: bool,
+}
+
+/// What the file name `name` says of a backup; `None` for any other file.
+/// Pure.
+pub fn backup_name(name: &str) -> Option<BackupName> {
+    if let Some(made_at_ms) = daily_stamp(name) {
+        return Some(BackupName {
+            made_at_ms,
+            manual: false,
+        });
+    }
+    let stamp = name
+        .strip_prefix(PREFIX)?
+        .strip_prefix(MANUAL)?
+        .strip_suffix(SUFFIX)?
+        .parse::<i64>()
+        .ok()?;
+    Some(BackupName {
+        made_at_ms: stamp,
+        manual: true,
+    })
+}
+
 /// Where a backup made on request at `now_ms` goes: beside the daily ones,
 /// under a name their rotation passes over. It neither counts toward the
 /// daily backups kept nor stands in for the next one, and stays until
@@ -121,7 +151,7 @@ mod tests {
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
 
-    use super::{daily_name, daily_stamp, manual_backup_path};
+    use super::{BackupName, backup_name, daily_name, daily_stamp, manual_backup_path};
 
     fn config() -> ProptestConfig {
         ProptestConfig {
@@ -146,6 +176,22 @@ mod tests {
         );
         let manual = manual_backup_path(Path::new("/b"), 1_779_954_300_000);
         assert_eq!(name_of(&manual), "kanso-manual-1779954300000.db");
+        assert_eq!(
+            backup_name(name_of(&manual)),
+            Some(BackupName {
+                made_at_ms: 1_779_954_300_000,
+                manual: true
+            })
+        );
+        assert_eq!(
+            backup_name("kanso-5.db"),
+            Some(BackupName {
+                made_at_ms: 5,
+                manual: false
+            })
+        );
+        assert_eq!(backup_name("kanso-manual-.db"), None);
+        assert_eq!(backup_name("kanso-manual-x.db"), None);
         assert_eq!(daily_stamp(name_of(&manual)), None);
         for other in [
             "kanso.db",
@@ -170,6 +216,14 @@ mod tests {
             let manual = manual_backup_path(Path::new(&dir), stamp);
             prop_assert_eq!(daily_stamp(name_of(&manual)), None);
             prop_assert_eq!(manual.parent(), Some(Path::new(&dir)));
+            prop_assert_eq!(
+                backup_name(name_of(&manual)),
+                Some(BackupName { made_at_ms: stamp, manual: true })
+            );
+            prop_assert_eq!(
+                backup_name(&daily_name(stamp)),
+                Some(BackupName { made_at_ms: stamp, manual: false })
+            );
         }
     }
 }

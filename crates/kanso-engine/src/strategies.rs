@@ -5,7 +5,7 @@
 use kanso_sync::{QuotaKind, SignOutReason, Step, SyncProblem};
 use proptest::prelude::*;
 
-use crate::sync::SyncState;
+use crate::sync::{AccountState, SyncState};
 
 pub fn problem() -> impl Strategy<Value = SyncProblem> {
     prop_oneof![
@@ -32,6 +32,20 @@ pub fn step() -> impl Strategy<Value = Step> {
         Step::Contacting,
         Step::Saving,
     ])
+}
+
+pub fn account() -> impl Strategy<Value = AccountState> {
+    prop_oneof![
+        Just(AccountState::SignedOut),
+        "[a-z]{3,12}".prop_map(|username| AccountState::SignedIn { username }),
+        "[a-z]{3,12}".prop_map(|username| AccountState::SignedInLocked { username }),
+        (
+            "[a-z]{3,12}",
+            prop::sample::select(SignOutReason::ALL.to_vec())
+        )
+            .prop_map(|(username, reason)| AccountState::SessionEnded { username, reason }),
+        step().prop_map(AccountState::Busy),
+    ]
 }
 
 pub fn sync_state() -> impl Strategy<Value = SyncState> {
@@ -152,7 +166,7 @@ pub mod markdown {
             "python" => &["def f(x):\n    return x + 1\n", "# comment\nx = 'a'\n"],
             "javascript" => &["const a = `b`;\nfunction f() { return 1; }\n"],
             "typescript" => &["let a: number = 1;\ninterface A { b: string }\n"],
-            "tsx" => &["const a = <div>{b}</div>;\n"],
+            "tsx" => &["const a: number = <div>{b}</div>;\n"],
             "json" => &["{\"a\": [1, true, null]}\n"],
             "bash" => &["echo \"$A\" | grep -v x\nif [ -f a ]; then ls; fi\n"],
             "html" => &["<div class=\"a\">b</div>\n", "<!-- c -->\n"],

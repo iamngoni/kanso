@@ -10,7 +10,8 @@ sealed class ThemePickerEvent with _$ThemePickerEvent {
   /// themes.
   const factory ThemePickerEvent.started() = ThemePickerStartedEvent;
 
-  /// The person asked to import a theme: pick a file, then import it.
-  const factory ThemePickerEvent.importRequested() =
-      ThemePickerImportRequestedEvent;
+  /// A theme was installed from the gallery or removed: read the installed
+  /// themes again, with the built-in ones left as they are.
+  const factory ThemePickerEvent.installedChanged() =
+      ThemePickerInstalledChangedEvent;
 }

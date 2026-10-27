@@ -20,6 +20,8 @@ use kanso_core::dates::{Date, DateTime};
 use kanso_core::links::{code_ranges, plain_line};
 use kanso_core::tasks::{Due, TaskGroup, due_label, due_spans, due_token, task_group, task_items};
 
+pub mod board;
+mod board_model;
 pub mod reminders;
 
 /// The scheme of the links due dates become in the preview.

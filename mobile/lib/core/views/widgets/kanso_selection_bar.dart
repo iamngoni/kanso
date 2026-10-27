@@ -24,6 +24,7 @@ class KansoSelectionBar extends StatelessWidget {
     this.pinned = false,
     this.onPin,
     this.onTrash,
+    this.onMore,
     this.backgroundColor,
     super.key,
   });
@@ -37,6 +38,9 @@ class KansoSelectionBar extends StatelessWidget {
   final VoidCallback? onPin;
   final VoidCallback onMove;
   final VoidCallback? onTrash;
+
+  /// What else can be done with the notes chosen, as a menu.
+  final VoidCallback? onMore;
   final Color? backgroundColor;
 
   @override
@@ -79,6 +83,12 @@ class KansoSelectionBar extends StatelessWidget {
             icon: KansoIcons.trash,
             semanticLabel: l10n.noteListTrash,
             onPressed: trash,
+          ),
+        if (onMore != null)
+          KansoIconButton(
+            icon: KansoIcons.ellipsis,
+            semanticLabel: l10n.noteActionMore,
+            onPressed: onMore,
           ),
       ],
     );

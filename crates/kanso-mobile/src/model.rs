@@ -7,6 +7,8 @@
 //! milliseconds since the Unix epoch (`i64`), colors are `0xRRGGBB` (`u32`),
 //! and text offsets are UTF-16 code units, the unit Flutter counts in.
 
+use crate::sync_model::{QuotaLimit, SignOutReasonKind, SyncAccount};
+
 /// One note in a list.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoteRow {
@@ -85,6 +87,18 @@ pub enum ListPlace {
     Tag {
         id: String,
     },
+    /// Notes with this status (`active`, `onHold`, ...), as the desktop's
+    /// status places list them. A locked note is never listed here: its
+    /// status is its content.
+    Status {
+        status: String,
+    },
+    /// Notes with a tag at or under this level of the nested tag tree
+    /// (`work` lists `work` and `work/acme`). A locked note is never listed
+    /// here, as for [`ListPlace::Tag`].
+    TagPath {
+        path: String,
+    },
     Trash,
 }
 
@@ -141,7 +155,7 @@ pub struct NoteList {
 }
 
 /// The counts the library's places show.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LibraryOverview {
     /// Notes outside the trash.
     pub all: u32,
@@ -149,6 +163,36 @@ pub struct LibraryOverview {
     /// Notes changed in the last seven days.
     pub recent: u32,
     pub trash: u32,
+    /// Notes with each status, for Active, On hold, Completed and Dropped
+    /// in that order (a note with no status is in none of them).
+    pub by_status: Vec<StatusCount>,
+}
+
+/// How many notes have a status.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StatusCount {
+    /// `active`, `onHold`, `completed` or `dropped`.
+    pub status: String,
+    pub count: u32,
+}
+
+/// A status a note can be set to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StatusChoice {
+    /// The value `NoteChange::SetStatus` and `ListPlace::Status` take:
+    /// `none`, `active`, `onHold`, `completed` or `dropped`.
+    pub status: String,
+    /// What the desktop calls it: "None", "Active", "On hold", ...
+    pub label: String,
+}
+
+/// A tag color the desktop offers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ColorChoice {
+    /// The name `Library::set_tag_color` takes (`red`, `default`, ...).
+    pub name: String,
+    /// `0xRRGGBB`.
+    pub rgb: u32,
 }
 
 /// What is done to every note in a change.
@@ -160,6 +204,29 @@ pub enum NoteChange {
     Move { notebook_id: String },
     /// Into the trash.
     Trash,
+    /// Sets the status (`none`, `active`, `onHold`, `completed`, `dropped`).
+    /// A locked note is left out: its status is its content.
+    SetStatus { status: String },
+    /// Adds the tag (its ID) to each note that hasn't it. A locked note is
+    /// left out.
+    AddTag { tag_id: String },
+    /// Takes the tag (its ID) off each note that has it. A locked note is
+    /// left out.
+    RemoveTag { tag_id: String },
+    /// Moves notes that are in the trash into the first notebook, as the
+    /// desktop's Restore does. Notes outside the trash are left alone.
+    Restore,
+    /// Deletes notes in the trash permanently. It can't be undone.
+    DeleteForever,
+}
+
+/// A link to copy: the text for the clipboard and what to tell the person.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CopiedLink {
+    /// A wiki-link (`[[Title]]`) or Kanso's own link by ID.
+    pub text: String,
+    /// "Link copied." or why a Kanso link was copied instead.
+    pub message: String,
 }
 
 /// What a search looks in.
@@ -195,13 +262,143 @@ pub enum SortKey {
 }
 
 /// A new note.
+///
+/// Where it goes is decided in `kanso_engine::list::new_note_target`, which
+/// the desktop's New Note asks too: `notebook_id` if given, else the notebook
+/// `place` is, else `preferred_notebook_id` if that exists and isn't locked,
+/// else the first notebook (made if there is none).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NewNote {
-    /// The notebook it goes in; `None` is the first notebook (made if there
-    /// is none). A locked notebook takes it sealed, and needs the lock open.
+    /// The notebook it goes in, whatever else is given; it must exist
+    /// ([`KansoError::NotFound`]). A locked notebook takes it sealed, and
+    /// needs the lock open.
     pub notebook_id: Option<String>,
     pub title: String,
     pub body: String,
+    /// The list it is made from: a notebook's list is that notebook, a tag's
+    /// list tags the note, Pinned pins it. Trash and the rest leave it to the
+    /// preferred notebook.
+    pub place: Option<ListPlace>,
+    /// The notebook to use when `place` doesn't name one (the Default
+    /// notebook setting). Unknown and locked ones are ignored.
+    pub preferred_notebook_id: Option<String>,
+    /// Tags (their IDs) the note starts with, besides the place's.
+    pub tags: Vec<String>,
+    /// Pinned from the start (a list narrowed to pinned notes).
+    pub pinned: bool,
+}
+
+/// What a change to several notes did.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Changed {
+    /// How many notes were written (none when they were already as asked).
+    pub count: u32,
+    /// The ticket that takes the change back (`Library::undo`); none when
+    /// nothing was written.
+    pub undo: Option<u64>,
+    /// What the notice says, like the desktop's ("Moved 3 notes to the
+    /// trash."); empty when nothing was written.
+    pub message: String,
+}
+
+/// What ticking (or clearing) a task did.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Ticked {
+    /// The note was written with revision `rev`; `undo` is the ticket that
+    /// takes the tick back (`Library::undo`); `message` is what the notice
+    /// says, like the desktop's ("Ticked off “Call Sam”").
+    Changed {
+        rev: String,
+        undo: u64,
+        message: String,
+    },
+    /// The task already was that way.
+    Unchanged,
+    /// The task isn't in the note any more: its text changed since it was
+    /// read.
+    Missing,
+}
+
+/// What the Tasks place lists.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TaskListQuery {
+    /// Only tasks in this notebook's notes; `None` is every notebook.
+    pub notebook_id: Option<String>,
+    /// Done tasks too, in Completed.
+    pub show_done: bool,
+    /// Keys ([`TaskItem::key`]) of tasks ticked here since the place opened:
+    /// they stay in the group they were in, struck through, rather than
+    /// vanish under the finger, until the place is opened again.
+    pub kept: Vec<String>,
+}
+
+/// Where a task belongs, relative to now.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TaskGroupKind {
+    /// Not done, and its day (or its time today) has passed.
+    Overdue,
+    /// Not done and due today, at or after now.
+    Today,
+    /// Not done and due after today.
+    Upcoming,
+    /// Not done and without a date.
+    NoDate,
+    /// Done.
+    Done,
+}
+
+/// How a due chip is drawn: the theme's color is the shell's choice by tone.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DueTone {
+    /// Upcoming: quiet.
+    Plain,
+    /// Due today.
+    Today,
+    /// Past, and the task isn't done: a warm red.
+    Overdue,
+    /// The task is done: muted.
+    Done,
+}
+
+/// A task of the Tasks place.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskItem {
+    /// Identifies the task for [`TaskListQuery::kept`] and for lists.
+    pub key: String,
+    pub note_id: String,
+    pub note_title: String,
+    pub notebook_id: String,
+    /// The notebook's name; empty for a note in none.
+    pub notebook_name: String,
+    /// The line (0-based) it is on in the note's text.
+    pub line: u32,
+    /// Its words as a list shows them: the due date taken out.
+    pub text: String,
+    /// Its words as written, due date included: what `Library::set_task`
+    /// is handed.
+    pub source_text: String,
+    pub checked: bool,
+    /// The due chip's words ("Tomorrow", "Overdue · Yesterday",
+    /// "Fri 25 Oct 09:00"); `None` for a task without a date.
+    pub due_label: Option<String>,
+    /// The chip's tone; `None` for a task without a date.
+    pub due_tone: Option<DueTone>,
+}
+
+/// A group of the Tasks place, with its tasks.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskSection {
+    pub group: TaskGroupKind,
+    /// "Overdue", "Today", "Upcoming", "No date", "Completed".
+    pub label: String,
+    pub items: Vec<TaskItem>,
+}
+
+/// The Tasks place: the groups that have tasks, in the desktop's order
+/// (Overdue, Today, Upcoming, No date, Completed).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TaskBoard {
+    pub groups: Vec<TaskSection>,
 }
 
 /// A write's result: the document and its new revision.
@@ -229,6 +426,8 @@ pub struct NotebookRow {
     pub role: Option<NotebookRole>,
     /// How many notebooks it is inside; 0 at the top.
     pub depth: u32,
+    /// Another notebook is inside it (the next row is deeper).
+    pub has_children: bool,
 }
 
 /// A tag in the sidebar.
@@ -306,6 +505,20 @@ pub enum LockReason {
     Manual,
     /// The auto-lock time passed.
     Idle,
+    /// The app went to the background.
+    Background,
+}
+
+/// Where the lock session stands, for the screens that offer the lock.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LockStatus {
+    /// Some note or notebook is locked (here or on another device), so a lock
+    /// password exists and a note can be locked with it.
+    pub has_lock_password: bool,
+    /// The lock password has opened the locked notes.
+    pub unlocked: bool,
+    /// Biometrics can open the locked notes on this phone.
+    pub biometrics_on: bool,
 }
 
 /// The lock session changed.
@@ -363,6 +576,21 @@ pub struct SyncStatus {
     /// Conflicts in the last sync; the losing versions are in history.
     pub conflicts: u32,
     pub problem: Option<SyncProblemKind>,
+    /// The title of the first note the last sync's conflicts were in, when
+    /// that note is still here.
+    pub conflicted_title: Option<String>,
+    /// When a pause ends (`Paused`, `ServerBusy`, `BackOff`).
+    pub resume_at_ms: Option<i64>,
+    /// How many items were skipped (`SomeItemsSkipped`).
+    pub skipped_count: u32,
+    /// What is full (`AccountFull`).
+    pub quota: Option<QuotaLimit>,
+    /// Why the device was signed out: the problem's, or the session's that
+    /// ended.
+    pub signed_out_reason: Option<SignOutReasonKind>,
+    /// Where the account stands: signed out, signed in, waiting to be
+    /// unlocked or signed out by the server.
+    pub account: SyncAccount,
 }
 
 /// What `sync_now` did.
@@ -464,6 +692,33 @@ pub struct BuiltinTheme {
     pub tokens: ThemeTokens,
 }
 
+/// An icon the phone draws, in an icon theme.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ThemedIcon {
+    /// The icon's name in the Lucide set, as the app names it
+    /// (`circle-question-mark`).
+    pub name: String,
+    /// The theme's SVG for it; `None` where the theme leaves the icon out
+    /// and Kanso's own Lucide icon is drawn.
+    pub svg: Option<String>,
+}
+
+/// A built-in icon theme: who made it and a few of its icons.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IconThemeRow {
+    /// The theme's folder name: `lucide`, `phosphor`.
+    pub id: String,
+    pub name: String,
+    /// Empty when the theme names none.
+    pub author: String,
+    /// An SPDX licence identifier; empty when the theme names none.
+    pub license: String,
+    pub source: Option<String>,
+    pub description: Option<String>,
+    /// The icons that show what the theme looks like, in a fixed order.
+    pub preview: Vec<ThemedIcon>,
+}
+
 /// A run of a note's source in a theme's colors. Text between runs, and any
 /// attribute a run leaves `None`, is drawn in the theme's plain text.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -493,4 +748,549 @@ pub struct SvgRow {
     pub height: f32,
     /// For inline math: how far below the top the text's baseline falls.
     pub baseline: Option<f32>,
+}
+
+// MARK: Import
+
+/// One place notes can be imported from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportSource {
+    /// The name the engine takes (`Library::import`'s `kind`).
+    pub kind: String,
+    pub label: String,
+    /// What to pick, in a sentence.
+    pub hint: String,
+    /// Whether the source can be a file, or a folder.
+    pub picks_files: bool,
+    pub picks_folders: bool,
+    /// The file extensions a file picker offers, lowercase, no dot.
+    pub extensions: Vec<String>,
+}
+
+/// The stage an import is in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImportPhase {
+    /// Reading every note once to learn titles and paths.
+    Reading,
+    Notebooks,
+    Notes,
+}
+
+/// Where an import is.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImportProgress {
+    /// `None` before the import has said (it is starting).
+    pub phase: Option<ImportPhase>,
+    /// What the desktop's bar says, e.g. "Notes and attachments… 3 of 12".
+    pub label: String,
+    pub done: u64,
+    /// 0 while not known yet.
+    pub total: u64,
+    /// 0 to 1; 0 while the total is not known.
+    pub fraction: f64,
+}
+
+/// What a source holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ImportFound {
+    pub notes: u64,
+    pub notebooks: u64,
+    pub tags: u64,
+    pub attachments: u64,
+}
+
+/// What a plan or an import came to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportSummary {
+    /// The source kind it ran for.
+    pub kind: String,
+    /// True for a plan: nothing was written.
+    pub dry_run: bool,
+    pub found: ImportFound,
+    /// Nothing to import: the source holds no notes.
+    pub empty: bool,
+    /// The desktop's summary lines.
+    pub lines: Vec<String>,
+    /// What was left out and why, a line per reason.
+    pub skipped: Vec<String>,
+    /// Empty when everything was imported, else a header and the first few.
+    pub rejected: Vec<String>,
+    /// The first note imported, to open it.
+    pub first_note: Option<String>,
+}
+
+/// What an import tells the shell: progress, then one of the other two.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ImportEvent {
+    Progress(ImportProgress),
+    Done(ImportSummary),
+    /// The import didn't run; a sentence for a person.
+    Failed(String),
+}
+
+/// A file the system handed over to open.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OpenedFile {
+    /// Where the file can be read now.
+    pub path: String,
+    /// Its name as the person knows it.
+    pub name: String,
+    /// The platform's own name for the document (an Android content URI)
+    /// when `path` is a temporary copy; `None` when `path` is the real,
+    /// stable file.
+    pub identity: Option<String>,
+}
+
+/// What opening files came to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OpenedDocuments {
+    /// The last note opened, to show.
+    pub note_id: Option<String>,
+    /// What went wrong with the others, a sentence each.
+    pub problems: Vec<String>,
+}
+
+/// What saving the shared items waiting in the inbox folder did
+/// ([`Library::save_drops`](crate::Library::save_drops)).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DropsSaved {
+    /// The IDs of the notes made, oldest item first. A note already made by
+    /// an earlier try is here too.
+    pub notes: Vec<String>,
+    /// What was left out or refused, a sentence each: a file that couldn't
+    /// be attached, an item discarded because the Inbox is locked.
+    pub problems: Vec<String>,
+    /// Items kept to try again, because saving them failed for a reason that
+    /// may pass.
+    pub kept: u32,
+}
+
+/// A local date and time of day, as the phone's clock shows it, to the
+/// second. The library never reads a clock for a calendar day: the app
+/// passes the day it means.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LocalTime {
+    pub year: i32,
+    /// 1 to 12.
+    pub month: u32,
+    /// 1 to 31.
+    pub day: u32,
+    /// 0 to 23.
+    pub hour: u32,
+    pub minute: u32,
+    pub second: u32,
+}
+
+/// Something shared from inside the app (photos, the camera, a PDF), to be
+/// saved as a note in the Inbox ([`Library::capture`](crate::Library::capture)).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Share {
+    /// A title for the note, if there is one.
+    pub subject: Option<String>,
+    pub text: Option<String>,
+    /// A web address.
+    pub url: Option<String>,
+    pub files: Vec<ShareFile>,
+}
+
+/// A file in a [`Share`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ShareFile {
+    /// The file's name, as the person knows it.
+    pub name: String,
+    /// What the app that made the file says it is; only a hint, the file's
+    /// extension and first bytes decide.
+    pub content_type: Option<String>,
+    pub bytes: Vec<u8>,
+}
+
+/// What saving a [`Share`] made.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CaptureOutcome {
+    /// The note's ID.
+    pub note_id: String,
+    /// What was left out and why, a sentence each.
+    pub problems: Vec<String>,
+}
+
+// MARK: The editing session
+
+/// One change to the text, as the shell's text field made it. Offsets are
+/// UTF-16 units of the visible text (a note's front matter is not in it).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TextChange {
+    /// The version of the text this change was made against. A change made
+    /// against an older text is refused.
+    pub base_version: u64,
+    /// The units replaced, in the text before the change.
+    pub start: u32,
+    pub end: u32,
+    /// What they became.
+    pub text: String,
+    /// The selection after the change.
+    pub selection: Range16,
+    /// The text an input method is composing after the change, if any.
+    pub composing: Option<Range16>,
+}
+
+/// A replacement of units `start..end` of the text before an outcome by
+/// `text`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Replacement {
+    pub start: u32,
+    pub end: u32,
+    pub text: String,
+}
+
+/// Whether undo and redo have a step to take.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct HistoryState {
+    pub can_undo: bool,
+    pub can_redo: bool,
+}
+
+/// What an edit, a command, an undo or a redo did to the session's text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditOutcome {
+    /// The version of the text now; the next change is made against it.
+    pub version: u64,
+    /// What the shell's text must have done to it to be the session's text:
+    /// `None` when it already is (the shell typed the change itself).
+    pub replace: Option<Replacement>,
+    /// The selection the text has now.
+    pub selection: Range16,
+    pub history: HistoryState,
+}
+
+/// Where the caret is, for the shell's keys and popups. Answered with every
+/// selection, so it is cheap.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EditorContext {
+    pub in_list: bool,
+    pub in_table: bool,
+    pub in_code: bool,
+    /// The caret is in an open `[[…` or `#tag`: a completion is worth asking
+    /// for.
+    pub completion_here: bool,
+    pub history: HistoryState,
+}
+
+/// The text formats of the accessory bar.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FormatKind {
+    Bold,
+    Italic,
+    Strikethrough,
+    Code,
+    Bulleted,
+    Numbered,
+    Task,
+    Quote,
+    Link,
+    Image,
+    Table,
+    Rule,
+}
+
+/// A change the editor decides on, from a key or a button.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EditCommand {
+    /// Enter: continues a table or a list. `plain` types the newline as it
+    /// is (Shift-Enter).
+    Enter {
+        plain: bool,
+    },
+    /// Tab (Shift-Tab, `out`): moves a table cell or a list item, else
+    /// indents.
+    Tab {
+        out: bool,
+    },
+    Format {
+        format: FormatKind,
+    },
+    /// The heading button: no heading, H1, H2, H3, none.
+    CycleHeading,
+    /// `[[` and `]]` around the selection.
+    WikiLink,
+    /// Puts `text` in place of `range` (UTF-16 units): a completion chosen.
+    Insert {
+        range: Range16,
+        text: String,
+    },
+}
+
+/// Why a save is or isn't done.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SaveState {
+    /// Everything typed is in the library, as revision `rev`, at `at_ms`.
+    Saved { rev: String, at_ms: i64 },
+    /// Typing waits for its turn to be saved.
+    Pending,
+    /// The note was changed (or deleted) elsewhere while it had unsaved
+    /// typing; nothing is saved until the person chooses.
+    Conflict { deleted: bool },
+    /// The last save failed; `message` says why.
+    Failed { message: String },
+}
+
+/// A note open for editing, as of one version of its text.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EditorSnapshot {
+    pub id: String,
+    pub title: String,
+    /// The visible text: the note without its front matter.
+    pub text: String,
+    pub rev: String,
+    pub lock: LockState,
+    pub properties: Vec<Property>,
+    pub version: u64,
+    /// The selection in the visible text, in UTF-16 units: where the caret
+    /// is now, after a merge moved the text around it.
+    pub selection: Range16,
+    pub history: HistoryState,
+    pub save: SaveState,
+}
+
+/// Something that happened to an open note that the shell didn't ask for.
+#[derive(Clone, Debug, PartialEq)]
+pub enum EditorEvent {
+    /// Typing was saved.
+    Saved { rev: String, at_ms: i64 },
+    /// The note was changed elsewhere while it had unsaved typing: the
+    /// person chooses which version to keep. `deleted` when it was deleted.
+    Incoming { deleted: bool },
+    /// The note was changed elsewhere and had no unsaved typing: this is
+    /// its text now, and the history starts over.
+    Reloaded { snapshot: EditorSnapshot },
+    /// The session is over: the note was locked, deleted, or discarded.
+    /// Nothing of its text is kept.
+    Closed,
+    /// A save failed.
+    Failed { message: String },
+}
+
+/// A run of the visible text in a theme's colors.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditorRun {
+    /// `[start, end)` in UTF-16 units of the visible text.
+    pub range: Range16,
+    pub color: Option<u32>,
+    pub italic: Option<bool>,
+    pub weight: Option<u16>,
+    /// Code, code blocks, addresses, HTML and front matter: where a spell
+    /// checker's complaints are not shown.
+    pub quiet: bool,
+}
+
+/// The runs of a range of the text, as of one version of it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunBatch {
+    pub version: u64,
+    pub runs: Vec<EditorRun>,
+}
+
+/// What a completion completes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompletionKind {
+    /// `[[` and a title.
+    Wiki,
+    /// `#` and a tag.
+    Tag,
+}
+
+/// One choice of a completion.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompletionItem {
+    pub label: String,
+    /// A note's notebook, as a path (`Projects / Kanso`).
+    pub detail: Option<String>,
+    /// The part of the label to highlight, in UTF-16 units of the label.
+    pub highlight: Option<Range16>,
+    /// What replaces [`Completion::replace`] when it is chosen.
+    pub insert: String,
+    /// The choice that writes a link to a note that doesn't exist yet.
+    pub new_note: bool,
+}
+
+/// What the caret is completing.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Completion {
+    pub kind: CompletionKind,
+    /// The units of the text a choice replaces.
+    pub replace: Range16,
+    pub items: Vec<CompletionItem>,
+}
+
+/// Where a link in the text leads.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LinkTarget {
+    Note {
+        id: String,
+    },
+    /// A link to a title no note has.
+    NewNote {
+        title: String,
+    },
+    Web {
+        url: String,
+    },
+}
+
+/// How the preview page is set, beyond the palette.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PreviewOptions {
+    /// The body face, when it isn't the system's.
+    pub font: Option<String>,
+    /// The monospaced face, when it isn't the system's.
+    pub mono: Option<String>,
+    /// The body text size, in points (16 is the preview's).
+    pub size: f32,
+    /// How far local time is ahead of UTC, in seconds: due chips say
+    /// "Today" and "Overdue" by the phone's day.
+    pub utc_offset_secs: i32,
+    /// How code blocks are colored: the theme's syntax styles (the
+    /// `syntax` of [`ThemeTokens`]). Empty leaves code uncolored.
+    pub code: Vec<SyntaxStyleRow>,
+}
+
+impl Default for PreviewOptions {
+    fn default() -> Self {
+        PreviewOptions {
+            font: None,
+            mono: None,
+            size: 16.,
+            utc_offset_secs: 0,
+            code: Vec::new(),
+        }
+    }
+}
+
+/// A note as a page to print or keep, and the name a file of it gets.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExportedPage {
+    /// The whole page: one self-contained HTML file.
+    pub html: String,
+    /// The file name it is written as, from the note's title.
+    pub file_name: String,
+}
+
+/// What a tapped address in the preview is. Anything the page doesn't emit,
+/// and anything unsafe, is [`PreviewLink::Nothing`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PreviewLink {
+    /// A note that exists and isn't in the trash (a locked one is a valid
+    /// target: it opens to its lock). `heading` is the heading named after
+    /// `#` in a wiki-link; `anchor` is that heading's `id` in the note's
+    /// page, when the note can be read now and has it.
+    Note {
+        id: String,
+        heading: Option<String>,
+        anchor: Option<String>,
+    },
+    /// A wiki-link to a note that doesn't exist yet: its title.
+    NewNote { title: String },
+    /// An inline `#tag`: its name (`work/clients`).
+    Tag { name: String },
+    /// A place in the same page: the heading's `id`.
+    Heading { id: String },
+    /// A web or mail address to hand to the system (`http`, `https`,
+    /// `mailto` only).
+    Web { url: String },
+    /// An attachment, to open or share.
+    Attachment {
+        id: String,
+        name: String,
+        content_type: String,
+        size: u64,
+    },
+    /// A task box: its place in the note's task list.
+    Task { index: u32 },
+    /// A code block's copy button: its place among the note's code blocks.
+    CopyCode { index: u32 },
+    /// A due-date chip.
+    Due,
+    /// Nothing to do.
+    Nothing,
+}
+
+/// An attachment's name, type and bytes, for a viewer or the share sheet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AttachmentFile {
+    pub id: String,
+    pub name: String,
+    pub content_type: String,
+    pub bytes: Vec<u8>,
+}
+
+/// What draws Mermaid diagrams (Settings › Appearance › Diagrams on the
+/// desktop).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DiagramRenderer {
+    /// Pele, Obsidian's renderer: the default.
+    #[default]
+    Pele,
+    /// Kanso's own.
+    Kanso,
+}
+
+/// A notebook icon the picker offers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IconChoice {
+    /// What the notebook keeps: the Lucide icon's name.
+    pub name: String,
+    /// What the picker's tooltip says.
+    pub label: String,
+}
+
+/// Which notebooks the sidebar shows open, in what the phone keeps between
+/// runs (it mirrors the engine's `BookFolds`). Start from the default.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FoldState {
+    /// Notebooks opened with their arrows, by ID.
+    pub open: Vec<String>,
+    /// The notebook that was showing when notebooks around it were folded.
+    pub folded_at: Option<String>,
+    /// Those folded notebooks; they open around another notebook again.
+    pub folded: Vec<String>,
+}
+
+/// A notebook row that shows in the sidebar.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VisibleNotebook {
+    pub row: NotebookRow,
+    /// Notebooks inside it show (always false when it is not a `parent`).
+    pub open: bool,
+    /// Another notebook is inside it.
+    pub parent: bool,
+}
+
+/// One row of the nested tag tree.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TagTreeRow {
+    /// The full path, as `ListPlace::TagPath` takes it.
+    pub path: String,
+    /// The last level, which the row shows.
+    pub label: String,
+    /// The tag with exactly this name, if there is one; a leaf lists as
+    /// `ListPlace::Tag { id }`, a level as `ListPlace::TagPath { path }`.
+    pub tag_id: Option<String>,
+    /// Notes with this tag or any tag inside it, each counted once.
+    pub count: u32,
+    pub depth: u32,
+    /// Other levels are inside it.
+    pub parent: bool,
+    /// Its levels show (always false when it is not a `parent`).
+    pub open: bool,
+}
+
+/// The sidebar's tags: chips for tags that aren't nested, and a tree for
+/// those that are.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TagPlaces {
+    /// The chips shown, in name order: all of them, or the most used few.
+    pub chips: Vec<TagRow>,
+    /// There are more chips than the few shown by default ("…").
+    pub more: bool,
+    /// The tree's rows that show, top to bottom.
+    pub tree: Vec<TagTreeRow>,
 }

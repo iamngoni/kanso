@@ -2,6 +2,8 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,8 +17,10 @@ import '../../../core/state/list_navigation/list_navigation_bloc.dart';
 import '../../../core/state/navigation_history/navigation_history_bloc.dart';
 import '../../../core/utils/neighbour_note.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
+import '../../../library/views/widgets/new_notebook_sheet.dart';
 import '../../models/data/kanso_intent.dart';
 import '../../state/library_pane/library_pane_bloc.dart';
+import '../../state/note_creation/note_creation_bloc.dart';
 import '../../utils/kanso_shortcut_bindings.dart';
 
 /// The keyboard shortcuts for moving around on a tablet (see
@@ -92,6 +96,26 @@ class KansoShortcuts extends StatelessWidget {
           ),
           PreviousNoteIntent: CallbackAction<PreviousNoteIntent>(
             onInvoke: (_) => stepNote(context, forward: false),
+          ),
+          NewNoteIntent: CallbackAction<NewNoteIntent>(
+            onInvoke: (_) {
+              final here = location;
+              final pinned =
+                  here is PlaceLocation && here.place is ListPlace_Pinned;
+              context.read<NoteCreationBloc>().add(
+                NoteCreationEvent.requested(
+                  here is PlaceLocation ? here.place : const ListPlace.all(),
+                  pinned: pinned,
+                ),
+              );
+              return null;
+            },
+          ),
+          NewNotebookIntent: CallbackAction<NewNotebookIntent>(
+            onInvoke: (_) {
+              unawaited(NewNotebookSheet.open(context));
+              return null;
+            },
           ),
           PinNoteIntent: CallbackAction<PinNoteIntent>(
             onInvoke: (_) {

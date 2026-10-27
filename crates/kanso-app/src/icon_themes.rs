@@ -218,7 +218,7 @@ pub fn builtins() -> &'static [Arc<IconTheme>] {
         let mut themes: Vec<Arc<IconTheme>> = BUILTIN_FILES
             .iter()
             .filter_map(|(id, json, files)| {
-                let file = match IconThemeFile::parse(json) {
+                let file = match icon_theme_file::parse(json) {
                     Ok(file) => file,
                     Err(err) => {
                         // A test fails on this; a release never ships it.
@@ -713,7 +713,7 @@ mod tests {
     #[test]
     fn builtin_icon_themes_load() {
         for (id, json, files) in BUILTIN_FILES {
-            let file = IconThemeFile::parse(json).unwrap_or_else(|err| panic!("{id} {err}"));
+            let file = icon_theme_file::parse(json).unwrap_or_else(|err| panic!("{id} {err}"));
             let mut notices = Vec::new();
             let theme = load(
                 id,

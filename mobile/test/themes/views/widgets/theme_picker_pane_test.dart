@@ -15,25 +15,23 @@ import 'package:kanso/core/models/data/theme_file_notice.dart';
 import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_check_badge.dart';
 import 'package:kanso/core/views/widgets/kanso_switch.dart';
-import 'package:kanso/themes/models/data/theme_card_kind.dart';
+import 'package:kanso/themes/state/theme_gallery/theme_gallery_bloc.dart';
 import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 import 'package:kanso/themes/views/widgets/installed_theme_card.dart';
 import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 
 import '../../../helpers/close_bloc_later.dart';
-import '../../../helpers/fixture_file_picker_repository.dart';
-import '../../../helpers/fixture_themes_repository.dart';
+import '../../../helpers/fixture_gallery_repository.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
-import '../../../helpers/theme_tokens.dart';
+import '../../../helpers/theme_picker_blocs.dart';
 
 class _Picker {
-  _Picker(this.appearance, this.picker, this.themes, this.files);
+  _Picker(this.appearance, this.picker, this.gallery);
 
   final AppearanceBloc appearance;
   final ThemePickerBloc picker;
-  final FixtureThemesRepository themes;
-  final FixtureFilePickerRepository files;
+  final ThemeGalleryBloc gallery;
 }
 
 List<InstalledTheme> _themes() => <InstalledTheme>[
@@ -52,26 +50,30 @@ List<InstalledTheme> _themes() => <InstalledTheme>[
 
 Future<_Picker> _pump(
   WidgetTester tester, {
-  FixtureThemesRepository? themes,
-  FixtureFilePickerRepository? files,
+  MockRendererRepository? renderer,
+  FixtureGalleryRepository? themes,
 }) async {
-  final repository = themes ?? FixtureThemesRepository(themes: _themes());
-  final picker = files ?? FixtureFilePickerRepository();
+  final fixtures = themes ?? emptyGallery();
   final appearance = AppearanceBloc(
     ForgetfulPreferencesRepository(),
-    repository,
+    RealThemesRenderer(),
+    fixtures,
   );
   closeBlocLater(appearance);
-  final pickerBloc = ThemePickerBloc(repository, picker)
+  final picker = ThemePickerBloc(renderer ?? RealThemesRenderer(), fixtures)
     ..add(const ThemePickerEvent.started());
-  closeBlocLater(pickerBloc);
+  closeBlocLater(picker);
+  final gallery = ThemeGalleryBloc(fixtures)
+    ..add(const ThemeGalleryEvent.started());
+  closeBlocLater(gallery);
   appearance.add(const AppearanceEvent.started());
   await pumpRouted(
     tester,
     MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: appearance),
-        BlocProvider<ThemePickerBloc>.value(value: pickerBloc),
+        BlocProvider<ThemePickerBloc>.value(value: picker),
+        BlocProvider<ThemeGalleryBloc>.value(value: gallery),
       ],
       child: const ThemePickerPane(),
     ),
@@ -80,7 +82,7 @@ Future<_Picker> _pump(
   for (var i = 0; i < 4; i++) {
     await tester.pump();
   }
-  return _Picker(appearance, pickerBloc, repository, picker);
+  return _Picker(appearance, picker, gallery);
 }
 
 Finder _cards(ThemeCardKind kind) => find.byWidgetPredicate(
@@ -113,77 +115,11 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Editor syntax'), findsOneWidget);
-      expect(
-        find.text('Colors the Markdown source and the code in it.'),
-        findsOneWidget,
-      );
-      expect(find.text('Preview'), findsOneWidget);
-      expect(
-        find.text(
-          'Colors the rendered note: headings, links, quotes and code.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Theme files'), findsOneWidget);
-    });
-
-    testWidgets('shows a card for each theme in each section, and Same as '
-        'theme first in the last two', (tester) async {
-      await _pump(tester);
-      final count = _themes().length;
-      for (final kind in ThemeCardKind.values) {
-        expect(
-          _cards(kind),
-          findsNWidgets(count + (kind == ThemeCardKind.ui ? 0 : 1)),
-        );
-      }
-      expect(find.text('Same as theme'), findsNWidgets(2));
-      final syntax = tester
-          .widgetList<InstalledThemeCard>(_cards(ThemeCardKind.syntax))
-          .toList();
-      expect(syntax.first.same, isTrue);
-      expect(syntax.first.theme, isNull);
-      final preview = tester
-          .widgetList<InstalledThemeCard>(_cards(ThemeCardKind.preview))
-          .toList();
-      expect(preview.first.same, isTrue);
-      expect(preview[1].theme!.id, 'kanso-light');
-      // There is no gallery to install from yet.
-      expect(find.text('Gallery'), findsNothing);
-      expect(find.text('Search themes'), findsNothing);
-    });
-
-    testWidgets('says where each theme came from', (tester) async {
-      await _pump(tester);
-      expect(find.text('Built in'), findsWidgets);
-      expect(find.text('Yours'), findsWidgets);
-      expect(find.text('From the gallery'), findsWidgets);
-      final mine = tester.widget<InstalledThemeCard>(
-        _card(ThemeCardKind.ui, 'mine'),
-      );
-      expect(mine.theme!.origin, InstalledThemeOrigin.own);
-      expect(
-        find.descendant(
-          of: _card(ThemeCardKind.ui, 'mine'),
-          matching: find.text('Yours'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: _card(ThemeCardKind.ui, 'fresh'),
-          matching: find.text('From the gallery'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: _card(ThemeCardKind.ui, 'nord'),
-          matching: find.text('Built in'),
-        ),
-        findsOneWidget,
-      );
+      // The gallery is below them, empty here.
+      expect(find.text('Gallery'), findsOneWidget);
+      expect(find.text('Search themes'), findsOneWidget);
+      expect(find.text('The gallery is empty'), findsOneWidget);
+      expect(find.text('Install'), findsNothing);
     });
 
     testWidgets('outlines both themes in use first while the system is '

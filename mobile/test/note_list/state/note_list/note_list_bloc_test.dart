@@ -11,6 +11,7 @@ import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/list_options.dart';
 import 'package:kanso/core/models/data/preferences.dart';
+import 'package:kanso/core/state/undo_notice/undo_notice_bloc.dart';
 import 'package:kanso/core/utils/day_grouping.dart';
 import 'package:kanso/note_list/models/data/note_list_status.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
@@ -32,6 +33,7 @@ void main() {
   late MockLibraryRepository library;
   late MockPreferencesRepository preferences;
   late MockHapticsRepository haptics;
+  late MockUndoNoticeBloc undoNotice;
   late StreamController<List<String>> changes;
   var list = mockNoteList;
 
@@ -45,6 +47,7 @@ void main() {
       ),
     );
     registerFallbackValue(const NoteChange.trash());
+    registerFallbackValue(const UndoNoticeEvent.dismissed());
     registerFallbackValue((Preferences current) => current);
   });
 
@@ -55,12 +58,15 @@ void main() {
     library = MockLibraryRepository();
     preferences = MockPreferencesRepository();
     haptics = MockHapticsRepository();
+    undoNotice = MockUndoNoticeBloc();
     when(() => library.changes()).thenAnswer((_) => changes.stream);
     when(() => library.list(any())).thenAnswer(
       (_) async => Right<ApplicationError, NoteList>(list),
     );
     when(() => library.change(any(), any())).thenAnswer(
-      (_) async => const Right<ApplicationError, int>(1),
+      (_) async => const Right<ApplicationError, Changed>(
+        Changed(count: 1, undo: 7, message: 'Pinned 1 note.'),
+      ),
     );
     when(() => preferences.load()).thenAnswer(
       (_) async => const Right<ApplicationError, Preferences>(Preferences()),
@@ -72,7 +78,8 @@ void main() {
     when(() => haptics.impact()).thenAnswer((_) async {});
   });
 
-  NoteListBloc build() => NoteListBloc(library, preferences, haptics);
+  NoteListBloc build() =>
+      NoteListBloc(library, preferences, haptics, undoNotice);
 
   group('NoteListBloc', () {
     test('starts loading, with nothing', () {
@@ -476,6 +483,60 @@ void main() {
       );
 
       blocTest<NoteListBloc, NoteListState>(
+        'a change that wrote notes shows the notice, with Undo for it',
+        build: build,
+        act: (bloc) => bloc.add(
+          const NoteListEvent.changeRequested(
+            NoteChange.togglePin(),
+            <String>[MockIds.lisbon],
+          ),
+        ),
+        verify: (bloc) {
+          verify(
+            () => undoNotice.add(
+              const UndoNoticeEvent.shown(7, 'Pinned 1 note.'),
+            ),
+          ).called(1);
+        },
+      );
+
+      blocTest<NoteListBloc, NoteListState>(
+        'a change that wrote nothing shows no notice',
+        setUp: () {
+          when(() => library.change(any(), any())).thenAnswer(
+            (_) async => const Right<ApplicationError, Changed>(
+              Changed(count: 0, message: ''),
+            ),
+          );
+        },
+        build: build,
+        act: (bloc) => bloc.add(
+          const NoteListEvent.changeRequested(
+            NoteChange.trash(),
+            <String>[MockIds.lisbon],
+          ),
+        ),
+        verify: (bloc) => verifyNever(() => undoNotice.add(any())),
+      );
+
+      blocTest<NoteListBloc, NoteListState>(
+        'a change that fails shows no notice',
+        setUp: () {
+          when(() => library.change(any(), any())).thenAnswer(
+            (_) async => const Left<ApplicationError, Changed>(_failure),
+          );
+        },
+        build: build,
+        act: (bloc) => bloc.add(
+          const NoteListEvent.changeRequested(
+            NoteChange.trash(),
+            <String>[MockIds.lisbon],
+          ),
+        ),
+        verify: (bloc) => verifyNever(() => undoNotice.add(any())),
+      );
+
+      blocTest<NoteListBloc, NoteListState>(
         'moving and trashing do not tick the hand',
         build: build,
         act: (bloc) => bloc
@@ -501,7 +562,7 @@ void main() {
         'a change that fails says why and keeps the choice',
         setUp: () {
           when(() => library.change(any(), any())).thenAnswer(
-            (_) async => const Left<ApplicationError, int>(
+            (_) async => const Left<ApplicationError, Changed>(
               ApplicationError.locked(message: 'Locked.'),
             ),
           );

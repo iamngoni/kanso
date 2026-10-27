@@ -20,15 +20,17 @@ use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use kanso_core::DocType;
 use kanso_core::roles::Role;
-use kanso_store::{Origin, Put, Store};
-use serde_json::json;
+use kanso_store::{Origin, Store};
 
 use crate::config::ViewMode;
 use crate::theme::Colors;
 use crate::workspace::AppState;
 use crate::zoom::px;
+
+// The title and the save are the engine's, which the phones' share sheets
+// use as well.
+pub use kanso_engine::capture::{save_capture, split_capture};
 
 actions!(kanso, [SaveCapture, CancelCapture]);
 
@@ -37,8 +39,6 @@ pub const CONTEXT: &str = "QuickCapture";
 /// The window's size in points.
 pub const WIDTH: f32 = 560.;
 pub const HEIGHT: f32 = 300.;
-/// A first line longer than this is cut for the title.
-const TITLE_WORDS_LEN: usize = 80;
 
 pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
@@ -51,86 +51,6 @@ pub fn bind_keys(cx: &mut App) {
     // From the palette and the File menu too, though the system-wide
     // shortcut is the usual way in.
     cx.on_action(|_: &crate::journal::QuickCapture, cx| open(cx));
-}
-
-/// A capture's title and body. A heading or a short first line is the
-/// title, and the lines after it the body. A long first line, or one that
-/// starts a list or a quote, is cut short for the title and the body keeps
-/// all of the text, so nothing typed is lost. `None` for text that is only
-/// spaces. Pure.
-pub fn split_capture(text: &str) -> Option<(String, String)> {
-    let text = text.trim();
-    if text.is_empty() {
-        return None;
-    }
-    let (first, rest) = text.split_once('\n').unwrap_or((text, ""));
-    let first = first.trim();
-    let rest = without_blank_lead(rest.trim_end());
-    let heading = first
-        .strip_prefix('#')
-        .map(|h| h.trim_start_matches('#'))
-        .filter(|h| h.starts_with(' '))
-        .map(str::trim)
-        .filter(|h| !h.is_empty());
-    if let Some(heading) = heading {
-        return Some((cut_title(heading), rest.to_owned()));
-    }
-    let marker = first.starts_with(['-', '*', '>', '+', '|', '`', '#']);
-    if !marker && first.chars().count() <= TITLE_WORDS_LEN {
-        return Some((first.to_owned(), rest.to_owned()));
-    }
-    let plain = first.trim_start_matches(['-', '*', '>', '+', '|', '`', '#', ' ']);
-    let plain = if plain.is_empty() { first } else { plain };
-    Some((cut_title(plain), text.to_owned()))
-}
-
-/// `text` from its first line with more than spaces in it.
-fn without_blank_lead(mut text: &str) -> &str {
-    while let Some((line, rest)) = text.split_once('\n') {
-        if !line.trim().is_empty() {
-            break;
-        }
-        text = rest;
-    }
-    if text.trim().is_empty() { "" } else { text }
-}
-
-/// At most [`TITLE_WORDS_LEN`] characters, cut at a space, with "…" when
-/// cut.
-fn cut_title(line: &str) -> String {
-    if line.chars().count() <= TITLE_WORDS_LEN {
-        return line.to_owned();
-    }
-    let cut: String = line.chars().take(TITLE_WORDS_LEN).collect();
-    let cut = match cut.rfind(' ') {
-        Some(at) if at > TITLE_WORDS_LEN / 2 => &cut[..at],
-        _ => cut.as_str(),
-    };
-    format!("{}…", cut.trim_end())
-}
-
-/// Saves `text` as a note in `book`, or the Inbox (made if needed).
-/// Returns the note's ID, or `None` for empty text.
-pub fn save_capture(
-    store: &Store,
-    text: &str,
-    book: Option<&str>,
-    origin: Origin,
-) -> anyhow::Result<Option<String>> {
-    let Some((title, body)) = split_capture(text) else {
-        return Ok(None);
-    };
-    let book = match book {
-        Some(book) if store.get(book)?.is_some() => book.to_owned(),
-        _ => store.role_book(Role::Inbox, origin)?,
-    };
-    let created = store.put(
-        DocType::Note,
-        json!({"title": title, "body": body, "bookId": book}),
-        Put::Upsert,
-        origin,
-    )?;
-    Ok(Some(created.id))
 }
 
 pub struct CaptureView {
@@ -503,104 +423,4 @@ fn focus_existing(cx: &mut App) -> bool {
         }
     }
     false
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{TITLE_WORDS_LEN, save_capture, split_capture};
-    use kanso_core::DocType;
-    use kanso_core::model::MAX_TITLE_LEN;
-    use kanso_store::{Origin, Put, Store};
-    use proptest::prelude::*;
-    use serde_json::json;
-
-    #[test]
-    fn split_examples() {
-        let s = |t: &str| split_capture(t);
-        assert_eq!(s("  \n "), None);
-        assert_eq!(s("Buy milk"), Some(("Buy milk".into(), String::new())));
-        assert_eq!(
-            s("# Idea\n\nA longer thought.\n"),
-            Some(("Idea".into(), "A longer thought.".into()))
-        );
-        assert_eq!(
-            s("Call Sam\nabout the lease"),
-            Some(("Call Sam".into(), "about the lease".into()))
-        );
-        assert_eq!(
-            s("- milk\n- eggs"),
-            Some(("milk".into(), "- milk\n- eggs".into()))
-        );
-        let long = "word ".repeat(40);
-        let (title, body) = s(&long).unwrap();
-        assert!(title.ends_with('…') && title.chars().count() <= TITLE_WORDS_LEN + 1);
-        assert_eq!(body, long.trim());
-        let (title, body) = s(&format!("{long}\nmore")).unwrap();
-        assert!(title.ends_with('…'));
-        assert!(body.starts_with("word word"));
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(512))]
-
-        /// Invariants: nothing typed is lost (every word is in the title or
-        /// the body), the title is one line a note can take, and a body
-        /// never starts with a blank line or ends with spaces.
-        #[test]
-        fn prop_split_keeps_every_word(text in "[a-z#*> \n-]{0,200}") {
-            match split_capture(&text) {
-                None => prop_assert!(text.trim().is_empty()),
-                Some((title, body)) => {
-                    prop_assert!(!title.contains('\n'));
-                    prop_assert!(title.chars().count() <= MAX_TITLE_LEN);
-                    prop_assert_eq!(body.trim_end(), body.as_str());
-                    prop_assert!(body.lines().next().is_none_or(|line| !line.trim().is_empty()));
-                    let kept = format!("{title} {body}");
-                    for word in text.split_whitespace() {
-                        let word = word.trim_matches(|c: char| !c.is_alphanumeric());
-                        prop_assert!(word.is_empty() || kept.contains(word), "{:?} lost from {:?}", word, text);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Saving puts the note in the Inbox, made on first use, or in the
-    /// notebook chosen.
-    #[test]
-    fn captures_go_to_the_inbox() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = Store::open(dir.path().join("kanso.db")).unwrap();
-        assert_eq!(save_capture(&store, " \n", None, Origin::Ui).unwrap(), None);
-        let id = save_capture(&store, "Buy milk\n- and eggs", None, Origin::Ui)
-            .unwrap()
-            .unwrap();
-        let note = store.note(&id).unwrap().unwrap();
-        assert_eq!(
-            (
-                note.title.as_str(),
-                note.body.as_str(),
-                note.book_id.as_str()
-            ),
-            ("Buy milk", "- and eggs", "book:inbox")
-        );
-        let book = store
-            .put(
-                DocType::Book,
-                json!({"name": "Ideas"}),
-                Put::Upsert,
-                Origin::Ui,
-            )
-            .unwrap()
-            .id;
-        let id = save_capture(&store, "Kites", Some(&book), Origin::Ui)
-            .unwrap()
-            .unwrap();
-        assert_eq!(store.note(&id).unwrap().unwrap().book_id, book);
-        // A notebook deleted meanwhile: the Inbox instead.
-        let id = save_capture(&store, "Late", Some("book:gone"), Origin::Ui)
-            .unwrap()
-            .unwrap();
-        assert_eq!(store.note(&id).unwrap().unwrap().book_id, "book:inbox");
-    }
 }

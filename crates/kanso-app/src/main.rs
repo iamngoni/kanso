@@ -49,7 +49,6 @@ mod due;
 mod editor;
 mod editor_footer;
 mod empty_state;
-mod export;
 mod export_html;
 mod export_style;
 mod flavour;
@@ -115,6 +114,7 @@ mod pouch_import;
 mod preview;
 mod preview_chunks;
 mod preview_rich;
+mod preview_tasks;
 #[allow(dead_code)]
 mod proof_sheet;
 mod provider_browser;
@@ -144,7 +144,6 @@ mod settings_window_tests;
 mod share_sheet;
 mod shared_inbox;
 mod sidebar;
-mod site;
 mod smart_paste;
 #[cfg(test)]
 mod snapshots;
@@ -193,7 +192,7 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, Result, bail};
 use gpui_kit::*;
-use kanso_store::{BackupPolicy, Store, lock_data_dir};
+use kanso_store::{Store, lock_data_dir};
 
 use crate::config::AppConfig;
 use crate::services::Services;
@@ -506,9 +505,11 @@ fn run_app(
 
     // A daily snapshot of the database, off the main thread.
     let backup_store = store.clone();
-    let policy = BackupPolicy::daily(paths::backups_dir(&data_dir));
+    let backup_folder = data_dir.clone();
     std::thread::spawn(move || {
-        if let Err(err) = backup_store.backup_if_due(&policy, kanso_core::now_ms()) {
+        if let Err(err) =
+            kanso_engine::backup::run_daily(&backup_store, &backup_folder, kanso_core::now_ms())
+        {
             eprintln!("kanso: backup failed: {err}");
         }
     });

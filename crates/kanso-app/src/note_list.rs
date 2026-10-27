@@ -1424,22 +1424,6 @@ fn filter_menu(
     )
 }
 
-/// `YYYY-MM-DD` in UTC, as an export's front matter dates a note.
-pub fn format_date(ms: i64) -> String {
-    let days = ms.div_euclid(86_400_000);
-    // Civil-from-days (Howard Hinnant).
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let day = doy - (153 * mp + 2) / 5 + 1;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + i64::from(month <= 2);
-    format!("{year:04}-{month:02}-{day:02}")
-}
-
 impl Render for NoteList {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.update_layout(cx);
@@ -1566,37 +1550,12 @@ mod tests {
     use super::{
         DIVIDER, EXCERPT_LINE, EXCERPT_LINES, HEADER_HEIGHT, HEADER_LINE, HEADER_PAD_BOTTOM,
         HEADER_PAD_TOP, PendingScroll, ROW_GAP, ROW_HEIGHT, ROW_INSET_Y, ROW_PAD_Y, TITLE_LINE,
-        drag_label, format_date, item_sizes, narrowing_label, pending_scroll, selected_label,
+        drag_label, item_sizes, narrowing_label, pending_scroll, selected_label,
     };
     use crate::grouping::{Bucket, Row, RowKey, group_rows};
     use kanso_core::NoteStatus;
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(512))]
-
-        /// Oracle: the date matches the proleptic Gregorian calendar as
-        /// computed by stepping whole days from 1970-01-01.
-        #[test]
-        fn prop_format_date_matches_day_stepping(days in -800i64..80_000) {
-            let (mut y, mut m, mut d) = (1970i64, 1i64, 1i64);
-            let leap = |y: i64| (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
-            let len = |y: i64, m: i64| match m { 2 => if leap(y) { 29 } else { 28 }, 4 | 6 | 9 | 11 => 30, _ => 31 };
-            if days >= 0 {
-                for _ in 0..days {
-                    d += 1;
-                    if d > len(y, m) { d = 1; m += 1; if m > 12 { m = 1; y += 1; } }
-                }
-            } else {
-                for _ in 0..-days {
-                    d -= 1;
-                    if d < 1 { m -= 1; if m < 1 { m = 12; y -= 1; } d = len(y, m); }
-                }
-            }
-            prop_assert_eq!(format_date(days * 86_400_000 + 3_600_000), format!("{y:04}-{m:02}-{d:02}"));
-        }
-    }
 
     proptest! {
         #![proptest_config(ProptestConfig {
@@ -1682,12 +1641,6 @@ mod tests {
             .map(|s| f32::from(s.height))
             .sum();
         assert_eq!(total, 2. * ROW_HEIGHT + 2. * HEADER_HEIGHT);
-    }
-
-    #[test]
-    fn dates() {
-        assert_eq!(format_date(0), "1970-01-01");
-        assert_eq!(format_date(951_782_400_000), "2000-02-29");
     }
 
     proptest! {

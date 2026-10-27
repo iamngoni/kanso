@@ -18,7 +18,7 @@ enum KansoButtonVariant {
   /// The one action the page is for: filled.
   primary,
 
-  /// An alternative: a quiet fill.
+  /// An alternative: a raised surface with a hairline around it.
   secondary,
 
   /// A way out: no fill.
@@ -30,7 +30,7 @@ enum KansoButtonVariant {
 
 /// A button with a label and, optionally, an icon before it.
 ///
-/// It is 48 points tall (36 when [compact], with a 44 point target) and as
+/// It is 52 points tall (36 when [compact], with a 44 point target) and as
 /// wide as its parent allows when [expanded]. Without [onPressed] it is
 /// drawn dimmed.
 class KansoButton extends StatelessWidget {
@@ -56,12 +56,7 @@ class KansoButton extends StatelessWidget {
     final colors = context.colors;
     final (fill, ink) = switch (variant) {
       KansoButtonVariant.primary => (colors.button, colors.buttonText),
-      // A wash of the text colour: the `fill` token is the card's own
-      // colour on a dark card, where a button of it would vanish.
-      KansoButtonVariant.secondary => (
-        colors.text.withValues(alpha: KansoEffects.secondaryWash),
-        colors.text,
-      ),
+      KansoButtonVariant.secondary => (colors.elevated, colors.text),
       KansoButtonVariant.quiet => (null, colors.textSecondary),
       KansoButtonVariant.danger => (
         colors.danger.withValues(alpha: KansoEffects.wash),
@@ -78,7 +73,14 @@ class KansoButton extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: fill,
-        borderRadius: KansoRadii.mediumBorder,
+        borderRadius: compact
+            ? KansoRadii.mediumBorder
+            : KansoRadii.largeBorder,
+        // The hairline keeps a raised button apart from a card of the same
+        // colour.
+        border: variant == KansoButtonVariant.secondary
+            ? Border.all(color: colors.divider)
+            : null,
       ),
       child: Center(
         widthFactor: 1,
@@ -103,6 +105,7 @@ class KansoButton extends StatelessWidget {
     );
     return KansoPressable(
       onTap: onPressed,
+      scale: KansoEffects.pressScale,
       child: Opacity(
         opacity: onPressed == null ? KansoEffects.disabled : 1,
         child: Padding(

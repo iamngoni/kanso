@@ -191,6 +191,7 @@ fn creating_makes_a_notebook_when_there_is_none_and_reads_back() {
             notebook_id: None,
             title: "Hello".into(),
             body: "# Hi\n- [ ] task".into(),
+            ..NewNote::default()
         })
         .unwrap();
     let books = phone.library.notebooks().unwrap();
@@ -222,6 +223,116 @@ fn creating_makes_a_notebook_when_there_is_none_and_reads_back() {
     let rows = phone.library.list(ListQuery::default()).unwrap().rows;
     let row = rows.iter().find(|row| row.id == saved.id).unwrap();
     assert_eq!((row.tasks_done, row.tasks_total), (0, 1));
+}
+
+/// Where the property test makes a note from.
+#[derive(Clone, Debug)]
+enum From {
+    Nowhere,
+    All,
+    Pinned,
+    Trash,
+    Notebook(usize),
+    Tag(usize),
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 48, ..ProptestConfig::default() })]
+
+    /// A new note lands where the engine says: its own notebook when made
+    /// from one, else the preferred notebook when it exists, else the first.
+    /// A tag's list tags it, Pinned pins it, and nothing goes to the trash.
+    #[test]
+    fn prop_a_new_note_goes_where_its_place_and_preference_say(
+        from in prop_oneof![
+            Just(From::Nowhere),
+            Just(From::All),
+            Just(From::Pinned),
+            Just(From::Trash),
+            (0usize..3).prop_map(From::Notebook),
+            (0usize..2).prop_map(From::Tag),
+        ],
+        preferred in prop::option::of(0usize..4),
+        extra_pin in any::<bool>(),
+        extra_tag in any::<bool>(),
+    ) {
+        let mut books = Vec::new();
+        let mut tags = Vec::new();
+        let phone = phone_with(&server(), |store| {
+            for name in ["One", "Two", "Three"] {
+                books.push(book(store, name));
+            }
+            for name in ["a", "b"] {
+                tags.push(tag(store, name));
+            }
+        });
+        let preferred_id = preferred.map(|ix| books.get(ix).cloned().unwrap_or_else(|| "book:gone".into()));
+        let place = match &from {
+            From::Nowhere => None,
+            From::All => Some(ListPlace::All),
+            From::Pinned => Some(ListPlace::Pinned),
+            From::Trash => Some(ListPlace::Trash),
+            From::Notebook(ix) => Some(ListPlace::Notebook { id: books[*ix].clone() }),
+            From::Tag(ix) => Some(ListPlace::Tag { id: tags[*ix].clone() }),
+        };
+        let saved = phone.library.create(NewNote {
+            title: "T".into(),
+            place,
+            preferred_notebook_id: preferred_id.clone(),
+            tags: if extra_tag { vec![tags[1].clone()] } else { Vec::new() },
+            pinned: extra_pin,
+            ..NewNote::default()
+        }).unwrap();
+        let view = phone.library.note(&saved.id).unwrap();
+        let first = phone.library.notebooks().unwrap()[0].id.clone();
+        let expected_book = match (&from, &preferred_id) {
+            (From::Notebook(ix), _) => books[*ix].clone(),
+            (_, Some(id)) if books.contains(id) => id.clone(),
+            _ => first,
+        };
+        prop_assert_eq!(&view.notebook_id, &expected_book);
+        prop_assert_ne!(&view.notebook_id, "trash");
+        let mut expected_tags = BTreeSet::new();
+        if let From::Tag(ix) = from {
+            expected_tags.insert(tags[ix].clone());
+        }
+        if extra_tag {
+            expected_tags.insert(tags[1].clone());
+        }
+        prop_assert_eq!(view.tags.iter().cloned().collect::<BTreeSet<_>>(), expected_tags);
+        prop_assert_eq!(view.pinned, extra_pin || matches!(from, From::Pinned));
+    }
+}
+
+// no-prop-test: the library with no notebook, and the refusals around one.
+#[test]
+fn a_new_note_in_an_empty_library_makes_the_notes_notebook_whatever_the_preference() {
+    let phone = lone_phone();
+    let saved = phone
+        .library
+        .create(NewNote {
+            preferred_notebook_id: Some("book:gone".into()),
+            place: Some(ListPlace::Trash),
+            ..NewNote::default()
+        })
+        .unwrap();
+    let books = phone.library.notebooks().unwrap();
+    assert_eq!(books.len(), 1);
+    assert_eq!(books[0].name, "Notes");
+    assert_eq!(
+        phone.library.note(&saved.id).unwrap().notebook_id,
+        books[0].id
+    );
+    // An explicit notebook still has to exist, preference or not.
+    let err = phone
+        .library
+        .create(NewNote {
+            notebook_id: Some("book:nowhere".into()),
+            preferred_notebook_id: Some(books[0].id.clone()),
+            ..NewNote::default()
+        })
+        .unwrap_err();
+    assert_eq!(err, KansoError::NotFound);
 }
 
 // no-prop-test: the errors of a missing note and of a text over the limit.

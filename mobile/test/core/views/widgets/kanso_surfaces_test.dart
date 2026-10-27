@@ -27,6 +27,20 @@ Color? _fillOf(WidgetTester tester, Finder within) {
   return null;
 }
 
+/// The colour of the outline of the first outlined box in [within].
+Color? _outlineOf(WidgetTester tester, Finder within) {
+  final boxes = tester.widgetList<Container>(
+    find.descendant(of: within, matching: find.byType(Container)),
+  );
+  for (final box in boxes) {
+    final decoration = box.decoration;
+    if (decoration is BoxDecoration && decoration.border is Border) {
+      return (decoration.border! as Border).top.color;
+    }
+  }
+  return null;
+}
+
 void main() {
   group('grouped sections', () {
     for (final brightness in Brightness.values) {
@@ -94,8 +108,9 @@ void main() {
         ),
         brightness: Brightness.dark,
       );
-      final fill = _fillOf(tester, find.byType(KansoButton))!;
-      final over = Color.alphaBlend(fill, KansoColors.dark.elevated);
+      // It is raised in the card's own colour, set apart by its outline.
+      final outline = _outlineOf(tester, find.byType(KansoButton))!;
+      final over = Color.alphaBlend(outline, KansoColors.dark.elevated);
       expect(contrastRatio(over, KansoColors.dark.elevated), greaterThan(1.05));
     });
 

@@ -32,6 +32,10 @@
   "@libraryTrash": {
     "description": "The library row for deleted notes."
   },
+  "libraryStatuses": "Status",
+  "@libraryStatuses": {
+    "description": "The label above the notes' statuses, and what a status is called when it has no notes."
+  },
   "openSettings": "Settings",
   "@openSettings": {
     "description": "What the settings button does."
@@ -183,6 +187,10 @@
   "@accessoryOutdent": {
     "description": "A keyboard shortcut that outdents a line."
   },
+  "accessoryRedo": "Redo",
+  "@accessoryRedo": {
+    "description": "What the undo key of the keyboard bar does when it is held, for a screen reader's list of actions."
+  },
   "accessoryUndo": "Undo",
   "@accessoryUndo": {
     "description": "A keyboard shortcut that undoes the last change."
@@ -194,6 +202,22 @@
   "settingsClose": "Close",
   "@settingsClose": {
     "description": "Closes a page."
+  },
+  "settingsGeneral": "General",
+  "@settingsGeneral": {
+    "description": "A section of settings."
+  },
+  "settingsDefaultNotebook": "Default notebook",
+  "@settingsDefaultNotebook": {
+    "description": "The notebook new notes go to."
+  },
+  "defaultNotebookFirst": "First notebook",
+  "@defaultNotebookFirst": {
+    "description": "The choice of the first notebook in the library as the one new notes go to."
+  },
+  "defaultNotebookFooter": "New notes go here, except those made from a notebook's own list. A locked notebook can't be chosen.",
+  "@defaultNotebookFooter": {
+    "description": "The note under the notebooks that can be the default one."
   },
   "settingsAppearance": "Appearance",
   "@settingsAppearance": {
@@ -295,10 +319,6 @@
   "@appearanceDark": {
     "description": "Always dark."
   },
-  "screenNoteEdit": "Note, edit",
-  "@screenNoteEdit": {
-    "description": "The name of a mock screen."
-  },
   "screenError": "Error card",
   "@screenError": {
     "description": "The name of a mock screen."
@@ -322,6 +342,59 @@
   "settingsFonts": "Fonts",
   "@settingsFonts": {
     "description": "The settings row that opens the fonts of notes."
+  },
+  "settingsIcons": "Icons",
+  "@settingsIcons": {
+    "description": "The settings row that opens the icon themes."
+  },
+  "iconsTitle": "Icons",
+  "@iconsTitle": {
+    "description": "The title of the page where the icon theme is chosen."
+  },
+  "iconsFooter": "The icon themes of the desktop app. Choosing one changes every icon at once; an icon a theme doesn’t draw stays Kanso’s own.",
+  "@iconsFooter": {
+    "description": "Explains the icon themes, under the list."
+  },
+  "iconsCredit": "{author}, {license}",
+  "@iconsCredit": {
+    "description": "Who made an icon theme and under which licence, when both are known.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "license": {
+        "type": "String"
+      }
+    }
+  },
+  "iconsPreview": "Icons in {name}",
+  "@iconsPreview": {
+    "description": "Says to a screen reader what a row of sample icons shows.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "iconsLoading": "Loading icon themes",
+  "@iconsLoading": {
+    "description": "Says to a screen reader that the icon themes are being read."
+  },
+  "iconsFailedTitle": "The icon themes didn’t load",
+  "@iconsFailedTitle": {
+    "description": "The title of the card shown when the icon themes could not be read."
+  },
+  "iconsFailedMessage": "Something went wrong reading the icon themes. Try again.",
+  "@iconsFailedMessage": {
+    "description": "The message of the card shown when the icon themes could not be read."
+  },
+  "iconsEmptyTitle": "No icon themes",
+  "@iconsEmptyTitle": {
+    "description": "The title of the card shown when there are no icon themes to choose from."
+  },
+  "iconsEmptyMessage": "Kanso’s own icons are in use.",
+  "@iconsEmptyMessage": {
+    "description": "The message of the card shown when there are no icon themes to choose from."
   },
   "settingsBack": "Back",
   "@settingsBack": {
@@ -402,6 +475,83 @@
   "textSizeLarger": "Larger",
   "@textSizeLarger": {
     "description": "The largest text size."
+  },
+  "editorTitleHint": "Title",
+  "@editorTitleHint": {
+    "description": "What the empty title field of a note being edited says."
+  },
+  "editorChangedMessage": "This note was changed elsewhere while you were editing. The version you don't keep stays in its history.",
+  "@editorChangedMessage": {
+    "description": "Says a note was changed elsewhere while it was being edited."
+  },
+  "editorKeepMine": "Keep mine",
+  "@editorKeepMine": {
+    "description": "Keeps the text typed here over a change made elsewhere."
+  },
+  "editorUseTheirs": "Use theirs",
+  "@editorUseTheirs": {
+    "description": "Takes a change made elsewhere over the text typed here."
+  },
+  "editorDeletedMessage": "This note was deleted elsewhere while you were editing.",
+  "@editorDeletedMessage": {
+    "description": "Says a note was deleted elsewhere while it was being edited."
+  },
+  "editorKeepIt": "Keep it",
+  "@editorKeepIt": {
+    "description": "Keeps a note that was deleted elsewhere, by saving it again."
+  },
+  "editorDiscard": "Discard",
+  "@editorDiscard": {
+    "description": "Lets go of a note that was deleted elsewhere."
+  },
+  "editorSaveFailed": "Your changes aren't saved yet.",
+  "@editorSaveFailed": {
+    "description": "Says that saving a note failed."
+  },
+  "editorOpeningLabel": "Opening the note",
+  "@editorOpeningLabel": {
+    "description": "What a screen reader says while a note is opened for editing."
+  },
+  "propertiesAdd": "Add property",
+  "@propertiesAdd": {
+    "description": "Adds a property to the note."
+  },
+  "propertiesName": "Name",
+  "@propertiesName": {
+    "description": "The hint of the field for the name of a new property."
+  },
+  "propertiesValue": "Value",
+  "@propertiesValue": {
+    "description": "The hint of the field for the value of a property."
+  },
+  "propertiesRemove": "Remove {name}",
+  "@propertiesRemove": {
+    "description": "Removes a property from the note; for a screen reader.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "propertiesConfirmAdd": "Add",
+  "@propertiesConfirmAdd": {
+    "description": "Adds the property that was just named."
+  },
+  "propertiesCancelAdd": "Cancel",
+  "@propertiesCancelAdd": {
+    "description": "Gives up on adding a property."
+  },
+  "propertiesFailed": "That property couldn't be set.",
+  "@propertiesFailed": {
+    "description": "Says that a property of the note could not be set."
+  },
+  "propertiesShow": "Show properties",
+  "@propertiesShow": {
+    "description": "What the row of properties does when it is closed, for a screen reader."
+  },
+  "propertiesHide": "Hide properties",
+  "@propertiesHide": {
+    "description": "What the row of properties does when it is open, for a screen reader."
   },
   "noteModeLabel": "View mode",
   "@noteModeLabel": {
@@ -529,6 +679,19 @@
   "@emptyTagMessage": {
     "description": "What the empty list of a tag's notes says."
   },
+  "emptyStatusTitle": "No notes marked {status}",
+  "@emptyStatusTitle": {
+    "description": "The title shown when no note has the status.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "emptyStatusMessage": "Notes with this status will appear in this list.",
+  "@emptyStatusMessage": {
+    "description": "What the empty list of a status's notes says."
+  },
   "emptyNarrowedTitle": "No notes match",
   "@emptyNarrowedTitle": {
     "description": "The title shown when the list's narrowing hides every note."
@@ -635,9 +798,49 @@
   "@noteListChangeLocked": {
     "description": "The line shown when notes could not be moved into or out of a locked notebook."
   },
+  "libraryNewNotebook": "New notebook",
+  "@libraryNewNotebook": {
+    "description": "What the add button of the notebooks header does."
+  },
+  "newNotebookTitle": "New notebook",
+  "@newNotebookTitle": {
+    "description": "The title of the sheet that makes a notebook."
+  },
+  "newNotebookNameHint": "Name",
+  "@newNotebookNameHint": {
+    "description": "The hint, and the label, of the field for a new notebook's name."
+  },
+  "newNotebookCreate": "Create",
+  "@newNotebookCreate": {
+    "description": "The button that makes the notebook."
+  },
+  "newNotebookInvalid": "Give the notebook a name.",
+  "@newNotebookInvalid": {
+    "description": "The line shown when a new notebook's name is empty or not accepted."
+  },
+  "newNotebookFailed": "The notebook couldn't be made. Try again.",
+  "@newNotebookFailed": {
+    "description": "The line shown when a notebook could not be made."
+  },
+  "noteListNewNote": "New note",
+  "@noteListNewNote": {
+    "description": "What the add button of the note list does."
+  },
+  "noteListNewNoteLocked": "Unlock this notebook to add notes to it.",
+  "@noteListNewNoteLocked": {
+    "description": "The line shown when a new note was asked for in a notebook that is locked."
+  },
+  "noteListNewNoteFailed": "The note couldn't be made. Try again.",
+  "@noteListNewNoteFailed": {
+    "description": "The line shown when a new note could not be made."
+  },
   "noteListDismiss": "OK",
   "@noteListDismiss": {
     "description": "The button that closes the line that says a change did not happen."
+  },
+  "undoNoticeUndo": "Undo",
+  "@undoNoticeUndo": {
+    "description": "The button on the notice that follows a change to notes and takes the change back."
   },
   "noteLoading": "Loading the note",
   "@noteLoading": {
@@ -678,6 +881,26 @@
   "menuSelectAll": "Select All",
   "@menuSelectAll": {
     "description": "The button of a text field's menu that selects all of its text."
+  },
+  "menuDelete": "Delete",
+  "@menuDelete": {
+    "description": "The button of the spelling menu that deletes the misspelled word."
+  },
+  "menuOpenLink": "Open link",
+  "@menuOpenLink": {
+    "description": "The button of the editor's menu that opens the link the caret is in."
+  },
+  "completionAnnouncement": "{count, plural, =1{1 suggestion} other{{count} suggestions}}, {label} selected",
+  "@completionAnnouncement": {
+    "description": "What a screen reader says when suggestions for a link or a tag appear: how many, and which one is selected.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
   },
   "searchIdleTitle": "Search your notes",
   "@searchIdleTitle": {
@@ -964,216 +1187,2924 @@
   "@crashReportsFailedMessage": {
     "description": "The message of the card shown when the crash reports could not be read."
   },
-  "themesSectionTheme": "Theme",
-  "@themesSectionTheme": {
-    "description": "The heading of the grid of themes that colour the interface."
+  "screenNoteEdit": "Note, edit",
+  "@screenNoteEdit": {
+    "description": "The name of a mock screen."
   },
-  "themesSectionThemeDetail": "Colors the sidebar, the note list, menus and every control.",
-  "@themesSectionThemeDetail": {
-    "description": "What the Theme grid colours."
+  "libraryTasks": "Tasks",
+  "@libraryTasks": {
+    "description": "The library row for tasks across the notes, and the title of their list."
   },
-  "themesSectionSyntax": "Editor syntax",
-  "@themesSectionSyntax": {
-    "description": "The heading of the grid of themes that colour the Markdown source."
-  },
-  "themesSectionSyntaxDetail": "Colors the Markdown source and the code in it.",
-  "@themesSectionSyntaxDetail": {
-    "description": "What the Editor syntax grid colours."
-  },
-  "themesSectionPreview": "Preview",
-  "@themesSectionPreview": {
-    "description": "The heading of the grid of themes that colour the rendered note."
-  },
-  "themesSectionPreviewDetail": "Colors the rendered note: headings, links, quotes and code.",
-  "@themesSectionPreviewDetail": {
-    "description": "What the Preview grid colours."
-  },
-  "themesSameAsTheme": "Same as theme",
-  "@themesSameAsTheme": {
-    "description": "The first card of the Editor syntax and Preview grids: it uses the interface theme's own colours."
-  },
-  "themesBadgeYours": "Yours",
-  "@themesBadgeYours": {
-    "description": "A badge on a theme the person made or imported."
-  },
-  "themesBadgeGallery": "From the gallery",
-  "@themesBadgeGallery": {
-    "description": "A badge on a theme installed from the gallery."
-  },
-  "themesFiles": "Theme files",
-  "@themesFiles": {
-    "description": "The heading of the section about importing theme files and the files that were left out."
-  },
-  "themesImport": "Import theme",
-  "@themesImport": {
-    "description": "The label of the row that imports a theme file."
-  },
-  "themesImportDetail": "A theme package (its folder or .tgz) or a Zed theme (.json), converted into the themes folder.",
-  "@themesImportDetail": {
-    "description": "What the Import theme row does."
-  },
-  "themesImportButton": "Import Theme…",
-  "@themesImportButton": {
-    "description": "The button of the Import theme row; it opens the system file picker."
-  },
-  "themesImporting": "Importing…",
-  "@themesImporting": {
-    "description": "The button of the import row while a file is being imported."
-  },
-  "themesImportedOne": "Imported {names}.",
-  "@themesImportedOne": {
-    "description": "Said after a theme file was imported.",
+  "libraryTasksOverdue": "{count, plural, =1{1 overdue task} other{{count} overdue tasks}}",
+  "@libraryTasksOverdue": {
+    "description": "Says how many tasks are overdue, on the Tasks row (read by a screen reader).",
     "placeholders": {
-      "names": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tasksCount": "{count, plural, =1{1 task} other{{count} tasks}}",
+  "@tasksCount": {
+    "description": "How many tasks the list holds.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tasksFilter": "Filter tasks",
+  "@tasksFilter": {
+    "description": "The button that opens which notebook's tasks to show."
+  },
+  "tasksFilterTitle": "Filter tasks",
+  "@tasksFilterTitle": {
+    "description": "The title of the sheet that narrows the tasks."
+  },
+  "tasksAllNotebooks": "All notebooks",
+  "@tasksAllNotebooks": {
+    "description": "The choice that shows the tasks of every notebook."
+  },
+  "tasksShowCompleted": "Show Completed",
+  "@tasksShowCompleted": {
+    "description": "The switch that shows done tasks too."
+  },
+  "tasksNotebooksHeader": "Notebook",
+  "@tasksNotebooksHeader": {
+    "description": "The heading above the notebooks a task list can be narrowed to."
+  },
+  "tasksEmptyTitle": "No tasks yet",
+  "@tasksEmptyTitle": {
+    "description": "The title when no note has a task."
+  },
+  "tasksEmptyMessage": "Write “- [ ] Call Sam @2026-10-25” in any note, and it shows here.",
+  "@tasksEmptyMessage": {
+    "description": "Says how to make a task."
+  },
+  "tasksEmptyNotebookTitle": "No tasks in {notebook}",
+  "@tasksEmptyNotebookTitle": {
+    "description": "The title when the notebook picked has no tasks.",
+    "placeholders": {
+      "notebook": {
         "type": "String"
       }
     }
   },
-  "themesImportFailed": "Couldn’t import the theme. {message}",
-  "@themesImportFailed": {
-    "description": "Said when a theme file could not be imported; the message says why.",
+  "tasksAllDoneTitle": "All done",
+  "@tasksAllDoneTitle": {
+    "description": "The title when every task is ticked off."
+  },
+  "tasksAllDoneMessage": "Every task is ticked off.",
+  "@tasksAllDoneMessage": {
+    "description": "Says every task is done."
+  },
+  "tasksLoading": "Loading tasks",
+  "@tasksLoading": {
+    "description": "Says to a screen reader that the tasks are loading."
+  },
+  "tasksFailedTitle": "The tasks didn't load",
+  "@tasksFailedTitle": {
+    "description": "The title of the card shown when the tasks could not be read."
+  },
+  "tasksFailedMessage": "Something went wrong reading the tasks on this device. Try again.",
+  "@tasksFailedMessage": {
+    "description": "The message of the card shown when the tasks could not be read."
+  },
+  "tasksMoved": "That task changed in its note. The list is up to date now.",
+  "@tasksMoved": {
+    "description": "Says a task was changed in its note before it could be ticked."
+  },
+  "tasksChangeFailed": "Couldn't change the task. Try again.",
+  "@tasksChangeFailed": {
+    "description": "Says ticking a task did not happen."
+  },
+  "tasksTickOff": "Tick off",
+  "@tasksTickOff": {
+    "description": "The action that ticks a task off, for a screen reader."
+  },
+  "tasksTickBack": "Mark not done",
+  "@tasksTickBack": {
+    "description": "The action that clears a ticked task, for a screen reader."
+  },
+  "tasksOpenNote": "Open note",
+  "@tasksOpenNote": {
+    "description": "The action that opens the note a task is in, for a screen reader."
+  },
+  "tasksRowContext": "{note} · {notebook}",
+  "@tasksRowContext": {
+    "description": "The quiet line under a task: its note and its notebook.",
     "placeholders": {
-      "message": {
-        "type": "String"
-      }
-    }
-  },
-  "iconThemesTitle": "Icon themes",
-  "@iconThemesTitle": {
-    "description": "The title of the icon themes page, and the label of its row in settings."
-  },
-  "iconThemesSection": "Icon theme files",
-  "@iconThemesSection": {
-    "description": "The heading of the section about importing icon themes."
-  },
-  "iconThemesImport": "Import icon theme",
-  "@iconThemesImport": {
-    "description": "The label of the row that imports an icon theme."
-  },
-  "iconThemesImportDetail": "A Zed icon theme (its extension folder or .tar.gz), a theme package carrying one, or a Kanso icon theme folder, converted into the icon themes folder.",
-  "@iconThemesImportDetail": {
-    "description": "What the Import icon theme row does."
-  },
-  "iconThemesImportButton": "Import…",
-  "@iconThemesImportButton": {
-    "description": "The button of the Import icon theme row; it opens the system file picker."
-  },
-  "iconThemesImported": "Imported {names}. {summary}",
-  "@iconThemesImported": {
-    "description": "Said after an icon theme was imported; the summary says what was in it.",
-    "placeholders": {
-      "names": {
+      "note": {
         "type": "String"
       },
-      "summary": {
+      "notebook": {
         "type": "String"
       }
     }
   },
-  "iconThemesImportFailed": "Couldn’t import the icon theme. {message}",
-  "@iconThemesImportFailed": {
-    "description": "Said when an icon theme could not be imported; the message says why.",
+  "tasksRowDue": "Due {due}",
+  "@tasksRowDue": {
+    "description": "A task's due date, for a screen reader.",
     "placeholders": {
-      "message": {
+      "due": {
         "type": "String"
       }
     }
   },
-  "iconThemesEmptyTitle": "No icon themes yet",
-  "@iconThemesEmptyTitle": {
-    "description": "The title of the empty icon themes list."
+  "previewLabel": "The note's preview",
+  "@previewLabel": {
+    "description": "Read by a screen reader for the note's rendered page."
   },
-  "iconThemesEmptyMessage": "Import one and it will show up here.",
-  "@iconThemesEmptyMessage": {
-    "description": "The message of the empty icon themes list."
+  "previewFailed": "The preview couldn't be drawn.",
+  "@previewFailed": {
+    "description": "Shown instead of a note's rendered page when it could not be made."
   },
-  "iconThemesListSection": "Imported",
-  "@iconThemesListSection": {
-    "description": "The heading above the icon themes that were imported or installed."
+  "previewLinkFailed": "That link couldn't be opened.",
+  "@previewLinkFailed": {
+    "description": "Said when a tap on a link in the preview did nothing."
   },
-  "iconThemesFailedTitle": "The icon themes didn’t load",
-  "@iconThemesFailedTitle": {
-    "description": "The title of the card shown when the icon themes could not be read."
+  "previewLinkLocked": "Unlock your notes to open that.",
+  "@previewLinkLocked": {
+    "description": "Said when a tap in the preview leads to a locked note or notebook."
   },
-  "iconThemesFailedMessage": "Something went wrong reading the icon themes. Try again.",
-  "@iconThemesFailedMessage": {
-    "description": "The message of the card shown when the icon themes could not be read."
+  "attachmentDone": "Done",
+  "@attachmentDone": {
+    "description": "Closes an attachment's sheet or full-screen image."
   },
-  "iconThemeAuthor": "By {author}",
-  "@iconThemeAuthor": {
-    "description": "An icon theme's author, under its name.",
+  "attachmentShare": "Share",
+  "@attachmentShare": {
+    "description": "Hands an attachment to the system's share sheet, to open, save or send it."
+  },
+  "attachmentDetails": "{type} · {size}",
+  "@attachmentDetails": {
+    "description": "An attachment's file type and size.",
+    "placeholders": {
+      "type": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSyncSignIn": "Sign in",
+  "@settingsSyncSignIn": {
+    "description": "The Settings row that signs in to sync."
+  },
+  "settingsSyncOpenNotes": "Open your notes on this device",
+  "@settingsSyncOpenNotes": {
+    "description": "The Settings row for an account that is signed in but whose notes this device can't open yet."
+  },
+  "settingsSyncNow": "Sync now",
+  "@settingsSyncNow": {
+    "description": "The Settings row that syncs at once."
+  },
+  "settingsSyncAccount": "Account",
+  "@settingsSyncAccount": {
+    "description": "The label of the Settings row of the signed-in account, under its name."
+  },
+  "accountCancel": "Cancel",
+  "@accountCancel": {
+    "description": "Stops waiting or puts a form away."
+  },
+  "accountDone": "Done",
+  "@accountDone": {
+    "description": "Finishes a screen."
+  },
+  "accountRetry": "Try again",
+  "@accountRetry": {
+    "description": "Asks for the same thing again after a failure."
+  },
+  "accountCopy": "Copy",
+  "@accountCopy": {
+    "description": "Copies a code or a key."
+  },
+  "accountCopied": "Copied",
+  "@accountCopied": {
+    "description": "Says the code or key was copied."
+  },
+  "accountSomethingWrong": "Something went wrong. Try again in a moment.",
+  "@accountSomethingWrong": {
+    "description": "Said when an account task failed in a way the app has no words for."
+  },
+  "accountSignedOutError": "This device was signed out. Sign in again.",
+  "@accountSignedOutError": {
+    "description": "Said when the server ended this device's session."
+  },
+  "accountLoading": "Loading",
+  "@accountLoading": {
+    "description": "Says to a screen reader that something is being read."
+  },
+  "accountUsername": "Username",
+  "@accountUsername": {
+    "description": "The label of the username field."
+  },
+  "accountPassword": "Password",
+  "@accountPassword": {
+    "description": "The label of the password field."
+  },
+  "accountRepeatPassword": "Repeat password",
+  "@accountRepeatPassword": {
+    "description": "The label of the field that repeats a new password."
+  },
+  "accountNewPassword": "New password",
+  "@accountNewPassword": {
+    "description": "The label of the field for a new password."
+  },
+  "accountCurrentPassword": "Current password",
+  "@accountCurrentPassword": {
+    "description": "The label of the field for the password in use."
+  },
+  "formProblemUsernameInvalid": "Use 3–32 lowercase letters, digits, - or _, starting and ending with a letter or digit.",
+  "@formProblemUsernameInvalid": {
+    "description": "Said when a username breaks the rules."
+  },
+  "formProblemUsernameReserved": "That username is reserved. Try another.",
+  "@formProblemUsernameReserved": {
+    "description": "Said when a username is one nobody can sign up with."
+  },
+  "formProblemPasswordTooShort": "Use at least 12 characters. A few random words work well.",
+  "@formProblemPasswordTooShort": {
+    "description": "Said when a password is too short."
+  },
+  "formProblemPasswordTooLong": "Use at most 256 characters.",
+  "@formProblemPasswordTooLong": {
+    "description": "Said when a password is too long."
+  },
+  "formProblemPasswordSameAsUsername": "Choose a password that isn’t your username.",
+  "@formProblemPasswordSameAsUsername": {
+    "description": "Said when a password is the username."
+  },
+  "formProblemPasswordsDiffer": "The passwords don’t match.",
+  "@formProblemPasswordsDiffer": {
+    "description": "Said when a new password and its repeat differ."
+  },
+  "formProblemCredentialsDontMatch": "That username and password don’t match.",
+  "@formProblemCredentialsDontMatch": {
+    "description": "Said when a sign-in can't be right."
+  },
+  "formProblemRecoveryKeyMissing": "A recovery key has 28 letters and digits, in groups of four.",
+  "@formProblemRecoveryKeyMissing": {
+    "description": "Said when no recovery key was typed."
+  },
+  "accountServerLabel": "Server",
+  "@accountServerLabel": {
+    "description": "The label of the row that names the sync server."
+  },
+  "accountServerDefault": "Kanso sync",
+  "@accountServerDefault": {
+    "description": "The name of the default sync server."
+  },
+  "accountServerChange": "Use another server",
+  "@accountServerChange": {
+    "description": "Opens the field for the address of another sync server."
+  },
+  "accountServerAddress": "Server address",
+  "@accountServerAddress": {
+    "description": "The label of the field for the address of a sync server."
+  },
+  "accountServerAddressHint": "https://sync.example.com",
+  "@accountServerAddressHint": {
+    "description": "The hint in the field for the address of a sync server."
+  },
+  "accountServerUse": "Use this server",
+  "@accountServerUse": {
+    "description": "Takes the address typed as the sync server."
+  },
+  "accountServerUseDefault": "Use Kanso sync",
+  "@accountServerUseDefault": {
+    "description": "Goes back to the default sync server."
+  },
+  "accountServerChecking": "Checking the server…",
+  "@accountServerChecking": {
+    "description": "Says the server is being asked how it lets people in."
+  },
+  "accountServerNoSignups": "This server isn’t taking new accounts.",
+  "@accountServerNoSignups": {
+    "description": "Said under the create account form when the server is closed to new accounts."
+  },
+  "accountServerNoMethods": "This server offers no way to sign in that this app can use.",
+  "@accountServerNoMethods": {
+    "description": "Said when a server offers no sign-in method the app can use."
+  },
+  "accountSignInTitle": "Sign in",
+  "@accountSignInTitle": {
+    "description": "The title of the sign-in screen."
+  },
+  "accountSignInHeading": "Sign in to Kanso",
+  "@accountSignInHeading": {
+    "description": "The heading of the sign-in form."
+  },
+  "accountContinueWithApple": "Continue with Apple",
+  "@accountContinueWithApple": {
+    "description": "Signs in with Apple."
+  },
+  "accountContinueWithGoogle": "Continue with Google",
+  "@accountContinueWithGoogle": {
+    "description": "Signs in with Google."
+  },
+  "accountContinueWithGithub": "Continue with GitHub",
+  "@accountContinueWithGithub": {
+    "description": "Signs in with GitHub."
+  },
+  "accountSignInWithPasskey": "Sign in with a passkey",
+  "@accountSignInWithPasskey": {
+    "description": "Signs in with a passkey."
+  },
+  "accountOr": "or",
+  "@accountOr": {
+    "description": "Between the one-tap ways to sign in and the username form."
+  },
+  "accountSignInButton": "Sign in",
+  "@accountSignInButton": {
+    "description": "Signs in with the username and password typed."
+  },
+  "accountCreateAccountLink": "Create an account",
+  "@accountCreateAccountLink": {
+    "description": "Goes to the form that makes an account."
+  },
+  "accountForgotPassword": "Forgot your password? Use your recovery key",
+  "@accountForgotPassword": {
+    "description": "Goes to the form that signs in with the recovery key."
+  },
+  "accountSigningIn": "Signing in…",
+  "@accountSigningIn": {
+    "description": "Said on the button while signing in."
+  },
+  "accountCreateTitle": "Create your account",
+  "@accountCreateTitle": {
+    "description": "The title of the screen that makes an account."
+  },
+  "accountCreateButton": "Create account",
+  "@accountCreateButton": {
+    "description": "Makes the account."
+  },
+  "accountCreatingButton": "Creating…",
+  "@accountCreatingButton": {
+    "description": "Said on the button while the account is made."
+  },
+  "accountCreateWithPasskey": "Create with a passkey",
+  "@accountCreateWithPasskey": {
+    "description": "Makes an account with a passkey."
+  },
+  "accountCreateRecoveryNote": "Kanso can’t reset your password; you’ll get a recovery key instead.",
+  "@accountCreateRecoveryNote": {
+    "description": "Says under the create account form that a recovery key comes next."
+  },
+  "accountSignInInstead": "I already have an account",
+  "@accountSignInInstead": {
+    "description": "Goes back from creating an account to signing in."
+  },
+  "accountGithubTitle": "Continue with GitHub",
+  "@accountGithubTitle": {
+    "description": "The title of the screen that shows the code to type at GitHub."
+  },
+  "accountGithubExplain": "Type this code at GitHub to sign in.",
+  "@accountGithubExplain": {
+    "description": "Says what the code is for."
+  },
+  "accountGithubOpen": "Open GitHub",
+  "@accountGithubOpen": {
+    "description": "Opens GitHub's page for the code."
+  },
+  "accountGithubWaiting": "Waiting for you to finish at GitHub…",
+  "@accountGithubWaiting": {
+    "description": "Said while GitHub's page is waited on."
+  },
+  "accountProviderCancel": "Cancel",
+  "@accountProviderCancel": {
+    "description": "Stops signing in with a provider."
+  },
+  "accountProviderWaiting": "Finish signing in in the page that opened. Kanso opens again when you’re done.",
+  "@accountProviderWaiting": {
+    "description": "Said while a provider's page is open."
+  },
+  "accountUsernameTitle": "Choose a username",
+  "@accountUsernameTitle": {
+    "description": "The title of the screen that asks for a username for a new identity."
+  },
+  "accountUsernameExplain": "Your account is made with this name. You can change it before creating the account.",
+  "@accountUsernameExplain": {
+    "description": "Says what the username is for."
+  },
+  "accountRecoveryKeyTitle": "Your recovery key",
+  "@accountRecoveryKeyTitle": {
+    "description": "The title of the screen that shows the recovery key."
+  },
+  "accountRecoveryKeyText": "If you forget your password, this key and your username are the only way back into your account. Kanso and the server’s owner can’t reset it. Anyone with it can take over your account and read your notes, so keep it somewhere safe, like a password manager or on paper. Each time it’s used, Kanso gives you a new one.",
+  "@accountRecoveryKeyText": {
+    "description": "Explains the recovery key."
+  },
+  "accountRecoveryKeyCopy": "Copy recovery key",
+  "@accountRecoveryKeyCopy": {
+    "description": "Copies the recovery key."
+  },
+  "accountRecoveryKeyConfirm": "I’ve saved my recovery key somewhere safe",
+  "@accountRecoveryKeyConfirm": {
+    "description": "The box that says the recovery key was saved."
+  },
+  "accountRecoveryKeyNoneTitle": "Nothing to save",
+  "@accountRecoveryKeyNoneTitle": {
+    "description": "The title of the card shown when there is no recovery key waiting to be saved."
+  },
+  "accountRecoveryKeyNoneMessage": "There’s no recovery key waiting to be saved.",
+  "@accountRecoveryKeyNoneMessage": {
+    "description": "Says there is no recovery key waiting to be saved."
+  },
+  "accountRecoveryKeyFailedTitle": "The recovery key didn’t load",
+  "@accountRecoveryKeyFailedTitle": {
+    "description": "The title of the card shown when the recovery key could not be read."
+  },
+  "accountRecoveryKeyFailedMessage": "Something went wrong reading the recovery key. Try again.",
+  "@accountRecoveryKeyFailedMessage": {
+    "description": "The message of the card shown when the recovery key could not be read."
+  },
+  "bindingAdd": "Add them to the account",
+  "@bindingAdd": {
+    "description": "Uploads the notes on this phone to the account."
+  },
+  "bindingAddNote": "They’re encrypted and uploaded. A note deleted in the account but still on this device comes back, and a note changed on both sides keeps both versions.",
+  "@bindingAddNote": {
+    "description": "Says what adding the notes does."
+  },
+  "bindingReplace": "Replace them with the account’s notes",
+  "@bindingReplace": {
+    "description": "Replaces the notes on this phone with the account's."
+  },
+  "bindingReplaceNote": "Kanso saves a backup of this device’s library first, then downloads the account’s notes.",
+  "@bindingReplaceNote": {
+    "description": "Says what replacing the notes does."
+  },
+  "bindingCancel": "Cancel",
+  "@bindingCancel": {
+    "description": "Leaves the notes and the account as they were."
+  },
+  "accountUnlockTitle": "Open your notes on this device",
+  "@accountUnlockTitle": {
+    "description": "The title of the screen for a signed-in account whose notes this device can't open yet."
+  },
+  "accountUnlockExplain": "You’re signed in as {username}, but this device can’t read your notes yet.",
+  "@accountUnlockExplain": {
+    "description": "Explains why the notes are closed.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "accountUnlockButton": "Unlock",
+  "@accountUnlockButton": {
+    "description": "Opens the notes with the password typed."
+  },
+  "accountApproveFromDevice": "Approve from another device",
+  "@accountApproveFromDevice": {
+    "description": "Asks a device that is already signed in to let this one in."
+  },
+  "accountUseRecoveryKey": "Use your recovery key",
+  "@accountUseRecoveryKey": {
+    "description": "Goes to the form that opens the notes with the recovery key."
+  },
+  "accountSignOut": "Sign out",
+  "@accountSignOut": {
+    "description": "Signs this device out of the account."
+  },
+  "accountApprovalTitle": "Approve this device",
+  "@accountApprovalTitle": {
+    "description": "The title of the screen that waits for another device to approve this one."
+  },
+  "accountApprovalIntro": "Open Kanso on a device that’s already signed in and approve this one.",
+  "@accountApprovalIntro": {
+    "description": "Says what to do while waiting."
+  },
+  "accountApprovalRequesting": "Asking another device…",
+  "@accountApprovalRequesting": {
+    "description": "Said while the request is sent."
+  },
+  "accountApprovalWaiting": "Waiting for another device…",
+  "@accountApprovalWaiting": {
+    "description": "Said while no device has answered."
+  },
+  "accountApprovalUnlocking": "Approved. Unlocking this device…",
+  "@accountApprovalUnlocking": {
+    "description": "Said while the notes are being opened after an approval."
+  },
+  "accountApprovalApproved": "This device is unlocked.",
+  "@accountApprovalApproved": {
+    "description": "Said when the approval went through."
+  },
+  "accountApprovalNoDevices": "No other device answered. Use your recovery key to open this device.",
+  "@accountApprovalNoDevices": {
+    "description": "Said when no device answered."
+  },
+  "accountApprovalCancelled": "That request was cancelled.",
+  "@accountApprovalCancelled": {
+    "description": "Said when the request was cancelled."
+  },
+  "accountApprovalExpired": "That request expired.",
+  "@accountApprovalExpired": {
+    "description": "Said when the request ran out of time."
+  },
+  "accountApprovalFailed": "Can’t reach the server. Your notes are safe on this device.",
+  "@accountApprovalFailed": {
+    "description": "Said when the server could not be reached while waiting."
+  },
+  "accountApprovalCompare": "On your other device, approve the request only if it shows this code.",
+  "@accountApprovalCompare": {
+    "description": "Says to compare the code with the other device."
+  },
+  "accountApprovalRecoveryInstead": "Use your recovery key instead",
+  "@accountApprovalRecoveryInstead": {
+    "description": "Opens the notes with the recovery key instead of waiting."
+  },
+  "accountApprovalCode": "Code {code}",
+  "@accountApprovalCode": {
+    "description": "Reads out the approval code to a screen reader.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRecoverTitle": "Reset your password",
+  "@accountRecoverTitle": {
+    "description": "The title of the screen that signs in with the recovery key."
+  },
+  "accountRecoverExplain": "Enter your recovery key and choose a new password. Your other devices sign out and ask for it, and you get a new recovery key to save.",
+  "@accountRecoverExplain": {
+    "description": "Explains what recovering does."
+  },
+  "accountRecoveryKeyField": "Recovery key",
+  "@accountRecoveryKeyField": {
+    "description": "The label of the field for the recovery key."
+  },
+  "accountRecoveryKeyHint": "The key you saved, in groups of four.",
+  "@accountRecoveryKeyHint": {
+    "description": "The hint in the field for the recovery key."
+  },
+  "accountRecoverButton": "Reset password",
+  "@accountRecoverButton": {
+    "description": "Signs in with the recovery key and sets the new password."
+  },
+  "accountRecoveringButton": "Resetting…",
+  "@accountRecoveringButton": {
+    "description": "Said on the button while recovering."
+  },
+  "accountTitle": "Account",
+  "@accountTitle": {
+    "description": "The title of the Account screen."
+  },
+  "accountSignedInAs": "Signed in as {username}",
+  "@accountSignedInAs": {
+    "description": "Says who is signed in.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "accountLoadFailedTitle": "Your account didn’t load",
+  "@accountLoadFailedTitle": {
+    "description": "The title of the card shown when the account could not be read."
+  },
+  "accountLoadFailedMessage": "Something went wrong reading your account. Try again.",
+  "@accountLoadFailedMessage": {
+    "description": "The message of the card shown when the account could not be read."
+  },
+  "accountRecoveryKeyUnsavedTitle": "Your new recovery key isn’t saved yet",
+  "@accountRecoveryKeyUnsavedTitle": {
+    "description": "Says a recovery key is waiting to be saved."
+  },
+  "accountRecoveryKeyUnsavedMessage": "Save it now: the one you had before no longer works.",
+  "@accountRecoveryKeyUnsavedMessage": {
+    "description": "Says why the new recovery key matters."
+  },
+  "accountRecoveryKeyShow": "Show it",
+  "@accountRecoveryKeyShow": {
+    "description": "Shows the recovery key that is waiting to be saved."
+  },
+  "accountDevices": "Devices",
+  "@accountDevices": {
+    "description": "The label above the account's devices."
+  },
+  "accountThisDevice": "This device",
+  "@accountThisDevice": {
+    "description": "Marks the device in hand in the list of devices."
+  },
+  "accountLastSeen": "Last seen {date}",
+  "@accountLastSeen": {
+    "description": "When a device last synced.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "accountDeviceSignOut": "Sign out",
+  "@accountDeviceSignOut": {
+    "description": "Signs another device out."
+  },
+  "accountWaysToSignIn": "Ways to sign in",
+  "@accountWaysToSignIn": {
+    "description": "The label above the ways to sign in to the account."
+  },
+  "accountPasswordRow": "Password",
+  "@accountPasswordRow": {
+    "description": "The row for the account's password."
+  },
+  "accountPasswordChange": "Change",
+  "@accountPasswordChange": {
+    "description": "Changes the password."
+  },
+  "accountPasswordNotSet": "Not set",
+  "@accountPasswordNotSet": {
+    "description": "Says the account has no password."
+  },
+  "accountPasskeys": "Passkeys",
+  "@accountPasskeys": {
+    "description": "The label above the passkeys of the account."
+  },
+  "accountPasskeyAdd": "Add a passkey",
+  "@accountPasskeyAdd": {
+    "description": "Adds a passkey to the account."
+  },
+  "accountPasskeyRemove": "Remove",
+  "@accountPasskeyRemove": {
+    "description": "Removes a passkey."
+  },
+  "accountPasskeyAdded": "Added {date}",
+  "@accountPasskeyAdded": {
+    "description": "When a passkey was added.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "accountPasskeyUsed": "Added {added} · Last used {used}",
+  "@accountPasskeyUsed": {
+    "description": "When a passkey was added and last used.",
+    "placeholders": {
+      "added": {
+        "type": "String"
+      },
+      "used": {
+        "type": "String"
+      }
+    }
+  },
+  "accountPasskeyCanUnlock": "Can unlock a new device",
+  "@accountPasskeyCanUnlock": {
+    "description": "Says a passkey signs in and opens the notes."
+  },
+  "accountPasskeySignsInOnly": "Signs in only",
+  "@accountPasskeySignsInOnly": {
+    "description": "Says a passkey signs in but doesn't open the notes."
+  },
+  "accountProviderApple": "Apple",
+  "@accountProviderApple": {
+    "description": "The name of Apple as a way to sign in."
+  },
+  "accountProviderGoogle": "Google",
+  "@accountProviderGoogle": {
+    "description": "The name of Google as a way to sign in."
+  },
+  "accountProviderGithub": "GitHub",
+  "@accountProviderGithub": {
+    "description": "The name of GitHub as a way to sign in."
+  },
+  "accountProviderLinked": "Linked",
+  "@accountProviderLinked": {
+    "description": "Says the account can sign in with the provider."
+  },
+  "accountProviderNotLinked": "Not linked",
+  "@accountProviderNotLinked": {
+    "description": "Says the account can't sign in with the provider."
+  },
+  "accountProviderLink": "Link",
+  "@accountProviderLink": {
+    "description": "Links the provider."
+  },
+  "accountProviderUnlink": "Unlink",
+  "@accountProviderUnlink": {
+    "description": "Unlinks the provider."
+  },
+  "accountNoProofHere": "Confirm it’s you with your password. This device can’t use another way for this account yet.",
+  "@accountNoProofHere": {
+    "description": "Says changes need the password, which this account doesn't have."
+  },
+  "accountRecoveryKeySection": "Recovery key",
+  "@accountRecoveryKeySection": {
+    "description": "The label above the recovery key row."
+  },
+  "accountRecoveryKeyNew": "Make a new one",
+  "@accountRecoveryKeyNew": {
+    "description": "Makes a new recovery key."
+  },
+  "accountRecoveryKeyFooter": "Your recovery key still works if you lose your other ways in.",
+  "@accountRecoveryKeyFooter": {
+    "description": "Says what the recovery key is for."
+  },
+  "accountStorage": "Storage",
+  "@accountStorage": {
+    "description": "The row that says how much of the account's space is used."
+  },
+  "accountDeleteAccount": "Delete account",
+  "@accountDeleteAccount": {
+    "description": "Deletes the account."
+  },
+  "accountWorking": "Working…",
+  "@accountWorking": {
+    "description": "Said while a change is made."
+  },
+  "accountRevokeTitle": "Sign out {name}?",
+  "@accountRevokeTitle": {
+    "description": "The title of the question before signing another device out.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRevokeMessage": "It stops syncing until someone signs in on it again. Its notes stay on it.",
+  "@accountRevokeMessage": {
+    "description": "Says what signing another device out does."
+  },
+  "accountSignOutTitle": "Sign out of {username}?",
+  "@accountSignOutTitle": {
+    "description": "The title of the question before signing out.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "accountSignOutMessage": "Notes stay on this device. Sync stops until you sign in again.",
+  "@accountSignOutMessage": {
+    "description": "Says what signing out does."
+  },
+  "accountSignOutUnsavedKey": "Your new recovery key hasn’t been saved yet; signing out deletes it.",
+  "@accountSignOutUnsavedKey": {
+    "description": "Warns that signing out loses a recovery key not yet saved."
+  },
+  "accountChangePasswordTitle": "Change password",
+  "@accountChangePasswordTitle": {
+    "description": "The title of the form that changes the password."
+  },
+  "accountChangePasswordMessage": "Your other devices sign out and ask for the new password. Your recovery key changes too: the one you saved stops working, and Kanso shows the new one to save.",
+  "@accountChangePasswordMessage": {
+    "description": "Says what changing the password does."
+  },
+  "accountNewRecoveryKeyTitle": "New recovery key",
+  "@accountNewRecoveryKeyTitle": {
+    "description": "The title of the form that makes a new recovery key."
+  },
+  "accountNewRecoveryKeyMessage": "The key you saved stops working, and Kanso shows the new one to save instead.",
+  "@accountNewRecoveryKeyMessage": {
+    "description": "Says what making a new recovery key does."
+  },
+  "accountNewRecoveryKeyButton": "Make a new key",
+  "@accountNewRecoveryKeyButton": {
+    "description": "Makes the new recovery key."
+  },
+  "accountDeleteTitle": "Delete account",
+  "@accountDeleteTitle": {
+    "description": "The title of the form that deletes the account."
+  },
+  "accountDeleteMessage": "This deletes {username}’s encrypted notes, attachments and devices from the server. Notes on this device stay here, and other devices keep their copies. The server’s backups keep a copy for up to 30 days. This can’t be undone.",
+  "@accountDeleteMessage": {
+    "description": "Says what deleting the account does.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "accountDeleteTypeUsername": "Type {username} to confirm",
+  "@accountDeleteTypeUsername": {
+    "description": "The label of the field that asks for the username before deleting.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "accountAddPasskeyTitle": "Add a passkey",
+  "@accountAddPasskeyTitle": {
+    "description": "The title of the form that adds a passkey."
+  },
+  "accountAddPasskeyMessage": "Confirm it’s you with your password, then use your phone’s passkey sheet.",
+  "@accountAddPasskeyMessage": {
+    "description": "Says how to add a passkey."
+  },
+  "accountRemovePasskeyTitle": "Remove {label}?",
+  "@accountRemovePasskeyTitle": {
+    "description": "The title of the question before removing a passkey.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "accountRemovePasskeyMessage": "You won’t be able to sign in with it any more. Confirm it’s you with your password.",
+  "@accountRemovePasskeyMessage": {
+    "description": "Says what removing a passkey does."
+  },
+  "accountRemovePasskeyButton": "Remove passkey",
+  "@accountRemovePasskeyButton": {
+    "description": "Removes the passkey."
+  },
+  "accountLinkTitle": "Link {provider}",
+  "@accountLinkTitle": {
+    "description": "The title of the form that links a provider.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "accountLinkMessage": "Confirm it’s you with your password, then finish in the page that opens.",
+  "@accountLinkMessage": {
+    "description": "Says how to link a provider."
+  },
+  "accountUnlinkTitle": "Unlink {provider}?",
+  "@accountUnlinkTitle": {
+    "description": "The title of the question before unlinking a provider.",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "accountUnlinkMessage": "It no longer signs in to this account. Confirm it’s you with your password.",
+  "@accountUnlinkMessage": {
+    "description": "Says what unlinking a provider does."
+  },
+  "accountConfirmSignOut": "Sign out",
+  "@accountConfirmSignOut": {
+    "description": "Confirms signing out."
+  },
+  "accountNoticeDeviceSignedOut": "Signed out {name}.",
+  "@accountNoticeDeviceSignedOut": {
+    "description": "Said after another device was signed out.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountNoticePasskeyAddedCanUnlock": "Added the passkey. It can unlock: on a new device it signs in and opens your notes.",
+  "@accountNoticePasskeyAddedCanUnlock": {
+    "description": "Said after a passkey that can unlock was added."
+  },
+  "accountNoticePasskeyAddedSignsIn": "Added the passkey. It signs in only: a new device will also need approval or your recovery key.",
+  "@accountNoticePasskeyAddedSignsIn": {
+    "description": "Said after a passkey that only signs in was added."
+  },
+  "accountNoticePasskeyRemoved": "Removed the passkey.",
+  "@accountNoticePasskeyRemoved": {
+    "description": "Said after a passkey was removed."
+  },
+  "accountNoticeProviderLinked": "Linked. You can sign in with it now.",
+  "@accountNoticeProviderLinked": {
+    "description": "Said after a provider was linked."
+  },
+  "accountNoticeProviderUnlinked": "Unlinked. It no longer signs in to this account.",
+  "@accountNoticeProviderUnlinked": {
+    "description": "Said after a provider was unlinked."
+  },
+  "approveDeviceTitle": "Approve a device",
+  "@approveDeviceTitle": {
+    "description": "The title of the sheet that asks to let another device in."
+  },
+  "approveDeviceMessage": "A device wants to join {account}: {device}, asked at {time}.",
+  "@approveDeviceMessage": {
+    "description": "Says who asks to join and when.",
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "device": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "approveDeviceUnnamed": "A device",
+  "@approveDeviceUnnamed": {
+    "description": "What an unnamed device is called."
+  },
+  "approveDeviceCompare": "Does it show {code}? Only approve if it does.",
+  "@approveDeviceCompare": {
+    "description": "Asks to compare the code with the other device.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "approveDeviceChanged": "This request changed after it was made. Don’t approve.",
+  "@approveDeviceChanged": {
+    "description": "Said when a request is not what it was."
+  },
+  "approveDeviceApprove": "Approve",
+  "@approveDeviceApprove": {
+    "description": "Lets the device in."
+  },
+  "approveDeviceDecline": "Don’t approve",
+  "@approveDeviceDecline": {
+    "description": "Turns the device away."
+  },
+  "approveDeviceMore": "{count, plural, =1{1 more request is waiting.} other{{count} more requests are waiting.}}",
+  "@approveDeviceMore": {
+    "description": "Says how many more devices ask to join.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountServerFailedTitle": "This server didn’t answer",
+  "@accountServerFailedTitle": {
+    "description": "The title of the card shown when the server could not be asked how it lets people in."
+  },
+  "accountDeleteMismatch": "That isn’t this account’s username.",
+  "@accountDeleteMismatch": {
+    "description": "Said when the name typed to confirm deleting the account is not the account's."
+  },
+  "shareTitle": "Share",
+  "@shareTitle": {
+    "description": "The title of the sheet that shares a note, and the label of the button that opens it."
+  },
+  "shareClose": "Close",
+  "@shareClose": {
+    "description": "Closes the share sheet."
+  },
+  "shareLoading": "Loading sharing",
+  "@shareLoading": {
+    "description": "Says to a screen reader that a note's sharing is being read."
+  },
+  "shareLockedNote": "Locked notes, and notes in locked notebooks, can’t be shared. Remove the lock first.",
+  "@shareLockedNote": {
+    "description": "All the share sheet says of a locked note."
+  },
+  "shareSignedOut": "Sharing lets people you choose read, comment on or edit a note with you, end-to-end encrypted. It needs a Kanso account: sign in, or create one, then share.",
+  "@shareSignedOut": {
+    "description": "The share sheet's message while no account is signed in."
+  },
+  "shareSignIn": "Sign in…",
+  "@shareSignIn": {
+    "description": "Opens Settings to sign in, from the share sheet."
+  },
+  "shareFailedTitle": "Sharing didn’t load",
+  "@shareFailedTitle": {
+    "description": "The title of the card shown when a note's sharing could not be read."
+  },
+  "shareFailedMessage": "Something went wrong reading this note’s sharing. Try again.",
+  "@shareFailedMessage": {
+    "description": "The message of the card shown when a note's sharing could not be read."
+  },
+  "shareIntro": "Invite people by their Kanso username to read, comment on or edit this note with you. It stays end-to-end encrypted: your sync server passes it on without reading it.",
+  "@shareIntro": {
+    "description": "What the share sheet says of a note that is not shared yet."
+  },
+  "shareSharedWithYou": "{owner} shared this note with you. You {access}.",
+  "@shareSharedWithYou": {
+    "description": "What the share sheet says to someone a note was shared with.",
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      },
+      "access": {
+        "type": "String"
+      }
+    }
+  },
+  "shareAccessView": "can read it",
+  "@shareAccessView": {
+    "description": "What a viewer can do with a shared note, to finish 'You …'."
+  },
+  "shareAccessComment": "can read it and comment on it",
+  "@shareAccessComment": {
+    "description": "What a commenter can do with a shared note, to finish 'You …'."
+  },
+  "shareAccessEdit": "can edit it",
+  "@shareAccessEdit": {
+    "description": "What an editor can do with a shared note, to finish 'You …'."
+  },
+  "shareUsernameHint": "Username",
+  "@shareUsernameHint": {
+    "description": "The hint in the field for the username of the person to invite."
+  },
+  "shareInvite": "Invite",
+  "@shareInvite": {
+    "description": "Invites the person whose username is typed."
+  },
+  "shareInviteRoleLabel": "What the person you invite can do",
+  "@shareInviteRoleLabel": {
+    "description": "Names the choice of role for an invitation, to a screen reader."
+  },
+  "shareRoleOwner": "Owner",
+  "@shareRoleOwner": {
+    "description": "A person who owns a shared note."
+  },
+  "shareRoleEditor": "Can edit",
+  "@shareRoleEditor": {
+    "description": "A person who can edit a shared note."
+  },
+  "shareRoleCommenter": "Can comment",
+  "@shareRoleCommenter": {
+    "description": "A person who can comment on a shared note."
+  },
+  "shareRoleViewer": "Can view",
+  "@shareRoleViewer": {
+    "description": "A person who can only read a shared note."
+  },
+  "shareInvited": "Invited {username}. The note shows for them once they accept.",
+  "@shareInvited": {
+    "description": "Says that a person was invited.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareStopped": "Sharing stopped. Everyone keeps a private copy of the note as it is.",
+  "@shareStopped": {
+    "description": "Says that the owner stopped sharing a note."
+  },
+  "shareLeft": "You left the note. Your copy of it is private now.",
+  "@shareLeft": {
+    "description": "Says that the person left a shared note."
+  },
+  "shareProblemNameMissing": "Type the username of the person to invite.",
+  "@shareProblemNameMissing": {
+    "description": "Says that no username was typed."
+  },
+  "shareProblemLinkMissing": "Paste the invite link first.",
+  "@shareProblemLinkMissing": {
+    "description": "Says that no invite link was typed."
+  },
+  "shareProblemOffline": "Couldn’t reach your sync server. Check your connection and try again.",
+  "@shareProblemOffline": {
+    "description": "Says that the sync server could not be reached while sharing."
+  },
+  "shareProblemSignedOut": "Your account signed this device out. Sign in again to share.",
+  "@shareProblemSignedOut": {
+    "description": "Says that the account signed the device out while sharing."
+  },
+  "shareProblemUnexpected": "Something went wrong. Try again.",
+  "@shareProblemUnexpected": {
+    "description": "Says that a step of sharing failed for no reason the person can act on."
+  },
+  "sharePeople": "People",
+  "@sharePeople": {
+    "description": "The label above the people a note is shared with."
+  },
+  "shareMemberInvited": "Invited, hasn’t accepted yet",
+  "@shareMemberInvited": {
+    "description": "Says that a person has not accepted their invitation."
+  },
+  "shareMemberDeclined": "Declined",
+  "@shareMemberDeclined": {
+    "description": "Says that a person declined their invitation."
+  },
+  "shareMemberLeft": "Left",
+  "@shareMemberLeft": {
+    "description": "Says that a person left the note."
+  },
+  "shareMemberYou": "You",
+  "@shareMemberYou": {
+    "description": "Marks the person's own row in the list of people."
+  },
+  "shareMemberUnchecked": "Can’t be checked",
+  "@shareMemberUnchecked": {
+    "description": "Says that a person's keys changed or could not be checked."
+  },
+  "shareMemberVerified": "Fingerprint verified",
+  "@shareMemberVerified": {
+    "description": "Says that a person's fingerprint was compared and matches."
+  },
+  "shareMemberAcceptKey": "Accept the new key",
+  "@shareMemberAcceptKey": {
+    "description": "Reviews the new keys of a person whose keys changed."
+  },
+  "shareMemberRemove": "Remove from note",
+  "@shareMemberRemove": {
+    "description": "Removes a person from a shared note, or cancels their invitation."
+  },
+  "shareMemberRoleLabel": "Change what {username} can do",
+  "@shareMemberRoleLabel": {
+    "description": "Names the button that changes a person's role, to a screen reader.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareRequests": "Asked to join",
+  "@shareRequests": {
+    "description": "The label above the people who asked to join through a link."
+  },
+  "shareRequestAsked": "{username} asked to join",
+  "@shareRequestAsked": {
+    "description": "Says that a person asked to join through a link.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareRequestDetail": "{role} · Fingerprint {fingerprint}",
+  "@shareRequestDetail": {
+    "description": "Under a request to join: the role the link gives and the person's fingerprint.",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      },
+      "fingerprint": {
+        "type": "String"
+      }
+    }
+  },
+  "shareApprove": "Approve",
+  "@shareApprove": {
+    "description": "Lets in a person who asked to join."
+  },
+  "shareDecline": "Decline",
+  "@shareDecline": {
+    "description": "Turns away a person who asked to join, or declines an invitation."
+  },
+  "shareLinks": "Invite links",
+  "@shareLinks": {
+    "description": "The label above a note's invite links."
+  },
+  "shareLinkExpired": "{role}, expired",
+  "@shareLinkExpired": {
+    "description": "An invite link that has expired.",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "shareLinkDaysLeft": "{days, plural, =1{{role}, for 1 more day} other{{role}, for {days} more days}}",
+  "@shareLinkDaysLeft": {
+    "description": "An invite link and how long it still works.",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shareLinkCancel": "Cancel link",
+  "@shareLinkCancel": {
+    "description": "Cancels an invite link."
+  },
+  "shareLinkMake": "Make link",
+  "@shareLinkMake": {
+    "description": "Makes an invite link."
+  },
+  "shareLinkRoleLabel": "What people who join with the link can do",
+  "@shareLinkRoleLabel": {
+    "description": "Names the choice of role for a link, to a screen reader."
+  },
+  "shareLinkDaysLabel": "How long the link works",
+  "@shareLinkDaysLabel": {
+    "description": "Names the choice of days for a link, to a screen reader."
+  },
+  "shareLinkDays": "{days, plural, =1{1 day} other{{days} days}}",
+  "@shareLinkDays": {
+    "description": "How many days a link works.",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "shareLinkAddress": "Invite link",
+  "@shareLinkAddress": {
+    "description": "Names the made link, to a screen reader."
+  },
+  "shareLinkCopy": "Copy",
+  "@shareLinkCopy": {
+    "description": "Copies the invite link."
+  },
+  "shareLinkCopied": "Copied",
+  "@shareLinkCopied": {
+    "description": "Says that the invite link was copied."
+  },
+  "shareLinkSend": "Send",
+  "@shareLinkSend": {
+    "description": "Sends the invite link through the system's share sheet."
+  },
+  "shareLinkNote": "Anyone with the link can ask to join; you approve each of them here. Copy it now: it can’t be shown again.",
+  "@shareLinkNote": {
+    "description": "Says what an invite link does and that it can be seen once."
+  },
+  "shareStop": "Stop sharing",
+  "@shareStop": {
+    "description": "Stops sharing a note."
+  },
+  "shareStopEveryone": "Stop sharing for everyone",
+  "@shareStopEveryone": {
+    "description": "Confirms stopping the sharing of a note."
+  },
+  "shareLeave": "Leave",
+  "@shareLeave": {
+    "description": "Leaves a shared note."
+  },
+  "shareLeaveNote": "Leave the note",
+  "@shareLeaveNote": {
+    "description": "Confirms leaving a shared note."
+  },
+  "shareStopWarning": "Stopping sharing ends the note for everyone in it. Each of them keeps a private copy of it as it is now.",
+  "@shareStopWarning": {
+    "description": "Warns before the owner stops sharing."
+  },
+  "shareLeaveWarning": "Leaving takes you out of the note. You keep a private copy of it as it is now.",
+  "@shareLeaveWarning": {
+    "description": "Warns before the person leaves a shared note."
+  },
+  "shareKeepSharing": "Keep sharing",
+  "@shareKeepSharing": {
+    "description": "Cancels stopping or leaving."
+  },
+  "shareBack": "Back",
+  "@shareBack": {
+    "description": "Goes back from a question about someone's keys."
+  },
+  "shareVerifyIntro": "You’re sharing with {username} for the first time. Compare this fingerprint with the one they see in Settings › Account, in person or on a call. If it matches, nobody is standing between you.",
+  "@shareVerifyIntro": {
+    "description": "Asks the person to compare a fingerprint before the first share with someone.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareVerifyConfirm": "Mark as verified and invite",
+  "@shareVerifyConfirm": {
+    "description": "Marks a fingerprint as compared and invites the person."
+  },
+  "shareInviteUnverified": "Invite",
+  "@shareInviteUnverified": {
+    "description": "Invites the person without comparing their fingerprint; it stays unverified."
+  },
+  "shareKeyChangedIntro": "{username}’s keys changed since you last shared with them. That happens when they set up their account again, and also when someone tries to read what you share. Ask them which fingerprint they see now before you trust it.",
+  "@shareKeyChangedIntro": {
+    "description": "Warns that someone's keys changed.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareKeyBefore": "Before",
+  "@shareKeyBefore": {
+    "description": "The label above the fingerprint pinned before."
+  },
+  "shareKeyNow": "Now",
+  "@shareKeyNow": {
+    "description": "The label above the fingerprint the server gives now."
+  },
+  "shareKeyTrust": "Trust the new keys",
+  "@shareKeyTrust": {
+    "description": "Pins the new keys of someone whose keys changed."
+  },
+  "shareKeyDontInvite": "Don’t invite",
+  "@shareKeyDontInvite": {
+    "description": "Turns down inviting someone whose keys changed."
+  },
+  "shareKeyNotNow": "Not now",
+  "@shareKeyNotNow": {
+    "description": "Leaves the question about a member's new keys."
+  },
+  "shareFingerprintLabel": "{username}’s fingerprint",
+  "@shareFingerprintLabel": {
+    "description": "Names a fingerprint, to a screen reader.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedWithYouTitle": "Shared with you",
+  "@sharedWithYouTitle": {
+    "description": "The title of the screen of invitations, and the library's row for it."
+  },
+  "sharedWithYouEmptyTitle": "Nothing shared with you",
+  "@sharedWithYouEmptyTitle": {
+    "description": "The title of the empty list of invitations."
+  },
+  "sharedWithYouEmptyMessage": "When someone shares a note with you, it waits here until you accept it.",
+  "@sharedWithYouEmptyMessage": {
+    "description": "The message of the empty list of invitations."
+  },
+  "sharedWithYouSignedOutTitle": "Sign in to get shared notes",
+  "@sharedWithYouSignedOutTitle": {
+    "description": "The title shown while no account is signed in."
+  },
+  "sharedWithYouSignedOutMessage": "Notes other people share with you reach this phone once it is signed in to a Kanso account. Sign in from Settings.",
+  "@sharedWithYouSignedOutMessage": {
+    "description": "The message shown while no account is signed in."
+  },
+  "sharedWithYouFailedTitle": "Shared notes didn’t load",
+  "@sharedWithYouFailedTitle": {
+    "description": "The title of the card shown when invitations could not be read."
+  },
+  "sharedWithYouFailedMessage": "Something went wrong looking for notes shared with you. Try again.",
+  "@sharedWithYouFailedMessage": {
+    "description": "The message of the card shown when invitations could not be read."
+  },
+  "sharedWithYouLoading": "Loading shared notes",
+  "@sharedWithYouLoading": {
+    "description": "Says to a screen reader that invitations are being read."
+  },
+  "sharedInvitationFrom": "A note from {from}",
+  "@sharedInvitationFrom": {
+    "description": "The title of an invitation; the note's own title is sealed until it is accepted.",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedAccept": "Accept",
+  "@sharedAccept": {
+    "description": "Accepts an invitation to a shared note."
+  },
+  "sharedJoinWithLink": "Join with a link",
+  "@sharedJoinWithLink": {
+    "description": "Opens the screen that joins a note with an invite link."
+  },
+  "joinTitle": "Join with a link",
+  "@joinTitle": {
+    "description": "The title of the screen that joins a note with an invite link."
+  },
+  "joinMessage": "Paste the invite link you were sent. The note’s owner lets you in, and the note comes to your library once they do.",
+  "@joinMessage": {
+    "description": "Says what joining with a link does."
+  },
+  "joinHint": "Invite link",
+  "@joinHint": {
+    "description": "The hint in the field for an invite link."
+  },
+  "joinButton": "Join",
+  "@joinButton": {
+    "description": "Asks to join the note an invite link is for."
+  },
+  "joinAsked": "Asked {owner} to let you in. The note shows in your library once they approve.",
+  "@joinAsked": {
+    "description": "Says who was asked to let the person in.",
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      }
+    }
+  },
+  "joinAnother": "Join another note",
+  "@joinAnother": {
+    "description": "Goes back to an empty field to join another note."
+  },
+  "galleryTitle": "Gallery",
+  "@galleryTitle": {
+    "description": "The label above the community's themes on the theme page."
+  },
+  "gallerySearchHint": "Search themes",
+  "@gallerySearchHint": {
+    "description": "The hint in the gallery's search field."
+  },
+  "gallerySearchClear": "Clear search",
+  "@gallerySearchClear": {
+    "description": "Clears the gallery's search field."
+  },
+  "galleryFilterLabel": "Order of the themes",
+  "@galleryFilterLabel": {
+    "description": "Names the choice of order, to a screen reader."
+  },
+  "galleryFilterPopular": "Popular",
+  "@galleryFilterPopular": {
+    "description": "Orders the gallery's themes by how many installed them."
+  },
+  "galleryFilterRecent": "Recently updated",
+  "@galleryFilterRecent": {
+    "description": "Orders the gallery's themes by when they were updated."
+  },
+  "galleryBadgeOfficial": "Official",
+  "@galleryBadgeOfficial": {
+    "description": "A badge on a theme made by Kanso."
+  },
+  "galleryBadgeCommunity": "Community",
+  "@galleryBadgeCommunity": {
+    "description": "A badge on a theme made by the community."
+  },
+  "galleryBadgeIcons": "Icons",
+  "@galleryBadgeIcons": {
+    "description": "A badge on a theme that draws icons rather than colours."
+  },
+  "galleryBadgeWithdrawn": "Withdrawn",
+  "@galleryBadgeWithdrawn": {
+    "description": "A badge on an installed theme the catalog withdrew."
+  },
+  "galleryBy": "by {author}",
+  "@galleryBy": {
+    "description": "Who made a theme.",
     "placeholders": {
       "author": {
         "type": "String"
       }
     }
   },
-  "settingsPreviewSection": "Preview",
-  "@settingsPreviewSection": {
-    "description": "The heading of the settings group about the rendered preview."
+  "galleryVersion": "Version {version}",
+  "@galleryVersion": {
+    "description": "A theme's version.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
-  "settingsPreviewTextSize": "Preview text size",
-  "@settingsPreviewTextSize": {
-    "description": "The label of the settings row that opens the preview's text size."
+  "galleryInstalls": "{count, plural, =1{1 install} other{{count} installs}}",
+  "@galleryInstalls": {
+    "description": "How many times a theme was installed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-  "fontsPreviewTextSizeSection": "Preview text size",
-  "@fontsPreviewTextSizeSection": {
-    "description": "The heading of the preview text size choice."
+  "galleryInstall": "Install",
+  "@galleryInstall": {
+    "description": "Installs a theme from the gallery."
   },
-  "fontsPreviewTextSizeFooter": "The preview’s text, in Split and Preview.",
-  "@fontsPreviewTextSizeFooter": {
-    "description": "What the preview text size changes."
+  "galleryInstalled": "Installed",
+  "@galleryInstalled": {
+    "description": "Says that a theme from the gallery is installed."
   },
-  "settingsDiagrams": "Diagrams",
-  "@settingsDiagrams": {
-    "description": "The label of the row that chooses what draws diagrams."
+  "galleryUpdate": "Update",
+  "@galleryUpdate": {
+    "description": "Updates an installed theme to the gallery's newer version."
   },
-  "settingsDiagramsDetail": "What draws Mermaid diagrams, here and in exports. Pele, Obsidian’s renderer, lays them out tidily in the theme’s colors; Kanso’s own also draws ZenUML.",
-  "@settingsDiagramsDetail": {
-    "description": "What the Diagrams row chooses."
+  "galleryRemove": "Remove",
+  "@galleryRemove": {
+    "description": "Removes an installed theme."
   },
-  "diagramRendererPele": "Pele",
-  "@diagramRendererPele": {
-    "description": "The name of the Pele diagram renderer."
+  "galleryInstalling": "Installing…",
+  "@galleryInstalling": {
+    "description": "Says that a theme is being installed."
   },
-  "diagramRendererKanso": "Kanso",
-  "@diagramRendererKanso": {
-    "description": "The name of Kanso's own diagram renderer."
+  "galleryUpdating": "Updating…",
+  "@galleryUpdating": {
+    "description": "Says that a theme is being updated."
   },
-  "themesThumbBold": "bold",
-  "@themesThumbBold": {
-    "description": "A word set in bold in a theme's sample picture."
+  "galleryRemoving": "Removing…",
+  "@galleryRemoving": {
+    "description": "Says that a theme is being removed."
   },
-  "themesThumbItalic": "italic",
-  "@themesThumbItalic": {
-    "description": "A word set in italics in a theme's sample picture."
+  "galleryNeedsNewer": "Needs a newer Kanso",
+  "@galleryNeedsNewer": {
+    "description": "Says that a theme can't be installed by this version."
   },
-  "themesThumbAnd": " and ",
-  "@themesThumbAnd": {
-    "description": "The word between bold and italic in a theme's sample picture, with a space each side."
+  "galleryLoading": "Loading the gallery",
+  "@galleryLoading": {
+    "description": "Says to a screen reader that the gallery is being read."
   },
-  "themesThumbLink": "a link",
-  "@themesThumbLink": {
-    "description": "The text of a link in a theme's sample picture."
+  "galleryFailedTitle": "The gallery didn’t load",
+  "@galleryFailedTitle": {
+    "description": "The title of the card shown when the gallery could not be read."
   },
-  "themesThumbDone": "done",
-  "@themesThumbDone": {
-    "description": "A finished task in a theme's sample picture."
+  "galleryFailedMessage": "Couldn’t reach the theme gallery. Check your connection and try again.",
+  "@galleryFailedMessage": {
+    "description": "The message of the card shown when the gallery could not be read."
   },
-  "themesThumbSome": "Some",
-  "@themesThumbSome": {
-    "description": "The first word of the sample sentence in a preview theme's picture."
+  "galleryStale": "Showing the last list. Couldn’t reach the gallery just now.",
+  "@galleryStale": {
+    "description": "Says that the gallery shown may be old."
   },
-  "themesThumbBoldComma": "bold,",
-  "@themesThumbBoldComma": {
-    "description": "A bold word with a comma in a preview theme's picture."
+  "galleryRefreshing": "Checking for new themes…",
+  "@galleryRefreshing": {
+    "description": "Says that the gallery is being fetched again."
   },
-  "themesThumbLinkComma": "link,",
-  "@themesThumbLinkComma": {
-    "description": "A link with a comma in a preview theme's picture."
+  "galleryNoResultsTitle": "No themes match",
+  "@galleryNoResultsTitle": {
+    "description": "The title shown when a search finds no theme."
   },
-  "themesThumbInlineCode": "code",
-  "@themesThumbInlineCode": {
-    "description": "Inline code in a preview theme's picture."
+  "galleryNoResultsMessage": "Nothing in the gallery matches “{query}”. Try another word.",
+  "@galleryNoResultsMessage": {
+    "description": "The message shown when a search finds no theme.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryEmptyTitle": "The gallery is empty",
+  "@galleryEmptyTitle": {
+    "description": "The title shown when the gallery has no themes."
+  },
+  "galleryEmptyMessage": "There are no themes to show yet.",
+  "@galleryEmptyMessage": {
+    "description": "The message shown when the gallery has no themes."
+  },
+  "galleryProblemOffline": "Couldn’t reach the gallery. Check your connection and try again.",
+  "@galleryProblemOffline": {
+    "description": "Says that the gallery could not be reached while installing."
+  },
+  "galleryProblemUnexpected": "Something went wrong. Try again.",
+  "@galleryProblemUnexpected": {
+    "description": "Says that installing or removing a theme failed for no reason the person can act on."
+  },
+  "sharedWithYouRefresh": "Look for new shared notes",
+  "@sharedWithYouRefresh": {
+    "description": "Reads the invitations again, as a screen reader says it."
+  },
+  "joinSentTitle": "Request sent",
+  "@joinSentTitle": {
+    "description": "The title of the card that says a request to join was sent."
+  },
+  "timeJustNow": "just now",
+  "@timeJustNow": {
+    "description": "When something happened under a minute ago, after “Synced” or “Edited”."
+  },
+  "timeMinutesAgo": "{minutes} min ago",
+  "@timeMinutesAgo": {
+    "description": "When something happened, minutes ago.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{hours} h ago",
+  "@timeHoursAgo": {
+    "description": "When something happened, hours ago.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeToday": "today",
+  "@timeToday": {
+    "description": "When something happened earlier today, more than a day ago by the clock."
+  },
+  "timeYesterday": "yesterday",
+  "@timeYesterday": {
+    "description": "When something happened yesterday."
+  },
+  "timeResumeAt": "at {time}",
+  "@timeResumeAt": {
+    "description": "When paused sync starts again, later today, after “Sync resumes”.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeResumeTomorrow": "tomorrow at {time}",
+  "@timeResumeTomorrow": {
+    "description": "When paused sync starts again, tomorrow.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeResumeOn": "on {day} at {time}",
+  "@timeResumeOn": {
+    "description": "When paused sync starts again, on a later day.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSyncAutomatically": "Sync automatically",
+  "@settingsSyncAutomatically": {
+    "description": "The Settings switch that lets Kanso sync on its own."
+  },
+  "settingsSyncAutomaticallyDetail": "In the background, and soon after you edit.",
+  "@settingsSyncAutomaticallyDetail": {
+    "description": "Under the Sync automatically switch: when Kanso syncs on its own."
+  },
+  "settingsSyncEvery": "Sync every",
+  "@settingsSyncEvery": {
+    "description": "The Settings row that chooses how often Kanso syncs on its own."
+  },
+  "settingsSyncEveryTitle": "Sync every",
+  "@settingsSyncEveryTitle": {
+    "description": "The title of the sheet of how often Kanso syncs on its own."
+  },
+  "commentsTitle": "Comments",
+  "@commentsTitle": {
+    "description": "The title of a shared note's comments sheet."
+  },
+  "commentsButton": "{count, plural, =0{Comments} =1{Comments, 1 open} other{Comments, {count} open}}",
+  "@commentsButton": {
+    "description": "What the comments button in a shared note's top bar does, as a screen reader says it.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsOrphaned": "Orphaned",
+  "@commentsOrphaned": {
+    "description": "The heading over the comments whose words were deleted."
+  },
+  "commentsNotShared": "Comments are for shared notes",
+  "@commentsNotShared": {
+    "description": "Says that a note that isn't shared has no comments."
+  },
+  "commentsNotSharedHint": "Share this note to talk it over with others.",
+  "@commentsNotSharedHint": {
+    "description": "Under the title that says comments are for shared notes."
+  },
+  "commentsEmpty": "No comments yet",
+  "@commentsEmpty": {
+    "description": "Says that nobody has commented on a shared note."
+  },
+  "commentsEmptyHint": "Select some words, then choose Comment.",
+  "@commentsEmptyHint": {
+    "description": "How to comment, under No comments yet, for someone who may comment."
+  },
+  "commentsEmptyHintReader": "Nobody has commented on this note yet.",
+  "@commentsEmptyHintReader": {
+    "description": "Under No comments yet, for someone who may only read the note."
+  },
+  "commentEditedSuffix": " · Edited",
+  "@commentEditedSuffix": {
+    "description": "After when a comment was written, when it was edited since."
+  },
+  "commentSendingSuffix": " · Sending…",
+  "@commentSendingSuffix": {
+    "description": "After when a comment was written, while it is on its way to the others."
+  },
+  "commentResolvedMark": "Resolved",
+  "@commentResolvedMark": {
+    "description": "Marks a resolved comment."
+  },
+  "commentResolve": "Resolve",
+  "@commentResolve": {
+    "description": "Marks a comment as dealt with."
+  },
+  "commentReopen": "Reopen",
+  "@commentReopen": {
+    "description": "Opens a resolved comment again."
+  },
+  "commentEdit": "Edit",
+  "@commentEdit": {
+    "description": "Changes the words of one of the person's comments."
+  },
+  "commentDelete": "Delete",
+  "@commentDelete": {
+    "description": "Deletes one of the person's comments."
+  },
+  "commentDeleteWarning": "Delete this comment? It goes for everyone in the note.",
+  "@commentDeleteWarning": {
+    "description": "Asks once before a comment is deleted."
+  },
+  "commentEditTitle": "Edit comment",
+  "@commentEditTitle": {
+    "description": "The title of the sheet that changes a comment's words."
+  },
+  "commentSave": "Save",
+  "@commentSave": {
+    "description": "Saves a comment's new words."
+  },
+  "commentNewTitle": "Comment on the selection",
+  "@commentNewTitle": {
+    "description": "The title of the sheet that comments on the selected words."
+  },
+  "commentNewAction": "Comment",
+  "@commentNewAction": {
+    "description": "Sends a new comment."
+  },
+  "commentHint": "Your comment",
+  "@commentHint": {
+    "description": "The hint in the empty comment field."
+  },
+  "menuComment": "Comment",
+  "@menuComment": {
+    "description": "The text menu's button that comments on the selected words of a shared note."
+  },
+  "sharedStatusShared": "Shared",
+  "@sharedStatusShared": {
+    "description": "The first words of a shared note's status line."
+  },
+  "sharedStatusReadOnly": "Read only",
+  "@sharedStatusReadOnly": {
+    "description": "In a shared note's status line: this account may not change the text."
+  },
+  "sharedStatusLive": "Live",
+  "@sharedStatusLive": {
+    "description": "In a shared note's status line: edits cross between people within a moment."
+  },
+  "sharedStatusOffline": "Offline",
+  "@sharedStatusOffline": {
+    "description": "In a shared note's status line: the note's room is not connected."
+  },
+  "sharedStatusNearLimit": "Near this shared note's size limit",
+  "@sharedStatusNearLimit": {
+    "description": "In a shared note's status line: the note uses more than 80% of its size limit."
+  },
+  "sharedStatusPrivateCopy": "Private copy · No longer shared",
+  "@sharedStatusPrivateCopy": {
+    "description": "The status line of a note whose sharing ended while it was open."
+  },
+  "sharedProblemsMore": "{message} ({count, plural, =1{1 more} other{{count} more}})",
+  "@sharedProblemsMore": {
+    "description": "The banner over a shared note: the newest thing that couldn't be done, and how many more there are.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sharedProblemsDismiss": "Dismiss",
+  "@sharedProblemsDismiss": {
+    "description": "Clears the banner of a shared note's problems."
+  },
+  "dailyNoteLoading": "Opening today’s note",
+  "@dailyNoteLoading": {
+    "description": "Shown while today's daily note is found or made."
+  },
+  "dailyNoteFailedTitle": "Today’s note didn’t open",
+  "@dailyNoteFailedTitle": {
+    "description": "The title of the card shown when today's daily note could not be opened."
+  },
+  "dailyNoteFailedMessage": "Something went wrong opening today’s note on this phone. Try again.",
+  "@dailyNoteFailedMessage": {
+    "description": "The message of the card shown when today's daily note could not be opened."
+  },
+  "captureTakePhoto": "Take photo",
+  "@captureTakePhoto": {
+    "description": "The row of the capture sheet that takes a photo with the camera and saves or attaches it."
+  },
+  "captureChoosePhotos": "Choose photos",
+  "@captureChoosePhotos": {
+    "description": "The row of the capture sheet that picks photos from the phone's library."
+  },
+  "captureAttachPdf": "Attach PDF",
+  "@captureAttachPdf": {
+    "description": "The row of the capture sheet that picks PDFs from the phone's files."
+  },
+  "captureImageLink": "Image link",
+  "@captureImageLink": {
+    "description": "The editor's attach sheet: writes an image's Markdown to fill in by hand."
+  },
+  "captureAttachFailed": "Couldn't attach that file.",
+  "@captureAttachFailed": {
+    "description": "Said when a picked file couldn't be attached for a reason the library didn't put in words."
+  },
+  "lockedMessage": "Unlock it to read and edit. It locks again after {minutes} minutes or when you leave Kanso.",
+  "@lockedMessage": {
+    "description": "Says how a locked note is opened and when it locks.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "lockedUnlockWith": "Unlock with {method}",
+  "@lockedUnlockWith": {
+    "description": "Unlocks a locked note with a biometric; method is Face ID, Touch ID or fingerprint.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "lockedUsePassword": "Use password",
+  "@lockedUsePassword": {
+    "description": "Unlocks a note with the lock password instead."
+  },
+  "lockedBiometricFailed": "{method} didn't work. Use your lock password instead.",
+  "@lockedBiometricFailed": {
+    "description": "Said when a biometric check failed.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "lockedInvalidated": "Your biometrics changed, so {method} no longer opens locked notes. Use your lock password, then turn {method} on again in Settings.",
+  "@lockedInvalidated": {
+    "description": "Said when the enrolled biometrics changed.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "biometricFaceId": "Face ID",
+  "@biometricFaceId": {
+    "description": "The name of Face ID."
+  },
+  "biometricTouchId": "Touch ID",
+  "@biometricTouchId": {
+    "description": "The name of Touch ID."
+  },
+  "biometricOpticId": "Optic ID",
+  "@biometricOpticId": {
+    "description": "The name of Optic ID."
+  },
+  "biometricFingerprint": "fingerprint",
+  "@biometricFingerprint": {
+    "description": "The name of fingerprint unlock on Android."
+  },
+  "biometricFace": "face unlock",
+  "@biometricFace": {
+    "description": "The name of face unlock on Android."
+  },
+  "biometricIris": "iris unlock",
+  "@biometricIris": {
+    "description": "The name of iris unlock on Android."
+  },
+  "biometricGeneric": "biometrics",
+  "@biometricGeneric": {
+    "description": "The generic name of biometric unlock."
+  },
+  "biometricReasonUnlock": "Unlock your locked notes",
+  "@biometricReasonUnlock": {
+    "description": "The text of the biometric prompt that unlocks notes."
+  },
+  "biometricReasonEnroll": "Use it to unlock your locked notes on this device",
+  "@biometricReasonEnroll": {
+    "description": "The text of the biometric prompt that turns biometric unlock on."
+  },
+  "lockFieldPassword": "Lock password",
+  "@lockFieldPassword": {
+    "description": "The label of the lock password field."
+  },
+  "lockFieldPasswordHint": "At least 8 characters.",
+  "@lockFieldPasswordHint": {
+    "description": "The hint under a new lock password."
+  },
+  "lockFieldAgain": "Type it again",
+  "@lockFieldAgain": {
+    "description": "The label of the field that repeats a password."
+  },
+  "lockFieldCurrent": "Current lock password",
+  "@lockFieldCurrent": {
+    "description": "The label of the field for the current lock password."
+  },
+  "lockFieldNew": "New lock password",
+  "@lockFieldNew": {
+    "description": "The label of the field for the new lock password."
+  },
+  "lockCancel": "Cancel",
+  "@lockCancel": {
+    "description": "Closes a lock sheet without doing anything."
+  },
+  "lockWrongPassword": "That isn't the lock password.",
+  "@lockWrongPassword": {
+    "description": "Said when the lock password is wrong."
+  },
+  "lockMismatch": "The passwords don't match.",
+  "@lockMismatch": {
+    "description": "Said when the two typed passwords differ."
+  },
+  "lockNewMismatch": "The new passwords don't match.",
+  "@lockNewMismatch": {
+    "description": "Said when the two typed new passwords differ."
+  },
+  "lockTooShort": "The lock password needs at least 8 characters.",
+  "@lockTooShort": {
+    "description": "Said when a new lock password is too short."
+  },
+  "lockActionFailed": "That didn't work. Try again.",
+  "@lockActionFailed": {
+    "description": "Said when a lock action failed for a reason with no better words."
+  },
+  "lockUnlockNoteTitle": "Unlock note",
+  "@lockUnlockNoteTitle": {
+    "description": "The title of the sheet that asks for the lock password to open a note."
+  },
+  "lockUnlockNotebookTitle": "Unlock notebook",
+  "@lockUnlockNotebookTitle": {
+    "description": "The title of the sheet that asks for the lock password to open a notebook."
+  },
+  "lockUnlockNotebookMessage": "“{name}” is locked. Its notes open with your lock password.",
+  "@lockUnlockNotebookMessage": {
+    "description": "Says why a notebook asks for the lock password.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lockUnlockButton": "Unlock",
+  "@lockUnlockButton": {
+    "description": "Opens the locked notes with the password typed."
+  },
+  "lockSetTitle": "Set a lock password",
+  "@lockSetTitle": {
+    "description": "The title of the sheet that makes the lock password."
+  },
+  "lockSetMessage": "Locked notes open with this password, on this device and any other that syncs with it. Kanso can't recover it: forget it, and the notes locked with it can't be read.",
+  "@lockSetMessage": {
+    "description": "Explains the lock password."
+  },
+  "lockSetButton": "Lock",
+  "@lockSetButton": {
+    "description": "Sets the lock password and locks."
+  },
+  "lockNoteMenu": "Lock note…",
+  "@lockNoteMenu": {
+    "description": "The note menu action that locks the note."
+  },
+  "lockNoteAskTitle": "Lock note",
+  "@lockNoteAskTitle": {
+    "description": "The title of the sheet that asks for the lock password to lock a note."
+  },
+  "lockNoteConfirmTitle": "Lock this note?",
+  "@lockNoteConfirmTitle": {
+    "description": "The title of the sheet that confirms locking a note."
+  },
+  "lockNoteConfirmMessage": "Its text is sealed and its earlier versions are deleted. It stays open until the locked notes lock again.",
+  "@lockNoteConfirmMessage": {
+    "description": "Explains what locking a note does."
+  },
+  "lockNotebookAskTitle": "Lock notebook",
+  "@lockNotebookAskTitle": {
+    "description": "The title of the sheet that asks for the lock password to lock a notebook."
+  },
+  "lockNotebookConfirmTitle": "Lock this notebook?",
+  "@lockNotebookConfirmTitle": {
+    "description": "The title of the sheet that confirms locking a notebook."
+  },
+  "lockNotebookConfirmMessage": "Every note in it is sealed, and new notes added to it are sealed too.",
+  "@lockNotebookConfirmMessage": {
+    "description": "Explains what locking a notebook does."
+  },
+  "lockNotebookMenu": "Lock Notebook…",
+  "@lockNotebookMenu": {
+    "description": "The notebook menu action that locks the notebook."
+  },
+  "lockRemoveNoteMenu": "Remove lock…",
+  "@lockRemoveNoteMenu": {
+    "description": "The note menu action that removes the lock."
+  },
+  "lockRemoveNotebookMenu": "Remove Notebook Lock…",
+  "@lockRemoveNotebookMenu": {
+    "description": "The notebook menu action that removes the lock."
+  },
+  "lockUnlockNotebookMenu": "Unlock notebook…",
+  "@lockUnlockNotebookMenu": {
+    "description": "The notebook menu action that opens a locked notebook."
+  },
+  "lockNowMenu": "Lock notes now",
+  "@lockNowMenu": {
+    "description": "Closes every locked note."
+  },
+  "lockRemoveNoteTitle": "Remove the lock?",
+  "@lockRemoveNoteTitle": {
+    "description": "The title of the sheet that confirms removing a note's lock."
+  },
+  "lockRemoveNoteMessage": "The note's text is kept as plain text again: search, backlinks, tasks and the local API can read it.",
+  "@lockRemoveNoteMessage": {
+    "description": "Explains what removing a note's lock does."
+  },
+  "lockRemoveNotebookTitle": "Remove the notebook's lock?",
+  "@lockRemoveNotebookTitle": {
+    "description": "The title of the sheet that confirms removing a notebook's lock."
+  },
+  "lockRemoveNotebookMessage": "The notes in it are kept as plain text again: search, backlinks, tasks and the local API can read them.",
+  "@lockRemoveNotebookMessage": {
+    "description": "Explains what removing a notebook's lock does."
+  },
+  "lockRemoveButton": "Remove Lock",
+  "@lockRemoveButton": {
+    "description": "Removes the lock."
+  },
+  "lockRemoveClosed": "Unlock the notes first, then try again.",
+  "@lockRemoveClosed": {
+    "description": "Said when a lock can't be removed because the notes are closed."
+  },
+  "lockMoreMenu": "More",
+  "@lockMoreMenu": {
+    "description": "What the note's menu button does."
+  },
+  "lockMoreTitle": "Note actions",
+  "@lockMoreTitle": {
+    "description": "The title of the note's menu."
+  },
+  "noteExportPdf": "Export as PDF",
+  "@noteExportPdf": {
+    "description": "The note's menu row that writes it as a PDF to share."
+  },
+  "noteExportPreparing": "Preparing the PDF",
+  "@noteExportPreparing": {
+    "description": "What is shown while a note is being written as a PDF."
+  },
+  "noteExportFailed": "The note could not be exported.",
+  "@noteExportFailed": {
+    "description": "Said when a note could not be written as a PDF."
+  },
+  "lockNotebookMenuTitle": "Notebook actions",
+  "@lockNotebookMenuTitle": {
+    "description": "The title of the notebook's menu."
+  },
+  "noteRowLocked": "Locked",
+  "@noteRowLocked": {
+    "description": "What a screen reader says of a locked note."
+  },
+  "noteRowUnlocked": "Unlocked",
+  "@noteRowUnlocked": {
+    "description": "What a screen reader says of a locked note that is open."
+  },
+  "noteListUnlocked": "Unlocked",
+  "@noteListUnlocked": {
+    "description": "The line a locked note's row shows while it is open."
+  },
+  "settingsLockedNotes": "Locked notes",
+  "@settingsLockedNotes": {
+    "description": "A section of settings."
+  },
+  "settingsUnlockWith": "Unlock with {method}",
+  "@settingsUnlockWith": {
+    "description": "The switch to unlock notes with a biometric.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsLockAfter": "Lock after",
+  "@settingsLockAfter": {
+    "description": "How long until the locked notes lock again."
+  },
+  "settingsTenMinutes": "{minutes} minutes",
+  "@settingsTenMinutes": {
+    "description": "A number of minutes.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsChangeLockPassword": "Change lock password…",
+  "@settingsChangeLockPassword": {
+    "description": "Opens the sheet that changes the lock password."
+  },
+  "settingsLockNow": "Lock notes now",
+  "@settingsLockNow": {
+    "description": "Closes every locked note."
+  },
+  "settingsBiometricsClosed": "Unlock a locked note with your lock password first, then turn on {method}.",
+  "@settingsBiometricsClosed": {
+    "description": "Said when biometrics are turned on while the notes are closed.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsBiometricsOn": "{method} now unlocks your locked notes on this device.",
+  "@settingsBiometricsOn": {
+    "description": "Said after biometric unlock was turned on.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsBiometricsOff": "Locked notes open with the lock password again on this device.",
+  "@settingsBiometricsOff": {
+    "description": "Said after biometric unlock was turned off."
+  },
+  "settingsBiometricsFailed": "{method} could not be turned on.",
+  "@settingsBiometricsFailed": {
+    "description": "Said when biometric unlock could not be turned on.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "lockChangeTitle": "Change lock password",
+  "@lockChangeTitle": {
+    "description": "The title of the sheet that changes the lock password."
+  },
+  "lockChangeMessage": "Every locked note is sealed again with the new password. Kanso can't recover it.",
+  "@lockChangeMessage": {
+    "description": "Explains changing the lock password."
+  },
+  "lockChangeButton": "Change",
+  "@lockChangeButton": {
+    "description": "Changes the lock password."
+  },
+  "lockChangeKept": "{count, plural, =1{1 locked note or notebook didn't open with the current password and kept it.} other{{count} locked notes or notebooks didn't open with the current password and kept it.}}",
+  "@lockChangeKept": {
+    "description": "Says how many locked items kept the old password.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockOfferTitle": "Use {method}?",
+  "@lockOfferTitle": {
+    "description": "The title of the offer to turn on biometric unlock.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "lockOfferMessage": "Use {method} to unlock your locked notes on this device? The password still works, and other devices need it.",
+  "@lockOfferMessage": {
+    "description": "The offer to turn on biometric unlock.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "lockOfferAccept": "Use {method}",
+  "@lockOfferAccept": {
+    "description": "Accepts the offer of biometric unlock.",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "lockOfferDecline": "Not now",
+  "@lockOfferDecline": {
+    "description": "Declines the offer of biometric unlock."
+  },
+  "lockDone": "Done",
+  "@lockDone": {
+    "description": "Closes a lock sheet that has told its result."
+  },
+  "importTitle": "Import notes",
+  "importEmptyButton": "Import notes",
+  "importIntro": "Bring notes in from another app. Kanso only reads what you choose, and importing again updates the notes it made without undoing your edits.",
+  "importSourcesLabel": "Import from",
+  "importPickFile": "Choose a file",
+  "importPickFolder": "Choose a folder",
+  "importPickTitle": "Import from {source}",
+  "importPicking": "Waiting for your choice…",
+  "importReadingTitle": "Reading your notes",
+  "importReadingMessage": "Nothing is written yet.",
+  "importWritingTitle": "Importing",
+  "importWritingMessage": "Keep Kanso open until it finishes.",
+  "importSummaryTitle": "Ready to import",
+  "importSummaryFrom": "From {name}",
+  "importSummaryEmptyTitle": "Nothing to import",
+  "importSummaryEmptyMessage": "Kanso found no notes in {name}.",
+  "importButton": "Import",
+  "importChooseAnother": "Choose another",
+  "importDoneTitle": "Import finished",
+  "importOpenFirst": "Open the first note",
+  "importDoneButton": "Done",
+  "importSkippedTitle": "Skipped",
+  "importRejectedTitle": "Not imported",
+  "importFailedTitle": "The import didn’t finish",
+  "importTryAgain": "Try again",
+  "importProblemPickFailed": "Kanso couldn’t read what you chose. Try choosing it again.",
+  "importProblemNotAnExport": "That file isn’t an export Kanso can read.",
+  "importProblemUnexpected": "Something went wrong. Try again.",
+  "openedDocumentsFailedTitle": "The file wasn’t opened",
+  "openedDocumentsFailedMessage": "Kanso couldn’t add it to your notes. Try opening it again.",
+  "openedDocumentsProblemsTitle": "Some files weren’t opened",
+  "openedDocumentsOk": "OK",
+  "backupsTitle": "Backups",
+  "@backupsTitle": {
+    "description": "The title of the screen that lists the library's backups, and its row in Settings."
+  },
+  "backupsSchedule": "Once a day · last 14",
+  "@backupsSchedule": {
+    "description": "The daily backup schedule and retention shown beside Backups in Settings."
+  },
+  "backupsCount": "{count, plural, =0{None yet} =1{1 backup} other{{count} backups}}",
+  "@backupsCount": {
+    "description": "How many backups there are, as the value of the Backups row in Settings.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupsSummary": "Kanso backs up its database on this device once a day and keeps the last 14. A backup made with Back up now is kept until you delete it here.",
+  "@backupsSummary": {
+    "description": "Says how the backups work, at the top of the Backups screen. The same words as the engine's phone summary."
+  },
+  "backupsBackUpNow": "Back up now",
+  "@backupsBackUpNow": {
+    "description": "The button that makes a backup right away."
+  },
+  "backupsBackingUp": "Backing up…",
+  "@backupsBackingUp": {
+    "description": "What the Back up now button says while it works."
+  },
+  "backupsListHeader": "Backups",
+  "@backupsListHeader": {
+    "description": "The header over the list of backups."
+  },
+  "backupsKindDaily": "Daily backup",
+  "@backupsKindDaily": {
+    "description": "Says a backup was made by the daily schedule, which keeps the last 14."
+  },
+  "backupsKindManual": "Made with Back up now",
+  "@backupsKindManual": {
+    "description": "Says a backup was made on request and is kept until it is deleted."
+  },
+  "backupsKindManualKept": "{kind} · {size}",
+  "@backupsKindManualKept": {
+    "description": "A backup's second line: how it was made and how big it is.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "backupsDelete": "Delete backup",
+  "@backupsDelete": {
+    "description": "The label of the button that deletes a backup made on request."
+  },
+  "backupsEmptyTitle": "No backups yet",
+  "@backupsEmptyTitle": {
+    "description": "The title of the empty list of backups."
+  },
+  "backupsEmptyMessage": "Back up now makes one right away.",
+  "@backupsEmptyMessage": {
+    "description": "What the empty list of backups says to do."
+  },
+  "backupsLoading": "Reading the backups",
+  "@backupsLoading": {
+    "description": "What a screen reader says while the backups are read."
+  },
+  "backupsFailedTitle": "The backups couldn’t be read",
+  "@backupsFailedTitle": {
+    "description": "The title of the card shown when the backups could not be listed."
+  },
+  "backupsFailedMessage": "Try again in a moment.",
+  "@backupsFailedMessage": {
+    "description": "The message of the card shown when the backups could not be listed."
+  },
+  "backupsNoticeMadeNow": "The backup was made.",
+  "@backupsNoticeMadeNow": {
+    "description": "Says a backup was made on request."
+  },
+  "backupsNoticeDeleted": "The backup was deleted.",
+  "@backupsNoticeDeleted": {
+    "description": "Says a backup made on request was deleted."
+  },
+  "backupsProblemDaily": "Today’s backup couldn’t be made.",
+  "@backupsProblemDaily": {
+    "description": "Says the daily backup, made when the app opened, failed."
+  },
+  "backupsProblemBackUp": "The backup couldn’t be made.",
+  "@backupsProblemBackUp": {
+    "description": "Says Back up now failed."
+  },
+  "backupsProblemDelete": "The backup couldn’t be deleted.",
+  "@backupsProblemDelete": {
+    "description": "Says deleting a backup failed."
+  },
+  "backupsProblemList": "The list of backups couldn’t be updated.",
+  "@backupsProblemList": {
+    "description": "Says the list could not be read again; the one shown is the last that was read."
+  },
+  "backupsDeleteTitle": "Delete this backup?",
+  "@backupsDeleteTitle": {
+    "description": "The title of the sheet that asks to confirm deleting a backup."
+  },
+  "backupsDeleteMessage": "The backup made {when} is deleted from this device. This can’t be undone.",
+  "@backupsDeleteMessage": {
+    "description": "What the sheet that confirms deleting a backup says; {when} is the day and time it was made.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "backupsDeleteConfirm": "Delete",
+  "@backupsDeleteConfirm": {
+    "description": "The button that deletes the backup."
+  },
+  "backupsDeleteCancel": "Cancel",
+  "@backupsDeleteCancel": {
+    "description": "The button that keeps the backup."
+  },
+  "fileSizeBytes": "{size} B",
+  "@fileSizeBytes": {
+    "description": "A size in bytes.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "fileSizeKilobytes": "{size} KB",
+  "@fileSizeKilobytes": {
+    "description": "A size in kilobytes.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "fileSizeMegabytes": "{size} MB",
+  "@fileSizeMegabytes": {
+    "description": "A size in megabytes.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "fileSizeGigabytes": "{size} GB",
+  "@fileSizeGigabytes": {
+    "description": "A size in gigabytes.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "noteInfoHistory": "Show history",
+  "@noteInfoHistory": {
+    "description": "The row of a note's info sheet that opens the note's earlier versions."
+  },
+  "historyTitle": "Note history",
+  "@historyTitle": {
+    "description": "The title of the screen that lists a note's earlier versions."
+  },
+  "historyClose": "Close",
+  "@historyClose": {
+    "description": "Closes the history."
+  },
+  "historyLoading": "Reading the history",
+  "@historyLoading": {
+    "description": "What a screen reader says while a note's history is read."
+  },
+  "historyEmptyTitle": "No earlier versions yet",
+  "@historyEmptyTitle": {
+    "description": "The title shown when a note has no saved versions."
+  },
+  "historyEmptyMessage": "Kanso keeps one every few minutes while you edit, and one before every change made elsewhere.",
+  "@historyEmptyMessage": {
+    "description": "What the empty history says about when versions are kept."
+  },
+  "historyFailedTitle": "The history couldn’t be read",
+  "@historyFailedTitle": {
+    "description": "The title of the card shown when a note's history could not be read."
+  },
+  "historyFailedMessage": "Try again in a moment.",
+  "@historyFailedMessage": {
+    "description": "The message of the card shown when a note's history could not be read."
+  },
+  "historyLockedTitle": "This note is locked",
+  "@historyLockedTitle": {
+    "description": "The title shown for the history of a locked note that is closed."
+  },
+  "historyLockedMessage": "Its earlier versions stay sealed until you unlock it.",
+  "@historyLockedMessage": {
+    "description": "What the history of a closed locked note says."
+  },
+  "historyNotFoundTitle": "This note isn’t here any more",
+  "@historyNotFoundTitle": {
+    "description": "The title shown when the note whose history was asked for is gone."
+  },
+  "historyNotFoundMessage": "It may have been deleted on another device.",
+  "@historyNotFoundMessage": {
+    "description": "What the history of a note that is gone says."
+  },
+  "historyVersionLabel": "Version",
+  "@historyVersionLabel": {
+    "description": "The label of the control that chooses which earlier version to look at."
+  },
+  "historyVersionsTitle": "Versions",
+  "@historyVersionsTitle": {
+    "description": "The title of the sheet that lists the earlier versions."
+  },
+  "historyNow": "Now",
+  "@historyNow": {
+    "description": "The note as it is now, beside its versions."
+  },
+  "historyOrigin": "{origin, select, ui{Edited in Kanso} api{Replaced through the API} sync{Replaced by sync} import{Replaced by an import} collab{Edited in a shared note} agent{Suggested by an agent, applied by you} plugin{Changed by a plugin} other{Saved version}}",
+  "@historyOrigin": {
+    "description": "Why a version was kept, from what replaced it.",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
+  "historyPaneChanges": "Changes",
+  "@historyPaneChanges": {
+    "description": "The tab that shows what changed from a version to the note now."
+  },
+  "historyPaneVersion": "This version",
+  "@historyPaneVersion": {
+    "description": "The tab that shows a version's own text."
+  },
+  "historyPaneLabel": "What to show of the version",
+  "@historyPaneLabel": {
+    "description": "The label of the control that switches between the changes and the version."
+  },
+  "historyNoChanges": "This version’s text is the same as the note’s now.",
+  "@historyNoChanges": {
+    "description": "Says a version has the same text as the note."
+  },
+  "historyHunkLine": "Line {line}",
+  "@historyHunkLine": {
+    "description": "The heading of a changed section that is one line of the version.",
+    "placeholders": {
+      "line": {
+        "type": "int"
+      }
+    }
+  },
+  "historyHunkLines": "Lines {first}–{last}",
+  "@historyHunkLines": {
+    "description": "The heading of a changed section of several lines of the version.",
+    "placeholders": {
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      }
+    }
+  },
+  "historyHunkNew": "New lines",
+  "@historyHunkNew": {
+    "description": "The heading of a changed section that the version has no lines for."
+  },
+  "historyAdded": "{count, plural, =1{1 line added} other{{count} lines added}}",
+  "@historyAdded": {
+    "description": "Says how many lines the note has now that the version did not (read by a screen reader).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyRemoved": "{count, plural, =1{1 line removed} other{{count} lines removed}}",
+  "@historyRemoved": {
+    "description": "Says how many lines the version had that the note has not now (read by a screen reader).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyLineAdded": "Added",
+  "@historyLineAdded": {
+    "description": "A screen reader's word for a line the note has now and the version did not."
+  },
+  "historyLineRemoved": "Removed",
+  "@historyLineRemoved": {
+    "description": "A screen reader's word for a line the version had and the note has not now."
+  },
+  "historyCopySection": "Copy section",
+  "@historyCopySection": {
+    "description": "The button that copies a changed section as the version has it."
+  },
+  "historyCopied": "Copied",
+  "@historyCopied": {
+    "description": "What the copy button says once the section is copied."
+  },
+  "historyRestore": "Restore this version",
+  "@historyRestore": {
+    "description": "The button that sets the note's text to the version's."
+  },
+  "historyRestoreDone": "This version was restored.",
+  "@historyRestoreDone": {
+    "description": "Confirms that the selected saved version was restored."
+  },
+  "historyRestoring": "Restoring…",
+  "@historyRestoring": {
+    "description": "What the restore button says while it works."
+  },
+  "historyDiffLoading": "Working out what changed",
+  "@historyDiffLoading": {
+    "description": "What a screen reader says while the changes since a version are worked out."
+  },
+  "historyProblemChanged": "The note changed while its history was open. The history is shown again; choose the version once more.",
+  "@historyProblemChanged": {
+    "description": "Says a restore was refused because the note changed meanwhile."
+  },
+  "historyProblemGone": "That version isn’t kept any more.",
+  "@historyProblemGone": {
+    "description": "Says the version chosen is gone."
+  },
+  "historyProblemRestore": "The version couldn’t be restored.",
+  "@historyProblemRestore": {
+    "description": "Says a restore failed."
+  },
+  "historyProblemDiff": "What changed couldn’t be worked out.",
+  "@historyProblemDiff": {
+    "description": "Says the changes since a version could not be worked out."
+  },
+  "historyAuthors": "{authors}",
+  "@historyAuthors": {
+    "description": "Who changed a shared note, as the library words it (\"by Ada, Sam\").",
+    "placeholders": {
+      "authors": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryReplace": "Replace in all notes",
+  "@libraryReplace": {
+    "description": "The library row that opens Replace in all notes."
+  },
+  "replaceTitle": "Replace in all notes",
+  "@replaceTitle": {
+    "description": "The title of the screen that finds text in every note and replaces it."
+  },
+  "replaceClose": "Close",
+  "@replaceClose": {
+    "description": "Closes Replace in all notes."
+  },
+  "replaceFind": "Find",
+  "@replaceFind": {
+    "description": "The label of the field for the text to find."
+  },
+  "replaceWith": "Replace with",
+  "@replaceWith": {
+    "description": "The label of the field for the text to put instead."
+  },
+  "replaceMatchCase": "Match case",
+  "@replaceMatchCase": {
+    "description": "The toggle that makes the search case sensitive."
+  },
+  "replaceWholeWord": "Whole word",
+  "@replaceWholeWord": {
+    "description": "The toggle that matches whole words only."
+  },
+  "replaceRegex": "Regular expression ($1 in the replacement for a group)",
+  "@replaceRegex": {
+    "description": "The toggle that makes the text to find a regular expression."
+  },
+  "replaceSkipCode": "Skip code blocks",
+  "@replaceSkipCode": {
+    "description": "The toggle that leaves matches in code blocks alone."
+  },
+  "replaceIncludeTrash": "Include notes in the Trash",
+  "@replaceIncludeTrash": {
+    "description": "The toggle that also searches the notes in the Trash."
+  },
+  "replaceOptionsLabel": "Search options",
+  "@replaceOptionsLabel": {
+    "description": "The label of the row of toggles."
+  },
+  "replaceTypeToFind": "Type what to find.",
+  "@replaceTypeToFind": {
+    "description": "Says what to do before there is anything to preview."
+  },
+  "replaceNoMatches": "No matches.",
+  "@replaceNoMatches": {
+    "description": "Says nothing matched."
+  },
+  "replaceSearching": "Searching the notes",
+  "@replaceSearching": {
+    "description": "What a screen reader says while the notes are searched."
+  },
+  "replaceFound": "{matches, plural, =1{1 match} other{{matches} matches}} in {notes, plural, =1{1 note} other{{notes} notes}}",
+  "@replaceFound": {
+    "description": "How many matches the preview found and in how many notes.",
+    "placeholders": {
+      "matches": {
+        "type": "int"
+      },
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "replacePreviewHeader": "Preview",
+  "@replacePreviewHeader": {
+    "description": "The header over the matches."
+  },
+  "replaceInTrash": "In Trash",
+  "@replaceInTrash": {
+    "description": "Says a note in the preview is in the Trash."
+  },
+  "replaceUntitled": "Untitled",
+  "@replaceUntitled": {
+    "description": "What a note with no title is called in the preview."
+  },
+  "replaceMore": "and {count} more",
+  "@replaceMore": {
+    "description": "Says how many more matches a note has than the preview lists.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "replaceLine": "Line {line}",
+  "@replaceLine": {
+    "description": "A screen reader's words for the line number of a match.",
+    "placeholders": {
+      "line": {
+        "type": "int"
+      }
+    }
+  },
+  "replaceIncludeNote": "Include {title} in the replace",
+  "@replaceIncludeNote": {
+    "description": "The label of a note's checkbox in the preview.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "replaceApply": "{matches, plural, =1{Replace 1} other{Replace {matches}}} in {notes, plural, =1{1 note} other{{notes} notes}}",
+  "@replaceApply": {
+    "description": "The Replace button: how many matches in how many notes.",
+    "placeholders": {
+      "matches": {
+        "type": "int"
+      },
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "replaceApplyIdle": "Replace",
+  "@replaceApplyIdle": {
+    "description": "The Replace button when there is nothing to replace yet."
+  },
+  "replaceApplying": "Replacing…",
+  "@replaceApplying": {
+    "description": "What the Replace button says while it works."
+  },
+  "replaceDone": "Replaced {matches, plural, =1{1 match} other{{matches} matches}} in {notes, plural, =1{1 note} other{{notes} notes}}.",
+  "@replaceDone": {
+    "description": "What the screen says after replacing.",
+    "placeholders": {
+      "matches": {
+        "type": "int"
+      },
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "replaceSkipped": "{count, plural, =1{1 note changed elsewhere since the preview and was left alone.} other{{count} notes changed elsewhere since the preview and were left alone.}}",
+  "@replaceSkipped": {
+    "description": "What the screen adds when notes were left alone because they changed since the preview.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "replaceUndo": "Undo replace",
+  "@replaceUndo": {
+    "description": "The button that puts the replaced notes back."
+  },
+  "replaceUndoing": "Putting back…",
+  "@replaceUndoing": {
+    "description": "What the undo button says while it works."
+  },
+  "replaceUndone": "Put back {count, plural, =1{1 note} other{{count} notes}}.",
+  "@replaceUndone": {
+    "description": "What the screen says after undoing a replace.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "replaceUndoSkipped": "{count, plural, =1{1 note was edited since and kept its changes.} other{{count} notes were edited since and kept their changes.}}",
+  "@replaceUndoSkipped": {
+    "description": "What the screen adds when undoing left notes that were edited since.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "replaceDismiss": "Dismiss",
+  "@replaceDismiss": {
+    "description": "Hides what the last replace did."
+  },
+  "replaceProblemBadPattern": "The text to find can’t be used as a regular expression.",
+  "@replaceProblemBadPattern": {
+    "description": "Says a replace was refused because the pattern does not parse."
+  },
+  "replaceProblemApply": "The notes couldn’t be changed.",
+  "@replaceProblemApply": {
+    "description": "Says a replace failed."
+  },
+  "replaceProblemUndo": "The notes couldn’t be put back.",
+  "@replaceProblemUndo": {
+    "description": "Says undoing a replace failed."
+  },
+  "replaceProblemSearch": "The notes couldn’t be searched.",
+  "@replaceProblemSearch": {
+    "description": "Says the preview could not be made."
+  },
+  "libraryNewSubNotebook": "New Sub-notebook",
+  "@libraryNewSubNotebook": {
+    "description": "A notebook's menu item that makes a notebook inside it."
+  },
+  "libraryRenameNotebook": "Rename…",
+  "@libraryRenameNotebook": {
+    "description": "A notebook's menu item that renames it."
+  },
+  "libraryChangeNotebookIcon": "Change Icon…",
+  "@libraryChangeNotebookIcon": {
+    "description": "A notebook's menu item that chooses its icon."
+  },
+  "libraryChangeNotebookColor": "Change Color…",
+  "@libraryChangeNotebookColor": {
+    "description": "A notebook's menu item that chooses the color its row is washed in."
+  },
+  "libraryDeleteNotebook": "Delete Notebook…",
+  "@libraryDeleteNotebook": {
+    "description": "A notebook's menu item that deletes it."
+  },
+  "libraryDeleteNotebookTitle": "Delete “{name}”?",
+  "@libraryDeleteNotebookTitle": {
+    "description": "Asks whether to delete the notebook {name}."
+  },
+  "libraryDeleteNotebookMessage": "Its notes and the notes in its sub-notebooks move to the trash.",
+  "@libraryDeleteNotebookMessage": {
+    "description": "Says what deleting a notebook does to its notes."
+  },
+  "libraryRenameNotebookTitle": "Rename Notebook",
+  "@libraryRenameNotebookTitle": {
+    "description": "The title of the sheet that renames a notebook."
+  },
+  "libraryNotebookNameHint": "Name",
+  "@libraryNotebookNameHint": {
+    "description": "The hint of the field that names a notebook or a tag."
+  },
+  "librarySaveAction": "Save",
+  "@librarySaveAction": {
+    "description": "Confirms a rename."
+  },
+  "libraryDeleteAction": "Delete",
+  "@libraryDeleteAction": {
+    "description": "Confirms deleting something."
+  },
+  "libraryChangeIconTitle": "Change Icon",
+  "@libraryChangeIconTitle": {
+    "description": "The title of the sheet that chooses a notebook's icon."
+  },
+  "libraryIconSearchHint": "Search icons",
+  "@libraryIconSearchHint": {
+    "description": "The hint of the field that searches notebook icons."
+  },
+  "libraryIconDefault": "Default",
+  "@libraryIconDefault": {
+    "description": "The first icon choice, which keeps no icon of its own."
+  },
+  "libraryChangeColorTitle": "Change Color",
+  "@libraryChangeColorTitle": {
+    "description": "The title of the sheet that chooses a notebook's color."
+  },
+  "libraryColorHexHint": "Hex, such as #2185d0",
+  "@libraryColorHexHint": {
+    "description": "The hint of the field that types a color as hex."
+  },
+  "libraryColorDefault": "No color",
+  "@libraryColorDefault": {
+    "description": "The swatch that keeps no color of its own."
+  },
+  "libraryColorInvalid": "That isn’t a color.",
+  "@libraryColorInvalid": {
+    "description": "Says typed text is not a color."
+  },
+  "libraryNewTag": "New Tag",
+  "@libraryNewTag": {
+    "description": "The title of the sheet that makes a tag."
+  },
+  "libraryCreateTag": "Create",
+  "@libraryCreateTag": {
+    "description": "Confirms making a tag."
+  },
+  "libraryTagNameHint": "Name",
+  "@libraryTagNameHint": {
+    "description": "The hint of the field that names a tag."
+  },
+  "libraryRenameTagTitle": "Rename Tag",
+  "@libraryRenameTagTitle": {
+    "description": "The title of the sheet that renames a tag."
+  },
+  "libraryRenameTag": "Rename…",
+  "@libraryRenameTag": {
+    "description": "A tag's menu item that renames it."
+  },
+  "libraryTagColor": "Color",
+  "@libraryTagColor": {
+    "description": "A tag's submenu of colors."
+  },
+  "libraryDeleteTag": "Delete Tag…",
+  "@libraryDeleteTag": {
+    "description": "A tag's menu item that deletes it."
+  },
+  "libraryDeleteTagTitle": "Delete the tag “{name}”?",
+  "@libraryDeleteTagTitle": {
+    "description": "Asks whether to delete the tag {name}."
+  },
+  "libraryDeleteTagMessage": "Notes keep their content; the tag is removed from them.",
+  "@libraryDeleteTagMessage": {
+    "description": "Says what deleting a tag does to the notes that had it."
+  },
+  "libraryEmptyTrash": "Empty Trash…",
+  "@libraryEmptyTrash": {
+    "description": "The Trash row's menu item that deletes everything in it."
+  },
+  "libraryEmptyTrashTitle": "Delete {count, plural, =1{1 note} other{{count} notes}} in the trash permanently?",
+  "@libraryEmptyTrashTitle": {
+    "description": "Asks whether to empty the trash, naming how many notes it holds."
+  },
+  "libraryEmptyTrashMessage": "They can’t be restored afterwards.",
+  "@libraryEmptyTrashMessage": {
+    "description": "Says emptying the trash cannot be undone."
+  },
+  "libraryEmptyTrashConfirm": "Empty Trash",
+  "@libraryEmptyTrashConfirm": {
+    "description": "Confirms emptying the trash."
+  },
+  "libraryActionFailed": "That didn’t work. Try again.",
+  "@libraryActionFailed": {
+    "description": "Says changing the library did not work."
+  },
+  "noteActionPin": "Pin Note",
+  "@noteActionPin": {
+    "description": "A note's menu item that pins it."
+  },
+  "noteActionUnpin": "Unpin Note",
+  "@noteActionUnpin": {
+    "description": "A note's menu item that unpins it."
+  },
+  "noteActionDuplicate": "Duplicate",
+  "@noteActionDuplicate": {
+    "description": "A note's menu item that copies it."
+  },
+  "noteActionCopyLink": "Copy Note Link",
+  "@noteActionCopyLink": {
+    "description": "A note's menu item that copies its wikilink."
+  },
+  "noteActionCopyKansoLink": "Copy Kanso Link",
+  "@noteActionCopyKansoLink": {
+    "description": "A note's menu item that copies Kanso's own link to it."
+  },
+  "noteActionStatus": "Status",
+  "@noteActionStatus": {
+    "description": "A note's submenu of statuses."
+  },
+  "noteActionMoveToTrash": "Move to Trash",
+  "@noteActionMoveToTrash": {
+    "description": "A note's menu item that moves it to the trash."
+  },
+  "noteActionRestore": "Restore",
+  "@noteActionRestore": {
+    "description": "A trashed note's menu item that moves it out of the trash."
+  },
+  "noteActionDeleteForever": "Delete Forever",
+  "@noteActionDeleteForever": {
+    "description": "A trashed note's menu item that deletes it for good."
+  },
+  "noteActionDeleteForeverTitle": "Delete this note forever?",
+  "@noteActionDeleteForeverTitle": {
+    "description": "Asks whether to delete a note for good."
+  },
+  "noteActionDeleteForeverMessage": "It can’t be restored afterwards.",
+  "@noteActionDeleteForeverMessage": {
+    "description": "Says a note deleted for good cannot be restored."
+  },
+  "noteActionMore": "More",
+  "@noteActionMore": {
+    "description": "Shows what else can be done with the notes chosen."
+  },
+  "noteActionLinkCopied": "Link copied.",
+  "@noteActionLinkCopied": {
+    "description": "Says a note's link was copied."
+  },
+  "libraryTagsMore": "More",
+  "@libraryTagsMore": {
+    "description": "Shows every tag as a chip, not only the most used few."
+  },
+  "libraryTagsFewer": "Fewer",
+  "@libraryTagsFewer": {
+    "description": "Shows only the most used tags as chips."
   }
 }

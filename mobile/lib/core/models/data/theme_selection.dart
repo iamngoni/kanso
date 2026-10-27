@@ -40,6 +40,11 @@ abstract class ThemeSelection with _$ThemeSelection {
 
   const ThemeSelection._();
 
+  /// The themes Kanso always has, which a slot falls back to when the theme
+  /// in it is removed.
+  static const String kansoLight = 'kanso-light';
+  static const String kansoDark = 'kanso-dark';
+
   factory ThemeSelection.fromJson(Map<String, dynamic> json) =>
       _$ThemeSelectionFromJson(json);
 
@@ -92,7 +97,14 @@ abstract class ThemeSelection with _$ThemeSelection {
     return light == dark ? <String>[light] : <String>[light, dark];
   }
 
-  /// The themes the app needs read: the ones it is drawn in and the syntax
-  /// and preview themes, each once.
-  Set<String> get allIds => <String>{...ids, ?syntax, ?preview};
+  /// The selection once the theme [id] is gone (removed from the gallery's
+  /// installed themes): each slot that held it is Kanso's own theme for that
+  /// slot, and the rest is as it was.
+  ThemeSelection without(String id) {
+    return copyWith(
+      ui: ui == id ? kansoDark : ui,
+      light: light == id ? kansoLight : light,
+      dark: dark == id ? kansoDark : dark,
+    );
+  }
 }

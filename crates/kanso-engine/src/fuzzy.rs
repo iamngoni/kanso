@@ -194,6 +194,10 @@ mod tests {
             } else {
                 before
             };
+            // Nor may the tail: its own copy of the query's letters would
+            // give the spread a second run, at a word start the run itself
+            // never had, which is a different alignment, not a fairer one.
+            let after: String = after.chars().filter(|c| !query.contains(*c)).collect();
             let together = format!("{before}{query}{after}");
             let mut spread = before.clone();
             for (ix, c) in query.chars().enumerate() {

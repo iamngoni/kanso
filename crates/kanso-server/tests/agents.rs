@@ -1,4 +1,4 @@
-//! Agents' tokens on `/mcp`: what they open, what they may read, and that
+//! Kanso agent tokens on `/mcp`: what they open, what they may read, and that
 //! they write nothing. A note an agent may not see (locked, in a locked
 //! notebook, trashed, deleted, tagged `#ai-exclude`, or outside its
 //! notebooks) never shows in any answer, not even its title.
@@ -335,6 +335,20 @@ fn write_calls(ids: &[String], books: &[String]) -> Vec<(&'static str, Value)> {
             json!({ "name": "a.png", "contentType": "image/png", "data": "aGVsbG8=" }),
         ),
         ("read-file", json!({ "fileId": "file:x" })),
+        (
+            "kanso-attach-file",
+            json!({ "noteId": note, "name": "a.png", "contentType": "image/png", "data": "aGVsbG8=" }),
+        ),
+        ("kanso-list-attachments", json!({ "noteId": note })),
+        (
+            "kanso-read-attachment",
+            json!({ "noteId": note, "fileId": "file:x" }),
+        ),
+        ("kanso-move-note", json!({ "noteId": note, "bookId": book })),
+        (
+            "kanso-set-task-done",
+            json!({ "noteId": note, "line": 0, "text": "task", "done": true }),
+        ),
         ("kanso-create-daily-note", json!({})),
         (
             "kanso-create-from-template",
@@ -533,8 +547,12 @@ proptest! {
             let mut echoed = None;
             let arguments = match *name {
                 "search-notes" => json!({ "keyword": "zebra" }),
-                "read-note" | "kanso-get-outline" | "kanso-related-notes" => json!({ "noteId": id }),
+                "read-note" | "kanso-get-outline" | "kanso-related-notes"
+                | "kanso-get-properties" | "kanso-list-note-links" | "kanso-list-backlinks"
+                | "kanso-run-query-view" | "kanso-list-versions" => json!({ "noteId": id }),
+                "kanso-read-version" => json!({ "noteId": id, "rev": "missing" }),
                 "list-notes" => json!({ "bookId": book_id }),
+                "kanso-list-tags" => json!({}),
                 "kanso-list-tasks" => json!({}),
                 "kanso-search-by-meaning" => json!({ "query": "zebra" }),
                 "kanso-resolve-wikilink" => {

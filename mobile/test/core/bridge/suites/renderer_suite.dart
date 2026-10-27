@@ -65,6 +65,40 @@ void rendererSuite(OpenLibrary open) {
       );
     });
 
+    test("the built-in icon themes are the desktop's, Lucide first", () async {
+      final themes = await KansoRenderer.iconThemes();
+      expect(themes.length, greaterThan(20));
+      expect(themes.first.id, 'lucide');
+      expect(themes.first.name, 'Lucide');
+      expect(themes.map((theme) => theme.id).toSet(), hasLength(themes.length));
+      final phosphor = themes.firstWhere((theme) => theme.id == 'phosphor');
+      expect(phosphor.name, 'Phosphor');
+      expect(phosphor.license, 'MIT');
+      expect(phosphor.preview, hasLength(5));
+      expect(phosphor.preview.any((icon) => icon.svg != null), isTrue);
+      expect(themes.first.preview.every((icon) => icon.svg == null), isTrue);
+    });
+
+    test(
+      'a theme draws the icons it has and leaves the rest to Lucide',
+      () async {
+        final lucide = await KansoRenderer.iconThemeIcons(id: 'lucide');
+        expect(lucide, isNotEmpty);
+        expect(lucide.every((icon) => icon.svg == null), isTrue);
+        final phosphor = await KansoRenderer.iconThemeIcons(id: 'phosphor');
+        expect(phosphor.map((icon) => icon.name), lucide.map((i) => i.name));
+        final drawn = phosphor.where((icon) => icon.svg != null).toList();
+        expect(drawn.length, greaterThan(40));
+        for (final icon in drawn) {
+          expect(icon.svg, contains('<svg'), reason: icon.name);
+        }
+        await expectLater(
+          KansoRenderer.iconThemeIcons(id: 'nope'),
+          throwsA(isA<KansoError_NotFound>()),
+        );
+      },
+    );
+
     test("source is styled in a theme's colours", () async {
       const text = '# Title\n\nSome `code` here.\n';
       final runs = await KansoRenderer.styledRuns(
@@ -167,6 +201,73 @@ void rendererSuite(OpenLibrary open) {
       );
       expect(html, contains('<h1'));
       expect(html, contains('bold'));
+    });
+
+    test('the app page takes options, and says what an address is', () async {
+      final library = await open();
+      final id = await makeNote(
+        library,
+        'In app',
+        '- [ ] Water the beds\n\n```\nlet x = 1;\n```\n',
+      );
+      final html = await library.renderer().previewHtmlWith(
+        id: id,
+        palette: palette,
+        options: const PreviewOptions(size: 18, utcOffsetSecs: 0, code: []),
+      );
+      expect(html, contains('kanso-task:0'));
+      final renderer = library.renderer();
+      expect(
+        await renderer.linkTarget(noteId: id, url: 'kanso-task:0'),
+        const PreviewLink.task(index: 0),
+      );
+      expect(
+        await renderer.linkTarget(noteId: id, url: 'https://example.com/'),
+        const PreviewLink.web(url: 'https://example.com/'),
+      );
+      expect(
+        await renderer.linkTarget(noteId: id, url: 'javascript:alert(1)'),
+        const PreviewLink.nothing(),
+      );
+      expect(
+        await renderer.codeBlock(noteId: id, index: 0),
+        contains('let x = 1;'),
+      );
+      await expectLater(
+        renderer.codeBlock(noteId: id, index: 5),
+        throwsA(isA<KansoError_NotFound>()),
+      );
+    });
+
+    test(
+      'a note becomes the page the desktop exports, named for a file',
+      () async {
+        final library = await open();
+        final id = await makeNote(
+          library,
+          'Exported: a page',
+          '# Heading\n\nA [[Linked]] word, and `code`.\n',
+        );
+        final page = await library.renderer().pageHtml(
+          id: id,
+          palette: palette,
+          options: const PreviewOptions(size: 16, utcOffsetSecs: 0, code: []),
+        );
+        expect(page.html, contains('<h1'));
+        expect(page.html, contains('code'));
+        // A page anybody can open carries no address only the app answers.
+        expect(page.html, isNot(contains('kanso-task:')));
+        expect(page.fileName, endsWith('.pdf'));
+        expect(page.fileName, isNot(contains(':')));
+      },
+    );
+
+    test('the diagram renderer is chosen, and read back', () async {
+      final before = await KansoRenderer.diagramRenderer();
+      await KansoRenderer.setDiagramRenderer(renderer: DiagramRenderer.kanso);
+      expect(await KansoRenderer.diagramRenderer(), DiagramRenderer.kanso);
+      await KansoRenderer.setDiagramRenderer(renderer: before);
+      expect(await KansoRenderer.diagramRenderer(), before);
     });
 
     test('fonts are taken once', () async {

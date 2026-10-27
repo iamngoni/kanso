@@ -2,16 +2,17 @@
 //! this device so the sync server keeps only a copy it can't read
 //! (docs/ACCOUNTS.md › Published notes).
 //!
-//! The page is the note's web page export (`export_html::page`), images
-//! inside it, in the preview's theme when that is light and in Kanso's light
-//! theme otherwise. `kanso_sync::share` seals and uploads it; the link and
-//! its key are kept in the note (`kansoPublish`), so the account's other
-//! devices can update or unpublish it. Publishing needs an account: signed out,
-//! the sheet says so and offers to sign in.
+//! What the sheet shows and what publishing does is the engine's
+//! (`kanso_engine::publish`), which the mobile app calls too: the page is the
+//! note's web page export, images inside it, in the preview's theme when that
+//! is light and in Kanso's light theme otherwise, and `kanso_sync::share`
+//! seals and uploads it. The link and its key are kept in the note
+//! (`kansoPublish`), so the account's other devices can update or unpublish
+//! it. Publishing needs an account: signed out, the sheet says so and offers
+//! to sign in.
 
 use std::sync::Arc;
 
-use chrono::{DateTime, Datelike as _, Timelike as _};
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonGroup, ButtonVariants as _};
 use gpui_kit::component::{
@@ -20,10 +21,12 @@ use gpui_kit::component::{
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use kanso_core::DocType;
-use kanso_store::{Origin, Put, Store};
-use kanso_sync::ApiError;
-use kanso_sync::share::{self, Expiry, KansoPublish, Page, ShareError};
+use kanso_engine::publish::{
+    Busy, Phase, Source, error_text, expiry_choice, needs_update, phase, publish_note, refusal,
+    store_publish, when_label,
+};
+use kanso_store::Store;
+use kanso_sync::share::{self, Expiry, KansoPublish, ShareError};
 
 use crate::clock::Clock;
 use crate::editor::NoteEditor;
@@ -36,116 +39,6 @@ actions!(kanso, [PublishNote]);
 
 /// The sheet's width.
 pub const SHEET_WIDTH: f32 = 480.;
-
-/// What the sheet publishes: the open note as typed.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Source {
-    pub id: String,
-    pub title: String,
-    pub body: String,
-    pub rev: String,
-    pub publish: Option<KansoPublish>,
-}
-
-/// What the sheet shows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Phase {
-    /// Publishing needs an account.
-    SignedOut,
-    Unpublished,
-    Published,
-}
-
-/// What the sheet shows for an account state and a note. Pure.
-pub fn phase(signed_in: bool, publish: Option<&KansoPublish>) -> Phase {
-    match (signed_in, publish) {
-        (false, _) => Phase::SignedOut,
-        (true, None) => Phase::Unpublished,
-        (true, Some(_)) => Phase::Published,
-    }
-}
-
-/// The expiry choice closest to how long a link was given. Pure.
-pub fn expiry_choice(publish: &KansoPublish) -> Expiry {
-    let Some(at) = publish.expires_at else {
-        return Expiry::Never;
-    };
-    let given = at - publish.published_at;
-    Expiry::ALL[1..]
-        .iter()
-        .copied()
-        .min_by_key(|e| (e.at(0).unwrap_or(0) - given).abs())
-        .unwrap_or(Expiry::Never)
-}
-
-/// Whether "Update published version" has something to do: the note
-/// changed, another expiry was picked, or the link expired. Pure.
-pub fn needs_update(
-    publish: &KansoPublish,
-    title: &str,
-    body: &str,
-    expiry: Expiry,
-    now_ms: i64,
-) -> bool {
-    publish.is_outdated(title, body)
-        || expiry != expiry_choice(publish)
-        || publish.is_expired(now_ms)
-}
-
-/// "28 May at 09:41", from a local time in ms. Pure.
-pub fn when_label(local_ms: i64) -> String {
-    DateTime::from_timestamp_millis(local_ms).map_or_else(String::new, |at| {
-        format!(
-            "{} {} at {:02}:{:02}",
-            at.day(),
-            month(at.month()),
-            at.hour(),
-            at.minute()
-        )
-    })
-}
-
-fn month(m: u32) -> &'static str {
-    [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ][(m as usize).clamp(1, 12) - 1]
-}
-
-/// What an error means to the person publishing. Pure.
-pub fn error_text(err: &ShareError) -> String {
-    match err {
-        ShareError::TooLarge(_) => {
-            "This note is too large to publish: with its images it is over 10 MB.".into()
-        }
-        ShareError::Undecryptable => "Kanso couldn't seal the note. Try again.".into(),
-        ShareError::Api(api) => match api {
-            ApiError::Transport(_) => {
-                "Couldn't reach your sync server. Check your connection and try again.".into()
-            }
-            ApiError::Unauthorized { .. } | ApiError::AccountDisabled => {
-                "Your account signed this device out. Sign in again to publish.".into()
-            }
-            ApiError::QuotaExceeded { .. } => {
-                "Your account has no room left for this. Unpublish another note, or remove some attachments.".into()
-            }
-            ApiError::RateLimited { .. } => {
-                "Your sync server is busy. Try again in a minute.".into()
-            }
-            ApiError::NotFound | ApiError::MethodNotAllowed => {
-                "Your sync server doesn't publish notes yet.".into()
-            }
-            other => format!("Couldn't publish the note ({other})."),
-        },
-    }
-}
-
-/// A task the sheet is running.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Busy {
-    Publishing,
-    Updating,
-    Unpublishing,
-}
 
 pub struct PublishView {
     editor: Entity<NoteEditor>,
@@ -231,16 +124,13 @@ impl PublishView {
                 return;
             }
         }
-        let palette = crate::export_html::print_palette(crate::preview_rich::palette(cx));
-        let style = crate::export_style::PageStyle::for_palette(cx, &palette);
+        let palette = kanso_engine::export::print_palette(crate::preview_rich::palette(cx));
+        let style = crate::export_style::for_palette(cx, &palette);
         let now = Clock::now_ms(cx);
         let expires_at = self.expiry.at(now);
-        let existing = self.source.publish.clone();
         let store = self.store.clone();
-        let Source {
-            title, body, rev, ..
-        } = self.source.clone();
-        self.busy = Some(if existing.is_some() {
+        let source = self.source.clone();
+        self.busy = Some(if source.publish.is_some() {
             Busy::Updating
         } else {
             Busy::Publishing
@@ -252,16 +142,9 @@ impl PublishView {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    let html = crate::export_html::page_without_queries(
-                        &store, &title, &body, &palette, &style,
-                    );
-                    let page = Page {
-                        html: html.as_bytes(),
-                        title: &title,
-                        body: &body,
-                        rev: &rev,
-                    };
-                    share::publish(&*api, &session, existing.as_ref(), &page, expires_at, now)
+                    publish_note(
+                        &*api, &session, &store, &source, &palette, &style, expires_at, now,
+                    )
                 })
                 .await;
             this.update(cx, |this, cx| this.finish(result.map(Some), cx))
@@ -326,21 +209,6 @@ impl PublishView {
         }
         cx.notify();
     }
-}
-
-/// Keeps `publish` in a note that isn't open any more.
-fn store_publish(store: &Store, id: &str, publish: Option<&KansoPublish>) -> anyhow::Result<()> {
-    let Some(mut note) = store.note(id)? else {
-        return Ok(());
-    };
-    KansoPublish::store(publish, &mut note.extra);
-    store.put(
-        DocType::Note,
-        serde_json::to_value(&note)?,
-        Put::Upsert,
-        Origin::Ui,
-    )?;
-    Ok(())
 }
 
 pub(crate) fn paragraph(text: impl Into<SharedString>, colors: &Colors) -> Div {
@@ -668,14 +536,12 @@ pub fn open_publish(
             .read(cx)
             .note_id()
             .is_some_and(|id| store.note_in_locked_book(id).unwrap_or(false));
-        window.push_notification(
-            gpui_kit::component::notification::Notification::info(if in_locked_notebook {
-                "Notes in a locked notebook can't be published. Move the note out and remove its lock first."
-            } else {
-                "Locked notes can't be published. Remove the lock first."
-            }),
-            cx,
-        );
+        if let Some(notice) = refusal(true, in_locked_notebook) {
+            window.push_notification(
+                gpui_kit::component::notification::Notification::info(notice),
+                cx,
+            );
+        }
         return None;
     }
     let source = editor.read(cx).publish_source(cx)?;
@@ -719,51 +585,6 @@ pub fn open_publish(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ApiError, Expiry, KansoPublish, Phase, ShareError, error_text, expiry_choice, needs_update,
-        phase, share, when_label,
-    };
-    use proptest::prelude::*;
-    use serde_json::Map;
-
-    fn published(at: i64, expires: Option<i64>, title: &str, body: &str) -> KansoPublish {
-        KansoPublish {
-            share_id: share::new_share_id(),
-            key: share::ShareKey::generate().to_text(),
-            published_at: at,
-            published_rev: "1-a".into(),
-            expires_at: expires,
-            content_hash: Some(share::content_hash(title, body)),
-            short_url: None,
-            other: Map::new(),
-        }
-    }
-
-    #[test]
-    fn examples() {
-        let p = published(0, None, "T", "B");
-        assert_eq!(phase(false, Some(&p)), Phase::SignedOut);
-        assert_eq!(phase(true, None), Phase::Unpublished);
-        assert_eq!(phase(true, Some(&p)), Phase::Published);
-        assert!(!needs_update(&p, "T", "B", Expiry::Never, 5));
-        assert!(needs_update(&p, "T", "B!", Expiry::Never, 5));
-        assert!(needs_update(&p, "T", "B", Expiry::Week, 5));
-        let week = published(0, Expiry::Week.at(0), "T", "B");
-        assert_eq!(expiry_choice(&week), Expiry::Week);
-        assert!(needs_update(
-            &week,
-            "T",
-            "B",
-            Expiry::Week,
-            Expiry::Week.at(0).unwrap()
-        ));
-        assert_eq!(when_label(1_779_954_300_000 + 7_200_000), "28 May at 09:45");
-        assert!(
-            error_text(&ShareError::Api(ApiError::Transport("x".into()))).contains("connection")
-        );
-        assert!(error_text(&ShareError::TooLarge(1)).contains("10 MB"));
-    }
-
     mod flow {
         use std::sync::Arc;
 
@@ -775,10 +596,11 @@ mod tests {
         use kanso_sync::{DeviceIdentity, MemorySecrets, MemoryServer, Password};
         use serde_json::json;
 
-        use super::super::{Phase, PublishView, open_publish};
+        use super::super::{PublishView, open_publish};
         use crate::config::AppConfig;
         use crate::services::Services;
         use crate::workspace::{AppState, Workspace};
+        use kanso_engine::publish::Phase;
 
         struct Fixture {
             _dir: tempfile::TempDir,
@@ -1018,30 +840,6 @@ mod tests {
             // Trying again works.
             f.act(cx, &view, |v, window, cx| v.run_publish(window, cx));
             assert!(f.kept().is_some());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(256))]
-
-        /// Round trip: a link published for any of the choices reads back
-        /// as that choice, wherever in time it was published.
-        #[test]
-        fn prop_expiry_choice_round_trips(ix in 0usize..4, at in 0i64..4_000_000_000_000) {
-            let expiry = Expiry::ALL[ix];
-            let p = published(at, expiry.at(at), "t", "b");
-            prop_assert_eq!(expiry_choice(&p), expiry);
-        }
-
-        /// A fresh publish never needs an update until the note, the choice
-        /// or the clock moves past it.
-        #[test]
-        fn prop_fresh_publishes_are_up_to_date(ix in 0usize..4, title in "\\PC{0,20}", body in "\\PC{0,60}", at in 0i64..4_000_000_000_000) {
-            let expiry = Expiry::ALL[ix];
-            let p = published(at, expiry.at(at), &title, &body);
-            prop_assert!(!needs_update(&p, &title, &body, expiry, at));
-            let edited = format!("{body}.");
-            prop_assert!(needs_update(&p, &title, &edited, expiry, at));
         }
     }
 }

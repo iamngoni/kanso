@@ -672,7 +672,8 @@ fn read_kanso_folder(dir: &Path) -> Result<Imported, String> {
 
 /// A Kanso icon theme file, its SVGs in `root`.
 fn read_kanso_file(value: &Value, root: &Path, id: Option<String>) -> Result<Imported, String> {
-    let file = IconThemeFile::from_value(value).map_err(|err| format!("This icon theme {err}."))?;
+    let file =
+        icon_theme_file::from_value(value).map_err(|err| format!("This icon theme {err}."))?;
     let sources = file
         .icons
         .values()

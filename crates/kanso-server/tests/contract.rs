@@ -1,4 +1,4 @@
-//! Contract test: the real `@inkdropapp/mcp-server` 1.5.0 runs against
+//! Kanso's contract test: the real `@inkdropapp/mcp-server` 1.5.0 runs against
 //! Kanso's HTTP API over a real socket and calls every tool; the same tool
 //! sequence then runs against the native `/mcp` endpoint. Both must succeed
 //! (or fail) where expected, leave the store in the expected state, and
@@ -31,11 +31,12 @@ use kanso_server::{ServerConfig, ServerHandle, basic_header};
 use kanso_store::Store;
 use serde_json::{Value, json};
 
-const TOOL_NAMES: [&str; 17] = [
+const TOOL_NAMES: [&str; 18] = [
     "read-note",
     "read-backlinks",
     "search-notes",
     "list-notes",
+    "list-templates",
     "create-note",
     "update-note",
     "patch-note",

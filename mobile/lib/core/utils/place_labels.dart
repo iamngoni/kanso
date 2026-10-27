@@ -5,6 +5,7 @@
 import '../../gen/l10n/app_localizations.dart';
 import '../bridge/api/types.dart';
 import '../state/library_index/library_index_bloc.dart';
+import 'status_label.dart';
 
 /// The name of a library place, in the app's language. A notebook and a tag
 /// have their own names, which the library knows; here they are only the
@@ -16,6 +17,8 @@ String placeLabel(AppLocalizations l10n, ListPlace place) => switch (place) {
   ListPlace_Trash() => l10n.libraryTrash,
   ListPlace_Notebook() => l10n.libraryNotebooks,
   ListPlace_Tag() => l10n.libraryTags,
+  ListPlace_Status() => l10n.libraryStatuses,
+  ListPlace_TagPath() => l10n.libraryTags,
 };
 
 /// What a list of [place] is titled: the name of its notebook, or `#tag`,
@@ -32,6 +35,10 @@ String placeTitle(
       index.tag(id)?.name == null
           ? placeLabel(l10n, place)
           : '#${index.tag(id)!.name}',
+    ListPlace_TagPath(:final path) => '#$path',
+    ListPlace_Status(:final status) => l10n.statusName(
+      noteStatusOf(status),
+    ),
     _ => placeLabel(l10n, place),
   };
 }

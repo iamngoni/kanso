@@ -17,7 +17,16 @@ void main() {
   test('every phase has its own words, Off while signed out', () {
     final names = <SyncPhase, String>{
       for (final phase in SyncPhase.values)
-        phase: l10n.syncStatusName(SyncStatus(phase: phase, conflicts: 0)),
+        phase: l10n.syncStatusName(
+          SyncStatus(
+            phase: phase,
+            conflicts: 0,
+            skippedCount: 0,
+            account: phase == SyncPhase.signedOut
+                ? const SyncAccount.signedOut()
+                : const SyncAccount.signedIn(),
+          ),
+        ),
     };
     expect(names[SyncPhase.signedOut], 'Off');
     expect(names.values.toSet().length, SyncPhase.values.length);

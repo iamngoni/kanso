@@ -6,6 +6,10 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+pub use kanso_engine::editor_settings::{
+    DEFAULT_SPLIT_RATIO, EditorFont, EditorSettings, Typewriter, ViewMode,
+};
+
 pub const DEFAULT_PORT: u16 = 19840;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -164,26 +168,6 @@ impl ThemeSettings {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ViewMode {
-    Edit,
-    #[default]
-    Split,
-    Preview,
-}
-
-/// The editor's typeface.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum EditorFont {
-    /// Proportional for writing, monospace beside the preview.
-    #[default]
-    Auto,
-    Sans,
-    Mono,
-}
-
 /// What draws Mermaid diagrams in the preview and in exports.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -204,42 +188,11 @@ impl DiagramRenderer {
     }
 }
 
-/// How the editor sets its text in one view mode.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EditorFace {
-    pub mono: bool,
-    pub line_numbers: bool,
-}
-
-impl EditorFont {
-    /// Line numbers come with the monospace face, where source lines and
-    /// their numbers line up.
-    pub fn face(self, mode: ViewMode) -> EditorFace {
-        let mono = match self {
-            EditorFont::Auto => mode == ViewMode::Split,
-            EditorFont::Sans => false,
-            EditorFont::Mono => true,
-        };
-        EditorFace {
-            mono,
-            line_numbers: mono,
-        }
-    }
-}
-
-impl EditorFace {
-    /// The face with line numbers only where the setting allows them.
-    pub fn with_line_numbers(self, allowed: bool) -> EditorFace {
-        EditorFace {
-            line_numbers: self.line_numbers && allowed,
-            ..self
-        }
-    }
-}
-
 /// The editor text size before version 1, kept by anyone who never changed it.
 const OLD_DEFAULT_FONT_SIZE: f32 = 14.0;
-pub const DEFAULT_FONT_SIZE: f32 = 16.0;
+/// The text size when settings don't say; a page's (`kanso_engine::export`)
+/// is the same.
+pub const DEFAULT_FONT_SIZE: f32 = kanso_engine::export::PageStyle::DEFAULT_SIZE;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -311,9 +264,6 @@ fn is_owner_endpoint(endpoint: &str) -> bool {
     is_default_server(endpoint)
         || kanso_sync::check_endpoint(endpoint).as_deref() == Ok(OLD_OWNER_SERVER)
 }
-
-/// The source side's share of the split before it is first dragged.
-pub const DEFAULT_SPLIT_RATIO: f32 = 0.5;
 
 /// The inspector's tabs.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -415,68 +365,6 @@ pub struct GallerySettings {
 impl Default for GallerySettings {
     fn default() -> Self {
         GallerySettings { auto_update: true }
-    }
-}
-
-/// When the caret's line stays in the middle of the editor while typing.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Typewriter {
-    Off,
-    /// Only in focus mode.
-    #[default]
-    FocusMode,
-    Always,
-}
-
-impl Typewriter {
-    /// Whether the caret's line stays centred, in focus mode or out of it.
-    pub fn centres(self, focus_mode: bool) -> bool {
-        match self {
-            Typewriter::Off => false,
-            Typewriter::FocusMode => focus_mode,
-            Typewriter::Always => true,
-        }
-    }
-}
-
-/// How the editor helps with writing (Settings › Editor).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-pub struct EditorSettings {
-    /// Brackets, quotes and Markdown markers get their closer as they're
-    /// typed, and wrap a selection.
-    pub auto_pair: bool,
-    /// Tab and Enter in a table line its pipes up.
-    pub format_tables: bool,
-    /// A link pasted over words links them, and formatted text pastes as
-    /// Markdown.
-    pub smart_paste: bool,
-    pub typewriter: Typewriter,
-    /// The word goal of notes that don't set their own.
-    pub word_goal: Option<u32>,
-    /// `#tags` in a note's text become its tags when it is saved
-    /// (`kanso_core::tags::inline_tags`). Off unless turned on.
-    pub inline_tags: bool,
-    /// Vim keys in the note's text: Normal, Insert and Visual modes.
-    pub vim: bool,
-    /// Misspelled words in the note's text are underlined (`spellcheck`).
-    /// On unless turned off, also for files from before the setting.
-    pub spellcheck: bool,
-}
-
-impl Default for EditorSettings {
-    fn default() -> Self {
-        EditorSettings {
-            auto_pair: true,
-            format_tables: true,
-            smart_paste: true,
-            typewriter: Typewriter::FocusMode,
-            word_goal: None,
-            inline_tags: false,
-            vim: false,
-            spellcheck: true,
-        }
     }
 }
 
