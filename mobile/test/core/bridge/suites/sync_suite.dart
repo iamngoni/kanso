@@ -116,5 +116,33 @@ void syncSuite(OpenLibrary open) {
       await sync.signOut();
       expect((await sync.status()).phase, SyncPhase.signedOut);
     });
+
+    test('push is on until turned off, and the choice is remembered', () async {
+      final sync = (await open()).syncing();
+      expect(await sync.pushEnabled(), isTrue);
+      await sync.setPushEnabled(enabled: false);
+      expect(await sync.pushEnabled(), isFalse);
+      await sync.setPushEnabled(enabled: true);
+      expect(await sync.pushEnabled(), isTrue);
+    });
+
+    test('a push token is kept while signed out, and a bad one is '
+        'refused', () async {
+      final sync = (await open()).syncing();
+      await sync.setPushToken(
+        platform: PushPlatformKind.fcm,
+        token: List<String>.filled(120, 'a').join(),
+        environment: PushEnvironmentKind.production,
+      );
+      await sync.refreshPush();
+      await expectLater(
+        sync.setPushToken(
+          platform: PushPlatformKind.apns,
+          token: 'not hex',
+          environment: PushEnvironmentKind.development,
+        ),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+    });
   });
 }

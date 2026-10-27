@@ -1,0 +1,26 @@
+name: kanso_push
+description: Kanso's push wake-up for iOS and Android. It carries no content; it only tells the app to sync.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+  flutter: 3.44.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  pigeon: ^29.0.11
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: app.kanso.kanso_push
+        pluginClass: KansoPushPlugin
+      ios:
+        pluginClass: KansoPushPlugin

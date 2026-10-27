@@ -1087,6 +1087,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ProviderKind dco_decode_provider_kind(dynamic raw);
 
   @protected
+  PushEnvironmentKind dco_decode_push_environment_kind(dynamic raw);
+
+  @protected
+  PushPlatformKind dco_decode_push_platform_kind(dynamic raw);
+
+  @protected
   QuotaLimit dco_decode_quota_limit(dynamic raw);
 
   @protected
@@ -2394,6 +2400,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ProviderKind sse_decode_provider_kind(SseDeserializer deserializer);
+
+  @protected
+  PushEnvironmentKind sse_decode_push_environment_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PushPlatformKind sse_decode_push_platform_kind(SseDeserializer deserializer);
 
   @protected
   QuotaLimit sse_decode_quota_limit(SseDeserializer deserializer);
@@ -4015,6 +4029,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_provider_kind(ProviderKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_push_environment_kind(
+    PushEnvironmentKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_push_platform_kind(
+    PushPlatformKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_quota_limit(QuotaLimit self, SseSerializer serializer);

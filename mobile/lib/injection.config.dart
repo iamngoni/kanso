@@ -13,6 +13,7 @@
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:image_picker/image_picker.dart' as _i183;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:kanso_push/kanso_push.dart' as _i901;
 
 import 'account/state/account_details/account_details_bloc.dart' as _i645;
 import 'account/state/recover/recover_bloc.dart' as _i1059;
@@ -131,6 +132,11 @@ import 'note/models/repos/impl/memory_note_place_repository.dart' as _i503;
 import 'note/state/note/note_bloc.dart' as _i618;
 import 'note/state/preview/preview_bloc.dart' as _i435;
 import 'note_list/state/note_list/note_list_bloc.dart' as _i351;
+import 'push/configs/push_module.dart' as _i78;
+import 'push/models/repos/abs/push_repository.dart' as _i937;
+import 'push/models/repos/impl/plugin_push_repository.dart' as _i506;
+import 'push/state/push_registration/push_registration_bloc.dart' as _i250;
+import 'push/state/push_setting/push_setting_bloc.dart' as _i584;
 import 'replace/models/repos/abs/replace_repository.dart' as _i608;
 import 'replace/models/repos/impl/rust_replace_repository.dart' as _i1;
 import 'replace/state/replace_notes/replace_notes_bloc.dart' as _i1028;
@@ -165,6 +171,7 @@ extension GetItInjectableX on _i174.GetIt {
   }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final coreModule = _$CoreModule();
+    final pushModule = _$PushModule();
     final crashModule = _$CrashModule();
     final appModule = _$AppModule();
     gh.factory<_i612.LibraryPaneBloc>(() => _i612.LibraryPaneBloc());
@@ -175,6 +182,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i846.LibraryFolderMigration(),
     );
     gh.lazySingleton<_i608.WidgetReloader>(() => _i608.WidgetReloader());
+    gh.lazySingleton<_i901.KansoPushHostApi>(() => pushModule.hostApi());
     gh.lazySingleton<_i984.DiagnosticsRepository>(
       () => _i1062.RustDiagnosticsRepository(),
     );
@@ -327,6 +335,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i732.RendererRepository>(
       () => _i820.RustRendererRepository(gh<_i832.KansoRenderer>()),
     );
+    gh.lazySingleton<_i937.PushRepository>(
+      () => _i506.PluginPushRepository(
+        gh<_i901.KansoPushHostApi>(),
+        gh<_i591.KansoSync>(),
+      ),
+    );
     gh.factory<_i636.IconThemesBloc>(
       () => _i636.IconThemesBloc(gh<_i732.RendererRepository>()),
     );
@@ -352,6 +366,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i38.LibraryRepository>(),
         gh<_i202.SystemShareRepository>(),
       ),
+    );
+    gh.factory<_i250.PushRegistrationBloc>(
+      () => _i250.PushRegistrationBloc(gh<_i937.PushRepository>()),
+    );
+    gh.factory<_i584.PushSettingBloc>(
+      () => _i584.PushSettingBloc(gh<_i937.PushRepository>()),
     );
     gh.factory<_i618.NoteBloc>(
       () => _i618.NoteBloc(
@@ -577,6 +597,8 @@ extension GetItInjectableX on _i174.GetIt {
 }
 
 class _$CoreModule extends _i418.CoreModule {}
+
+class _$PushModule extends _i78.PushModule {}
 
 class _$CrashModule extends _i1016.CrashModule {}
 

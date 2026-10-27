@@ -46,12 +46,12 @@ pub use account::{
     Session, SignedIn, SignedUp, SignupState, Step, Usage, change_password, delete_account,
     devices, discard_locked_session, discard_session, finish_google, finish_identity,
     finish_identity_google, flush_pending_logouts, methods, methods_locked, new_recovery_key,
-    poll_provider, recover, recovery_key_held, refresh_locked_methods, revoke_device, server_auth,
-    server_info, sign_in, sign_in_with_provider, sign_out, sign_out_locked, sign_up,
-    sign_up_with_provider, start_identity, start_provider, unlink_identity, unlock_with_password,
-    usage,
+    poll_provider, recover, recovery_key_held, refresh_locked_methods, register_push,
+    revoke_device, server_auth, server_info, sign_in, sign_in_with_provider, sign_out,
+    sign_out_locked, sign_up, sign_up_with_provider, start_identity, start_provider,
+    unlink_identity, unlock_with_password, unregister_push, usage,
 };
-pub use api::{Api, Backend, Route};
+pub use api::{Api, Backend, PushEnvironment, PushPlatform, PushRegistration, Route};
 pub use approval::{Approval, ApprovalKeys};
 pub use approvals::{
     ApprovalRequest, ApprovalResume, Approved, LockedSession, OpenedRequest, PendingApproval,

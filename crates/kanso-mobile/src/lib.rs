@@ -121,6 +121,7 @@ pub mod passkey_bridge;
 mod passkey_flow;
 mod preview;
 mod provider_loopback;
+mod push;
 mod renderer;
 mod replace;
 mod schedule;

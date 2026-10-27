@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::{
     Api, Backend, DeleteRequest, DeviceNameRequest, LoginDevice, LoginRequest, NewDevice,
-    PasswordRequest, PreloginRequest, RecoverFinishRequest, RecoverStartRequest,
+    PasswordRequest, PreloginRequest, PushRegistration, RecoverFinishRequest, RecoverStartRequest,
     RecoveryKeyRequest, SignupRequest,
 };
 use crate::approvals::LockedSession;
@@ -131,6 +131,17 @@ impl Session {
 
     pub(crate) fn token(&self) -> &SessionToken {
         &self.token
+    }
+
+    /// A label for this login that can be kept in a library's plain
+    /// settings: the device ID and a one-way digest of the token, never the
+    /// token. A new sign-in on the same device gets a new label, so it tells
+    /// "registered for this login" from "registered for an earlier one".
+    pub fn login_label(&self) -> String {
+        let digest = crate::crypto::sha256_hex(
+            format!("kanso-login-label\0{}", self.token.expose()).as_bytes(),
+        );
+        format!("{}:{}", self.device_id, &digest[..32])
     }
 
     pub(crate) fn data_key(&self) -> &DataKey {
@@ -2032,6 +2043,23 @@ pub fn revoke_device(
 ) -> Result<(), AccountError> {
     Ok(b.api(&session.server)
         .revoke_device(session.token(), device_id)?)
+}
+
+/// Tells the server where to wake this device: its OS push token. The
+/// server drops it when the session ends, so signing in again registers anew.
+pub fn register_push(
+    b: &dyn Backend,
+    session: &Session,
+    registration: &PushRegistration,
+) -> Result<(), AccountError> {
+    Ok(b.api(&session.server)
+        .put_push(session.token(), &session.device_id, registration)?)
+}
+
+/// Turns pushes off for this device. Safe to repeat.
+pub fn unregister_push(b: &dyn Backend, session: &Session) -> Result<(), AccountError> {
+    Ok(b.api(&session.server)
+        .delete_push(session.token(), &session.device_id)?)
 }
 
 /// Storage use and quotas.

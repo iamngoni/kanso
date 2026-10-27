@@ -119,6 +119,9 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<!-- Silent pushes wake the app to sync (plugins/kanso_push). They show
+		     nothing, so no notification permission is asked. -->
+		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

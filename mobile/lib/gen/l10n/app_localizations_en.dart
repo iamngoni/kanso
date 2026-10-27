@@ -758,6 +758,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'The notes on this device aren’t included in device backups.';
 
   @override
+  String get settingsPushWake => 'Wake this device when notes change elsewhere';
+
+  @override
+  String get settingsPushWakeNote =>
+      'Kanso syncs in the background when a note changes on another device. Apple or Google only learn that something changed.';
+
+  @override
+  String get settingsPushUnavailable =>
+      'Not available on this device. Kanso syncs when you open it.';
+
+  @override
+  String get settingsPushChangeFailed =>
+      'That couldn’t be changed. Try again in a moment.';
+
+  @override
+  String get settingsPushDismiss => 'OK';
+
+  @override
   String settingsVersionValue(String version, String build) {
     return '$version ($build)';
   }

@@ -123,6 +123,23 @@ pub fn is_sealed_name(sealed: &str) -> bool {
     is_sealed(sealed, MIN_SEALED_LEN, 400)
 }
 
+/// An APNs device token: lowercase hex, an even 32 to 200 characters.
+pub fn is_apns_token(token: &str) -> bool {
+    (32..=200).contains(&token.len())
+        && token.len().is_multiple_of(2)
+        && token
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+/// An FCM registration token: `[A-Za-z0-9_:-]`, 100 to 4096 characters.
+pub fn is_fcm_token(token: &str) -> bool {
+    (100..=4096).contains(&token.len())
+        && token
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b':' | b'-'))
+}
+
 /// An approval request's ID, or a value of the same shape (a commitment, an
 /// ephemeral key): 32 bytes as 43 base64url characters.
 pub fn is_approval_id(id: &str) -> bool {

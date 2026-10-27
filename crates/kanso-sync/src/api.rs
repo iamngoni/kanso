@@ -22,7 +22,7 @@ use crate::provider::{
 };
 use crate::wire::{
     ApiError, PushRequest, PushResponse, PutFileResponse, SessionToken, WirePage, WirePushDoc,
-    WirePushResult, WireRemote,
+    WirePushResult, WireRemote, is_apns_token, is_fcm_token,
 };
 
 /// The server a library syncs with. `Send + Sync`: the app shares it as
@@ -247,6 +247,25 @@ pub trait Api {
     /// `GET /v2/files/<wire_id>`; `None` on 404.
     fn get_file(&self, token: &SessionToken, wire_id: &str) -> Result<Option<Vec<u8>>, ApiError>;
 
+    // Push-token registration. A server without it answers 404, which is
+    // also what these defaults give a backend that doesn't implement it.
+
+    /// `PUT /v2/account/devices/<device_id>/push` (204): this device's
+    /// notification token. The device must be the session's own.
+    fn put_push(
+        &self,
+        _token: &SessionToken,
+        _device_id: &str,
+        _registration: &PushRegistration,
+    ) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `DELETE /v2/account/devices/<device_id>/push` (2xx, idempotent):
+    /// turns pushes off for the device.
+    fn delete_push(&self, _token: &SessionToken, _device_id: &str) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
+
     // Provider sign-in (docs/ACCOUNTS.md › Sign-in routes). A backend
     // without these defaults to 404, which is also what an older server
     // answers.
@@ -422,6 +441,8 @@ pub enum Route {
     ApprovalName,
     ApprovalApprove,
     ApprovalCancel,
+    PutPush,
+    DeletePush,
 }
 
 impl Route {
@@ -471,6 +492,10 @@ impl Route {
         Route::AccountPasskeyRemove,
         Route::SignInPassword,
     ];
+
+    /// The push-token routes: served by `MemoryServer` and the Worker, and
+    /// exercised by their own tests rather than the shared conformance cases.
+    pub const PUSH_TOKENS: [Route; 2] = [Route::PutPush, Route::DeletePush];
 
     /// Provider routes; their own fixture and wire tests exercise them rather
     /// than the shared conformance cases.
@@ -534,6 +559,8 @@ impl Route {
             Route::ApprovalName => ("POST", "/v2/account/sign-in/approvals/<id>/name"),
             Route::ApprovalApprove => ("POST", "/v2/account/sign-in/approvals/<id>/approve"),
             Route::ApprovalCancel => ("DELETE", "/v2/account/sign-in/approvals/<id>"),
+            Route::PutPush => ("PUT", "/v2/account/devices/<device_id>/push"),
+            Route::DeletePush => ("DELETE", "/v2/account/devices/<device_id>/push"),
         }
     }
 
@@ -1099,6 +1126,56 @@ pub struct DeviceRow {
     pub current: bool,
 }
 
+/// The push service a token belongs to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PushPlatform {
+    Apns,
+    Fcm,
+}
+
+/// Which APNs environment issued an APNs token; FCM has only `production`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PushEnvironment {
+    Production,
+    Development,
+}
+
+/// `PUT /v2/account/devices/<device_id>/push`: where the server wakes this
+/// device. The token is an OS-issued opaque value, not a session secret, but
+/// it is still kept out of `Debug` output.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PushRegistration {
+    pub platform: PushPlatform,
+    pub token: String,
+    pub environment: PushEnvironment,
+}
+
+impl fmt::Debug for PushRegistration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PushRegistration")
+            .field("platform", &self.platform)
+            .field("token", &"<redacted>")
+            .field("environment", &self.environment)
+            .finish()
+    }
+}
+
+impl PushRegistration {
+    /// Whether the server would accept it: an APNs token of lowercase hex
+    /// (even length, 32 to 200) in either environment, or an FCM token in
+    /// `production`.
+    pub fn is_valid(&self) -> bool {
+        match self.platform {
+            PushPlatform::Apns => is_apns_token(&self.token),
+            PushPlatform::Fcm => {
+                self.environment == PushEnvironment::Production && is_fcm_token(&self.token)
+            }
+        }
+    }
+}
+
 /// `POST /v2/account/sign-in/approvals`: the requester's commitment to its
 /// ephemeral key, which it reveals only after the challenge.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1589,6 +1666,7 @@ mod tests {
         for route in Route::ALL
             .into_iter()
             .chain(Route::PASSKEYS)
+            .chain(Route::PUSH_TOKENS)
             .chain(Route::PROVIDERS)
         {
             let name = serde_json::to_value(route).unwrap();

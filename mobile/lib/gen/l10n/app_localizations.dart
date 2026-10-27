@@ -1438,6 +1438,36 @@ abstract class AppLocalizations {
   /// **'The notes on this device aren’t included in device backups.'**
   String get settingsSyncBackupFooter;
 
+  /// The label of the switch that lets the server wake this phone to sync when a note changes on another device.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake this device when notes change elsewhere'**
+  String get settingsPushWake;
+
+  /// Says under the wake switch what it does and what Apple or Google (the push services) can learn.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso syncs in the background when a note changes on another device. Apple or Google only learn that something changed.'**
+  String get settingsPushWakeNote;
+
+  /// Says under the wake switch that this device can't be woken by the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on this device. Kanso syncs when you open it.'**
+  String get settingsPushUnavailable;
+
+  /// The notice when the wake switch could not be turned on or off.
+  ///
+  /// In en, this message translates to:
+  /// **'That couldn’t be changed. Try again in a moment.'**
+  String get settingsPushChangeFailed;
+
+  /// The button that closes the notice about the wake switch.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get settingsPushDismiss;
+
   /// The app's version and the number of its build.
   ///
   /// In en, this message translates to:

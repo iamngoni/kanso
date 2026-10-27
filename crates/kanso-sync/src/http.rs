@@ -18,8 +18,9 @@ use crate::api::{
     PasskeyProofStartResponse, PasskeySessionResponse, PasskeySignupFinishRequest,
     PasskeySignupStartRequest, PasskeySignupStartResponse, PasskeyStartRequest,
     PasskeyStartResponse, PasswordRequest, PasswordResponse, PreloginRequest, PreloginResponse,
-    RecoverFinishRequest, RecoverStartRequest, RecoverStartResponse, RecoveryKeyRequest,
-    RecoveryKeyResponse, Route, SessionResponse, SignInPasswordRequest, SignupRequest,
+    PushRegistration, RecoverFinishRequest, RecoverStartRequest, RecoverStartResponse,
+    RecoveryKeyRequest, RecoveryKeyResponse, Route, SessionResponse, SignInPasswordRequest,
+    SignupRequest,
 };
 use crate::api::{
     ApprovalApproveRequest, ApprovalChallengeRequest, ApprovalCreateRequest, ApprovalCreated,
@@ -130,7 +131,9 @@ fn timeout(route: Route) -> Duration {
         | Route::ApprovalChallenge
         | Route::ApprovalName
         | Route::ApprovalApprove
-        | Route::ApprovalCancel => Duration::from_secs(30),
+        | Route::ApprovalCancel
+        | Route::PutPush
+        | Route::DeletePush => Duration::from_secs(30),
     }
 }
 
@@ -598,6 +601,24 @@ impl Api for HttpApi {
         .map(|_| ())
     }
 
+    fn put_push(
+        &self,
+        token: &SessionToken,
+        device_id: &str,
+        registration: &PushRegistration,
+    ) -> Result<(), ApiError> {
+        self.empty(
+            Route::PutPush,
+            &push_path(device_id),
+            token,
+            Some(registration),
+        )
+    }
+
+    fn delete_push(&self, token: &SessionToken, device_id: &str) -> Result<(), ApiError> {
+        self.empty(Route::DeletePush, &push_path(device_id), token, NO_BODY)
+    }
+
     fn push(&self, token: &SessionToken, request: &PushRequest) -> Result<PushResponse, ApiError> {
         self.json(
             Route::Push,
@@ -926,6 +947,11 @@ fn json_payload(body: &impl Serialize) -> Result<Payload<'static>, ApiError> {
     Ok(Payload::Json(Zeroizing::new(
         serde_json::to_vec(body).map_err(|e| ApiError::Protocol(e.to_string()))?,
     )))
+}
+
+/// `/v2/account/devices/<device_id>/push`, the ID percent-encoded.
+fn push_path(device_id: &str) -> String {
+    format!("/v2/account/devices/{}/push", encode_segment(device_id))
 }
 
 /// `/v2/account/sign-in/approvals/<id><rest>`, the ID percent-encoded.

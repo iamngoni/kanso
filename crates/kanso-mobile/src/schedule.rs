@@ -113,6 +113,7 @@ impl Driver {
         }
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn set_timing(&mut self, timing: Timing, now: i64) {
         self.timing = timing;
         if self.foreground {

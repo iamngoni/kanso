@@ -23,6 +23,8 @@ import 'import/state/opened_documents/opened_documents_bloc.dart';
 import 'injection.dart';
 import 'lock/state/lock_status/lock_status_bloc.dart';
 import 'lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'push/state/push_registration/push_registration_bloc.dart';
+import 'push/views/widgets/push_lifecycle_host.dart';
 import 'settings/state/backup_notice/backup_notice_bloc.dart';
 import 'settings/state/default_notebook/default_notebook_bloc.dart';
 import 'settings/state/sync_settings/sync_settings_bloc.dart';
@@ -101,6 +103,11 @@ class AppProviders extends StatelessWidget {
               getIt<OpenedDocumentsBloc>()
                 ..add(const OpenedDocumentsEvent.started()),
         ),
+        BlocProvider<PushRegistrationBloc>(
+          lazy: false,
+          create: (_) => getIt<PushRegistrationBloc>()
+            ..add(const PushRegistrationEvent.started()),
+        ),
         BlocProvider<ListNavigationBloc>(
           create: (_) => getIt<ListNavigationBloc>(),
         ),
@@ -130,7 +137,11 @@ class AppProviders extends StatelessWidget {
       ],
       // What other apps shared is saved as the app starts (above) and each
       // time it comes back to the front; the widgets follow the themes.
-      child: CaptureInboxHost(child: WidgetColorsHost(child: child)),
+      // A silent push wakes the phone the same way, before Flutter runs or
+      // as it returns to the front.
+      child: PushLifecycleHost(
+        child: CaptureInboxHost(child: WidgetColorsHost(child: child)),
+      ),
     );
   }
 }

@@ -165,3 +165,10 @@ dependencies {
 flutter {
     source = "../.."
 }
+
+// Push on Android needs the Firebase project's google-services.json in this
+// folder (README.md). Without it the build is the same, and push is simply
+// unavailable on the phone.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}

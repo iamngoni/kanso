@@ -735,6 +735,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  kanso_push:
+    dependency: "direct main"
+    description:
+      path: "plugins/kanso_push"
+      relative: true
+    source: path
+    version: "0.1.0"
   leak_tracker:
     dependency: transitive
     description:

@@ -2638,6 +2638,16 @@ enum ProviderKind {
   github,
 }
 
+enum PushEnvironmentKind {
+  production,
+  development,
+}
+
+enum PushPlatformKind {
+  apns,
+  fcm,
+}
+
 enum QuotaLimit {
   docs,
   docBytes,

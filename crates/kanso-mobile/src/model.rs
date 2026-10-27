@@ -615,6 +615,23 @@ pub struct ServerInfo {
     pub signups_open: bool,
 }
 
+/// The push service that issued this phone's token.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PushPlatformKind {
+    /// Apple's push service (iOS).
+    Apns,
+    /// Firebase Cloud Messaging (Android).
+    Fcm,
+}
+
+/// Which environment issued an APNs token: a build signed for development
+/// gets development tokens. FCM tokens are always `Production`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PushEnvironmentKind {
+    Production,
+    Development,
+}
+
 /// A highlighted run of a note's source.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpanRow {

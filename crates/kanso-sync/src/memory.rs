@@ -20,9 +20,10 @@ use crate::api::{
     PasskeyAllowedCredential, PasskeyFinishRequest, PasskeySelection, PasskeySessionKind,
     PasskeySessionResponse, PasskeySignupFinishRequest, PasskeySignupStartRequest,
     PasskeySignupStartResponse, PasskeyStartRequest, PasskeyStartResponse, PasskeyUser,
-    PasswordRequest, PasswordResponse, PreloginRequest, PreloginResponse, RecoverFinishRequest,
-    RecoverStartRequest, RecoverStartResponse, RecoveryKeyRequest, RecoveryKeyResponse, Route,
-    SessionResponse, SignupRequest, WireDevice, WireKdf, WireQuota, WireUsage,
+    PasswordRequest, PasswordResponse, PreloginRequest, PreloginResponse, PushRegistration,
+    RecoverFinishRequest, RecoverStartRequest, RecoverStartResponse, RecoveryKeyRequest,
+    RecoveryKeyResponse, Route, SessionResponse, SignupRequest, WireDevice, WireKdf, WireQuota,
+    WireUsage,
 };
 use crate::crypto::{KdfParams, b64, hex, hkdf32, hmac, random, sha256_hex, unb64};
 use crate::provider::ProofWire;
@@ -358,6 +359,8 @@ struct SessionRow {
     last_seen_at: i64,
     revoked_at: Option<i64>,
     revoked: Option<SignOutReason>,
+    /// The device's push token; dropped with the session.
+    push: Option<PushRegistration>,
 }
 
 /// A `device_approvals` row.
@@ -838,6 +841,7 @@ impl ServerState {
         if now - row.last_seen_at > SESSION_IDLE_MS {
             row.revoked_at = Some(now);
             row.revoked = Some(SignOutReason::Expired);
+            row.push = None;
             return Err(signed_out(SignOutReason::Expired));
         }
         let disabled = self
@@ -860,6 +864,7 @@ impl ServerState {
     fn revoke(row: &mut SessionRow, now: i64, reason: SignOutReason) {
         row.revoked_at = Some(now);
         row.revoked = Some(reason);
+        row.push = None;
     }
 
     /// Makes `device` the account's active session: evicts the least
@@ -925,6 +930,7 @@ impl ServerState {
                 last_seen_at: now,
                 revoked_at: None,
                 revoked: None,
+                push: None,
             }),
         }
         let mut revoked: Vec<(i64, String)> = self
@@ -3810,6 +3816,7 @@ impl ServerState {
         {
             row.revoked_at = Some(row.revoked_at.unwrap_or(now));
             row.revoked = Some(SignOutReason::Revoked);
+            row.push = None;
             found = true;
         }
         if found {
@@ -3817,6 +3824,52 @@ impl ServerState {
         } else {
             Err(ApiError::NotFound)
         }
+    }
+
+    /// The caller's own active session row; another device's id is a 404, so
+    /// a session can't probe or change its siblings' push settings.
+    fn own_session(
+        &mut self,
+        caller: &Caller,
+        device_id: &str,
+    ) -> Result<&mut SessionRow, ApiError> {
+        if !is_device_id(device_id) {
+            return Err(ApiError::BadRequest);
+        }
+        if device_id != caller.device_id {
+            return Err(ApiError::NotFound);
+        }
+        self.sessions
+            .iter_mut()
+            .find(|s| s.token_hash == caller.token_hash && s.revoked.is_none())
+            .ok_or(ApiError::NotFound)
+    }
+
+    fn put_push(
+        &mut self,
+        token: &SessionToken,
+        device_id: &str,
+        registration: &PushRegistration,
+        now: i64,
+    ) -> Result<(), ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        let row = self.own_session(&caller, device_id)?;
+        if !registration.is_valid() {
+            return Err(ApiError::BadRequest);
+        }
+        row.push = Some(registration.clone());
+        Ok(())
+    }
+
+    fn delete_push(
+        &mut self,
+        token: &SessionToken,
+        device_id: &str,
+        now: i64,
+    ) -> Result<(), ApiError> {
+        let caller = self.authenticate(token, now, false)?;
+        self.own_session(&caller, device_id)?.push = None;
+        Ok(())
     }
 
     /// 413 for a refused batch: the account's usage now (the batch rolled
@@ -4434,6 +4487,18 @@ impl MemoryServer {
             .collect()
     }
 
+    /// The push token the server holds for one of the account's devices;
+    /// `None` when it has none, or the session has ended.
+    pub fn push_registration(&self, username: &str, device_id: &str) -> Option<PushRegistration> {
+        let state = self.server();
+        let id = state.account_id_of(username);
+        state
+            .sessions
+            .iter()
+            .find(|s| s.account_id == id && s.device_id == device_id)
+            .and_then(|s| s.push.clone())
+    }
+
     /// Revokes every active session of the account with `reason`.
     pub fn revoke_all(&self, username: &str, reason: SignOutReason) {
         let mut state = self.server();
@@ -4812,6 +4877,23 @@ impl Api for MemoryApi<'_> {
     fn revoke_device(&self, token: &SessionToken, device_id: &str) -> Result<(), ApiError> {
         self.server.call(Route::RevokeDevice, |s, now| {
             s.revoke_device(token, device_id, now)
+        })
+    }
+
+    fn put_push(
+        &self,
+        token: &SessionToken,
+        device_id: &str,
+        registration: &PushRegistration,
+    ) -> Result<(), ApiError> {
+        self.server.call(Route::PutPush, |s, now| {
+            s.put_push(token, device_id, registration, now)
+        })
+    }
+
+    fn delete_push(&self, token: &SessionToken, device_id: &str) -> Result<(), ApiError> {
+        self.server.call(Route::DeletePush, |s, now| {
+            s.delete_push(token, device_id, now)
         })
     }
 

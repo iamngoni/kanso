@@ -48,5 +48,7 @@ app.*.map.json
 # by mobile-store-screenshots.sh on a simulator).
 /store/screenshots/
 
+# The Firebase configuration of the build (push on Android); see README.md.
+/android/app/google-services.json
 # What a failed golden test leaves behind.
 **/failures/

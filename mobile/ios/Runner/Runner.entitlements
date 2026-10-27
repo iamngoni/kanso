@@ -10,5 +10,9 @@
 	<array>
 		<string>group.app.kanso.Kanso</string>
 	</array>
+	<!-- Push: development here; Xcode signs a distribution build with
+	     production. -->
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>

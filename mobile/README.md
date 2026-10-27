@@ -233,14 +233,14 @@ the manifest and both files.
 ## Settings, themes and the first launch
 
 **Settings** (`lib/settings/`) has only rows that work: General (Default
-notebook), Appearance (Theme, Fonts, Text size), Sync (the live status, "Off" while no account is signed in, and a
-line that the notes are not in device backups) and About (the version, from
+notebook), Appearance (Theme, Fonts, Text size), Sync (the live status, "Off" while no account is signed in, a
+line that the notes are not in device backups and, once an account is signed in,
+the switch "Wake this device when notes change elsewhere", see Push below) and About (the version, from
 `package_info_plus`; the website, opened with `url_launcher`; Licences). Licences
 is a page Kanso draws from Flutter's `LicenseRegistry`, never Flutter's own
 Material one. Settings opens as a sheet on a tablet and a page on a phone, and
 Fonts, Theme and Licences slide inside it. Everything the app does not do yet
-(icon themes, locked notes, account, wake on change) is absent rather than
-disabled.
+(icon themes, locked notes, account) is absent rather than disabled.
 
 **Default notebook** (`DefaultNotebookBloc`, `Preferences.defaultNotebookId`):
 Settings › General › Default notebook lists "First notebook" and the notebooks
@@ -290,6 +290,38 @@ three, or the drawer), secondary+option+down and up the next and previous note o
 the list, secondary+shift+P pin the open note, secondary+`N` a new note in the place
 being listed and secondary+shift+`N` a new notebook. Find in a note and the
 command palette have none until what they act on is built.
+
+## Push
+
+A push carries nothing: it only wakes the app to sync. iOS gets a background push
+(`{"aps":{"content-available":1}}`), Android a high-priority FCM data message with no data.
+
+`plugins/kanso_push` is Kanso's own small plugin (a path dependency). Its typed Pigeon channel
+(`pigeons/messages.dart`; regenerate with `dart run pigeon --input pigeons/messages.dart` in the
+plugin's folder) has `register()`, `unavailableReason()` and, to Dart, `onToken(platform, token,
+environment)`, called whenever a token arrives or the OS issues a new one (`apns` or `fcm`;
+`development` for a debug iOS build, otherwise `production`).
+
+- **iOS** asks for a token with `registerForRemoteNotifications`; silent pushes need no
+  notification permission, so none is asked. The plugin is an application delegate: it passes
+  the token (lower-case hex) to Dart and answers each silent push by calling the hook
+  `KansoPush.onWake` (in `AppDelegate.swift`, where the runner is wired), and always answers the
+  OS within 25 seconds. `UIBackgroundModes` has `remote-notification`, and `Runner.entitlements`
+  has `aps-environment` (Xcode signs a distribution build with `production`). The Apple Developer
+  account needs the Push Notifications capability on the app id and an APNs key on the server.
+- **Android** uses only Firebase Messaging's native library, not FlutterFire and no Dart
+  background isolate. `KansoPushService` forwards a new token to Dart (or keeps it for the next
+  `register()` when no engine is up) and calls the hook `KansoPush.onWake` for each message
+  (in `KansoApplication.kt`, where the runner is wired). Firebase is optional: put the
+  Firebase project's `google-services.json` in `android/app/` (it is git-ignored) and the build
+  applies the `com.google.gms.google-services` Gradle plugin; without it the build is the same
+  and push is unavailable on the phone (the setting says so, nothing crashes).
+
+In Dart, `lib/push/` has `PushRegistrationBloc` (started with the app: asks the OS once, hands
+each token to `setPushToken` of the Rust core, and calls `refreshPush` at start and each time
+the app returns to the front) and `PushSettingBloc` (the switch, on until turned off; off
+deletes the token from the server). The core keeps the token and registers it whenever an
+account is signed in.
 
 ## Crash reports
 
@@ -427,6 +459,10 @@ Every dependency is MIT, BSD or Apache licensed.
 | `share_plus` | Hands an attachment tapped in a preview to the system's share sheet | BSD-3-Clause |
 | `url_launcher` | Opens the website from Settings › About | BSD-3-Clause |
 | `webview_flutter` | Shows a note's preview page, with every tapped address handed to the Rust core | BSD-3-Clause |
+| `kanso_push` (`plugins/kanso_push`, ours) | Registers for push and wakes the app | AGPL-3.0-or-later |
+| `com.google.firebase:firebase-messaging` (Android, native library of `kanso_push`) | The FCM token and data messages | Apache-2.0 |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-android` (Android, `kanso_push`) | The plugin's channel calls Dart with suspend functions | Apache-2.0 |
+| `com.google.gms:google-services` (Gradle plugin, only with `google-services.json`) | Reads the Firebase configuration | Apache-2.0 |
 
 The Rust library adds `core-foundation` and `core-foundation-sys` (Apple
 targets only, MIT or Apache-2.0, already in the iOS tree through
@@ -445,6 +481,7 @@ Development only:
 | `bloc_test` | BLoC tests | MIT |
 | `mocktail` | Mocks | MIT |
 | `glados` | Property-based tests | MIT |
+| `pigeon` (`kanso_push` only) | Generates the plugin's typed channel | BSD-3-Clause |
 | `integration_test` | Tests on a simulator or an emulator (Flutter SDK) | BSD-3-Clause |
 
 Bundled files:

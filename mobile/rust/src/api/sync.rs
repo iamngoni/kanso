@@ -3,8 +3,8 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    KansoError, ServerInfo, SyncHandle, SyncIntervalOption, SyncReportRow, SyncSettingsRow,
-    SyncStatus, SyncStatusLine,
+    KansoError, PushEnvironmentKind, PushPlatformKind, ServerInfo, SyncHandle, SyncIntervalOption,
+    SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
 };
 
 #[frb(opaque)]
@@ -94,5 +94,29 @@ impl KansoSync {
         interval_secs: u32,
     ) -> Result<SyncSettingsRow, KansoError> {
         self.0.set_settings(enabled, interval_secs)
+    }
+    /// Hands over the token the OS issued for this phone; it is registered
+    /// with the server when signed in and pushes are on.
+    pub fn set_push_token(
+        &self,
+        platform: PushPlatformKind,
+        token: String,
+        environment: PushEnvironmentKind,
+    ) -> Result<(), KansoError> {
+        self.0.set_push_token(platform, token, environment)
+    }
+
+    pub fn set_push_enabled(&self, enabled: bool) -> Result<(), KansoError> {
+        self.0.set_push_enabled(enabled)
+    }
+
+    pub fn push_enabled(&self) -> Result<bool, KansoError> {
+        self.0.push_enabled()
+    }
+
+    /// Registers (or removes) the remembered token to match the settings;
+    /// the retry after a failed registration.
+    pub fn refresh_push(&self) -> Result<(), KansoError> {
+        self.0.refresh_push()
     }
 }

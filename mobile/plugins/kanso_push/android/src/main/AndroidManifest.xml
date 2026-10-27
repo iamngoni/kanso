@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Firebase Messaging hands a new token and each data message to this
+         service, which starts the process if it is not running. -->
+    <application>
+        <service
+            android:name="app.kanso.kanso_push.KansoPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

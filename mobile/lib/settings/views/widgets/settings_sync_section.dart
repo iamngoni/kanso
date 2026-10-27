@@ -19,6 +19,7 @@ import '../../../core/views/widgets/kanso_detail_row.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
+import '../../../push/views/widgets/push_setting_row.dart';
 import '../../state/sync_settings/sync_settings_bloc.dart';
 import 'sync_interval_sheet.dart';
 
@@ -84,6 +85,7 @@ class SettingsSyncSection extends StatelessWidget {
                     ),
                     const _SyncAutomaticallyRow(),
                     const _SyncEveryRow(),
+                    const PushSettingRow(),
                   ] else
                     KansoSettingsRow(
                       icon: KansoIcons.cloud,

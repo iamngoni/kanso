@@ -15,6 +15,7 @@ import 'package:kanso/library/state/new_notebook/new_notebook_bloc.dart';
 import 'package:kanso/note/models/repos/impl/memory_note_place_repository.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
+import 'package:kanso/push/state/push_setting/push_setting_bloc.dart';
 import 'package:kanso/replace/models/repos/abs/replace_repository.dart';
 import 'package:kanso/replace/state/replace_notes/replace_notes_bloc.dart';
 import 'package:kanso/search/state/search/search_bloc.dart';
@@ -36,6 +37,7 @@ import 'fixture_gallery_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_licences_repository.dart';
 import 'fixture_parity_repositories.dart';
+import 'fixture_push_repository.dart';
 import 'fixture_renderer_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_system_share_repository.dart';
@@ -105,6 +107,12 @@ void registerPageBlocs(
     getIt.unregister<SearchBloc>();
   }
   getIt.registerFactory<SearchBloc>(() => SearchBloc(library));
+  if (getIt.isRegistered<PushSettingBloc>()) {
+    getIt.unregister<PushSettingBloc>();
+  }
+  getIt.registerFactory<PushSettingBloc>(
+    () => PushSettingBloc(FixturePushRepository()),
+  );
   if (getIt.isRegistered<AboutBloc>()) {
     getIt.unregister<AboutBloc>();
   }
