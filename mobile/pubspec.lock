@@ -532,6 +532,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.15.2"
+  kanso_ocr:
+    dependency: "direct main"
+    description:
+      path: "plugins/kanso_ocr"
+      relative: true
+    source: path
+    version: "0.1.0"
   leak_tracker:
     dependency: transitive
     description:
