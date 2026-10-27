@@ -23,6 +23,7 @@ import 'core/models/data/design_gallery_access.dart' as _i289;
 import 'core/models/data/library_folder.dart' as _i72;
 import 'core/models/repos/abs/about_repository.dart' as _i80;
 import 'core/models/repos/abs/diagnostics_repository.dart' as _i984;
+import 'core/models/repos/abs/file_picker_repository.dart' as _i205;
 import 'core/models/repos/abs/haptics_repository.dart' as _i1056;
 import 'core/models/repos/abs/library_repository.dart' as _i38;
 import 'core/models/repos/abs/licences_repository.dart' as _i951;
@@ -31,6 +32,7 @@ import 'core/models/repos/abs/preferences_repository.dart' as _i384;
 import 'core/models/repos/abs/renderer_repository.dart' as _i732;
 import 'core/models/repos/abs/session_repository.dart' as _i333;
 import 'core/models/repos/abs/sync_repository.dart' as _i601;
+import 'core/models/repos/abs/themes_repository.dart' as _i40;
 import 'core/models/repos/impl/file_preferences_repository.dart' as _i207;
 import 'core/models/repos/impl/flutter_haptics_repository.dart' as _i438;
 import 'core/models/repos/impl/flutter_licences_repository.dart' as _i1025;
@@ -41,6 +43,8 @@ import 'core/models/repos/impl/rust_renderer_repository.dart' as _i820;
 import 'core/models/repos/impl/rust_session_repository.dart' as _i899;
 import 'core/models/repos/impl/rust_sync_repository.dart' as _i564;
 import 'core/models/repos/impl/shorebird_patch_repository.dart' as _i989;
+import 'core/models/repos/impl/system_file_picker_repository.dart' as _i448;
+import 'core/models/repos/impl/themes_repository_impl.dart' as _i48;
 import 'core/router/kanso_router.dart' as _i388;
 import 'core/router/layout_class_notifier.dart' as _i609;
 import 'core/state/appearance/appearance_bloc.dart' as _i551;
@@ -62,6 +66,7 @@ import 'settings/state/about/about_bloc.dart' as _i380;
 import 'settings/state/backup_notice/backup_notice_bloc.dart' as _i897;
 import 'settings/state/licences/licences_bloc.dart' as _i570;
 import 'shell/state/library_pane/library_pane_bloc.dart' as _i612;
+import 'themes/state/icon_themes/icon_themes_bloc.dart' as _i778;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
 
 const String _development = 'development';
@@ -86,6 +91,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1056.HapticsRepository>(
       () => _i438.FlutterHapticsRepository(),
     );
+    gh.lazySingleton<_i205.FilePickerRepository>(
+      () => _i448.SystemFilePickerRepository(),
+    );
+    gh.lazySingleton<_i40.ThemesRepository>(() => _i48.ThemesRepositoryImpl());
     await gh.singletonAsync<_i72.LibraryFolder>(
       () => coreModule.libraryFolder(),
       registerFor: {_development, _production},
@@ -109,6 +118,18 @@ extension GetItInjectableX on _i174.GetIt {
       () => appModule.closedGallery,
       registerFor: {_production, _integration},
     );
+    gh.factory<_i778.IconThemesBloc>(
+      () => _i778.IconThemesBloc(
+        gh<_i40.ThemesRepository>(),
+        gh<_i205.FilePickerRepository>(),
+      ),
+    );
+    gh.factory<_i149.ThemePickerBloc>(
+      () => _i149.ThemePickerBloc(
+        gh<_i40.ThemesRepository>(),
+        gh<_i205.FilePickerRepository>(),
+      ),
+    );
     gh.singleton<_i289.DesignGalleryAccess>(
       () => appModule.developmentGallery,
       registerFor: {_development},
@@ -128,6 +149,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i384.PreferencesRepository>(
       () => _i207.FilePreferencesRepository(gh<_i72.LibraryFolder>()),
+    );
+    gh.factory<_i551.AppearanceBloc>(
+      () => _i551.AppearanceBloc(
+        gh<_i384.PreferencesRepository>(),
+        gh<_i40.ThemesRepository>(),
+      ),
     );
     gh.lazySingleton<_i1070.CrashContextRepository>(
       () => _i756.PlatformCrashContextRepository(gh<_i909.PatchRepository>()),
@@ -168,15 +195,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i732.RendererRepository>(
       () => _i820.RustRendererRepository(gh<_i832.KansoRenderer>()),
-    );
-    gh.factory<_i149.ThemePickerBloc>(
-      () => _i149.ThemePickerBloc(gh<_i732.RendererRepository>()),
-    );
-    gh.factory<_i551.AppearanceBloc>(
-      () => _i551.AppearanceBloc(
-        gh<_i384.PreferencesRepository>(),
-        gh<_i732.RendererRepository>(),
-      ),
     );
     gh.lazySingleton<_i38.LibraryRepository>(
       () => _i152.RustLibraryRepository(gh<_i455.KansoLibrary>()),

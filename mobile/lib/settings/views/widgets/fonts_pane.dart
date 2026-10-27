@@ -18,7 +18,7 @@ import 'text_size_section.dart';
 
 /// Settings › Fonts: the editor font, the preview font and the code font,
 /// each a list in which every family is shown in itself with the one in
-/// use checked, then the text size.
+/// use checked, then the text size and the preview's text size.
 ///
 /// The choices are the [AppearanceBloc]'s, so choosing here restyles every
 /// note in the app at once. [startAtEnd] shows the page scrolled to its
@@ -111,6 +111,15 @@ class FontsPane extends StatelessWidget {
                           selected: state.textSize,
                           onChanged: (size) => bloc.add(
                             AppearanceEvent.textSizeChanged(size),
+                          ),
+                        ),
+                        const SizedBox(height: KansoSpacing.lg),
+                        TextSizeSection(
+                          title: l10n.fontsPreviewTextSizeSection,
+                          footer: l10n.fontsPreviewTextSizeFooter,
+                          selected: state.previewTextSize,
+                          onChanged: (size) => bloc.add(
+                            AppearanceEvent.previewTextSizeChanged(size),
                           ),
                         ),
                       ],

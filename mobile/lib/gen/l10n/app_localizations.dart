@@ -430,23 +430,11 @@ abstract class AppLocalizations {
   /// **'Themes'**
   String get themesTitle;
 
-  /// The label above the installed themes.
-  ///
-  /// In en, this message translates to:
-  /// **'Installed'**
-  String get themesInstalled;
-
   /// A badge on a theme that comes with Kanso.
   ///
   /// In en, this message translates to:
   /// **'Built in'**
   String get themesBadgeBuiltIn;
-
-  /// A badge on a theme that is installed.
-  ///
-  /// In en, this message translates to:
-  /// **'Installed'**
-  String get themesBadgeInstalled;
 
   /// Marks the theme in use.
   ///
@@ -1431,6 +1419,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The crash reports couldn’t be read.'**
   String get crashReportsFailedMessage;
+
+  /// The heading of the grid of themes that colour the interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get themesSectionTheme;
+
+  /// What the Theme grid colours.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors the sidebar, the note list, menus and every control.'**
+  String get themesSectionThemeDetail;
+
+  /// The heading of the grid of themes that colour the Markdown source.
+  ///
+  /// In en, this message translates to:
+  /// **'Editor syntax'**
+  String get themesSectionSyntax;
+
+  /// What the Editor syntax grid colours.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors the Markdown source and the code in it.'**
+  String get themesSectionSyntaxDetail;
+
+  /// The heading of the grid of themes that colour the rendered note.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get themesSectionPreview;
+
+  /// What the Preview grid colours.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors the rendered note: headings, links, quotes and code.'**
+  String get themesSectionPreviewDetail;
+
+  /// The first card of the Editor syntax and Preview grids: it uses the interface theme's own colours.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as theme'**
+  String get themesSameAsTheme;
+
+  /// A badge on a theme the person made or imported.
+  ///
+  /// In en, this message translates to:
+  /// **'Yours'**
+  String get themesBadgeYours;
+
+  /// A badge on a theme installed from the gallery.
+  ///
+  /// In en, this message translates to:
+  /// **'From the gallery'**
+  String get themesBadgeGallery;
+
+  /// The heading of the section about importing theme files and the files that were left out.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme files'**
+  String get themesFiles;
+
+  /// The label of the row that imports a theme file.
+  ///
+  /// In en, this message translates to:
+  /// **'Import theme'**
+  String get themesImport;
+
+  /// What the Import theme row does.
+  ///
+  /// In en, this message translates to:
+  /// **'A theme package (its folder or .tgz) or a Zed theme (.json), converted into the themes folder.'**
+  String get themesImportDetail;
+
+  /// The button of the Import theme row; it opens the system file picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Theme…'**
+  String get themesImportButton;
+
+  /// The button of the import row while a file is being imported.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get themesImporting;
+
+  /// Said after a theme file was imported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {names}.'**
+  String themesImportedOne(String names);
+
+  /// Said when a theme file could not be imported; the message says why.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t import the theme. {message}'**
+  String themesImportFailed(String message);
+
+  /// The title of the icon themes page, and the label of its row in settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon themes'**
+  String get iconThemesTitle;
+
+  /// The heading of the section about importing icon themes.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon theme files'**
+  String get iconThemesSection;
+
+  /// The label of the row that imports an icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Import icon theme'**
+  String get iconThemesImport;
+
+  /// What the Import icon theme row does.
+  ///
+  /// In en, this message translates to:
+  /// **'A Zed icon theme (its extension folder or .tar.gz), a theme package carrying one, or a Kanso icon theme folder, converted into the icon themes folder.'**
+  String get iconThemesImportDetail;
+
+  /// The button of the Import icon theme row; it opens the system file picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Import…'**
+  String get iconThemesImportButton;
+
+  /// Said after an icon theme was imported; the summary says what was in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {names}. {summary}'**
+  String iconThemesImported(String names, String summary);
+
+  /// Said when an icon theme could not be imported; the message says why.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t import the icon theme. {message}'**
+  String iconThemesImportFailed(String message);
+
+  /// The title of the empty icon themes list.
+  ///
+  /// In en, this message translates to:
+  /// **'No icon themes yet'**
+  String get iconThemesEmptyTitle;
+
+  /// The message of the empty icon themes list.
+  ///
+  /// In en, this message translates to:
+  /// **'Import one and it will show up here.'**
+  String get iconThemesEmptyMessage;
+
+  /// The heading above the icon themes that were imported or installed.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported'**
+  String get iconThemesListSection;
+
+  /// The title of the card shown when the icon themes could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The icon themes didn’t load'**
+  String get iconThemesFailedTitle;
+
+  /// The message of the card shown when the icon themes could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong reading the icon themes. Try again.'**
+  String get iconThemesFailedMessage;
+
+  /// An icon theme's author, under its name.
+  ///
+  /// In en, this message translates to:
+  /// **'By {author}'**
+  String iconThemeAuthor(String author);
+
+  /// The heading of the settings group about the rendered preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get settingsPreviewSection;
+
+  /// The label of the settings row that opens the preview's text size.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview text size'**
+  String get settingsPreviewTextSize;
+
+  /// The heading of the preview text size choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview text size'**
+  String get fontsPreviewTextSizeSection;
+
+  /// What the preview text size changes.
+  ///
+  /// In en, this message translates to:
+  /// **'The preview’s text, in Split and Preview.'**
+  String get fontsPreviewTextSizeFooter;
+
+  /// The label of the row that chooses what draws diagrams.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagrams'**
+  String get settingsDiagrams;
+
+  /// What the Diagrams row chooses.
+  ///
+  /// In en, this message translates to:
+  /// **'What draws Mermaid diagrams, here and in exports. Pele, Obsidian’s renderer, lays them out tidily in the theme’s colors; Kanso’s own also draws ZenUML.'**
+  String get settingsDiagramsDetail;
+
+  /// The name of the Pele diagram renderer.
+  ///
+  /// In en, this message translates to:
+  /// **'Pele'**
+  String get diagramRendererPele;
+
+  /// The name of Kanso's own diagram renderer.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso'**
+  String get diagramRendererKanso;
+
+  /// A word set in bold in a theme's sample picture.
+  ///
+  /// In en, this message translates to:
+  /// **'bold'**
+  String get themesThumbBold;
+
+  /// A word set in italics in a theme's sample picture.
+  ///
+  /// In en, this message translates to:
+  /// **'italic'**
+  String get themesThumbItalic;
+
+  /// The word between bold and italic in a theme's sample picture, with a space each side.
+  ///
+  /// In en, this message translates to:
+  /// **' and '**
+  String get themesThumbAnd;
+
+  /// The text of a link in a theme's sample picture.
+  ///
+  /// In en, this message translates to:
+  /// **'a link'**
+  String get themesThumbLink;
+
+  /// A finished task in a theme's sample picture.
+  ///
+  /// In en, this message translates to:
+  /// **'done'**
+  String get themesThumbDone;
+
+  /// The first word of the sample sentence in a preview theme's picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Some'**
+  String get themesThumbSome;
+
+  /// A bold word with a comma in a preview theme's picture.
+  ///
+  /// In en, this message translates to:
+  /// **'bold,'**
+  String get themesThumbBoldComma;
+
+  /// A link with a comma in a preview theme's picture.
+  ///
+  /// In en, this message translates to:
+  /// **'link,'**
+  String get themesThumbLinkComma;
+
+  /// Inline code in a preview theme's picture.
+  ///
+  /// In en, this message translates to:
+  /// **'code'**
+  String get themesThumbInlineCode;
 }
 
 class _AppLocalizationsDelegate

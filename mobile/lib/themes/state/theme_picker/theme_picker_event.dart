@@ -9,4 +9,8 @@ sealed class ThemePickerEvent with _$ThemePickerEvent {
   /// The picker was opened, or the person asked to try again: read the
   /// themes.
   const factory ThemePickerEvent.started() = ThemePickerStartedEvent;
+
+  /// The person asked to import a theme: pick a file, then import it.
+  const factory ThemePickerEvent.importRequested() =
+      ThemePickerImportRequestedEvent;
 }

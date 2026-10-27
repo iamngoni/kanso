@@ -12,6 +12,8 @@ _ThemeSelection _$ThemeSelectionFromJson(Map<String, dynamic> json) =>
       ui: json['ui'] as String? ?? 'kanso-dark',
       light: json['light'] as String? ?? 'kanso-light',
       dark: json['dark'] as String? ?? 'kanso-dark',
+      syntax: json['syntax'] as String?,
+      preview: json['preview'] as String?,
     );
 
 Map<String, dynamic> _$ThemeSelectionToJson(_ThemeSelection instance) =>
@@ -20,4 +22,6 @@ Map<String, dynamic> _$ThemeSelectionToJson(_ThemeSelection instance) =>
       'ui': instance.ui,
       'light': instance.light,
       'dark': instance.dark,
+      'syntax': ?instance.syntax,
+      'preview': ?instance.preview,
     };

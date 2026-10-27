@@ -25,6 +25,9 @@
 //!   source, fits a theme (the built-in ones are in, as the desktop has
 //!   them, and source can be colored in any of them) and draws math and
 //!   diagrams.
+//! - [`Themes`] (`library.themes()`) lists the built-in, the person's own and
+//!   the gallery's themes, fits any three together as the desktop does,
+//!   colors source in them and imports a theme package or a Zed theme.
 //! - [`background`] is the sync that runs with no app: the code behind the
 //!   C entry `kanso_background_sync` that `mobile/rust` exports.
 //! - [`diagnostics`] has the version, the TLS check and the panic probe.
@@ -56,6 +59,10 @@ pub mod secrets;
 mod stream;
 mod syncing;
 mod theme_tokens;
+mod themes;
+mod themes_icons;
+mod themes_icons_model;
+mod themes_model;
 
 pub use errors::KansoError;
 pub use library::Library;
@@ -64,6 +71,9 @@ pub use model::*;
 pub use renderer::Renderer;
 pub use stream::Sink;
 pub use syncing::SyncHandle;
+pub use themes::Themes;
+pub use themes_icons_model::*;
+pub use themes_model::*;
 
 /// Where secrets live: the seam the Keychain, the Keystore and the tests'
 /// memory store stand behind.

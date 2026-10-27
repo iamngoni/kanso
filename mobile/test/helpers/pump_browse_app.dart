@@ -22,7 +22,9 @@ import 'package:kanso/shell/state/library_pane/library_pane_bloc.dart';
 
 import 'browse_blocs.dart';
 import 'crash_samples.dart';
+import 'fixture_file_picker_repository.dart';
 import 'fixture_library_repository.dart';
+import 'fixture_themes_repository.dart';
 import 'register_page_blocs.dart';
 import 'seeded_appearance_bloc.dart';
 
@@ -53,7 +55,9 @@ class BrowseApp {
 /// [tabletDevice] says whether the display is a tablet's, which a narrow
 /// window of one (a Split View half) is not enough to tell; it defaults to
 /// what the window's own size says. [backupNotice] is the notice's BLoC; it
-/// defaults to one that is not shown. The app is inside a repaint boundary,
+/// defaults to one that is not shown. [themes] and [files] are what the
+/// theme pages read and import with (Kanso's two themes and a picker that
+/// chooses nothing by default). The app is inside a repaint boundary,
 /// [appBoundaryKey], to take a picture of.
 Future<BrowseApp> pumpBrowseApp(
   WidgetTester tester,
@@ -65,11 +69,13 @@ Future<BrowseApp> pumpBrowseApp(
   EdgeInsets safeArea = EdgeInsets.zero,
   bool? tabletDevice,
   BackupNoticeBloc? backupNotice,
+  FixtureThemesRepository? themes,
+  FixtureFilePickerRepository? files,
 }) async {
   final bloc = SeededAppearanceBloc(appearance);
   addTearDown(bloc.close);
   final blocs = await BrowseBlocs.start(library);
-  registerPageBlocs(blocs.library);
+  registerPageBlocs(blocs.library, null, themes, files);
   final padding = FakeViewPadding(
     left: safeArea.left * devicePixelRatio,
     top: safeArea.top * devicePixelRatio,

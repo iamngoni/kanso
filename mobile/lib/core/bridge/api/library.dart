@@ -8,6 +8,7 @@ import 'locks.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'renderer.dart';
 import 'sync.dart';
+import 'themes.dart';
 import 'types.dart';
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>>
@@ -56,6 +57,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   KansoSync syncing();
 
   Future<List<TagRow>> tags();
+
+  KansoThemes themes();
 
   Future<void> trash({required String id});
 }

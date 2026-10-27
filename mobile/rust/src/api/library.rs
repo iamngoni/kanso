@@ -12,6 +12,7 @@ use kanso_mobile::{
 use super::locks::KansoLocks;
 use super::renderer::KansoRenderer;
 use super::sync::KansoSync;
+use super::themes::KansoThemes;
 
 /// An open library. Cheap to clone on the Rust side; Dart holds one.
 #[frb(opaque)]
@@ -102,5 +103,10 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn renderer(&self) -> KansoRenderer {
         KansoRenderer::new(self.0.renderer())
+    }
+
+    #[frb(sync)]
+    pub fn themes(&self) -> KansoThemes {
+        KansoThemes::new(self.0.themes())
     }
 }

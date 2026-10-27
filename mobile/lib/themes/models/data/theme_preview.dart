@@ -6,11 +6,14 @@ import 'dart:ui';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/configs/kanso_palette.dart';
+import '../../../core/models/data/installed_theme_origin.dart';
+
 part 'theme_preview.freezed.dart';
 
 /// What a theme card needs of a theme: its name and the colours that draw a
 /// few lines of Markdown, taken from the theme's tokens
-/// (`themePreviewFromBuiltin`).
+/// (`themePreviewFromInstalled`).
 ///
 /// [quote] is the quote colour of the theme's syntax, or its marker colour
 /// when it has none; [strong] and [emphasis] are the colour of the bold and
@@ -35,6 +38,20 @@ abstract class ThemePreview with _$ThemePreview {
     required Color code,
     required Color strong,
     required Color emphasis,
-    @Default(true) bool builtIn,
+
+    /// The theme as the app would draw it, for the pictures of the editor
+    /// syntax and the preview.
+    required KansoPalette palette,
+
+    /// Where the theme came from.
+    @Default(InstalledThemeOrigin.builtin) InstalledThemeOrigin origin,
+
+    /// Who made the theme; empty when it does not say.
+    @Default('') String author,
   }) = _ThemePreview;
+
+  const ThemePreview._();
+
+  /// Whether the theme comes with Kanso.
+  bool get builtIn => origin == InstalledThemeOrigin.builtin;
 }

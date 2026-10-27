@@ -699,6 +699,165 @@ pub fn ensure_contrast(color: Rgb, backgrounds: &[Rgb], min: f64, toward: Rgb) -
         .unwrap_or(toward)
 }
 
+// MARK: Legibility
+
+/// The pane surfaces text is drawn on, by name.
+pub fn surfaces(c: &Colors) -> [(&'static str, Rgb); 13] {
+    [
+        ("app", c.app),
+        ("sidebar", c.sidebar),
+        ("list", c.list),
+        ("editor", c.editor),
+        ("elevated", c.elevated),
+        ("fill", c.fill),
+        ("row_active", c.row_active),
+        ("row_hover", c.row_hover),
+        ("sidebar_active", c.sidebar_active),
+        ("sidebar_hover", c.sidebar_hover),
+        ("hover", c.hover),
+        ("selected", c.selected),
+        ("code", c.code),
+    ]
+}
+
+/// Every place a theme's colors don't read, in a sentence each: body text
+/// at 4.5:1 on every surface, secondary text at 3:1 there, quiet text,
+/// links and status colors on the panes, the caret, button text, the
+/// selection, selected rows, and every syntax and preview color on what it
+/// is drawn on. These are the checks the built-in themes pass.
+// no-prop-test: the checks themselves; `prop_made_legible_themes_pass` holds
+// every imported theme to them.
+pub fn problems(theme: &ThemeFile) -> Vec<String> {
+    let t = theme.resolve();
+    let c = &t.colors;
+    let mut out = Vec::new();
+    let mut want = |what: String, ratio: f64, min: f64| {
+        if ratio < min {
+            out.push(format!(
+                "{what} is {ratio:.2}:1; it should be at least {min}:1"
+            ));
+        }
+    };
+    for (surface, bg) in surfaces(c) {
+        want(format!("text on {surface}"), contrast(c.text, bg), 4.5);
+        want(
+            format!("text_secondary on {surface}"),
+            contrast(c.text_secondary, bg),
+            3.0,
+        );
+    }
+    for (surface, bg) in [
+        ("sidebar", c.sidebar),
+        ("list", c.list),
+        ("editor", c.editor),
+        ("elevated", c.elevated),
+    ] {
+        want(
+            format!("text_muted on {surface}"),
+            contrast(c.text_muted, bg),
+            3.0,
+        );
+        let link_min = if surface == "sidebar" { 3.0 } else { 4.5 };
+        want(format!("link on {surface}"), contrast(c.link, bg), link_min);
+        for (status, fg) in [
+            ("success", c.success),
+            ("warning", c.warning),
+            ("danger", c.danger),
+        ] {
+            want(format!("{status} on {surface}"), contrast(fg, bg), 3.0);
+        }
+    }
+    want("caret on editor".into(), contrast(t.caret, c.editor), 3.0);
+    want(
+        "button_text on button".into(),
+        contrast(c.button_text, c.button),
+        4.5,
+    );
+    let selection = t.selection.over(c.editor);
+    want(
+        "selection on editor".into(),
+        contrast(selection, c.editor),
+        1.15,
+    );
+    want("text on selection".into(), contrast(c.text, selection), 4.5);
+    want(
+        "row_active on list".into(),
+        contrast(c.row_active, c.list),
+        1.05,
+    );
+    want(
+        "sidebar_active on sidebar".into(),
+        contrast(c.sidebar_active, c.sidebar),
+        1.05,
+    );
+    for (key, style) in &t.syntax {
+        if let Some(color) = style.color {
+            want(
+                format!("syntax.{key} on editor"),
+                contrast(color, c.editor),
+                3.0,
+            );
+        }
+    }
+    let p = &t.preview;
+    want(
+        "preview text on editor".into(),
+        contrast(p.text, c.editor),
+        4.5,
+    );
+    want(
+        "preview link on editor".into(),
+        contrast(p.link, c.editor),
+        4.5,
+    );
+    want(
+        "preview quote on editor".into(),
+        contrast(p.quote, c.editor),
+        4.5,
+    );
+    if let Some(heading) = p.heading {
+        want(
+            "preview heading on editor".into(),
+            contrast(heading, c.editor),
+            3.0,
+        );
+    }
+    want(
+        "preview code text on code_background".into(),
+        contrast(p.code_text.unwrap_or(p.text), p.code_background),
+        4.5,
+    );
+    want(
+        "preview inline code text on inline_code_background".into(),
+        contrast(
+            p.inline_code_text.unwrap_or(p.text),
+            p.inline_code_background,
+        ),
+        4.5,
+    );
+    if let Some(head) = p.table_header_background {
+        want(
+            "preview text on table_header_background".into(),
+            contrast(p.text, head),
+            4.5,
+        );
+    }
+    want(
+        "preview text on the preview's selection".into(),
+        contrast(p.text, preview_selection(&t)),
+        4.5,
+    );
+    out
+}
+
+/// The preview's selection as drawn over the editor.
+pub fn preview_selection(t: &ResolvedTheme) -> Rgb {
+    match t.preview.selection {
+        Some(s) => s.over(t.colors.editor),
+        None => mix(t.colors.accent, t.colors.editor, 0.3),
+    }
+}
+
 /// The end of the scale away from `background`: white on a dark surface,
 /// black on a light one.
 fn far_end(background: Rgb) -> Rgb {

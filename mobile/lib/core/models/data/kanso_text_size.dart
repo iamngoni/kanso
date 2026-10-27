@@ -4,10 +4,10 @@
 
 /// How large the text of notes is, relative to its designed size.
 ///
-/// It scales note text only (editor, preview and code); the interface is
-/// untouched. It is applied to the font size and the device's own text
-/// scale (dynamic type) multiplies the result, so the two add up and
-/// neither is ever clamped.
+/// It scales note text only (the editor, or the rendered preview, which has
+/// a size of its own); the interface is untouched. It is applied to the font
+/// size and the device's own text scale (dynamic type) multiplies the result,
+/// so the two add up and neither is ever clamped.
 enum KansoTextSize {
   /// A little smaller than designed.
   small(0.9),

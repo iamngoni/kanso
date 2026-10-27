@@ -2,8 +2,8 @@
 
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    BuiltinTheme, DiagramKind, KansoError, PaletteDto, Renderer, SpanRow, StyledRun, SvgRow,
-    ThemeTokens,
+    BuiltinTheme, DiagramKind, DiagramRenderer, KansoError, PaletteDto, Renderer, SpanRow,
+    StyledRun, SvgRow, ThemeTokens,
 };
 
 #[frb(opaque)]
@@ -57,6 +57,14 @@ impl KansoRenderer {
         palette: PaletteDto,
     ) -> Result<SvgRow, KansoError> {
         Renderer::diagram_svg(kind, source, palette)
+    }
+
+    pub fn set_diagram_renderer(renderer: DiagramRenderer) {
+        Renderer::set_diagram_renderer(renderer)
+    }
+
+    pub fn diagram_renderer() -> DiagramRenderer {
+        Renderer::diagram_renderer()
     }
 
     pub fn set_fonts(fonts: Vec<Vec<u8>>) -> bool {

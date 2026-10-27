@@ -15,6 +15,9 @@ pub use kanso_mobile::{
     SearchScope, ServerInfo, SortKey, SpanRow, StyledRun, SvgRow, SyncPhase, SyncProblemKind,
     SyncReportRow, SyncStatus, SyntaxStyleRow, Table, TableRow, TagRow, ThemeTokens,
 };
+pub use kanso_mobile::{
+    DiagramRenderer, IconThemeImport, IconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
+};
 
 #[frb(mirror(KansoError))]
 pub enum _KansoError {
@@ -365,4 +368,58 @@ pub struct _SvgRow {
     pub width: f32,
     pub height: f32,
     pub baseline: Option<f32>,
+}
+
+#[frb(mirror(ThemeOrigin))]
+pub enum _ThemeOrigin {
+    Builtin,
+    Own,
+    Gallery,
+}
+
+#[frb(mirror(ThemeRow))]
+pub struct _ThemeRow {
+    pub id: String,
+    pub name: String,
+    pub author: String,
+    pub license: String,
+    pub source: Option<String>,
+    pub dark: bool,
+    pub origin: ThemeOrigin,
+    pub tokens: ThemeTokens,
+}
+
+#[frb(mirror(ThemeNotice))]
+pub struct _ThemeNotice {
+    pub file: String,
+    pub sentence: String,
+}
+
+#[frb(mirror(ThemeImport))]
+pub struct _ThemeImport {
+    pub ids: Vec<String>,
+    pub names: Vec<String>,
+}
+
+#[frb(mirror(DiagramRenderer))]
+pub enum _DiagramRenderer {
+    Pele,
+    Kanso,
+}
+
+#[frb(mirror(IconThemeRow))]
+pub struct _IconThemeRow {
+    pub id: String,
+    pub name: String,
+    pub author: String,
+    pub license: String,
+    pub origin: ThemeOrigin,
+    pub icon_count: u32,
+}
+
+#[frb(mirror(IconThemeImport))]
+pub struct _IconThemeImport {
+    pub ids: Vec<String>,
+    pub names: Vec<String>,
+    pub summary: String,
 }

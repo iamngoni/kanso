@@ -12,4 +12,5 @@ pub mod library;
 pub mod locks;
 pub mod renderer;
 pub mod sync;
+pub mod themes;
 pub mod types;

@@ -22,8 +22,8 @@ use serde_json::Value;
 use super::color;
 use super::css::{self, Declaration, Sheet};
 use super::package_base;
-use crate::theme_file::{Appearance, Color, ThemeFile, TokenStyle, contrast, luminance};
-use kanso_engine::theme::Rgb;
+use crate::theme::Rgb;
+use crate::theme::file::{Appearance, Color, ThemeFile, TokenStyle, contrast, luminance};
 
 /// Which parts of the app a package styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1134,7 +1134,7 @@ mod tests {
     use std::path::Path;
 
     use super::{author, import, repository_url, title_case, variables_read};
-    use crate::theme_file::{Appearance, contrast};
+    use crate::theme::file::{Appearance, contrast};
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
 

@@ -124,25 +124,46 @@ extension KansoThemeSelectionAny on Any {
   /// Any built-in theme's name, out of five.
   Generator<String> get themeId => choose(_themeIds);
 
+  /// A syntax or preview theme: none, or any theme's name.
+  Generator<String?> get optionalThemeId =>
+      combine2(this.bool, themeId, (bool none, String id) => none ? null : id);
+
   /// Any selection of themes.
-  Generator<ThemeSelection> get themeSelection => combine4(
+  Generator<ThemeSelection> get themeSelection => combine6(
     this.bool,
     themeId,
     themeId,
     themeId,
-    (bool follow, String ui, String light, String dark) => ThemeSelection(
+    optionalThemeId,
+    optionalThemeId,
+    (
+      bool follow,
+      String ui,
+      String light,
+      String dark,
+      String? syntax,
+      String? preview,
+    ) => ThemeSelection(
       followSystem: follow,
       ui: ui,
       light: light,
       dark: dark,
+      syntax: syntax,
+      preview: preview,
     ),
   );
 
+  /// Any way of drawing diagrams.
+  Generator<DiagramRenderer> get diagramRenderer =>
+      choose(DiagramRenderer.values);
+
   /// Any preferences.
-  Generator<Preferences> get preferences => combine6(
+  Generator<Preferences> get preferences => combine8(
     themeSelection,
     fonts,
     textSize,
+    textSize,
+    diagramRenderer,
     choose(SortKey.values),
     this.bool,
     this.bool,
@@ -150,6 +171,8 @@ extension KansoThemeSelectionAny on Any {
       ThemeSelection themes,
       KansoFonts fonts,
       KansoTextSize size,
+      KansoTextSize previewSize,
+      DiagramRenderer diagrams,
       SortKey sort,
       bool descending,
       bool seen,
@@ -157,6 +180,8 @@ extension KansoThemeSelectionAny on Any {
       themeSelection: themes,
       fonts: fonts,
       textSize: size,
+      previewTextSize: previewSize,
+      diagramRenderer: diagrams,
       sort: sort,
       descending: descending,
       backupNoticeSeen: seen,

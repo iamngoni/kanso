@@ -1,14 +1,14 @@
-// Kanso — theme_preview_from_builtin.dart
+// Kanso — theme_preview_from_installed.dart
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
-import '../../core/bridge/api/types.dart';
+import '../../core/models/data/installed_theme.dart';
 import '../../core/utils/palette_from_tokens.dart';
 import '../models/data/theme_preview.dart';
 
-/// The preview of the built-in [theme]: the colours of its fitted tokens, as
-/// the app would draw a few lines of Markdown in it.
-ThemePreview themePreviewFromBuiltin(BuiltinTheme theme) {
+/// The preview of the installed [theme]: the colours of its tokens, as the
+/// app would draw a few lines of Markdown, or a rendered note, in it.
+ThemePreview themePreviewFromInstalled(InstalledTheme theme) {
   final palette = paletteFromTokens(theme.id, theme.tokens);
   final colors = palette.colors;
   final syntax = palette.syntax;
@@ -33,5 +33,8 @@ ThemePreview themePreviewFromBuiltin(BuiltinTheme theme) {
     code: syntax.code,
     strong: strong == null ? colors.text : opaqueColor(strong),
     emphasis: emphasis == null ? colors.text : opaqueColor(emphasis),
+    origin: theme.origin,
+    author: theme.author,
+    palette: palette,
   );
 }

@@ -13,6 +13,8 @@ kanso-core.workspace = true
 # The highlighter (`highlight`, with the grammars for fenced code) is the
 # phones' editor colors.
 kanso-engine.workspace = true
+# Which gallery themes are disabled, and which names the gallery may use.
+kanso-gallery.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true
 # Without the desktop Keychain: secrets go through `Secrets`, and the phones'
@@ -55,3 +57,6 @@ kanso-mobile = { path = ".", features = ["test-support"] }
 kanso-engine = { workspace = true, features = ["test-support"] }
 proptest.workspace = true
 tempfile.workspace = true
+# Theme package fixtures are packed in the tests (tests/themes.rs).
+flate2.workspace = true
+tar = "0.4.45"

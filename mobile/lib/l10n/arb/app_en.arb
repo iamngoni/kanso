@@ -239,17 +239,9 @@
   "@themesTitle": {
     "description": "The title of the theme page."
   },
-  "themesInstalled": "Installed",
-  "@themesInstalled": {
-    "description": "The label above the installed themes."
-  },
   "themesBadgeBuiltIn": "Built in",
   "@themesBadgeBuiltIn": {
     "description": "A badge on a theme that comes with Kanso."
-  },
-  "themesBadgeInstalled": "Installed",
-  "@themesBadgeInstalled": {
-    "description": "A badge on a theme that is installed."
   },
   "themesCurrent": "In use",
   "@themesCurrent": {
@@ -971,5 +963,217 @@
   "crashReportsFailedMessage": "The crash reports couldn’t be read.",
   "@crashReportsFailedMessage": {
     "description": "The message of the card shown when the crash reports could not be read."
+  },
+  "themesSectionTheme": "Theme",
+  "@themesSectionTheme": {
+    "description": "The heading of the grid of themes that colour the interface."
+  },
+  "themesSectionThemeDetail": "Colors the sidebar, the note list, menus and every control.",
+  "@themesSectionThemeDetail": {
+    "description": "What the Theme grid colours."
+  },
+  "themesSectionSyntax": "Editor syntax",
+  "@themesSectionSyntax": {
+    "description": "The heading of the grid of themes that colour the Markdown source."
+  },
+  "themesSectionSyntaxDetail": "Colors the Markdown source and the code in it.",
+  "@themesSectionSyntaxDetail": {
+    "description": "What the Editor syntax grid colours."
+  },
+  "themesSectionPreview": "Preview",
+  "@themesSectionPreview": {
+    "description": "The heading of the grid of themes that colour the rendered note."
+  },
+  "themesSectionPreviewDetail": "Colors the rendered note: headings, links, quotes and code.",
+  "@themesSectionPreviewDetail": {
+    "description": "What the Preview grid colours."
+  },
+  "themesSameAsTheme": "Same as theme",
+  "@themesSameAsTheme": {
+    "description": "The first card of the Editor syntax and Preview grids: it uses the interface theme's own colours."
+  },
+  "themesBadgeYours": "Yours",
+  "@themesBadgeYours": {
+    "description": "A badge on a theme the person made or imported."
+  },
+  "themesBadgeGallery": "From the gallery",
+  "@themesBadgeGallery": {
+    "description": "A badge on a theme installed from the gallery."
+  },
+  "themesFiles": "Theme files",
+  "@themesFiles": {
+    "description": "The heading of the section about importing theme files and the files that were left out."
+  },
+  "themesImport": "Import theme",
+  "@themesImport": {
+    "description": "The label of the row that imports a theme file."
+  },
+  "themesImportDetail": "A theme package (its folder or .tgz) or a Zed theme (.json), converted into the themes folder.",
+  "@themesImportDetail": {
+    "description": "What the Import theme row does."
+  },
+  "themesImportButton": "Import Theme…",
+  "@themesImportButton": {
+    "description": "The button of the Import theme row; it opens the system file picker."
+  },
+  "themesImporting": "Importing…",
+  "@themesImporting": {
+    "description": "The button of the import row while a file is being imported."
+  },
+  "themesImportedOne": "Imported {names}.",
+  "@themesImportedOne": {
+    "description": "Said after a theme file was imported.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "themesImportFailed": "Couldn’t import the theme. {message}",
+  "@themesImportFailed": {
+    "description": "Said when a theme file could not be imported; the message says why.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "iconThemesTitle": "Icon themes",
+  "@iconThemesTitle": {
+    "description": "The title of the icon themes page, and the label of its row in settings."
+  },
+  "iconThemesSection": "Icon theme files",
+  "@iconThemesSection": {
+    "description": "The heading of the section about importing icon themes."
+  },
+  "iconThemesImport": "Import icon theme",
+  "@iconThemesImport": {
+    "description": "The label of the row that imports an icon theme."
+  },
+  "iconThemesImportDetail": "A Zed icon theme (its extension folder or .tar.gz), a theme package carrying one, or a Kanso icon theme folder, converted into the icon themes folder.",
+  "@iconThemesImportDetail": {
+    "description": "What the Import icon theme row does."
+  },
+  "iconThemesImportButton": "Import…",
+  "@iconThemesImportButton": {
+    "description": "The button of the Import icon theme row; it opens the system file picker."
+  },
+  "iconThemesImported": "Imported {names}. {summary}",
+  "@iconThemesImported": {
+    "description": "Said after an icon theme was imported; the summary says what was in it.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "iconThemesImportFailed": "Couldn’t import the icon theme. {message}",
+  "@iconThemesImportFailed": {
+    "description": "Said when an icon theme could not be imported; the message says why.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "iconThemesEmptyTitle": "No icon themes yet",
+  "@iconThemesEmptyTitle": {
+    "description": "The title of the empty icon themes list."
+  },
+  "iconThemesEmptyMessage": "Import one and it will show up here.",
+  "@iconThemesEmptyMessage": {
+    "description": "The message of the empty icon themes list."
+  },
+  "iconThemesListSection": "Imported",
+  "@iconThemesListSection": {
+    "description": "The heading above the icon themes that were imported or installed."
+  },
+  "iconThemesFailedTitle": "The icon themes didn’t load",
+  "@iconThemesFailedTitle": {
+    "description": "The title of the card shown when the icon themes could not be read."
+  },
+  "iconThemesFailedMessage": "Something went wrong reading the icon themes. Try again.",
+  "@iconThemesFailedMessage": {
+    "description": "The message of the card shown when the icon themes could not be read."
+  },
+  "iconThemeAuthor": "By {author}",
+  "@iconThemeAuthor": {
+    "description": "An icon theme's author, under its name.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPreviewSection": "Preview",
+  "@settingsPreviewSection": {
+    "description": "The heading of the settings group about the rendered preview."
+  },
+  "settingsPreviewTextSize": "Preview text size",
+  "@settingsPreviewTextSize": {
+    "description": "The label of the settings row that opens the preview's text size."
+  },
+  "fontsPreviewTextSizeSection": "Preview text size",
+  "@fontsPreviewTextSizeSection": {
+    "description": "The heading of the preview text size choice."
+  },
+  "fontsPreviewTextSizeFooter": "The preview’s text, in Split and Preview.",
+  "@fontsPreviewTextSizeFooter": {
+    "description": "What the preview text size changes."
+  },
+  "settingsDiagrams": "Diagrams",
+  "@settingsDiagrams": {
+    "description": "The label of the row that chooses what draws diagrams."
+  },
+  "settingsDiagramsDetail": "What draws Mermaid diagrams, here and in exports. Pele, Obsidian’s renderer, lays them out tidily in the theme’s colors; Kanso’s own also draws ZenUML.",
+  "@settingsDiagramsDetail": {
+    "description": "What the Diagrams row chooses."
+  },
+  "diagramRendererPele": "Pele",
+  "@diagramRendererPele": {
+    "description": "The name of the Pele diagram renderer."
+  },
+  "diagramRendererKanso": "Kanso",
+  "@diagramRendererKanso": {
+    "description": "The name of Kanso's own diagram renderer."
+  },
+  "themesThumbBold": "bold",
+  "@themesThumbBold": {
+    "description": "A word set in bold in a theme's sample picture."
+  },
+  "themesThumbItalic": "italic",
+  "@themesThumbItalic": {
+    "description": "A word set in italics in a theme's sample picture."
+  },
+  "themesThumbAnd": " and ",
+  "@themesThumbAnd": {
+    "description": "The word between bold and italic in a theme's sample picture, with a space each side."
+  },
+  "themesThumbLink": "a link",
+  "@themesThumbLink": {
+    "description": "The text of a link in a theme's sample picture."
+  },
+  "themesThumbDone": "done",
+  "@themesThumbDone": {
+    "description": "A finished task in a theme's sample picture."
+  },
+  "themesThumbSome": "Some",
+  "@themesThumbSome": {
+    "description": "The first word of the sample sentence in a preview theme's picture."
+  },
+  "themesThumbBoldComma": "bold,",
+  "@themesThumbBoldComma": {
+    "description": "A bold word with a comma in a preview theme's picture."
+  },
+  "themesThumbLinkComma": "link,",
+  "@themesThumbLinkComma": {
+    "description": "A link with a comma in a preview theme's picture."
+  },
+  "themesThumbInlineCode": "code",
+  "@themesThumbInlineCode": {
+    "description": "Inline code in a preview theme's picture."
   }
 }

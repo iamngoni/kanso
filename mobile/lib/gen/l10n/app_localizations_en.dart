@@ -195,13 +195,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themesTitle => 'Themes';
 
   @override
-  String get themesInstalled => 'Installed';
-
-  @override
   String get themesBadgeBuiltIn => 'Built in';
-
-  @override
-  String get themesBadgeInstalled => 'Installed';
 
   @override
   String get themesCurrent => 'In use';
@@ -757,4 +751,160 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get crashReportsFailedMessage => 'The crash reports couldn’t be read.';
+
+  @override
+  String get themesSectionTheme => 'Theme';
+
+  @override
+  String get themesSectionThemeDetail =>
+      'Colors the sidebar, the note list, menus and every control.';
+
+  @override
+  String get themesSectionSyntax => 'Editor syntax';
+
+  @override
+  String get themesSectionSyntaxDetail =>
+      'Colors the Markdown source and the code in it.';
+
+  @override
+  String get themesSectionPreview => 'Preview';
+
+  @override
+  String get themesSectionPreviewDetail =>
+      'Colors the rendered note: headings, links, quotes and code.';
+
+  @override
+  String get themesSameAsTheme => 'Same as theme';
+
+  @override
+  String get themesBadgeYours => 'Yours';
+
+  @override
+  String get themesBadgeGallery => 'From the gallery';
+
+  @override
+  String get themesFiles => 'Theme files';
+
+  @override
+  String get themesImport => 'Import theme';
+
+  @override
+  String get themesImportDetail =>
+      'A theme package (its folder or .tgz) or a Zed theme (.json), converted into the themes folder.';
+
+  @override
+  String get themesImportButton => 'Import Theme…';
+
+  @override
+  String get themesImporting => 'Importing…';
+
+  @override
+  String themesImportedOne(String names) {
+    return 'Imported $names.';
+  }
+
+  @override
+  String themesImportFailed(String message) {
+    return 'Couldn’t import the theme. $message';
+  }
+
+  @override
+  String get iconThemesTitle => 'Icon themes';
+
+  @override
+  String get iconThemesSection => 'Icon theme files';
+
+  @override
+  String get iconThemesImport => 'Import icon theme';
+
+  @override
+  String get iconThemesImportDetail =>
+      'A Zed icon theme (its extension folder or .tar.gz), a theme package carrying one, or a Kanso icon theme folder, converted into the icon themes folder.';
+
+  @override
+  String get iconThemesImportButton => 'Import…';
+
+  @override
+  String iconThemesImported(String names, String summary) {
+    return 'Imported $names. $summary';
+  }
+
+  @override
+  String iconThemesImportFailed(String message) {
+    return 'Couldn’t import the icon theme. $message';
+  }
+
+  @override
+  String get iconThemesEmptyTitle => 'No icon themes yet';
+
+  @override
+  String get iconThemesEmptyMessage => 'Import one and it will show up here.';
+
+  @override
+  String get iconThemesListSection => 'Imported';
+
+  @override
+  String get iconThemesFailedTitle => 'The icon themes didn’t load';
+
+  @override
+  String get iconThemesFailedMessage =>
+      'Something went wrong reading the icon themes. Try again.';
+
+  @override
+  String iconThemeAuthor(String author) {
+    return 'By $author';
+  }
+
+  @override
+  String get settingsPreviewSection => 'Preview';
+
+  @override
+  String get settingsPreviewTextSize => 'Preview text size';
+
+  @override
+  String get fontsPreviewTextSizeSection => 'Preview text size';
+
+  @override
+  String get fontsPreviewTextSizeFooter =>
+      'The preview’s text, in Split and Preview.';
+
+  @override
+  String get settingsDiagrams => 'Diagrams';
+
+  @override
+  String get settingsDiagramsDetail =>
+      'What draws Mermaid diagrams, here and in exports. Pele, Obsidian’s renderer, lays them out tidily in the theme’s colors; Kanso’s own also draws ZenUML.';
+
+  @override
+  String get diagramRendererPele => 'Pele';
+
+  @override
+  String get diagramRendererKanso => 'Kanso';
+
+  @override
+  String get themesThumbBold => 'bold';
+
+  @override
+  String get themesThumbItalic => 'italic';
+
+  @override
+  String get themesThumbAnd => ' and ';
+
+  @override
+  String get themesThumbLink => 'a link';
+
+  @override
+  String get themesThumbDone => 'done';
+
+  @override
+  String get themesThumbSome => 'Some';
+
+  @override
+  String get themesThumbBoldComma => 'bold,';
+
+  @override
+  String get themesThumbLinkComma => 'link,';
+
+  @override
+  String get themesThumbInlineCode => 'code';
 }

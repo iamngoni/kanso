@@ -88,8 +88,12 @@ void main() {
       for (final label in <String>[
         'Appearance',
         'Theme',
+        'Icon themes',
         'Fonts',
         'Text size',
+        'Preview',
+        'Preview text size',
+        'Diagrams',
         'Sync',
         'Status',
         'About',
@@ -136,12 +140,58 @@ void main() {
 
     testWidgets('the Text size row shows the size chosen', (tester) async {
       final screen = await _pump(tester);
-      expect(find.text('Default'), findsOneWidget);
+      // The text size and the preview text size.
+      expect(find.text('Default'), findsNWidgets(2));
       screen.appearance.add(
         const AppearanceEvent.textSizeChanged(KansoTextSize.larger),
       );
       await tester.pumpAndSettle();
       expect(find.text('Larger'), findsOneWidget);
+      expect(find.text('Default'), findsOneWidget);
+    });
+
+    testWidgets('the Preview text size row shows the size chosen apart from '
+        'the editor’s', (tester) async {
+      final screen = await _pump(tester);
+      screen.appearance.add(
+        const AppearanceEvent.previewTextSizeChanged(KansoTextSize.small),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Small'), findsOneWidget);
+      expect(find.text('Default'), findsOneWidget);
+    });
+
+    testWidgets('the Diagrams row chooses between Pele and Kanso, Pele by '
+        'default, with the desktop’s words', (tester) async {
+      final screen = await _pump(tester);
+      expect(find.text('Pele'), findsOneWidget);
+      expect(find.text('Kanso'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'What draws Mermaid diagrams, here and in exports.',
+        ),
+        findsOneWidget,
+      );
+      expect(screen.appearance.state.diagramRenderer, DiagramRenderer.pele);
+      await tester.tap(find.text('Kanso'));
+      await tester.pumpAndSettle();
+      expect(screen.appearance.state.diagramRenderer, DiagramRenderer.kanso);
+      await tester.tap(find.text('Pele'));
+      await tester.pumpAndSettle();
+      expect(screen.appearance.state.diagramRenderer, DiagramRenderer.pele);
+    });
+
+    testWidgets('the Icon themes and Preview text size rows open their '
+        'pages', (tester) async {
+      final screen = await _pump(tester);
+      await tester.tap(find.text('Icon themes'));
+      await tester.pumpAndSettle();
+      expect(topOf(screen.router), '/settings/icon-themes');
+      screen.router.pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Preview text size'));
+      await tester.pumpAndSettle();
+      expect(topOf(screen.router), '/settings/fonts');
     });
 
     testWidgets('the Theme row names both themes while the system is '

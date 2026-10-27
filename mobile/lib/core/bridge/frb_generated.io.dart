@@ -8,6 +8,7 @@ import 'api/library.dart';
 import 'api/locks.dart';
 import 'api/renderer.dart';
 import 'api/sync.dart';
+import 'api/themes.dart';
 import 'api/types.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -39,6 +40,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   get rust_arc_decrement_strong_count_KansoSyncPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSyncPtr;
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoThemesPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemesPtr;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
@@ -67,6 +72,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoThemes
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    dynamic raw,
+  );
+
+  @protected
   KansoLibrary
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     dynamic raw,
@@ -87,6 +98,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoSync
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
+    dynamic raw,
+  );
+
+  @protected
+  KansoThemes
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
     dynamic raw,
   );
 
@@ -114,6 +131,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoSync
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
+    dynamic raw,
+  );
+
+  @protected
+  KansoThemes
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
     dynamic raw,
   );
 
@@ -180,6 +203,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   DiagramKind dco_decode_diagram_kind(dynamic raw);
 
   @protected
+  DiagramRenderer dco_decode_diagram_renderer(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -190,6 +216,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  IconThemeImport dco_decode_icon_theme_import(dynamic raw);
+
+  @protected
+  IconThemeRow dco_decode_icon_theme_row(dynamic raw);
 
   @protected
   KansoError dco_decode_kanso_error(dynamic raw);
@@ -208,6 +240,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<Hit> dco_decode_list_hit(dynamic raw);
+
+  @protected
+  List<IconThemeRow> dco_decode_list_icon_theme_row(dynamic raw);
 
   @protected
   List<Uint8List> dco_decode_list_list_prim_u_8_strict(dynamic raw);
@@ -253,6 +288,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<TagRow> dco_decode_list_tag_row(dynamic raw);
+
+  @protected
+  List<ThemeNotice> dco_decode_list_theme_notice(dynamic raw);
+
+  @protected
+  List<ThemeRow> dco_decode_list_theme_row(dynamic raw);
 
   @protected
   LockEvent dco_decode_lock_event(dynamic raw);
@@ -366,6 +407,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TagRow dco_decode_tag_row(dynamic raw);
 
   @protected
+  ThemeImport dco_decode_theme_import(dynamic raw);
+
+  @protected
+  ThemeNotice dco_decode_theme_notice(dynamic raw);
+
+  @protected
+  ThemeOrigin dco_decode_theme_origin(dynamic raw);
+
+  @protected
+  ThemeRow dco_decode_theme_row(dynamic raw);
+
+  @protected
   ThemeTokens dco_decode_theme_tokens(dynamic raw);
 
   @protected
@@ -411,6 +464,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoThemes
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoLibrary
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     SseDeserializer deserializer,
@@ -431,6 +490,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoSync
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoThemes
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
     SseDeserializer deserializer,
   );
 
@@ -458,6 +523,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoSync
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoThemes
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
     SseDeserializer deserializer,
   );
 
@@ -532,6 +603,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   DiagramKind sse_decode_diagram_kind(SseDeserializer deserializer);
 
   @protected
+  DiagramRenderer sse_decode_diagram_renderer(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
@@ -542,6 +616,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  IconThemeImport sse_decode_icon_theme_import(SseDeserializer deserializer);
+
+  @protected
+  IconThemeRow sse_decode_icon_theme_row(SseDeserializer deserializer);
 
   @protected
   KansoError sse_decode_kanso_error(SseDeserializer deserializer);
@@ -562,6 +642,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<Hit> sse_decode_list_hit(SseDeserializer deserializer);
+
+  @protected
+  List<IconThemeRow> sse_decode_list_icon_theme_row(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<Uint8List> sse_decode_list_list_prim_u_8_strict(
@@ -611,6 +696,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<TagRow> sse_decode_list_tag_row(SseDeserializer deserializer);
+
+  @protected
+  List<ThemeNotice> sse_decode_list_theme_notice(SseDeserializer deserializer);
+
+  @protected
+  List<ThemeRow> sse_decode_list_theme_row(SseDeserializer deserializer);
 
   @protected
   LockEvent sse_decode_lock_event(SseDeserializer deserializer);
@@ -728,6 +819,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TagRow sse_decode_tag_row(SseDeserializer deserializer);
 
   @protected
+  ThemeImport sse_decode_theme_import(SseDeserializer deserializer);
+
+  @protected
+  ThemeNotice sse_decode_theme_notice(SseDeserializer deserializer);
+
+  @protected
+  ThemeOrigin sse_decode_theme_origin(SseDeserializer deserializer);
+
+  @protected
+  ThemeRow sse_decode_theme_row(SseDeserializer deserializer);
+
+  @protected
   ThemeTokens sse_decode_theme_tokens(SseDeserializer deserializer);
 
   @protected
@@ -781,6 +884,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    KansoThemes self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     KansoLibrary self,
     SseSerializer serializer,
@@ -804,6 +914,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
     KansoSync self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    KansoThemes self,
     SseSerializer serializer,
   );
 
@@ -835,6 +952,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync(
     KansoSync self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    KansoThemes self,
     SseSerializer serializer,
   );
 
@@ -926,6 +1050,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_diagram_kind(DiagramKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_diagram_renderer(
+    DiagramRenderer self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
@@ -936,6 +1066,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_icon_theme_import(
+    IconThemeImport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_icon_theme_row(IconThemeRow self, SseSerializer serializer);
 
   @protected
   void sse_encode_kanso_error(KansoError self, SseSerializer serializer);
@@ -960,6 +1099,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_list_hit(List<Hit> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_icon_theme_row(
+    List<IconThemeRow> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_list_prim_u_8_strict(
@@ -1020,6 +1165,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_list_tag_row(List<TagRow> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_theme_notice(
+    List<ThemeNotice> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_theme_row(List<ThemeRow> self, SseSerializer serializer);
 
   @protected
   void sse_encode_lock_event(LockEvent self, SseSerializer serializer);
@@ -1143,6 +1297,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_tag_row(TagRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_theme_import(ThemeImport self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_theme_notice(ThemeNotice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_theme_origin(ThemeOrigin self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_theme_row(ThemeRow self, SseSerializer serializer);
 
   @protected
   void sse_encode_theme_tokens(ThemeTokens self, SseSerializer serializer);
@@ -1311,5 +1477,39 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSyncPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemesPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemesPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

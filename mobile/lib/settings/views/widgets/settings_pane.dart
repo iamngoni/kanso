@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/bridge/api/types.dart' show DiagramRenderer;
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/load_status.dart';
@@ -17,6 +18,8 @@ import '../../../core/utils/font_labels.dart';
 import '../../../core/utils/sync_labels.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
+import '../../../core/views/widgets/kanso_segment.dart';
+import '../../../core/views/widgets/kanso_segmented.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../state/about/about_bloc.dart';
@@ -24,11 +27,12 @@ import '../../state/about/about_bloc.dart';
 /// Settings: a close button, a centred title and rows grouped in rounded
 /// sections, each with an icon, a label and its current value.
 ///
-/// Only what works is here: how the app looks (themes, fonts, text size),
-/// the state of sync with the note that the notes are not in device backups,
-/// and what the app is (its version, its website, its licences). It needs
-/// the app's `AppearanceBloc` and `SyncStatusBloc` and an [AboutBloc] above
-/// it.
+/// Only what works is here: how the app looks (themes, icon themes, fonts,
+/// text size), how the preview looks (its text size and what draws
+/// diagrams), the state of sync with the note that the notes are not in
+/// device backups, and what the app is (its version, its website, its
+/// licences). It needs the app's `AppearanceBloc` and `SyncStatusBloc` and
+/// an [AboutBloc] above it.
 class SettingsPane extends StatelessWidget {
   const SettingsPane({super.key});
 
@@ -85,6 +89,13 @@ class SettingsPane extends StatelessWidget {
                           onTap: () => context.push(KansoRoutes.settingsTheme),
                         ),
                         KansoSettingsRow(
+                          icon: KansoIcons.shapes,
+                          label: l10n.iconThemesTitle,
+                          chevron: true,
+                          onTap: () =>
+                              context.push(KansoRoutes.settingsIconThemes),
+                        ),
+                        KansoSettingsRow(
                           icon: KansoIcons.typeface,
                           label: l10n.settingsFonts,
                           value: l10n.fontsSummary(appearance.fonts),
@@ -98,6 +109,50 @@ class SettingsPane extends StatelessWidget {
                           chevron: true,
                           onTap: () =>
                               context.push(KansoRoutes.fonts(atSize: true)),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: KansoSpacing.lg),
+                BlocBuilder<AppearanceBloc, AppearanceState>(
+                  buildWhen: (before, after) =>
+                      before.previewTextSize != after.previewTextSize ||
+                      before.diagramRenderer != after.diagramRenderer,
+                  builder: (context, appearance) {
+                    return KansoGroupedSection(
+                      title: l10n.settingsPreviewSection,
+                      footer: l10n.settingsDiagramsDetail,
+                      dividerIndent: iconInset,
+                      children: <Widget>[
+                        KansoSettingsRow(
+                          icon: KansoIcons.textSize,
+                          label: l10n.settingsPreviewTextSize,
+                          value: l10n.textSizeName(appearance.previewTextSize),
+                          chevron: true,
+                          onTap: () =>
+                              context.push(KansoRoutes.fonts(atSize: true)),
+                        ),
+                        KansoSettingsRow(
+                          icon: KansoIcons.network,
+                          label: l10n.settingsDiagrams,
+                          trailing: KansoSegmented<DiagramRenderer>(
+                            selected: appearance.diagramRenderer,
+                            semanticLabel: l10n.settingsDiagrams,
+                            onChanged: (renderer) =>
+                                context.read<AppearanceBloc>().add(
+                                  AppearanceEvent.diagramRendererChanged(
+                                    renderer,
+                                  ),
+                                ),
+                            segments: <KansoSegment<DiagramRenderer>>[
+                              for (final renderer in DiagramRenderer.values)
+                                KansoSegment<DiagramRenderer>(
+                                  value: renderer,
+                                  label: l10n.diagramRendererName(renderer),
+                                ),
+                            ],
+                          ),
                         ),
                       ],
                     );

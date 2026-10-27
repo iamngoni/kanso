@@ -3,6 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import '../../gen/l10n/app_localizations.dart';
+import '../bridge/api/types.dart' show DiagramRenderer;
 import '../models/data/kanso_font_family.dart';
 import '../models/data/kanso_fonts.dart';
 import '../models/data/kanso_text_size.dart';
@@ -22,6 +23,14 @@ extension FontLabels on AppLocalizations {
       KansoTextSize.standard => textSizeDefault,
       KansoTextSize.large => textSizeLarge,
       KansoTextSize.larger => textSizeLarger,
+    };
+  }
+
+  /// What the settings call the diagram renderer [renderer].
+  String diagramRendererName(DiagramRenderer renderer) {
+    return switch (renderer) {
+      DiagramRenderer.pele => diagramRendererPele,
+      DiagramRenderer.kanso => diagramRendererKanso,
     };
   }
 

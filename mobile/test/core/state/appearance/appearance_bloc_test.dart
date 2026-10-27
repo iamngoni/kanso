@@ -4,12 +4,15 @@
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/bridge/api/types.dart' show DiagramRenderer;
+import 'package:kanso/core/bridge/api/types.dart' show SortKey;
 import 'package:kanso/core/configs/kanso_palette.dart';
+import 'package:kanso/core/configs/kanso_syntax_colors.dart';
 import 'package:kanso/core/models/data/appearance_status.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/installed_theme.dart';
 import 'package:kanso/core/models/data/kanso_font_family.dart';
 import 'package:kanso/core/models/data/kanso_fonts.dart';
 import 'package:kanso/core/models/data/kanso_text_size.dart';
@@ -19,15 +22,21 @@ import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/core/utils/palette_from_tokens.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../../helpers/fixture_themes_repository.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
 import '../../../helpers/theme_tokens.dart';
 
 final KansoPalette _nord = fakePalette('nord', dark: true);
 final KansoPalette _github = fakePalette('github-light');
 
+/// [colors] without the code block's background, which belongs to the
+/// preview theme and not to the syntax theme.
+KansoSyntaxColors _tokensOnly(KansoSyntaxColors colors) =>
+    colors.copyWith(codeBackground: const Color(0xFF000000));
+
 void main() {
   late MockPreferencesRepository preferences;
-  late MockRendererRepository renderer;
+  late FixtureThemesRepository themes;
   late Preferences saved;
 
   setUpAll(() {
@@ -37,7 +46,14 @@ void main() {
 
   setUp(() {
     preferences = MockPreferencesRepository();
-    renderer = MockRendererRepository();
+    themes = FixtureThemesRepository(
+      themes: <InstalledTheme>[
+        fixtureTheme(KansoPalette.kansoLight),
+        fixtureTheme(KansoPalette.kansoDark),
+        fixtureTheme(_nord),
+        fixtureTheme(_github),
+      ],
+    );
     saved = const Preferences();
     when(
       () => preferences.load(),
@@ -48,20 +64,9 @@ void main() {
       saved = change(saved);
       return Right<ApplicationError, Preferences>(saved);
     });
-    when(() => renderer.builtinThemeTokens('nord')).thenAnswer(
-      (_) async => Right<ApplicationError, ThemeTokens>(tokensFor(_nord)),
-    );
-    when(() => renderer.builtinThemeTokens('github-light')).thenAnswer(
-      (_) async => Right<ApplicationError, ThemeTokens>(tokensFor(_github)),
-    );
-    when(() => renderer.builtinThemeTokens('gone')).thenAnswer(
-      (_) async => const Left<ApplicationError, ThemeTokens>(
-        ApplicationError.notFound(message: 'No such theme.'),
-      ),
-    );
   });
 
-  AppearanceBloc build() => AppearanceBloc(preferences, renderer);
+  AppearanceBloc build() => AppearanceBloc(preferences, themes);
 
   group('AppearanceBloc', () {
     test('starts loading, in the Kanso themes, following the system', () {
@@ -83,7 +88,8 @@ void main() {
         const AppearanceState(status: AppearanceStatus.ready),
       ],
       verify: (_) {
-        verifyNever(() => renderer.builtinThemeTokens(any()));
+        expect(themes.fits, isEmpty);
+        expect(themes.renderersSet, <DiagramRenderer>[DiagramRenderer.pele]);
         verifyNever(() => preferences.update(any()));
       },
     );
@@ -116,8 +122,9 @@ void main() {
       ],
       verify: (bloc) {
         expect(bloc.state.themeMode, ThemeMode.dark);
-        verify(() => renderer.builtinThemeTokens('nord')).called(1);
-        verifyNever(() => renderer.builtinThemeTokens('github-light'));
+        expect(themes.fits, <(String, String, String)>[
+          ('nord', 'nord', 'nord'),
+        ]);
       },
     );
 
@@ -292,8 +299,9 @@ void main() {
           dark: _nord,
         ),
       ],
-      verify: (_) =>
-          verify(() => renderer.builtinThemeTokens('nord')).called(1),
+      verify: (_) => expect(themes.fits, <(String, String, String)>[
+        ('nord', 'nord', 'nord'),
+      ]),
     );
 
     blocTest<AppearanceBloc, AppearanceState>(
@@ -467,6 +475,177 @@ void main() {
       expect(saved.descending, isFalse);
       expect(saved.backupNoticeSeen, isTrue);
       await bloc.close();
+    });
+
+    group('the syntax and preview themes', () {
+      blocTest<AppearanceBloc, AppearanceState>(
+        'picking a syntax theme fits it with the interface and keeps the '
+        'interface colours',
+        build: build,
+        act: (bloc) => bloc.add(const AppearanceEvent.syntaxPicked('nord')),
+        verify: (bloc) {
+          final state = bloc.state;
+          expect(state.selection.syntax, 'nord');
+          expect(state.selection.preview, isNull);
+          expect(state.light.id, 'kanso-light');
+          expect(state.light.colors, KansoPalette.kansoLight.colors);
+          // The Markdown is coloured by the syntax theme's tokens (the code
+          // block's background is the preview theme's).
+          expect(_tokensOnly(state.light.syntax), _tokensOnly(_nord.syntax));
+          expect(state.light.preview, KansoPalette.kansoLight.preview);
+          expect(_tokensOnly(state.dark.syntax), _tokensOnly(_nord.syntax));
+          expect(themes.fits, contains(('kanso-light', 'nord', 'kanso-light')));
+          expect(themes.fits, contains(('kanso-dark', 'nord', 'kanso-dark')));
+          expect(saved.themeSelection.syntax, 'nord');
+          expect(state.syntaxThemeId(dark: false), 'nord');
+        },
+      );
+
+      blocTest<AppearanceBloc, AppearanceState>(
+        'picking a preview theme draws the preview in its colours alone',
+        build: build,
+        act: (bloc) =>
+            bloc.add(const AppearanceEvent.previewPicked('github-light')),
+        verify: (bloc) {
+          final state = bloc.state;
+          expect(state.selection.preview, 'github-light');
+          expect(state.dark.colors, KansoPalette.kansoDark.colors);
+          expect(
+            _tokensOnly(state.dark.syntax),
+            _tokensOnly(KansoPalette.kansoDark.syntax),
+          );
+          expect(
+            state.dark.syntax.codeBackground,
+            Color(0xFF000000 | _github.preview.surface),
+          );
+          expect(state.dark.preview, _github.preview);
+          expect(state.light.preview, _github.preview);
+          expect(saved.themeSelection.preview, 'github-light');
+        },
+      );
+
+      blocTest<AppearanceBloc, AppearanceState>(
+        'picking none goes back to the interface theme and saves it',
+        seed: () => const AppearanceState(
+          selection: ThemeSelection(syntax: 'nord', preview: 'nord'),
+        ),
+        build: build,
+        act: (bloc) => bloc
+          ..add(const AppearanceEvent.syntaxPicked(null))
+          ..add(const AppearanceEvent.previewPicked(null)),
+        verify: (bloc) {
+          expect(bloc.state.selection, const ThemeSelection());
+          expect(bloc.state.light, KansoPalette.kansoLight);
+          expect(bloc.state.dark, KansoPalette.kansoDark);
+          expect(saved.themeSelection, const ThemeSelection());
+        },
+      );
+
+      blocTest<AppearanceBloc, AppearanceState>(
+        'a syntax theme that cannot be read changes and saves nothing',
+        build: build,
+        act: (bloc) => bloc.add(const AppearanceEvent.syntaxPicked('gone')),
+        expect: () => <AppearanceState>[],
+        verify: (_) => verifyNever(() => preferences.update(any())),
+      );
+
+      blocTest<AppearanceBloc, AppearanceState>(
+        'the syntax and preview themes survive picking an interface theme',
+        build: build,
+        act: (bloc) => bloc
+          ..add(const AppearanceEvent.syntaxPicked('nord'))
+          ..add(const AppearanceEvent.previewPicked('github-light'))
+          ..add(const AppearanceEvent.themePicked('nord', dark: true)),
+        verify: (bloc) {
+          expect(bloc.state.selection.syntax, 'nord');
+          expect(bloc.state.selection.preview, 'github-light');
+          expect(bloc.state.dark.id, 'nord');
+          expect(bloc.state.dark.preview, _github.preview);
+          expect(
+            themes.fits,
+            contains(('nord', 'nord', 'github-light')),
+          );
+        },
+      );
+
+      blocTest<AppearanceBloc, AppearanceState>(
+        'started shows the saved syntax and preview themes',
+        setUp: () {
+          saved = const Preferences(
+            themeSelection: ThemeSelection(
+              syntax: 'nord',
+              preview: 'github-light',
+            ),
+          );
+        },
+        build: build,
+        act: (bloc) => bloc.add(const AppearanceEvent.started()),
+        verify: (bloc) {
+          expect(bloc.state.status, AppearanceStatus.ready);
+          expect(
+            _tokensOnly(bloc.state.light.syntax),
+            _tokensOnly(_nord.syntax),
+          );
+          expect(bloc.state.light.preview, _github.preview);
+          expect(bloc.state.dark.preview, _github.preview);
+        },
+      );
+    });
+
+    group('the preview text size and the diagrams', () {
+      blocTest<AppearanceBloc, AppearanceState>(
+        'previewTextSizeChanged changes only the preview text size and saves '
+        'it',
+        build: build,
+        act: (bloc) => bloc.add(
+          const AppearanceEvent.previewTextSizeChanged(KansoTextSize.larger),
+        ),
+        expect: () => const <AppearanceState>[
+          AppearanceState(previewTextSize: KansoTextSize.larger),
+        ],
+        verify: (bloc) {
+          expect(bloc.state.textSize, KansoTextSize.standard);
+          expect(saved.previewTextSize, KansoTextSize.larger);
+          expect(saved.textSize, KansoTextSize.standard);
+        },
+      );
+
+      blocTest<AppearanceBloc, AppearanceState>(
+        'diagramRendererChanged tells the core, shows it and saves it',
+        build: build,
+        act: (bloc) => bloc.add(
+          const AppearanceEvent.diagramRendererChanged(DiagramRenderer.kanso),
+        ),
+        expect: () => const <AppearanceState>[
+          AppearanceState(diagramRenderer: DiagramRenderer.kanso),
+        ],
+        verify: (_) {
+          expect(themes.renderersSet, <DiagramRenderer>[DiagramRenderer.kanso]);
+          expect(saved.diagramRenderer, DiagramRenderer.kanso);
+        },
+      );
+
+      blocTest<AppearanceBloc, AppearanceState>(
+        'started tells the core the saved diagram renderer',
+        setUp: () {
+          saved = const Preferences(
+            previewTextSize: KansoTextSize.large,
+            diagramRenderer: DiagramRenderer.kanso,
+          );
+        },
+        build: build,
+        act: (bloc) => bloc.add(const AppearanceEvent.started()),
+        expect: () => const <AppearanceState>[
+          AppearanceState(
+            previewTextSize: KansoTextSize.large,
+            diagramRenderer: DiagramRenderer.kanso,
+            status: AppearanceStatus.ready,
+          ),
+        ],
+        verify: (_) => expect(themes.renderersSet, <DiagramRenderer>[
+          DiagramRenderer.kanso,
+        ]),
+      );
     });
   });
 }

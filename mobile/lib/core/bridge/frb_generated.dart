@@ -8,6 +8,7 @@ import 'api/library.dart';
 import 'api/locks.dart';
 import 'api/renderer.dart';
 import 'api/sync.dart';
+import 'api/themes.dart';
 import 'api/types.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -74,7 +75,7 @@ class KansoCore
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 759027719;
+  int get rustContentHash => -1400863376;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -164,6 +165,8 @@ abstract class KansoCoreApi extends BaseApi {
     required KansoLibrary that,
   });
 
+  KansoThemes crateApiLibraryKansoLibraryThemes({required KansoLibrary that});
+
   Future<void> crateApiLibraryKansoLibraryTrash({
     required KansoLibrary that,
     required String id,
@@ -199,6 +202,8 @@ abstract class KansoCoreApi extends BaseApi {
 
   Future<List<BuiltinTheme>> crateApiRendererKansoRendererBuiltinThemes();
 
+  Future<DiagramRenderer> crateApiRendererKansoRendererDiagramRenderer();
+
   Future<SvgRow> crateApiRendererKansoRendererDiagramSvg({
     required DiagramKind kind,
     required String source,
@@ -221,6 +226,10 @@ abstract class KansoCoreApi extends BaseApi {
     required KansoRenderer that,
     required String id,
     required PaletteDto palette,
+  });
+
+  Future<void> crateApiRendererKansoRendererSetDiagramRenderer({
+    required DiagramRenderer renderer,
   });
 
   Future<bool> crateApiRendererKansoRendererSetFonts({
@@ -262,6 +271,44 @@ abstract class KansoCoreApi extends BaseApi {
   });
 
   Future<SyncReportRow> crateApiSyncKansoSyncSyncNow({required KansoSync that});
+
+  Future<ThemeTokens> crateApiThemesKansoThemesFit({
+    required KansoThemes that,
+    required String ui,
+    String? syntax,
+    String? preview,
+  });
+
+  Future<List<IconThemeRow>> crateApiThemesKansoThemesIconThemes({
+    required KansoThemes that,
+  });
+
+  Future<ThemeImport> crateApiThemesKansoThemesImport({
+    required KansoThemes that,
+    required String path,
+  });
+
+  Future<IconThemeImport> crateApiThemesKansoThemesImportIconTheme({
+    required KansoThemes that,
+    required String path,
+  });
+
+  Future<List<ThemeRow>> crateApiThemesKansoThemesList({
+    required KansoThemes that,
+  });
+
+  Future<List<ThemeNotice>> crateApiThemesKansoThemesNotices({
+    required KansoThemes that,
+  });
+
+  Future<List<StyledRun>> crateApiThemesKansoThemesStyledRuns({
+    required KansoThemes that,
+    required String text,
+    required int start,
+    required int end,
+    required String ui,
+    String? syntax,
+  });
 
   Future<bool?> crateApiDiagnosticsBackupExcluded({required String folder});
 
@@ -305,6 +352,14 @@ abstract class KansoCoreApi extends BaseApi {
   get rust_arc_decrement_strong_count_KansoSync;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_KansoSyncPtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_KansoThemes;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_KansoThemes;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_KansoThemesPtr;
 }
 
 class KansoCoreApiImpl extends KansoCoreApiImplPlatform
@@ -946,6 +1001,36 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  KansoThemes crateApiLibraryKansoLibraryThemes({required KansoLibrary that}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiLibraryKansoLibraryThemesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryKansoLibraryThemesConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoLibrary_themes",
+        argNames: ["that"],
+      );
+
+  @override
   Future<void> crateApiLibraryKansoLibraryTrash({
     required KansoLibrary that,
     required String id,
@@ -962,7 +1047,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 19,
             port: port_,
           );
         },
@@ -1000,7 +1085,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 20,
             port: port_,
           );
         },
@@ -1034,7 +1119,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 21,
             port: port_,
           );
         },
@@ -1068,7 +1153,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1107,7 +1192,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 22,
+              funcId: 23,
               port: port_,
             );
           },
@@ -1149,7 +1234,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1187,7 +1272,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1220,7 +1305,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1250,7 +1335,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1272,6 +1357,36 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<DiagramRenderer> crateApiRendererKansoRendererDiagramRenderer() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_diagram_renderer,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiRendererKansoRendererDiagramRendererConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRendererKansoRendererDiagramRendererConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoRenderer_diagram_renderer",
+        argNames: [],
+      );
+
+  @override
   Future<SvgRow> crateApiRendererKansoRendererDiagramSvg({
     required DiagramKind kind,
     required String source,
@@ -1287,7 +1402,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1324,7 +1439,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1361,7 +1476,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1401,7 +1516,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1423,6 +1538,39 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<void> crateApiRendererKansoRendererSetDiagramRenderer({
+    required DiagramRenderer renderer,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_diagram_renderer(renderer, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiRendererKansoRendererSetDiagramRendererConstMeta,
+        argValues: [renderer],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRendererKansoRendererSetDiagramRendererConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoRenderer_set_diagram_renderer",
+        argNames: ["renderer"],
+      );
+
+  @override
   Future<bool> crateApiRendererKansoRendererSetFonts({
     required List<Uint8List> fonts,
   }) {
@@ -1434,7 +1582,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1473,7 +1621,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1506,7 +1654,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1544,7 +1692,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1574,7 +1722,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1618,7 +1766,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1652,7 +1800,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1686,7 +1834,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1725,7 +1873,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 39,
+              funcId: 42,
               port: port_,
             );
           },
@@ -1763,7 +1911,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1785,6 +1933,278 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<ThemeTokens> crateApiThemesKansoThemesFit({
+    required KansoThemes that,
+    required String ui,
+    String? syntax,
+    String? preview,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+            that,
+            serializer,
+          );
+          sse_encode_String(ui, serializer);
+          sse_encode_opt_String(syntax, serializer);
+          sse_encode_opt_String(preview, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 44,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_theme_tokens,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiThemesKansoThemesFitConstMeta,
+        argValues: [that, ui, syntax, preview],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThemesKansoThemesFitConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoThemes_fit",
+        argNames: ["that", "ui", "syntax", "preview"],
+      );
+
+  @override
+  Future<List<IconThemeRow>> crateApiThemesKansoThemesIconThemes({
+    required KansoThemes that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 45,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_icon_theme_row,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiThemesKansoThemesIconThemesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThemesKansoThemesIconThemesConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoThemes_icon_themes",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<ThemeImport> crateApiThemesKansoThemesImport({
+    required KansoThemes that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+            that,
+            serializer,
+          );
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 46,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_theme_import,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiThemesKansoThemesImportConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThemesKansoThemesImportConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoThemes_import",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<IconThemeImport> crateApiThemesKansoThemesImportIconTheme({
+    required KansoThemes that,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+            that,
+            serializer,
+          );
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 47,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_icon_theme_import,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiThemesKansoThemesImportIconThemeConstMeta,
+        argValues: [that, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThemesKansoThemesImportIconThemeConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoThemes_import_icon_theme",
+        argNames: ["that", "path"],
+      );
+
+  @override
+  Future<List<ThemeRow>> crateApiThemesKansoThemesList({
+    required KansoThemes that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 48,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_theme_row,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiThemesKansoThemesListConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThemesKansoThemesListConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoThemes_list",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<List<ThemeNotice>> crateApiThemesKansoThemesNotices({
+    required KansoThemes that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 49,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_theme_notice,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiThemesKansoThemesNoticesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThemesKansoThemesNoticesConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoThemes_notices",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<List<StyledRun>> crateApiThemesKansoThemesStyledRuns({
+    required KansoThemes that,
+    required String text,
+    required int start,
+    required int end,
+    required String ui,
+    String? syntax,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+            that,
+            serializer,
+          );
+          sse_encode_String(text, serializer);
+          sse_encode_u_32(start, serializer);
+          sse_encode_u_32(end, serializer);
+          sse_encode_String(ui, serializer);
+          sse_encode_opt_String(syntax, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 50,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_styled_run,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiThemesKansoThemesStyledRunsConstMeta,
+        argValues: [that, text, start, end, ui, syntax],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThemesKansoThemesStyledRunsConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoThemes_styled_runs",
+        argNames: ["that", "text", "start", "end", "ui", "syntax"],
+      );
+
+  @override
   Future<bool?> crateApiDiagnosticsBackupExcluded({required String folder}) {
     return handler.executeNormal(
       NormalTask(
@@ -1794,7 +2214,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1825,7 +2245,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1855,7 +2275,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 53,
             port: port_,
           );
         },
@@ -1885,7 +2305,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 54,
             port: port_,
           );
         },
@@ -1915,7 +2335,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 55,
             port: port_,
           );
         },
@@ -1967,6 +2387,14 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   get rust_arc_decrement_strong_count_KansoSync => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoSync;
 
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_KansoThemes => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_KansoThemes => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -2010,6 +2438,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  KansoThemes
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return KansoThemesImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   KansoLibrary
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     dynamic raw,
@@ -2043,6 +2480,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return KansoSyncImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  KansoThemes
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return KansoThemesImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2087,6 +2533,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return KansoSyncImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  KansoThemes
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return KansoThemesImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2231,6 +2686,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  DiagramRenderer dco_decode_diagram_renderer(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DiagramRenderer.values[raw as int];
+  }
+
+  @protected
   double dco_decode_f_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
@@ -2259,6 +2720,35 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   PlatformInt64 dco_decode_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeI64(raw);
+  }
+
+  @protected
+  IconThemeImport dco_decode_icon_theme_import(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return IconThemeImport(
+      ids: dco_decode_list_String(arr[0]),
+      names: dco_decode_list_String(arr[1]),
+      summary: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  IconThemeRow dco_decode_icon_theme_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return IconThemeRow(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      author: dco_decode_String(arr[2]),
+      license: dco_decode_String(arr[3]),
+      origin: dco_decode_theme_origin(arr[4]),
+      iconCount: dco_decode_u_32(arr[5]),
+    );
   }
 
   @protected
@@ -2336,6 +2826,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   List<Hit> dco_decode_list_hit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_hit).toList();
+  }
+
+  @protected
+  List<IconThemeRow> dco_decode_list_icon_theme_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_icon_theme_row).toList();
   }
 
   @protected
@@ -2462,6 +2958,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   List<TagRow> dco_decode_list_tag_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_tag_row).toList();
+  }
+
+  @protected
+  List<ThemeNotice> dco_decode_list_theme_notice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_theme_notice).toList();
+  }
+
+  @protected
+  List<ThemeRow> dco_decode_list_theme_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_theme_row).toList();
   }
 
   @protected
@@ -2902,6 +3410,54 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  ThemeImport dco_decode_theme_import(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ThemeImport(
+      ids: dco_decode_list_String(arr[0]),
+      names: dco_decode_list_String(arr[1]),
+    );
+  }
+
+  @protected
+  ThemeNotice dco_decode_theme_notice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ThemeNotice(
+      file: dco_decode_String(arr[0]),
+      sentence: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  ThemeOrigin dco_decode_theme_origin(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ThemeOrigin.values[raw as int];
+  }
+
+  @protected
+  ThemeRow dco_decode_theme_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return ThemeRow(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      author: dco_decode_String(arr[2]),
+      license: dco_decode_String(arr[3]),
+      source: dco_decode_opt_String(arr[4]),
+      dark: dco_decode_bool(arr[5]),
+      origin: dco_decode_theme_origin(arr[6]),
+      tokens: dco_decode_theme_tokens(arr[7]),
+    );
+  }
+
+  @protected
   ThemeTokens dco_decode_theme_tokens(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3005,6 +3561,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  KansoThemes
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return KansoThemesImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   KansoLibrary
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     SseDeserializer deserializer,
@@ -3047,6 +3615,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return KansoSyncImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  KansoThemes
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return KansoThemesImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -3102,6 +3682,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return KansoSyncImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  KansoThemes
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return KansoThemesImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -3260,6 +3852,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  DiagramRenderer sse_decode_diagram_renderer(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DiagramRenderer.values[inner];
+  }
+
+  @protected
   double sse_decode_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat32();
@@ -3288,6 +3887,38 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  IconThemeImport sse_decode_icon_theme_import(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ids = sse_decode_list_String(deserializer);
+    var var_names = sse_decode_list_String(deserializer);
+    var var_summary = sse_decode_String(deserializer);
+    return IconThemeImport(
+      ids: var_ids,
+      names: var_names,
+      summary: var_summary,
+    );
+  }
+
+  @protected
+  IconThemeRow sse_decode_icon_theme_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_author = sse_decode_String(deserializer);
+    var var_license = sse_decode_String(deserializer);
+    var var_origin = sse_decode_theme_origin(deserializer);
+    var var_iconCount = sse_decode_u_32(deserializer);
+    return IconThemeRow(
+      id: var_id,
+      name: var_name,
+      author: var_author,
+      license: var_license,
+      origin: var_origin,
+      iconCount: var_iconCount,
+    );
   }
 
   @protected
@@ -3386,6 +4017,20 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var ans_ = <Hit>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_hit(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<IconThemeRow> sse_decode_list_icon_theme_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <IconThemeRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_icon_theme_row(deserializer));
     }
     return ans_;
   }
@@ -3586,6 +4231,30 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var ans_ = <TagRow>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_tag_row(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ThemeNotice> sse_decode_list_theme_notice(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ThemeNotice>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_theme_notice(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ThemeRow> sse_decode_list_theme_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ThemeRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_theme_row(deserializer));
     }
     return ans_;
   }
@@ -4103,6 +4772,52 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  ThemeImport sse_decode_theme_import(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ids = sse_decode_list_String(deserializer);
+    var var_names = sse_decode_list_String(deserializer);
+    return ThemeImport(ids: var_ids, names: var_names);
+  }
+
+  @protected
+  ThemeNotice sse_decode_theme_notice(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_file = sse_decode_String(deserializer);
+    var var_sentence = sse_decode_String(deserializer);
+    return ThemeNotice(file: var_file, sentence: var_sentence);
+  }
+
+  @protected
+  ThemeOrigin sse_decode_theme_origin(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ThemeOrigin.values[inner];
+  }
+
+  @protected
+  ThemeRow sse_decode_theme_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_author = sse_decode_String(deserializer);
+    var var_license = sse_decode_String(deserializer);
+    var var_source = sse_decode_opt_String(deserializer);
+    var var_dark = sse_decode_bool(deserializer);
+    var var_origin = sse_decode_theme_origin(deserializer);
+    var var_tokens = sse_decode_theme_tokens(deserializer);
+    return ThemeRow(
+      id: var_id,
+      name: var_name,
+      author: var_author,
+      license: var_license,
+      source: var_source,
+      dark: var_dark,
+      origin: var_origin,
+      tokens: var_tokens,
+    );
+  }
+
+  @protected
   ThemeTokens sse_decode_theme_tokens(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_name = sse_decode_String(deserializer);
@@ -4217,6 +4932,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    KansoThemes self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as KansoThemesImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
     KansoLibrary self,
     SseSerializer serializer,
@@ -4263,6 +4991,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as KansoSyncImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    KansoThemes self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as KansoThemesImpl).frbInternalSseEncode(move: false),
       serializer,
     );
   }
@@ -4321,6 +5062,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as KansoSyncImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    KansoThemes self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as KansoThemesImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -4504,6 +5258,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_diagram_renderer(
+    DiagramRenderer self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat32(self);
@@ -4527,6 +5290,28 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_icon_theme_import(
+    IconThemeImport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.ids, serializer);
+    sse_encode_list_String(self.names, serializer);
+    sse_encode_String(self.summary, serializer);
+  }
+
+  @protected
+  void sse_encode_icon_theme_row(IconThemeRow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.author, serializer);
+    sse_encode_String(self.license, serializer);
+    sse_encode_theme_origin(self.origin, serializer);
+    sse_encode_u_32(self.iconCount, serializer);
   }
 
   @protected
@@ -4611,6 +5396,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_hit(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_icon_theme_row(
+    List<IconThemeRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_icon_theme_row(item, serializer);
     }
   }
 
@@ -4778,6 +5575,30 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_tag_row(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_theme_notice(
+    List<ThemeNotice> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_theme_notice(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_theme_row(
+    List<ThemeRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_theme_row(item, serializer);
     }
   }
 
@@ -5162,6 +5983,39 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_theme_import(ThemeImport self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.ids, serializer);
+    sse_encode_list_String(self.names, serializer);
+  }
+
+  @protected
+  void sse_encode_theme_notice(ThemeNotice self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.file, serializer);
+    sse_encode_String(self.sentence, serializer);
+  }
+
+  @protected
+  void sse_encode_theme_origin(ThemeOrigin self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_theme_row(ThemeRow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.author, serializer);
+    sse_encode_String(self.license, serializer);
+    sse_encode_opt_String(self.source, serializer);
+    sse_encode_bool(self.dark, serializer);
+    sse_encode_theme_origin(self.origin, serializer);
+    sse_encode_theme_tokens(self.tokens, serializer);
+  }
+
+  @protected
   void sse_encode_theme_tokens(ThemeTokens self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.name, serializer);
@@ -5317,6 +6171,11 @@ class KansoLibraryImpl extends RustOpaque implements KansoLibrary {
         that: this,
       );
 
+  KansoThemes themes() =>
+      KansoCore.instance.api.crateApiLibraryKansoLibraryThemes(
+        that: this,
+      );
+
   Future<void> trash({required String id}) => KansoCore.instance.api
       .crateApiLibraryKansoLibraryTrash(that: this, id: id);
 }
@@ -5454,4 +6313,73 @@ class KansoSyncImpl extends RustOpaque implements KansoSync {
       KansoCore.instance.api.crateApiSyncKansoSyncSyncNow(
         that: this,
       );
+}
+
+@sealed
+class KansoThemesImpl extends RustOpaque implements KansoThemes {
+  // Not to be used by end users
+  KansoThemesImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  KansoThemesImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        KansoCore.instance.api.rust_arc_increment_strong_count_KansoThemes,
+    rustArcDecrementStrongCount:
+        KansoCore.instance.api.rust_arc_decrement_strong_count_KansoThemes,
+    rustArcDecrementStrongCountPtr:
+        KansoCore.instance.api.rust_arc_decrement_strong_count_KansoThemesPtr,
+  );
+
+  Future<ThemeTokens> fit({
+    required String ui,
+    String? syntax,
+    String? preview,
+  }) => KansoCore.instance.api.crateApiThemesKansoThemesFit(
+    that: this,
+    ui: ui,
+    syntax: syntax,
+    preview: preview,
+  );
+
+  Future<List<IconThemeRow>> iconThemes() =>
+      KansoCore.instance.api.crateApiThemesKansoThemesIconThemes(
+        that: this,
+      );
+
+  Future<ThemeImport> import_({required String path}) => KansoCore.instance.api
+      .crateApiThemesKansoThemesImport(that: this, path: path);
+
+  Future<IconThemeImport> importIconTheme({required String path}) => KansoCore
+      .instance
+      .api
+      .crateApiThemesKansoThemesImportIconTheme(that: this, path: path);
+
+  Future<List<ThemeRow>> list() =>
+      KansoCore.instance.api.crateApiThemesKansoThemesList(
+        that: this,
+      );
+
+  Future<List<ThemeNotice>> notices() =>
+      KansoCore.instance.api.crateApiThemesKansoThemesNotices(
+        that: this,
+      );
+
+  Future<List<StyledRun>> styledRuns({
+    required String text,
+    required int start,
+    required int end,
+    required String ui,
+    String? syntax,
+  }) => KansoCore.instance.api.crateApiThemesKansoThemesStyledRuns(
+    that: this,
+    text: text,
+    start: start,
+    end: end,
+    ui: ui,
+    syntax: syntax,
+  );
 }

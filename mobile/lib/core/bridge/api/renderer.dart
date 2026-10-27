@@ -19,6 +19,9 @@ abstract class KansoRenderer implements RustOpaqueInterface {
   static Future<List<BuiltinTheme>> builtinThemes() =>
       KansoCore.instance.api.crateApiRendererKansoRendererBuiltinThemes();
 
+  static Future<DiagramRenderer> diagramRenderer() =>
+      KansoCore.instance.api.crateApiRendererKansoRendererDiagramRenderer();
+
   static Future<SvgRow> diagramSvg({
     required DiagramKind kind,
     required String source,
@@ -50,6 +53,11 @@ abstract class KansoRenderer implements RustOpaqueInterface {
   );
 
   Future<String> previewHtml({required String id, required PaletteDto palette});
+
+  static Future<void> setDiagramRenderer({required DiagramRenderer renderer}) =>
+      KansoCore.instance.api.crateApiRendererKansoRendererSetDiagramRenderer(
+        renderer: renderer,
+      );
 
   static Future<bool> setFonts({required List<Uint8List> fonts}) => KansoCore
       .instance

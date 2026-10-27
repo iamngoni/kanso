@@ -11,6 +11,9 @@ rust-version.workspace = true
 base64.workspace = true
 # The recovery-key file's date and the resume time (account/words.rs).
 chrono.workspace = true
+# Theme packages (.tgz) unpack in process, as a phone can't run `tar`
+# (theme/import.rs).
+flate2.workspace = true
 fastrand.workspace = true
 kanso-core.workspace = true
 kanso-store.workspace = true
@@ -20,6 +23,7 @@ kanso-sync = { path = "../kanso-sync", default-features = false }
 # (theme/file.rs), which a map keeps only with `preserve_order`.
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
+tar = "0.4.45"
 # Column widths of table cells (edit/table.rs).
 unicode-width.workspace = true
 # The generators the apps' view tests share (strategies.rs).
