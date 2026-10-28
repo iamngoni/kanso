@@ -2,8 +2,12 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
+import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/dictation/models/data/dictation_capability.dart';
 import 'package:kanso/dictation/models/data/dictation_failure.dart';
 import 'package:kanso/dictation/models/data/dictation_permission.dart';
@@ -283,6 +287,44 @@ void main() {
   });
 
   group('cancelled', () {
+    test('cancelling while availability is pending prevents start', () async {
+      final availability =
+          Completer<Either<ApplicationError, DictationCapability>>();
+      when(
+        () => spoken.repository.availability(
+          localeTag: any(named: 'localeTag'),
+        ),
+      ).thenAnswer((_) => availability.future);
+      final bloc = DictationBloc(spoken.repository, PassThroughRules())
+        ..add(const DictationEvent.started());
+      await bloc.stream.firstWhere((state) => state.active);
+
+      bloc.add(const DictationEvent.cancelled());
+      await bloc.stream.firstWhere((state) => !state.active);
+      availability.complete(
+        const Right<ApplicationError, DictationCapability>(
+          DictationCapability(
+            available: true,
+            onDevice: true,
+            permission: DictationPermission.granted,
+          ),
+        ),
+      );
+      await pumpEventQueue();
+
+      verify(spoken.repository.signals).called(1);
+      verify(
+        () => spoken.repository.availability(
+          localeTag: any(named: 'localeTag'),
+        ),
+      ).called(1);
+      verify(spoken.repository.cancel).called(1);
+      verifyNever(
+        () => spoken.repository.start(localeTag: any(named: 'localeTag')),
+      );
+      await bloc.close();
+    });
+
     blocTest<DictationBloc, DictationState>(
       'drops what was heard and what comes after',
       build: () => DictationBloc(spoken.repository, PassThroughRules()),

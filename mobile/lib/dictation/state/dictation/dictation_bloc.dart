@@ -56,6 +56,9 @@ class DictationBloc extends Bloc<DictationEvent, DictationState> {
   /// too, and ignores them.
   bool inSession = false;
 
+  /// Invalidates a start while availability or permission is being checked.
+  int startGeneration = 0;
+
   /// Whether the person asked to be done while the session ran.
   bool finishing = false;
 
@@ -87,6 +90,7 @@ class DictationBloc extends Bloc<DictationEvent, DictationState> {
     if (state.active) {
       return;
     }
+    final generation = ++startGeneration;
     finishing = false;
     emit(
       DictationState(
@@ -95,6 +99,9 @@ class DictationBloc extends Bloc<DictationEvent, DictationState> {
       ),
     );
     final answer = await repository.availability(localeTag: event.localeTag);
+    if (generation != startGeneration || emit.isDone) {
+      return;
+    }
     final capability = answer.fold<DictationCapability?>((_) => null, (c) => c);
     if (capability == null) {
       emit(failed(DictationFailure.unknown, showOverlay: event.showOverlay));
@@ -107,6 +114,9 @@ class DictationBloc extends Bloc<DictationEvent, DictationState> {
     var permission = capability.permission;
     if (permission == DictationPermission.notDetermined) {
       final asked = await repository.requestPermission();
+      if (generation != startGeneration || emit.isDone) {
+        return;
+      }
       permission = asked.fold(
         (_) => DictationPermission.denied,
         (granted) => granted,
@@ -122,6 +132,11 @@ class DictationBloc extends Bloc<DictationEvent, DictationState> {
     }
     inSession = true;
     final started = await repository.start(localeTag: event.localeTag);
+    if (generation != startGeneration || emit.isDone) {
+      inSession = false;
+      await repository.cancel();
+      return;
+    }
     started.fold(
       (error) {
         inSession = false;
@@ -159,6 +174,7 @@ class DictationBloc extends Bloc<DictationEvent, DictationState> {
     DictationCancelledEvent event,
     Emitter<DictationState> emit,
   ) async {
+    startGeneration++;
     if (!state.active) {
       emit(const DictationState());
       return;
@@ -292,6 +308,7 @@ class DictationBloc extends Bloc<DictationEvent, DictationState> {
 
   @override
   Future<void> close() async {
+    startGeneration++;
     // Not awaited: a stream that has already ended never answers a cancel.
     unawaited(signals.cancel());
     return super.close();
