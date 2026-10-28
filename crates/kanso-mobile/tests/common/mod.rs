@@ -2,6 +2,8 @@
 //! in-memory secrets and an in-memory server.
 #![allow(dead_code)]
 
+pub mod model;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 

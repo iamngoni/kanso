@@ -5,6 +5,7 @@
 
 import 'api/account.dart';
 import 'api/account_settings.dart';
+import 'api/ai.dart';
 import 'api/approvals.dart';
 import 'api/diagnostics.dart';
 import 'api/discovery.dart';
@@ -21,6 +22,7 @@ import 'api/shared.dart';
 import 'api/shortcuts.dart';
 import 'api/sync.dart';
 import 'api/types.dart';
+import 'api/voice.dart';
 import 'api/word_goal.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -45,8 +47,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettingsPtr;
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoAiPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoAiRunPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRunPtr;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoApprovalsPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovalsPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoAskConversationPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversationPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoDiscoveryPtr => wire
@@ -104,8 +118,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoAi
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAiRun
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    dynamic raw,
+  );
+
+  @protected
   KansoApprovals
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAskConversation
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     dynamic raw,
   );
 
@@ -182,8 +214,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoAi
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAiRun
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    dynamic raw,
+  );
+
+  @protected
   KansoApprovals
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAskConversation
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     dynamic raw,
   );
 
@@ -266,8 +316,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoAi
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAiRun
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    dynamic raw,
+  );
+
+  @protected
   KansoApprovals
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAskConversation
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     dynamic raw,
   );
 
@@ -342,6 +410,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  RustStreamSink<AskEvent> dco_decode_StreamSink_ask_event_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<AssistEvent> dco_decode_StreamSink_assist_event_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<EditorEvent> dco_decode_StreamSink_editor_event_Sse(
     dynamic raw,
   );
@@ -399,6 +475,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AccountStep dco_decode_account_step(dynamic raw);
 
   @protected
+  AiAction dco_decode_ai_action(dynamic raw);
+
+  @protected
+  AiProviderInfo dco_decode_ai_provider_info(dynamic raw);
+
+  @protected
+  AiSettingsInput dco_decode_ai_settings_input(dynamic raw);
+
+  @protected
+  AiSettingsView dco_decode_ai_settings_view(dynamic raw);
+
+  @protected
   ApprovalPhase dco_decode_approval_phase(dynamic raw);
 
   @protected
@@ -406,6 +494,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ApprovalWait dco_decode_approval_wait(dynamic raw);
+
+  @protected
+  AskEvent dco_decode_ask_event(dynamic raw);
+
+  @protected
+  AskNote dco_decode_ask_note(dynamic raw);
+
+  @protected
+  AssistEvent dco_decode_assist_event(dynamic raw);
 
   @protected
   AttachmentFile dco_decode_attachment_file(dynamic raw);
@@ -441,6 +538,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AccountState dco_decode_box_autoadd_account_state(dynamic raw);
 
   @protected
+  AiSettingsInput dco_decode_box_autoadd_ai_settings_input(dynamic raw);
+
+  @protected
   BackupFile dco_decode_box_autoadd_backup_file(dynamic raw);
 
   @protected
@@ -463,6 +563,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   DayDate dco_decode_box_autoadd_day_date(dynamic raw);
+
+  @protected
+  Dictated dco_decode_box_autoadd_dictated(dynamic raw);
 
   @protected
   DueChipRow dco_decode_box_autoadd_due_chip_row(dynamic raw);
@@ -621,6 +724,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  VoiceSettings dco_decode_box_autoadd_voice_settings(dynamic raw);
+
+  @protected
   BuiltinTheme dco_decode_builtin_theme(dynamic raw);
 
   @protected
@@ -679,6 +785,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   DiagramRenderer dco_decode_diagram_renderer(dynamic raw);
+
+  @protected
+  Dictated dco_decode_dictated(dynamic raw);
 
   @protected
   DiffHunk dco_decode_diff_hunk(dynamic raw);
@@ -825,7 +934,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<AiAction> dco_decode_list_ai_action(dynamic raw);
+
+  @protected
+  List<AiProviderInfo> dco_decode_list_ai_provider_info(dynamic raw);
+
+  @protected
   List<ApprovalPrompt> dco_decode_list_approval_prompt(dynamic raw);
+
+  @protected
+  List<AskNote> dco_decode_list_ask_note(dynamic raw);
 
   @protected
   List<BackupFile> dco_decode_list_backup_file(dynamic raw);
@@ -1137,6 +1255,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   DayDate? dco_decode_opt_box_autoadd_day_date(dynamic raw);
+
+  @protected
+  Dictated? dco_decode_opt_box_autoadd_dictated(dynamic raw);
 
   @protected
   DueChipRow? dco_decode_opt_box_autoadd_due_chip_row(dynamic raw);
@@ -1537,6 +1658,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   VisibleNotebook dco_decode_visible_notebook(dynamic raw);
 
   @protected
+  VoiceSettings dco_decode_voice_settings(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
@@ -1552,8 +1676,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoAi
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAiRun
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoApprovals
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAskConversation
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     SseDeserializer deserializer,
   );
 
@@ -1630,8 +1772,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoAi
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAiRun
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoApprovals
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAskConversation
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     SseDeserializer deserializer,
   );
 
@@ -1714,8 +1874,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoAi
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAiRun
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoApprovals
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAskConversation
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     SseDeserializer deserializer,
   );
 
@@ -1790,6 +1968,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  RustStreamSink<AskEvent> sse_decode_StreamSink_ask_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<AssistEvent> sse_decode_StreamSink_assist_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<EditorEvent> sse_decode_StreamSink_editor_event_Sse(
     SseDeserializer deserializer,
   );
@@ -1851,6 +2039,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AccountStep sse_decode_account_step(SseDeserializer deserializer);
 
   @protected
+  AiAction sse_decode_ai_action(SseDeserializer deserializer);
+
+  @protected
+  AiProviderInfo sse_decode_ai_provider_info(SseDeserializer deserializer);
+
+  @protected
+  AiSettingsInput sse_decode_ai_settings_input(SseDeserializer deserializer);
+
+  @protected
+  AiSettingsView sse_decode_ai_settings_view(SseDeserializer deserializer);
+
+  @protected
   ApprovalPhase sse_decode_approval_phase(SseDeserializer deserializer);
 
   @protected
@@ -1858,6 +2058,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ApprovalWait sse_decode_approval_wait(SseDeserializer deserializer);
+
+  @protected
+  AskEvent sse_decode_ask_event(SseDeserializer deserializer);
+
+  @protected
+  AskNote sse_decode_ask_note(SseDeserializer deserializer);
+
+  @protected
+  AssistEvent sse_decode_assist_event(SseDeserializer deserializer);
 
   @protected
   AttachmentFile sse_decode_attachment_file(SseDeserializer deserializer);
@@ -1895,6 +2104,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  AiSettingsInput sse_decode_box_autoadd_ai_settings_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BackupFile sse_decode_box_autoadd_backup_file(SseDeserializer deserializer);
 
   @protected
@@ -1921,6 +2135,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   DayDate sse_decode_box_autoadd_day_date(SseDeserializer deserializer);
+
+  @protected
+  Dictated sse_decode_box_autoadd_dictated(SseDeserializer deserializer);
 
   @protected
   DueChipRow sse_decode_box_autoadd_due_chip_row(SseDeserializer deserializer);
@@ -2113,6 +2330,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  VoiceSettings sse_decode_box_autoadd_voice_settings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BuiltinTheme sse_decode_builtin_theme(SseDeserializer deserializer);
 
   @protected
@@ -2171,6 +2393,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   DiagramRenderer sse_decode_diagram_renderer(SseDeserializer deserializer);
+
+  @protected
+  Dictated sse_decode_dictated(SseDeserializer deserializer);
 
   @protected
   DiffHunk sse_decode_diff_hunk(SseDeserializer deserializer);
@@ -2319,9 +2544,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<AiAction> sse_decode_list_ai_action(SseDeserializer deserializer);
+
+  @protected
+  List<AiProviderInfo> sse_decode_list_ai_provider_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ApprovalPrompt> sse_decode_list_approval_prompt(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<AskNote> sse_decode_list_ask_note(SseDeserializer deserializer);
 
   @protected
   List<BackupFile> sse_decode_list_backup_file(SseDeserializer deserializer);
@@ -2689,6 +2925,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   DayDate? sse_decode_opt_box_autoadd_day_date(SseDeserializer deserializer);
+
+  @protected
+  Dictated? sse_decode_opt_box_autoadd_dictated(SseDeserializer deserializer);
 
   @protected
   DueChipRow? sse_decode_opt_box_autoadd_due_chip_row(
@@ -3141,6 +3380,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   VisibleNotebook sse_decode_visible_notebook(SseDeserializer deserializer);
 
   @protected
+  VoiceSettings sse_decode_voice_settings(SseDeserializer deserializer);
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -3162,8 +3404,29 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    KansoAi self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    KansoAiRun self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
     KansoApprovals self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    KansoAskConversation self,
     SseSerializer serializer,
   );
 
@@ -3253,8 +3516,29 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    KansoAi self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    KansoAiRun self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
     KansoApprovals self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    KansoAskConversation self,
     SseSerializer serializer,
   );
 
@@ -3350,8 +3634,29 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    KansoAi self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    KansoAiRun self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
     KansoApprovals self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    KansoAskConversation self,
     SseSerializer serializer,
   );
 
@@ -3438,6 +3743,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_ask_event_Sse(
+    RustStreamSink<AskEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_assist_event_Sse(
+    RustStreamSink<AssistEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_editor_event_Sse(
     RustStreamSink<EditorEvent> self,
     SseSerializer serializer,
@@ -3513,6 +3830,27 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_account_step(AccountStep self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ai_action(AiAction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ai_provider_info(
+    AiProviderInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ai_settings_input(
+    AiSettingsInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ai_settings_view(
+    AiSettingsView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_approval_phase(ApprovalPhase self, SseSerializer serializer);
 
   @protected
@@ -3523,6 +3861,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_approval_wait(ApprovalWait self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ask_event(AskEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ask_note(AskNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_assist_event(AssistEvent self, SseSerializer serializer);
 
   @protected
   void sse_encode_attachment_file(
@@ -3567,6 +3914,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_ai_settings_input(
+    AiSettingsInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_backup_file(
     BackupFile self,
     SseSerializer serializer,
@@ -3604,6 +3957,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_box_autoadd_day_date(DayDate self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_dictated(Dictated self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_due_chip_row(
@@ -3891,6 +4247,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_voice_settings(
+    VoiceSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_builtin_theme(BuiltinTheme self, SseSerializer serializer);
 
   @protected
@@ -3964,6 +4326,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     DiagramRenderer self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_dictated(Dictated self, SseSerializer serializer);
 
   @protected
   void sse_encode_diff_hunk(DiffHunk self, SseSerializer serializer);
@@ -4125,10 +4490,22 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_ai_action(List<AiAction> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_ai_provider_info(
+    List<AiProviderInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_approval_prompt(
     List<ApprovalPrompt> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_ask_note(List<AskNote> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_backup_file(
@@ -4616,6 +4993,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_day_date(
     DayDate? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_dictated(
+    Dictated? self,
     SseSerializer serializer,
   );
 
@@ -5164,6 +5547,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     VisibleNotebook self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_voice_settings(VoiceSettings self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -5249,6 +5635,74 @@ class KansoCoreWire implements BaseWire {
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAi =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRunPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRunPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRunPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRun =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAiRunPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals(
     ffi.Pointer<ffi.Void> ptr,
   ) {
@@ -5280,6 +5734,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovals =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoApprovalsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversationPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversationPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversationPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversationPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

@@ -8,6 +8,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart' show addTearDown;
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
 import 'package:kanso/core/models/data/load_status.dart';
@@ -27,7 +28,9 @@ import 'package:kanso/lock/state/unlock/unlock_bloc.dart';
 import 'package:kanso/note/models/data/note_screen_status.dart';
 import 'package:kanso/note/models/repos/impl/memory_note_place_repository.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'package:kanso/note/state/note_discovery/note_discovery_bloc.dart';
+import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note_list/models/data/note_list_status.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
 import 'package:kanso/search/models/data/search_status.dart';
@@ -45,6 +48,7 @@ import 'package:kanso/tasks/state/tasks/tasks_bloc.dart';
 
 import 'close_bloc_later.dart';
 import 'fake_media_picker_repository.dart';
+import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_discovery_repository.dart';
 import 'fixture_journal_repository.dart';
@@ -96,6 +100,7 @@ class BrowseBlocs {
     this.creation,
     this.defaultNotebook,
     this.captureInbox,
+    this.aiStatus,
     this.tabs,
   );
 
@@ -111,6 +116,9 @@ class BrowseBlocs {
 
   /// Saves what other apps shared; the lists read its problems.
   final CaptureInboxBloc captureInbox;
+
+  /// The library's Ask row reads app-wide AI settings.
+  final AiStatusBloc aiStatus;
 
   /// The tabs, off until a test turns them on (`TabsEvent.enabledChanged`).
   final TabsBloc tabs;
@@ -208,6 +216,9 @@ class BrowseBlocs {
     closeBlocLater(defaultNotebook);
     final captureInbox = CaptureInboxBloc(MockCaptureRepository());
     closeBlocLater(captureInbox);
+    final aiStatus = AiStatusBloc(FixtureAiRepository())
+      ..add(const AiStatusEvent.started());
+    closeBlocLater(aiStatus);
     // A note pane or a list pane carries a JournalOpener, which makes its
     // JournalBloc through GetIt. Direct widget tests do not go through the
     // app's page registration, so give them one here.
@@ -239,6 +250,7 @@ class BrowseBlocs {
       creation,
       defaultNotebook,
       captureInbox,
+      aiStatus,
       tabs,
     );
   }
@@ -340,6 +352,12 @@ class BrowseBlocs {
     return MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<LockStatusBloc>.value(value: lock),
+        BlocProvider<NoteAssistIntentBloc>(
+          create: (_) => NoteAssistIntentBloc(),
+        ),
+        BlocProvider<NoteModeIntentBloc>(
+          create: (_) => NoteModeIntentBloc(),
+        ),
         BlocProvider<PrivacyCoverBloc>.value(value: cover),
         BlocProvider<UnlockBloc>.value(value: unlock ?? unlockOf()),
         BlocProvider<LibraryIndexBloc>.value(value: index),
@@ -355,6 +373,7 @@ class BrowseBlocs {
         BlocProvider<UndoNoticeBloc>.value(value: undoNotice),
         BlocProvider<NoteCreationBloc>.value(value: creation),
         BlocProvider<DefaultNotebookBloc>.value(value: defaultNotebook),
+        BlocProvider<AiStatusBloc>.value(value: aiStatus),
         if (note != null)
           BlocProvider<NoteDiscoveryBloc>(
             create: (_) =>

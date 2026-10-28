@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_palette.dart';
 import 'package:kanso/core/models/data/app_version.dart';
@@ -144,6 +145,7 @@ Future<_Settings> _pump(
     MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: appearanceBloc),
+        BlocProvider<AiStatusBloc>.value(value: blocs.aiStatus),
         BlocProvider<SyncStatusBloc>.value(value: syncBloc),
         BlocProvider<SyncSettingsBloc>.value(
           value: startedSyncSettingsBloc(syncRepository),
@@ -212,6 +214,8 @@ void main() {
         'Icons',
         'Fonts',
         'Text size',
+        'AI',
+        'Voice',
         'Sync',
         'Sign in',
         'About',

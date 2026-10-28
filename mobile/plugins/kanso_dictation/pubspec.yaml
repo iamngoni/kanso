@@ -1,0 +1,27 @@
+name: kanso_dictation
+description: The platform's on-device speech recognizer, for dictation and voice notes.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.2
+  flutter: 3.44.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  pigeon: 29.0.11
+  very_good_analysis: ^10.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: app.kanso.kanso_dictation
+        pluginClass: KansoDictationPlugin
+      ios:
+        pluginClass: KansoDictationPlugin

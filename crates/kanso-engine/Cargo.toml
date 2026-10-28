@@ -34,6 +34,12 @@ serde.workspace = true
 # (theme/file.rs), which a map keeps only with `preserve_order`.
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
+# The shared providers and prompt rules, without the desktop's ACP agent.
+kanso-ai = { path = "../kanso-ai", optional = true, default-features = false }
+# Filters answer Markdown before the phone renders it.
+markdown = { workspace = true, optional = true }
+# Argument schemas for the tools exposed during Ask.
+schemars = { version = "0.8", optional = true }
 # What changed between a saved version and the note (history/diff.rs).
 similar.workspace = true
 # Vim keys step over a character as it is read, a grapheme cluster
@@ -94,7 +100,7 @@ tree-sitter-yaml = { workspace = true, optional = true }
 serde_json.workspace = true
 
 [features]
-default = ["highlight", "code-grammars"]
+default = ["highlight", "code-grammars", "ai"]
 # `highlight`: Markdown source and preview colors (a `Token` per span), with
 # the Markdown grammar alone.
 highlight = ["dep:tree-sitter", "dep:tree-sitter-md"]
@@ -128,6 +134,9 @@ code-grammars = [
 # `discovery`: the graph, the embedding model with its download and indexer,
 # the meaning of a note and reading the words in images.
 discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
+# Ask, the inline assistant and note summary; both app surfaces share the
+# same retrieval eligibility and safe-answer rules.
+ai = ["dep:kanso-ai", "dep:markdown", "dep:schemars"]
 # `strategies`: generators for kanso-app's view tests.
 test-support = ["dep:proptest"]
 

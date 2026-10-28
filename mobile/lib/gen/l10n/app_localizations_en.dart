@@ -3816,4 +3816,348 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editorWordGoalSave => 'Set goal';
+
+  @override
+  String get settingsAi => 'AI';
+
+  @override
+  String get settingsAiOn => 'On';
+
+  @override
+  String get settingsAiOff => 'Off';
+
+  @override
+  String get aiTitle => 'AI';
+
+  @override
+  String get aiEnabled => 'Use AI';
+
+  @override
+  String get aiEnabledFooter =>
+      'Ask your notes, rewrite a selection and summarize a note. AI is off until you turn it on.';
+
+  @override
+  String get aiProviderSection => 'Answers come from';
+
+  @override
+  String get aiProvider => 'Provider';
+
+  @override
+  String get aiProviderSheetTitle => 'Choose a provider';
+
+  @override
+  String get aiAddress => 'Address';
+
+  @override
+  String get aiModel => 'Model';
+
+  @override
+  String get aiRegion => 'Region';
+
+  @override
+  String get aiApiKey => 'API key';
+
+  @override
+  String get aiApiKeyOptional => 'API key (optional)';
+
+  @override
+  String get aiKeyHint => 'Paste the key';
+
+  @override
+  String get aiKeySave => 'Save key';
+
+  @override
+  String get aiKeySaved => 'Saved';
+
+  @override
+  String get aiKeyRemove => 'Remove';
+
+  @override
+  String get aiKeyFooter =>
+      'Kept in secure storage on this device and never shown again.';
+
+  @override
+  String get aiTest => 'Test';
+
+  @override
+  String get aiTestHint =>
+      'Sends one short question to check the address, model and key. No notes are sent.';
+
+  @override
+  String get aiTestRunning => 'Asking the model…';
+
+  @override
+  String aiTestOk(String said) {
+    return 'Ready. The model said “$said”.';
+  }
+
+  @override
+  String get aiLoadFailedTitle => 'Couldn’t open AI settings';
+
+  @override
+  String get aiLoadFailedMessage =>
+      'Something went wrong reading them. Try again.';
+
+  @override
+  String get aiSaveFailed => 'Couldn’t save that. Try again.';
+
+  @override
+  String get askTitle => 'Ask your notes';
+
+  @override
+  String get askClear => 'Clear conversation';
+
+  @override
+  String get askHint => 'Ask about your notes…';
+
+  @override
+  String get askSend => 'Ask';
+
+  @override
+  String get askStop => 'Stop';
+
+  @override
+  String get askEmptyMessage =>
+      'A question is answered from your own notes, with links to the notes it used. The answer isn’t saved and no note is changed.';
+
+  @override
+  String get askSearching => 'Searching your notes…';
+
+  @override
+  String get askThinking => 'Thinking…';
+
+  @override
+  String get askNothingMatches =>
+      'Nothing in your notes matches this question.';
+
+  @override
+  String get askCutOff => 'The answer was cut off before it finished.';
+
+  @override
+  String get askStopped => 'Stopped.';
+
+  @override
+  String get askFailedTitle => 'Couldn’t answer';
+
+  @override
+  String get askFailedMessage => 'Something went wrong. Try again.';
+
+  @override
+  String askUsedNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Used $count notes',
+      one: 'Used 1 note',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askUntitled => 'Untitled';
+
+  @override
+  String get askOffTitle => 'AI is off';
+
+  @override
+  String get askOffMessage =>
+      'Turn on AI in Settings to ask questions of your notes.';
+
+  @override
+  String get askOpenSettings => 'Open AI settings';
+
+  @override
+  String get assistTitle => 'Ask AI';
+
+  @override
+  String get assistSelectionAction => 'Ask AI…';
+
+  @override
+  String get assistAccessoryLabel => 'AI assistant';
+
+  @override
+  String get assistSummary => 'Summary';
+
+  @override
+  String get assistSummarizeNote => 'Summarize this note';
+
+  @override
+  String get assistThinking => 'Thinking…';
+
+  @override
+  String get assistStop => 'Stop';
+
+  @override
+  String get assistAccept => 'Accept';
+
+  @override
+  String get assistNothing => 'Nothing came back.';
+
+  @override
+  String get assistDiscard => 'Discard';
+
+  @override
+  String get assistCopy => 'Copy';
+
+  @override
+  String get assistCopied => 'Copied';
+
+  @override
+  String get assistClose => 'Close';
+
+  @override
+  String get assistKeptOut => 'This note is kept out of AI.';
+
+  @override
+  String get assistSelectText => 'Select some text first.';
+
+  @override
+  String get assistContinueAfterText =>
+      'Put the cursor after some text to continue it.';
+
+  @override
+  String get assistReadOnly => 'This note can’t be edited.';
+
+  @override
+  String get assistStopped => 'Stopped. A partial rewrite can’t be applied.';
+
+  @override
+  String get assistFailed => 'The suggestion couldn’t be made. Try again.';
+
+  @override
+  String get assistChanged =>
+      'The text changed, so the suggestion wasn’t applied.';
+
+  @override
+  String get libraryAsk => 'Ask your notes';
+
+  @override
+  String get dictationKey => 'Dictate';
+
+  @override
+  String get dictationKeyStop => 'Stop dictating';
+
+  @override
+  String get dictationListening => 'Listening';
+
+  @override
+  String get dictationStop => 'Stop';
+
+  @override
+  String get dictationVoiceNoteTitle => 'Voice note';
+
+  @override
+  String get dictationVoiceNoteHint => 'Tap the mic and start talking.';
+
+  @override
+  String get dictationTranscriptEmpty => 'What you say will appear here.';
+
+  @override
+  String get dictationMicStart => 'Start listening';
+
+  @override
+  String get dictationMicStop => 'Stop listening';
+
+  @override
+  String get dictationDone => 'Done';
+
+  @override
+  String get dictationCancel => 'Cancel';
+
+  @override
+  String get dictationSaving => 'Saving the note';
+
+  @override
+  String get dictationSaveFailedTitle => 'The note wasn\'t saved';
+
+  @override
+  String get dictationSaveFailedMessage =>
+      'Your words are still here. Try again.';
+
+  @override
+  String get dictationTryAgain => 'Try again';
+
+  @override
+  String get dictationUnavailableTitle => 'Dictation isn\'t available';
+
+  @override
+  String get dictationUnavailableNotOnDevice =>
+      'This phone can\'t turn speech into text by itself in this language, and Kanso never sends your voice anywhere else.';
+
+  @override
+  String get dictationUnavailableNoRecognizer =>
+      'This phone has no speech recognizer. Install or turn on one in the phone\'s settings.';
+
+  @override
+  String get dictationUnavailableLanguage =>
+      'Speech recognition doesn\'t support this language.';
+
+  @override
+  String get dictationDeniedTitle => 'Kanso can\'t hear you';
+
+  @override
+  String get dictationDeniedMessage =>
+      'Allow the microphone and speech recognition for Kanso in Settings to dictate.';
+
+  @override
+  String get dictationRestrictedMessage =>
+      'This phone\'s rules keep Kanso from using the microphone or speech recognition.';
+
+  @override
+  String get dictationOpenSettings => 'Open Settings';
+
+  @override
+  String get dictationErrorTitle => 'Dictation stopped';
+
+  @override
+  String get dictationErrorMessage =>
+      'Something interrupted the microphone. Try again.';
+
+  @override
+  String get dictationNoSpeech =>
+      'Nothing was heard. Tap the mic and try again.';
+
+  @override
+  String get dictationDismiss => 'OK';
+
+  @override
+  String get dictationSettingsTitle => 'Voice';
+
+  @override
+  String get dictationSettingsInputSection => 'Voice input';
+
+  @override
+  String get dictationSettingsInput => 'Voice input';
+
+  @override
+  String get dictationSettingsInputDetail =>
+      'Tap the mic above the keyboard, speak, and tap it again: what you said goes in at the cursor. A voice note makes a new note from what you say.';
+
+  @override
+  String get dictationSettingsCommands => 'Spoken punctuation and commands';
+
+  @override
+  String get dictationSettingsCommandsDetail =>
+      'Say \"comma\", \"full stop\", \"new line\", \"new paragraph\", \"bullet point\" or \"new to-do\" on their own, with a short pause either side, and they\'re written. \"Delete that\" takes out the last thing you said, and \"undo that\" the last step.';
+
+  @override
+  String get dictationSettingsRecognitionSection => 'Recognition';
+
+  @override
+  String dictationRecognizerReady(String language) {
+    return 'On-device recognition is available for $language';
+  }
+
+  @override
+  String dictationRecognizerSystem(String language) {
+    return '$language is recognized by the phone\'s speech service, which may use the network.';
+  }
+
+  @override
+  String dictationRecognizerUnavailable(String language) {
+    return 'On-device recognition isn\'t available for $language';
+  }
+
+  @override
+  String get dictationSettingsMicDenied => 'Kanso can\'t use the microphone';
 }

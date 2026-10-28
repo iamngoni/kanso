@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart' show addTearDown;
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
 import 'package:kanso/core/models/data/load_status.dart';
@@ -29,6 +30,7 @@ import 'package:kanso/templates/state/daily_template/daily_template_bloc.dart';
 
 import 'close_bloc_later.dart';
 import 'fixture_about_repository.dart';
+import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_discovery_repository.dart';
 import 'fixture_library_repository.dart';
@@ -62,6 +64,7 @@ class SettingsBlocs {
     this.fixtures,
     this.push,
     this.discoverySettings,
+    this.aiStatus,
   );
 
   final AboutBloc about;
@@ -88,6 +91,7 @@ class SettingsBlocs {
   /// The setting that wakes the phone.
   final PushSettingBloc push;
   final DiscoverySettingsBloc discoverySettings;
+  final AiStatusBloc aiStatus;
 
   /// Makes them and waits until they have read. The account is [account],
   /// by default none.
@@ -196,6 +200,9 @@ class SettingsBlocs {
       SeededPreferencesRepository(preferences),
     )..add(const DiscoverySettingsEvent.started());
     closeBlocLater(discoverySettings);
+    final aiStatus = AiStatusBloc(FixtureAiRepository())
+      ..add(const AiStatusEvent.started());
+    closeBlocLater(aiStatus);
     return SettingsBlocs._(
       about,
       sync,
@@ -212,6 +219,7 @@ class SettingsBlocs {
       page,
       setting,
       discoverySettings,
+      aiStatus,
     );
   }
 
@@ -231,6 +239,7 @@ class SettingsBlocs {
     BlocProvider<RemindersSettingsBloc>.value(value: reminders),
     BlocProvider<PushSettingBloc>.value(value: push),
     BlocProvider<DiscoverySettingsBloc>.value(value: discoverySettings),
+    BlocProvider<AiStatusBloc>.value(value: aiStatus),
   ];
 
   /// [child] with them above it.

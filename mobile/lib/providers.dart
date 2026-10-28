@@ -5,6 +5,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'backups/state/backups/backups_bloc.dart';
 import 'core/state/account/account_bloc.dart';
 import 'core/state/appearance/appearance_bloc.dart';
@@ -23,6 +24,8 @@ import 'import/state/opened_documents/opened_documents_bloc.dart';
 import 'injection.dart';
 import 'lock/state/lock_status/lock_status_bloc.dart';
 import 'lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'note/state/note_assist_intent/note_assist_intent_bloc.dart';
+import 'note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'push/state/push_registration/push_registration_bloc.dart';
 import 'push/views/widgets/push_lifecycle_host.dart';
 import 'settings/state/backup_notice/backup_notice_bloc.dart';
@@ -58,6 +61,10 @@ class AppProviders extends StatelessWidget {
               getIt<BackupsBloc>()..add(const BackupsEvent.started()),
         ),
         BlocProvider<AppearanceBloc>.value(value: appearance),
+        BlocProvider<AiStatusBloc>(
+          create: (_) =>
+              getIt<AiStatusBloc>()..add(const AiStatusEvent.started()),
+        ),
         BlocProvider<LibraryIndexBloc>(
           create: (_) =>
               getIt<LibraryIndexBloc>()..add(const LibraryIndexEvent.started()),
@@ -76,6 +83,12 @@ class AppProviders extends StatelessWidget {
         BlocProvider<LockStatusBloc>(
           create: (_) =>
               getIt<LockStatusBloc>()..add(const LockStatusEvent.started()),
+        ),
+        BlocProvider<NoteAssistIntentBloc>(
+          create: (_) => getIt<NoteAssistIntentBloc>(),
+        ),
+        BlocProvider<NoteModeIntentBloc>(
+          create: (_) => getIt<NoteModeIntentBloc>(),
         ),
         BlocProvider<PrivacyCoverBloc>(
           create: (_) => getIt<PrivacyCoverBloc>(),

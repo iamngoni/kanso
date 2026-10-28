@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_layout.dart';
@@ -30,6 +31,8 @@ import 'package:kanso/crash/state/crash_reports/crash_reports_bloc.dart';
 import 'package:kanso/design/views/pages/design_gallery_page.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
+import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note/views/pages/note_page.dart';
 import 'package:kanso/note_list/views/pages/note_list_page.dart';
 import 'package:kanso/search/views/pages/search_page.dart';
@@ -47,6 +50,7 @@ import 'package:kanso/tabs/state/tabs/tabs_bloc.dart';
 import 'package:kanso/themes/views/pages/theme_picker_page.dart';
 
 import '../../helpers/account_blocs.dart';
+import '../../helpers/app_feature_fixtures.dart';
 import '../../helpers/browse_blocs.dart';
 import '../../helpers/crash_samples.dart';
 import '../../helpers/fixture_discovery_repository.dart';
@@ -64,6 +68,8 @@ Future<GoRouter> _pump(
   addTearDown(bloc.close);
   final blocs = await BrowseBlocs.start();
   registerPageBlocs(blocs.library, null, blocs.undoNotice);
+  final appFeatures = AppFeatureFixtures()..register();
+  addTearDown(appFeatures.dispose);
   final history = blocs.history;
   tester.view
     ..physicalSize = size
@@ -83,6 +89,7 @@ Future<GoRouter> _pump(
     MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: bloc),
+        BlocProvider<AiStatusBloc>.value(value: appFeatures.status),
         BlocProvider<TabsBloc>.value(value: blocs.tabs),
         BlocProvider<NavigationHistoryBloc>.value(value: history),
         BlocProvider<LibraryIndexBloc>.value(value: blocs.index),
@@ -92,6 +99,12 @@ Future<GoRouter> _pump(
         BlocProvider<ListNavigationBloc>.value(value: blocs.listNavigation),
         BlocProvider<LibraryPaneBloc>.value(value: blocs.libraryPane),
         BlocProvider<LockStatusBloc>.value(value: blocs.lock),
+        BlocProvider<NoteAssistIntentBloc>(
+          create: (_) => NoteAssistIntentBloc(),
+        ),
+        BlocProvider<NoteModeIntentBloc>(
+          create: (_) => NoteModeIntentBloc(),
+        ),
         BlocProvider<PrivacyCoverBloc>.value(value: blocs.cover),
         BlocProvider<UndoNoticeBloc>.value(value: blocs.undoNotice),
         BlocProvider<NoteCreationBloc>.value(value: blocs.creation),

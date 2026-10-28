@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_layout.dart';
@@ -33,6 +34,8 @@ import 'package:kanso/crash/state/crash_reports/crash_reports_bloc.dart';
 import 'package:kanso/library/views/widgets/library_pane.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
+import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note/views/pages/note_page.dart';
 import 'package:kanso/note/views/widgets/no_note_selected_pane.dart';
 import 'package:kanso/note/views/widgets/note_top_bar.dart';
@@ -52,6 +55,7 @@ import 'package:kanso/shell/views/widgets/library_navigation.dart';
 import 'package:kanso/tabs/state/tabs/tabs_bloc.dart';
 
 import '../../../helpers/account_blocs.dart';
+import '../../../helpers/app_feature_fixtures.dart';
 import '../../../helpers/browse_blocs.dart';
 import '../../../helpers/crash_samples.dart';
 import '../../../helpers/fixture_discovery_repository.dart';
@@ -74,6 +78,8 @@ Future<GoRouter> _pump(
   final bloc = SeededAppearanceBloc(const AppearanceState());
   addTearDown(bloc.close);
   final blocs = await BrowseBlocs.start();
+  final appFeatures = AppFeatureFixtures()..register();
+  addTearDown(appFeatures.dispose);
   registerPageBlocs(blocs.library, null, blocs.undoNotice);
   tester.view
     ..physicalSize = size
@@ -105,6 +111,12 @@ Future<GoRouter> _pump(
         if (focusMode != null)
           BlocProvider<FocusModeBloc>.value(value: focusMode),
         BlocProvider<LockStatusBloc>.value(value: blocs.lock),
+        BlocProvider<NoteAssistIntentBloc>(
+          create: (_) => NoteAssistIntentBloc(),
+        ),
+        BlocProvider<NoteModeIntentBloc>(
+          create: (_) => NoteModeIntentBloc(),
+        ),
         BlocProvider<PrivacyCoverBloc>.value(value: blocs.cover),
         BlocProvider<UndoNoticeBloc>.value(value: blocs.undoNotice),
         BlocProvider<NoteCreationBloc>.value(value: blocs.creation),
@@ -121,6 +133,7 @@ Future<GoRouter> _pump(
         BlocProvider<AccountBloc>.value(value: accounts.account),
         BlocProvider<DeviceApprovalBloc>.value(value: accounts.approval),
         BlocProvider<CrashReportsBloc>.value(value: quietCrashReportsBloc()),
+        BlocProvider<AiStatusBloc>.value(value: blocs.aiStatus),
       ],
       child: App(router: kansoRouter),
     ),

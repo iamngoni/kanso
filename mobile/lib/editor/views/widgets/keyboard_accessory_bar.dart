@@ -11,6 +11,7 @@ import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_divider.dart';
+import '../../../editor_extras/models/data/editor_extras.dart';
 import 'accessory_key.dart';
 
 /// The bar of Markdown shortcuts above the keyboard: heading, list, task,
@@ -28,6 +29,8 @@ class KeyboardAccessoryBar extends StatelessWidget {
     required this.onRedo,
     this.onImage,
     this.editorContext,
+    this.extras = const <EditorAccessoryExtra>[],
+    this.target,
     super.key,
   });
 
@@ -41,6 +44,12 @@ class KeyboardAccessoryBar extends StatelessWidget {
 
   /// What the image key does; without it, it writes an image's Markdown.
   final VoidCallback? onImage;
+
+  /// Keys added by the assistant and dictation features.
+  final List<EditorAccessoryExtra> extras;
+
+  /// The editor target these keys act on.
+  final EditorTextTarget? target;
 
   @override
   Widget build(BuildContext context) {
@@ -136,6 +145,16 @@ class KeyboardAccessoryBar extends StatelessWidget {
                         onLongPress: onRedo,
                       ),
                     ),
+                    for (final extra in extras)
+                      AccessoryKey(
+                        key: ValueKey<String>(extra.id),
+                        icon: extra.icon,
+                        semanticLabel: extra.semanticLabel,
+                        onTap: extra.onTap == null || target == null
+                            ? null
+                            : () => extra.onTap!(context, target!),
+                        active: extra.active,
+                      ),
                   ];
                   // Every key stays on screen: on a phone they share the
                   // width; where there's room they keep their full size.

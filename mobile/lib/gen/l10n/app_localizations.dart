@@ -6525,6 +6525,624 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set goal'**
   String get editorWordGoalSave;
+
+  /// The settings row that opens the AI settings.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get settingsAi;
+
+  /// The value of the AI settings row while AI is on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get settingsAiOn;
+
+  /// The value of the AI settings row while AI is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get settingsAiOff;
+
+  /// The title of the AI settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get aiTitle;
+
+  /// The switch that turns the AI features on.
+  ///
+  /// In en, this message translates to:
+  /// **'Use AI'**
+  String get aiEnabled;
+
+  /// The note under the AI switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your notes, rewrite a selection and summarize a note. AI is off until you turn it on.'**
+  String get aiEnabledFooter;
+
+  /// The heading above the provider and its address, model and key.
+  ///
+  /// In en, this message translates to:
+  /// **'Answers come from'**
+  String get aiProviderSection;
+
+  /// The row that opens the list of places answers can come from.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get aiProvider;
+
+  /// The title of the list of providers.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a provider'**
+  String get aiProviderSheetTitle;
+
+  /// The label of the server address field.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get aiAddress;
+
+  /// The label of the model name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get aiModel;
+
+  /// The label of the region field, for the providers that use one.
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get aiRegion;
+
+  /// The label of the API key field.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get aiApiKey;
+
+  /// The label of the API key field for a provider that does not need one.
+  ///
+  /// In en, this message translates to:
+  /// **'API key (optional)'**
+  String get aiApiKeyOptional;
+
+  /// The hint in the empty API key field.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the key'**
+  String get aiKeyHint;
+
+  /// The button that saves the typed API key.
+  ///
+  /// In en, this message translates to:
+  /// **'Save key'**
+  String get aiKeySave;
+
+  /// Says that an API key is saved. The key itself is never shown.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get aiKeySaved;
+
+  /// The button that removes the saved API key.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get aiKeyRemove;
+
+  /// The note under the API key.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept in secure storage on this device and never shown again.'**
+  String get aiKeyFooter;
+
+  /// The button that checks the address, model and key.
+  ///
+  /// In en, this message translates to:
+  /// **'Test'**
+  String get aiTest;
+
+  /// The note under the Test button.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends one short question to check the address, model and key. No notes are sent.'**
+  String get aiTestHint;
+
+  /// Shown while the test question is on its way.
+  ///
+  /// In en, this message translates to:
+  /// **'Asking the model…'**
+  String get aiTestRunning;
+
+  /// Says that the test worked and what the model answered.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready. The model said “{said}”.'**
+  String aiTestOk(String said);
+
+  /// The title of the card shown when the AI settings could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t open AI settings'**
+  String get aiLoadFailedTitle;
+
+  /// The message of that card.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong reading them. Try again.'**
+  String get aiLoadFailedMessage;
+
+  /// Says that a change to the AI settings could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save that. Try again.'**
+  String get aiSaveFailed;
+
+  /// The title of the Ask page and its library row.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your notes'**
+  String get askTitle;
+
+  /// The button that forgets the conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear conversation'**
+  String get askClear;
+
+  /// The hint in the empty question field.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about your notes…'**
+  String get askHint;
+
+  /// The button that sends the question.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get askSend;
+
+  /// The button that stops an answer being written.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get askStop;
+
+  /// Says what Ask does, above an empty conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'A question is answered from your own notes, with links to the notes it used. The answer isn’t saved and no note is changed.'**
+  String get askEmptyMessage;
+
+  /// Shown while the notes are searched for a question.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching your notes…'**
+  String get askSearching;
+
+  /// Shown while the model works on an answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get askThinking;
+
+  /// Says that no note matches the question.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in your notes matches this question.'**
+  String get askNothingMatches;
+
+  /// Says that the model stopped before the answer was complete.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer was cut off before it finished.'**
+  String get askCutOff;
+
+  /// Says that the person stopped the answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped.'**
+  String get askStopped;
+
+  /// The title of the card shown when a question failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t answer'**
+  String get askFailedTitle;
+
+  /// The message of that card when the core has no better words.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again.'**
+  String get askFailedMessage;
+
+  /// The heading of the list of notes an answer was written from.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Used 1 note} other{Used {count} notes}}'**
+  String askUsedNotes(int count);
+
+  /// What a note without a title is called in a list of notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get askUntitled;
+
+  /// The title shown on the Ask page while AI is off.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is off'**
+  String get askOffTitle;
+
+  /// The message shown on the Ask page while AI is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on AI in Settings to ask questions of your notes.'**
+  String get askOffMessage;
+
+  /// The button that opens the AI settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open AI settings'**
+  String get askOpenSettings;
+
+  /// The title of the assistant sheet, and of the selection menu item that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get assistTitle;
+
+  /// The item in the text selection menu that opens the assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI…'**
+  String get assistSelectionAction;
+
+  /// What a screen reader says for the assistant key above the keyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'AI assistant'**
+  String get assistAccessoryLabel;
+
+  /// The title of the sheet that shows a note’s summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get assistSummary;
+
+  /// The note menu item that summarizes the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarize this note'**
+  String get assistSummarizeNote;
+
+  /// Shown while the assistant works on a suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get assistThinking;
+
+  /// The button that stops a suggestion being written.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get assistStop;
+
+  /// The button that puts the suggestion in the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get assistAccept;
+
+  /// Says that the assistant answered with nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing came back.'**
+  String get assistNothing;
+
+  /// The button that throws a suggestion away.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get assistDiscard;
+
+  /// The button that copies the suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get assistCopy;
+
+  /// Says that the suggestion was copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get assistCopied;
+
+  /// The button that closes the assistant sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get assistClose;
+
+  /// Says that the note is locked, in the trash or tagged #ai-exclude, so nothing was sent.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is kept out of AI.'**
+  String get assistKeptOut;
+
+  /// Says that an assistant rewrite needs text selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Select some text first.'**
+  String get assistSelectText;
+
+  /// Says that Continue Writing needs a paragraph before the cursor.
+  ///
+  /// In en, this message translates to:
+  /// **'Put the cursor after some text to continue it.'**
+  String get assistContinueAfterText;
+
+  /// Says that the assistant cannot change a shared note that is read only.
+  ///
+  /// In en, this message translates to:
+  /// **'This note can’t be edited.'**
+  String get assistReadOnly;
+
+  /// Says that a stopped suggestion is not offered.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped. A partial rewrite can’t be applied.'**
+  String get assistStopped;
+
+  /// Says that the assistant failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The suggestion couldn’t be made. Try again.'**
+  String get assistFailed;
+
+  /// Says that the note changed while the suggestion was written.
+  ///
+  /// In en, this message translates to:
+  /// **'The text changed, so the suggestion wasn’t applied.'**
+  String get assistChanged;
+
+  /// The library row that opens Ask your notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your notes'**
+  String get libraryAsk;
+
+  /// The accessory bar's microphone key, for a screen reader: starts dictating into the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictate'**
+  String get dictationKey;
+
+  /// The accessory bar's microphone key while it listens, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop dictating'**
+  String get dictationKeyStop;
+
+  /// Shown while the microphone is open and nothing has been heard yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get dictationListening;
+
+  /// Stops dictating and keeps the words.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get dictationStop;
+
+  /// The title of the page that makes a note from speech.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice note'**
+  String get dictationVoiceNoteTitle;
+
+  /// Tells the person how to begin a voice note.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the mic and start talking.'**
+  String get dictationVoiceNoteHint;
+
+  /// The placeholder of the live transcript before anything is heard.
+  ///
+  /// In en, this message translates to:
+  /// **'What you say will appear here.'**
+  String get dictationTranscriptEmpty;
+
+  /// Says what the large microphone button does while it is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Start listening'**
+  String get dictationMicStart;
+
+  /// Says what the large microphone button does while it listens.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop listening'**
+  String get dictationMicStop;
+
+  /// Saves the voice note as a new note.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get dictationDone;
+
+  /// Leaves the voice note without saving it.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get dictationCancel;
+
+  /// Says to a screen reader that the voice note is being saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving the note'**
+  String get dictationSaving;
+
+  /// The title of the card shown when a voice note could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'The note wasn\'t saved'**
+  String get dictationSaveFailedTitle;
+
+  /// Says that nothing was lost when saving a voice note failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your words are still here. Try again.'**
+  String get dictationSaveFailedMessage;
+
+  /// Tries again after a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get dictationTryAgain;
+
+  /// The title of the card shown when speech can't be recognized on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictation isn\'t available'**
+  String get dictationUnavailableTitle;
+
+  /// Says why dictation is unavailable when the language has no recognizer on the device.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone can\'t turn speech into text by itself in this language, and Kanso never sends your voice anywhere else.'**
+  String get dictationUnavailableNotOnDevice;
+
+  /// Says why dictation is unavailable when the phone has no speech recognizer.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has no speech recognizer. Install or turn on one in the phone\'s settings.'**
+  String get dictationUnavailableNoRecognizer;
+
+  /// Says why dictation is unavailable when the language is unknown to the recognizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech recognition doesn\'t support this language.'**
+  String get dictationUnavailableLanguage;
+
+  /// The title of the card shown when the microphone or speech recognition is refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso can\'t hear you'**
+  String get dictationDeniedTitle;
+
+  /// Says how to allow dictation after it was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow the microphone and speech recognition for Kanso in Settings to dictate.'**
+  String get dictationDeniedMessage;
+
+  /// Says that the device restricts dictation.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone\'s rules keep Kanso from using the microphone or speech recognition.'**
+  String get dictationRestrictedMessage;
+
+  /// Opens the phone's settings page for Kanso.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get dictationOpenSettings;
+
+  /// The title of the card shown when dictation failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictation stopped'**
+  String get dictationErrorTitle;
+
+  /// Says that the microphone was interrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Something interrupted the microphone. Try again.'**
+  String get dictationErrorMessage;
+
+  /// Says that no speech was heard.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was heard. Tap the mic and try again.'**
+  String get dictationNoSpeech;
+
+  /// Dismisses the notice that dictation could not run.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get dictationDismiss;
+
+  /// The title of the voice settings page and of its row in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get dictationSettingsTitle;
+
+  /// The heading of the voice input rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input'**
+  String get dictationSettingsInputSection;
+
+  /// The label of the row that says how dictation works.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input'**
+  String get dictationSettingsInput;
+
+  /// Says how dictation works on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the mic above the keyboard, speak, and tap it again: what you said goes in at the cursor. A voice note makes a new note from what you say.'**
+  String get dictationSettingsInputDetail;
+
+  /// The label of the switch for spoken punctuation and commands.
+  ///
+  /// In en, this message translates to:
+  /// **'Spoken punctuation and commands'**
+  String get dictationSettingsCommands;
+
+  /// Explains the spoken commands.
+  ///
+  /// In en, this message translates to:
+  /// **'Say \"comma\", \"full stop\", \"new line\", \"new paragraph\", \"bullet point\" or \"new to-do\" on their own, with a short pause either side, and they\'re written. \"Delete that\" takes out the last thing you said, and \"undo that\" the last step.'**
+  String get dictationSettingsCommandsDetail;
+
+  /// The heading of the row that says whether speech is recognized on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognition'**
+  String get dictationSettingsRecognitionSection;
+
+  /// Says that speech is turned into text on the phone itself, for the language.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device recognition is available for {language}'**
+  String dictationRecognizerReady(String language);
+
+  /// Says that the phone's speech service, not the phone alone, recognizes the language.
+  ///
+  /// In en, this message translates to:
+  /// **'{language} is recognized by the phone\'s speech service, which may use the network.'**
+  String dictationRecognizerSystem(String language);
+
+  /// Says that speech cannot be turned into text on the phone for the language.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device recognition isn\'t available for {language}'**
+  String dictationRecognizerUnavailable(String language);
+
+  /// The label of the row shown when the microphone or speech recognition is refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso can\'t use the microphone'**
+  String get dictationSettingsMicDenied;
 }
 
 class _AppLocalizationsDelegate

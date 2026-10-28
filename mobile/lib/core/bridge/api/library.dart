@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import 'account.dart';
 import 'account_settings.dart';
+import 'ai.dart';
 import 'approvals.dart';
 import 'discovery.dart';
 import 'editor.dart';
@@ -18,6 +19,7 @@ import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
 import 'types.dart';
+import 'voice.dart';
 
 /// What the Replace button says, or nothing when there is nothing to do.
 String? replaceApplyLabel({required int matches, required int notes}) =>
@@ -35,6 +37,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   KansoAccount account();
 
   KansoAccountSettings accountSettings();
+
+  /// The AI features scoped to this library; provider keys stay in Rust's
+  /// secret store and are never returned through this bridge.
+  KansoAi ai();
 
   KansoApprovals approvals();
 
@@ -316,6 +322,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required bool checked,
   });
 
+  /// Saves voice dictation settings beside the library database.
+  Future<void> setVoiceSettings({required VoiceSettings settings});
+
   KansoShared shared();
 
   /// The statuses a note can have, and what the desktop calls them.
@@ -373,6 +382,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required FoldState folds,
     String? showing,
   });
+
+  /// Voice dictation settings saved beside the library database.
+  Future<VoiceSettings> voiceSettings();
 
   /// The word-goal presets offered by the desktop app.
   static Future<Uint32List> wordGoalPresets() =>

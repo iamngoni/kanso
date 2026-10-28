@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../assist/utils/open_assist_action.dart';
 import '../../../capture/models/data/capture_first_row.dart';
 import '../../../capture/views/widgets/capture_sheet.dart';
 import '../../../core/bridge/api/types.dart' hide EditorEvent;
@@ -20,8 +21,12 @@ import '../../../core/models/data/application_error.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/note_drag_data.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../editor_extras/models/data/editor_extras.dart';
+import '../../../editor_extras/models/data/markdown_editor_text_target.dart';
+import '../../../editor_extras/views/widgets/editor_extras_scope.dart';
 import '../../../note/models/data/note_mode.dart';
 import '../../../note/state/note/note_bloc.dart';
+import '../../../note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../../note_list/views/widgets/note_list_notice.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
@@ -99,6 +104,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   late final EditorBloc editor;
   late final NoteBloc note;
   late final KansoMarkdownController controller;
+  late final MarkdownEditorTextTarget textTarget;
   late final TextEditingController title;
   late final FocusNode textFocus;
   late final FocusNode titleFocus;
@@ -113,8 +119,17 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   /// The note's comments, where the page has them.
   CommentsBloc? comments;
 
+  /// The features currently adding keys and actions to this editor.
+  EditorExtras? editorExtras;
+
   /// What the page says of the note's sharing, where it has that.
   SharedNoteStatusBloc? status;
+
+  /// A palette or other app-level assistant request for this note.
+  NoteAssistIntentBloc? assistIntents;
+
+  /// The server request last taken, so a rebuild cannot run it again.
+  int? handledAssistRequest;
 
   /// Whether the note is shared with this account to view or comment on
   /// only: its title, properties and text are for reading.
@@ -144,6 +159,11 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
     } on ProviderNotFoundException {
       status = null;
     }
+    try {
+      assistIntents = context.read<NoteAssistIntentBloc>();
+    } on ProviderNotFoundException {
+      assistIntents = null;
+    }
     readOnly = status?.state.readOnly ?? false;
     final caret = widget.caret;
     int? start;
@@ -169,6 +189,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
         const EditorEvent.signalReceived(EditorEvent_Closed()),
       ),
     )..onWindowWillMove = anchorAt;
+    textTarget = MarkdownEditorTextTarget(
+      controller: controller,
+      noteId: note.state.noteId,
+    );
     controller.addListener(keepPlace);
     wordCount = ValueNotifier<int>(
       wordGoalWordCount(text: widget.snapshot.text),
@@ -186,9 +210,13 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       onStateChange: (state) => editor.add(EditorEvent.lifecycleChanged(state)),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        (widget.focusTitle ? titleFocus : textFocus).requestFocus();
+      if (!mounted) {
+        return;
       }
+      // The command can arrive while the note is in Preview, before this
+      // editor exists. Take that initial request once the field is mounted.
+      _takeAssistIntent();
+      (widget.focusTitle ? titleFocus : textFocus).requestFocus();
     });
     if (status != null) {
       unawaited(refreshCursors());
@@ -200,6 +228,43 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
         unawaited(selectComment(selecting));
       }
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = EditorExtrasScope.of(context);
+    if (!identical(editorExtras, next)) {
+      editorExtras?.release(textTarget);
+      editorExtras = next;
+    }
+  }
+
+  /// Runs the pending assistant request for this note, if there is one.
+  ///
+  /// Whole-note summaries belong to the page and have no editor action.
+  void _takeAssistIntent() {
+    final bloc = assistIntents;
+    if (bloc == null) {
+      return;
+    }
+    final intent = bloc.state;
+    final action = intent.action;
+    if (!intent.pending ||
+        intent.noteId != note.state.noteId ||
+        action == null ||
+        intent.request == handledAssistRequest) {
+      return;
+    }
+    handledAssistRequest = intent.request;
+    bloc.add(NoteAssistIntentEvent.consumed(request: intent.request));
+    if (readOnly) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(context.l10n.assistReadOnly)),
+      );
+      return;
+    }
+    unawaited(openAssistAction(context, textTarget, action: action));
   }
 
   /// Asks the Rust core where the open comments' words are now, to tint.
@@ -295,6 +360,8 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   @override
   void dispose() {
     lifecycle.dispose();
+    editorExtras?.release(textTarget);
+    textTarget.dispose();
     controller.removeListener(keepPlace);
     if (!note.isClosed) {
       final selection = controller.noteSelection;
@@ -421,6 +488,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
           listener: (context, state) {
             final snapshot = state.snapshot;
             if (snapshot != null) {
+              textTarget.invalidate();
               controller.reload(snapshot);
               if (title.text != snapshot.title) {
                 title.text = snapshot.title;
@@ -436,6 +504,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
           listener: (context, state) {
             final attached = state.attached;
             if (attached != null) {
+              textTarget.invalidate();
               controller.adopt(attached);
             }
           },
@@ -491,6 +560,18 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
             listenWhen: (before, now) =>
                 before.save != now.save && now.save is SaveState_Saved,
             listener: (context, state) => unawaited(refreshMarks()),
+          ),
+        ],
+        if (assistIntents
+            case final intents?) ...<BlocListener<dynamic, dynamic>>[
+          BlocListener<NoteAssistIntentBloc, NoteAssistIntentState>(
+            bloc: intents,
+            listenWhen: (before, now) =>
+                now.pending &&
+                now.noteId == note.state.noteId &&
+                now.action != null &&
+                now.request != before.request,
+            listener: (context, state) => _takeAssistIntent(),
           ),
         ],
         if (status case final status?) ...<BlocListener<dynamic, dynamic>>[
@@ -705,47 +786,68 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                                     );
                                     textFocus.requestFocus();
                                   },
-                                  builder: (context, hovering, rejected) =>
-                                      DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          border: hovering.isEmpty
-                                              ? null
-                                              : Border.all(
-                                                  color: context.colors.accent,
-                                                  width: 2,
-                                                ),
-                                        ),
-                                        child: MarkdownEditor(
-                                          controller: controller,
-                                          focusNode: textFocus,
-                                          editableKey: editableKey,
-                                          readOnly: readOnly,
-                                          // The platform checks what the field
-                                          // holds: a window of a long note,
-                                          // never the whole.
-                                          spellCheckService:
-                                              DefaultSpellCheckService(),
-                                          menuBuilder: (context, state) =>
-                                              LinkContextMenu(
-                                                state: state,
-                                                document: widget.document,
-                                                windowStart:
-                                                    controller.windowStart,
-                                                onOpen: (target) => editor.add(
-                                                  EditorEvent.linkOpenRequested(
-                                                    target,
-                                                  ),
-                                                ),
-                                                onComment:
-                                                    comments
-                                                            ?.state
-                                                            .mayComment ??
-                                                        false
-                                                    ? commentOnSelection
-                                                    : null,
+                                  builder: (context, hovering, rejected) {
+                                    return DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        border: hovering.isEmpty
+                                            ? null
+                                            : Border.all(
+                                                color: context.colors.accent,
+                                                width: 2,
                                               ),
-                                        ),
                                       ),
+                                      child: MarkdownEditor(
+                                        controller: controller,
+                                        focusNode: textFocus,
+                                        editableKey: editableKey,
+                                        readOnly: readOnly,
+                                        // The platform checks what the field
+                                        // holds: a window of a long note,
+                                        // never the whole.
+                                        spellCheckService:
+                                            DefaultSpellCheckService(),
+                                        menuBuilder: (context, state) {
+                                          final selectionActions = readOnly
+                                              ? const <EditorSelectionAction>[]
+                                              : editorExtras?.selectionActions(
+                                                      textTarget,
+                                                    ) ??
+                                                    const <
+                                                      EditorSelectionAction
+                                                    >[];
+                                          return LinkContextMenu(
+                                            state: state,
+                                            document: widget.document,
+                                            windowStart: controller.windowStart,
+                                            extraActions: [
+                                              for (final action
+                                                  in selectionActions)
+                                                (
+                                                  action.label,
+                                                  () {
+                                                    state.hideToolbar();
+                                                    action.onPressed(
+                                                      context,
+                                                      textTarget,
+                                                    );
+                                                  },
+                                                ),
+                                            ],
+                                            onOpen: (target) => editor.add(
+                                              EditorEvent.linkOpenRequested(
+                                                target,
+                                              ),
+                                            ),
+                                            onComment:
+                                                comments?.state.mayComment ??
+                                                    false
+                                                ? commentOnSelection
+                                                : null,
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  },
                                 ),
                                 // Where the others in a shared note are.
                                 if (status != null)
@@ -823,6 +925,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                       onUndo: controller.undo,
                       onRedo: controller.redo,
                       onImage: attach,
+                      extras:
+                          editorExtras?.accessoryKeys(textTarget) ??
+                          const <EditorAccessoryExtra>[],
+                      target: textTarget,
                     ),
                   ),
                 );

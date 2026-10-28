@@ -22,6 +22,7 @@ class LinkContextMenu extends StatefulWidget {
     required this.onOpen,
     this.windowStart = 0,
     this.onComment,
+    this.extraActions = const <(String, VoidCallback)>[],
     super.key,
   });
 
@@ -38,6 +39,9 @@ class LinkContextMenu extends StatefulWidget {
   /// The person chose Comment, with text selected; null where they may not
   /// comment on this note.
   final VoidCallback? onComment;
+
+  /// Actions supplied by the features around the editor.
+  final List<(String, VoidCallback)> extraActions;
 
   @override
   State<LinkContextMenu> createState() => _LinkContextMenuState();
@@ -70,6 +74,7 @@ class _LinkContextMenuState extends State<LinkContextMenu> {
         return KansoTextContextMenu(
           state: widget.state,
           extra: <(String, VoidCallback)>[
+            ...widget.extraActions,
             if (found != null)
               (
                 context.l10n.menuOpenLink,

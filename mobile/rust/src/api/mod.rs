@@ -9,6 +9,7 @@
 
 pub mod account;
 pub mod account_settings;
+pub mod ai;
 pub mod approvals;
 pub mod board;
 pub mod diagnostics;
@@ -29,3 +30,4 @@ pub mod shortcuts;
 pub mod sync;
 pub mod types;
 pub mod word_goal;
+pub mod voice;

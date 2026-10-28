@@ -8,6 +8,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/browse_location.dart';
@@ -24,6 +25,7 @@ import 'package:kanso/sharing/state/invitations/invitations_bloc.dart';
 
 import '../../../helpers/browse_blocs.dart';
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_ai_repository.dart';
 import '../../../helpers/fixture_library_repository.dart';
 import '../../../helpers/fixture_shared_notes_repository.dart';
 import '../../../helpers/golden.dart';
@@ -54,8 +56,12 @@ Widget _pane(
   if (invitations == null) {
     closeBlocLater(shared);
   }
+  final aiStatus = AiStatusBloc(FixtureAiRepository())
+    ..add(const AiStatusEvent.started());
+  closeBlocLater(aiStatus);
   return MultiBlocProvider(
     providers: <BlocProvider<dynamic>>[
+      BlocProvider<AiStatusBloc>.value(value: aiStatus),
       BlocProvider<LibraryIndexBloc>.value(value: bloc),
       BlocProvider<InvitationsBloc>.value(value: shared),
     ],

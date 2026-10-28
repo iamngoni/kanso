@@ -88,6 +88,8 @@ mod account_provider;
 mod account_runtime;
 mod account_settings;
 mod actions;
+mod ai;
+mod ai_model;
 mod approvals;
 mod approver_model;
 pub mod background;
@@ -145,10 +147,17 @@ mod tasks;
 mod theme_tokens;
 mod undo;
 mod word_goals;
+mod voice;
+mod voice_model;
 
 pub use account::AccountHandle;
 pub use account_model::*;
 pub use account_settings::AccountSettings;
+pub use ai::{
+    AI_OFF, AiHandle, AiRun, AskConversation, CITATION_PREFIX, KEPT_OUT, NOTHING_MATCHES,
+    ProviderMaker,
+};
+pub use ai_model::*;
 pub use approvals::Approvals;
 pub use backups::BACKUPS_SUMMARY;
 pub use comments_model::*;
@@ -178,6 +187,8 @@ pub use shortcuts::shortcut_catalog;
 pub use stream::Sink;
 pub use sync_model::*;
 pub use syncing::SyncHandle;
+pub use voice::dictated;
+pub use voice_model::{Dictated, VoiceSettings};
 
 /// Where secrets live: the seam the Keychain, the Keystore and the tests'
 /// memory store stand behind.

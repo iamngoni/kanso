@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
 import 'package:kanso/backups/state/backups/backups_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
@@ -34,6 +35,8 @@ import 'package:kanso/import/state/opened_documents/opened_documents_bloc.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
+import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart';
 import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
@@ -44,8 +47,10 @@ import 'package:kanso/shell/state/note_creation/note_creation_bloc.dart';
 import 'package:kanso/tabs/state/tabs/tabs_bloc.dart';
 
 import 'account_blocs.dart';
+import 'app_feature_fixtures.dart';
 import 'browse_blocs.dart';
 import 'crash_samples.dart';
+import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_discovery_repository.dart';
 import 'fixture_gallery_repository.dart';
@@ -112,6 +117,7 @@ Future<BrowseApp> pumpBrowseApp(
   AppearanceState appearance = const AppearanceState(),
   FixtureLibraryRepository? library,
   FixtureRendererRepository? renderer,
+  FixtureAiRepository? ai,
   double devicePixelRatio = 1,
   EdgeInsets safeArea = EdgeInsets.zero,
   bool? tabletDevice,
@@ -149,6 +155,8 @@ Future<BrowseApp> pumpBrowseApp(
     backups,
     fixtures,
   );
+  final appFeatures = AppFeatureFixtures(ai: ai)..register();
+  addTearDown(appFeatures.dispose);
   final accountBlocs = (accounts ?? AccountBlocs())..register();
   final opened =
       openedDocuments ??
@@ -189,6 +197,7 @@ Future<BrowseApp> pumpBrowseApp(
       child: MultiBlocProvider(
         providers: <BlocProvider<dynamic>>[
           BlocProvider<AppearanceBloc>.value(value: bloc),
+          BlocProvider<AiStatusBloc>.value(value: appFeatures.status),
           BlocProvider<TabsBloc>.value(value: blocs.tabs),
           BlocProvider<TabsBloc>.value(value: blocs.tabs),
           BlocProvider<NavigationHistoryBloc>.value(value: blocs.history),
@@ -201,6 +210,12 @@ Future<BrowseApp> pumpBrowseApp(
           BlocProvider<ListNavigationBloc>.value(value: blocs.listNavigation),
           BlocProvider<LibraryPaneBloc>.value(value: blocs.libraryPane),
           BlocProvider<LockStatusBloc>.value(value: blocs.lock),
+          BlocProvider<NoteAssistIntentBloc>(
+            create: (_) => NoteAssistIntentBloc(),
+          ),
+          BlocProvider<NoteModeIntentBloc>(
+            create: (_) => NoteModeIntentBloc(),
+          ),
           BlocProvider<PrivacyCoverBloc>.value(value: blocs.cover),
           BlocProvider<UndoNoticeBloc>.value(value: blocs.undoNotice),
           BlocProvider<NoteCreationBloc>.value(value: blocs.creation),

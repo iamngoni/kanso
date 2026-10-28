@@ -2,9 +2,12 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../assist/views/widgets/summarize_note_action.dart';
 import '../../../core/state/navigation_history/navigation_history_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/syntax_theme_id.dart';
@@ -13,8 +16,11 @@ import '../../../lock/state/unlock/unlock_bloc.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
 import '../../../sharing/views/widgets/shared_note_live.dart';
+import '../../models/data/note_mode.dart';
 import '../../state/note/note_bloc.dart';
+import '../../state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../state/note_discovery/note_discovery_bloc.dart';
+import '../../state/note_mode_intent/note_mode_intent_bloc.dart';
 import '../widgets/note_pane.dart';
 import '../widgets/note_theme_sync.dart';
 
@@ -98,7 +104,51 @@ class NotePage extends StatelessWidget {
             child: Scaffold(
               resizeToAvoidBottomInset: false,
               backgroundColor: context.colors.editor,
-              body: NotePane(inPane: inPane),
+              body: MultiBlocListener(
+                listeners: <BlocListener<dynamic, dynamic>>[
+                  BlocListener<NoteAssistIntentBloc, NoteAssistIntentState>(
+                    listenWhen: (previous, current) =>
+                        current.pending &&
+                        current.noteId == noteId &&
+                        (previous.request != current.request ||
+                            previous.noteId != current.noteId),
+                    listener: (context, intent) {
+                      if (intent.summarizeNote) {
+                        // A summary is a reading action: it does not switch
+                        // the note to Edit. Mark it handled before opening
+                        // the sheet so a rebuild cannot start it twice.
+                        context.read<NoteAssistIntentBloc>().add(
+                          NoteAssistIntentEvent.consumed(
+                            request: intent.request,
+                          ),
+                        );
+                        unawaited(summarizeNote(context, noteId));
+                        return;
+                      }
+                      final note = context.read<NoteBloc>();
+                      if (note.state.mode != NoteMode.edit) {
+                        note.add(const NoteEvent.modeChanged(NoteMode.edit));
+                      }
+                    },
+                  ),
+                  BlocListener<NoteModeIntentBloc, NoteModeIntentState>(
+                    listenWhen: (previous, current) =>
+                        previous.noteId != current.noteId ||
+                        previous.mode != current.mode,
+                    listener: (context, intent) {
+                      final mode = intent.mode;
+                      if (intent.noteId == noteId &&
+                          mode != null &&
+                          context.read<NoteBloc>().state.mode != mode) {
+                        context.read<NoteBloc>().add(
+                          NoteEvent.modeChanged(mode),
+                        );
+                      }
+                    },
+                  ),
+                ],
+                child: NotePane(inPane: inPane),
+              ),
             ),
           ),
         ),

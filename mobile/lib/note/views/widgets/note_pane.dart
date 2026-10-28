@@ -6,6 +6,7 @@ import 'package:flutter/material.dart' hide LockState;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
@@ -149,15 +150,21 @@ class NotePane extends StatelessWidget {
                                 onPressed: () => showKansoBottomSheet<void>(
                                   context,
                                   builder: (_) =>
-                                      BlocProvider<NoteDiscoveryBloc>.value(
-                                        value: context
-                                            .read<NoteDiscoveryBloc>(),
-                                        child: NoteInfoSheet(
-                                          note: note,
-                                          index: context
-                                              .read<LibraryIndexBloc>()
-                                              .state,
-                                        ),
+                                      BlocProvider<AiStatusBloc>.value(
+                                        value: context.read<AiStatusBloc>(),
+                                        child:
+                                            BlocProvider<
+                                              NoteDiscoveryBloc
+                                            >.value(
+                                              value: context
+                                                  .read<NoteDiscoveryBloc>(),
+                                              child: NoteInfoSheet(
+                                                note: note,
+                                                index: context
+                                                    .read<LibraryIndexBloc>()
+                                                    .state,
+                                              ),
+                                            ),
                                       ),
                                 ),
                               ),

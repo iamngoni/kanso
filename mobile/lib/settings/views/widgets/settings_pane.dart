@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/load_status.dart';
@@ -229,6 +230,30 @@ class SettingsPane extends StatelessWidget {
                                 style: context.typography.secondary,
                               ),
                             ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: KansoSpacing.lg),
+                    BlocBuilder<AiStatusBloc, AiStatusState>(
+                      builder: (context, ai) => KansoGroupedSection(
+                        dividerIndent: iconInset,
+                        children: <Widget>[
+                          KansoSettingsRow(
+                            icon: KansoIcons.sparkles,
+                            label: l10n.settingsAi,
+                            value: ai.enabled
+                                ? l10n.settingsAiOn
+                                : l10n.settingsAiOff,
+                            chevron: true,
+                            onTap: () => context.push(KansoRoutes.settingsAi),
+                          ),
+                          KansoSettingsRow(
+                            icon: KansoIcons.mic,
+                            label: l10n.dictationSettingsTitle,
+                            chevron: true,
+                            onTap: () =>
+                                context.push(KansoRoutes.settingsVoice),
+                          ),
                         ],
                       ),
                     ),

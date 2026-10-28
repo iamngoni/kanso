@@ -5,68 +5,77 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../configs/kanso_colors.dart';
 import '../../configs/kanso_effects.dart';
 import '../../configs/kanso_radii.dart';
 import '../../configs/kanso_sizes.dart';
 import '../../configs/kanso_spacing.dart';
+import '../../configs/kanso_typography.dart';
 import '../../utils/context_extensions.dart';
 import 'kanso_search_input.dart' show KansoSearchInput;
 import 'kanso_selection_controls.dart';
 import 'kanso_text_context_menu.dart';
 
-/// A field for a line of text with its [label] above it: a username, a
-/// password, a server's address, a recovery key.
+/// A field for text in the app's type: a caret and selection drawn the same
+/// on every platform, a hint while empty, and nothing around it. A row or a
+/// box around it gives it its shape.
 ///
-/// It is drawn as the search field is, with the accent outline while it has
-/// focus (the danger colour while [invalid]), over Flutter's `EditableText`
-/// with Kanso's own caret and context menu, so iOS and Android draw it
-/// alike. The text is the [controller]'s, which the caller owns.
-///
-/// A [obscure] field shows dots. [mono] sets the text in the code font, for a
-/// key. Without [enabled] the field is dimmed and takes no input. Under it
-/// is the [error], in the danger colour, or else the [help].
+/// The caller owns [controller]. It is one line unless [maxLines] says
+/// more, and obscured while [obscure] is set (a key), where nothing is
+/// suggested or corrected.
 class KansoTextField extends StatefulWidget {
   const KansoTextField({
     required this.controller,
-    required this.label,
+    this.label,
     this.hint,
+    this.onChanged,
+    this.onSubmitted,
     this.obscure = false,
     this.mono = false,
     this.invalid = false,
     this.help,
     this.error,
     this.enabled = true,
-    this.autofocus = false,
-    this.keyboardType = TextInputType.text,
-    this.textInputAction,
     this.autofillHints,
     this.inputFormatters,
-    this.onChanged,
-    this.onSubmitted,
+    this.minLines = 1,
+    this.maxLines = 1,
+    this.keyboardType = TextInputType.text,
+    this.textInputAction,
+    this.autocorrect = false,
+    this.autofocus = false,
+    this.semanticLabel,
     super.key,
-  });
+  }) : assert(label != null || hint != null, 'Give the field a label or hint.');
 
   final TextEditingController controller;
-  final String label;
+
+  /// The labelled, outlined form retained for Settings, account and lock
+  /// forms that already use this control.
+  final String? label;
   final String? hint;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final bool obscure;
   final bool mono;
   final bool invalid;
-
-  /// Advice under the field, such as how long a password must be.
   final String? help;
-
-  /// What is wrong with the text, under the field in the danger colour; the
-  /// field is drawn as [invalid] while there is one.
   final String? error;
   final bool enabled;
-  final bool autofocus;
-  final TextInputType keyboardType;
-  final TextInputAction? textInputAction;
   final Iterable<String>? autofillHints;
   final List<TextInputFormatter>? inputFormatters;
-  final ValueChanged<String>? onChanged;
-  final ValueChanged<String>? onSubmitted;
+  final int minLines;
+  final int maxLines;
+  final TextInputType keyboardType;
+  final TextInputAction? textInputAction;
+  final bool autocorrect;
+  final bool autofocus;
+
+  /// What a screen reader says for the field.
+  final String? semanticLabel;
+
+  /// How tall the caret is, in points.
+  static const double caretHeight = 18;
 
   @override
   State<KansoTextField> createState() => _KansoTextFieldState();
@@ -107,19 +116,93 @@ class _KansoTextFieldState extends State<KansoTextField>
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
-    // The same caret on both platforms: see `KansoSearchInput`.
-    final caretAsked = switch (Theme.of(context).platform) {
+    if (widget.label != null) {
+      return legacyField(context, colors, typography);
+    }
+    // The framework sizes the caret differently on Apple's platforms and on
+    // Android's; the same is asked for on both so the pictures match.
+    final caret = switch (Theme.of(context).platform) {
+      TargetPlatform.iOS ||
+      TargetPlatform.macOS => KansoTextField.caretHeight - 2,
+      _ => KansoTextField.caretHeight,
+    };
+    return Semantics(
+      label: widget.semanticLabel ?? widget.label,
+      textField: true,
+      child: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) {
+          return Stack(
+            children: <Widget>[
+              if (widget.controller.text.isEmpty && widget.hint != null)
+                IgnorePointer(
+                  child: Text(
+                    widget.hint!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: typography.body.copyWith(color: colors.textMuted),
+                  ),
+                ),
+              gestures.buildGestureDetector(
+                behavior: HitTestBehavior.translucent,
+                child: EditableText(
+                  key: editableTextKey,
+                  rendererIgnoresPointer: true,
+                  controller: widget.controller,
+                  focusNode: focusNode,
+                  autofocus: widget.autofocus,
+                  readOnly: !widget.enabled,
+                  style: typography.body,
+                  cursorColor: colors.accent,
+                  backgroundCursorColor: colors.textMuted,
+                  selectionColor: colors.accent.withValues(alpha: 0.3),
+                  cursorRadius: const Radius.circular(1),
+                  cursorHeight: caret,
+                  minLines: widget.minLines,
+                  maxLines: widget.maxLines,
+                  obscureText: widget.obscure,
+                  autofillHints: widget.autofillHints,
+                  inputFormatters: widget.inputFormatters,
+                  keyboardType: widget.maxLines == 1
+                      ? widget.keyboardType
+                      : TextInputType.multiline,
+                  textInputAction: widget.textInputAction,
+                  autocorrect:
+                      widget.autocorrect && !widget.obscure && widget.enabled,
+                  enableSuggestions:
+                      widget.autocorrect && !widget.obscure && widget.enabled,
+                  selectionControls: selectionControls,
+                  contextMenuBuilder: (context, state) =>
+                      KansoTextContextMenu(state: state),
+                  onChanged: widget.onChanged,
+                  onSubmitted: widget.onSubmitted,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// The existing labelled control's appearance and validation behavior.
+  Widget legacyField(
+    BuildContext context,
+    KansoColors colors,
+    KansoTypography typography,
+  ) {
+    final fieldStyle = widget.mono ? typography.mono : typography.body;
+    final caret = switch (Theme.of(context).platform) {
       TargetPlatform.iOS ||
       TargetPlatform.macOS => KansoSearchInput.caretHeight - 2,
       _ => KansoSearchInput.caretHeight,
     };
-    final style = widget.mono ? typography.mono : typography.body;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.only(bottom: KansoSpacing.xxs),
-          child: Text(widget.label, style: typography.label),
+          child: Text(widget.label!, style: typography.label),
         ),
         ListenableBuilder(
           listenable: Listenable.merge(<Listenable>[
@@ -159,7 +242,7 @@ class _KansoTextFieldState extends State<KansoTextField>
                           widget.hint!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: style.copyWith(color: colors.textMuted),
+                          style: fieldStyle.copyWith(color: colors.textMuted),
                         ),
                       ),
                     gestures.buildGestureDetector(
@@ -172,12 +255,12 @@ class _KansoTextFieldState extends State<KansoTextField>
                         autofocus: widget.autofocus,
                         readOnly: !widget.enabled,
                         obscureText: widget.obscure,
-                        style: style,
+                        style: fieldStyle,
                         cursorColor: colors.accent,
                         backgroundCursorColor: colors.textMuted,
                         selectionColor: colors.accent.withValues(alpha: 0.3),
                         cursorRadius: const Radius.circular(1),
-                        cursorHeight: caretAsked,
+                        cursorHeight: caret,
                         keyboardType: widget.keyboardType,
                         textInputAction: widget.textInputAction,
                         autofillHints: widget.autofillHints,
