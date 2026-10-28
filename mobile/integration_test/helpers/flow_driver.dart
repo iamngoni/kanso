@@ -194,11 +194,13 @@ Finder inLibrary(String label) => find.descendant(
   matching: find.text(label),
 );
 
-/// The count the library shows for its row [label].
+/// The count the library shows for its row [label], or null when the row
+/// is not built (the library list is lazy and this row may be below its fold).
 int? libraryCount(WidgetTester tester, String label) {
   final row = find.byWidgetPredicate(
     (widget) => widget is KansoSidebarRow && widget.label == label,
   );
+  if (row.evaluate().isEmpty) return null;
   return tester.widget<KansoSidebarRow>(row).count;
 }
 

@@ -2,11 +2,13 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:kanso/core/views/widgets/kanso_note_row.dart';
 import 'package:kanso/note_list/views/widgets/move_sheet.dart';
+import 'package:kanso/shell/views/widgets/library_navigation.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import 'helpers/flow_driver.dart';
 import 'helpers/seed_library.dart';
@@ -22,6 +24,23 @@ void main() {
   /// The vertical position of the first [finder] on screen.
   double top(WidgetTester tester, Finder finder) =>
       tester.getTopLeft(finder.first).dy;
+
+  /// Scrolls the library list until [finder] is built and visible.
+  /// A negative [delta] scrolls back up.
+  Future<void> scrollLibraryTo(
+    WidgetTester tester,
+    Finder finder, {
+    double delta = 200,
+  }) => tester.scrollUntilVisible(
+    finder,
+    delta,
+    scrollable: find
+        .descendant(
+          of: find.byType(LibraryNavigation),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
 
   testWidgets('browse the library, change notes, and keep a locked note shut', (
     tester,
@@ -67,17 +86,13 @@ void main() {
     expect(inList('Garden beds'), findsNothing);
     expect(inList('Weekly review'), findsNothing);
 
-    // A note opens with its title, notebook and styled text, and closes.
+    // A note opens with its title, notebook and preview, and closes. The
+    // preview is a WebView, so its body is not in the Flutter widget tree.
     await tester.tap(inList('Sprint plan'));
-    await pumpUntil(tester, find.textContaining('Ship the beta build'));
+    await pumpUntil(tester, find.byType(WebViewWidget));
     expect(find.text('Work'), findsWidgets);
-    final heading = find.byWidgetPredicate(
-      (widget) =>
-          widget is RichText &&
-          widget.text.toPlainText().startsWith('# Sprint plan') &&
-          _hasStyledRun(widget.text),
-    );
-    expect(heading, findsOneWidget);
+    expect(find.text('Sprint plan'), findsWidgets);
+    expect(find.byType(WebViewWidget), findsOneWidget);
     await leaveNote(tester);
     expect(inList('Standup notes'), findsOneWidget);
 
@@ -128,16 +143,19 @@ void main() {
 
     // Trash one: the Trash count goes up by one.
     await openLibrary(tester);
+    await scrollLibraryTo(tester, inLibrary('Trash'));
     final trashed = libraryCount(tester, 'Trash') ?? 0;
     await closeLibrary(tester);
     await tester.drag(inList('Seed catalogue'), const Offset(-300, 0));
     await pumpUntilGone(tester, inList('Seed catalogue'));
     await openLibrary(tester);
+    await scrollLibraryTo(tester, inLibrary('Trash'));
     await pumpUntilTrue(
       tester,
       () => libraryCount(tester, 'Trash') == trashed + 1,
       reason: 'the Trash count to be ${trashed + 1}',
     );
+    await scrollLibraryTo(tester, inLibrary('All Notes'), delta: -200);
     await tester.tap(inLibrary('All Notes'));
     await pumpUntil(tester, inList('Private journal'));
 
@@ -154,20 +172,4 @@ void main() {
     expect(seeded.privateJournal, isNotEmpty);
     semantics.dispose();
   });
-}
-
-/// Whether [span] has a run with a style of its own, as Rust's highlighting
-/// gives a heading.
-bool _hasStyledRun(InlineSpan span) {
-  var styled = false;
-  span.visitChildren((child) {
-    if (child is TextSpan &&
-        child.text != null &&
-        child.style != null &&
-        (child.style!.color != null || child.style!.fontWeight != null)) {
-      styled = true;
-    }
-    return !styled;
-  });
-  return styled;
 }
