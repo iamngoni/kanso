@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_layout.dart';
@@ -48,6 +49,7 @@ import 'package:kanso/tabs/state/tabs/tabs_bloc.dart';
 import 'package:kanso/themes/views/pages/theme_picker_page.dart';
 
 import '../../helpers/account_blocs.dart';
+import '../../helpers/app_feature_fixtures.dart';
 import '../../helpers/browse_blocs.dart';
 import '../../helpers/crash_samples.dart';
 import '../../helpers/fixture_discovery_repository.dart';
@@ -65,6 +67,8 @@ Future<GoRouter> _pump(
   addTearDown(bloc.close);
   final blocs = await BrowseBlocs.start();
   registerPageBlocs(blocs.library, null, blocs.undoNotice);
+  final appFeatures = AppFeatureFixtures()..register();
+  addTearDown(appFeatures.dispose);
   final history = blocs.history;
   tester.view
     ..physicalSize = size
@@ -84,6 +88,7 @@ Future<GoRouter> _pump(
     MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: bloc),
+        BlocProvider<AiStatusBloc>.value(value: appFeatures.status),
         BlocProvider<TabsBloc>.value(value: blocs.tabs),
         BlocProvider<NavigationHistoryBloc>.value(value: history),
         BlocProvider<LibraryIndexBloc>.value(value: blocs.index),

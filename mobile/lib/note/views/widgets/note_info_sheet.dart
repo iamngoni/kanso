@@ -6,6 +6,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../assist/views/widgets/summarize_note_action.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
@@ -61,6 +62,7 @@ class NoteInfoSheet extends StatelessWidget {
           const SizedBox(height: KansoSpacing.sm),
           NoteDiscoverySection(note: note),
           const SizedBox(height: KansoSpacing.xs),
+          SummarizeNoteAction(noteId: note.id),
           KansoSettingsRow(
             icon: KansoIcons.clock,
             label: l10n.noteInfoHistory,

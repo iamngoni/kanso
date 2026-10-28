@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_layout.dart';
@@ -53,6 +54,7 @@ import 'package:kanso/shell/views/widgets/library_navigation.dart';
 import 'package:kanso/tabs/state/tabs/tabs_bloc.dart';
 
 import '../../../helpers/account_blocs.dart';
+import '../../../helpers/app_feature_fixtures.dart';
 import '../../../helpers/browse_blocs.dart';
 import '../../../helpers/crash_samples.dart';
 import '../../../helpers/fixture_discovery_repository.dart';
@@ -75,6 +77,8 @@ Future<GoRouter> _pump(
   final bloc = SeededAppearanceBloc(const AppearanceState());
   addTearDown(bloc.close);
   final blocs = await BrowseBlocs.start();
+  final appFeatures = AppFeatureFixtures()..register();
+  addTearDown(appFeatures.dispose);
   registerPageBlocs(blocs.library, null, blocs.undoNotice);
   tester.view
     ..physicalSize = size
@@ -125,6 +129,7 @@ Future<GoRouter> _pump(
         BlocProvider<AccountBloc>.value(value: accounts.account),
         BlocProvider<DeviceApprovalBloc>.value(value: accounts.approval),
         BlocProvider<CrashReportsBloc>.value(value: quietCrashReportsBloc()),
+        BlocProvider<AiStatusBloc>.value(value: blocs.aiStatus),
       ],
       child: App(router: kansoRouter),
     ),

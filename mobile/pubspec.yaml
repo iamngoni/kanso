@@ -34,6 +34,8 @@ dependencies:
     path: plugins/kanso_auth_session
   kanso_background:
     path: plugins/kanso_background
+  kanso_dictation:
+    path: plugins/kanso_dictation
   kanso_lock:
     path: plugins/kanso_lock
   kanso_ocr:

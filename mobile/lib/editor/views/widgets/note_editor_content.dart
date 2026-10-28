@@ -19,6 +19,9 @@ import '../../../core/models/data/application_error.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/note_drag_data.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../editor_extras/models/data/editor_extras.dart';
+import '../../../editor_extras/models/data/markdown_editor_text_target.dart';
+import '../../../editor_extras/views/widgets/editor_extras_scope.dart';
 import '../../../note/models/data/note_mode.dart';
 import '../../../note/state/note/note_bloc.dart';
 import '../../../note_list/views/widgets/note_list_notice.dart';
@@ -95,6 +98,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   late final EditorBloc editor;
   late final NoteBloc note;
   late final KansoMarkdownController controller;
+  late final MarkdownEditorTextTarget textTarget;
   late final TextEditingController title;
   late final FocusNode textFocus;
   late final FocusNode titleFocus;
@@ -106,6 +110,9 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
 
   /// The note's comments, where the page has them.
   CommentsBloc? comments;
+
+  /// The features currently adding keys and actions to this editor.
+  EditorExtras? editorExtras;
 
   /// What the page says of the note's sharing, where it has that.
   SharedNoteStatusBloc? status;
@@ -163,6 +170,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
         const EditorEvent.signalReceived(EditorEvent_Closed()),
       ),
     )..onWindowWillMove = anchorAt;
+    textTarget = MarkdownEditorTextTarget(
+      controller: controller,
+      noteId: note.state.noteId,
+    );
     controller.addListener(keepPlace);
     title = TextEditingController(text: widget.snapshot.title);
     textFocus = FocusNode(debugLabel: 'Note text');
@@ -189,6 +200,16 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       if (selecting != null) {
         unawaited(selectComment(selecting));
       }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = EditorExtrasScope.of(context);
+    if (!identical(editorExtras, next)) {
+      editorExtras?.release(textTarget);
+      editorExtras = next;
     }
   }
 
@@ -285,6 +306,8 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   @override
   void dispose() {
     lifecycle.dispose();
+    editorExtras?.release(textTarget);
+    textTarget.dispose();
     controller.removeListener(keepPlace);
     if (!note.isClosed) {
       final selection = controller.noteSelection;
@@ -372,6 +395,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
           listener: (context, state) {
             final snapshot = state.snapshot;
             if (snapshot != null) {
+              textTarget.invalidate();
               controller.reload(snapshot);
               if (title.text != snapshot.title) {
                 title.text = snapshot.title;
@@ -387,6 +411,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
           listener: (context, state) {
             final attached = state.attached;
             if (attached != null) {
+              textTarget.invalidate();
               controller.adopt(attached);
             }
           },
@@ -646,47 +671,68 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                                     );
                                     textFocus.requestFocus();
                                   },
-                                  builder: (context, hovering, rejected) =>
-                                      DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          border: hovering.isEmpty
-                                              ? null
-                                              : Border.all(
-                                                  color: context.colors.accent,
-                                                  width: 2,
-                                                ),
-                                        ),
-                                        child: MarkdownEditor(
-                                          controller: controller,
-                                          focusNode: textFocus,
-                                          editableKey: editableKey,
-                                          readOnly: readOnly,
-                                          // The platform checks what the field
-                                          // holds: a window of a long note,
-                                          // never the whole.
-                                          spellCheckService:
-                                              DefaultSpellCheckService(),
-                                          menuBuilder: (context, state) =>
-                                              LinkContextMenu(
-                                                state: state,
-                                                document: widget.document,
-                                                windowStart:
-                                                    controller.windowStart,
-                                                onOpen: (target) => editor.add(
-                                                  EditorEvent.linkOpenRequested(
-                                                    target,
-                                                  ),
-                                                ),
-                                                onComment:
-                                                    comments
-                                                            ?.state
-                                                            .mayComment ??
-                                                        false
-                                                    ? commentOnSelection
-                                                    : null,
+                                  builder: (context, hovering, rejected) {
+                                    return DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        border: hovering.isEmpty
+                                            ? null
+                                            : Border.all(
+                                                color: context.colors.accent,
+                                                width: 2,
                                               ),
-                                        ),
                                       ),
+                                      child: MarkdownEditor(
+                                        controller: controller,
+                                        focusNode: textFocus,
+                                        editableKey: editableKey,
+                                        readOnly: readOnly,
+                                        // The platform checks what the field
+                                        // holds: a window of a long note,
+                                        // never the whole.
+                                        spellCheckService:
+                                            DefaultSpellCheckService(),
+                                        menuBuilder: (context, state) {
+                                          final selectionActions = readOnly
+                                              ? const <EditorSelectionAction>[]
+                                              : editorExtras?.selectionActions(
+                                                      textTarget,
+                                                    ) ??
+                                                    const <
+                                                      EditorSelectionAction
+                                                    >[];
+                                          return LinkContextMenu(
+                                            state: state,
+                                            document: widget.document,
+                                            windowStart: controller.windowStart,
+                                            extraActions: [
+                                              for (final action
+                                                  in selectionActions)
+                                                (
+                                                  action.label,
+                                                  () {
+                                                    state.hideToolbar();
+                                                    action.onPressed(
+                                                      context,
+                                                      textTarget,
+                                                    );
+                                                  },
+                                                ),
+                                            ],
+                                            onOpen: (target) => editor.add(
+                                              EditorEvent.linkOpenRequested(
+                                                target,
+                                              ),
+                                            ),
+                                            onComment:
+                                                comments?.state.mayComment ??
+                                                    false
+                                                ? commentOnSelection
+                                                : null,
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  },
                                 ),
                                 // Where the others in a shared note are.
                                 if (status != null)
@@ -750,6 +796,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                       onUndo: controller.undo,
                       onRedo: controller.redo,
                       onImage: attach,
+                      extras:
+                          editorExtras?.accessoryKeys(textTarget) ??
+                          const <EditorAccessoryExtra>[],
+                      target: textTarget,
                     ),
                   ),
                 );

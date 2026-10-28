@@ -178,7 +178,9 @@ impl ClientSettings {
         } else {
             builder
         };
-        builder.build().map_err(map_error)
+        builder
+            .build()
+            .map_err(|error| map_error(error, self.api_key.as_deref()))
     }
 }
 
@@ -204,6 +206,7 @@ pub fn client(settings: &ClientSettings) -> Result<Box<dyn ChatProvider>, AiErro
     Ok(Box::new(AgentProviderClient {
         llm: settings.llm()?,
         model: settings.model.clone(),
+        api_key: settings.api_key.clone().unwrap_or_default(),
         tools_key: tools_key(settings),
     }))
 }
@@ -252,10 +255,11 @@ pub fn client_with_timeouts(
         .http_client(http)
         .timeouts(timeouts)
         .build()
-        .map_err(map_error)?;
+        .map_err(|error| map_error(error, settings.api_key.as_deref()))?;
     Ok(Box::new(AgentProviderClient {
         llm,
         model: settings.model.clone(),
+        api_key: settings.api_key.clone().unwrap_or_default(),
         tools_key: tools_key(settings),
     }))
 }
@@ -446,6 +450,8 @@ fn tool_calls_unsupported(error: &anyhow::Error) -> bool {
 struct AgentProviderClient {
     llm: Llm,
     model: String,
+    /// Used only to remove credentials echoed by a provider from its errors.
+    api_key: String,
     /// Which provider + endpoint + model this client's tool support belongs
     /// to, so a server without tools is remembered for this session only.
     tools_key: String,
@@ -458,6 +464,7 @@ impl ChatProvider for AgentProviderClient {
         let user = prompt.user.clone();
         run_on_runtime(
             self.model.clone(),
+            self.api_key.clone(),
             Arc::new(AtomicBool::new(false)),
             Box::new(|| {}),
             move |model, mut sink| async move {
@@ -483,6 +490,7 @@ impl ChatProvider for AgentProviderClient {
         let tools_key = self.tools_key.clone();
         run_on_runtime(
             self.model.clone(),
+            self.api_key.clone(),
             cancel,
             on_tool_completed,
             move |model, mut sink| async move {
@@ -530,6 +538,7 @@ impl ChatProvider for AgentProviderClient {
 /// iterator.
 fn run_on_runtime<F, Fut>(
     model: String,
+    api_key: String,
     cancel: Arc<AtomicBool>,
     on_tool_completed: impl FnMut() + Send + 'static,
     call: F,
@@ -554,7 +563,7 @@ where
             finished.store(true, Ordering::Relaxed);
             let event = match result {
                 Ok(()) => Event::Done,
-                Err(err) => Event::Error(error_text(&err)),
+                Err(err) => Event::Error(error_text(&err, &api_key)),
             };
             tx.send(event).ok();
         }
@@ -619,33 +628,99 @@ fn runtime() -> Result<&'static tokio::runtime::Runtime, AiError> {
 }
 
 /// A provider error's plain words, without credentials or request bodies.
-fn error_text(error: &anyhow::Error) -> String {
+fn error_text(error: &anyhow::Error, api_key: &str) -> String {
     if let Some(provider) = error
         .chain()
         .find_map(|error| error.downcast_ref::<ProviderError>())
     {
-        return provider.to_string();
+        return redact_provider_error(&provider.to_string(), Some(api_key));
     }
-    error.to_string()
+    redact_provider_error(&error.to_string(), Some(api_key))
 }
 
-fn map_error(error: anyhow::Error) -> AiError {
+/// Removes a configured API key and any `Authorization` header value from
+/// provider error text before it crosses into an application error or event.
+pub fn redact_provider_error(message: &str, configured_key: Option<&str>) -> String {
+    let message = match configured_key.filter(|key| !key.is_empty()) {
+        Some(key) => message.replace(key, "[REDACTED]"),
+        None => message.to_owned(),
+    };
+    redact_authorization_values(&message)
+}
+
+/// Redacts plain or quoted Authorization header values while retaining the
+/// header name and surrounding message.
+fn redact_authorization_values(message: &str) -> String {
+    const HEADER: &str = "authorization";
+    let bytes = message.as_bytes();
+    let mut result = String::with_capacity(message.len());
+    let mut copied_until = 0;
+    let mut cursor = 0;
+
+    while cursor + HEADER.len() <= bytes.len() {
+        if !message
+            .get(cursor..cursor + HEADER.len())
+            .is_some_and(|candidate| candidate.eq_ignore_ascii_case(HEADER))
+        {
+            cursor += 1;
+            continue;
+        }
+
+        let mut value_start = cursor + HEADER.len();
+        if bytes.get(value_start) == Some(&b'"') {
+            value_start += 1;
+        }
+        while bytes.get(value_start).is_some_and(u8::is_ascii_whitespace) {
+            value_start += 1;
+        }
+        if bytes.get(value_start) != Some(&b':') {
+            cursor += HEADER.len();
+            continue;
+        }
+        value_start += 1;
+        while bytes.get(value_start).is_some_and(u8::is_ascii_whitespace) {
+            value_start += 1;
+        }
+        let quoted = bytes.get(value_start) == Some(&b'"');
+        if quoted {
+            value_start += 1;
+        }
+        let mut value_end = value_start;
+        while let Some(byte) = bytes.get(value_end) {
+            if (quoted && *byte == b'"') || (!quoted && matches!(*byte, b'\r' | b'\n')) {
+                break;
+            }
+            value_end += 1;
+        }
+
+        result.push_str(&message[copied_until..value_start]);
+        result.push_str("[REDACTED]");
+        copied_until = value_end;
+        cursor = value_end;
+    }
+    result.push_str(&message[copied_until..]);
+    result
+}
+
+fn map_error(error: anyhow::Error, api_key: Option<&str>) -> AiError {
     let Some(provider) = error
         .chain()
         .find_map(|error| error.downcast_ref::<ProviderError>())
     else {
-        return AiError::Transport(error_text(&error));
+        return AiError::Transport(redact_provider_error(&error_text(&error, ""), api_key));
     };
     match provider {
         ProviderError::Status { status, body, .. } => AiError::Status {
             status: *status,
-            message: crate::prompt::truncate(body.trim(), 300),
+            message: crate::prompt::truncate(&redact_provider_error(body.trim(), api_key), 300),
         },
         ProviderError::Timeout { stage, after, .. } => {
             AiError::Timeout(format!("{} after {}s", stage.as_str(), after.as_secs_f64()))
         }
-        ProviderError::Transport { source, .. } => AiError::Transport(source.to_string()),
-        other => AiError::Provider(other.to_string()),
+        ProviderError::Transport { source, .. } => {
+            AiError::Transport(redact_provider_error(&source.to_string(), api_key))
+        }
+        other => AiError::Provider(redact_provider_error(&other.to_string(), api_key)),
     }
 }
 
@@ -662,13 +737,49 @@ mod tests {
     use async_trait::async_trait;
     use futures_util::stream;
 
-    use super::{AiError, CUT_OFF, ClientSettings, Event, client_with_timeouts};
+    use super::{
+        AiError, CUT_OFF, ClientSettings, Event, ProviderError, client_with_timeouts, map_error,
+        redact_provider_error,
+    };
     use crate::Provider;
     use crate::prompt::Prompt;
 
     const OPENAI: &str = include_str!("../tests/fixtures/openai.sse");
     const ANTHROPIC: &str = include_str!("../tests/fixtures/anthropic.sse");
     const ANTHROPIC_ERROR: &str = include_str!("../tests/fixtures/anthropic_error.sse");
+
+    #[test]
+    fn provider_errors_redact_the_configured_key_and_authorization_header() {
+        assert_eq!(
+            redact_provider_error("rejected key test-secret", Some("test-secret")),
+            "rejected key [REDACTED]"
+        );
+        assert_eq!(
+            redact_provider_error("Authorization: Bearer header-secret", None),
+            "Authorization: [REDACTED]"
+        );
+        let error = anyhow::Error::new(ProviderError::from_status(
+            "test",
+            400,
+            "Provider rejected key test-secret",
+        ));
+        assert!(matches!(
+            map_error(error, Some("test-secret")),
+            AiError::Status { message, .. }
+                if message == "Provider rejected key [REDACTED]"
+        ));
+    }
+
+    #[test]
+    fn provider_error_redaction_leaves_unrelated_messages_untouched() {
+        let message = "The model is temporarily unavailable.";
+        assert_eq!(redact_provider_error(message, Some("test-secret")), message);
+        let error = anyhow::Error::new(ProviderError::from_status("test", 400, message));
+        assert!(matches!(
+            map_error(error, Some("test-secret")),
+            AiError::Status { message: mapped, .. } if mapped == message
+        ));
+    }
 
     /// Replays a recorded body in chunks, recording the request.
     #[derive(Clone, Default)]

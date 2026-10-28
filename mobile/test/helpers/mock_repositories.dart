@@ -6,6 +6,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:kanso/core/models/repos/abs/about_repository.dart';
 import 'package:kanso/core/models/repos/abs/account_repository.dart';
 import 'package:kanso/core/models/repos/abs/account_settings_repository.dart';
+import 'package:kanso/core/models/repos/abs/ai_repository.dart';
 import 'package:kanso/core/models/repos/abs/approvals_repository.dart';
 import 'package:kanso/core/models/repos/abs/auth_session_repository.dart';
 import 'package:kanso/core/models/repos/abs/capture_repository.dart';
@@ -29,6 +30,7 @@ import 'package:mocktail/mocktail.dart';
 class MockLibraryRepository extends Mock implements LibraryRepository {}
 
 class MockDiscoveryRepository extends Mock implements DiscoveryRepository {}
+
 class MockRemindersRepository extends Mock implements RemindersRepository {}
 
 class MockSyncRepository extends Mock implements SyncRepository {}
@@ -60,6 +62,8 @@ class MockAccountRepository extends Mock implements AccountRepository {}
 
 class MockAccountSettingsRepository extends Mock
     implements AccountSettingsRepository {}
+
+class MockAiRepository extends Mock implements AiRepository {}
 
 class MockApprovalsRepository extends Mock implements ApprovalsRepository {}
 

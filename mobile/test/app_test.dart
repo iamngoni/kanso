@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
 import 'package:kanso/core/configs/kanso_typography.dart';
 import 'package:kanso/core/models/data/design_gallery_access.dart';
@@ -20,10 +21,12 @@ import 'package:kanso/core/state/device_approval/device_approval_bloc.dart';
 import 'package:kanso/core/state/sync_status/sync_status_bloc.dart';
 import 'package:kanso/crash/state/crash_reports/crash_reports_bloc.dart';
 import 'package:kanso/design/views/pages/design_gallery_page.dart';
+import 'package:kanso/injection.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:kanso/settings/state/sync_settings/sync_settings_bloc.dart';
 
 import 'helpers/account_blocs.dart';
+import 'helpers/app_feature_fixtures.dart';
 import 'helpers/close_bloc_later.dart';
 import 'helpers/crash_samples.dart';
 import 'helpers/fixture_sync_repository.dart';
@@ -38,6 +41,9 @@ Future<AppearanceBloc> pumpApp(WidgetTester tester) async {
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final accounts = AccountBlocs();
+  final appFeatures = AppFeatureFixtures()..register();
+  addTearDown(appFeatures.dispose);
+  addTearDown(() async => getIt.reset());
   final sync = SyncStatusBloc(FixtureSyncRepository());
   closeBlocLater(sync);
   final router = KansoRouter(
@@ -48,6 +54,7 @@ Future<AppearanceBloc> pumpApp(WidgetTester tester) async {
     MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: bloc),
+        BlocProvider<AiStatusBloc>.value(value: appFeatures.status),
         BlocProvider<BackupNoticeBloc>.value(value: hiddenBackupNoticeBloc()),
         BlocProvider<SyncStatusBloc>.value(value: sync),
         BlocProvider<SyncSettingsBloc>.value(value: startedSyncSettingsBloc()),

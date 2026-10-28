@@ -65,6 +65,10 @@
 	     when the owner has one from App Store Connect. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kanso turns what you say into text on this device.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Kanso turns what you say into text on this device. Nothing you say leaves it.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>

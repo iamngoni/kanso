@@ -13,6 +13,7 @@
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:image_picker/image_picker.dart' as _i183;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:kanso_dictation/kanso_dictation.dart' as _i33;
 import 'package:kanso_push/kanso_push.dart' as _i901;
 
 import 'account/state/account_details/account_details_bloc.dart' as _i645;
@@ -20,6 +21,10 @@ import 'account/state/recover/recover_bloc.dart' as _i1059;
 import 'account/state/recovery_key/recovery_key_bloc.dart' as _i35;
 import 'account/state/sign_in/sign_in_bloc.dart' as _i552;
 import 'account/state/unlock/unlock_bloc.dart' as _i858;
+import 'ai_settings/state/ai_settings/ai_settings_bloc.dart' as _i182;
+import 'ai_settings/state/ai_status/ai_status_bloc.dart' as _i1030;
+import 'ask/state/ask/ask_bloc.dart' as _i216;
+import 'assist/state/assist/assist_bloc.dart' as _i567;
 import 'backups/models/repos/abs/backups_repository.dart' as _i1002;
 import 'backups/models/repos/impl/rust_backups_repository.dart' as _i270;
 import 'backups/state/backups/backups_bloc.dart' as _i770;
@@ -30,6 +35,7 @@ import 'capture/models/repos/impl/platform_media_picker_repository.dart'
 import 'capture/state/daily_note/daily_note_bloc.dart' as _i1060;
 import 'core/bridge/api/account.dart' as _i578;
 import 'core/bridge/api/account_settings.dart' as _i102;
+import 'core/bridge/api/ai.dart' as _i35;
 import 'core/bridge/api/approvals.dart' as _i283;
 import 'core/bridge/api/gallery.dart' as _i783;
 import 'core/bridge/api/library.dart' as _i455;
@@ -44,6 +50,7 @@ import 'core/models/data/library_folder.dart' as _i72;
 import 'core/models/repos/abs/about_repository.dart' as _i80;
 import 'core/models/repos/abs/account_repository.dart' as _i1035;
 import 'core/models/repos/abs/account_settings_repository.dart' as _i314;
+import 'core/models/repos/abs/ai_repository.dart' as _i84;
 import 'core/models/repos/abs/approvals_repository.dart' as _i465;
 import 'core/models/repos/abs/auth_session_repository.dart' as _i227;
 import 'core/models/repos/abs/board_repository.dart' as _i235;
@@ -75,6 +82,7 @@ import 'core/models/repos/impl/package_info_about_repository.dart' as _i489;
 import 'core/models/repos/impl/plugin_auth_session_repository.dart' as _i680;
 import 'core/models/repos/impl/rust_account_repository.dart' as _i450;
 import 'core/models/repos/impl/rust_account_settings_repository.dart' as _i350;
+import 'core/models/repos/impl/rust_ai_repository.dart' as _i500;
 import 'core/models/repos/impl/rust_approvals_repository.dart' as _i99;
 import 'core/models/repos/impl/rust_board_repository.dart' as _i418;
 import 'core/models/repos/impl/rust_capture_repository.dart' as _i824;
@@ -111,6 +119,14 @@ import 'crash/models/repos/abs/crash_report_repository.dart' as _i288;
 import 'crash/models/repos/impl/platform_crash_context_repository.dart'
     as _i756;
 import 'crash/state/crash_reports/crash_reports_bloc.dart' as _i815;
+import 'dictation/models/repos/abs/dictation_repository.dart' as _i872;
+import 'dictation/models/repos/abs/dictation_text_rules.dart' as _i426;
+import 'dictation/models/repos/impl/dictation_module.dart' as _i429;
+import 'dictation/models/repos/impl/platform_dictation_repository.dart'
+    as _i1029;
+import 'dictation/models/repos/impl/rust_dictation_text_rules.dart' as _i38;
+import 'dictation/state/dictation/dictation_bloc.dart' as _i657;
+import 'dictation/state/voice_note/voice_note_bloc.dart' as _i284;
 import 'discovery/models/repos/abs/discovery_repository.dart' as _i673;
 import 'discovery/models/repos/impl/rust_discovery_repository.dart' as _i913;
 import 'editor/models/repos/abs/editor_repository.dart' as _i979;
@@ -190,6 +206,11 @@ import 'templates/state/daily_template/daily_template_bloc.dart' as _i615;
 import 'templates/state/template_picker/template_picker_bloc.dart' as _i828;
 import 'themes/state/theme_gallery/theme_gallery_bloc.dart' as _i569;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
+import 'voice_settings/models/repos/abs/voice_settings_repository.dart'
+    as _i1027;
+import 'voice_settings/models/repos/impl/rust_voice_settings_repository.dart'
+    as _i759;
+import 'voice_settings/state/voice_settings/voice_settings_bloc.dart' as _i64;
 import 'window/models/repos/abs/note_window_repository.dart' as _i612;
 import 'window/models/repos/impl/platform_note_window_repository.dart' as _i271;
 import 'window/state/note_window/note_window_bloc.dart' as _i973;
@@ -206,6 +227,7 @@ extension GetItInjectableX on _i174.GetIt {
   }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final coreModule = _$CoreModule();
+    final dictationModule = _$DictationModule();
     final pushModule = _$PushModule();
     final crashModule = _$CrashModule();
     final appModule = _$AppModule();
@@ -219,6 +241,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i846.LibraryFolderMigration(),
     );
     gh.lazySingleton<_i608.WidgetReloader>(() => _i608.WidgetReloader());
+    gh.lazySingleton<_i33.KansoDictation>(() => dictationModule.kansoDictation);
     gh.lazySingleton<_i901.KansoPushHostApi>(() => pushModule.hostApi());
     gh.lazySingleton<_i984.DiagnosticsRepository>(
       () => _i1062.RustDiagnosticsRepository(),
@@ -273,6 +296,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.singleton<_i289.DesignGalleryAccess>(
       () => appModule.developmentGallery,
       registerFor: {_development},
+    );
+    gh.lazySingleton<_i872.DictationRepository>(
+      () => _i1029.PlatformDictationRepository(gh<_i33.KansoDictation>()),
     );
     gh.factory<_i570.LicencesBloc>(
       () => _i570.LicencesBloc(gh<_i951.LicencesRepository>()),
@@ -361,6 +387,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i983.KansoLocks>(
       () => coreModule.locks(gh<_i455.KansoLibrary>()),
     );
+    gh.lazySingleton<_i35.KansoAi>(
+      () => coreModule.ai(gh<_i455.KansoLibrary>()),
+    );
     gh.lazySingleton<_i591.KansoSync>(
       () => coreModule.sync(gh<_i455.KansoLibrary>()),
     );
@@ -393,6 +422,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i38.LibraryRepository>(),
         gh<_i673.DiscoveryRepository>(),
       ),
+    );
+    gh.factory<_i284.VoiceNoteBloc>(
+      () => _i284.VoiceNoteBloc(gh<_i38.LibraryRepository>()),
     );
     gh.lazySingleton<_i937.PushRepository>(
       () => _i506.PluginPushRepository(
@@ -456,6 +488,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i584.PushSettingBloc>(
       () => _i584.PushSettingBloc(gh<_i937.PushRepository>()),
     );
+    gh.lazySingleton<_i84.AiRepository>(
+      () => _i500.RustAiRepository(
+        gh<_i35.KansoAi>(),
+        gh<_i609.LayoutClassNotifier>(),
+      ),
+    );
     gh.factory<_i618.NoteBloc>(
       () => _i618.NoteBloc(
         gh<_i38.LibraryRepository>(),
@@ -468,6 +506,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i235.BoardRepository>(),
         gh<_i38.LibraryRepository>(),
       ),
+    );
+    gh.factory<_i182.AiSettingsBloc>(
+      () => _i182.AiSettingsBloc(gh<_i84.AiRepository>()),
+    );
+    gh.factory<_i1030.AiStatusBloc>(
+      () => _i1030.AiStatusBloc(gh<_i84.AiRepository>()),
+    );
+    gh.factory<_i216.AskBloc>(() => _i216.AskBloc(gh<_i84.AiRepository>()));
+    gh.factory<_i567.AssistBloc>(
+      () => _i567.AssistBloc(gh<_i84.AiRepository>()),
     );
     gh.lazySingleton<_i979.EditorRepository>(
       () => _i606.RustEditorRepository(gh<_i455.KansoLibrary>()),
@@ -562,6 +610,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.HapticsRepository>(),
         gh<_i985.UndoNoticeBloc>(),
       ),
+    );
+    gh.lazySingleton<_i1027.VoiceSettingsRepository>(
+      () => _i759.RustVoiceSettingsRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i390.CalendarBloc>(
       () => _i390.CalendarBloc(gh<_i169.JournalRepository>()),
@@ -664,6 +715,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i333.SessionRepository>(),
       ),
     );
+    gh.factory<_i64.VoiceSettingsBloc>(
+      () => _i64.VoiceSettingsBloc(
+        gh<_i1027.VoiceSettingsRepository>(),
+        gh<_i872.DictationRepository>(),
+      ),
+    );
     gh.factory<_i149.ThemePickerBloc>(
       () => _i149.ThemePickerBloc(
         gh<_i732.RendererRepository>(),
@@ -684,6 +741,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i374.SharedNotesRepository>(),
         gh<_i202.SystemShareRepository>(),
       ),
+    );
+    gh.lazySingleton<_i426.DictationTextRules>(
+      () => _i38.RustDictationTextRules(gh<_i1027.VoiceSettingsRepository>()),
     );
     gh.factory<_i295.CommentsBloc>(
       () => _i295.CommentsBloc(gh<_i374.SharedNotesRepository>()),
@@ -733,11 +793,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i303.RemindersCoordinator>(),
       ),
     );
+    gh.factory<_i657.DictationBloc>(
+      () => _i657.DictationBloc(
+        gh<_i872.DictationRepository>(),
+        gh<_i426.DictationTextRules>(),
+      ),
+    );
     return this;
   }
 }
 
 class _$CoreModule extends _i418.CoreModule {}
+
+class _$DictationModule extends _i429.DictationModule {}
 
 class _$PushModule extends _i78.PushModule {}
 

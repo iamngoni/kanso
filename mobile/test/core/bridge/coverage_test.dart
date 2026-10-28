@@ -44,6 +44,11 @@ void main() {
       if (match == null || line.trimLeft().startsWith('//')) {
         continue;
       }
+      // FRB value types have public constructors, but they are not calls
+      // through the bridge and therefore do not belong in suite coverage.
+      if (match.group(3) == currentClass) {
+        continue;
+      }
       final indented = match.group(1)!.isNotEmpty;
       if (indented && currentClass.isEmpty) {
         continue;

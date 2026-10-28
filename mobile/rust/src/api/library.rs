@@ -19,6 +19,7 @@ use kanso_mobile::{
 
 use super::account::KansoAccount;
 use super::account_settings::KansoAccountSettings;
+use super::ai::KansoAi;
 use super::approvals::KansoApprovals;
 use super::discovery::KansoDiscovery;
 use super::editor::KansoEditor;
@@ -38,6 +39,32 @@ impl KansoLibrary {
     /// Opens (creating if needed) the library whose database file is `path`.
     pub fn open(path: String) -> Result<KansoLibrary, KansoError> {
         Library::open(std::path::Path::new(&path)).map(KansoLibrary)
+    }
+
+    /// The AI features scoped to this library; provider keys stay in Rust's
+    /// secret store and are never returned through this bridge.
+    #[frb(sync)]
+    pub fn ai(&self) -> KansoAi {
+        KansoAi::new(self.0.ai())
+    }
+
+    /// Voice dictation settings saved beside the library database.
+    pub fn voice_settings(&self) -> Result<super::voice::VoiceSettings, KansoError> {
+        self.0
+            .voice_settings()
+            .map(|settings| super::voice::VoiceSettings {
+                spoken_commands: settings.spoken_commands,
+            })
+    }
+
+    /// Saves voice dictation settings beside the library database.
+    pub fn set_voice_settings(
+        &self,
+        settings: super::voice::VoiceSettings,
+    ) -> Result<(), KansoError> {
+        self.0.set_voice_settings(kanso_mobile::VoiceSettings {
+            spoken_commands: settings.spoken_commands,
+        })
     }
 
     pub fn list(&self, query: ListQuery) -> Result<NoteList, KansoError> {

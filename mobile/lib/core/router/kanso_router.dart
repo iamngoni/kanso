@@ -11,12 +11,15 @@ import '../../account/views/pages/recover_page.dart';
 import '../../account/views/pages/recovery_key_page.dart';
 import '../../account/views/pages/sign_in_page.dart';
 import '../../account/views/pages/unlock_page.dart';
+import '../../ai_settings/views/pages/ai_settings_page.dart';
+import '../../ask/views/pages/ask_page.dart';
 import '../../backups/views/pages/backups_page.dart';
 import '../../board/views/pages/board_page.dart';
 import '../../capture/views/pages/daily_note_page.dart';
 import '../../capture/views/pages/new_note_page.dart';
 import '../../crash/views/pages/crash_reports_page.dart';
 import '../../design/views/pages/design_gallery_page.dart';
+import '../../dictation/views/pages/voice_note_page.dart';
 import '../../graph/views/pages/graph_page.dart';
 import '../../history/views/pages/history_page.dart';
 import '../../import/views/pages/import_page.dart';
@@ -35,6 +38,7 @@ import '../../sharing/views/pages/shared_with_you_page.dart';
 import '../../shell/views/widgets/browse_shell.dart';
 import '../../tasks/views/pages/tasks_page.dart';
 import '../../themes/views/pages/theme_picker_page.dart';
+import '../../voice_settings/views/pages/voice_settings_page.dart';
 import '../bridge/api/types.dart';
 import '../models/data/browse_location.dart';
 import '../models/data/design_gallery_access.dart';
@@ -134,6 +138,25 @@ class KansoRouter {
             key: state.pageKey,
             child: const ReplacePage(),
           ),
+        ),
+        GoRoute(
+          path: KansoRoutes.voiceNote,
+          pageBuilder: (context, state) => CupertinoPage<void>(
+            key: state.pageKey,
+            child: const VoiceNotePage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.ask,
+          pageBuilder: (context, state) => layoutClass.tabletDevice
+              ? KansoSheetPage<void>(
+                  key: state.pageKey,
+                  child: const AskPage(inSheet: true),
+                )
+              : CupertinoPage<void>(
+                  key: state.pageKey,
+                  child: const AskPage(),
+                ),
         ),
         ShellRoute(
           navigatorKey: _browseKey,
@@ -244,6 +267,20 @@ class KansoRouter {
                               .fontsAtParameter] ==
                           KansoRoutes.fontsAtSize,
                     ),
+                  ),
+                ),
+                GoRoute(
+                  path: 'ai',
+                  pageBuilder: (context, state) => CupertinoPage<void>(
+                    key: state.pageKey,
+                    child: const AiSettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'voice',
+                  pageBuilder: (context, state) => CupertinoPage<void>(
+                    key: state.pageKey,
+                    child: const VoiceSettingsPage(),
                   ),
                 ),
                 GoRoute(
