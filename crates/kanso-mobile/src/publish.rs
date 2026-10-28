@@ -272,6 +272,15 @@ fn publish_note_with(
     if let Some(reason) = publish::refusal(note.is_locked(), in_locked) {
         return Err(PublishError::Refused(reason.into()));
     }
+    for file in site::attachments_in(&note.body) {
+        if store.attachment_state(&file).map_err(store_error)?
+            == kanso_store::AttachmentState::Sealed
+        {
+            return Err(PublishError::Refused(
+                "This note links a sealed attachment and can't be published.".into(),
+            ));
+        }
+    }
     let source = Source {
         id: note.id.clone(),
         title: note.title,
@@ -309,6 +318,15 @@ fn publish_notebook_with(
         at,
     } = request;
     let plan = site::plan(store, id).map_err(|err| PublishError::Failed(err.to_string()))?;
+    for file in &plan.files {
+        if store.attachment_state(&file.id).map_err(store_error)?
+            == kanso_store::AttachmentState::Sealed
+        {
+            return Err(PublishError::Refused(
+                "This notebook links a sealed attachment and can't be published.".into(),
+            ));
+        }
+    }
     let book = store
         .books()
         .map_err(store_error)?
@@ -596,6 +614,66 @@ mod tests {
         assert_eq!(
             error,
             PublishError::Refused(publish::refusal(true, false).unwrap().to_owned())
+        );
+        assert!(shares.puts.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_note_with_a_sealed_attachment_is_refused_before_upload() {
+        use kanso_core::model::FileLock;
+        use kanso_store::Attachment;
+        use kanso_sync::lock::{FileKey, SEGMENT_CONTENT, SealId, SealedSegment, seal_container};
+
+        let (_dir, store) = store();
+        put(
+            &store,
+            DocType::File,
+            json!({"_id":"file:image", "name":"image.png", "contentType":"image/png",
+                "_attachments":{"index":{"content_type":"image/png", "data":"aGVsbG8="}}}),
+        );
+        note(
+            &store,
+            "note:image",
+            "Image",
+            "![image](inkdrop://file:image)",
+            "book:test",
+        );
+        let seal = SealId::random();
+        let file_key = FileKey::random();
+        let container = seal_container(
+            "file:image",
+            &seal,
+            &file_key,
+            &[SealedSegment {
+                kind: SEGMENT_CONTENT,
+                bytes: b"hello".to_vec(),
+            }],
+        );
+        let mut meta = store.file_meta("file:image").unwrap().unwrap();
+        FileLock::store(Some(&FileLock::sealed(seal.encode())), &mut meta.extra);
+        store
+            .put_sealed_file(meta, Attachment::new(container))
+            .unwrap();
+
+        let shares = FakeShares::default();
+        let error = publish_note_with(
+            &shares,
+            &store,
+            session(),
+            PublishRequest {
+                id: "note:image",
+                expiry: Expiry::Never,
+                palette: &Palette::LIGHT,
+                style: &PageStyle::default(),
+                at: 10_000,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            error,
+            PublishError::Refused(
+                "This note links a sealed attachment and can't be published.".into()
+            )
         );
         assert!(shares.puts.lock().unwrap().is_empty());
     }

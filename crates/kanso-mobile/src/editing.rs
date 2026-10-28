@@ -1656,7 +1656,10 @@ impl Shared {
         };
         // The library has the merge now, under a new revision.
         if let Ok(Some(mut latest)) = self.inner.store.note(&self.id) {
-            held(&self.inner.keys).reveal(&mut latest, Some(&self.inner.store));
+            crate::library::Library {
+                inner: self.inner.clone(),
+            }
+            .reveal(&mut latest);
             st.note = latest;
         }
         if !title_edits.is_empty() || !body_edits.is_empty() {
@@ -1785,7 +1788,10 @@ impl Shared {
                 .locked_books()
                 .is_ok_and(|books| books.contains(&note.book_id))
         {
-            let sealed = held(&self.inner.keys).seal_for_notebook(&mut note, store);
+            let locks = crate::locks::LockSession {
+                inner: self.inner.clone(),
+            };
+            let sealed = locks.seal_for_notebook(&mut note);
             if let Err(words) = sealed {
                 return Done::Failed(format!("Couldn't save: {words}"));
             }
@@ -1827,7 +1833,10 @@ impl Shared {
                     let Ok(Some(mut latest)) = store.note(&note.id) else {
                         return Done::Gone;
                     };
-                    held(&self.inner.keys).reveal(&mut latest, Some(store));
+                    crate::library::Library {
+                        inner: self.inner.clone(),
+                    }
+                    .reveal(&mut latest);
                     // Another writer saved this very text first: its
                     // version is this one.
                     if writes_the_same(&note, &latest) {
@@ -2120,7 +2129,10 @@ impl Shared {
         let incoming = match latest {
             None => Incoming::Deleted,
             Some(mut latest) => {
-                let view = held(&self.inner.keys).reveal(&mut latest, Some(&self.inner.store));
+                let view = crate::library::Library {
+                    inner: self.inner.clone(),
+                }
+                .reveal(&mut latest);
                 if view.is_closed() {
                     // Locked elsewhere, and this phone doesn't hold the key.
                     self.end_locked(st, events);

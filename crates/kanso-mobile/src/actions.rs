@@ -81,9 +81,7 @@ impl Library {
                     "updatedAt": now,
                 }))
                 .map_err(|err| KansoError::invalid(err.to_string()))?;
-                let stored = held(&self.inner.keys)
-                    .seal_for_notebook(&mut copy, store)
-                    .map_err(|_| KansoError::Locked)?;
+                let stored = self.locks().seal_for_notebook(&mut copy)?;
                 let value = serde_json::to_value(&stored)
                     .map_err(|err| KansoError::storage(err.to_string()))?;
                 let written = store.put(DocType::Note, value, Put::Upsert, Origin::Ui)?;

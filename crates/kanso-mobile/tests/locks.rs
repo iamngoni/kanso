@@ -6,16 +6,310 @@ mod common;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+use base64::Engine as _;
 use common::*;
+use kanso_core::DocType;
+use kanso_core::model::{FILE_LOCK_FIELD, KANSO_FILES_FIELD, note_files_from_extra};
+use kanso_core::tasks::linked_file_ids;
 use kanso_engine::lock::AUTO_LOCK;
 use kanso_mobile::{KansoError, ListPlace, ListQuery, LockEvent, LockReason, LockState, NewNote};
+use kanso_store::{Origin, Put};
 use kanso_store::{SearchParams, Store};
 use kanso_sync::KdfParams;
-use kanso_sync::lock::{LockKey, LockPassword};
+use kanso_sync::lock::{Envelope, LockKey, LockPassword, SealId};
 use proptest::prelude::*;
 use serde_json::json;
 
 const SECRET: &str = "the secret plan";
+
+/// One real attachment linked by two independently locked notes exercises
+/// wrapping, cache restoration, password rotation and shared-owner removal.
+#[test]
+fn shared_locked_attachment_rekeys_without_rewriting_and_keeps_other_owner() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let plain = b"deterministic attachment bytes";
+    let encoded = base64::engine::general_purpose::STANDARD.encode(plain);
+    let file = store
+        .put(
+            DocType::File,
+            serde_json::json!({"name":"shot.png","contentType":"image/png",
+            "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let body = format!("![shot](inkdrop://{file})");
+    let first = note(&phone.library, "First", &body);
+    let second = note(&phone.library, "Second", &body);
+    let locks = phone.library.locks();
+
+    locks.lock_note(&first, LOCK_PASSWORD.into()).unwrap();
+    locks.lock_note_with_session(&second).unwrap();
+    let stored_note = store.note(&first).unwrap().unwrap();
+    assert!(stored_note.extra.contains_key(KANSO_FILES_FIELD));
+    assert!(
+        store
+            .file_meta(&file)
+            .unwrap()
+            .unwrap()
+            .extra
+            .contains_key(FILE_LOCK_FIELD)
+    );
+    let container = store.stored_attachment(&file).unwrap().unwrap().data;
+    assert_ne!(container, plain);
+
+    locks.lock().unwrap();
+    assert!(matches!(
+        phone.library.attachment(&file),
+        Err(KansoError::Locked)
+    ));
+    assert_eq!(
+        store.stored_attachment(&file).unwrap().unwrap().data,
+        container
+    );
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+
+    let wrapped_note = store.note(&first).unwrap().unwrap();
+    let envelope = Envelope::from_extra(&wrapped_note.extra).unwrap().unwrap();
+    let ownership = note_files_from_extra(&wrapped_note.extra)
+        .unwrap()
+        .remove(0);
+    let seal = SealId::decode(&ownership.seal).unwrap();
+    let wrong_password = LockPassword::new("not the right password").unwrap();
+    let wrong_key = LockKey::for_envelope(&wrong_password, &envelope).unwrap();
+    let wrapped = base64::engine::general_purpose::STANDARD
+        .decode(ownership.key)
+        .unwrap();
+    assert!(
+        kanso_sync::lock::unwrap_file_key(&wrong_key, &envelope, &first, &file, &seal, &wrapped,)
+            .is_err()
+    );
+
+    let before_digest = store.file_meta(&file).unwrap().unwrap().md5digest;
+    assert_eq!(
+        locks
+            .change_password(LOCK_PASSWORD.into(), "new lock password".into())
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        store.file_meta(&file).unwrap().unwrap().md5digest,
+        before_digest
+    );
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+    locks.lock().unwrap();
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(false));
+    assert_eq!(locks.unlock("new lock password".into()), Ok(true));
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+
+    // The first note can become plain while the second still owns the seal.
+    locks.remove_note_lock(&first).unwrap();
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    assert_eq!(store.file_owners(&file).unwrap(), vec![second.clone()]);
+    let first_note = store.note(&first).unwrap().unwrap();
+    let links = linked_file_ids(&first_note.body);
+    assert_eq!(links, vec![file.clone()], "the original file stays linked");
+    assert!(!first_note.extra.contains_key(KANSO_FILES_FIELD));
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+    locks.lock().unwrap();
+    assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
+    assert_eq!(locks.unlock("new lock password".into()), Ok(true));
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+    let second_note = store.note(&second).unwrap().unwrap();
+    assert!(
+        note_files_from_extra(&second_note.extra)
+            .unwrap()
+            .iter()
+            .any(|owner| owner.file == file)
+    );
+}
+
+#[test]
+fn removing_the_last_note_lock_restores_plain_attachment_without_session_keys() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let plain = b"restored attachment bytes";
+    let encoded = base64::engine::general_purpose::STANDARD.encode(plain);
+    let file = store
+        .put(
+            DocType::File,
+            serde_json::json!({"name":"restored.png","contentType":"image/png",
+            "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let note_id = note(
+        &phone.library,
+        "Attachment",
+        &format!("![](inkdrop://{file})"),
+    );
+    let locks = phone.library.locks();
+    locks.lock_note(&note_id, LOCK_PASSWORD.into()).unwrap();
+    locks.lock().unwrap();
+    assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    locks.remove_note_lock(&note_id).unwrap();
+    locks.lock().unwrap();
+
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+}
+
+#[test]
+fn locking_a_notebook_seals_and_reveals_its_attachment() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let plain = b"notebook attachment";
+    let encoded = base64::engine::general_purpose::STANDARD.encode(plain);
+    let file = store
+        .put(
+            DocType::File,
+            serde_json::json!({"name":"book.png","contentType":"image/png",
+            "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let book = phone
+        .library
+        .create_notebook("Vault".into(), None)
+        .unwrap()
+        .id;
+    let note_id = phone
+        .library
+        .create(NewNote {
+            notebook_id: Some(book.clone()),
+            title: "Image".into(),
+            body: format!("![](inkdrop://{file})"),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+    let locks = phone.library.locks();
+    assert_eq!(
+        locks
+            .lock_notebook(&book, Some(LOCK_PASSWORD.into()))
+            .unwrap(),
+        1
+    );
+    let stored = store.note(&note_id).unwrap().unwrap();
+    assert!(stored.is_locked());
+    assert!(stored.extra.contains_key(KANSO_FILES_FIELD));
+    assert!(
+        store
+            .file_meta(&file)
+            .unwrap()
+            .unwrap()
+            .extra
+            .contains_key(FILE_LOCK_FIELD)
+    );
+    let container = store.stored_attachment(&file).unwrap().unwrap().data;
+    locks.lock().unwrap();
+    assert!(matches!(
+        phone.library.attachment(&file),
+        Err(KansoError::Locked)
+    ));
+    assert_eq!(
+        store.stored_attachment(&file).unwrap().unwrap().data,
+        container
+    );
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+}
+
+// no-prop-test: a fixed sequence of the calls and what each answers.
+#[test]
+fn locking_one_note_copies_a_file_an_unlocked_note_still_shows() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let plain = b"a picture two notes show";
+    let encoded = base64::engine::general_purpose::STANDARD.encode(plain);
+    let file = store
+        .put(
+            DocType::File,
+            serde_json::json!({"name":"shared.png","contentType":"image/png",
+            "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let link = format!("![](inkdrop://{file})");
+    let locked_note = note(&phone.library, "Locked", &link);
+    let plain_note = note(&phone.library, "Plain", &link);
+    let locks = phone.library.locks();
+
+    locks.lock_note(&locked_note, LOCK_PASSWORD.into()).unwrap();
+
+    // The unlocked note keeps the readable original...
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    assert_eq!(store.file_owners(&file).unwrap(), vec![plain_note.clone()]);
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+    // ...and the locked note links its own sealed copy.
+    let view = phone.library.note(&locked_note).unwrap();
+    let links = linked_file_ids(view.body.as_deref().unwrap());
+    assert_eq!(links.len(), 1);
+    assert_ne!(links[0], file);
+    assert_eq!(
+        store.attachment_state(&links[0]).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    assert_eq!(
+        store.file_owners(&links[0]).unwrap(),
+        vec![locked_note.clone()]
+    );
+
+    locks.lock().unwrap();
+    // The plain note still reads its file without any lock keys.
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+    assert_eq!(phone.library.attachment(&links[0]), Err(KansoError::Locked));
+}
 
 // no-prop-test: a fixed sequence of the calls and what each answers.
 #[test]

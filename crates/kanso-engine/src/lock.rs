@@ -13,12 +13,16 @@
 //! decides what "now" is. Its keys are handed out as `Arc` clones: a key a
 //! caller holds outlives the session's lock, as it does on the desktop.
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use kanso_core::Note;
+use kanso_core::model::{KANSO_FILES_FIELD, note_files_from_extra, store_note_files};
 use kanso_store::Store;
-use kanso_sync::lock::{Envelope, LOCK_KDF, LockError, LockKey, LockPassword};
+use kanso_sync::lock::{Envelope, FileKey, LOCK_KDF, LockError, LockKey, LockPassword, SealId};
 use kanso_sync::{KdfParams, Machine};
 
 mod notebook;
@@ -39,6 +43,8 @@ pub struct Session {
     last_used: Option<Instant>,
     /// Argon2 parameters for new keys; tests use cheap ones.
     params: Option<KdfParams>,
+    /// File keys held only for the current lock generation, keyed by seal ID.
+    file_keys: HashMap<[u8; 16], FileKey>,
 }
 
 impl Session {
@@ -80,7 +86,23 @@ impl Session {
     /// when given (a new password). `None` locks the notes now.
     pub fn replace(&mut self, key: Option<LockKey>, now: Instant) {
         self.keys = key.into_iter().map(Arc::new).collect();
+        self.file_keys.clear();
         self.last_used = Some(now);
+    }
+
+    /// Remembers a decrypted file key for one seal generation.
+    pub fn remember_file_key(&mut self, seal: &SealId, key: FileKey) {
+        self.file_keys.insert(*seal.as_bytes(), key);
+    }
+
+    /// Returns a cached key for this seal generation.
+    pub fn file_key(&self, seal: &SealId) -> Option<&FileKey> {
+        self.file_keys.get(seal.as_bytes())
+    }
+
+    /// Forgets every decrypted file key held by this session.
+    pub fn forget_file_keys(&mut self) {
+        self.file_keys.clear();
     }
 
     /// Keeps the notes open for another [`AUTO_LOCK`]: a locked note was
@@ -425,7 +447,52 @@ pub fn rekey(
     }
     let key = LockKey::create(new, params).map_err(|err| sentence(&err))?;
     for (mut note, body) in opened {
+        let old_envelope = Envelope::from_extra(&note.extra).and_then(Result::ok);
         let envelope = key.seal(&note.id, &body);
+        if note.extra.contains_key(KANSO_FILES_FIELD) {
+            let Some(old_envelope) = old_envelope else {
+                skipped += 1;
+                continue;
+            };
+            let Some(mut files) = note_files_from_extra(&note.extra) else {
+                skipped += 1;
+                continue;
+            };
+            let Some(old_key) = old_keys.iter().find(|old_key| old_key.fits(&old_envelope)) else {
+                skipped += 1;
+                continue;
+            };
+            let mut valid = true;
+            for file in &mut files {
+                let Some(seal) = kanso_sync::lock::SealId::decode(&file.seal) else {
+                    valid = false;
+                    break;
+                };
+                let Ok(wrapped) = STANDARD.decode(&file.key) else {
+                    valid = false;
+                    break;
+                };
+                let Ok(file_key) = kanso_sync::lock::unwrap_file_key(
+                    old_key,
+                    &old_envelope,
+                    &note.id,
+                    &file.file,
+                    &seal,
+                    &wrapped,
+                ) else {
+                    valid = false;
+                    break;
+                };
+                file.key = STANDARD.encode(kanso_sync::lock::wrap_file_key(
+                    &key, &envelope, &note.id, &file.file, &seal, &file_key,
+                ));
+            }
+            if !valid {
+                skipped += 1;
+                continue;
+            }
+            store_note_files(Some(&files), &mut note.extra);
+        }
         Envelope::store(Some(&envelope), &mut note.extra);
         note.body.clear();
         let value = serde_json::to_value(&note).map_err(|err| err.to_string())?;
@@ -480,6 +547,21 @@ mod tests {
     /// A copy of key `i`, as a session takes ownership of one.
     fn copy_of(i: usize) -> LockKey {
         LockKey::from_secret(&KEYS[i].to_secret()).unwrap()
+    }
+
+    #[test]
+    fn file_key_cache_is_generation_scoped_and_clearable() {
+        let mut session = Session::default();
+        let seal = [7; 16];
+        let file_key = FileKey::from_bytes([9; 32]);
+        let seal = SealId::from_bytes(seal);
+        session.remember_file_key(&seal, file_key);
+        assert_eq!(session.file_key(&seal).unwrap().as_bytes(), &[9; 32]);
+        session.forget_file_keys();
+        assert!(session.file_key(&seal).is_none());
+        session.remember_file_key(&seal, FileKey::from_bytes([9; 32]));
+        session.replace(None, Instant::now());
+        assert!(session.file_key(&seal).is_none());
     }
 
     fn note(id: &str, body: &str) -> Note {

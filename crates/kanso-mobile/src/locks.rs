@@ -6,15 +6,22 @@
 //! saved. The keys never leave this crate: the shell hears only that the
 //! notes are open or closed ([`LockSession::lock_events`]).
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 
-use kanso_core::{DocType, Note, now_ms};
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
+use kanso_core::model::{FileLock, NoteFile, note_files_from_extra, store_note_files};
+use kanso_core::tasks::linked_file_ids;
+use kanso_core::{Note, now_ms};
 use kanso_engine::links::tags::apply_inline_tags;
 use kanso_engine::lock::{self, LockView, Target};
-use kanso_store::{Origin, Put};
-use kanso_sync::lock::{Envelope, LockError, LockKey, LockPassword};
+use kanso_store::Attachment;
+use kanso_sync::lock::{
+    Envelope, FileKey, LockError, LockKey, LockPassword, SealId, SealedSegment,
+};
 
 use crate::boundary::{guard, held};
 use crate::editing::Editors;
@@ -37,6 +44,54 @@ pub struct LockSession {
 }
 
 impl LockSession {
+    /// Seals a note being saved into a locked notebook, including its linked
+    /// attachment keys, while keeping the body open for the editor.
+    pub(crate) fn seal_for_notebook(&self, note: &mut Note) -> Result<Note, KansoError> {
+        let target = Target::of_book(&note.book_id, &self.inner.store);
+        let keys = held(&self.inner.keys);
+        let key = target
+            .as_ref()
+            .and_then(|target| target.envelope.as_ref().ok())
+            .and_then(|envelope| keys.fitting(envelope))
+            .or_else(|| keys.current())
+            .ok_or(KansoError::Locked)?;
+        let body = note.body.clone();
+        let envelope = self.seal_note_files(note, &body, &key)?;
+        Envelope::store(Some(&envelope), &mut note.extra);
+        let mut stored = note.clone();
+        stored.body.clear();
+        Ok(stored)
+    }
+
+    /// Seals notes imported or created in a locked notebook after its key is
+    /// held, including any attachments in their bodies.
+    pub(crate) fn seal_unsealed(&self) {
+        let Ok(notes) = self.inner.store.unsealed_in_locked_books() else {
+            return;
+        };
+        for mut note in notes {
+            match self.seal_for_notebook(&mut note).and_then(|stored| {
+                serde_json::to_value(stored)
+                    .map_err(|error| KansoError::storage(error.to_string()))
+                    .and_then(|value| self.inner.store.lock_note(value).map_err(Into::into))
+            }) {
+                Ok(_) => {}
+                Err(error) => eprintln!("kanso: locked notebooks: couldn't seal a note: {error}"),
+            }
+        }
+    }
+
+    /// Seals one revealed legacy note in a locked notebook and updates its
+    /// stored revision, without returning plaintext to storage.
+    pub(crate) fn seal_unsealed_note(&self, note: &mut Note) -> Result<(), KansoError> {
+        let stored = self.seal_for_notebook(note)?;
+        let value =
+            serde_json::to_value(stored).map_err(|error| KansoError::storage(error.to_string()))?;
+        let written = self.inner.store.lock_note(value)?;
+        note.rev = Some(written.rev);
+        Ok(())
+    }
+
     /// Opens the locked notes with `password`. `Ok(false)` when it isn't the
     /// lock password; an error when it can't be one (too short) or nothing
     /// is locked yet. Deriving the key takes a fraction of a second.
@@ -102,9 +157,64 @@ impl LockSession {
             Err(err) => return Err(KansoError::invalid(lock::sentence(&err))),
         }
         if self.add_key(key, since) {
+            self.cache_note_file_keys(since);
             Ok(true)
         } else {
             Err(KansoError::Locked)
+        }
+    }
+
+    /// Opens each wrapped attachment key whose note envelope the session holds.
+    fn cache_note_file_keys(&self, since: u64) {
+        let notes = self.inner.store.locked_notes().unwrap_or_default();
+        let mut keys = held(&self.inner.keys);
+        if self.inner.lock_gen.load(Ordering::SeqCst) != since {
+            return;
+        }
+        keys.forget_file_keys();
+        for note in notes {
+            Self::unwrap_note_file_keys(&mut keys, &note);
+        }
+    }
+
+    /// Adds only explicitly recorded `kansoFiles`; legacy missing fields stay unknown.
+    pub(crate) fn cache_note_file_keys_for_note(&self, note: &Note) {
+        if !note
+            .extra
+            .contains_key(kanso_core::model::KANSO_FILES_FIELD)
+        {
+            return;
+        }
+        let since = self.generation();
+        let mut keys = held(&self.inner.keys);
+        if self.inner.lock_gen.load(Ordering::SeqCst) != since {
+            return;
+        }
+        Self::unwrap_note_file_keys(&mut keys, note);
+    }
+
+    fn unwrap_note_file_keys(keys: &mut kanso_engine::lock::Session, note: &Note) {
+        let Some(files) = note_files_from_extra(&note.extra) else {
+            return;
+        };
+        let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
+            return;
+        };
+        let Some(key) = keys.fitting(&envelope) else {
+            return;
+        };
+        for file in files {
+            let Some(seal) = SealId::decode(&file.seal) else {
+                continue;
+            };
+            let Ok(wrapped) = STANDARD.decode(file.key) else {
+                continue;
+            };
+            if let Ok(file_key) = kanso_sync::lock::unwrap_file_key(
+                &key, &envelope, &note.id, &file.file, &seal, &wrapped,
+            ) {
+                keys.remember_file_key(&seal, file_key);
+            }
         }
     }
 
@@ -210,17 +320,65 @@ impl LockSession {
                     "The note is in a locked notebook, so it stays locked. Move it out first.",
                 ));
             }
+            let owned = if note
+                .extra
+                .contains_key(kanso_core::model::KANSO_FILES_FIELD)
+            {
+                note_files_from_extra(&note.extra).ok_or_else(|| {
+                    KansoError::invalid("The note's attachment ownership list is damaged.")
+                })?
+            } else {
+                Vec::new()
+            };
+            for ownership in &owned {
+                let owners = self.inner.store.file_owners(&ownership.file)?;
+                if owners.iter().any(|owner| owner != id) {
+                    // Another live note still needs the sealed original.
+                    // Removing this note's kansoFiles entry below releases
+                    // only this note's ownership.
+                    continue;
+                }
+                let Some(meta) = self.inner.store.file_meta(&ownership.file)? else {
+                    continue;
+                };
+                let Some(marker) = FileLock::from_extra(&meta.extra) else {
+                    continue;
+                };
+                let Some(seal) = SealId::decode(&marker.seal) else {
+                    return Err(KansoError::Locked);
+                };
+                let file_key = held(&self.inner.keys)
+                    .file_key(&seal)
+                    .map(|key| FileKey::from_bytes(*key.as_bytes()))
+                    .ok_or(KansoError::Locked)?;
+                let stored = self
+                    .inner
+                    .store
+                    .stored_attachment(&ownership.file)?
+                    .ok_or(KansoError::NotFound)?;
+                let segments = kanso_sync::lock::open_container(
+                    &ownership.file,
+                    &seal,
+                    &file_key,
+                    &stored.data,
+                )
+                .map_err(|_| KansoError::Locked)?;
+                let content = segments
+                    .into_iter()
+                    .find(|segment| segment.kind == kanso_sync::lock::SEGMENT_CONTENT)
+                    .ok_or(KansoError::Locked)?;
+                self.inner
+                    .store
+                    .put_unsealed_file(meta, Attachment::new(content.bytes))?;
+            }
+            store_note_files(None, &mut note.extra);
             // The text as it is stays, now plain; its `#tags` count again.
             Envelope::store(None, &mut note.extra);
             note.updated_at = now_ms();
             apply_inline_tags(&self.inner.store, &mut note, None);
             let value =
                 serde_json::to_value(&note).map_err(|err| KansoError::storage(err.to_string()))?;
-            match self
-                .inner
-                .store
-                .put(DocType::Note, value, Put::Upsert, Origin::Ui)
-            {
+            match self.inner.store.unlock_note(value) {
                 Ok(written) => Ok(Saved {
                     id: written.id,
                     rev: written.rev,
@@ -278,9 +436,31 @@ impl LockSession {
     }
 
     fn seal_book(&self, book_id: &str, key: &LockKey) -> Result<u32, KansoError> {
-        let sealed =
-            lock::seal_notebook(&self.inner.store, book_id, key).map_err(KansoError::storage)?;
-        Ok(u32::try_from(sealed).unwrap_or(u32::MAX))
+        let books = self.inner.store.books()?;
+        let inside = lock::book_subtree(book_id, &books);
+        let mut book = books
+            .into_iter()
+            .find(|book| book.id == book_id)
+            .ok_or(KansoError::NotFound)?;
+        let mut sealed = Vec::new();
+        for mut note in self.inner.store.notes_in_books(&inside)? {
+            if note.is_locked() {
+                continue;
+            }
+            let body = note.body.clone();
+            let envelope = self.seal_note_files(&mut note, &body, key)?;
+            Envelope::store(Some(&envelope), &mut note.extra);
+            note.body.clear();
+            sealed.push(
+                serde_json::to_value(note).map_err(|err| KansoError::storage(err.to_string()))?,
+            );
+        }
+        Envelope::store(Some(&key.seal(book_id, "")), &mut book.extra);
+        let count = sealed.len();
+        let book =
+            serde_json::to_value(book).map_err(|err| KansoError::storage(err.to_string()))?;
+        self.inner.store.lock_book(book, sealed)?;
+        Ok(u32::try_from(count).unwrap_or(u32::MAX))
     }
 
     /// Takes notebook `book_id`'s lock off: notes put in it from now on
@@ -356,6 +536,7 @@ impl LockSession {
         };
         match applied {
             Some(was_open) => {
+                self.cache_note_file_keys(since);
                 crate::biometrics::keep(&self.inner);
                 if !was_open {
                     self.inner.lock_events.send(LockEvent::Unlocked);
@@ -495,7 +676,8 @@ impl LockSession {
     /// Seals `note` with `key` and writes it.
     fn seal_note(&self, mut note: Note, key: &LockKey) -> Result<Saved, KansoError> {
         let body = std::mem::take(&mut note.body);
-        Envelope::store(Some(&key.seal(&note.id, &body)), &mut note.extra);
+        let envelope = self.seal_note_files(&mut note, &body, key)?;
+        Envelope::store(Some(&envelope), &mut note.extra);
         let value =
             serde_json::to_value(&note).map_err(|err| KansoError::storage(err.to_string()))?;
         let written = self.inner.store.lock_note(value)?;
@@ -504,6 +686,91 @@ impl LockSession {
             id: written.id,
             rev: written.rev,
         })
+    }
+
+    /// Seals linked plaintext files and records this note's wrapped ownership.
+    /// Existing sealed files are reused only when this session has their key.
+    /// Returns the envelope that seals the note body.
+    fn seal_note_files(
+        &self,
+        note: &mut Note,
+        body: &str,
+        key: &LockKey,
+    ) -> Result<Envelope, KansoError> {
+        let ids = if note
+            .extra
+            .contains_key(kanso_core::model::KANSO_FILES_FIELD)
+        {
+            note_files_from_extra(&note.extra)
+                .ok_or_else(|| {
+                    KansoError::invalid("The note's attachment ownership list is damaged.")
+                })?
+                .into_iter()
+                .map(|file| file.file)
+                .collect::<Vec<_>>()
+        } else {
+            linked_file_ids(&body)
+        };
+        let mut seen = HashSet::new();
+        let mut sealed_files: Vec<(String, SealId, FileKey)> = Vec::new();
+        for id in ids.into_iter().filter(|id| seen.insert(id.clone())) {
+            let Some(mut meta) = self.inner.store.file_meta(&id)? else {
+                continue;
+            };
+            let (target, seal, file_key) = match self.inner.store.attachment_state(&id)? {
+                kanso_store::AttachmentState::Missing => continue,
+                kanso_store::AttachmentState::Sealed => {
+                    let marker = FileLock::from_extra(&meta.extra)
+                        .ok_or_else(|| KansoError::invalid("The attachment seal is damaged."))?;
+                    let seal = SealId::decode(&marker.seal)
+                        .ok_or_else(|| KansoError::invalid("The attachment seal is damaged."))?;
+                    let file_key = held(&self.inner.keys)
+                        .file_key(&seal)
+                        .map(|key| FileKey::from_bytes(*key.as_bytes()))
+                        .ok_or(KansoError::Locked)?;
+                    (id.clone(), seal, file_key)
+                }
+                kanso_store::AttachmentState::Plain => {
+                    let Some((_, stored)) = self.inner.store.attachment(&id)? else {
+                        continue;
+                    };
+                    let seal = SealId::random();
+                    let file_key = FileKey::random();
+                    let container = kanso_sync::lock::seal_container(
+                        &id,
+                        &seal,
+                        &file_key,
+                        &[SealedSegment {
+                            kind: kanso_sync::lock::SEGMENT_CONTENT,
+                            bytes: stored.data,
+                        }],
+                    );
+                    FileLock::store(Some(&FileLock::sealed(seal.encode())), &mut meta.extra);
+                    self.inner
+                        .store
+                        .put_sealed_file(meta, Attachment::new(container))?;
+                    held(&self.inner.keys)
+                        .remember_file_key(&seal, FileKey::from_bytes(*file_key.as_bytes()));
+                    (id.clone(), seal, file_key)
+                }
+            };
+            sealed_files.push((target, seal, file_key));
+        }
+        let envelope = key.seal(&note.id, body);
+        let ownership: Vec<NoteFile> = sealed_files
+            .into_iter()
+            .map(|(file, seal, file_key)| NoteFile {
+                file: file.clone(),
+                v: 1,
+                seal: seal.encode(),
+                key: STANDARD.encode(kanso_sync::lock::wrap_file_key(
+                    key, &envelope, &note.id, &file, &seal, &file_key,
+                )),
+                extra: Default::default(),
+            })
+            .collect();
+        store_note_files(Some(&ownership), &mut note.extra);
+        Ok(envelope)
     }
 
     /// Forgets the keys, and tells listeners if any were held. The notes

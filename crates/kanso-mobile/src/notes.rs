@@ -245,9 +245,7 @@ impl Library {
                 apply_inline_tags(&self.inner.store, &mut note, None);
             }
             let stored = if in_locked_notebook {
-                held(&self.inner.keys)
-                    .seal_for_notebook(&mut note, &self.inner.store)
-                    .map_err(|_| KansoError::Locked)?
+                self.locks().seal_for_notebook(&mut note)?
             } else {
                 note
             };
@@ -457,7 +455,37 @@ impl Library {
     /// Opens `note`'s text when this session's keys do, and says what its
     /// lock allows. A closed note's text is emptied.
     pub(crate) fn reveal(&self, note: &mut Note) -> LockView {
-        held(&self.inner.keys).reveal(note, Some(&self.inner.store))
+        if !note.is_locked() {
+            match self.inner.store.note_in_locked_book(&note.id) {
+                Ok(true) => {
+                    let locks = self.locks();
+                    return match locks.seal_unsealed_note(note) {
+                        Ok(()) => {
+                            locks.cache_note_file_keys_for_note(note);
+                            LockView::Open
+                        }
+                        Err(KansoError::Locked) => {
+                            note.body.clear();
+                            LockView::Closed(None)
+                        }
+                        Err(error) => {
+                            note.body.clear();
+                            LockView::Closed(Some(error.to_string()))
+                        }
+                    };
+                }
+                Err(error) => {
+                    note.body.clear();
+                    return LockView::Closed(Some(error.to_string()));
+                }
+                Ok(false) => {}
+            }
+        }
+        let view = held(&self.inner.keys).reveal(note, Some(&self.inner.store));
+        if view == LockView::Open {
+            self.locks().cache_note_file_keys_for_note(note);
+        }
+        view
     }
 
     /// The text of note `id` if it can be read now.

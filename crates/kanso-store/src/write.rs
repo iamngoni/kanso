@@ -550,7 +550,7 @@ impl Store {
             return Err(StoreError::Invalid("Expected a JSON object.".into()));
         };
         self.write(|tx, changes| {
-            let result = put_in(tx, changes, doc_type, fields, mode, Origin::Agent, &[])?;
+            let result = put_in(tx, changes, doc_type, fields, mode, Origin::Agent, PutRules::default())?;
             tx.execute(
                 "UPDATE revisions SET agent = ?1 WHERE doc_id = ?2 AND origin = 'agent' AND agent IS NULL",
                 params![agent, result.id],
@@ -570,7 +570,20 @@ impl Store {
         let Value::Object(fields) = body else {
             return Err(StoreError::Invalid("Expected a JSON object.".into()));
         };
-        self.write(|tx, changes| put_in(tx, changes, doc_type, fields, mode, origin, kept))
+        self.write(|tx, changes| {
+            put_in(
+                tx,
+                changes,
+                doc_type,
+                fields,
+                mode,
+                origin,
+                PutRules {
+                    kept,
+                    ..PutRules::default()
+                },
+            )
+        })
     }
 
     /// Writes `body`, a whole note the app has just sealed under the lock
@@ -596,7 +609,7 @@ impl Store {
                 fields,
                 Put::Upsert,
                 Origin::Ui,
-                &[],
+                PutRules::default(),
             )?;
             tx.execute("DELETE FROM revisions WHERE doc_id = ?", [&result.id])?;
             crate::embed::forget_note(tx, &result.id)?;
@@ -604,6 +617,54 @@ impl Store {
             Ok(result)
         })?;
         Ok(result)
+    }
+
+    /// Writes the deliberate transition from a locked note to a plain one.
+    /// Only this path may keep a link to a sealed file still owned by another
+    /// locked note; ordinary plain-note writes retain the sealed-file guard.
+    pub fn unlock_note(&self, body: Value) -> Result<WriteResult> {
+        let Value::Object(fields) = body else {
+            return Err(StoreError::Invalid("Expected a JSON object.".into()));
+        };
+        let id = fields
+            .get("_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| StoreError::Invalid("The note has no ID.".into()))?
+            .to_owned();
+        if fields.contains_key(LOCK_FIELD) {
+            return Err(StoreError::Invalid("The note is still locked.".into()));
+        }
+        self.write(|tx, changes| {
+            let previous = load_row(tx, &id)?.filter(|row| row.doc_type == DocType::Note && !row.deleted)
+                .ok_or(StoreError::NotFound)?;
+            if !previous.fields.contains_key(LOCK_FIELD)
+                || fields.get("_rev").and_then(Value::as_str) != Some(previous.rev.as_str())
+            {
+                return Err(StoreError::Conflict);
+            }
+            let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
+            for file_id in linked_file_ids(body) {
+                let sealed: bool = tx.query_row(
+                    "SELECT EXISTS (SELECT 1 FROM docs WHERE id = ?1 AND type = 'file' AND deleted = 0
+                     AND json_extract(json, '$.kansoFileLock') IS NOT NULL)",
+                    [&file_id],
+                    |row| row.get(0),
+                )?;
+                if !sealed { continue; }
+                let other_owner: bool = tx.query_row(
+                    "SELECT EXISTS (SELECT 1 FROM note_files nf JOIN docs d ON d.id = nf.note_id
+                     WHERE nf.file_id = ?1 AND nf.note_id != ?2 AND d.type = 'note' AND d.deleted = 0)",
+                    params![file_id, id],
+                    |row| row.get(0),
+                )?;
+                if !other_owner {
+                    return Err(StoreError::Invalid(
+                        "A sealed attachment linked by an unlocked note must have another live owner.".into(),
+                    ));
+                }
+            }
+            put_in(tx, changes, DocType::Note, fields, Put::Upsert, Origin::Ui, PutRules { allow_sealed_note_links: true, ..PutRules::default() })
+        })
     }
 
     /// Stores the attachment ownership list on a note. The app uses this
@@ -731,7 +792,7 @@ impl Store {
                     note,
                     Put::Upsert,
                     Origin::Ui,
-                    &[],
+                    PutRules::default(),
                 )?;
                 tx.execute("DELETE FROM revisions WHERE doc_id = ?", [&result.id])?;
                 crate::embed::forget_note(tx, &result.id)?;
@@ -744,7 +805,7 @@ impl Store {
                 book,
                 Put::Upsert,
                 Origin::Ui,
-                &[],
+                PutRules::default(),
             )
         })
     }
@@ -850,7 +911,17 @@ impl Store {
         self.write(|tx, changes| {
             merges
                 .into_iter()
-                .map(|fields| put_in(tx, changes, doc_type, fields, Put::Merge, origin, &[]))
+                .map(|fields| {
+                    put_in(
+                        tx,
+                        changes,
+                        doc_type,
+                        fields,
+                        Put::Merge,
+                        origin,
+                        PutRules::default(),
+                    )
+                })
                 .collect()
         })
     }
@@ -911,6 +982,16 @@ fn checked_file_lock(file: &FileMeta) -> Result<FileLock> {
     Ok(lock)
 }
 
+/// How one write treats fields and links the caller doesn't own.
+#[derive(Clone, Copy, Default)]
+struct PutRules<'a> {
+    /// Fields a merge keeps from the stored document.
+    kept: &'a [&'a str],
+    /// True only for the deliberate unlock of a note: a plain note may keep
+    /// a link to a sealed file another locked note still owns.
+    allow_sealed_note_links: bool,
+}
+
 /// [`Store::put_keeping`] inside the writer's transaction.
 fn put_in(
     tx: &Transaction,
@@ -919,7 +1000,7 @@ fn put_in(
     mut fields: Map<String, Value>,
     mode: Put,
     origin: Origin,
-    kept: &[&str],
+    rules: PutRules<'_>,
 ) -> Result<WriteResult> {
     let attachment = if doc_type == DocType::File {
         take_attachment(&mut fields)?
@@ -966,7 +1047,7 @@ fn put_in(
         }
     };
     let mut merged = merged;
-    for &key in kept {
+    for &key in rules.kept {
         match live.and_then(|p| p.fields.get(key)) {
             Some(value) => merged.insert(key.to_owned(), value.clone()),
             None => merged.remove(key),
@@ -1028,6 +1109,7 @@ fn put_in(
         && !matches!(origin, Origin::Sync | Origin::Import)
         && !normalized.contains_key(LOCK_FIELD)
         && !in_locked_book(tx, book_of(&normalized))?
+        && !rules.allow_sealed_note_links
     {
         let body = normalized.get("body").and_then(Value::as_str).unwrap_or("");
         for file_id in linked_file_ids(body) {

@@ -350,13 +350,14 @@ fn an_attachment_comes_back_only_while_a_readable_note_links_it() {
             size: 5
         }
     );
-    // Locked and closed: the link can't be read, so the file isn't given.
+    // Locked and closed: the link can't be read, so the sealed file says it
+    // is locked rather than pretending it is missing.
     library
         .locks()
         .lock_note(&id, LOCK_PASSWORD.into())
         .unwrap();
     library.locks().lock().unwrap();
-    assert_eq!(library.attachment(&file), Err(KansoError::NotFound));
+    assert_eq!(library.attachment(&file), Err(KansoError::Locked));
     library.locks().unlock(LOCK_PASSWORD.into()).unwrap();
     assert!(library.attachment(&file).is_ok());
     assert_eq!(library.attachment("note:x"), Err(KansoError::NotFound));

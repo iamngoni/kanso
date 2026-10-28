@@ -438,7 +438,7 @@ impl LockSession {
         };
         // Notes put in a locked notebook before a key was held are sealed
         // now.
-        held(&self.inner.keys).seal_unsealed(&self.inner.store);
+        self.seal_unsealed();
         if keep_for_biometrics {
             keep(&self.inner);
         }

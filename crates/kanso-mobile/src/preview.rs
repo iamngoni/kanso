@@ -18,6 +18,7 @@ use std::sync::OnceLock;
 
 use kanso_core::dates::DateTime;
 use kanso_core::links::{FILE_LINK_PREFIX, NOTE_LINK_PREFIX, normalize_title};
+use kanso_core::model::FileLock;
 use kanso_core::query_view::{ViewNote, cell_text};
 use kanso_core::tasks::{linked_file_ids, task_items};
 use kanso_core::{DocType, now_ms};
@@ -31,8 +32,9 @@ use kanso_render::html::{
     self, AppMode, CodeSpan, DueChip, DueTone, Highlighter, PageOptions, QueryResult, QueryRow,
     QueryTable, QueryViews, TaskSlot,
 };
+use kanso_sync::lock::{FileKey, SEGMENT_CONTENT, SealId, open_container};
 
-use crate::boundary::guard;
+use crate::boundary::{guard, held};
 use crate::errors::KansoError;
 use crate::library::Library;
 use crate::model::{
@@ -73,8 +75,18 @@ impl Renderer {
         guard(|| {
             let library = self.library();
             let (note, text) = library.readable_text(id)?.ok_or(KansoError::Locked)?;
-            let store = &self.inner.store;
             let page_text = library.prepared(&text)?;
+            let mut resolved_attachments = BTreeMap::new();
+            for file in linked_file_ids(&text) {
+                match library.attachment(&file) {
+                    Ok(attachment) => {
+                        resolved_attachments
+                            .insert(file, (attachment.content_type, attachment.bytes));
+                    }
+                    Err(KansoError::NotFound) => {}
+                    Err(error) => return Err(error),
+                }
+            }
             let tasks: Vec<TaskSlot> = task_items(&text)
                 .iter()
                 .map(|item| TaskSlot {
@@ -95,13 +107,7 @@ impl Renderer {
                 query: Some(&views),
                 due: Some(&chip),
             };
-            let attachments = |file: &str| {
-                store
-                    .attachment(file)
-                    .ok()
-                    .flatten()
-                    .map(|(content_type, blob)| (content_type, blob.data))
-            };
+            let attachments = |file: &str| resolved_attachments.get(file).cloned();
             Ok(html::page_with(
                 &note.title,
                 &page_text,
@@ -164,6 +170,14 @@ impl Renderer {
             let library = self.library();
             let (note, body) = library.readable_text(id)?.ok_or(KansoError::Locked)?;
             let store = &self.inner.store;
+            if linked_file_ids(&body).iter().any(|file| {
+                matches!(
+                    store.attachment_state(file),
+                    Ok(kanso_store::AttachmentState::Sealed)
+                )
+            }) {
+                return Err(KansoError::Locked);
+            }
             let palette = palette_of(palette);
             let style = PageStyle::for_palette(
                 options.font,
@@ -329,15 +343,42 @@ impl Library {
             }
             let store = &self.inner.store;
             let meta = store.file_meta(id)?.ok_or(KansoError::NotFound)?;
+            let state = store.attachment_state(id)?;
+            if state == kanso_store::AttachmentState::Missing {
+                return Err(KansoError::NotFound);
+            }
+            let seal_and_key = if state == kanso_store::AttachmentState::Sealed {
+                let marker = FileLock::from_extra(&meta.extra).ok_or(KansoError::Locked)?;
+                let seal = SealId::decode(&marker.seal).ok_or(KansoError::Locked)?;
+                let file_key = held(&self.inner.keys)
+                    .file_key(&seal)
+                    .map(|key| FileKey::from_bytes(*key.as_bytes()))
+                    .ok_or(KansoError::Locked)?;
+                Some((seal, file_key))
+            } else {
+                None
+            };
             if !self.linked_from_readable_note(id)? {
                 return Err(KansoError::NotFound);
             }
-            let (content_type, blob) = store.attachment(id)?.ok_or(KansoError::NotFound)?;
+            let (content_type, bytes) = if let Some((seal, file_key)) = seal_and_key {
+                let blob = store.stored_attachment(id)?.ok_or(KansoError::NotFound)?;
+                let segments = open_container(id, &seal, &file_key, &blob.data)
+                    .map_err(|_| KansoError::Locked)?;
+                let content = segments
+                    .into_iter()
+                    .find(|segment| segment.kind == SEGMENT_CONTENT)
+                    .ok_or(KansoError::Locked)?;
+                (meta.content_type.clone(), content.bytes)
+            } else {
+                let (content_type, blob) = store.attachment(id)?.ok_or(KansoError::NotFound)?;
+                (content_type, blob.data)
+            };
             Ok(AttachmentFile {
                 id: id.to_owned(),
                 name: meta.name,
                 content_type,
-                bytes: blob.data,
+                bytes,
             })
         })
     }
