@@ -20,6 +20,7 @@ import 'package:kanso/core/models/repos/abs/journal_repository.dart';
 import 'package:kanso/core/models/repos/abs/library_repository.dart';
 import 'package:kanso/core/models/repos/abs/templates_repository.dart';
 import 'package:kanso/discovery/models/repos/abs/discovery_repository.dart';
+import 'package:kanso/editor/views/widgets/word_goal_picker_sheet.dart';
 import 'package:kanso/graph/state/graph/graph_bloc.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/journal/views/widgets/calendar_sheet.dart';
@@ -772,6 +773,20 @@ void main() {
 
     expect(note.state.noteId, noteB);
     expect(note.state.mode, NoteMode.preview);
+  });
+
+  testWidgets('word-goal switches to edit and opens the picker', (
+    tester,
+  ) async {
+    await _pump(tester, command: 'word-goal');
+    final note = tester.element(find.byType(NotePane)).read<NoteBloc>();
+
+    expect(note.state.mode, NoteMode.preview);
+    await _run(tester, 'word-goal');
+    await tester.pumpAndSettle();
+
+    expect(note.state.mode, NoteMode.edit);
+    expect(find.byType(WordGoalPickerSheet), findsOneWidget);
   });
 
   group('AI palette commands', () {

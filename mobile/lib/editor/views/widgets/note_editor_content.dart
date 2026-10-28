@@ -27,6 +27,7 @@ import '../../../editor_extras/views/widgets/editor_extras_scope.dart';
 import '../../../note/models/data/note_mode.dart';
 import '../../../note/state/note/note_bloc.dart';
 import '../../../note/state/note_assist_intent/note_assist_intent_bloc.dart';
+import '../../../note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import '../../../note_list/views/widgets/note_list_notice.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
@@ -128,8 +129,14 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   /// A palette or other app-level assistant request for this note.
   NoteAssistIntentBloc? assistIntents;
 
+  /// A palette request to open this note's word-goal picker.
+  WordGoalIntentBloc? wordGoalIntents;
+
   /// The server request last taken, so a rebuild cannot run it again.
   int? handledAssistRequest;
+
+  /// The word-goal request last taken, so a rebuild cannot run it again.
+  int? handledWordGoalRequest;
 
   /// Whether the note is shared with this account to view or comment on
   /// only: its title, properties and text are for reading.
@@ -163,6 +170,11 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       assistIntents = context.read<NoteAssistIntentBloc>();
     } on ProviderNotFoundException {
       assistIntents = null;
+    }
+    try {
+      wordGoalIntents = context.read<WordGoalIntentBloc>();
+    } on ProviderNotFoundException {
+      wordGoalIntents = null;
     }
     readOnly = status?.state.readOnly ?? false;
     final caret = widget.caret;
@@ -216,6 +228,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       // The command can arrive while the note is in Preview, before this
       // editor exists. Take that initial request once the field is mounted.
       _takeAssistIntent();
+      _takeWordGoalIntent();
       (widget.focusTitle ? titleFocus : textFocus).requestFocus();
     });
     if (status != null) {
@@ -265,6 +278,36 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       return;
     }
     unawaited(openAssistAction(context, textTarget, action: action));
+  }
+
+  /// Runs the pending word-goal request for this note, if there is one.
+  void _takeWordGoalIntent() {
+    final bloc = wordGoalIntents;
+    if (bloc == null) {
+      return;
+    }
+    final intent = bloc.state;
+    if (!intent.pending ||
+        intent.noteId != note.state.noteId ||
+        intent.request == handledWordGoalRequest) {
+      return;
+    }
+    if (readOnly) {
+      handledWordGoalRequest = intent.request;
+      bloc.add(WordGoalIntentEvent.consumed(request: intent.request));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(context.l10n.assistReadOnly)),
+      );
+      return;
+    }
+    final state = editor.state;
+    // The editor is still opening; keep the request for its ready state.
+    if (state.wordGoalSetting == null) {
+      return;
+    }
+    handledWordGoalRequest = intent.request;
+    bloc.add(WordGoalIntentEvent.consumed(request: intent.request));
+    unawaited(chooseWordGoal(state));
   }
 
   /// Asks the Rust core where the open comments' words are now, to tint.
@@ -572,6 +615,23 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                 now.action != null &&
                 now.request != before.request,
             listener: (context, state) => _takeAssistIntent(),
+          ),
+        ],
+        if (wordGoalIntents
+            case final intents?) ...<BlocListener<dynamic, dynamic>>[
+          BlocListener<EditorBloc, EditorState>(
+            listenWhen: (before, now) =>
+                before.wordGoalSetting != now.wordGoalSetting &&
+                now.wordGoalSetting != null,
+            listener: (context, state) => _takeWordGoalIntent(),
+          ),
+          BlocListener<WordGoalIntentBloc, WordGoalIntentState>(
+            bloc: intents,
+            listenWhen: (before, now) =>
+                now.pending &&
+                now.noteId == note.state.noteId &&
+                now.request != before.request,
+            listener: (context, state) => _takeWordGoalIntent(),
           ),
         ],
         if (status case final status?) ...<BlocListener<dynamic, dynamic>>[

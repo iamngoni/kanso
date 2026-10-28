@@ -26,6 +26,7 @@ import 'lock/state/lock_status/lock_status_bloc.dart';
 import 'lock/state/privacy_cover/privacy_cover_bloc.dart';
 import 'note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'note/state/note_mode_intent/note_mode_intent_bloc.dart';
+import 'note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import 'push/state/push_registration/push_registration_bloc.dart';
 import 'push/views/widgets/push_lifecycle_host.dart';
 import 'settings/state/backup_notice/backup_notice_bloc.dart';
@@ -89,6 +90,9 @@ class AppProviders extends StatelessWidget {
         ),
         BlocProvider<NoteModeIntentBloc>(
           create: (_) => getIt<NoteModeIntentBloc>(),
+        ),
+        BlocProvider<WordGoalIntentBloc>(
+          create: (_) => getIt<WordGoalIntentBloc>(),
         ),
         BlocProvider<PrivacyCoverBloc>(
           create: (_) => getIt<PrivacyCoverBloc>(),

@@ -37,6 +37,7 @@ import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
 import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
+import 'package:kanso/note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart';
 import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
@@ -215,6 +216,9 @@ Future<BrowseApp> pumpBrowseApp(
           ),
           BlocProvider<NoteModeIntentBloc>(
             create: (_) => NoteModeIntentBloc(),
+          ),
+          BlocProvider<WordGoalIntentBloc>(
+            create: (_) => WordGoalIntentBloc(),
           ),
           BlocProvider<PrivacyCoverBloc>.value(value: blocs.cover),
           BlocProvider<UndoNoticeBloc>.value(value: blocs.undoNotice),

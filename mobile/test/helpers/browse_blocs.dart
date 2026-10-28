@@ -31,6 +31,7 @@ import 'package:kanso/note/state/note/note_bloc.dart';
 import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'package:kanso/note/state/note_discovery/note_discovery_bloc.dart';
 import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
+import 'package:kanso/note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import 'package:kanso/note_list/models/data/note_list_status.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
 import 'package:kanso/search/models/data/search_status.dart';
@@ -357,6 +358,9 @@ class BrowseBlocs {
         ),
         BlocProvider<NoteModeIntentBloc>(
           create: (_) => NoteModeIntentBloc(),
+        ),
+        BlocProvider<WordGoalIntentBloc>(
+          create: (_) => WordGoalIntentBloc(),
         ),
         BlocProvider<PrivacyCoverBloc>.value(value: cover),
         BlocProvider<UnlockBloc>.value(value: unlock ?? unlockOf()),

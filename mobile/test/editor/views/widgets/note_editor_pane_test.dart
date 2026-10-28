@@ -2,14 +2,21 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
+import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kanso/core/bridge/api/types.dart' as core;
 import 'package:kanso/core/bridge/api/types.dart' show EditCommand, FormatKind;
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/views/widgets/kanso_segment_cell.dart';
+import 'package:kanso/editor/models/data/editor_status.dart';
+import 'package:kanso/editor/models/repos/abs/editor_repository.dart';
+import 'package:kanso/editor/state/editor/editor_bloc.dart';
 import 'package:kanso/editor/views/widgets/accessory_key.dart';
 import 'package:kanso/editor/views/widgets/completion_popup.dart';
 import 'package:kanso/editor/views/widgets/editor_conflict_strip.dart';
@@ -21,9 +28,12 @@ import 'package:kanso/editor/views/widgets/new_property_row.dart';
 import 'package:kanso/editor/views/widgets/note_editor_pane.dart';
 import 'package:kanso/editor/views/widgets/properties_row.dart';
 import 'package:kanso/editor/views/widgets/property_row.dart';
+import 'package:kanso/editor/views/widgets/word_goal_picker_sheet.dart';
+import 'package:kanso/injection.dart';
 import 'package:kanso/note/models/data/note_mode.dart';
 import 'package:kanso/note/models/data/note_place.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
+import 'package:kanso/note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import 'package:kanso/note/views/widgets/locked_note_pane.dart';
 import 'package:kanso/note/views/widgets/note_bottom_bar.dart';
 import 'package:kanso/note/views/widgets/note_info_sheet.dart';
@@ -34,6 +44,8 @@ import 'package:kanso/shell/utils/kanso_shortcut_bindings.dart';
 
 import '../../../helpers/browse_blocs.dart';
 import '../../../helpers/fake_editor_document.dart';
+import '../../../helpers/fake_media_picker_repository.dart';
+import '../../../helpers/fake_web_link_repository.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/register_editor_bloc.dart';
@@ -46,6 +58,43 @@ class _Page {
   final NoteBloc note;
   final FakeEditorDocument document;
   final GoRouter router;
+}
+
+/// An editor whose open call never returns, so a test can show the states it
+/// wants and prove a command survives the loading transition.
+class _HeldEditorRepository implements EditorRepository {
+  final Completer<Either<ApplicationError, EditorDocument>> _opened =
+      Completer<Either<ApplicationError, EditorDocument>>();
+
+  @override
+  Future<Either<ApplicationError, EditorDocument>> open(String noteId) =>
+      _opened.future;
+}
+
+class _StagedEditorBloc extends EditorBloc {
+  _StagedEditorBloc(this.document)
+    : super(
+        _HeldEditorRepository(),
+        FakeWebLinkRepository(),
+        FakeMediaPickerRepository(),
+      );
+
+  final FakeEditorDocument document;
+
+  void show({core.GoalSetting? goal}) {
+    final snapshot = document.current;
+    emit(
+      EditorState(
+        noteId: MockIds.syncDesign,
+        status: EditorStatus.ready,
+        document: document,
+        snapshot: snapshot,
+        save: snapshot.save,
+        properties: snapshot.properties,
+        wordGoalSetting: goal,
+      ),
+    );
+  }
 }
 
 Future<_Page> _open(
@@ -694,6 +743,60 @@ void main() {
       await tester.pump();
       expect(find.byType(NoteEditorPane), findsOneWidget);
       expect(find.byType(KansoEditableText), findsNothing);
+    });
+
+    testWidgets('a word-goal request waits for the editor settings', (
+      tester,
+    ) async {
+      final blocs = await BrowseBlocs.start();
+      final document = FakeEditorDocument(text: 'Hello');
+      addTearDown(document.events_.close);
+      final staged = _StagedEditorBloc(document);
+      if (getIt.isRegistered<EditorBloc>()) {
+        getIt.unregister<EditorBloc>();
+      }
+      getIt.registerFactory<EditorBloc>(() => staged);
+      addTearDown(() {
+        if (getIt.isRegistered<EditorBloc>()) {
+          getIt.unregister<EditorBloc>();
+        }
+      });
+      final note = await blocs.noteOf(MockIds.syncDesign);
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NotePane(inPane: false), note: note),
+        ),
+      );
+
+      note.add(const NoteEvent.modeChanged(NoteMode.edit));
+      for (
+        var pump = 0;
+        pump < 5 && staged.state.noteId != MockIds.syncDesign;
+        pump++
+      ) {
+        await tester.pump();
+      }
+      expect(find.byType(NoteEditorPane), findsOneWidget);
+      expect(staged.state.status, EditorStatus.opening);
+      staged.show();
+      await tester.pumpAndSettle();
+      expect(find.byType(KansoEditableText), findsOneWidget);
+
+      final intents =
+          tester.element(find.byType(NotePane)).read<WordGoalIntentBloc>()..add(
+            const WordGoalIntentEvent.requested(noteId: MockIds.syncDesign),
+          );
+      await tester.pump();
+
+      expect(intents.state.pending, isTrue);
+      expect(find.byType(WordGoalPickerSheet), findsNothing);
+
+      staged.show(goal: const core.GoalSetting.default_());
+      await tester.pumpAndSettle();
+
+      expect(intents.state.pending, isFalse);
+      expect(find.byType(WordGoalPickerSheet), findsOneWidget);
     });
   });
 }

@@ -146,9 +146,9 @@ mod syncing;
 mod tasks;
 mod theme_tokens;
 mod undo;
-mod word_goals;
 mod voice;
 mod voice_model;
+mod word_goals;
 
 pub use account::AccountHandle;
 pub use account_model::*;

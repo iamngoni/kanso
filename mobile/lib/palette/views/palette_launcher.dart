@@ -39,6 +39,7 @@ import '../../note/state/note/note_bloc.dart';
 import '../../note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../note/state/note_discovery/note_discovery_bloc.dart';
 import '../../note/state/note_mode_intent/note_mode_intent_bloc.dart';
+import '../../note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import '../../note/views/widgets/note_html_export.dart';
 import '../../note/views/widgets/note_info_sheet.dart';
 import '../../note/views/widgets/note_pdf_export.dart';
@@ -126,6 +127,7 @@ abstract final class PaletteLauncher {
     'show-related',
     'edit-mode',
     'preview-mode',
+    'word-goal',
   ];
 
   /// Shows the palette over the whole app.
@@ -282,7 +284,8 @@ abstract final class PaletteLauncher {
       'show-outline' ||
       'show-backlinks' ||
       'toggle-inspector' ||
-      'share' => true,
+      'share' ||
+      'word-goal' => true,
       'lock' || 'remove-lock' || 'show-related' => true,
       _ => false,
     };
@@ -607,6 +610,21 @@ abstract final class PaletteLauncher {
               noteId: noteToSwitch,
               mode: id == 'edit-mode' ? NoteMode.edit : NoteMode.preview,
             ),
+          );
+        }
+      case 'word-goal':
+        final goalNote = note?.id ?? noteId;
+        if (goalNote != null) {
+          if (_maybeRead<NoteBloc>(context)?.state.mode != NoteMode.edit) {
+            _maybeRead<NoteModeIntentBloc>(context)?.add(
+              NoteModeIntentEvent.requested(
+                noteId: goalNote,
+                mode: NoteMode.edit,
+              ),
+            );
+          }
+          _maybeRead<WordGoalIntentBloc>(context)?.add(
+            WordGoalIntentEvent.requested(noteId: goalNote),
           );
         }
       default:
