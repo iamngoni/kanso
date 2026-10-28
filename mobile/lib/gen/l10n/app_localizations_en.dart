@@ -2655,7 +2655,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockNoteConfirmMessage =>
-      'Its text is sealed and its earlier versions are deleted. It stays open until the locked notes lock again.';
+      'Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.';
 
   @override
   String get lockNotebookAskTitle => 'Lock notebook';
@@ -2665,7 +2665,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockNotebookConfirmMessage =>
-      'Every note in it is sealed, and new notes added to it are sealed too.';
+      'Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.';
 
   @override
   String get lockNotebookMenu => 'Lock Notebook…';

@@ -4681,7 +4681,7 @@ abstract class AppLocalizations {
   /// Explains what locking a note does.
   ///
   /// In en, this message translates to:
-  /// **'Its text is sealed and its earlier versions are deleted. It stays open until the locked notes lock again.'**
+  /// **'Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.'**
   String get lockNoteConfirmMessage;
 
   /// The title of the sheet that asks for the lock password to lock a notebook.
@@ -4699,7 +4699,7 @@ abstract class AppLocalizations {
   /// Explains what locking a notebook does.
   ///
   /// In en, this message translates to:
-  /// **'Every note in it is sealed, and new notes added to it are sealed too.'**
+  /// **'Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.'**
   String get lockNotebookConfirmMessage;
 
   /// The notebook menu action that locks the notebook.
