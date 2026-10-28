@@ -13,6 +13,7 @@
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:image_picker/image_picker.dart' as _i183;
 import 'package:injectable/injectable.dart' as _i526;
+import 'package:kanso_dictation/kanso_dictation.dart' as _i33;
 import 'package:kanso_push/kanso_push.dart' as _i901;
 
 import 'account/state/account_details/account_details_bloc.dart' as _i645;
@@ -20,15 +21,21 @@ import 'account/state/recover/recover_bloc.dart' as _i1059;
 import 'account/state/recovery_key/recovery_key_bloc.dart' as _i35;
 import 'account/state/sign_in/sign_in_bloc.dart' as _i552;
 import 'account/state/unlock/unlock_bloc.dart' as _i858;
+import 'ai_settings/state/ai_settings/ai_settings_bloc.dart' as _i182;
+import 'ai_settings/state/ai_status/ai_status_bloc.dart' as _i1030;
+import 'ask/state/ask/ask_bloc.dart' as _i216;
+import 'assist/state/assist/assist_bloc.dart' as _i567;
 import 'backups/models/repos/abs/backups_repository.dart' as _i1002;
 import 'backups/models/repos/impl/rust_backups_repository.dart' as _i270;
 import 'backups/state/backups/backups_bloc.dart' as _i770;
+import 'board/state/board/board_bloc.dart' as _i553;
 import 'capture/models/repos/abs/media_picker_repository.dart' as _i900;
 import 'capture/models/repos/impl/platform_media_picker_repository.dart'
     as _i598;
 import 'capture/state/daily_note/daily_note_bloc.dart' as _i1060;
 import 'core/bridge/api/account.dart' as _i578;
 import 'core/bridge/api/account_settings.dart' as _i102;
+import 'core/bridge/api/ai.dart' as _i35;
 import 'core/bridge/api/approvals.dart' as _i283;
 import 'core/bridge/api/gallery.dart' as _i783;
 import 'core/bridge/api/library.dart' as _i455;
@@ -44,24 +51,31 @@ import 'core/models/data/library_folder.dart' as _i72;
 import 'core/models/repos/abs/about_repository.dart' as _i80;
 import 'core/models/repos/abs/account_repository.dart' as _i1035;
 import 'core/models/repos/abs/account_settings_repository.dart' as _i314;
+import 'core/models/repos/abs/ai_repository.dart' as _i84;
 import 'core/models/repos/abs/approvals_repository.dart' as _i465;
 import 'core/models/repos/abs/auth_session_repository.dart' as _i227;
+import 'core/models/repos/abs/board_repository.dart' as _i235;
 import 'core/models/repos/abs/capture_repository.dart' as _i23;
 import 'core/models/repos/abs/diagnostics_repository.dart' as _i984;
 import 'core/models/repos/abs/file_picker_repository.dart' as _i205;
 import 'core/models/repos/abs/gallery_repository.dart' as _i550;
 import 'core/models/repos/abs/haptics_repository.dart' as _i1056;
+import 'core/models/repos/abs/journal_repository.dart' as _i169;
 import 'core/models/repos/abs/library_repository.dart' as _i38;
 import 'core/models/repos/abs/licences_repository.dart' as _i951;
 import 'core/models/repos/abs/patch_repository.dart' as _i909;
 import 'core/models/repos/abs/preferences_repository.dart' as _i384;
+import 'core/models/repos/abs/reminder_notifier.dart' as _i874;
+import 'core/models/repos/abs/reminders_repository.dart' as _i58;
 import 'core/models/repos/abs/renderer_repository.dart' as _i732;
 import 'core/models/repos/abs/session_repository.dart' as _i333;
 import 'core/models/repos/abs/shared_notes_repository.dart' as _i374;
 import 'core/models/repos/abs/sync_repository.dart' as _i601;
 import 'core/models/repos/abs/system_share_repository.dart' as _i202;
+import 'core/models/repos/abs/templates_repository.dart' as _i460;
 import 'core/models/repos/abs/themes_repository.dart' as _i40;
 import 'core/models/repos/abs/widget_colors_repository.dart' as _i978;
+import 'core/models/repos/impl/channel_reminder_notifier.dart' as _i740;
 import 'core/models/repos/impl/file_preferences_repository.dart' as _i207;
 import 'core/models/repos/impl/file_widget_colors_repository.dart' as _i2;
 import 'core/models/repos/impl/flutter_haptics_repository.dart' as _i438;
@@ -71,15 +85,20 @@ import 'core/models/repos/impl/package_info_about_repository.dart' as _i489;
 import 'core/models/repos/impl/plugin_auth_session_repository.dart' as _i680;
 import 'core/models/repos/impl/rust_account_repository.dart' as _i450;
 import 'core/models/repos/impl/rust_account_settings_repository.dart' as _i350;
+import 'core/models/repos/impl/rust_ai_repository.dart' as _i500;
 import 'core/models/repos/impl/rust_approvals_repository.dart' as _i99;
+import 'core/models/repos/impl/rust_board_repository.dart' as _i418;
 import 'core/models/repos/impl/rust_capture_repository.dart' as _i824;
 import 'core/models/repos/impl/rust_diagnostics_repository.dart' as _i1062;
 import 'core/models/repos/impl/rust_gallery_repository.dart' as _i692;
+import 'core/models/repos/impl/rust_journal_repository.dart' as _i212;
 import 'core/models/repos/impl/rust_library_repository.dart' as _i152;
+import 'core/models/repos/impl/rust_reminders_repository.dart' as _i429;
 import 'core/models/repos/impl/rust_renderer_repository.dart' as _i820;
 import 'core/models/repos/impl/rust_session_repository.dart' as _i899;
 import 'core/models/repos/impl/rust_shared_notes_repository.dart' as _i628;
 import 'core/models/repos/impl/rust_sync_repository.dart' as _i564;
+import 'core/models/repos/impl/rust_templates_repository.dart' as _i213;
 import 'core/models/repos/impl/shorebird_patch_repository.dart' as _i989;
 import 'core/models/repos/impl/system_file_picker_repository.dart' as _i448;
 import 'core/models/repos/impl/themes_repository_impl.dart' as _i48;
@@ -105,12 +124,23 @@ import 'crash/models/repos/abs/crash_report_repository.dart' as _i288;
 import 'crash/models/repos/impl/platform_crash_context_repository.dart'
     as _i756;
 import 'crash/state/crash_reports/crash_reports_bloc.dart' as _i815;
+import 'dictation/models/repos/abs/dictation_repository.dart' as _i872;
+import 'dictation/models/repos/abs/dictation_text_rules.dart' as _i426;
+import 'dictation/models/repos/impl/dictation_module.dart' as _i429;
+import 'dictation/models/repos/impl/platform_dictation_repository.dart'
+    as _i1029;
+import 'dictation/models/repos/impl/rust_dictation_text_rules.dart' as _i38;
+import 'dictation/state/dictation/dictation_bloc.dart' as _i657;
+import 'dictation/state/voice_note/voice_note_bloc.dart' as _i284;
+import 'discovery/models/repos/abs/discovery_repository.dart' as _i673;
+import 'discovery/models/repos/impl/rust_discovery_repository.dart' as _i913;
 import 'editor/models/repos/abs/editor_repository.dart' as _i979;
 import 'editor/models/repos/abs/web_link_repository.dart' as _i272;
 import 'editor/models/repos/impl/rust_editor_repository.dart' as _i606;
 import 'editor/models/repos/impl/url_launcher_web_link_repository.dart'
     as _i635;
 import 'editor/state/editor/editor_bloc.dart' as _i964;
+import 'graph/state/graph/graph_bloc.dart' as _i365;
 import 'history/models/repos/abs/history_repository.dart' as _i974;
 import 'history/models/repos/impl/rust_history_repository.dart' as _i1065;
 import 'history/state/note_history/note_history_bloc.dart' as _i403;
@@ -120,6 +150,8 @@ import 'import/models/repos/impl/channel_import_files_repository.dart' as _i196;
 import 'import/models/repos/impl/rust_import_repository.dart' as _i903;
 import 'import/state/import_flow/import_flow_bloc.dart' as _i513;
 import 'import/state/opened_documents/opened_documents_bloc.dart' as _i979;
+import 'journal/state/calendar/calendar_bloc.dart' as _i390;
+import 'journal/state/journal/journal_bloc.dart' as _i686;
 import 'library/state/new_notebook/new_notebook_bloc.dart' as _i991;
 import 'lock/models/repos/abs/device_lock_repository.dart' as _i279;
 import 'lock/models/repos/impl/plugin_device_lock_repository.dart' as _i64;
@@ -133,13 +165,26 @@ import 'lock/state/unlock/unlock_bloc.dart' as _i797;
 import 'note/models/repos/abs/note_place_repository.dart' as _i930;
 import 'note/models/repos/impl/memory_note_place_repository.dart' as _i503;
 import 'note/state/note/note_bloc.dart' as _i618;
+import 'note/state/note_discovery/note_discovery_bloc.dart' as _i779;
+import 'note/state/note_mode_intent/note_mode_intent_bloc.dart' as _i908;
 import 'note/state/preview/preview_bloc.dart' as _i435;
+import 'note_links/models/repos/abs/note_links_repository.dart' as _i393;
+import 'note_links/models/repos/impl/rust_note_links_repository.dart' as _i199;
 import 'note_list/state/note_list/note_list_bloc.dart' as _i351;
+import 'palette/models/repos/abs/palette_repository.dart' as _i704;
+import 'palette/models/repos/impl/rust_palette_repository.dart' as _i97;
+import 'palette/state/palette/palette_bloc.dart' as _i204;
+import 'publish/models/repos/abs/publish_repository.dart' as _i1047;
+import 'publish/models/repos/impl/rust_publish_repository.dart' as _i99;
+import 'publish/state/publish/publish_bloc.dart' as _i614;
 import 'push/configs/push_module.dart' as _i78;
 import 'push/models/repos/abs/push_repository.dart' as _i937;
 import 'push/models/repos/impl/plugin_push_repository.dart' as _i506;
 import 'push/state/push_registration/push_registration_bloc.dart' as _i250;
 import 'push/state/push_setting/push_setting_bloc.dart' as _i584;
+import 'reminders/state/reminders_settings/reminders_settings_bloc.dart'
+    as _i420;
+import 'reminders/utils/reminders_coordinator.dart' as _i303;
 import 'replace/models/repos/abs/replace_repository.dart' as _i608;
 import 'replace/models/repos/impl/rust_replace_repository.dart' as _i1;
 import 'replace/state/replace_notes/replace_notes_bloc.dart' as _i1028;
@@ -147,6 +192,7 @@ import 'search/state/search/search_bloc.dart' as _i696;
 import 'settings/state/about/about_bloc.dart' as _i380;
 import 'settings/state/backup_notice/backup_notice_bloc.dart' as _i897;
 import 'settings/state/default_notebook/default_notebook_bloc.dart' as _i925;
+import 'settings/state/discovery/discovery_settings_bloc.dart' as _i904;
 import 'settings/state/icon_themes/icon_themes_bloc.dart' as _i636;
 import 'settings/state/licences/licences_bloc.dart' as _i570;
 import 'settings/state/sync_settings/sync_settings_bloc.dart' as _i794;
@@ -156,12 +202,24 @@ import 'sharing/state/join_link/join_link_bloc.dart' as _i676;
 import 'sharing/state/share_note/share_note_bloc.dart' as _i252;
 import 'sharing/state/shared_note_live/shared_note_live_bloc.dart' as _i361;
 import 'sharing/state/shared_note_status/shared_note_status_bloc.dart' as _i109;
+import 'shell/state/focus_mode/focus_mode_bloc.dart' as _i427;
 import 'shell/state/library_pane/library_pane_bloc.dart' as _i612;
 import 'shell/state/note_creation/note_creation_bloc.dart' as _i34;
+import 'tabs/state/tabs/tabs_bloc.dart' as _i380;
 import 'tasks/state/tasks/tasks_bloc.dart' as _i470;
+import 'templates/state/daily_template/daily_template_bloc.dart' as _i615;
+import 'templates/state/template_picker/template_picker_bloc.dart' as _i828;
 import 'themes/state/icon_themes/icon_themes_bloc.dart' as _i778;
 import 'themes/state/theme_gallery/theme_gallery_bloc.dart' as _i569;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
+import 'voice_settings/models/repos/abs/voice_settings_repository.dart'
+    as _i1027;
+import 'voice_settings/models/repos/impl/rust_voice_settings_repository.dart'
+    as _i759;
+import 'voice_settings/state/voice_settings/voice_settings_bloc.dart' as _i64;
+import 'window/models/repos/abs/note_window_repository.dart' as _i612;
+import 'window/models/repos/impl/platform_note_window_repository.dart' as _i271;
+import 'window/state/note_window/note_window_bloc.dart' as _i973;
 
 const String _development = 'development';
 const String _production = 'production';
@@ -175,9 +233,12 @@ extension GetItInjectableX on _i174.GetIt {
   }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final coreModule = _$CoreModule();
+    final dictationModule = _$DictationModule();
     final pushModule = _$PushModule();
     final crashModule = _$CrashModule();
     final appModule = _$AppModule();
+    final windowModule = _$WindowModule();
+    gh.factory<_i908.NoteModeIntentBloc>(() => _i908.NoteModeIntentBloc());
     gh.factory<_i612.LibraryPaneBloc>(() => _i612.LibraryPaneBloc());
     gh.singleton<_i609.LayoutClassNotifier>(() => _i609.LayoutClassNotifier());
     gh.lazySingleton<_i183.ImagePicker>(() => coreModule.imagePicker());
@@ -186,12 +247,16 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i846.LibraryFolderMigration(),
     );
     gh.lazySingleton<_i608.WidgetReloader>(() => _i608.WidgetReloader());
+    gh.lazySingleton<_i33.KansoDictation>(() => dictationModule.kansoDictation);
     gh.lazySingleton<_i901.KansoPushHostApi>(() => pushModule.hostApi());
     gh.lazySingleton<_i984.DiagnosticsRepository>(
       () => _i1062.RustDiagnosticsRepository(),
     );
     gh.lazySingleton<_i930.NotePlaceRepository>(
       () => _i503.MemoryNotePlaceRepository(),
+    );
+    gh.lazySingleton<_i874.ReminderNotifier>(
+      () => _i740.ChannelReminderNotifier(),
     );
     gh.lazySingleton<_i1056.HapticsRepository>(
       () => _i438.FlutterHapticsRepository(),
@@ -241,6 +306,9 @@ extension GetItInjectableX on _i174.GetIt {
       () => appModule.developmentGallery,
       registerFor: {_development},
     );
+    gh.lazySingleton<_i872.DictationRepository>(
+      () => _i1029.PlatformDictationRepository(gh<_i33.KansoDictation>()),
+    );
     gh.factory<_i570.LicencesBloc>(
       () => _i570.LicencesBloc(gh<_i951.LicencesRepository>()),
     );
@@ -284,6 +352,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i925.DefaultNotebookBloc>(
       () => _i925.DefaultNotebookBloc(gh<_i384.PreferencesRepository>()),
     );
+    gh.factory<_i427.FocusModeBloc>(
+      () => _i427.FocusModeBloc(gh<_i384.PreferencesRepository>()),
+    );
     gh.lazySingleton<_i288.CrashReportRepository>(
       () => crashModule.crashReports(
         gh<_i392.CrashFolder>(),
@@ -295,6 +366,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i289.DesignGalleryAccess>(),
         gh<_i609.LayoutClassNotifier>(),
       ),
+    );
+    await gh.singletonAsync<_i612.NoteWindowRepository>(
+      () => windowModule.noteWindows(gh<_i72.LibraryFolder>()),
+      preResolve: true,
     );
     await gh.singletonAsync<_i455.KansoLibrary>(
       () => coreModule.library(gh<_i72.LibraryFolder>()),
@@ -312,11 +387,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.HapticsRepository>(),
       ),
     );
+    gh.lazySingleton<_i673.DiscoveryRepository>(
+      () => _i913.RustDiscoveryRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i815.CrashReportsBloc>(
       () => _i815.CrashReportsBloc(gh<_i288.CrashReportRepository>()),
     );
     gh.lazySingleton<_i983.KansoLocks>(
       () => coreModule.locks(gh<_i455.KansoLibrary>()),
+    );
+    gh.lazySingleton<_i35.KansoAi>(
+      () => coreModule.ai(gh<_i455.KansoLibrary>()),
     );
     gh.lazySingleton<_i591.KansoSync>(
       () => coreModule.sync(gh<_i455.KansoLibrary>()),
@@ -345,6 +426,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i732.RendererRepository>(
       () => _i820.RustRendererRepository(gh<_i832.KansoRenderer>()),
     );
+    gh.lazySingleton<_i704.PaletteRepository>(
+      () => _i97.RustPaletteRepository(gh<_i455.KansoLibrary>()),
+    );
+    gh.factory<_i696.SearchBloc>(
+      () => _i696.SearchBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i673.DiscoveryRepository>(),
+      ),
+    );
+    gh.factory<_i284.VoiceNoteBloc>(
+      () => _i284.VoiceNoteBloc(gh<_i38.LibraryRepository>()),
+    );
     gh.lazySingleton<_i937.PushRepository>(
       () => _i506.PluginPushRepository(
         gh<_i901.KansoPushHostApi>(),
@@ -357,8 +450,17 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i465.ApprovalsRepository>(
       () => _i99.RustApprovalsRepository(gh<_i283.KansoApprovals>()),
     );
+    gh.lazySingleton<_i1047.PublishRepository>(
+      () => _i99.RustPublishRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.lazySingleton<_i242.ImportRepository>(
       () => _i903.RustImportRepository(gh<_i455.KansoLibrary>()),
+    );
+    gh.factory<_i380.TabsBloc>(
+      () => _i380.TabsBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i384.PreferencesRepository>(),
+      ),
     );
     gh.lazySingleton<_i23.CaptureRepository>(
       () => _i824.RustCaptureRepository(
@@ -367,8 +469,20 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i825.ExternalChanges>(),
       ),
     );
+    gh.lazySingleton<_i169.JournalRepository>(
+      () => _i212.RustJournalRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.lazySingleton<_i974.HistoryRepository>(
       () => _i1065.RustHistoryRepository(gh<_i455.KansoLibrary>()),
+    );
+    gh.factory<_i904.DiscoverySettingsBloc>(
+      () => _i904.DiscoverySettingsBloc(
+        gh<_i673.DiscoveryRepository>(),
+        gh<_i384.PreferencesRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i235.BoardRepository>(
+      () => _i418.RustBoardRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i403.NoteHistoryBloc>(
       () => _i403.NoteHistoryBloc(
@@ -377,11 +491,20 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i202.SystemShareRepository>(),
       ),
     );
+    gh.lazySingleton<_i460.TemplatesRepository>(
+      () => _i213.RustTemplatesRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i250.PushRegistrationBloc>(
       () => _i250.PushRegistrationBloc(gh<_i937.PushRepository>()),
     );
     gh.factory<_i584.PushSettingBloc>(
       () => _i584.PushSettingBloc(gh<_i937.PushRepository>()),
+    );
+    gh.lazySingleton<_i84.AiRepository>(
+      () => _i500.RustAiRepository(
+        gh<_i35.KansoAi>(),
+        gh<_i609.LayoutClassNotifier>(),
+      ),
     );
     gh.factory<_i618.NoteBloc>(
       () => _i618.NoteBloc(
@@ -389,6 +512,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i732.RendererRepository>(),
         gh<_i930.NotePlaceRepository>(),
       ),
+    );
+    gh.factory<_i553.BoardBloc>(
+      () => _i553.BoardBloc(
+        gh<_i235.BoardRepository>(),
+        gh<_i38.LibraryRepository>(),
+      ),
+    );
+    gh.factory<_i182.AiSettingsBloc>(
+      () => _i182.AiSettingsBloc(gh<_i84.AiRepository>()),
+    );
+    gh.factory<_i1030.AiStatusBloc>(
+      () => _i1030.AiStatusBloc(gh<_i84.AiRepository>()),
+    );
+    gh.factory<_i216.AskBloc>(() => _i216.AskBloc(gh<_i84.AiRepository>()));
+    gh.factory<_i567.AssistBloc>(
+      () => _i567.AssistBloc(gh<_i84.AiRepository>()),
     );
     gh.lazySingleton<_i979.EditorRepository>(
       () => _i606.RustEditorRepository(gh<_i455.KansoLibrary>()),
@@ -399,14 +538,11 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i907.ListNavigationBloc>(
       () => _i907.ListNavigationBloc(gh<_i38.LibraryRepository>()),
     );
-    gh.factory<_i272.NavigationHistoryBloc>(
-      () => _i272.NavigationHistoryBloc(gh<_i38.LibraryRepository>()),
-    );
     gh.factory<_i991.NewNotebookBloc>(
       () => _i991.NewNotebookBloc(gh<_i38.LibraryRepository>()),
     );
-    gh.factory<_i696.SearchBloc>(
-      () => _i696.SearchBloc(gh<_i38.LibraryRepository>()),
+    gh.lazySingleton<_i393.NoteLinksRepository>(
+      () => _i199.RustNoteLinksRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i34.NoteCreationBloc>(
       () => _i34.NoteCreationBloc(
@@ -416,6 +552,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i23.CaptureRepository>(),
         gh<_i900.MediaPickerRepository>(),
       ),
+    );
+    gh.lazySingleton<_i58.RemindersRepository>(
+      () => _i429.RustRemindersRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i513.ImportFlowBloc>(
       () => _i513.ImportFlowBloc(
@@ -443,6 +582,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1002.BackupsRepository>(
       () => _i270.RustBackupsRepository(gh<_i455.KansoLibrary>()),
     );
+    gh.factory<_i686.JournalBloc>(
+      () => _i686.JournalBloc(
+        gh<_i169.JournalRepository>(),
+        gh<_i460.TemplatesRepository>(),
+      ),
+    );
+    gh.factory<_i365.GraphBloc>(
+      () => _i365.GraphBloc(gh<_i673.DiscoveryRepository>()),
+    );
+    gh.factory<_i779.NoteDiscoveryBloc>(
+      () => _i779.NoteDiscoveryBloc(gh<_i673.DiscoveryRepository>()),
+    );
     gh.factory<_i1060.DailyNoteBloc>(
       () => _i1060.DailyNoteBloc(gh<_i23.CaptureRepository>()),
     );
@@ -456,6 +607,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i900.MediaPickerRepository>(),
       ),
     );
+    gh.factoryParam<_i272.NavigationHistoryBloc, _i380.TabsBloc?, dynamic>(
+      (_tabs, _) =>
+          _i272.NavigationHistoryBloc(gh<_i38.LibraryRepository>(), _tabs),
+    );
     gh.lazySingleton<_i1035.AccountRepository>(
       () =>
           _i450.RustAccountRepository(gh<_i578.KansoAccount>())
@@ -468,6 +623,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i985.UndoNoticeBloc>(),
       ),
     );
+    gh.lazySingleton<_i1027.VoiceSettingsRepository>(
+      () => _i759.RustVoiceSettingsRepository(gh<_i455.KansoLibrary>()),
+    );
+    gh.factory<_i390.CalendarBloc>(
+      () => _i390.CalendarBloc(gh<_i169.JournalRepository>()),
+    );
     gh.lazySingleton<_i314.AccountSettingsRepository>(
       () =>
           _i350.RustAccountSettingsRepository(gh<_i102.KansoAccountSettings>()),
@@ -477,6 +638,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i333.SessionRepository>(
       () => _i899.RustSessionRepository(gh<_i983.KansoLocks>()),
+    );
+    gh.factory<_i615.DailyTemplateBloc>(
+      () => _i615.DailyTemplateBloc(gh<_i460.TemplatesRepository>()),
+    );
+    gh.factory<_i828.TemplatePickerBloc>(
+      () => _i828.TemplatePickerBloc(gh<_i460.TemplatesRepository>()),
     );
     gh.factory<_i797.UnlockBloc>(
       () => _i797.UnlockBloc(
@@ -490,6 +657,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i550.GalleryRepository>(
       () => _i692.RustGalleryRepository(gh<_i783.KansoGallery>()),
+    );
+    gh.factory<_i204.PaletteBloc>(
+      () => _i204.PaletteBloc(gh<_i704.PaletteRepository>()),
     );
     gh.factory<_i770.BackupsBloc>(
       () => _i770.BackupsBloc(gh<_i1002.BackupsRepository>()),
@@ -524,11 +694,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.HapticsRepository>(),
       ),
     );
+    gh.lazySingleton<_i303.RemindersCoordinator>(
+      () => _i303.RemindersCoordinator(
+        gh<_i384.PreferencesRepository>(),
+        gh<_i58.RemindersRepository>(),
+        gh<_i874.ReminderNotifier>(),
+        gh<_i38.LibraryRepository>(),
+      ),
+    );
     gh.factory<_i185.SyncStatusBloc>(
       () => _i185.SyncStatusBloc(gh<_i601.SyncRepository>()),
     );
     gh.factory<_i794.SyncSettingsBloc>(
       () => _i794.SyncSettingsBloc(gh<_i601.SyncRepository>()),
+    );
+    gh.factory<_i614.PublishBloc>(
+      () => _i614.PublishBloc(gh<_i1047.PublishRepository>()),
     );
     gh.factory<_i1028.ReplaceNotesBloc>(
       () => _i1028.ReplaceNotesBloc(gh<_i608.ReplaceRepository>()),
@@ -551,6 +732,18 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i601.SyncRepository>(),
       ),
     );
+    gh.factory<_i973.NoteWindowBloc>(
+      () => _i973.NoteWindowBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i333.SessionRepository>(),
+      ),
+    );
+    gh.factory<_i64.VoiceSettingsBloc>(
+      () => _i64.VoiceSettingsBloc(
+        gh<_i1027.VoiceSettingsRepository>(),
+        gh<_i872.DictationRepository>(),
+      ),
+    );
     gh.factory<_i35.RecoveryKeyBloc>(
       () => _i35.RecoveryKeyBloc(gh<_i1035.AccountRepository>()),
     );
@@ -565,6 +758,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i374.SharedNotesRepository>(),
         gh<_i202.SystemShareRepository>(),
       ),
+    );
+    gh.lazySingleton<_i426.DictationTextRules>(
+      () => _i38.RustDictationTextRules(gh<_i1027.VoiceSettingsRepository>()),
     );
     gh.factory<_i778.IconThemesBloc>(
       () => _i778.IconThemesBloc(
@@ -612,14 +808,31 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i279.DeviceLockRepository>(),
       ),
     );
+    gh.factory<_i420.RemindersSettingsBloc>(
+      () => _i420.RemindersSettingsBloc(
+        gh<_i384.PreferencesRepository>(),
+        gh<_i874.ReminderNotifier>(),
+        gh<_i303.RemindersCoordinator>(),
+      ),
+    );
+    gh.factory<_i657.DictationBloc>(
+      () => _i657.DictationBloc(
+        gh<_i872.DictationRepository>(),
+        gh<_i426.DictationTextRules>(),
+      ),
+    );
     return this;
   }
 }
 
 class _$CoreModule extends _i418.CoreModule {}
 
+class _$DictationModule extends _i429.DictationModule {}
+
 class _$PushModule extends _i78.PushModule {}
 
 class _$CrashModule extends _i1016.CrashModule {}
 
 class _$AppModule extends _i216.AppModule {}
+
+class _$WindowModule extends _i271.WindowModule {}

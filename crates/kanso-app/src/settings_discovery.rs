@@ -20,39 +20,9 @@ pub fn this_device() -> &'static str {
     "this device"
 }
 
-/// "12.4 MB".
-pub fn megabytes(bytes: u64) -> String {
-    format!("{:.1}\u{a0}MB", bytes as f64 / 1_000_000.)
-}
-
-/// The status row's title and line for related notes in `status`; none
-/// while it is off.
-pub fn related_words(status: &Status) -> Option<(String, String)> {
-    let count = |n: usize| crate::text_stats::format_count(n);
-    Some(match status {
-        Status::Off => return None,
-        Status::Downloading { done, total } => (
-            format!(
-                "Downloading the model… {}%",
-                related::percent(*done, *total)
-            ),
-            format!("{} of {}", megabytes(*done), megabytes(*total)),
-        ),
-        Status::Loading => ("Getting ready…".to_owned(), "Checking the model".to_owned()),
-        Status::Indexing { done, total } => (
-            "Indexing notes…".to_owned(),
-            format!("{} of {}", count(*done), count(*total)),
-        ),
-        Status::Ready { notes } => (
-            "Ready".to_owned(),
-            format!(
-                "{} indexed. New and changed notes are indexed as you write.",
-                crate::text_stats::plural(*notes, "note", "notes")
-            ),
-        ),
-        Status::Failed(message) => ("Related notes stopped".to_owned(), message.clone()),
-    })
-}
+/// "12.4 MB" and the words related notes' status is told in: the same
+/// ones the phones use.
+pub use kanso_engine::discovery::related::{megabytes, related_words};
 
 /// The Discovery section, for the General page.
 // no-prop-test: layout and switches; `related_words` says what it shows,
@@ -156,60 +126,4 @@ pub(crate) fn meter(share: f32, colors: &Colors) -> impl IntoElement {
                     .bg(colors.accent),
             ),
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Status, related_words};
-    use proptest::prelude::*;
-
-    #[test]
-    fn related_words_examples() {
-        assert_eq!(related_words(&Status::Off), None);
-        assert_eq!(
-            related_words(&Status::Downloading {
-                done: 12_400_000,
-                total: 31_121_000
-            }),
-            Some((
-                "Downloading the model… 39%".into(),
-                "12.4\u{a0}MB of 31.1\u{a0}MB".into()
-            ))
-        );
-        assert_eq!(
-            related_words(&Status::Indexing {
-                done: 120,
-                total: 2_000
-            })
-            .unwrap()
-            .1,
-            "120 of 2,000"
-        );
-        assert!(
-            related_words(&Status::Ready { notes: 1 })
-                .unwrap()
-                .1
-                .starts_with("1 note indexed")
-        );
-    }
-
-    proptest! {
-        /// Every state but Off says something, and a failure says why.
-        #[test]
-        fn prop_every_state_reads(done in 0u64..50_000_000, total in 1u64..50_000_000, n in 0usize..100_000, why in "[a-z ]{1,30}") {
-            for status in [
-                Status::Downloading { done, total },
-                Status::Loading,
-                Status::Indexing { done: n / 2, total: n },
-                Status::Ready { notes: n },
-                Status::Failed(why.clone()),
-            ] {
-                let (title, detail) = related_words(&status).unwrap();
-                prop_assert!(!title.is_empty() && !detail.is_empty());
-                if let Status::Failed(_) = status {
-                    prop_assert_eq!(&detail, &why);
-                }
-            }
-        }
-    }
 }

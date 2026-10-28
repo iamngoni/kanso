@@ -9,17 +9,25 @@
 
 pub mod account;
 pub mod account_settings;
+pub mod ai;
 pub mod approvals;
+pub mod board;
 pub mod diagnostics;
+pub mod discovery;
 pub mod editor;
 pub mod gallery;
 pub mod import;
+pub mod journal;
 pub mod library;
 pub mod linking;
 pub mod linking_types;
 pub mod locks;
+pub mod publish;
+pub mod reminders;
 pub mod renderer;
 pub mod shared;
+pub mod shortcuts;
 pub mod sync;
 pub mod themes;
 pub mod types;
+pub mod voice;

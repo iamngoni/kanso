@@ -7,12 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
 import 'package:kanso/backups/state/backups/backups_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_layout.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/design_gallery_access.dart';
+import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/core/router/kanso_router.dart';
 import 'package:kanso/core/router/layout_class_notifier.dart';
 import 'package:kanso/core/state/account/account_bloc.dart';
@@ -33,17 +35,23 @@ import 'package:kanso/import/state/opened_documents/opened_documents_bloc.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart';
+import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
 import 'package:kanso/settings/state/sync_settings/sync_settings_bloc.dart';
 import 'package:kanso/sharing/state/invitations/invitations_bloc.dart';
 import 'package:kanso/shell/state/library_pane/library_pane_bloc.dart';
 import 'package:kanso/shell/state/note_creation/note_creation_bloc.dart';
+import 'package:kanso/tabs/state/tabs/tabs_bloc.dart';
 
 import 'account_blocs.dart';
+import 'app_feature_fixtures.dart';
 import 'browse_blocs.dart';
 import 'crash_samples.dart';
+import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
+import 'fixture_discovery_repository.dart';
 import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
 import 'fixture_library_repository.dart';
@@ -53,6 +61,7 @@ import 'fixture_session_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_sync_repository.dart';
 import 'fixture_themes_repository.dart';
+import 'page_fixtures.dart';
 import 'register_page_blocs.dart';
 import 'seeded_appearance_bloc.dart';
 import 'sync_settings_blocs.dart';
@@ -98,7 +107,8 @@ class BrowseApp {
 /// BLoCs; by default the phone has no account. [sync] is the sync the
 /// status and the sync settings read. [shared] and [gallery] are
 /// the shared notes and the theme gallery the app reads, if a test has made
-/// them. [session] and [device] are the lock session and the phone's
+/// them. [fixtures] supplies the journal, board and reminder fixtures.
+/// [session] and [device] are the lock session and the phone's
 /// biometrics; by default nothing is locked. The app is inside a repaint
 /// boundary, [appBoundaryKey], to take a picture of.
 Future<BrowseApp> pumpBrowseApp(
@@ -108,14 +118,13 @@ Future<BrowseApp> pumpBrowseApp(
   AppearanceState appearance = const AppearanceState(),
   FixtureLibraryRepository? library,
   FixtureRendererRepository? renderer,
+  FixtureAiRepository? ai,
   double devicePixelRatio = 1,
   EdgeInsets safeArea = EdgeInsets.zero,
   bool? tabletDevice,
   BackupNoticeBloc? backupNotice,
   FixtureSharedNotesRepository? shared,
   FixtureGalleryRepository? gallery,
-  FixtureThemesRepository? themes,
-  FixtureFilePickerRepository? files,
   AccountBlocs? accounts,
   FixtureSyncRepository? sync,
   FixtureSessionRepository? session,
@@ -124,6 +133,9 @@ Future<BrowseApp> pumpBrowseApp(
   FixtureHistoryRepository? history,
   FixtureReplaceRepository? replace,
   FixtureBackupsRepository? backups,
+  PageFixtures? fixtures,
+  FixtureThemesRepository? themes,
+  FixtureFilePickerRepository? files,
 }) async {
   final bloc = SeededAppearanceBloc(appearance);
   addTearDown(bloc.close);
@@ -139,13 +151,16 @@ Future<BrowseApp> pumpBrowseApp(
     renderer: renderer,
     undo: blocs.undoNotice,
     gallery: gallery,
-    themes: themes,
-    files: files,
     shared: blocs.shared,
     history: history,
     replace: replace,
     backups: backups,
+    fixtures: fixtures,
+    themes: themes,
+    files: files,
   );
+  final appFeatures = AppFeatureFixtures(ai: ai)..register();
+  addTearDown(appFeatures.dispose);
   final accountBlocs = (accounts ?? AccountBlocs())..register();
   final opened =
       openedDocuments ??
@@ -186,6 +201,8 @@ Future<BrowseApp> pumpBrowseApp(
       child: MultiBlocProvider(
         providers: <BlocProvider<dynamic>>[
           BlocProvider<AppearanceBloc>.value(value: bloc),
+          BlocProvider<AiStatusBloc>.value(value: appFeatures.status),
+          BlocProvider<TabsBloc>.value(value: blocs.tabs),
           BlocProvider<NavigationHistoryBloc>.value(value: blocs.history),
           BlocProvider<LibraryIndexBloc>.value(value: blocs.index),
           BlocProvider<InvitationsBloc>.value(value: blocs.invitations),
@@ -196,10 +213,20 @@ Future<BrowseApp> pumpBrowseApp(
           BlocProvider<ListNavigationBloc>.value(value: blocs.listNavigation),
           BlocProvider<LibraryPaneBloc>.value(value: blocs.libraryPane),
           BlocProvider<LockStatusBloc>.value(value: blocs.lock),
+          BlocProvider<NoteModeIntentBloc>(
+            create: (_) => NoteModeIntentBloc(),
+          ),
           BlocProvider<PrivacyCoverBloc>.value(value: blocs.cover),
           BlocProvider<UndoNoticeBloc>.value(value: blocs.undoNotice),
           BlocProvider<NoteCreationBloc>.value(value: blocs.creation),
           BlocProvider<DefaultNotebookBloc>.value(value: blocs.defaultNotebook),
+          BlocProvider<DiscoverySettingsBloc>(
+            lazy: false,
+            create: (_) => DiscoverySettingsBloc(
+              FixtureDiscoveryRepository(),
+              SeededPreferencesRepository(const Preferences()),
+            )..add(const DiscoverySettingsEvent.started()),
+          ),
           BlocProvider<CaptureInboxBloc>.value(value: blocs.captureInbox),
           BlocProvider<BackupNoticeBloc>.value(
             value: backupNotice ?? hiddenBackupNoticeBloc(),

@@ -15,6 +15,10 @@ import 'crash/models/repos/abs/crash_report_repository.dart';
 import 'crash/utils/crash_capture.dart';
 import 'injection.dart';
 import 'providers.dart';
+import 'reminders/utils/reminders_coordinator.dart';
+import 'window/models/repos/abs/note_window_repository.dart';
+import 'window/views/widgets/note_window_request_host.dart';
+import 'window/views/widgets/note_window_scope.dart';
 
 /// Prepares the app and runs it for [environment].
 ///
@@ -43,10 +47,22 @@ Future<void> bootstrap(
     (state) => state.status != AppearanceStatus.loading,
   );
   await beforeRun?.call();
+  final windows = getIt<NoteWindowRepository>();
+  final router = getIt<KansoRouter>();
   runApp(
     AppProviders(
       appearance: appearance,
-      child: App(router: getIt<KansoRouter>()),
+      child: NoteWindowScope(
+        repository: windows,
+        child: NoteWindowRequestHost(
+          windows: windows,
+          router: router.config,
+          child: App(
+            router: router,
+            reminders: getIt<RemindersCoordinator>(),
+          ),
+        ),
+      ),
     ),
   );
 }

@@ -8,7 +8,13 @@ part of 'note_bloc.dart';
 sealed class NoteEvent with _$NoteEvent {
   /// The note [id] was opened, to be shown in the built-in theme [themeId]:
   /// read it, and keep it read.
-  const factory NoteEvent.started(String id, String themeId) = NoteStartedEvent;
+  const factory NoteEvent.started(
+    String id,
+    String themeId, {
+    int? bodyLine,
+    int? cursor16,
+    @Default(false) bool titleFirst,
+  }) = NoteStartedEvent;
 
   /// The library wrote [ids]: read the note again if it is one of them,
   /// once the writes of a burst have stopped.

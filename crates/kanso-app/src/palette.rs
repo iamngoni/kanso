@@ -24,6 +24,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::{DocType, Note, NoteStatus};
+use kanso_engine::discovery::meaning::meaning_query;
 use kanso_engine::navigate::quick_open::{
     HEADING_LIMIT, NOTE_LIMIT, heading_words, merge_by_id, title_search,
 };
@@ -94,9 +95,6 @@ const ROW_HEIGHT: f32 = 30.;
 /// How many notes are listed for being about the search, after the notes
 /// that have its words.
 const MEANING_LIMIT: usize = 5;
-/// The shortest search that is also searched by meaning: a letter or two
-/// says little about a subject.
-const MEANING_MIN_CHARS: usize = 3;
 /// How long typing pauses before notes are searched.
 const SEARCH_DELAY: Duration = Duration::from_millis(80);
 
@@ -2089,15 +2087,6 @@ const SUGGESTED_HEADING: &str = "Suggested by close notes";
 /// The heading over notes found by meaning.
 const ABOUT_HEADING: &str = "Similar in meaning";
 
-/// The words searched by meaning: the query, when it is plain words long
-/// enough to say something, rather than a search with qualifiers. Pure.
-fn meaning_query(query: &str) -> Option<String> {
-    let words = query.trim();
-    let plain = !words.contains(':') && !words.starts_with('-') && !words.contains('"');
-    (plain && words.chars().filter(|c| c.is_alphanumeric()).count() >= MEANING_MIN_CHARS)
-        .then(|| words.to_owned())
-}
-
 /// The notes about `words` that `listed` (the text matches) leaves out,
 /// as list rows with their similarity, closest first; none while related
 /// notes are off or the model isn't loaded.
@@ -2405,8 +2394,8 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ABOUT_HEADING, MODIFIER_SYMBOLS, Mode, Palette, Row, SUGGESTED_HEADING, meaning_query,
-        merge_by_id, shortcut, shortcut_parts, tag_name, title_search,
+        ABOUT_HEADING, MODIFIER_SYMBOLS, Mode, Palette, Row, SUGGESTED_HEADING, merge_by_id,
+        shortcut, shortcut_parts, tag_name, title_search,
     };
     use crate::config::AppConfig;
     use crate::library::Filter;
@@ -3286,15 +3275,6 @@ mod tests {
         assert_eq!(tags, [f.store.tag_named("planning", Origin::Ui).unwrap()]);
         f.open(cx, Mode::Pick(Picker::Tag));
         assert_eq!(headings(cx), ["Tags"]);
-    }
-
-    #[test]
-    fn meaning_searches_plain_words_only() {
-        assert_eq!(meaning_query(" fruit trees "), Some("fruit trees".into()));
-        assert_eq!(meaning_query("ab"), None);
-        assert_eq!(meaning_query("tag:work"), None);
-        assert_eq!(meaning_query("-draft"), None);
-        assert_eq!(meaning_query("\"exact words\""), None);
     }
 
     #[gpui_kit::test]

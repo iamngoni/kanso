@@ -15,6 +15,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/place_labels.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_selection_bar.dart';
+import '../../../journal/utils/journal_flows.dart';
 import '../../models/data/note_list_status.dart';
 import '../../state/note_list/note_list_bloc.dart';
 import 'list_options_sheet.dart';
@@ -71,8 +72,7 @@ class NoteListBar extends StatelessWidget {
             : () => bloc.add(
                 NoteListEvent.changeRequested(const NoteChange.trash(), chosen),
               ),
-        onMore: () =>
-            NoteActionsSheet.show(context, bloc: bloc, ids: chosen),
+        onMore: () => NoteActionsSheet.show(context, bloc: bloc, ids: chosen),
       );
     }
     final place = state.place;
@@ -84,6 +84,13 @@ class NoteListBar extends StatelessWidget {
       subtitle: state.status == NoteListStatus.ready
           ? l10n.noteListCount(state.rows.length)
           : null,
+      // The notes made here go in the notebook the list shows.
+      onNew: place is ListPlace_Trash
+          ? null
+          : () => showNewMenu(
+              context,
+              notebookId: place is ListPlace_Notebook ? place.id : null,
+            ),
       // Search from a notebook looks in that notebook.
       onSearch: () => context.go(
         BrowseLocation.search(

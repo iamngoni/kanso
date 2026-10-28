@@ -12,6 +12,7 @@ import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 
 import 'account_blocs.dart';
 import 'browse_blocs.dart';
+import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
@@ -24,6 +25,7 @@ import 'fixture_sync_repository.dart';
 import 'fixture_themes_repository.dart';
 import 'golden.dart';
 import 'kanso_viewport.dart';
+import 'page_fixtures.dart';
 import 'pump_browse_app.dart';
 
 /// Takes a picture of the whole app, as a device of [viewport] draws it, once
@@ -52,6 +54,7 @@ Future<void> expectAppGoldenOnBothPlatforms(
   String at = '/notes',
   FixtureLibraryRepository Function()? library,
   FixtureRendererRepository Function()? renderer,
+  FixtureAiRepository Function()? ai,
   AppearanceState appearance = const AppearanceState(),
   Future<BackupNoticeBloc> Function()? backupNotice,
   FixtureSharedNotesRepository Function()? shared,
@@ -66,6 +69,7 @@ Future<void> expectAppGoldenOnBothPlatforms(
   FixtureHistoryRepository Function()? history,
   FixtureReplaceRepository Function()? replace,
   FixtureBackupsRepository Function()? backups,
+  PageFixtures Function()? fixtures,
   Future<void> Function(WidgetTester tester, BrowseApp app)? interact,
 }) async {
   tester.platformDispatcher
@@ -98,6 +102,7 @@ Future<void> expectAppGoldenOnBothPlatforms(
           at: at,
           library: library?.call(),
           renderer: renderer?.call(),
+          ai: ai?.call(),
           appearance: appearance,
           devicePixelRatio: viewport.devicePixelRatio,
           safeArea: viewport.safeArea,
@@ -115,6 +120,7 @@ Future<void> expectAppGoldenOnBothPlatforms(
           history: history?.call(),
           replace: replace?.call(),
           backups: backups?.call(),
+          fixtures: fixtures?.call(),
         );
         if (interact != null) {
           await interact(tester, app);

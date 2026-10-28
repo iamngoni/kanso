@@ -10,6 +10,12 @@
 //!
 //! Which model is in use is kept in `meta` under [`MODEL_KEY`]: present
 //! only while related notes are on.
+//!
+//! A note that is locked (sealed, or in a locked notebook) or tagged
+//! `#ai-exclude` is never embedded. Its vector is not made, a vector it
+//! already had is deleted the next time the queue is read or a vector is
+//! kept, and until then no read here (related notes, tag suggestions,
+//! twins, searches by meaning) uses it.
 
 use std::collections::HashSet;
 
@@ -66,7 +72,8 @@ pub struct PendingEmbedding {
 pub struct EmbeddingQueue {
     /// The notes whose embedding is missing or out of date.
     pub pending: Vec<PendingEmbedding>,
-    /// How many live notes there are, embedded or not.
+    /// How many notes can be embedded, embedded or not: the live ones
+    /// outside the trash that aren't locked or tagged `#ai-exclude`.
     pub total: usize,
 }
 
@@ -183,6 +190,23 @@ pub(crate) fn forget_note(conn: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Deletes the vectors of notes that are locked or tagged `#ai-exclude`:
+/// they may have been embedded before they were locked or tagged.
+fn forget_undiscoverable(conn: &Connection) -> Result<()> {
+    conn.execute(
+        concat!(
+            "DELETE FROM note_embeddings WHERE note_id IN (SELECT d.id FROM docs d
+                WHERE d.type = 'note' AND (",
+            crate::schema::note_locked!("d."),
+            " OR ",
+            crate::schema::ai_excluded!("d."),
+            "))"
+        ),
+        [],
+    )?;
+    Ok(())
+}
+
 /// The live notes outside the trash that note `id` links to, or that link
 /// to it, by ID or by wiki-link title.
 fn linked_notes(conn: &Connection, id: &str) -> Result<HashSet<String>> {
@@ -206,6 +230,11 @@ fn linked_notes(conn: &Connection, id: &str) -> Result<HashSet<String>> {
 }
 
 impl Store {
+    /// Deletes the vectors of notes that are locked or tagged `#ai-exclude`.
+    fn forget_undiscoverable(&self) -> Result<()> {
+        self.write(|tx, _| forget_undiscoverable(tx))
+    }
+
     /// The model whose embeddings are in use, while related notes are on.
     pub fn embedding_model(&self) -> Result<Option<String>> {
         self.meta(MODEL_KEY)
@@ -231,16 +260,20 @@ impl Store {
 
     /// The live notes outside the trash whose embedding by `model` is
     /// missing or was made from other words, oldest change last so the
-    /// notes worked on most recently are embedded first.
+    /// notes worked on most recently are embedded first. Locked notes and
+    /// notes tagged `#ai-exclude` are not in it, and any vector they have
+    /// is deleted first.
     pub fn embedding_queue(&self, model: &str) -> Result<EmbeddingQueue> {
+        self.forget_undiscoverable()?;
         self.read(|conn| {
             let mut stmt = conn.prepare(concat!(
                 "SELECT d.id, d.title, ",
                 crate::schema::readable_body!("d."),
                 ", e.content_hash
                  FROM docs d LEFT JOIN note_embeddings e ON e.note_id = d.id AND e.model = ?1
-                 WHERE d.type = 'note' AND d.deleted = 0 AND IFNULL(d.book_id, '') != 'trash'
-                 ORDER BY d.updated_at DESC, d.id"
+                 WHERE ",
+                crate::schema::discoverable!("d."),
+                " ORDER BY d.updated_at DESC, d.id"
             ))?;
             let mut rows = stmt.query([model])?;
             let mut queue = EmbeddingQueue::default();
@@ -274,19 +307,25 @@ impl Store {
             if schema::get_meta(tx, MODEL_KEY)?.as_deref() != Some(model) {
                 return Ok(());
             }
-            let mut stmt = tx.prepare_cached(
+            // Whatever can't be embedded any more loses its vectors, even
+            // those of other notes than these.
+            forget_undiscoverable(tx)?;
+            let mut stmt = tx.prepare_cached(concat!(
                 "INSERT INTO note_embeddings (note_id, model, dim, vector, content_hash)
                  SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS
-                     (SELECT 1 FROM docs WHERE id = ?1 AND type = 'note' AND deleted = 0)
+                     (SELECT 1 FROM docs d WHERE d.id = ?1 AND ",
+                crate::schema::discoverable!("d."),
+                ")
                  ON CONFLICT (note_id, model) DO UPDATE SET dim = excluded.dim,
-                     vector = excluded.vector, content_hash = excluded.content_hash",
-            )?;
+                     vector = excluded.vector, content_hash = excluded.content_hash"
+            ))?;
             // The words as the note reads now: one locked (or edited) since
             // the queue was read keeps no vector made from its old words.
             let mut now = tx.prepare_cached(concat!(
                 "SELECT title, ",
                 crate::schema::readable_body!(""),
-                " FROM docs WHERE id = ? AND type = 'note' AND deleted = 0"
+                " FROM docs d WHERE d.id = ? AND ",
+                crate::schema::discoverable!("d.")
             ))?;
             for (id, hash, vector) in rows {
                 let current = now
@@ -312,12 +351,16 @@ impl Store {
         })
     }
 
-    /// How many live notes outside the trash have an embedding by `model`.
+    /// How many notes that can be embedded (live, outside the trash, not
+    /// locked or tagged `#ai-exclude`) have an embedding by `model`.
     pub fn embedded_count(&self, model: &str) -> Result<usize> {
         self.read(|conn| {
             Ok(conn.query_row(
-                "SELECT COUNT(*) FROM note_embeddings e JOIN docs d ON d.id = e.note_id
-                 WHERE e.model = ? AND d.deleted = 0 AND IFNULL(d.book_id, '') != 'trash'",
+                concat!(
+                    "SELECT COUNT(*) FROM note_embeddings e JOIN docs d ON d.id = e.note_id
+                     WHERE e.model = ? AND ",
+                    crate::schema::discoverable!("d.")
+                ),
                 [model],
                 |row| row.get::<_, i64>(0),
             )? as usize)
@@ -340,17 +383,22 @@ impl Store {
             };
             let mut skip = linked_notes(conn, id)?;
             skip.insert(id.to_owned());
-            let candidates = embedded_notes(conn, model, &skip, false)?;
+            let candidates = embedded_notes(conn, model, &skip)?;
             Ok(Some(nearest(&query, &candidates, k)))
         })
     }
 }
 
-/// Note `id`'s embedding by `model`, if it has one.
+/// Note `id`'s embedding by `model`, if it has one and the note can be
+/// embedded (it isn't locked or tagged `#ai-exclude`).
 pub(crate) fn own_vector(conn: &Connection, id: &str, model: &str) -> Result<Option<Vec<f32>>> {
     let own: Option<(i64, Vec<u8>)> = conn
         .query_row(
-            "SELECT dim, vector FROM note_embeddings WHERE note_id = ? AND model = ?",
+            concat!(
+                "SELECT e.dim, e.vector FROM note_embeddings e JOIN docs d ON d.id = e.note_id
+                 WHERE e.note_id = ? AND e.model = ? AND ",
+                crate::schema::discoverable!("d.")
+            ),
             params![id, model],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
@@ -362,21 +410,20 @@ pub(crate) fn own_vector(conn: &Connection, id: &str, model: &str) -> Result<Opt
 pub(crate) type Embedded = (String, String, Vec<f32>);
 
 /// The live notes outside the trash with an embedding by `model`, apart
-/// from those in `skip`, and apart from locked notes when `unlocked_only`
-/// (their embedding is made from the title alone).
+/// from those in `skip` and from locked notes and notes tagged
+/// `#ai-exclude`.
 pub(crate) fn embedded_notes(
     conn: &Connection,
     model: &str,
     skip: &HashSet<String>,
-    unlocked_only: bool,
 ) -> Result<Vec<Embedded>> {
-    let mut stmt = conn.prepare(
+    let mut stmt = conn.prepare(concat!(
         "SELECT d.id, d.title, e.dim, e.vector FROM note_embeddings e
          JOIN docs d ON d.id = e.note_id
-         WHERE e.model = ?1 AND d.deleted = 0 AND IFNULL(d.book_id, '') != 'trash'
-             AND (?2 = 0 OR json_extract(d.json, '$.kansoLock') IS NULL)",
-    )?;
-    let mut rows = stmt.query(params![model, unlocked_only])?;
+         WHERE e.model = ?1 AND ",
+        crate::schema::discoverable!("d.")
+    ))?;
+    let mut rows = stmt.query(params![model])?;
     let mut candidates = Vec::new();
     while let Some(row) = rows.next()? {
         let note: String = row.get(0)?;
@@ -495,6 +542,151 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path().join("kanso.db")).unwrap();
         (dir, store)
+    }
+
+    /// How many vectors the table holds for `model`, whoever they are of.
+    fn stored_vectors(store: &Store, model: &str) -> i64 {
+        store
+            .read(|conn| {
+                Ok(conn.query_row(
+                    "SELECT COUNT(*) FROM note_embeddings WHERE model = ?",
+                    [model],
+                    |row| row.get(0),
+                )?)
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn vectors_of_notes_locked_or_excluded_since_are_deleted_for_good() {
+        let (_dir, store) = open();
+        store.set_embedding_model(Some("letters")).unwrap();
+        let plain = note(&store, "Plain", "orchard fruit");
+        let locked = note(&store, "Locked", "orchard fruit");
+        let excluded = note(&store, "Excluded", "orchard fruit");
+        index(&store, &Letters);
+        assert_eq!(stored_vectors(&store, "letters"), 3);
+
+        let mut sealed = store.get_api(&locked, None, false).unwrap();
+        sealed["body"] = "".into();
+        sealed["kansoLock"] =
+            json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "sealed"});
+        store.lock_note(sealed).unwrap();
+        let tag = store
+            .put(
+                DocType::Tag,
+                json!({"name": "#AI-exclude"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": excluded, "tags": [tag]}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+        // The write that hid them may already have dropped their vectors, so
+        // however many rows are left, no read uses one of them, and reading
+        // the queue deletes the rest (below).
+        assert!(stored_vectors(&store, "letters") <= 3);
+        assert_eq!(store.embedded_count("letters").unwrap(), 1);
+        assert!(
+            store
+                .related_notes(&plain, "letters", 5)
+                .unwrap()
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            store
+                .related_notes(&locked, "letters", 5)
+                .unwrap()
+                .is_none()
+        );
+
+        let queue = store.embedding_queue("letters").unwrap();
+        assert_eq!((queue.total, queue.pending.len()), (1, 0));
+        assert_eq!(stored_vectors(&store, "letters"), 1);
+
+        // The tag taken off: the note is embedded again.
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": excluded, "tags": []}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+        assert_eq!(index(&store, &Letters), 1);
+        assert_eq!(stored_vectors(&store, "letters"), 2);
+    }
+
+    /// A library that embedded a note before it was locked keeps its vector:
+    /// no write made the lock, so nothing dropped it. No read uses it, and
+    /// the queue deletes it, so it can never be found again.
+    #[test]
+    fn a_vector_from_before_the_lock_is_deleted_for_good_when_the_queue_is_read() {
+        let (_dir, store) = open();
+        store.set_embedding_model(Some("letters")).unwrap();
+        let id = note(&store, "Secret", "orchard fruit");
+        let mut sealed = store.get_api(&id, None, false).unwrap();
+        sealed["body"] = "".into();
+        sealed["kansoLock"] =
+            json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "sealed"});
+        store.lock_note(sealed).unwrap();
+        store
+            .write(|tx, _| {
+                tx.execute(
+                    "INSERT OR REPLACE INTO note_embeddings
+                         (note_id, model, dim, vector, content_hash)
+                     VALUES (?1, 'letters', 26, ?2, 'stale')",
+                    rusqlite::params![id, vec![0u8; 26 * 4]],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(stored_vectors(&store, "letters"), 1);
+
+        assert_eq!(store.embedded_count("letters").unwrap(), 0);
+        assert!(store.related_notes(&id, "letters", 5).unwrap().is_none());
+
+        let queue = store.embedding_queue("letters").unwrap();
+        assert_eq!((queue.total, queue.pending.len()), (0, 0));
+        assert_eq!(stored_vectors(&store, "letters"), 0);
+    }
+
+    #[test]
+    fn a_vector_for_a_note_that_may_not_be_embedded_is_refused() {
+        let (_dir, store) = open();
+        store.set_embedding_model(Some("letters")).unwrap();
+        let tag = store
+            .put(
+                DocType::Tag,
+                json!({"name": "ai-exclude"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let book = book(&store);
+        let excluded = store
+            .put(
+                DocType::Note,
+                json!({"title": "X", "body": "words", "bookId": book, "tags": [tag]}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let hash = content_hash(&embed_text("X", "words"));
+        store
+            .put_embeddings("letters", &[(excluded, hash, vec![1.0; 26])])
+            .unwrap();
+        assert_eq!(stored_vectors(&store, "letters"), 0);
     }
 
     #[test]

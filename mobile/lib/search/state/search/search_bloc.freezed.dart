@@ -541,7 +541,8 @@ mixin _$SearchState {
  SearchScopeKind get scope;/// The notebook the search was opened from, if any: what the notebook
 /// scope looks in.
  String? get notebookId; SearchStatus get status;/// What was found for [query] in [scope], best match first.
- List<Hit> get hits;/// Why the last search failed, while [status] is failed.
+ List<Hit> get hits;/// Notes found with the local semantic model, when it is available.
+ List<RelatedRow> get meaningHits;/// Why the last search failed, while [status] is failed.
  ApplicationError? get error;
 /// Create a copy of SearchState
 /// with the given fields replaced by the non-null parameter values.
@@ -553,16 +554,16 @@ $SearchStateCopyWith<SearchState> get copyWith => _$SearchStateCopyWithImpl<Sear
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SearchState&&(identical(other.query, query) || other.query == query)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.notebookId, notebookId) || other.notebookId == notebookId)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.hits, hits)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SearchState&&(identical(other.query, query) || other.query == query)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.notebookId, notebookId) || other.notebookId == notebookId)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.hits, hits)&&const DeepCollectionEquality().equals(other.meaningHits, meaningHits)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,query,scope,notebookId,status,const DeepCollectionEquality().hash(hits),error);
+int get hashCode => Object.hash(runtimeType,query,scope,notebookId,status,const DeepCollectionEquality().hash(hits),const DeepCollectionEquality().hash(meaningHits),error);
 
 @override
 String toString() {
-  return 'SearchState(query: $query, scope: $scope, notebookId: $notebookId, status: $status, hits: $hits, error: $error)';
+  return 'SearchState(query: $query, scope: $scope, notebookId: $notebookId, status: $status, hits: $hits, meaningHits: $meaningHits, error: $error)';
 }
 
 
@@ -573,7 +574,7 @@ abstract mixin class $SearchStateCopyWith<$Res>  {
   factory $SearchStateCopyWith(SearchState value, $Res Function(SearchState) _then) = _$SearchStateCopyWithImpl;
 @useResult
 $Res call({
- String query, SearchScopeKind scope, String? notebookId, SearchStatus status, List<Hit> hits, ApplicationError? error
+ String query, SearchScopeKind scope, String? notebookId, SearchStatus status, List<Hit> hits, List<RelatedRow> meaningHits, ApplicationError? error
 });
 
 
@@ -590,14 +591,15 @@ class _$SearchStateCopyWithImpl<$Res>
 
 /// Create a copy of SearchState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? query = null,Object? scope = null,Object? notebookId = freezed,Object? status = null,Object? hits = null,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? query = null,Object? scope = null,Object? notebookId = freezed,Object? status = null,Object? hits = null,Object? meaningHits = null,Object? error = freezed,}) {
   return _then(_self.copyWith(
 query: null == query ? _self.query : query // ignore: cast_nullable_to_non_nullable
 as String,scope: null == scope ? _self.scope : scope // ignore: cast_nullable_to_non_nullable
 as SearchScopeKind,notebookId: freezed == notebookId ? _self.notebookId : notebookId // ignore: cast_nullable_to_non_nullable
 as String?,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as SearchStatus,hits: null == hits ? _self.hits : hits // ignore: cast_nullable_to_non_nullable
-as List<Hit>,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as List<Hit>,meaningHits: null == meaningHits ? _self.meaningHits : meaningHits // ignore: cast_nullable_to_non_nullable
+as List<RelatedRow>,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,
   ));
 }
@@ -695,10 +697,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  SearchStatus status,  List<Hit> hits,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  SearchStatus status,  List<Hit> hits,  List<RelatedRow> meaningHits,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SearchState() when $default != null:
-return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits,_that.error);case _:
+return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits,_that.meaningHits,_that.error);case _:
   return orElse();
 
 }
@@ -716,10 +718,10 @@ return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  SearchStatus status,  List<Hit> hits,  ApplicationError? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  SearchStatus status,  List<Hit> hits,  List<RelatedRow> meaningHits,  ApplicationError? error)  $default,) {final _that = this;
 switch (_that) {
 case _SearchState():
-return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits,_that.error);case _:
+return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits,_that.meaningHits,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -736,10 +738,10 @@ return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String query,  SearchScopeKind scope,  String? notebookId,  SearchStatus status,  List<Hit> hits,  ApplicationError? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String query,  SearchScopeKind scope,  String? notebookId,  SearchStatus status,  List<Hit> hits,  List<RelatedRow> meaningHits,  ApplicationError? error)?  $default,) {final _that = this;
 switch (_that) {
 case _SearchState() when $default != null:
-return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits,_that.error);case _:
+return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits,_that.meaningHits,_that.error);case _:
   return null;
 
 }
@@ -751,7 +753,7 @@ return $default(_that.query,_that.scope,_that.notebookId,_that.status,_that.hits
 
 
 class _SearchState extends SearchState {
-  const _SearchState({this.query = '', this.scope = SearchScopeKind.all, this.notebookId, this.status = SearchStatus.idle, final  List<Hit> hits = const <Hit>[], this.error}): _hits = hits,super._();
+  const _SearchState({this.query = '', this.scope = SearchScopeKind.all, this.notebookId, this.status = SearchStatus.idle, final  List<Hit> hits = const <Hit>[], final  List<RelatedRow> meaningHits = const <RelatedRow>[], this.error}): _hits = hits,_meaningHits = meaningHits,super._();
   
 
 /// The words being looked for.
@@ -771,6 +773,15 @@ class _SearchState extends SearchState {
   return EqualUnmodifiableListView(_hits);
 }
 
+/// Notes found with the local semantic model, when it is available.
+ final  List<RelatedRow> _meaningHits;
+/// Notes found with the local semantic model, when it is available.
+@override@JsonKey() List<RelatedRow> get meaningHits {
+  if (_meaningHits is EqualUnmodifiableListView) return _meaningHits;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_meaningHits);
+}
+
 /// Why the last search failed, while [status] is failed.
 @override final  ApplicationError? error;
 
@@ -784,16 +795,16 @@ _$SearchStateCopyWith<_SearchState> get copyWith => __$SearchStateCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SearchState&&(identical(other.query, query) || other.query == query)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.notebookId, notebookId) || other.notebookId == notebookId)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._hits, _hits)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SearchState&&(identical(other.query, query) || other.query == query)&&(identical(other.scope, scope) || other.scope == scope)&&(identical(other.notebookId, notebookId) || other.notebookId == notebookId)&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._hits, _hits)&&const DeepCollectionEquality().equals(other._meaningHits, _meaningHits)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,query,scope,notebookId,status,const DeepCollectionEquality().hash(_hits),error);
+int get hashCode => Object.hash(runtimeType,query,scope,notebookId,status,const DeepCollectionEquality().hash(_hits),const DeepCollectionEquality().hash(_meaningHits),error);
 
 @override
 String toString() {
-  return 'SearchState(query: $query, scope: $scope, notebookId: $notebookId, status: $status, hits: $hits, error: $error)';
+  return 'SearchState(query: $query, scope: $scope, notebookId: $notebookId, status: $status, hits: $hits, meaningHits: $meaningHits, error: $error)';
 }
 
 
@@ -804,7 +815,7 @@ abstract mixin class _$SearchStateCopyWith<$Res> implements $SearchStateCopyWith
   factory _$SearchStateCopyWith(_SearchState value, $Res Function(_SearchState) _then) = __$SearchStateCopyWithImpl;
 @override @useResult
 $Res call({
- String query, SearchScopeKind scope, String? notebookId, SearchStatus status, List<Hit> hits, ApplicationError? error
+ String query, SearchScopeKind scope, String? notebookId, SearchStatus status, List<Hit> hits, List<RelatedRow> meaningHits, ApplicationError? error
 });
 
 
@@ -821,14 +832,15 @@ class __$SearchStateCopyWithImpl<$Res>
 
 /// Create a copy of SearchState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? query = null,Object? scope = null,Object? notebookId = freezed,Object? status = null,Object? hits = null,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? query = null,Object? scope = null,Object? notebookId = freezed,Object? status = null,Object? hits = null,Object? meaningHits = null,Object? error = freezed,}) {
   return _then(_SearchState(
 query: null == query ? _self.query : query // ignore: cast_nullable_to_non_nullable
 as String,scope: null == scope ? _self.scope : scope // ignore: cast_nullable_to_non_nullable
 as SearchScopeKind,notebookId: freezed == notebookId ? _self.notebookId : notebookId // ignore: cast_nullable_to_non_nullable
 as String?,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as SearchStatus,hits: null == hits ? _self._hits : hits // ignore: cast_nullable_to_non_nullable
-as List<Hit>,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as List<Hit>,meaningHits: null == meaningHits ? _self._meaningHits : meaningHits // ignore: cast_nullable_to_non_nullable
+as List<RelatedRow>,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,
   ));
 }

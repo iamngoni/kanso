@@ -5,57 +5,64 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-import '../models/data/kanso_intent.dart';
+import '../../core/bridge/api/shortcuts.dart';
+import '../../core/bridge/api/types.dart' show ShortcutEntry, ShortcutPlace;
+import 'shortcut_intents.dart';
+import 'shortcut_keys.dart';
 
-/// The keyboard shortcuts of the browsing screens on [platform], as the
-/// desktop's: "secondary" is Command on Apple devices and Control elsewhere.
-///
-/// | Shortcut | Does |
-/// | --- | --- |
-/// | secondary + `[` and `]` | back and forward through the notes opened |
-/// | secondary + shift + F | search all notes |
-/// | secondary + `,` | settings |
-/// | secondary + `\` | show or hide the library |
-/// | secondary + option + down and up | the next and the previous note |
-/// | secondary + shift + P | pin or unpin the open note |
-/// | secondary + N | a new note, in the place being listed |
-/// | secondary + shift + N | a new notebook |
-/// | secondary + 1 and 3 | edit the open note, and read it |
-///
-/// Command-2 is not bound: the phone has no split view of a note.
-///
-/// Not yet: find in a note and the command palette, which come with what
-/// they act on.
-Map<ShortcutActivator, Intent> kansoShortcutBindings(TargetPlatform platform) {
-  final apple =
-      platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
-  SingleActivator secondary(
-    LogicalKeyboardKey key, {
-    bool shift = false,
-    bool alt = false,
-  }) {
-    return SingleActivator(
-      key,
-      meta: apple,
-      control: !apple,
-      shift: shift,
-      alt: alt,
+/// Dart name for the contexts carried by the bridge's [ShortcutEntry.place].
+typedef ShortcutContext = ShortcutPlace;
+
+/// The mobile bindings for the given contexts, read from the desktop catalog.
+Map<ShortcutActivator, Intent> shortcutBindingsFor(
+  Iterable<ShortcutContext> contexts,
+  TargetPlatform platform,
+) {
+  final wanted = contexts.toSet();
+  final bindings = <ShortcutActivator, Intent>{};
+  final activators =
+      <
+        ({
+          LogicalKeyboardKey key,
+          bool control,
+          bool alt,
+          bool shift,
+          bool meta,
+        })
+      >{};
+  for (final ShortcutEntry entry in shortcutCatalog()) {
+    if (!wanted.contains(entry.place)) {
+      continue;
+    }
+    final keys = shortcutKeysFor(entry, platform);
+    final activator = activatorFor(keys, platform);
+    final intent = intentForShortcut(entry);
+    if (activator == null || intent == null) {
+      continue;
+    }
+    final identity = (
+      key: activator.trigger,
+      control: activator.control,
+      alt: activator.alt,
+      shift: activator.shift,
+      meta: activator.meta,
     );
+    // When catalog contexts reuse a keystroke, the first context owns it.
+    if (!activators.add(identity)) {
+      continue;
+    }
+    bindings[activator] = intent;
   }
-
-  return <ShortcutActivator, Intent>{
-    secondary(LogicalKeyboardKey.bracketLeft): const BackIntent(),
-    secondary(LogicalKeyboardKey.bracketRight): const ForwardIntent(),
-    secondary(LogicalKeyboardKey.keyF, shift: true): const SearchAllIntent(),
-    secondary(LogicalKeyboardKey.comma): const SettingsIntent(),
-    secondary(LogicalKeyboardKey.backslash): const ToggleLibraryIntent(),
-    secondary(LogicalKeyboardKey.arrowDown, alt: true): const NextNoteIntent(),
-    secondary(LogicalKeyboardKey.arrowUp, alt: true):
-        const PreviousNoteIntent(),
-    secondary(LogicalKeyboardKey.keyP, shift: true): const PinNoteIntent(),
-    secondary(LogicalKeyboardKey.keyN): const NewNoteIntent(),
-    secondary(LogicalKeyboardKey.keyN, shift: true): const NewNotebookIntent(),
-    secondary(LogicalKeyboardKey.digit1): const EditNoteIntent(),
-    secondary(LogicalKeyboardKey.digit3): const PreviewNoteIntent(),
-  };
+  return bindings;
 }
+
+/// The global and note-list bindings for [platform]. Editor keys stay with
+/// the editor's existing shortcut and intent plumbing.
+Map<ShortcutActivator, Intent> kansoShortcutBindings(TargetPlatform platform) =>
+    shortcutBindingsFor(
+      const <ShortcutContext>[
+        ShortcutContext.global,
+        ShortcutContext.noteList,
+      ],
+      platform,
+    );

@@ -3,11 +3,17 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kanso/core/configs/kanso_theme.dart';
+import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/core/utils/kanso_scroll_behavior.dart';
 import 'package:kanso/gen/l10n/app_localizations.dart';
+import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
+
+import 'fixture_discovery_repository.dart';
+import 'seeded_appearance_bloc.dart';
 
 /// Pumps [child] as the page at `/start` of a router that has the app's
 /// addresses, each an empty page, and returns the router so a test can see
@@ -76,16 +82,23 @@ Future<GoRouter> pumpRouted(
   );
   addTearDown(router.dispose);
   await tester.pumpWidget(
-    MaterialApp.router(
-      theme: KansoTheme.light,
-      darkTheme: KansoTheme.dark,
-      themeMode: brightness == Brightness.dark
-          ? ThemeMode.dark
-          : ThemeMode.light,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      scrollBehavior: const KansoScrollBehavior(),
-      routerConfig: router,
+    BlocProvider<DiscoverySettingsBloc>(
+      lazy: false,
+      create: (_) => DiscoverySettingsBloc(
+        FixtureDiscoveryRepository(),
+        SeededPreferencesRepository(const Preferences()),
+      )..add(const DiscoverySettingsEvent.started()),
+      child: MaterialApp.router(
+        theme: KansoTheme.light,
+        darkTheme: KansoTheme.dark,
+        themeMode: brightness == Brightness.dark
+            ? ThemeMode.dark
+            : ThemeMode.light,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        scrollBehavior: const KansoScrollBehavior(),
+        routerConfig: router,
+      ),
     ),
   );
   await tester.pumpAndSettle();

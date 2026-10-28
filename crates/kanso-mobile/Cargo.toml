@@ -9,6 +9,8 @@ publish = false
 
 [dependencies]
 async-channel.workspace = true
+# The shared providers without the desktop's ACP agent.
+kanso-ai = { path = "../kanso-ai", default-features = false }
 # The ID of a share made in the app.
 fastrand.workspace = true
 kanso-collab.workspace = true
@@ -19,8 +21,9 @@ base64.workspace = true
 chrono.workspace = true
 kanso-core.workspace = true
 # The highlighter (`highlight`, with the grammars for fenced code) is the
-# phones' editor colors.
-kanso-engine.workspace = true
+# phones' editor colours, and `discovery` their related notes, graph and the
+# words in images.
+kanso-engine = { workspace = true, features = ["discovery"] }
 # Importing: another app's export, or a folder of Markdown, and opening files.
 kanso-import.workspace = true
 # The theme gallery: the signed catalog, its checks and the installer, and the
@@ -79,6 +82,13 @@ jni = { version = "0.22", default-features = false }
 test-support = []
 
 [dev-dependencies]
+# Scripted model responses for the AI facade tests.
+agent-runtime.workspace = true
+anyhow.workspace = true
+async-trait = "0.1"
+futures-util = "0.3"
+# Image attachments the discovery tests make.
+base64.workspace = true
 # This crate's integration tests use the test-support constructors.
 kanso-mobile = { path = ".", features = ["test-support"] }
 # Generators for the sync problems the status maps.

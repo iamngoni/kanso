@@ -10,7 +10,12 @@ import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/layout_class.dart';
 import '../../../core/views/widgets/kanso_plain_text.dart';
+import '../../../tabs/views/widgets/tab_actions.dart';
+import '../../../tabs/views/widgets/tabbed_note.dart';
+import '../../../tabs/views/widgets/tabs_sync.dart';
+import '../../state/focus_mode/focus_mode_bloc.dart';
 import '../../state/library_pane/library_pane_bloc.dart';
+import 'focus_mode_exit.dart';
 import 'kanso_shortcuts.dart';
 import 'library_drawer_host.dart';
 import 'library_navigation.dart';
@@ -65,8 +70,30 @@ class BrowseShell extends StatefulWidget {
 class BrowseShellState extends State<BrowseShell> {
   final GlobalKey listKey = GlobalKey(debugLabel: 'list');
 
+  /// Whether an exit from focus mode is already on its way.
+  bool _leavingFocus = false;
+
   @override
   Widget build(BuildContext context) {
+    final focus = _maybeReadBloc<FocusModeBloc>(context);
+    if (focus == null) {
+      return _build(context, focusActive: false, onExit: () {});
+    }
+    return BlocBuilder<FocusModeBloc, FocusModeState>(
+      buildWhen: (before, after) => before.active != after.active,
+      builder: (context, state) => _build(
+        context,
+        focusActive: state.active,
+        onExit: () => focus.add(const FocusModeEvent.exited()),
+      ),
+    );
+  }
+
+  Widget _build(
+    BuildContext context, {
+    required bool focusActive,
+    required VoidCallback onExit,
+  }) {
     final location = widget.location;
     final layout = widget.layout;
     final designGallery = widget.designGallery;
@@ -100,7 +127,35 @@ class BrowseShellState extends State<BrowseShell> {
                   );
                 }
 
-                return switch (layoutClass) {
+                if (focusActive && listOnly) {
+                  // No note is open: there is nothing to show by itself, so
+                  // the mode leaves rather than hide a page it cannot fill.
+                  _leaveFocusWithoutNote(onExit);
+                }
+
+                if (focusActive && !listOnly) {
+                  // Focus mode leaves the note alone: no library, no list,
+                  // no tabs and no note bars, with one way back.
+                  return TabsSync(
+                    enabled: false,
+                    location: location,
+                    child: TabActions(
+                      child: KansoShortcuts(
+                        layout: layoutClass,
+                        location: location,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            child!,
+                            FocusModeExit(onExit: onExit),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                final panes = switch (layoutClass) {
                   LayoutClass.single => drawerAround(
                     LayoutClass.single,
                     child!,
@@ -110,7 +165,7 @@ class BrowseShellState extends State<BrowseShell> {
                     LayoutClass.double,
                     ListNoteLayout(
                       list: ListSlot(key: listKey, location: location),
-                      note: child!,
+                      note: TabbedNote(child: child!),
                     ),
                     KansoSizes.libraryPane,
                   ),
@@ -124,7 +179,7 @@ class BrowseShellState extends State<BrowseShell> {
                             LayoutClass.triple,
                             ListNoteLayout(
                               list: ListSlot(key: listKey, location: location),
-                              note: child!,
+                              note: TabbedNote(child: child!),
                             ),
                             KansoSizes.libraryPane,
                           );
@@ -138,17 +193,47 @@ class BrowseShellState extends State<BrowseShell> {
                               designGallery: designGallery,
                             ),
                             list: ListSlot(key: listKey, location: location),
-                            note: child!,
+                            note: TabbedNote(child: child!),
                           ),
                         );
                       },
                     ),
                 };
+                // Tabs are for the layouts with a pane for the note.
+                return TabsSync(
+                  enabled: layoutClass != LayoutClass.single,
+                  location: location,
+                  child: TabActions(child: panes),
+                );
               },
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// Leaves focus mode when no note is open, as the desktop does when the
+  /// note of a window in focus mode closes: the mode has nothing left to
+  /// show by itself.
+  void _leaveFocusWithoutNote(VoidCallback leave) {
+    if (_leavingFocus) {
+      return;
+    }
+    _leavingFocus = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _leavingFocus = false;
+      if (mounted) {
+        leave();
+      }
+    });
+  }
+}
+
+T? _maybeReadBloc<T>(BuildContext context) {
+  try {
+    return context.read<T>();
+  } on ProviderNotFoundException {
+    return null;
   }
 }

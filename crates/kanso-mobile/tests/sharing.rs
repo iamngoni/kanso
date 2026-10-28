@@ -144,11 +144,19 @@ fn a_note_is_shared_accepted_edited_and_merged_back() {
     // found before he has synced anything.
     let mut found = None;
     eventually("bob can be found", || {
-        found = match alice.shared().lookup_person("bob".into()).unwrap() {
-            PersonLookup::Found(person) => Some(person),
-            _ => None,
-        };
-        found.is_some()
+        match alice.shared().lookup_person("bob".into()) {
+            Ok(PersonLookup::Found(person)) => {
+                found = Some(person);
+                true
+            }
+            Ok(PersonLookup::Changed { .. }) => false,
+            Err(KansoError::Invalid { message })
+                if message.starts_with("There's no Kanso account called bob") =>
+            {
+                false
+            }
+            Err(error) => panic!("looking up Bob failed: {error:?}"),
+        }
     });
     let person = found.unwrap();
     assert_eq!(bob.arrive().invitations, 0);

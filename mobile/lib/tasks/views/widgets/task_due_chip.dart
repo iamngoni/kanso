@@ -31,6 +31,8 @@ class TaskDueChip extends StatelessWidget {
         style: context.typography.meta.copyWith(
           fontWeight: FontWeight.w500,
           color: text,
+          decoration: tone == DueTone.done ? TextDecoration.lineThrough : null,
+          decorationColor: text,
         ),
       ),
     );

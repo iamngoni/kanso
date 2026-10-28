@@ -28,7 +28,19 @@ impl KansoRenderer {
     }
 
     /// The note as the page the desktop exports, to print or keep: no app
-    /// addresses, so anyone who opens the file can follow its links.
+    /// addresses, so anyone who opens the file can follow its links. The
+    /// file is named for a PDF.
+    pub fn page_pdf(
+        &self,
+        id: String,
+        palette: PaletteDto,
+        options: PreviewOptions,
+    ) -> Result<ExportedPage, KansoError> {
+        self.0.page_pdf(&id, palette, options)
+    }
+
+    /// The same page, saved as the desktop's "Export as web page" saves it:
+    /// one self-contained HTML file, named for one.
     pub fn page_html(
         &self,
         id: String,

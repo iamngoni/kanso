@@ -28,6 +28,7 @@ class KansoSidebarRow extends StatelessWidget {
     this.count,
     this.badge,
     this.selected = false,
+    this.highlighted = false,
     this.chevron = false,
     this.depth = 0,
     this.locked = false,
@@ -49,6 +50,7 @@ class KansoSidebarRow extends StatelessWidget {
   /// Shown at the end of the row in place of [count]: a pill.
   final Widget? badge;
   final bool selected;
+  final bool highlighted;
   final bool chevron;
   final int depth;
 
@@ -94,7 +96,14 @@ class KansoSidebarRow extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: tint == null
-                ? (selected ? colors.sidebarActive : null)
+                ? selected
+                      ? colors.sidebarActive
+                      : highlighted
+                      ? Color.alphaBlend(
+                          colors.accent.withValues(alpha: 0.16),
+                          colors.sidebar,
+                        )
+                      : null
                 : tint.withValues(alpha: selected ? 0.34 : 0.16),
             borderRadius: KansoRadii.smallBorder,
           ),

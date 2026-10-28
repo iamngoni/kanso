@@ -70,6 +70,7 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
   /// Whether the note was written while it was edited, and so is out of
   /// date in the state.
   bool _stale = false;
+  int? _pendingBodyLine;
 
   Future<void> _onStarted(
     NoteStartedEvent event,
@@ -77,13 +78,19 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
   ) async {
     // A note just made opens ready to write in.
     final fresh = _places.takeOpenedNew(event.id);
+    final routedNew = event.cursor16 != null || event.titleFirst;
+    _pendingBodyLine = event.bodyLine;
     emit(
       NoteState(
         noteId: event.id,
         themeId: event.themeId,
-        mode: fresh != null ? NoteMode.edit : NoteMode.preview,
-        openedNew: fresh != null,
-        startInText: fresh == NewNoteStart.text,
+        mode: fresh != null || routedNew || event.bodyLine != null
+            ? NoteMode.edit
+            : NoteMode.preview,
+        openedNew: fresh != null || routedNew,
+        startInText: fresh == NewNoteStart.text || event.cursor16 != null,
+        caret: event.cursor16,
+        caretInBody: event.cursor16 != null,
       ),
     );
     _stale = false;
@@ -194,14 +201,31 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
         if (reading != _reading || emit.isDone) {
           return;
         }
-        emit(
-          state.copyWith(
-            status: NoteScreenStatus.ready,
-            note: note,
-            lines: lines,
-            error: null,
-          ),
-        );
+        final bodyLine = _pendingBodyLine;
+        if (bodyLine != null && lines.isNotEmpty) {
+          _pendingBodyLine = null;
+          final caret = lines[bodyLine.clamp(0, lines.length - 1)].start;
+          emit(
+            state.copyWith(
+              status: NoteScreenStatus.ready,
+              mode: NoteMode.edit,
+              caret: caret,
+              caretInBody: true,
+              note: note,
+              lines: lines,
+              error: null,
+            ),
+          );
+        } else {
+          emit(
+            state.copyWith(
+              status: NoteScreenStatus.ready,
+              note: note,
+              lines: lines,
+              error: null,
+            ),
+          );
+        }
       },
     );
   }

@@ -129,11 +129,36 @@ impl Renderer {
     /// keeps the theme's colors, which are made for a page this dark.
     ///
     /// [`KansoError::Locked`] while the note is locked and closed.
+    pub fn page_pdf(
+        &self,
+        id: &str,
+        palette: PaletteDto,
+        options: PreviewOptions,
+    ) -> Result<ExportedPage, KansoError> {
+        self.page_for(id, palette, options, "pdf")
+    }
+
+    /// The same page as [`Self::page_pdf`], written as a web page: the file
+    /// is named for one, and it is what the desktop's "Export as web page"
+    /// saves.
+    ///
+    /// [`KansoError::Locked`] while the note is locked and closed.
     pub fn page_html(
         &self,
         id: &str,
         palette: PaletteDto,
         options: PreviewOptions,
+    ) -> Result<ExportedPage, KansoError> {
+        self.page_for(id, palette, options, "html")
+    }
+
+    /// The page the desktop exports of note `id`, named with `extension`.
+    fn page_for(
+        &self,
+        id: &str,
+        palette: PaletteDto,
+        options: PreviewOptions,
+        extension: &str,
     ) -> Result<ExportedPage, KansoError> {
         guard(|| {
             let library = self.library();
@@ -157,7 +182,7 @@ impl Renderer {
                     Some(id),
                     &style,
                 ),
-                file_name: kanso_engine::export::file_name(&note.title, "pdf"),
+                file_name: kanso_engine::export::file_name(&note.title, extension),
             })
         })
     }

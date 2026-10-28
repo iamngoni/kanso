@@ -164,11 +164,14 @@ extension KansoThemeSelectionAny on Any {
       choose(DiagramRenderer.values);
 
   /// Any preferences.
-  Generator<Preferences> get preferences => combine2(
+  Generator<Preferences> get preferences => combine3(
     appearanceAndLists,
     choose(<String>['lucide', 'phosphor', 'material-icon-theme', 'x']),
-    (Preferences before, String iconTheme) =>
-        before.copyWith(iconTheme: iconTheme),
+    this.bool,
+    (Preferences before, String iconTheme, bool focusMode) => before.copyWith(
+      iconTheme: iconTheme,
+      focusMode: focusMode,
+    ),
   );
 
   /// Preferences with the icon theme left as the default.

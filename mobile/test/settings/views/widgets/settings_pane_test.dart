@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_palette.dart';
 import 'package:kanso/core/models/data/app_version.dart';
@@ -28,10 +29,14 @@ import 'package:kanso/lock/state/biometrics/biometrics_bloc.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/push/state/push_setting/push_setting_bloc.dart';
 import 'package:kanso/push/views/widgets/push_setting_notice.dart';
+import 'package:kanso/reminders/state/reminders_settings/reminders_settings_bloc.dart';
 import 'package:kanso/settings/state/about/about_bloc.dart';
 import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart';
+import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
 import 'package:kanso/settings/state/sync_settings/sync_settings_bloc.dart';
+import 'package:kanso/settings/views/widgets/discovery_setting_switch_row.dart';
 import 'package:kanso/settings/views/widgets/settings_pane.dart';
+import 'package:kanso/templates/state/daily_template/daily_template_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/close_bloc_later.dart';
@@ -74,6 +79,14 @@ Finder _switchOf(String label) => find.descendant(
     matching: find.byWidgetPredicate(
       (widget) => widget is KansoSettingsRow || widget is KansoDetailRow,
     ),
+  ),
+  matching: find.byType(KansoSwitch),
+);
+
+Finder _discoverySwitchOf(String label) => find.descendant(
+  of: find.ancestor(
+    of: find.text(label),
+    matching: find.byType(DiscoverySettingSwitchRow),
   ),
   matching: find.byType(KansoSwitch),
 );
@@ -131,6 +144,7 @@ Future<_Settings> _pump(
     MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: appearanceBloc),
+        BlocProvider<AiStatusBloc>.value(value: blocs.aiStatus),
         BlocProvider<SyncStatusBloc>.value(value: syncBloc),
         BlocProvider<SyncSettingsBloc>.value(
           value: startedSyncSettingsBloc(syncRepository),
@@ -142,10 +156,15 @@ Future<_Settings> _pump(
         BlocProvider<PushSettingBloc>.value(value: pushBloc),
         BlocProvider<LibraryIndexBloc>.value(value: blocs.index),
         BlocProvider<DefaultNotebookBloc>.value(value: blocs.defaultNotebook),
+        BlocProvider<DiscoverySettingsBloc>.value(
+          value: blocs.discoverySettings,
+        ),
+        BlocProvider<DailyTemplateBloc>.value(value: blocs.dailyTemplate),
+        BlocProvider<RemindersSettingsBloc>.value(value: blocs.reminders),
       ],
       child: const SettingsPane(),
     ),
-    size: const Size(393, 1400),
+    size: const Size(393, 3200),
   );
   await tester.pump();
   await tester.pump();
@@ -189,6 +208,8 @@ void main() {
         'Preview',
         'Preview text size',
         'Diagrams',
+        'AI',
+        'Voice',
         'Sync',
         'Sign in',
         'About',
@@ -207,6 +228,24 @@ void main() {
         expect(find.text(label), findsNothing, reason: label);
       }
       expect(find.textContaining('Wake this device'), findsNothing);
+    });
+
+    testWidgets('Discovery switches update the live choices', (tester) async {
+      await _pump(tester);
+      await tester.ensureVisible(find.text('Related notes'));
+      await tester.pumpAndSettle();
+      await tester.tap(_discoverySwitchOf('Related notes'));
+      await tester.pumpAndSettle();
+      final discovery = tester
+          .element(find.byType(SettingsPane))
+          .read<DiscoverySettingsBloc>();
+      expect(discovery.state.relatedEnabled, isTrue);
+      await tester.ensureVisible(find.text('Search text in images'));
+      await tester.pumpAndSettle();
+      await tester.tap(_discoverySwitchOf('Search text in images'));
+      await tester.pumpAndSettle();
+      expect(discovery.state.ocrEnabled, isTrue);
+      expect(find.text('Reading images… 0 to go.'), findsOneWidget);
     });
 
     testWidgets('the Default notebook row says the first notebook until one '

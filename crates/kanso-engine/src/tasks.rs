@@ -19,10 +19,29 @@ use std::ops::Range;
 use kanso_core::dates::{Date, DateTime};
 use kanso_core::links::{code_ranges, plain_line};
 use kanso_core::tasks::{Due, TaskGroup, due_label, due_spans, due_token, task_group, task_items};
+use kanso_store::TaskRow;
 
 pub mod board;
 mod board_model;
 pub mod reminders;
+
+/// A task as a list knows it: its note, its line and its words.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TaskId {
+    pub note_id: String,
+    pub line: u32,
+    pub text: String,
+}
+
+impl TaskId {
+    pub fn of(row: &TaskRow) -> TaskId {
+        TaskId {
+            note_id: row.note_id.clone(),
+            line: row.line,
+            text: row.text.clone(),
+        }
+    }
+}
 
 /// The scheme of the links due dates become in the preview.
 pub const DUE_SCHEME: &str = "kanso-due:";

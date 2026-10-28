@@ -7,7 +7,10 @@
 //! filled again on open when it was built another way, and emptied with
 //! the library.
 
+use std::collections::HashSet;
+
 use kanso_core::model::OCR_FIELD;
+use kanso_core::tasks::linked_file_ids;
 use kanso_core::{DocType, now_ms};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Map, Value, json};
@@ -105,7 +108,10 @@ pub(crate) fn files_matching(conn: &Connection, needle: &str) -> Result<Vec<Stri
 
 impl Store {
     /// Live image attachments of [`OCR_TYPES`] whose text hasn't been read
-    /// from their current bytes, newest first, at most `limit`.
+    /// from their current bytes, newest first, at most `limit`. Only images
+    /// that at least one live note outside the trash shows, and that note
+    /// isn't locked or tagged `#ai-exclude` (so its body is readable and
+    /// allowed): an image only a locked note shows is never read.
     pub fn unread_images(&self, limit: usize) -> Result<Vec<UnreadImage>> {
         self.read(|conn| {
             let types = OCR_TYPES.map(|t| format!("'{t}'")).join(", ");
@@ -116,15 +122,46 @@ impl Store {
                    AND lower(json_extract(d.json, '$.contentType')) IN ({types})
                    AND json_extract(d.json, '$.md5digest') IS NOT NULL
                    AND (t.md5 IS NULL OR t.md5 != json_extract(d.json, '$.md5digest'))
-                 ORDER BY json_extract(d.json, '$.createdAt') DESC, d.id LIMIT ?"
+                 ORDER BY json_extract(d.json, '$.createdAt') DESC, d.id"
             ))?;
-            let rows = stmt.query_map([limit as i64], |row| {
-                Ok(UnreadImage {
-                    id: row.get(0)?,
-                    md5: row.get(1)?,
-                })
-            })?;
-            Ok(rows.collect::<rusqlite::Result<_>>()?)
+            let candidates = stmt
+                .query_map([], |row| {
+                    Ok(UnreadImage {
+                        id: row.get(0)?,
+                        md5: row.get(1)?,
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            if candidates.is_empty() || limit == 0 {
+                return Ok(Vec::new());
+            }
+            let mut wanted: HashSet<&str> = candidates.iter().map(|c| c.id.as_str()).collect();
+            let mut shown: HashSet<String> = HashSet::new();
+            // The bodies of the notes that may be read, once: each file
+            // they embed that is waiting to be read is shown.
+            let mut notes = conn.prepare(concat!(
+                "SELECT ",
+                schema::readable_body!("d."),
+                " FROM docs d WHERE ",
+                schema::discoverable!("d.")
+            ))?;
+            let mut rows = notes.query([])?;
+            while let Some(row) = rows.next()? {
+                let body: Option<String> = row.get(0)?;
+                for id in linked_file_ids(body.as_deref().unwrap_or("")) {
+                    if wanted.remove(id.as_str()) {
+                        shown.insert(id);
+                    }
+                }
+                if wanted.is_empty() {
+                    break;
+                }
+            }
+            Ok(candidates
+                .into_iter()
+                .filter(|c| shown.contains(&c.id))
+                .take(limit)
+                .collect())
         })
     }
 
@@ -198,10 +235,28 @@ mod tests {
             .id
     }
 
+    /// A note in a notebook of its own that shows file `id`.
+    fn show(store: &Store, id: &str, tags: &[&str]) -> String {
+        let book = store
+            .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+            .unwrap()
+            .id;
+        store
+            .put(
+                DocType::Note,
+                json!({"title": "Shows", "body": format!("![](inkdrop://{id})"), "bookId": book, "tags": tags}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id
+    }
+
     #[test]
     fn read_text_is_kept_in_the_file_and_mirrored() {
         let (_dir, store) = open();
         let id = image(&store, b"one");
+        show(&store, &id, &[]);
         let unread = store.unread_images(10).unwrap();
         assert_eq!(unread.len(), 1);
         let md5 = unread[0].md5.clone();
@@ -241,23 +296,23 @@ mod tests {
     fn the_apps_search_finds_notes_by_their_images_words() {
         let (_dir, store) = open();
         let id = image(&store, b"two");
+        let shows = show(&store, &id, &[]);
+        let book = store.get(&shows).unwrap().unwrap().fields["bookId"]
+            .as_str()
+            .unwrap()
+            .to_owned();
         let md5 = store.unread_images(1).unwrap()[0].md5.clone();
         store
             .set_image_text(&id, &md5, "Whiteboard: launch checklist", "test")
             .unwrap();
-        let book = store
-            .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
-            .unwrap()
-            .id;
-        let shows = store
+        store
             .put(
                 DocType::Note,
-                json!({"title": "Meeting", "body": format!("![](inkdrop://{id})"), "bookId": book}),
-                Put::Upsert,
+                json!({"_id": shows, "title": "Meeting"}),
+                Put::Merge,
                 Origin::Ui,
             )
-            .unwrap()
-            .id;
+            .unwrap();
         store
             .put(
                 DocType::Note,

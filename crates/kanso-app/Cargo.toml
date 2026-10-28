@@ -61,16 +61,13 @@ kanso-update.workspace = true
 kanso-voice.workspace = true
 kanso-store.workspace = true
 # Lock sessions, account flows and sync scheduling, without a window (issue #48).
-kanso-engine.workspace = true
+# `discovery`: the graph, the related-notes model and its download, which the
+# phones share (Model2Vec static embeddings, computed on this device, MIT).
+kanso-engine = { workspace = true, features = ["discovery"] }
 # The types `[[` autocomplete answers the text editor in. Pinned to the
 # version gpui-base uses.
 lsp-types = "=0.97.0"
 markdown.workspace = true
-# Related notes: Model2Vec static embeddings, computed on this device (MIT).
-# Without its Hugging Face client or Oniguruma: `related.rs` fetches the
-# model and checks it against pinned SHA-256s, and the tokenizer uses
-# pure-Rust regexes.
-model2vec-rs = { version = "=0.3.0", default-features = false }
 semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -79,16 +76,14 @@ schemars = "0.8"
 # The history dialog's changes between versions.
 similar.workspace = true
 sha2.workspace = true
-# Model2Vec's tokenizer, at the version it uses, with pure-Rust regexes.
-tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 tree-sitter-c-sharp.workspace = true
 tree-sitter-swift.workspace = true
 tar = "0.4.45"
 # A Zed extension's extension.toml, read for who made an imported icon
 # theme and where it lives. Already built for other crates.
 toml = "0.8"
-# `kanso capture` hands its text to a running Kanso's local API, and the
-# related-notes model downloads with it. The sync client already builds it.
+# `kanso capture` hands its text to a running Kanso's local API. The sync
+# client already builds it.
 ureq = "3.4"
 # A passkey's PRF output and a security key's PIN are wiped after use.
 zeroize.workspace = true

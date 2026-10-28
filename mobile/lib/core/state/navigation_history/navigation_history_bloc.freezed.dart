@@ -55,14 +55,15 @@ extension NavigationHistoryEventPatterns on NavigationHistoryEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NavigationHistoryVisitedEvent value)?  visited,TResult Function( NavigationHistoryBackRequestedEvent value)?  backRequested,TResult Function( NavigationHistoryForwardRequestedEvent value)?  forwardRequested,TResult Function( NavigationHistoryConsumedEvent value)?  consumed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NavigationHistoryVisitedEvent value)?  visited,TResult Function( NavigationHistoryBackRequestedEvent value)?  backRequested,TResult Function( NavigationHistoryForwardRequestedEvent value)?  forwardRequested,TResult Function( NavigationHistoryConsumedEvent value)?  consumed,TResult Function( NavigationHistoryTabsChangedEvent value)?  tabsChanged,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case NavigationHistoryVisitedEvent() when visited != null:
 return visited(_that);case NavigationHistoryBackRequestedEvent() when backRequested != null:
 return backRequested(_that);case NavigationHistoryForwardRequestedEvent() when forwardRequested != null:
 return forwardRequested(_that);case NavigationHistoryConsumedEvent() when consumed != null:
-return consumed(_that);case _:
+return consumed(_that);case NavigationHistoryTabsChangedEvent() when tabsChanged != null:
+return tabsChanged(_that);case _:
   return orElse();
 
 }
@@ -80,14 +81,15 @@ return consumed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NavigationHistoryVisitedEvent value)  visited,required TResult Function( NavigationHistoryBackRequestedEvent value)  backRequested,required TResult Function( NavigationHistoryForwardRequestedEvent value)  forwardRequested,required TResult Function( NavigationHistoryConsumedEvent value)  consumed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NavigationHistoryVisitedEvent value)  visited,required TResult Function( NavigationHistoryBackRequestedEvent value)  backRequested,required TResult Function( NavigationHistoryForwardRequestedEvent value)  forwardRequested,required TResult Function( NavigationHistoryConsumedEvent value)  consumed,required TResult Function( NavigationHistoryTabsChangedEvent value)  tabsChanged,}){
 final _that = this;
 switch (_that) {
 case NavigationHistoryVisitedEvent():
 return visited(_that);case NavigationHistoryBackRequestedEvent():
 return backRequested(_that);case NavigationHistoryForwardRequestedEvent():
 return forwardRequested(_that);case NavigationHistoryConsumedEvent():
-return consumed(_that);}
+return consumed(_that);case NavigationHistoryTabsChangedEvent():
+return tabsChanged(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -101,14 +103,15 @@ return consumed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NavigationHistoryVisitedEvent value)?  visited,TResult? Function( NavigationHistoryBackRequestedEvent value)?  backRequested,TResult? Function( NavigationHistoryForwardRequestedEvent value)?  forwardRequested,TResult? Function( NavigationHistoryConsumedEvent value)?  consumed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NavigationHistoryVisitedEvent value)?  visited,TResult? Function( NavigationHistoryBackRequestedEvent value)?  backRequested,TResult? Function( NavigationHistoryForwardRequestedEvent value)?  forwardRequested,TResult? Function( NavigationHistoryConsumedEvent value)?  consumed,TResult? Function( NavigationHistoryTabsChangedEvent value)?  tabsChanged,}){
 final _that = this;
 switch (_that) {
 case NavigationHistoryVisitedEvent() when visited != null:
 return visited(_that);case NavigationHistoryBackRequestedEvent() when backRequested != null:
 return backRequested(_that);case NavigationHistoryForwardRequestedEvent() when forwardRequested != null:
 return forwardRequested(_that);case NavigationHistoryConsumedEvent() when consumed != null:
-return consumed(_that);case _:
+return consumed(_that);case NavigationHistoryTabsChangedEvent() when tabsChanged != null:
+return tabsChanged(_that);case _:
   return null;
 
 }
@@ -125,13 +128,14 @@ return consumed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  visited,TResult Function()?  backRequested,TResult Function()?  forwardRequested,TResult Function()?  consumed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  visited,TResult Function()?  backRequested,TResult Function()?  forwardRequested,TResult Function()?  consumed,TResult Function()?  tabsChanged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case NavigationHistoryVisitedEvent() when visited != null:
 return visited(_that.noteId);case NavigationHistoryBackRequestedEvent() when backRequested != null:
 return backRequested();case NavigationHistoryForwardRequestedEvent() when forwardRequested != null:
 return forwardRequested();case NavigationHistoryConsumedEvent() when consumed != null:
-return consumed();case _:
+return consumed();case NavigationHistoryTabsChangedEvent() when tabsChanged != null:
+return tabsChanged();case _:
   return orElse();
 
 }
@@ -149,13 +153,14 @@ return consumed();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  visited,required TResult Function()  backRequested,required TResult Function()  forwardRequested,required TResult Function()  consumed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  visited,required TResult Function()  backRequested,required TResult Function()  forwardRequested,required TResult Function()  consumed,required TResult Function()  tabsChanged,}) {final _that = this;
 switch (_that) {
 case NavigationHistoryVisitedEvent():
 return visited(_that.noteId);case NavigationHistoryBackRequestedEvent():
 return backRequested();case NavigationHistoryForwardRequestedEvent():
 return forwardRequested();case NavigationHistoryConsumedEvent():
-return consumed();}
+return consumed();case NavigationHistoryTabsChangedEvent():
+return tabsChanged();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -169,13 +174,14 @@ return consumed();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  visited,TResult? Function()?  backRequested,TResult? Function()?  forwardRequested,TResult? Function()?  consumed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  visited,TResult? Function()?  backRequested,TResult? Function()?  forwardRequested,TResult? Function()?  consumed,TResult? Function()?  tabsChanged,}) {final _that = this;
 switch (_that) {
 case NavigationHistoryVisitedEvent() when visited != null:
 return visited(_that.noteId);case NavigationHistoryBackRequestedEvent() when backRequested != null:
 return backRequested();case NavigationHistoryForwardRequestedEvent() when forwardRequested != null:
 return forwardRequested();case NavigationHistoryConsumedEvent() when consumed != null:
-return consumed();case _:
+return consumed();case NavigationHistoryTabsChangedEvent() when tabsChanged != null:
+return tabsChanged();case _:
   return null;
 
 }
@@ -337,6 +343,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'NavigationHistoryEvent.consumed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class NavigationHistoryTabsChangedEvent implements NavigationHistoryEvent {
+  const NavigationHistoryTabsChangedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationHistoryTabsChangedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'NavigationHistoryEvent.tabsChanged()';
 }
 
 

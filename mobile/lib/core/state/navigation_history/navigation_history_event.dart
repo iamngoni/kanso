@@ -21,4 +21,9 @@ sealed class NavigationHistoryEvent with _$NavigationHistoryEvent {
   /// The screen opened the note the state's `pendingNoteId` named.
   const factory NavigationHistoryEvent.consumed() =
       NavigationHistoryConsumedEvent;
+
+  /// The tabs' BLoC changed the showing tab or its history, or turned the
+  /// tabs on or off: the history mirrors it. Sent by the BLoC to itself.
+  const factory NavigationHistoryEvent.tabsChanged() =
+      NavigationHistoryTabsChangedEvent;
 }

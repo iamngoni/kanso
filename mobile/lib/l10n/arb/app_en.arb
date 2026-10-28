@@ -32,10 +32,6 @@
   "@libraryTrash": {
     "description": "The library row for deleted notes."
   },
-  "libraryStatuses": "Status",
-  "@libraryStatuses": {
-    "description": "The label above the notes' statuses, and what a status is called when it has no notes."
-  },
   "openSettings": "Settings",
   "@openSettings": {
     "description": "What the settings button does."
@@ -81,6 +77,10 @@
       }
     }
   },
+  "searchMeaningTitle": "Found by meaning",
+  "@searchMeaningTitle": {
+    "description": "Notes found by semantic similarity to the search words."
+  },
   "noteListCount": "{count, plural, =1{1 note} other{{count} notes}}",
   "@noteListCount": {
     "description": "How many notes a list holds.",
@@ -117,6 +117,119 @@
   "noteInfo": "Note info",
   "@noteInfo": {
     "description": "Shows the note's details."
+  },
+  "noteMenu": "More",
+  "@noteMenu": {
+    "description": "Opens the menu of what can be done with the open note."
+  },
+  "noteOpenInNewWindow": "Open in New Window",
+  "@noteOpenInNewWindow": {
+    "description": "Shows the open note in a window of its own, beside the app. The desktop's label."
+  },
+  "noteWindowLockedTitle": "Locked note",
+  "@noteWindowLockedTitle": {
+    "description": "What the window list and the app switcher call the window of a locked note, whose title is kept out of them."
+  },
+  "noteWindowInTrash": "This note is in the trash.",
+  "@noteWindowInTrash": {
+    "description": "The banner of a note window whose note was moved to the trash."
+  },
+  "noteWindowNewNote": "New Note",
+  "@noteWindowNewNote": {
+    "description": "Makes a new note, from a note's own window: it is made in the main window."
+  },
+  "noteWindowSearch": "Search All Notes",
+  "@noteWindowSearch": {
+    "description": "Searches all notes, from a note's own window: the search opens in the main window."
+  },
+  "noteWindowClose": "Close Window",
+  "@noteWindowClose": {
+    "description": "Closes a note's own window; the note is saved and the app goes on."
+  },
+  "noteWindowRestore": "Restore",
+  "@noteWindowRestore": {
+    "description": "Takes the note out of the trash, from the banner."
+  },
+  "noteRelatedTurnOn": "Turn on Related notes in Settings to see notes about the same things.",
+  "@noteRelatedTurnOn": {
+    "description": "Explains how to enable related notes from a note's info sheet."
+  },
+  "noteRelatedTitle": "Related",
+  "@noteRelatedTitle": {
+    "description": "The related notes section in the note information sheet."
+  },
+  "noteRelatedEmpty": "No related notes yet.",
+  "@noteRelatedEmpty": {
+    "description": "An enabled related notes section has no suggestions."
+  },
+  "noteMeaning": "What the meaning says",
+  "@noteMeaning": {
+    "description": "Suggested tags and a nearly duplicate note for this note."
+  },
+  "noteMeaningTwin": "Nearly the same as {title} — {percent}%",
+  "@noteMeaningTwin": {
+    "description": "Names a note that is probably a duplicate.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "noteMeaningDismiss": "Dismiss",
+  "@noteMeaningDismiss": {
+    "description": "Dismisses the suggested duplicate note."
+  },
+  "noteMeaningMerge": "Merge",
+  "@noteMeaningMerge": {
+    "description": "Merges the suggested duplicate into the open note."
+  },
+  "noteMeaningMergeTitle": "Merge notes?",
+  "@noteMeaningMergeTitle": {
+    "description": "Asks before merging two notes."
+  },
+  "noteMeaningMergeWarning": "{title} will go to the trash. Its contents are kept in this note.",
+  "@noteMeaningMergeWarning": {
+    "description": "Explains what happens to the other note when merged.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancels a dialog or action."
+  },
+  "graphTitle": "Graph",
+  "@graphTitle": {
+    "description": "The linked notes graph screen and library entry."
+  },
+  "graphLocal": "Local graph",
+  "@graphLocal": {
+    "description": "Opens the graph around this note."
+  },
+  "graphFilterAll": "All notes",
+  "@graphFilterAll": {
+    "description": "Shows the whole library graph."
+  },
+  "graphFilterNotebook": "Notebook",
+  "@graphFilterNotebook": {
+    "description": "Filters the graph by notebook."
+  },
+  "graphFilterTag": "Tag",
+  "@graphFilterTag": {
+    "description": "Filters the graph by tag."
+  },
+  "graphEmpty": "No linked notes to show.",
+  "@graphEmpty": {
+    "description": "The graph contains no linked notes."
+  },
+  "graphFailed": "Couldn't load the graph.",
+  "@graphFailed": {
+    "description": "Explains that the graph could not be read."
   },
   "noteMetaCreated": "Created",
   "@noteMetaCreated": {
@@ -234,6 +347,39 @@
   "settingsSync": "Sync",
   "@settingsSync": {
     "description": "A section of settings."
+  },
+  "settingsDiscovery": "Discovery",
+  "@settingsDiscovery": {
+    "description": "The section of settings for related notes and image text recognition."
+  },
+  "discoveryRelated": "Related notes",
+  "@discoveryRelated": {
+    "description": "Enables notes about the same things as the open note."
+  },
+  "discoveryRelatedDetail": "Lists notes about the same things as the open one, beside it. Turning this on downloads a small language model (about 30 MB) once. It runs on this device: nothing about your notes is sent anywhere.",
+  "@discoveryRelatedDetail": {
+    "description": "Explains local related note suggestions and the first download."
+  },
+  "discoveryTryAgain": "Try Again",
+  "@discoveryTryAgain": {
+    "description": "Retries downloading or indexing the related notes model."
+  },
+  "discoverySearchImages": "Search text in images",
+  "@discoverySearchImages": {
+    "description": "Enables local text recognition for attached pictures."
+  },
+  "discoverySearchImagesDetail": "Reads the words in pictures you attach, on this device, so search finds the notes they're in. The words sync with the picture.",
+  "@discoverySearchImagesDetail": {
+    "description": "Explains local OCR and that its text syncs with its picture."
+  },
+  "discoveryReadingImages": "Reading images… {count} to go.",
+  "@discoveryReadingImages": {
+    "description": "Shows how many pictures remain in the on-device OCR queue.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "settingsAbout": "About",
   "@settingsAbout": {
@@ -762,19 +908,6 @@
   "emptyTagMessage": "Notes with this tag will appear in this list.",
   "@emptyTagMessage": {
     "description": "What the empty list of a tag's notes says."
-  },
-  "emptyStatusTitle": "No notes marked {status}",
-  "@emptyStatusTitle": {
-    "description": "The title shown when no note has the status.",
-    "placeholders": {
-      "status": {
-        "type": "String"
-      }
-    }
-  },
-  "emptyStatusMessage": "Notes with this status will appear in this list.",
-  "@emptyStatusMessage": {
-    "description": "What the empty list of a status's notes says."
   },
   "emptyNarrowedTitle": "No notes match",
   "@emptyNarrowedTitle": {
@@ -3433,18 +3566,6 @@
   "@lockMoreTitle": {
     "description": "The title of the note's menu."
   },
-  "noteExportPdf": "Export as PDF",
-  "@noteExportPdf": {
-    "description": "The note's menu row that writes it as a PDF to share."
-  },
-  "noteExportPreparing": "Preparing the PDF",
-  "@noteExportPreparing": {
-    "description": "What is shown while a note is being written as a PDF."
-  },
-  "noteExportFailed": "The note could not be exported.",
-  "@noteExportFailed": {
-    "description": "Said when a note could not be written as a PDF."
-  },
   "lockNotebookMenuTitle": "Notebook actions",
   "@lockNotebookMenuTitle": {
     "description": "The title of the notebook's menu."
@@ -4151,6 +4272,347 @@
   "@replaceProblemSearch": {
     "description": "Says the preview could not be made."
   },
+  "journalPreviousDay": "Previous day",
+  "@journalPreviousDay": {
+    "description": "What the button that opens the day before a daily note does."
+  },
+  "journalNextDay": "Next day",
+  "@journalNextDay": {
+    "description": "What the button that opens the day after a daily note does."
+  },
+  "journalCalendar": "Calendar",
+  "@journalCalendar": {
+    "description": "The button, and the sheet's menu row, that open the journal's calendar."
+  },
+  "journalTodaysNote": "Today’s note",
+  "@journalTodaysNote": {
+    "description": "The menu row that opens today's daily note."
+  },
+  "journalCalendarTitle": "Journal",
+  "@journalCalendarTitle": {
+    "description": "The title of the calendar sheet."
+  },
+  "journalFailed": "Couldn’t make that note. Try again.",
+  "@journalFailed": {
+    "description": "The line shown when a daily note, or a note from a template, could not be made."
+  },
+  "calendarPreviousMonth": "Previous month",
+  "@calendarPreviousMonth": {
+    "description": "What the calendar's back button does."
+  },
+  "calendarNextMonth": "Next month",
+  "@calendarNextMonth": {
+    "description": "What the calendar's forward button does."
+  },
+  "calendarToday": "Today",
+  "@calendarToday": {
+    "description": "The calendar button that shows today's month."
+  },
+  "calendarHint": "A dot marks a day with a note. Tap a day to open it, or to start it from the daily template.",
+  "@calendarHint": {
+    "description": "The note under the calendar."
+  },
+  "calendarFailed": "The calendar couldn’t be read.",
+  "@calendarFailed": {
+    "description": "The line shown when the calendar's month could not be read."
+  },
+  "calendarDayLabel": "{date}",
+  "@calendarDayLabel": {
+    "description": "What a screen reader says for a day of the calendar.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarDayWithNote": "{date}, has a note",
+  "@calendarDayWithNote": {
+    "description": "What a screen reader says for a day of the calendar that has a note.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarDayToday": "{date}, today",
+  "@calendarDayToday": {
+    "description": "What a screen reader says for today in the calendar.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarDayTodayWithNote": "{date}, today, has a note",
+  "@calendarDayTodayWithNote": {
+    "description": "What a screen reader says for today in the calendar when it has a note.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "newMenuTitle": "New",
+  "@newMenuTitle": {
+    "description": "The title of the sheet opened by the new button of a list."
+  },
+  "newMenuLabel": "New",
+  "@newMenuLabel": {
+    "description": "What the new button of a list does."
+  },
+  "newFromTemplate": "New from template…",
+  "@newFromTemplate": {
+    "description": "The menu row that makes a note from a template."
+  },
+  "newTemplate": "New template",
+  "@newTemplate": {
+    "description": "The menu row that makes a template."
+  },
+  "templatePickerTitle": "New from template",
+  "@templatePickerTitle": {
+    "description": "The title of the sheet that lists the templates."
+  },
+  "templatesEmptyTitle": "No templates yet",
+  "@templatesEmptyTitle": {
+    "description": "The title shown when the Templates notebook has no notes."
+  },
+  "templatesEmptyMessage": "Notes in the Templates notebook show here. New template makes one.",
+  "@templatesEmptyMessage": {
+    "description": "Says what the template list will hold."
+  },
+  "templatesFailed": "The templates couldn’t be read.",
+  "@templatesFailed": {
+    "description": "The line shown when the templates could not be read."
+  },
+  "settingsDailyNotes": "Daily notes",
+  "@settingsDailyNotes": {
+    "description": "A section of settings."
+  },
+  "settingsDailyTemplate": "Daily template",
+  "@settingsDailyTemplate": {
+    "description": "The settings row that chooses the template new daily notes start from."
+  },
+  "dailyTemplateNone": "None",
+  "@dailyTemplateNone": {
+    "description": "The daily template choice that starts daily notes empty."
+  },
+  "dailyTemplateDetail": "New daily notes start from this template, with {date}, {time} and {cursor} filled in.",
+  "@dailyTemplateDetail": {
+    "description": "The note under the daily template row when there are templates.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      },
+      "cursor": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyTemplateDetailEmpty": "New daily notes start empty. Notes in the Templates notebook can be chosen here; New template makes one.",
+  "@dailyTemplateDetailEmpty": {
+    "description": "The note under the daily template row when there are no templates."
+  },
+  "dailyTemplateFailed": "Couldn’t set the daily template.",
+  "@dailyTemplateFailed": {
+    "description": "The line shown when the daily template could not be set."
+  },
+  "settingsReminders": "Reminders",
+  "@settingsReminders": {
+    "description": "A section of settings."
+  },
+  "settingsRemindMe": "Remind me of tasks",
+  "@settingsRemindMe": {
+    "description": "The settings row that turns task reminders on and off."
+  },
+  "settingsRemindersDetail": "A notification when a task with a time comes due, like “- [ ] Call Sam @2026-10-25T09:00”.",
+  "@settingsRemindersDetail": {
+    "description": "The note under the reminders row."
+  },
+  "settingsRemindersDenied": "Notifications are turned off for Kanso. Allow them in your device’s settings to get reminders.",
+  "@settingsRemindersDenied": {
+    "description": "The note under the reminders row when the system does not let Kanso show notifications."
+  },
+  "settingsRemindersFailed": "Couldn’t save that setting.",
+  "@settingsRemindersFailed": {
+    "description": "The line shown when the reminders switch could not be saved."
+  },
+  "listOptionsBoard": "Board",
+  "@listOptionsBoard": {
+    "description": "The row of the list menu that shows the list as a board."
+  },
+  "boardTitle": "Board",
+  "@boardTitle": {
+    "description": "The title of the board page."
+  },
+  "boardNotes": "Notes",
+  "@boardNotes": {
+    "description": "The board choice that lays notes out by status."
+  },
+  "boardTasks": "Tasks",
+  "@boardTasks": {
+    "description": "The board choice that lays tasks out as To do and Done."
+  },
+  "boardKindLabel": "Board",
+  "@boardKindLabel": {
+    "description": "Names the control that switches between the notes and the tasks board."
+  },
+  "boardClose": "Close board",
+  "@boardClose": {
+    "description": "What the board's close button does."
+  },
+  "boardLaneNoStatus": "No status",
+  "@boardLaneNoStatus": {
+    "description": "The board column of notes with no status."
+  },
+  "boardLaneTodo": "To do",
+  "@boardLaneTodo": {
+    "description": "The board column of tasks not yet done."
+  },
+  "boardLaneDone": "Done",
+  "@boardLaneDone": {
+    "description": "The board column of tasks that are done."
+  },
+  "boardEmptyNotesTitle": "No notes here",
+  "@boardEmptyNotesTitle": {
+    "description": "The title of a notes board with no notes."
+  },
+  "boardEmptyNotesMessage": "Notes in this list show here, a column for each status.",
+  "@boardEmptyNotesMessage": {
+    "description": "Says what the notes board will hold."
+  },
+  "boardEmptyTasksTitle": "No tasks in these notes",
+  "@boardEmptyTasksTitle": {
+    "description": "The title of a tasks board with no tasks."
+  },
+  "boardEmptyTasksMessage": "Write “- [ ] Call Sam” in a note, and it shows here.",
+  "@boardEmptyTasksMessage": {
+    "description": "Says what the tasks board will hold."
+  },
+  "boardHintNotes": "Touch and hold a card to move it to another status.",
+  "@boardHintNotes": {
+    "description": "The hint under a notes board on a phone."
+  },
+  "boardHintTasks": "Tick a task to do it, or touch and hold it to move it.",
+  "@boardHintTasks": {
+    "description": "The hint under a tasks board on a phone."
+  },
+  "boardHintNotesDrag": "Drag a card to change its status.",
+  "@boardHintNotesDrag": {
+    "description": "The hint under a notes board on a tablet."
+  },
+  "boardHintTasksDrag": "Drag a task to Done to tick it off.",
+  "@boardHintTasksDrag": {
+    "description": "The hint under a tasks board on a tablet."
+  },
+  "boardMoveTo": "Move to…",
+  "@boardMoveTo": {
+    "description": "The action that moves a board card to another column."
+  },
+  "boardMoveSheetTitle": "Move to",
+  "@boardMoveSheetTitle": {
+    "description": "The title of the sheet that lists the columns to move a card to."
+  },
+  "boardMoveFailed": "Couldn’t move the card.",
+  "@boardMoveFailed": {
+    "description": "The line shown when moving a board card failed."
+  },
+  "boardChangedInNote": "That task changed in its note. The board is up to date now.",
+  "@boardChangedInNote": {
+    "description": "The line shown when a task moved in its note while it was being moved on the board."
+  },
+  "boardFailedTitle": "The board didn’t load",
+  "@boardFailedTitle": {
+    "description": "The title of the card shown when the board could not be read."
+  },
+  "boardFailedMessage": "Something went wrong reading the notes on this device. Try again.",
+  "@boardFailedMessage": {
+    "description": "The message of the card shown when the board could not be read."
+  },
+  "boardTaskCount": "{done}/{total} tasks",
+  "@boardTaskCount": {
+    "description": "A note card's count of the tasks it has done.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "boardColumnLabel": "{lane}, {count, plural, =1{1 card} other{{count} cards}}",
+  "@boardColumnLabel": {
+    "description": "What a screen reader says for a board column.",
+    "placeholders": {
+      "lane": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "boardTickTask": "Mark done",
+  "@boardTickTask": {
+    "description": "What the checkbox of a task card does when the task is not done."
+  },
+  "boardUntickTask": "Mark not done",
+  "@boardUntickTask": {
+    "description": "What the checkbox of a task card does when the task is done."
+  },
+  "boardTaskDue": "Due {when}",
+  "@boardTaskDue": {
+    "description": "What a screen reader says for a task card's due time.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "boardNoticeDismiss": "OK",
+  "@boardNoticeDismiss": {
+    "description": "Closes a notice on the board."
+  },
+  "libraryStatuses": "Status",
+  "@libraryStatuses": {
+    "description": "The label above the notes' statuses, and what a status is called when it has no notes."
+  },
+  "emptyStatusTitle": "No notes marked {status}",
+  "@emptyStatusTitle": {
+    "description": "The title shown when no note has the status.",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "emptyStatusMessage": "Notes with this status will appear in this list.",
+  "@emptyStatusMessage": {
+    "description": "What the empty list of a status's notes says."
+  },
+  "noteExportPdf": "Export as PDF",
+  "@noteExportPdf": {
+    "description": "The note's menu row that writes it as a PDF to share."
+  },
+  "noteExportPreparing": "Preparing the PDF",
+  "@noteExportPreparing": {
+    "description": "What is shown while a note is being written as a PDF."
+  },
+  "noteExportHtml": "Export as web page",
+  "@noteExportHtml": {
+    "description": "The note's menu row that writes it as one HTML file to share."
+  },
+  "noteExportPreparingPage": "Preparing the web page",
+  "@noteExportPreparingPage": {
+    "description": "What is shown while a note is being written as a web page."
+  },
+  "noteExportFailed": "The note could not be exported.",
+  "@noteExportFailed": {
+    "description": "Said when a note could not be written as a PDF or a web page."
+  },
   "libraryNewSubNotebook": "New Sub-notebook",
   "@libraryNewSubNotebook": {
     "description": "A notebook's menu item that makes a notebook inside it."
@@ -4338,5 +4800,605 @@
   "libraryTagsFewer": "Fewer",
   "@libraryTagsFewer": {
     "description": "Shows only the most used tags as chips."
+  },
+  "tabsBarLabel": "Tabs",
+  "@tabsBarLabel": {
+    "description": "The accessibility label of the row of tabs above a note on a tablet."
+  },
+  "tabClose": "Close",
+  "@tabClose": {
+    "description": "The menu item that closes a tab (the desktop calls it this too)."
+  },
+  "tabCloseOthers": "Close Others",
+  "@tabCloseOthers": {
+    "description": "The menu item that closes every tab but this one."
+  },
+  "tabCloseRight": "Close Tabs to the Right",
+  "@tabCloseRight": {
+    "description": "The menu item that closes the tabs after this one."
+  },
+  "tabOpenInNewWindow": "Open in New Window",
+  "@tabOpenInNewWindow": {
+    "description": "The menu item that opens a tab's note in a window of its own."
+  },
+  "tabOpenInNewTab": "Open in New Tab",
+  "@tabOpenInNewTab": {
+    "description": "The menu item and the drop hint that open a note in a new tab."
+  },
+  "tabCloseTooltip": "Close tab",
+  "@tabCloseTooltip": {
+    "description": "The accessibility label and tooltip of the close button of a tab."
+  },
+  "tabsAll": "All tabs",
+  "@tabsAll": {
+    "description": "The accessibility label and tooltip of the button that lists every open tab."
+  },
+  "tabLocked": "{title}, locked",
+  "@tabLocked": {
+    "description": "A tab's accessibility label for a locked note.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "publishNoteMenu": "Publish…",
+  "@publishNoteMenu": {
+    "description": "Opens the publish sheet for a note."
+  },
+  "publishNotebookMenu": "Publish notebook…",
+  "@publishNotebookMenu": {
+    "description": "Opens the publish sheet for a notebook site."
+  },
+  "publishNoteTitle": "Publish note",
+  "@publishNoteTitle": {
+    "description": "Title of the note publish sheet."
+  },
+  "publishNotebookTitle": "Publish notebook as a site",
+  "@publishNotebookTitle": {
+    "description": "Title of the notebook publish sheet."
+  },
+  "publishNoteContentSummary": "{count, plural, =0{No words} one{{count} word} other{{count} words}}",
+  "@publishNoteContentSummary": {
+    "description": "A count of the words in the note that will be published.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "publishExpiryHeading": "Link expiry",
+  "@publishExpiryHeading": {
+    "description": "Heading above link expiry choices."
+  },
+  "publishWorking": "Publishing…",
+  "@publishWorking": {
+    "description": "Status shown while a note or notebook site is being published."
+  },
+  "publishPublish": "Publish",
+  "@publishPublish": {
+    "description": "Publishes a note."
+  },
+  "publishUpdate": "Update published note",
+  "@publishUpdate": {
+    "description": "Updates a note already published at its link."
+  },
+  "publishPublishSite": "Publish site",
+  "@publishPublishSite": {
+    "description": "Publishes a notebook as a site."
+  },
+  "publishUpdateSite": "Update site",
+  "@publishUpdateSite": {
+    "description": "Updates a published notebook site."
+  },
+  "publishCopyLink": "Copy link",
+  "@publishCopyLink": {
+    "description": "Copies the published link."
+  },
+  "publishUnpublish": "Unpublish",
+  "@publishUnpublish": {
+    "description": "Removes a published link."
+  },
+  "publishCopied": "Publish link copied.",
+  "@publishCopied": {
+    "description": "Confirms that a publish link was copied."
+  },
+  "publishNeverExpires": "This link does not expire.",
+  "@publishNeverExpires": {
+    "description": "Explains a link without an expiry."
+  },
+  "publishExpiresOn": "Expires {date}",
+  "@publishExpiresOn": {
+    "description": "The date a published link expires.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "publishExpired": "This link has expired. Update to create a new link.",
+  "@publishExpired": {
+    "description": "Explains that update replaces an expired link."
+  },
+  "paletteHint": "Search or run a command",
+  "@paletteHint": {
+    "description": "The command palette's field, before anything is typed."
+  },
+  "paletteEmptyTitle": "Nothing matches",
+  "@paletteEmptyTitle": {
+    "description": "The command palette's empty state heading."
+  },
+  "paletteEmptyMessage": "Try a shorter word, or another name.",
+  "@paletteEmptyMessage": {
+    "description": "The command palette's empty state, under the heading."
+  },
+  "paletteAddTag": "Add tag",
+  "@paletteAddTag": {
+    "description": "The title of the sheet that picks a tag to add to a note."
+  },
+  "noteOutline": "Outline",
+  "@noteOutline": {
+    "description": "The sheet of a note's headings."
+  },
+  "noteOutlineEmptyTitle": "No headings",
+  "@noteOutlineEmptyTitle": {
+    "description": "The outline's empty state heading."
+  },
+  "noteOutlineEmptyMessage": "Headings in the note show up here.",
+  "@noteOutlineEmptyMessage": {
+    "description": "The outline's empty state, under the heading."
+  },
+  "noteBacklinks": "Backlinks",
+  "@noteBacklinks": {
+    "description": "The sheet of the notes that name the open note."
+  },
+  "noteBacklinksLinked": "Linked from",
+  "@noteBacklinksLinked": {
+    "description": "The backlinks section of notes that link to this one."
+  },
+  "noteBacklinksUnlinked": "Unlinked mentions",
+  "@noteBacklinksUnlinked": {
+    "description": "The backlinks section of notes that name this one without a link."
+  },
+  "noteBacklinksEmptyTitle": "Nothing links here",
+  "@noteBacklinksEmptyTitle": {
+    "description": "The backlinks' empty state heading."
+  },
+  "noteBacklinksEmptyMessage": "A note that links to this one shows up here.",
+  "@noteBacklinksEmptyMessage": {
+    "description": "The backlinks' empty state, under the heading."
+  },
+  "paletteCommands": "Commands",
+  "@paletteCommands": {
+    "description": "The library's way into the command palette."
+  },
+  "focusModeExit": "Leave focus mode",
+  "@focusModeExit": {
+    "description": "Leaves focus mode and brings back the sidebar and bars."
+  },
+  "settingsAi": "AI",
+  "@settingsAi": {
+    "description": "The settings row that opens the AI settings."
+  },
+  "settingsAiOn": "On",
+  "@settingsAiOn": {
+    "description": "The value of the AI settings row while AI is on."
+  },
+  "settingsAiOff": "Off",
+  "@settingsAiOff": {
+    "description": "The value of the AI settings row while AI is off."
+  },
+  "aiTitle": "AI",
+  "@aiTitle": {
+    "description": "The title of the AI settings page."
+  },
+  "aiEnabled": "Use AI",
+  "@aiEnabled": {
+    "description": "The switch that turns the AI features on."
+  },
+  "aiEnabledFooter": "Ask your notes, rewrite a selection and summarize a note. AI is off until you turn it on.",
+  "@aiEnabledFooter": {
+    "description": "The note under the AI switch."
+  },
+  "aiProviderSection": "Answers come from",
+  "@aiProviderSection": {
+    "description": "The heading above the provider and its address, model and key."
+  },
+  "aiProvider": "Provider",
+  "@aiProvider": {
+    "description": "The row that opens the list of places answers can come from."
+  },
+  "aiProviderSheetTitle": "Choose a provider",
+  "@aiProviderSheetTitle": {
+    "description": "The title of the list of providers."
+  },
+  "aiAddress": "Address",
+  "@aiAddress": {
+    "description": "The label of the server address field."
+  },
+  "aiModel": "Model",
+  "@aiModel": {
+    "description": "The label of the model name field."
+  },
+  "aiRegion": "Region",
+  "@aiRegion": {
+    "description": "The label of the region field, for the providers that use one."
+  },
+  "aiApiKey": "API key",
+  "@aiApiKey": {
+    "description": "The label of the API key field."
+  },
+  "aiApiKeyOptional": "API key (optional)",
+  "@aiApiKeyOptional": {
+    "description": "The label of the API key field for a provider that does not need one."
+  },
+  "aiKeyHint": "Paste the key",
+  "@aiKeyHint": {
+    "description": "The hint in the empty API key field."
+  },
+  "aiKeySave": "Save key",
+  "@aiKeySave": {
+    "description": "The button that saves the typed API key."
+  },
+  "aiKeySaved": "Saved",
+  "@aiKeySaved": {
+    "description": "Says that an API key is saved. The key itself is never shown."
+  },
+  "aiKeyRemove": "Remove",
+  "@aiKeyRemove": {
+    "description": "The button that removes the saved API key."
+  },
+  "aiKeyFooter": "Kept in secure storage on this device and never shown again.",
+  "@aiKeyFooter": {
+    "description": "The note under the API key."
+  },
+  "aiTest": "Test",
+  "@aiTest": {
+    "description": "The button that checks the address, model and key."
+  },
+  "aiTestHint": "Sends one short question to check the address, model and key. No notes are sent.",
+  "@aiTestHint": {
+    "description": "The note under the Test button."
+  },
+  "aiTestRunning": "Asking the model…",
+  "@aiTestRunning": {
+    "description": "Shown while the test question is on its way."
+  },
+  "aiTestOk": "Ready. The model said “{said}”.",
+  "@aiTestOk": {
+    "description": "Says that the test worked and what the model answered.",
+    "placeholders": {
+      "said": {
+        "type": "String"
+      }
+    }
+  },
+  "aiLoadFailedTitle": "Couldn’t open AI settings",
+  "@aiLoadFailedTitle": {
+    "description": "The title of the card shown when the AI settings could not be read."
+  },
+  "aiLoadFailedMessage": "Something went wrong reading them. Try again.",
+  "@aiLoadFailedMessage": {
+    "description": "The message of that card."
+  },
+  "aiSaveFailed": "Couldn’t save that. Try again.",
+  "@aiSaveFailed": {
+    "description": "Says that a change to the AI settings could not be saved."
+  },
+  "askTitle": "Ask your notes",
+  "@askTitle": {
+    "description": "The title of the Ask page and its library row."
+  },
+  "askClear": "Clear conversation",
+  "@askClear": {
+    "description": "The button that forgets the conversation."
+  },
+  "askHint": "Ask about your notes…",
+  "@askHint": {
+    "description": "The hint in the empty question field."
+  },
+  "askSend": "Ask",
+  "@askSend": {
+    "description": "The button that sends the question."
+  },
+  "askStop": "Stop",
+  "@askStop": {
+    "description": "The button that stops an answer being written."
+  },
+  "askEmptyMessage": "A question is answered from your own notes, with links to the notes it used. The answer isn’t saved and no note is changed.",
+  "@askEmptyMessage": {
+    "description": "Says what Ask does, above an empty conversation."
+  },
+  "askSearching": "Searching your notes…",
+  "@askSearching": {
+    "description": "Shown while the notes are searched for a question."
+  },
+  "askThinking": "Thinking…",
+  "@askThinking": {
+    "description": "Shown while the model works on an answer."
+  },
+  "askNothingMatches": "Nothing in your notes matches this question.",
+  "@askNothingMatches": {
+    "description": "Says that no note matches the question."
+  },
+  "askCutOff": "The answer was cut off before it finished.",
+  "@askCutOff": {
+    "description": "Says that the model stopped before the answer was complete."
+  },
+  "askStopped": "Stopped.",
+  "@askStopped": {
+    "description": "Says that the person stopped the answer."
+  },
+  "askFailedTitle": "Couldn’t answer",
+  "@askFailedTitle": {
+    "description": "The title of the card shown when a question failed."
+  },
+  "askFailedMessage": "Something went wrong. Try again.",
+  "@askFailedMessage": {
+    "description": "The message of that card when the core has no better words."
+  },
+  "askUsedNotes": "{count, plural, =1{Used 1 note} other{Used {count} notes}}",
+  "@askUsedNotes": {
+    "description": "The heading of the list of notes an answer was written from.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "askUntitled": "Untitled",
+  "@askUntitled": {
+    "description": "What a note without a title is called in a list of notes."
+  },
+  "askOffTitle": "AI is off",
+  "@askOffTitle": {
+    "description": "The title shown on the Ask page while AI is off."
+  },
+  "askOffMessage": "Turn on AI in Settings to ask questions of your notes.",
+  "@askOffMessage": {
+    "description": "The message shown on the Ask page while AI is off."
+  },
+  "askOpenSettings": "Open AI settings",
+  "@askOpenSettings": {
+    "description": "The button that opens the AI settings."
+  },
+  "assistTitle": "Ask AI",
+  "@assistTitle": {
+    "description": "The title of the assistant sheet, and of the selection menu item that opens it."
+  },
+  "assistSelectionAction": "Ask AI…",
+  "@assistSelectionAction": {
+    "description": "The item in the text selection menu that opens the assistant."
+  },
+  "assistAccessoryLabel": "AI assistant",
+  "@assistAccessoryLabel": {
+    "description": "What a screen reader says for the assistant key above the keyboard."
+  },
+  "assistSummary": "Summary",
+  "@assistSummary": {
+    "description": "The title of the sheet that shows a note’s summary."
+  },
+  "assistSummarizeNote": "Summarize this note",
+  "@assistSummarizeNote": {
+    "description": "The note menu item that summarizes the open note."
+  },
+  "assistThinking": "Thinking…",
+  "@assistThinking": {
+    "description": "Shown while the assistant works on a suggestion."
+  },
+  "assistStop": "Stop",
+  "@assistStop": {
+    "description": "The button that stops a suggestion being written."
+  },
+  "assistAccept": "Accept",
+  "@assistAccept": {
+    "description": "The button that puts the suggestion in the note."
+  },
+  "assistNothing": "Nothing came back.",
+  "@assistNothing": {
+    "description": "Says that the assistant answered with nothing."
+  },
+  "assistDiscard": "Discard",
+  "@assistDiscard": {
+    "description": "The button that throws a suggestion away."
+  },
+  "assistCopy": "Copy",
+  "@assistCopy": {
+    "description": "The button that copies the suggestion."
+  },
+  "assistCopied": "Copied",
+  "@assistCopied": {
+    "description": "Says that the suggestion was copied."
+  },
+  "assistClose": "Close",
+  "@assistClose": {
+    "description": "The button that closes the assistant sheet."
+  },
+  "assistKeptOut": "This note is kept out of AI.",
+  "@assistKeptOut": {
+    "description": "Says that the note is locked, in the trash or tagged #ai-exclude, so nothing was sent."
+  },
+  "assistStopped": "Stopped. A partial rewrite can’t be applied.",
+  "@assistStopped": {
+    "description": "Says that a stopped suggestion is not offered."
+  },
+  "assistFailed": "The suggestion couldn’t be made. Try again.",
+  "@assistFailed": {
+    "description": "Says that the assistant failed."
+  },
+  "assistChanged": "The text changed, so the suggestion wasn’t applied.",
+  "@assistChanged": {
+    "description": "Says that the note changed while the suggestion was written."
+  },
+  "libraryAsk": "Ask your notes",
+  "@libraryAsk": {
+    "description": "The library row that opens Ask your notes."
+  },
+  "dictationKey": "Dictate",
+  "@dictationKey": {
+    "description": "The accessory bar's microphone key, for a screen reader: starts dictating into the note."
+  },
+  "dictationKeyStop": "Stop dictating",
+  "@dictationKeyStop": {
+    "description": "The accessory bar's microphone key while it listens, for a screen reader."
+  },
+  "dictationListening": "Listening",
+  "@dictationListening": {
+    "description": "Shown while the microphone is open and nothing has been heard yet."
+  },
+  "dictationStop": "Stop",
+  "@dictationStop": {
+    "description": "Stops dictating and keeps the words."
+  },
+  "dictationVoiceNoteTitle": "Voice note",
+  "@dictationVoiceNoteTitle": {
+    "description": "The title of the page that makes a note from speech."
+  },
+  "dictationVoiceNoteHint": "Tap the mic and start talking.",
+  "@dictationVoiceNoteHint": {
+    "description": "Tells the person how to begin a voice note."
+  },
+  "dictationTranscriptEmpty": "What you say will appear here.",
+  "@dictationTranscriptEmpty": {
+    "description": "The placeholder of the live transcript before anything is heard."
+  },
+  "dictationMicStart": "Start listening",
+  "@dictationMicStart": {
+    "description": "Says what the large microphone button does while it is off."
+  },
+  "dictationMicStop": "Stop listening",
+  "@dictationMicStop": {
+    "description": "Says what the large microphone button does while it listens."
+  },
+  "dictationDone": "Done",
+  "@dictationDone": {
+    "description": "Saves the voice note as a new note."
+  },
+  "dictationCancel": "Cancel",
+  "@dictationCancel": {
+    "description": "Leaves the voice note without saving it."
+  },
+  "dictationSaving": "Saving the note",
+  "@dictationSaving": {
+    "description": "Says to a screen reader that the voice note is being saved."
+  },
+  "dictationSaveFailedTitle": "The note wasn't saved",
+  "@dictationSaveFailedTitle": {
+    "description": "The title of the card shown when a voice note could not be saved."
+  },
+  "dictationSaveFailedMessage": "Your words are still here. Try again.",
+  "@dictationSaveFailedMessage": {
+    "description": "Says that nothing was lost when saving a voice note failed."
+  },
+  "dictationTryAgain": "Try again",
+  "@dictationTryAgain": {
+    "description": "Tries again after a failure."
+  },
+  "dictationUnavailableTitle": "Dictation isn't available",
+  "@dictationUnavailableTitle": {
+    "description": "The title of the card shown when speech can't be recognized on this device."
+  },
+  "dictationUnavailableNotOnDevice": "This phone can't turn speech into text by itself in this language, and Kanso never sends your voice anywhere else.",
+  "@dictationUnavailableNotOnDevice": {
+    "description": "Says why dictation is unavailable when the language has no recognizer on the device."
+  },
+  "dictationUnavailableNoRecognizer": "This phone has no speech recognizer. Install or turn on one in the phone's settings.",
+  "@dictationUnavailableNoRecognizer": {
+    "description": "Says why dictation is unavailable when the phone has no speech recognizer."
+  },
+  "dictationUnavailableLanguage": "Speech recognition doesn't support this language.",
+  "@dictationUnavailableLanguage": {
+    "description": "Says why dictation is unavailable when the language is unknown to the recognizer."
+  },
+  "dictationDeniedTitle": "Kanso can't hear you",
+  "@dictationDeniedTitle": {
+    "description": "The title of the card shown when the microphone or speech recognition is refused."
+  },
+  "dictationDeniedMessage": "Allow the microphone and speech recognition for Kanso in Settings to dictate.",
+  "@dictationDeniedMessage": {
+    "description": "Says how to allow dictation after it was refused."
+  },
+  "dictationRestrictedMessage": "This phone's rules keep Kanso from using the microphone or speech recognition.",
+  "@dictationRestrictedMessage": {
+    "description": "Says that the device restricts dictation."
+  },
+  "dictationOpenSettings": "Open Settings",
+  "@dictationOpenSettings": {
+    "description": "Opens the phone's settings page for Kanso."
+  },
+  "dictationErrorTitle": "Dictation stopped",
+  "@dictationErrorTitle": {
+    "description": "The title of the card shown when dictation failed."
+  },
+  "dictationErrorMessage": "Something interrupted the microphone. Try again.",
+  "@dictationErrorMessage": {
+    "description": "Says that the microphone was interrupted."
+  },
+  "dictationNoSpeech": "Nothing was heard. Tap the mic and try again.",
+  "@dictationNoSpeech": {
+    "description": "Says that no speech was heard."
+  },
+  "dictationDismiss": "OK",
+  "@dictationDismiss": {
+    "description": "Dismisses the notice that dictation could not run."
+  },
+  "dictationSettingsTitle": "Voice",
+  "@dictationSettingsTitle": {
+    "description": "The title of the voice settings page and of its row in Settings."
+  },
+  "dictationSettingsInputSection": "Voice input",
+  "@dictationSettingsInputSection": {
+    "description": "The heading of the voice input rows."
+  },
+  "dictationSettingsInput": "Voice input",
+  "@dictationSettingsInput": {
+    "description": "The label of the row that says how dictation works."
+  },
+  "dictationSettingsInputDetail": "Tap the mic above the keyboard, speak, and tap it again: what you said goes in at the cursor. A voice note makes a new note from what you say.",
+  "@dictationSettingsInputDetail": {
+    "description": "Says how dictation works on the phone."
+  },
+  "dictationSettingsCommands": "Spoken punctuation and commands",
+  "@dictationSettingsCommands": {
+    "description": "The label of the switch for spoken punctuation and commands."
+  },
+  "dictationSettingsCommandsDetail": "Say \"comma\", \"full stop\", \"new line\", \"new paragraph\", \"bullet point\" or \"new to-do\" on their own, with a short pause either side, and they're written. \"Delete that\" takes out the last thing you said, and \"undo that\" the last step.",
+  "@dictationSettingsCommandsDetail": {
+    "description": "Explains the spoken commands."
+  },
+  "dictationSettingsRecognitionSection": "Recognition",
+  "@dictationSettingsRecognitionSection": {
+    "description": "The heading of the row that says whether speech is recognized on the phone."
+  },
+  "dictationRecognizerReady": "On-device recognition is available for {language}",
+  "@dictationRecognizerReady": {
+    "description": "Says that speech is turned into text on the phone itself, for the language.",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "dictationRecognizerSystem": "{language} is recognized by the phone's speech service, which may use the network.",
+  "@dictationRecognizerSystem": {
+    "description": "Says that the phone's speech service, not the phone alone, recognizes the language.",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "dictationRecognizerUnavailable": "On-device recognition isn't available for {language}",
+  "@dictationRecognizerUnavailable": {
+    "description": "Says that speech cannot be turned into text on the phone for the language.",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "dictationSettingsMicDenied": "Kanso can't use the microphone",
+  "@dictationSettingsMicDenied": {
+    "description": "The label of the row shown when the microphone or speech recognition is refused."
   }
 }

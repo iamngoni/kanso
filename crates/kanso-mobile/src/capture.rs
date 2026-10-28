@@ -20,7 +20,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use kanso_core::dates::{Date, DateTime};
 use kanso_core::model::MAX_ATTACHMENT_SIZE;
 use kanso_engine::attach::too_large_file;
 use kanso_engine::capture::{
@@ -76,10 +75,7 @@ impl Library {
     /// In a locked Journal the note is made without text from any locked
     /// template: nothing of a locked note is copied out.
     pub fn today_note(&self, now: LocalTime) -> Result<String, KansoError> {
-        guard(|| {
-            let now = date_time(now)?;
-            Ok(kanso_engine::daily::today(&self.inner.store, now)?.id)
-        })
+        self.journal_today(now).map(|made| made.id)
     }
 }
 
@@ -125,21 +121,6 @@ fn new_drop_id() -> String {
     (0..32)
         .map(|_| char::from_digit(fastrand::u32(0..16), 16).unwrap_or('0'))
         .collect()
-}
-
-/// The engine's local date and time for `time`, when it is a real one.
-fn date_time(time: LocalTime) -> Result<DateTime, KansoError> {
-    let date = Date::new(time.year, time.month, time.day)
-        .ok_or_else(|| KansoError::invalid("That day isn't on the calendar."))?;
-    if time.hour > 23 || time.minute > 59 || time.second > 59 {
-        return Err(KansoError::invalid("That time of day isn't on the clock."));
-    }
-    Ok(DateTime {
-        date,
-        hour: time.hour,
-        minute: time.minute,
-        second: time.second,
-    })
 }
 
 /// [`Library::save_drops`] for the library whose database is `library`,

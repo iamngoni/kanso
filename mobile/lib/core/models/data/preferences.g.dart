@@ -46,6 +46,13 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
   backupNoticeSeen: json['backupNoticeSeen'] as bool? ?? false,
   biometricOfferSeen: json['biometricOfferSeen'] as bool? ?? false,
   defaultNotebookId: json['defaultNotebookId'] as String?,
+  openTabs:
+      (json['openTabs'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const <String>[],
+  activeTab: (json['activeTab'] as num?)?.toInt() ?? 0,
+  searchImageText: json['searchImageText'] as bool? ?? false,
+  remindersEnabled: json['remindersEnabled'] as bool? ?? true,
+  focusMode: json['focusMode'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
@@ -61,6 +68,11 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'backupNoticeSeen': instance.backupNoticeSeen,
       'biometricOfferSeen': instance.biometricOfferSeen,
       'defaultNotebookId': ?instance.defaultNotebookId,
+      'openTabs': instance.openTabs,
+      'activeTab': instance.activeTab,
+      'searchImageText': instance.searchImageText,
+      'remindersEnabled': instance.remindersEnabled,
+      'focusMode': instance.focusMode,
     };
 
 const _$KansoTextSizeEnumMap = {

@@ -4,14 +4,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/types.dart';
+import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/list_options.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/status_label.dart';
 import '../../../core/views/widgets/kanso_check_row.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
+import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../state/note_list/note_list_bloc.dart';
 
@@ -143,6 +147,25 @@ class ListOptionsSheet extends StatelessWidget {
                     onTap: () => choose(
                       options.copyWith(pinnedOnly: !options.pinnedOnly),
                     ),
+                  ),
+                ],
+              ),
+            if (state.place is! ListPlace_Trash)
+              KansoSheetGroup(
+                children: <Widget>[
+                  KansoSettingsRow(
+                    icon: KansoIcons.layoutTemplate,
+                    label: l10n.listOptionsBoard,
+                    chevron: true,
+                    onTap: () {
+                      final router = GoRouter.of(context);
+                      final location = BrowseLocation.place(
+                        state.place,
+                        board: BoardKind.notes,
+                      ).location;
+                      Navigator.of(context).pop();
+                      router.go(location);
+                    },
                   ),
                 ],
               ),

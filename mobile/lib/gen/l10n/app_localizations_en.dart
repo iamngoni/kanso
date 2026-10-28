@@ -33,9 +33,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libraryTrash => 'Trash';
 
   @override
-  String get libraryStatuses => 'Status';
-
-  @override
   String get openSettings => 'Settings';
 
   @override
@@ -74,6 +71,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get searchMeaningTitle => 'Found by meaning';
+
+  @override
   String noteListCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -104,6 +104,86 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noteInfo => 'Note info';
+
+  @override
+  String get noteMenu => 'More';
+
+  @override
+  String get noteOpenInNewWindow => 'Open in New Window';
+
+  @override
+  String get noteWindowLockedTitle => 'Locked note';
+
+  @override
+  String get noteWindowInTrash => 'This note is in the trash.';
+
+  @override
+  String get noteWindowNewNote => 'New Note';
+
+  @override
+  String get noteWindowSearch => 'Search All Notes';
+
+  @override
+  String get noteWindowClose => 'Close Window';
+
+  @override
+  String get noteWindowRestore => 'Restore';
+
+  @override
+  String get noteRelatedTurnOn =>
+      'Turn on Related notes in Settings to see notes about the same things.';
+
+  @override
+  String get noteRelatedTitle => 'Related';
+
+  @override
+  String get noteRelatedEmpty => 'No related notes yet.';
+
+  @override
+  String get noteMeaning => 'What the meaning says';
+
+  @override
+  String noteMeaningTwin(String title, int percent) {
+    return 'Nearly the same as $title — $percent%';
+  }
+
+  @override
+  String get noteMeaningDismiss => 'Dismiss';
+
+  @override
+  String get noteMeaningMerge => 'Merge';
+
+  @override
+  String get noteMeaningMergeTitle => 'Merge notes?';
+
+  @override
+  String noteMeaningMergeWarning(String title) {
+    return '$title will go to the trash. Its contents are kept in this note.';
+  }
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get graphTitle => 'Graph';
+
+  @override
+  String get graphLocal => 'Local graph';
+
+  @override
+  String get graphFilterAll => 'All notes';
+
+  @override
+  String get graphFilterNotebook => 'Notebook';
+
+  @override
+  String get graphFilterTag => 'Tag';
+
+  @override
+  String get graphEmpty => 'No linked notes to show.';
+
+  @override
+  String get graphFailed => 'Couldn\'t load the graph.';
 
   @override
   String get noteMetaCreated => 'Created';
@@ -191,6 +271,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSync => 'Sync';
+
+  @override
+  String get settingsDiscovery => 'Discovery';
+
+  @override
+  String get discoveryRelated => 'Related notes';
+
+  @override
+  String get discoveryRelatedDetail =>
+      'Lists notes about the same things as the open one, beside it. Turning this on downloads a small language model (about 30 MB) once. It runs on this device: nothing about your notes is sent anywhere.';
+
+  @override
+  String get discoveryTryAgain => 'Try Again';
+
+  @override
+  String get discoverySearchImages => 'Search text in images';
+
+  @override
+  String get discoverySearchImagesDetail =>
+      'Reads the words in pictures you attach, on this device, so search finds the notes they\'re in. The words sync with the picture.';
+
+  @override
+  String discoveryReadingImages(int count) {
+    return 'Reading images… $count to go.';
+  }
 
   @override
   String get settingsAbout => 'About';
@@ -593,15 +698,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get emptyTagMessage => 'Notes with this tag will appear in this list.';
-
-  @override
-  String emptyStatusTitle(String status) {
-    return 'No notes marked $status';
-  }
-
-  @override
-  String get emptyStatusMessage =>
-      'Notes with this status will appear in this list.';
 
   @override
   String get emptyNarrowedTitle => 'No notes match';
@@ -2613,15 +2709,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockMoreTitle => 'Note actions';
 
   @override
-  String get noteExportPdf => 'Export as PDF';
-
-  @override
-  String get noteExportPreparing => 'Preparing the PDF';
-
-  @override
-  String get noteExportFailed => 'The note could not be exported.';
-
-  @override
   String get lockNotebookMenuTitle => 'Notebook actions';
 
   @override
@@ -3273,6 +3360,255 @@ class AppLocalizationsEn extends AppLocalizations {
   String get replaceProblemSearch => 'The notes couldn’t be searched.';
 
   @override
+  String get journalPreviousDay => 'Previous day';
+
+  @override
+  String get journalNextDay => 'Next day';
+
+  @override
+  String get journalCalendar => 'Calendar';
+
+  @override
+  String get journalTodaysNote => 'Today’s note';
+
+  @override
+  String get journalCalendarTitle => 'Journal';
+
+  @override
+  String get journalFailed => 'Couldn’t make that note. Try again.';
+
+  @override
+  String get calendarPreviousMonth => 'Previous month';
+
+  @override
+  String get calendarNextMonth => 'Next month';
+
+  @override
+  String get calendarToday => 'Today';
+
+  @override
+  String get calendarHint =>
+      'A dot marks a day with a note. Tap a day to open it, or to start it from the daily template.';
+
+  @override
+  String get calendarFailed => 'The calendar couldn’t be read.';
+
+  @override
+  String calendarDayLabel(String date) {
+    return '$date';
+  }
+
+  @override
+  String calendarDayWithNote(String date) {
+    return '$date, has a note';
+  }
+
+  @override
+  String calendarDayToday(String date) {
+    return '$date, today';
+  }
+
+  @override
+  String calendarDayTodayWithNote(String date) {
+    return '$date, today, has a note';
+  }
+
+  @override
+  String get newMenuTitle => 'New';
+
+  @override
+  String get newMenuLabel => 'New';
+
+  @override
+  String get newFromTemplate => 'New from template…';
+
+  @override
+  String get newTemplate => 'New template';
+
+  @override
+  String get templatePickerTitle => 'New from template';
+
+  @override
+  String get templatesEmptyTitle => 'No templates yet';
+
+  @override
+  String get templatesEmptyMessage =>
+      'Notes in the Templates notebook show here. New template makes one.';
+
+  @override
+  String get templatesFailed => 'The templates couldn’t be read.';
+
+  @override
+  String get settingsDailyNotes => 'Daily notes';
+
+  @override
+  String get settingsDailyTemplate => 'Daily template';
+
+  @override
+  String get dailyTemplateNone => 'None';
+
+  @override
+  String dailyTemplateDetail(String date, String time, String cursor) {
+    return 'New daily notes start from this template, with $date, $time and $cursor filled in.';
+  }
+
+  @override
+  String get dailyTemplateDetailEmpty =>
+      'New daily notes start empty. Notes in the Templates notebook can be chosen here; New template makes one.';
+
+  @override
+  String get dailyTemplateFailed => 'Couldn’t set the daily template.';
+
+  @override
+  String get settingsReminders => 'Reminders';
+
+  @override
+  String get settingsRemindMe => 'Remind me of tasks';
+
+  @override
+  String get settingsRemindersDetail =>
+      'A notification when a task with a time comes due, like “- [ ] Call Sam @2026-10-25T09:00”.';
+
+  @override
+  String get settingsRemindersDenied =>
+      'Notifications are turned off for Kanso. Allow them in your device’s settings to get reminders.';
+
+  @override
+  String get settingsRemindersFailed => 'Couldn’t save that setting.';
+
+  @override
+  String get listOptionsBoard => 'Board';
+
+  @override
+  String get boardTitle => 'Board';
+
+  @override
+  String get boardNotes => 'Notes';
+
+  @override
+  String get boardTasks => 'Tasks';
+
+  @override
+  String get boardKindLabel => 'Board';
+
+  @override
+  String get boardClose => 'Close board';
+
+  @override
+  String get boardLaneNoStatus => 'No status';
+
+  @override
+  String get boardLaneTodo => 'To do';
+
+  @override
+  String get boardLaneDone => 'Done';
+
+  @override
+  String get boardEmptyNotesTitle => 'No notes here';
+
+  @override
+  String get boardEmptyNotesMessage =>
+      'Notes in this list show here, a column for each status.';
+
+  @override
+  String get boardEmptyTasksTitle => 'No tasks in these notes';
+
+  @override
+  String get boardEmptyTasksMessage =>
+      'Write “- [ ] Call Sam” in a note, and it shows here.';
+
+  @override
+  String get boardHintNotes =>
+      'Touch and hold a card to move it to another status.';
+
+  @override
+  String get boardHintTasks =>
+      'Tick a task to do it, or touch and hold it to move it.';
+
+  @override
+  String get boardHintNotesDrag => 'Drag a card to change its status.';
+
+  @override
+  String get boardHintTasksDrag => 'Drag a task to Done to tick it off.';
+
+  @override
+  String get boardMoveTo => 'Move to…';
+
+  @override
+  String get boardMoveSheetTitle => 'Move to';
+
+  @override
+  String get boardMoveFailed => 'Couldn’t move the card.';
+
+  @override
+  String get boardChangedInNote =>
+      'That task changed in its note. The board is up to date now.';
+
+  @override
+  String get boardFailedTitle => 'The board didn’t load';
+
+  @override
+  String get boardFailedMessage =>
+      'Something went wrong reading the notes on this device. Try again.';
+
+  @override
+  String boardTaskCount(int done, int total) {
+    return '$done/$total tasks';
+  }
+
+  @override
+  String boardColumnLabel(String lane, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count cards',
+      one: '1 card',
+    );
+    return '$lane, $_temp0';
+  }
+
+  @override
+  String get boardTickTask => 'Mark done';
+
+  @override
+  String get boardUntickTask => 'Mark not done';
+
+  @override
+  String boardTaskDue(String when) {
+    return 'Due $when';
+  }
+
+  @override
+  String get boardNoticeDismiss => 'OK';
+
+  @override
+  String get libraryStatuses => 'Status';
+
+  @override
+  String emptyStatusTitle(String status) {
+    return 'No notes marked $status';
+  }
+
+  @override
+  String get emptyStatusMessage =>
+      'Notes with this status will appear in this list.';
+
+  @override
+  String get noteExportPdf => 'Export as PDF';
+
+  @override
+  String get noteExportPreparing => 'Preparing the PDF';
+
+  @override
+  String get noteExportHtml => 'Export as web page';
+
+  @override
+  String get noteExportPreparingPage => 'Preparing the web page';
+
+  @override
+  String get noteExportFailed => 'The note could not be exported.';
+
+  @override
   String get libraryNewSubNotebook => 'New Sub-notebook';
 
   @override
@@ -3427,4 +3763,473 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryTagsFewer => 'Fewer';
+
+  @override
+  String get tabsBarLabel => 'Tabs';
+
+  @override
+  String get tabClose => 'Close';
+
+  @override
+  String get tabCloseOthers => 'Close Others';
+
+  @override
+  String get tabCloseRight => 'Close Tabs to the Right';
+
+  @override
+  String get tabOpenInNewWindow => 'Open in New Window';
+
+  @override
+  String get tabOpenInNewTab => 'Open in New Tab';
+
+  @override
+  String get tabCloseTooltip => 'Close tab';
+
+  @override
+  String get tabsAll => 'All tabs';
+
+  @override
+  String tabLocked(String title) {
+    return '$title, locked';
+  }
+
+  @override
+  String get publishNoteMenu => 'Publish…';
+
+  @override
+  String get publishNotebookMenu => 'Publish notebook…';
+
+  @override
+  String get publishNoteTitle => 'Publish note';
+
+  @override
+  String get publishNotebookTitle => 'Publish notebook as a site';
+
+  @override
+  String publishNoteContentSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count words',
+      one: '$count word',
+      zero: 'No words',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get publishExpiryHeading => 'Link expiry';
+
+  @override
+  String get publishWorking => 'Publishing…';
+
+  @override
+  String get publishPublish => 'Publish';
+
+  @override
+  String get publishUpdate => 'Update published note';
+
+  @override
+  String get publishPublishSite => 'Publish site';
+
+  @override
+  String get publishUpdateSite => 'Update site';
+
+  @override
+  String get publishCopyLink => 'Copy link';
+
+  @override
+  String get publishUnpublish => 'Unpublish';
+
+  @override
+  String get publishCopied => 'Publish link copied.';
+
+  @override
+  String get publishNeverExpires => 'This link does not expire.';
+
+  @override
+  String publishExpiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String get publishExpired =>
+      'This link has expired. Update to create a new link.';
+
+  @override
+  String get paletteHint => 'Search or run a command';
+
+  @override
+  String get paletteEmptyTitle => 'Nothing matches';
+
+  @override
+  String get paletteEmptyMessage => 'Try a shorter word, or another name.';
+
+  @override
+  String get paletteAddTag => 'Add tag';
+
+  @override
+  String get noteOutline => 'Outline';
+
+  @override
+  String get noteOutlineEmptyTitle => 'No headings';
+
+  @override
+  String get noteOutlineEmptyMessage => 'Headings in the note show up here.';
+
+  @override
+  String get noteBacklinks => 'Backlinks';
+
+  @override
+  String get noteBacklinksLinked => 'Linked from';
+
+  @override
+  String get noteBacklinksUnlinked => 'Unlinked mentions';
+
+  @override
+  String get noteBacklinksEmptyTitle => 'Nothing links here';
+
+  @override
+  String get noteBacklinksEmptyMessage =>
+      'A note that links to this one shows up here.';
+
+  @override
+  String get paletteCommands => 'Commands';
+
+  @override
+  String get focusModeExit => 'Leave focus mode';
+
+  @override
+  String get settingsAi => 'AI';
+
+  @override
+  String get settingsAiOn => 'On';
+
+  @override
+  String get settingsAiOff => 'Off';
+
+  @override
+  String get aiTitle => 'AI';
+
+  @override
+  String get aiEnabled => 'Use AI';
+
+  @override
+  String get aiEnabledFooter =>
+      'Ask your notes, rewrite a selection and summarize a note. AI is off until you turn it on.';
+
+  @override
+  String get aiProviderSection => 'Answers come from';
+
+  @override
+  String get aiProvider => 'Provider';
+
+  @override
+  String get aiProviderSheetTitle => 'Choose a provider';
+
+  @override
+  String get aiAddress => 'Address';
+
+  @override
+  String get aiModel => 'Model';
+
+  @override
+  String get aiRegion => 'Region';
+
+  @override
+  String get aiApiKey => 'API key';
+
+  @override
+  String get aiApiKeyOptional => 'API key (optional)';
+
+  @override
+  String get aiKeyHint => 'Paste the key';
+
+  @override
+  String get aiKeySave => 'Save key';
+
+  @override
+  String get aiKeySaved => 'Saved';
+
+  @override
+  String get aiKeyRemove => 'Remove';
+
+  @override
+  String get aiKeyFooter =>
+      'Kept in secure storage on this device and never shown again.';
+
+  @override
+  String get aiTest => 'Test';
+
+  @override
+  String get aiTestHint =>
+      'Sends one short question to check the address, model and key. No notes are sent.';
+
+  @override
+  String get aiTestRunning => 'Asking the model…';
+
+  @override
+  String aiTestOk(String said) {
+    return 'Ready. The model said “$said”.';
+  }
+
+  @override
+  String get aiLoadFailedTitle => 'Couldn’t open AI settings';
+
+  @override
+  String get aiLoadFailedMessage =>
+      'Something went wrong reading them. Try again.';
+
+  @override
+  String get aiSaveFailed => 'Couldn’t save that. Try again.';
+
+  @override
+  String get askTitle => 'Ask your notes';
+
+  @override
+  String get askClear => 'Clear conversation';
+
+  @override
+  String get askHint => 'Ask about your notes…';
+
+  @override
+  String get askSend => 'Ask';
+
+  @override
+  String get askStop => 'Stop';
+
+  @override
+  String get askEmptyMessage =>
+      'A question is answered from your own notes, with links to the notes it used. The answer isn’t saved and no note is changed.';
+
+  @override
+  String get askSearching => 'Searching your notes…';
+
+  @override
+  String get askThinking => 'Thinking…';
+
+  @override
+  String get askNothingMatches =>
+      'Nothing in your notes matches this question.';
+
+  @override
+  String get askCutOff => 'The answer was cut off before it finished.';
+
+  @override
+  String get askStopped => 'Stopped.';
+
+  @override
+  String get askFailedTitle => 'Couldn’t answer';
+
+  @override
+  String get askFailedMessage => 'Something went wrong. Try again.';
+
+  @override
+  String askUsedNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Used $count notes',
+      one: 'Used 1 note',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get askUntitled => 'Untitled';
+
+  @override
+  String get askOffTitle => 'AI is off';
+
+  @override
+  String get askOffMessage =>
+      'Turn on AI in Settings to ask questions of your notes.';
+
+  @override
+  String get askOpenSettings => 'Open AI settings';
+
+  @override
+  String get assistTitle => 'Ask AI';
+
+  @override
+  String get assistSelectionAction => 'Ask AI…';
+
+  @override
+  String get assistAccessoryLabel => 'AI assistant';
+
+  @override
+  String get assistSummary => 'Summary';
+
+  @override
+  String get assistSummarizeNote => 'Summarize this note';
+
+  @override
+  String get assistThinking => 'Thinking…';
+
+  @override
+  String get assistStop => 'Stop';
+
+  @override
+  String get assistAccept => 'Accept';
+
+  @override
+  String get assistNothing => 'Nothing came back.';
+
+  @override
+  String get assistDiscard => 'Discard';
+
+  @override
+  String get assistCopy => 'Copy';
+
+  @override
+  String get assistCopied => 'Copied';
+
+  @override
+  String get assistClose => 'Close';
+
+  @override
+  String get assistKeptOut => 'This note is kept out of AI.';
+
+  @override
+  String get assistStopped => 'Stopped. A partial rewrite can’t be applied.';
+
+  @override
+  String get assistFailed => 'The suggestion couldn’t be made. Try again.';
+
+  @override
+  String get assistChanged =>
+      'The text changed, so the suggestion wasn’t applied.';
+
+  @override
+  String get libraryAsk => 'Ask your notes';
+
+  @override
+  String get dictationKey => 'Dictate';
+
+  @override
+  String get dictationKeyStop => 'Stop dictating';
+
+  @override
+  String get dictationListening => 'Listening';
+
+  @override
+  String get dictationStop => 'Stop';
+
+  @override
+  String get dictationVoiceNoteTitle => 'Voice note';
+
+  @override
+  String get dictationVoiceNoteHint => 'Tap the mic and start talking.';
+
+  @override
+  String get dictationTranscriptEmpty => 'What you say will appear here.';
+
+  @override
+  String get dictationMicStart => 'Start listening';
+
+  @override
+  String get dictationMicStop => 'Stop listening';
+
+  @override
+  String get dictationDone => 'Done';
+
+  @override
+  String get dictationCancel => 'Cancel';
+
+  @override
+  String get dictationSaving => 'Saving the note';
+
+  @override
+  String get dictationSaveFailedTitle => 'The note wasn\'t saved';
+
+  @override
+  String get dictationSaveFailedMessage =>
+      'Your words are still here. Try again.';
+
+  @override
+  String get dictationTryAgain => 'Try again';
+
+  @override
+  String get dictationUnavailableTitle => 'Dictation isn\'t available';
+
+  @override
+  String get dictationUnavailableNotOnDevice =>
+      'This phone can\'t turn speech into text by itself in this language, and Kanso never sends your voice anywhere else.';
+
+  @override
+  String get dictationUnavailableNoRecognizer =>
+      'This phone has no speech recognizer. Install or turn on one in the phone\'s settings.';
+
+  @override
+  String get dictationUnavailableLanguage =>
+      'Speech recognition doesn\'t support this language.';
+
+  @override
+  String get dictationDeniedTitle => 'Kanso can\'t hear you';
+
+  @override
+  String get dictationDeniedMessage =>
+      'Allow the microphone and speech recognition for Kanso in Settings to dictate.';
+
+  @override
+  String get dictationRestrictedMessage =>
+      'This phone\'s rules keep Kanso from using the microphone or speech recognition.';
+
+  @override
+  String get dictationOpenSettings => 'Open Settings';
+
+  @override
+  String get dictationErrorTitle => 'Dictation stopped';
+
+  @override
+  String get dictationErrorMessage =>
+      'Something interrupted the microphone. Try again.';
+
+  @override
+  String get dictationNoSpeech =>
+      'Nothing was heard. Tap the mic and try again.';
+
+  @override
+  String get dictationDismiss => 'OK';
+
+  @override
+  String get dictationSettingsTitle => 'Voice';
+
+  @override
+  String get dictationSettingsInputSection => 'Voice input';
+
+  @override
+  String get dictationSettingsInput => 'Voice input';
+
+  @override
+  String get dictationSettingsInputDetail =>
+      'Tap the mic above the keyboard, speak, and tap it again: what you said goes in at the cursor. A voice note makes a new note from what you say.';
+
+  @override
+  String get dictationSettingsCommands => 'Spoken punctuation and commands';
+
+  @override
+  String get dictationSettingsCommandsDetail =>
+      'Say \"comma\", \"full stop\", \"new line\", \"new paragraph\", \"bullet point\" or \"new to-do\" on their own, with a short pause either side, and they\'re written. \"Delete that\" takes out the last thing you said, and \"undo that\" the last step.';
+
+  @override
+  String get dictationSettingsRecognitionSection => 'Recognition';
+
+  @override
+  String dictationRecognizerReady(String language) {
+    return 'On-device recognition is available for $language';
+  }
+
+  @override
+  String dictationRecognizerSystem(String language) {
+    return '$language is recognized by the phone\'s speech service, which may use the network.';
+  }
+
+  @override
+  String dictationRecognizerUnavailable(String language) {
+    return 'On-device recognition isn\'t available for $language';
+  }
+
+  @override
+  String get dictationSettingsMicDenied => 'Kanso can\'t use the microphone';
 }

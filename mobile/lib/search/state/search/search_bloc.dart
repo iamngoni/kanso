@@ -14,6 +14,7 @@ import '../../../core/models/data/application_error.dart';
 import '../../../core/models/data/search_scope_kind.dart';
 import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/utils/debounce.dart';
+import '../../../discovery/models/repos/abs/discovery_repository.dart';
 import '../../models/data/search_status.dart';
 
 part 'search_bloc.freezed.dart';
@@ -35,7 +36,7 @@ const int searchLimit = 50;
 /// changes. A locked note is found by its title and nothing else.
 @injectable
 class SearchBloc extends Bloc<SearchEvent, SearchState> {
-  SearchBloc(this._library) : super(const SearchState()) {
+  SearchBloc(this._library, this._discovery) : super(const SearchState()) {
     on<SearchStartedEvent>(_onStarted, transformer: restartable());
     on<SearchQueryChangedEvent>(
       (event, emit) {
@@ -65,6 +66,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   }
 
   final LibraryRepository _library;
+  final DiscoveryRepository _discovery;
   StreamSubscription<List<String>>? _changes;
   int _searching = 0;
 
@@ -118,12 +120,16 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     var next = state.copyWith(
       query: query ?? state.query,
       scope: scope ?? state.scope,
+      meaningHits: query != null && query != state.query
+          ? const <RelatedRow>[]
+          : state.meaningHits,
     );
     if (!next.hasQuery) {
       emit(
         next.copyWith(
           status: SearchStatus.idle,
           hits: const <Hit>[],
+          meaningHits: const <RelatedRow>[],
           error: null,
         ),
       );
@@ -135,16 +141,46 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       status: next.hits.isEmpty ? SearchStatus.searching : next.status,
     );
     emit(next);
-    final result = await _library.search(next.query, scope: next.libraryScope);
+    final results = await (
+      _library.search(next.query, scope: next.libraryScope),
+      _meaningHits(next.query),
+    ).wait;
     if (searching != _searching || emit.isDone) {
       return;
     }
-    result.fold(
-      (error) =>
-          emit(state.copyWith(status: SearchStatus.failed, error: error)),
-      (hits) => emit(
-        state.copyWith(status: SearchStatus.ready, hits: hits, error: null),
+    results.$1.fold(
+      (error) => emit(
+        state.copyWith(
+          status: SearchStatus.failed,
+          error: error,
+          meaningHits: results.$2,
+        ),
       ),
+      (hits) => emit(
+        state.copyWith(
+          status: SearchStatus.ready,
+          hits: hits,
+          meaningHits: results.$2,
+          error: null,
+        ),
+      ),
+    );
+  }
+
+  Future<List<RelatedRow>> _meaningHits(String text) async {
+    final query = _discovery.meaningQuery(text);
+    if (query == null) return const <RelatedRow>[];
+    final enabled = await _discovery.relatedEnabled();
+    if (enabled.fold((_) => false, (value) => value) != true) {
+      return const <RelatedRow>[];
+    }
+    final result = await _discovery.searchByMeaning(query, k: 20);
+    return result.fold(
+      (_) => const <RelatedRow>[],
+      (value) => switch (value) {
+        MeaningResult_Found(:final rows) => rows,
+        MeaningResult_Off() || MeaningResult_NoModel() => const <RelatedRow>[],
+      },
     );
   }
 

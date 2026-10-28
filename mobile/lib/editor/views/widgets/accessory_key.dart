@@ -2,6 +2,7 @@
 // Created 2026-10-25.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/configs/kanso_icons.dart';
@@ -20,6 +21,7 @@ class AccessoryKey extends StatelessWidget {
     this.glyph,
     this.onTap,
     this.onLongPress,
+    this.active,
     super.key,
   }) : assert((icon == null) != (glyph == null), 'Give an icon or a glyph.');
 
@@ -31,14 +33,30 @@ class AccessoryKey extends StatelessWidget {
   /// What holding the key does.
   final VoidCallback? onLongPress;
 
+  /// Whether this feature key is active and should use the accent colour.
+  final ValueListenable<bool>? active;
+
   /// How much of its colour a key with nothing to do keeps.
   static const double dimmed = 0.4;
 
   @override
   Widget build(BuildContext context) {
+    final value = active;
+    if (value == null) {
+      return buildKey(context, isActive: false);
+    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: value,
+      builder: (context, isActive, _) => buildKey(context, isActive: isActive),
+    );
+  }
+
+  Widget buildKey(BuildContext context, {required bool isActive}) {
     final colors = context.colors;
     final mark = icon;
-    final tint = onTap == null
+    final tint = isActive
+        ? colors.accent
+        : onTap == null
         ? colors.textSecondary.withValues(alpha: dimmed)
         : colors.textSecondary;
     return KansoPressable(
@@ -50,7 +68,6 @@ class AccessoryKey extends StatelessWidget {
         child: Center(
           child: mark != null
               ? KansoIcon(mark, color: tint)
-              // The key's label says what it does; its glyph is not a word.
               : ExcludeSemantics(
                   child: Text(
                     glyph!,

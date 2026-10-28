@@ -7,6 +7,8 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# Changes delivered to note consumers over the shared store channel.
+async-channel.workspace = true
 # `export` and `publish` fail with context (export.rs).
 anyhow.workspace = true
 # Google's PKCE challenge (account/provider.rs) and attachments' bytes
@@ -36,6 +38,16 @@ serde.workspace = true
 # (theme/file.rs), which a map keeps only with `preserve_order`.
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
+# Shared assistant providers and prompt rules, without the desktop agent.
+kanso-ai = { path = "../kanso-ai", optional = true, default-features = false }
+# Markdown filtering and tool argument schemas for the phone assistant.
+markdown = { workspace = true, optional = true }
+schemars = { version = "0.8", optional = true }
+# Discovery model and downloader, using the platform's TLS verifier.
+model2vec-rs = { version = "=0.3.0", default-features = false, optional = true }
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"], optional = true }
+kanso-tls = { workspace = true, features = ["ureq"], optional = true }
+ureq = { version = "3.4", optional = true }
 tar = "0.4.45"
 toml = "0.8"
 # What changed between a saved version and the note (history/diff.rs).
@@ -83,7 +95,7 @@ tree-sitter-yaml = { workspace = true, optional = true }
 serde_json.workspace = true
 
 [features]
-default = ["highlight", "code-grammars"]
+default = ["highlight", "code-grammars", "ai"]
 # `highlight`: Markdown source and preview colors (a `Token` per span), with
 # the Markdown grammar alone.
 highlight = ["dep:tree-sitter", "dep:tree-sitter-md"]
@@ -116,6 +128,10 @@ code-grammars = [
 ]
 # `strategies`: generators for kanso-app's view tests.
 test-support = ["dep:proptest"]
+# Model-backed discovery on mobile and desktop.
+discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
+# Ask, inline assistance and summaries.
+ai = ["dep:kanso-ai", "dep:markdown", "dep:schemars"]
 
 [dev-dependencies]
 # An export read back by the importer (export.rs).

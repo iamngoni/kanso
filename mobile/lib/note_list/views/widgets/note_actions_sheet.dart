@@ -19,6 +19,7 @@ import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../injection.dart';
+import '../../../publish/views/widgets/publish_sheet.dart';
 import '../../state/note_list/note_list_bloc.dart';
 
 /// What can be done with the notes chosen, beyond the bar's Pin, Move and
@@ -188,6 +189,14 @@ class NoteActionsSheet extends StatelessWidget {
                 label: l10n.noteActionCopyKansoLink,
                 onTap: () => closeThen(() => copyLink(kanso: true)),
               ),
+              if (!inTrash)
+                KansoSettingsRow(
+                  icon: KansoIcons.externalLink,
+                  label: l10n.publishNoteMenu,
+                  onTap: () => closeThen(
+                    () => PublishSheet.showNote(host, single.id),
+                  ),
+                ),
             ],
           ),
         if (inTrash)

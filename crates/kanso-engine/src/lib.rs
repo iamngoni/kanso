@@ -15,7 +15,9 @@
 //! resolve, what `[[` and `#` autocomplete offer, which link a note copies
 //! and when a rename offers to update links; [`fuzzy`] ranks what was typed
 //! against candidates; [`daily`] makes daily notes and notes from templates;
-//! [`tasks`] reads due dates and decides reminders; [`edit`] turns the
+//! [`calendar`] lays out the Journal's month; [`board`] lays out notes by
+//! status and tasks by box and writes a card's move; [`tasks`] reads due
+//! dates and decides reminders; [`edit`] turns the
 //! formatting toolbar, auto-pairing and Tab and Enter in lists and tables
 //! into one change to the text; [`saving`] decides when typing is written
 //! and when another writer's version is no conflict; [`text`] converts
@@ -59,12 +61,20 @@
 //! alone; tests use [`MemorySecrets`].
 
 pub mod account;
+#[cfg(feature = "ai")]
+pub mod ask;
+#[cfg(feature = "ai")]
+pub mod assist;
 pub mod attach;
 pub mod backup;
 pub mod batch;
+pub mod board;
+pub mod calendar;
 pub mod capture;
 pub mod catalogue;
 pub mod daily;
+#[cfg(feature = "discovery")]
+pub mod discovery;
 pub mod edit;
 pub mod editor_settings;
 pub mod export;
@@ -83,6 +93,7 @@ pub mod palette;
 pub mod publish;
 pub mod replace;
 pub mod saving;
+pub mod shortcuts;
 pub mod sidebar;
 #[cfg(any(test, feature = "test-support"))]
 pub mod strategies;
@@ -91,6 +102,7 @@ pub mod tasks;
 pub mod text;
 pub mod text_stats;
 pub mod theme;
+pub mod voice_commands;
 pub mod word_goal;
 
 /// Where secrets live: the seam the Keychain, the Credential Manager and the

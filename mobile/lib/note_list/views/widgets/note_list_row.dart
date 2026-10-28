@@ -8,10 +8,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/models/data/kanso_swipe_action.dart';
+import '../../../core/models/data/note_drag_data.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/status_label.dart';
 import '../../../core/utils/tag_row_color.dart';
+import '../../../core/views/widgets/kanso_icon.dart';
+import '../../../core/views/widgets/kanso_menu.dart';
 import '../../../core/views/widgets/kanso_note_row.dart';
 import '../../../core/views/widgets/kanso_swipe_actions.dart';
 import '../../../core/views/widgets/kanso_tag_chip.dart';
@@ -28,7 +31,8 @@ import 'move_sheet.dart';
 /// A swipe towards the end pins or unpins it (all the way, at once); a swipe
 /// the other way shows Move and Trash (all the way trashes it). In the
 /// trash the only action is Move, which restores it. A long press starts
-/// choosing several notes, and while that goes on there are no swipes.
+/// choosing several notes, and while that goes on there are no swipes. Where
+/// there are tabs a right click (a secondary tap) offers Open in New Tab.
 class NoteListRow extends StatelessWidget {
   const NoteListRow({
     required this.row,
@@ -38,6 +42,7 @@ class NoteListRow extends StatelessWidget {
     this.checked,
     this.onTap,
     this.onLongPress,
+    this.onOpenInNewTab,
     super.key,
   });
 
@@ -56,6 +61,10 @@ class NoteListRow extends StatelessWidget {
   final bool? checked;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+
+  /// Opens the note in a new tab: offered in a menu on a right click (a
+  /// secondary tap), only where there are tabs.
+  final VoidCallback? onOpenInNewTab;
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +85,8 @@ class NoteListRow extends StatelessWidget {
     void trash() => bloc.add(
       NoteListEvent.changeRequested(const NoteChange.trash(), <String>[row.id]),
     );
-    return KansoSwipeActions(
+    final newTab = onOpenInNewTab;
+    final swipeable = KansoSwipeActions(
       id: row.id,
       enabled: checked == null,
       startActions: inTrash
@@ -122,12 +132,87 @@ class NoteListRow extends StatelessWidget {
         selected: open,
         checked: checked,
         onTap: onTap,
-        onLongPress: onLongPress,
+        onLongPress: (checked ?? false) ? null : onLongPress,
         tags: <KansoTagChip>[
           for (final id in row.tags)
             if (index.tag(id) case final tag?)
               KansoTagChip(name: tag.name, color: tag.tint),
         ],
+      ),
+    );
+    Widget rowContent = swipeable;
+    if (newTab != null) {
+      rowContent = GestureDetector(
+        onSecondaryTapUp: (details) async {
+          final chosen = await showKansoMenu<bool>(
+            context,
+            details.globalPosition,
+            <PopupMenuEntry<bool>>[
+              kansoMenuItem<bool>(context, true, l10n.tabOpenInNewTab),
+            ],
+          );
+          if (chosen ?? false) {
+            newTab();
+          }
+        },
+        child: swipeable,
+      );
+    }
+    if (checked != true) {
+      return rowContent;
+    }
+    final selectedRows = bloc.state.selectedRows;
+    final data = NoteDragData(
+      noteIds: <String>[for (final selected in selectedRows) selected.id],
+      titles: <String>[
+        for (final selected in selectedRows)
+          selected.locked ? '' : selected.title,
+      ],
+    );
+    return LongPressDraggable<NoteDragData>(
+      data: data,
+      feedback: _NoteDragFeedback(
+        titles: data.titles,
+        count: data.noteIds.length,
+      ),
+      childWhenDragging: Opacity(opacity: 0.55, child: rowContent),
+      child: rowContent,
+    );
+  }
+}
+
+class _NoteDragFeedback extends StatelessWidget {
+  const _NoteDragFeedback({required this.titles, required this.count});
+
+  final List<String> titles;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final l10n = context.l10n;
+    final visibleTitles = <String>[
+      for (final title in titles)
+        title.isEmpty
+            ? l10n.noteListLocked
+            : title.trim().isEmpty
+            ? l10n.noteUntitled
+            : title,
+    ];
+    final summary = visibleTitles.take(2).join(', ');
+    return Material(
+      color: Colors.transparent,
+      child: Chip(
+        avatar: KansoIcon(
+          titles.every((title) => title.isEmpty)
+              ? KansoIcons.lock
+              : KansoIcons.fileText,
+          size: 16,
+          color: colors.textSecondary,
+        ),
+        label: Text('$count · $summary'),
+        backgroundColor: colors.sidebar,
+        side: BorderSide(color: colors.divider),
       ),
     );
   }

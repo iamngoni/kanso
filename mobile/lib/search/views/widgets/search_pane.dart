@@ -16,6 +16,7 @@ import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_search_input.dart';
 import '../../models/data/search_status.dart';
 import '../../state/search/search_bloc.dart';
+import 'meaning_search_results.dart';
 import 'search_results.dart';
 
 /// Search: the focused field, the chips for where to look and the results
@@ -148,7 +149,18 @@ class SearchPane extends StatelessWidget {
                   ),
                 ),
               Expanded(
-                child: SearchResults(state: state, openNoteId: openNoteId),
+                child: Column(
+                  children: <Widget>[
+                    if (state.meaningHits.isNotEmpty)
+                      MeaningSearchResults(rows: state.meaningHits),
+                    Expanded(
+                      child: SearchResults(
+                        state: state,
+                        openNoteId: openNoteId,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           );

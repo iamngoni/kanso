@@ -142,12 +142,6 @@ abstract class AppLocalizations {
   /// **'Trash'**
   String get libraryTrash;
 
-  /// The label above the notes' statuses, and what a status is called when it has no notes.
-  ///
-  /// In en, this message translates to:
-  /// **'Status'**
-  String get libraryStatuses;
-
   /// What the settings button does.
   ///
   /// In en, this message translates to:
@@ -208,6 +202,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 result} other{{count} results}}'**
   String searchResultCount(int count);
 
+  /// Notes found by semantic similarity to the search words.
+  ///
+  /// In en, this message translates to:
+  /// **'Found by meaning'**
+  String get searchMeaningTitle;
+
   /// How many notes a list holds.
   ///
   /// In en, this message translates to:
@@ -255,6 +255,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Note info'**
   String get noteInfo;
+
+  /// Opens the menu of what can be done with the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get noteMenu;
+
+  /// Shows the open note in a window of its own, beside the app. The desktop's label.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in New Window'**
+  String get noteOpenInNewWindow;
+
+  /// What the window list and the app switcher call the window of a locked note, whose title is kept out of them.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked note'**
+  String get noteWindowLockedTitle;
+
+  /// The banner of a note window whose note was moved to the trash.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is in the trash.'**
+  String get noteWindowInTrash;
+
+  /// Makes a new note, from a note's own window: it is made in the main window.
+  ///
+  /// In en, this message translates to:
+  /// **'New Note'**
+  String get noteWindowNewNote;
+
+  /// Searches all notes, from a note's own window: the search opens in the main window.
+  ///
+  /// In en, this message translates to:
+  /// **'Search All Notes'**
+  String get noteWindowSearch;
+
+  /// Closes a note's own window; the note is saved and the app goes on.
+  ///
+  /// In en, this message translates to:
+  /// **'Close Window'**
+  String get noteWindowClose;
+
+  /// Takes the note out of the trash, from the banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get noteWindowRestore;
+
+  /// Explains how to enable related notes from a note's info sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on Related notes in Settings to see notes about the same things.'**
+  String get noteRelatedTurnOn;
+
+  /// The related notes section in the note information sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Related'**
+  String get noteRelatedTitle;
+
+  /// An enabled related notes section has no suggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'No related notes yet.'**
+  String get noteRelatedEmpty;
+
+  /// Suggested tags and a nearly duplicate note for this note.
+  ///
+  /// In en, this message translates to:
+  /// **'What the meaning says'**
+  String get noteMeaning;
+
+  /// Names a note that is probably a duplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearly the same as {title} — {percent}%'**
+  String noteMeaningTwin(String title, int percent);
+
+  /// Dismisses the suggested duplicate note.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get noteMeaningDismiss;
+
+  /// Merges the suggested duplicate into the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get noteMeaningMerge;
+
+  /// Asks before merging two notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge notes?'**
+  String get noteMeaningMergeTitle;
+
+  /// Explains what happens to the other note when merged.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} will go to the trash. Its contents are kept in this note.'**
+  String noteMeaningMergeWarning(String title);
+
+  /// Cancels a dialog or action.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// The linked notes graph screen and library entry.
+  ///
+  /// In en, this message translates to:
+  /// **'Graph'**
+  String get graphTitle;
+
+  /// Opens the graph around this note.
+  ///
+  /// In en, this message translates to:
+  /// **'Local graph'**
+  String get graphLocal;
+
+  /// Shows the whole library graph.
+  ///
+  /// In en, this message translates to:
+  /// **'All notes'**
+  String get graphFilterAll;
+
+  /// Filters the graph by notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebook'**
+  String get graphFilterNotebook;
+
+  /// Filters the graph by tag.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag'**
+  String get graphFilterTag;
+
+  /// The graph contains no linked notes.
+  ///
+  /// In en, this message translates to:
+  /// **'No linked notes to show.'**
+  String get graphEmpty;
+
+  /// Explains that the graph could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the graph.'**
+  String get graphFailed;
 
   /// The label of when a note was made.
   ///
@@ -423,6 +573,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sync'**
   String get settingsSync;
+
+  /// The section of settings for related notes and image text recognition.
+  ///
+  /// In en, this message translates to:
+  /// **'Discovery'**
+  String get settingsDiscovery;
+
+  /// Enables notes about the same things as the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Related notes'**
+  String get discoveryRelated;
+
+  /// Explains local related note suggestions and the first download.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists notes about the same things as the open one, beside it. Turning this on downloads a small language model (about 30 MB) once. It runs on this device: nothing about your notes is sent anywhere.'**
+  String get discoveryRelatedDetail;
+
+  /// Retries downloading or indexing the related notes model.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get discoveryTryAgain;
+
+  /// Enables local text recognition for attached pictures.
+  ///
+  /// In en, this message translates to:
+  /// **'Search text in images'**
+  String get discoverySearchImages;
+
+  /// Explains local OCR and that its text syncs with its picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Reads the words in pictures you attach, on this device, so search finds the notes they\'re in. The words sync with the picture.'**
+  String get discoverySearchImagesDetail;
+
+  /// Shows how many pictures remain in the on-device OCR queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading images… {count} to go.'**
+  String discoveryReadingImages(int count);
 
   /// A section of settings.
   ///
@@ -1173,18 +1365,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notes with this tag will appear in this list.'**
   String get emptyTagMessage;
-
-  /// The title shown when no note has the status.
-  ///
-  /// In en, this message translates to:
-  /// **'No notes marked {status}'**
-  String emptyStatusTitle(String status);
-
-  /// What the empty list of a status's notes says.
-  ///
-  /// In en, this message translates to:
-  /// **'Notes with this status will appear in this list.'**
-  String get emptyStatusMessage;
 
   /// The title shown when the list's narrowing hides every note.
   ///
@@ -4600,24 +4780,6 @@ abstract class AppLocalizations {
   /// **'Note actions'**
   String get lockMoreTitle;
 
-  /// The note's menu row that writes it as a PDF to share.
-  ///
-  /// In en, this message translates to:
-  /// **'Export as PDF'**
-  String get noteExportPdf;
-
-  /// What is shown while a note is being written as a PDF.
-  ///
-  /// In en, this message translates to:
-  /// **'Preparing the PDF'**
-  String get noteExportPreparing;
-
-  /// Said when a note could not be written as a PDF.
-  ///
-  /// In en, this message translates to:
-  /// **'The note could not be exported.'**
-  String get noteExportFailed;
-
   /// The title of the notebook's menu.
   ///
   /// In en, this message translates to:
@@ -5566,6 +5728,432 @@ abstract class AppLocalizations {
   /// **'The notes couldn’t be searched.'**
   String get replaceProblemSearch;
 
+  /// What the button that opens the day before a daily note does.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous day'**
+  String get journalPreviousDay;
+
+  /// What the button that opens the day after a daily note does.
+  ///
+  /// In en, this message translates to:
+  /// **'Next day'**
+  String get journalNextDay;
+
+  /// The button, and the sheet's menu row, that open the journal's calendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get journalCalendar;
+
+  /// The menu row that opens today's daily note.
+  ///
+  /// In en, this message translates to:
+  /// **'Today’s note'**
+  String get journalTodaysNote;
+
+  /// The title of the calendar sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Journal'**
+  String get journalCalendarTitle;
+
+  /// The line shown when a daily note, or a note from a template, could not be made.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t make that note. Try again.'**
+  String get journalFailed;
+
+  /// What the calendar's back button does.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous month'**
+  String get calendarPreviousMonth;
+
+  /// What the calendar's forward button does.
+  ///
+  /// In en, this message translates to:
+  /// **'Next month'**
+  String get calendarNextMonth;
+
+  /// The calendar button that shows today's month.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get calendarToday;
+
+  /// The note under the calendar.
+  ///
+  /// In en, this message translates to:
+  /// **'A dot marks a day with a note. Tap a day to open it, or to start it from the daily template.'**
+  String get calendarHint;
+
+  /// The line shown when the calendar's month could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The calendar couldn’t be read.'**
+  String get calendarFailed;
+
+  /// What a screen reader says for a day of the calendar.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}'**
+  String calendarDayLabel(String date);
+
+  /// What a screen reader says for a day of the calendar that has a note.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}, has a note'**
+  String calendarDayWithNote(String date);
+
+  /// What a screen reader says for today in the calendar.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}, today'**
+  String calendarDayToday(String date);
+
+  /// What a screen reader says for today in the calendar when it has a note.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}, today, has a note'**
+  String calendarDayTodayWithNote(String date);
+
+  /// The title of the sheet opened by the new button of a list.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get newMenuTitle;
+
+  /// What the new button of a list does.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get newMenuLabel;
+
+  /// The menu row that makes a note from a template.
+  ///
+  /// In en, this message translates to:
+  /// **'New from template…'**
+  String get newFromTemplate;
+
+  /// The menu row that makes a template.
+  ///
+  /// In en, this message translates to:
+  /// **'New template'**
+  String get newTemplate;
+
+  /// The title of the sheet that lists the templates.
+  ///
+  /// In en, this message translates to:
+  /// **'New from template'**
+  String get templatePickerTitle;
+
+  /// The title shown when the Templates notebook has no notes.
+  ///
+  /// In en, this message translates to:
+  /// **'No templates yet'**
+  String get templatesEmptyTitle;
+
+  /// Says what the template list will hold.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes in the Templates notebook show here. New template makes one.'**
+  String get templatesEmptyMessage;
+
+  /// The line shown when the templates could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The templates couldn’t be read.'**
+  String get templatesFailed;
+
+  /// A section of settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily notes'**
+  String get settingsDailyNotes;
+
+  /// The settings row that chooses the template new daily notes start from.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily template'**
+  String get settingsDailyTemplate;
+
+  /// The daily template choice that starts daily notes empty.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get dailyTemplateNone;
+
+  /// The note under the daily template row when there are templates.
+  ///
+  /// In en, this message translates to:
+  /// **'New daily notes start from this template, with {date}, {time} and {cursor} filled in.'**
+  String dailyTemplateDetail(String date, String time, String cursor);
+
+  /// The note under the daily template row when there are no templates.
+  ///
+  /// In en, this message translates to:
+  /// **'New daily notes start empty. Notes in the Templates notebook can be chosen here; New template makes one.'**
+  String get dailyTemplateDetailEmpty;
+
+  /// The line shown when the daily template could not be set.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t set the daily template.'**
+  String get dailyTemplateFailed;
+
+  /// A section of settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get settingsReminders;
+
+  /// The settings row that turns task reminders on and off.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me of tasks'**
+  String get settingsRemindMe;
+
+  /// The note under the reminders row.
+  ///
+  /// In en, this message translates to:
+  /// **'A notification when a task with a time comes due, like “- [ ] Call Sam @2026-10-25T09:00”.'**
+  String get settingsRemindersDetail;
+
+  /// The note under the reminders row when the system does not let Kanso show notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are turned off for Kanso. Allow them in your device’s settings to get reminders.'**
+  String get settingsRemindersDenied;
+
+  /// The line shown when the reminders switch could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save that setting.'**
+  String get settingsRemindersFailed;
+
+  /// The row of the list menu that shows the list as a board.
+  ///
+  /// In en, this message translates to:
+  /// **'Board'**
+  String get listOptionsBoard;
+
+  /// The title of the board page.
+  ///
+  /// In en, this message translates to:
+  /// **'Board'**
+  String get boardTitle;
+
+  /// The board choice that lays notes out by status.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get boardNotes;
+
+  /// The board choice that lays tasks out as To do and Done.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get boardTasks;
+
+  /// Names the control that switches between the notes and the tasks board.
+  ///
+  /// In en, this message translates to:
+  /// **'Board'**
+  String get boardKindLabel;
+
+  /// What the board's close button does.
+  ///
+  /// In en, this message translates to:
+  /// **'Close board'**
+  String get boardClose;
+
+  /// The board column of notes with no status.
+  ///
+  /// In en, this message translates to:
+  /// **'No status'**
+  String get boardLaneNoStatus;
+
+  /// The board column of tasks not yet done.
+  ///
+  /// In en, this message translates to:
+  /// **'To do'**
+  String get boardLaneTodo;
+
+  /// The board column of tasks that are done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get boardLaneDone;
+
+  /// The title of a notes board with no notes.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes here'**
+  String get boardEmptyNotesTitle;
+
+  /// Says what the notes board will hold.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes in this list show here, a column for each status.'**
+  String get boardEmptyNotesMessage;
+
+  /// The title of a tasks board with no tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks in these notes'**
+  String get boardEmptyTasksTitle;
+
+  /// Says what the tasks board will hold.
+  ///
+  /// In en, this message translates to:
+  /// **'Write “- [ ] Call Sam” in a note, and it shows here.'**
+  String get boardEmptyTasksMessage;
+
+  /// The hint under a notes board on a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch and hold a card to move it to another status.'**
+  String get boardHintNotes;
+
+  /// The hint under a tasks board on a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick a task to do it, or touch and hold it to move it.'**
+  String get boardHintTasks;
+
+  /// The hint under a notes board on a tablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag a card to change its status.'**
+  String get boardHintNotesDrag;
+
+  /// The hint under a tasks board on a tablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag a task to Done to tick it off.'**
+  String get boardHintTasksDrag;
+
+  /// The action that moves a board card to another column.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to…'**
+  String get boardMoveTo;
+
+  /// The title of the sheet that lists the columns to move a card to.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to'**
+  String get boardMoveSheetTitle;
+
+  /// The line shown when moving a board card failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t move the card.'**
+  String get boardMoveFailed;
+
+  /// The line shown when a task moved in its note while it was being moved on the board.
+  ///
+  /// In en, this message translates to:
+  /// **'That task changed in its note. The board is up to date now.'**
+  String get boardChangedInNote;
+
+  /// The title of the card shown when the board could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The board didn’t load'**
+  String get boardFailedTitle;
+
+  /// The message of the card shown when the board could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong reading the notes on this device. Try again.'**
+  String get boardFailedMessage;
+
+  /// A note card's count of the tasks it has done.
+  ///
+  /// In en, this message translates to:
+  /// **'{done}/{total} tasks'**
+  String boardTaskCount(int done, int total);
+
+  /// What a screen reader says for a board column.
+  ///
+  /// In en, this message translates to:
+  /// **'{lane}, {count, plural, =1{1 card} other{{count} cards}}'**
+  String boardColumnLabel(String lane, int count);
+
+  /// What the checkbox of a task card does when the task is not done.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark done'**
+  String get boardTickTask;
+
+  /// What the checkbox of a task card does when the task is done.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark not done'**
+  String get boardUntickTask;
+
+  /// What a screen reader says for a task card's due time.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {when}'**
+  String boardTaskDue(String when);
+
+  /// Closes a notice on the board.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get boardNoticeDismiss;
+
+  /// The label above the notes' statuses, and what a status is called when it has no notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get libraryStatuses;
+
+  /// The title shown when no note has the status.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes marked {status}'**
+  String emptyStatusTitle(String status);
+
+  /// What the empty list of a status's notes says.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes with this status will appear in this list.'**
+  String get emptyStatusMessage;
+
+  /// The note's menu row that writes it as a PDF to share.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as PDF'**
+  String get noteExportPdf;
+
+  /// What is shown while a note is being written as a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the PDF'**
+  String get noteExportPreparing;
+
+  /// The note's menu row that writes it as one HTML file to share.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as web page'**
+  String get noteExportHtml;
+
+  /// What is shown while a note is being written as a web page.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the web page'**
+  String get noteExportPreparingPage;
+
+  /// Said when a note could not be written as a PDF or a web page.
+  ///
+  /// In en, this message translates to:
+  /// **'The note could not be exported.'**
+  String get noteExportFailed;
+
   /// A notebook's menu item that makes a notebook inside it.
   ///
   /// In en, this message translates to:
@@ -5847,6 +6435,846 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fewer'**
   String get libraryTagsFewer;
+
+  /// The accessibility label of the row of tabs above a note on a tablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Tabs'**
+  String get tabsBarLabel;
+
+  /// The menu item that closes a tab (the desktop calls it this too).
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get tabClose;
+
+  /// The menu item that closes every tab but this one.
+  ///
+  /// In en, this message translates to:
+  /// **'Close Others'**
+  String get tabCloseOthers;
+
+  /// The menu item that closes the tabs after this one.
+  ///
+  /// In en, this message translates to:
+  /// **'Close Tabs to the Right'**
+  String get tabCloseRight;
+
+  /// The menu item that opens a tab's note in a window of its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in New Window'**
+  String get tabOpenInNewWindow;
+
+  /// The menu item and the drop hint that open a note in a new tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in New Tab'**
+  String get tabOpenInNewTab;
+
+  /// The accessibility label and tooltip of the close button of a tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tab'**
+  String get tabCloseTooltip;
+
+  /// The accessibility label and tooltip of the button that lists every open tab.
+  ///
+  /// In en, this message translates to:
+  /// **'All tabs'**
+  String get tabsAll;
+
+  /// A tab's accessibility label for a locked note.
+  ///
+  /// In en, this message translates to:
+  /// **'{title}, locked'**
+  String tabLocked(String title);
+
+  /// Opens the publish sheet for a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish…'**
+  String get publishNoteMenu;
+
+  /// Opens the publish sheet for a notebook site.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish notebook…'**
+  String get publishNotebookMenu;
+
+  /// Title of the note publish sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish note'**
+  String get publishNoteTitle;
+
+  /// Title of the notebook publish sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish notebook as a site'**
+  String get publishNotebookTitle;
+
+  /// A count of the words in the note that will be published.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No words} one{{count} word} other{{count} words}}'**
+  String publishNoteContentSummary(int count);
+
+  /// Heading above link expiry choices.
+  ///
+  /// In en, this message translates to:
+  /// **'Link expiry'**
+  String get publishExpiryHeading;
+
+  /// Status shown while a note or notebook site is being published.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishing…'**
+  String get publishWorking;
+
+  /// Publishes a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish'**
+  String get publishPublish;
+
+  /// Updates a note already published at its link.
+  ///
+  /// In en, this message translates to:
+  /// **'Update published note'**
+  String get publishUpdate;
+
+  /// Publishes a notebook as a site.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish site'**
+  String get publishPublishSite;
+
+  /// Updates a published notebook site.
+  ///
+  /// In en, this message translates to:
+  /// **'Update site'**
+  String get publishUpdateSite;
+
+  /// Copies the published link.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get publishCopyLink;
+
+  /// Removes a published link.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpublish'**
+  String get publishUnpublish;
+
+  /// Confirms that a publish link was copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish link copied.'**
+  String get publishCopied;
+
+  /// Explains a link without an expiry.
+  ///
+  /// In en, this message translates to:
+  /// **'This link does not expire.'**
+  String get publishNeverExpires;
+
+  /// The date a published link expires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String publishExpiresOn(String date);
+
+  /// Explains that update replaces an expired link.
+  ///
+  /// In en, this message translates to:
+  /// **'This link has expired. Update to create a new link.'**
+  String get publishExpired;
+
+  /// The command palette's field, before anything is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search or run a command'**
+  String get paletteHint;
+
+  /// The command palette's empty state heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches'**
+  String get paletteEmptyTitle;
+
+  /// The command palette's empty state, under the heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a shorter word, or another name.'**
+  String get paletteEmptyMessage;
+
+  /// The title of the sheet that picks a tag to add to a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tag'**
+  String get paletteAddTag;
+
+  /// The sheet of a note's headings.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get noteOutline;
+
+  /// The outline's empty state heading.
+  ///
+  /// In en, this message translates to:
+  /// **'No headings'**
+  String get noteOutlineEmptyTitle;
+
+  /// The outline's empty state, under the heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Headings in the note show up here.'**
+  String get noteOutlineEmptyMessage;
+
+  /// The sheet of the notes that name the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Backlinks'**
+  String get noteBacklinks;
+
+  /// The backlinks section of notes that link to this one.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked from'**
+  String get noteBacklinksLinked;
+
+  /// The backlinks section of notes that name this one without a link.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlinked mentions'**
+  String get noteBacklinksUnlinked;
+
+  /// The backlinks' empty state heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing links here'**
+  String get noteBacklinksEmptyTitle;
+
+  /// The backlinks' empty state, under the heading.
+  ///
+  /// In en, this message translates to:
+  /// **'A note that links to this one shows up here.'**
+  String get noteBacklinksEmptyMessage;
+
+  /// The library's way into the command palette.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands'**
+  String get paletteCommands;
+
+  /// Leaves focus mode and brings back the sidebar and bars.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave focus mode'**
+  String get focusModeExit;
+
+  /// The settings row that opens the AI settings.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get settingsAi;
+
+  /// The value of the AI settings row while AI is on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get settingsAiOn;
+
+  /// The value of the AI settings row while AI is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get settingsAiOff;
+
+  /// The title of the AI settings page.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get aiTitle;
+
+  /// The switch that turns the AI features on.
+  ///
+  /// In en, this message translates to:
+  /// **'Use AI'**
+  String get aiEnabled;
+
+  /// The note under the AI switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your notes, rewrite a selection and summarize a note. AI is off until you turn it on.'**
+  String get aiEnabledFooter;
+
+  /// The heading above the provider and its address, model and key.
+  ///
+  /// In en, this message translates to:
+  /// **'Answers come from'**
+  String get aiProviderSection;
+
+  /// The row that opens the list of places answers can come from.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get aiProvider;
+
+  /// The title of the list of providers.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a provider'**
+  String get aiProviderSheetTitle;
+
+  /// The label of the server address field.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get aiAddress;
+
+  /// The label of the model name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get aiModel;
+
+  /// The label of the region field, for the providers that use one.
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get aiRegion;
+
+  /// The label of the API key field.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get aiApiKey;
+
+  /// The label of the API key field for a provider that does not need one.
+  ///
+  /// In en, this message translates to:
+  /// **'API key (optional)'**
+  String get aiApiKeyOptional;
+
+  /// The hint in the empty API key field.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the key'**
+  String get aiKeyHint;
+
+  /// The button that saves the typed API key.
+  ///
+  /// In en, this message translates to:
+  /// **'Save key'**
+  String get aiKeySave;
+
+  /// Says that an API key is saved. The key itself is never shown.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get aiKeySaved;
+
+  /// The button that removes the saved API key.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get aiKeyRemove;
+
+  /// The note under the API key.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept in secure storage on this device and never shown again.'**
+  String get aiKeyFooter;
+
+  /// The button that checks the address, model and key.
+  ///
+  /// In en, this message translates to:
+  /// **'Test'**
+  String get aiTest;
+
+  /// The note under the Test button.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends one short question to check the address, model and key. No notes are sent.'**
+  String get aiTestHint;
+
+  /// Shown while the test question is on its way.
+  ///
+  /// In en, this message translates to:
+  /// **'Asking the model…'**
+  String get aiTestRunning;
+
+  /// Says that the test worked and what the model answered.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready. The model said “{said}”.'**
+  String aiTestOk(String said);
+
+  /// The title of the card shown when the AI settings could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t open AI settings'**
+  String get aiLoadFailedTitle;
+
+  /// The message of that card.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong reading them. Try again.'**
+  String get aiLoadFailedMessage;
+
+  /// Says that a change to the AI settings could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t save that. Try again.'**
+  String get aiSaveFailed;
+
+  /// The title of the Ask page and its library row.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your notes'**
+  String get askTitle;
+
+  /// The button that forgets the conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear conversation'**
+  String get askClear;
+
+  /// The hint in the empty question field.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about your notes…'**
+  String get askHint;
+
+  /// The button that sends the question.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get askSend;
+
+  /// The button that stops an answer being written.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get askStop;
+
+  /// Says what Ask does, above an empty conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'A question is answered from your own notes, with links to the notes it used. The answer isn’t saved and no note is changed.'**
+  String get askEmptyMessage;
+
+  /// Shown while the notes are searched for a question.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching your notes…'**
+  String get askSearching;
+
+  /// Shown while the model works on an answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get askThinking;
+
+  /// Says that no note matches the question.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in your notes matches this question.'**
+  String get askNothingMatches;
+
+  /// Says that the model stopped before the answer was complete.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer was cut off before it finished.'**
+  String get askCutOff;
+
+  /// Says that the person stopped the answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped.'**
+  String get askStopped;
+
+  /// The title of the card shown when a question failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t answer'**
+  String get askFailedTitle;
+
+  /// The message of that card when the core has no better words.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again.'**
+  String get askFailedMessage;
+
+  /// The heading of the list of notes an answer was written from.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Used 1 note} other{Used {count} notes}}'**
+  String askUsedNotes(int count);
+
+  /// What a note without a title is called in a list of notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get askUntitled;
+
+  /// The title shown on the Ask page while AI is off.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is off'**
+  String get askOffTitle;
+
+  /// The message shown on the Ask page while AI is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on AI in Settings to ask questions of your notes.'**
+  String get askOffMessage;
+
+  /// The button that opens the AI settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open AI settings'**
+  String get askOpenSettings;
+
+  /// The title of the assistant sheet, and of the selection menu item that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get assistTitle;
+
+  /// The item in the text selection menu that opens the assistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI…'**
+  String get assistSelectionAction;
+
+  /// What a screen reader says for the assistant key above the keyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'AI assistant'**
+  String get assistAccessoryLabel;
+
+  /// The title of the sheet that shows a note’s summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get assistSummary;
+
+  /// The note menu item that summarizes the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarize this note'**
+  String get assistSummarizeNote;
+
+  /// Shown while the assistant works on a suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get assistThinking;
+
+  /// The button that stops a suggestion being written.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get assistStop;
+
+  /// The button that puts the suggestion in the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get assistAccept;
+
+  /// Says that the assistant answered with nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing came back.'**
+  String get assistNothing;
+
+  /// The button that throws a suggestion away.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get assistDiscard;
+
+  /// The button that copies the suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get assistCopy;
+
+  /// Says that the suggestion was copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get assistCopied;
+
+  /// The button that closes the assistant sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get assistClose;
+
+  /// Says that the note is locked, in the trash or tagged #ai-exclude, so nothing was sent.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is kept out of AI.'**
+  String get assistKeptOut;
+
+  /// Says that a stopped suggestion is not offered.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped. A partial rewrite can’t be applied.'**
+  String get assistStopped;
+
+  /// Says that the assistant failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The suggestion couldn’t be made. Try again.'**
+  String get assistFailed;
+
+  /// Says that the note changed while the suggestion was written.
+  ///
+  /// In en, this message translates to:
+  /// **'The text changed, so the suggestion wasn’t applied.'**
+  String get assistChanged;
+
+  /// The library row that opens Ask your notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your notes'**
+  String get libraryAsk;
+
+  /// The accessory bar's microphone key, for a screen reader: starts dictating into the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictate'**
+  String get dictationKey;
+
+  /// The accessory bar's microphone key while it listens, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop dictating'**
+  String get dictationKeyStop;
+
+  /// Shown while the microphone is open and nothing has been heard yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get dictationListening;
+
+  /// Stops dictating and keeps the words.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get dictationStop;
+
+  /// The title of the page that makes a note from speech.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice note'**
+  String get dictationVoiceNoteTitle;
+
+  /// Tells the person how to begin a voice note.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the mic and start talking.'**
+  String get dictationVoiceNoteHint;
+
+  /// The placeholder of the live transcript before anything is heard.
+  ///
+  /// In en, this message translates to:
+  /// **'What you say will appear here.'**
+  String get dictationTranscriptEmpty;
+
+  /// Says what the large microphone button does while it is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Start listening'**
+  String get dictationMicStart;
+
+  /// Says what the large microphone button does while it listens.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop listening'**
+  String get dictationMicStop;
+
+  /// Saves the voice note as a new note.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get dictationDone;
+
+  /// Leaves the voice note without saving it.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get dictationCancel;
+
+  /// Says to a screen reader that the voice note is being saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving the note'**
+  String get dictationSaving;
+
+  /// The title of the card shown when a voice note could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'The note wasn\'t saved'**
+  String get dictationSaveFailedTitle;
+
+  /// Says that nothing was lost when saving a voice note failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your words are still here. Try again.'**
+  String get dictationSaveFailedMessage;
+
+  /// Tries again after a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get dictationTryAgain;
+
+  /// The title of the card shown when speech can't be recognized on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictation isn\'t available'**
+  String get dictationUnavailableTitle;
+
+  /// Says why dictation is unavailable when the language has no recognizer on the device.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone can\'t turn speech into text by itself in this language, and Kanso never sends your voice anywhere else.'**
+  String get dictationUnavailableNotOnDevice;
+
+  /// Says why dictation is unavailable when the phone has no speech recognizer.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has no speech recognizer. Install or turn on one in the phone\'s settings.'**
+  String get dictationUnavailableNoRecognizer;
+
+  /// Says why dictation is unavailable when the language is unknown to the recognizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech recognition doesn\'t support this language.'**
+  String get dictationUnavailableLanguage;
+
+  /// The title of the card shown when the microphone or speech recognition is refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso can\'t hear you'**
+  String get dictationDeniedTitle;
+
+  /// Says how to allow dictation after it was refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow the microphone and speech recognition for Kanso in Settings to dictate.'**
+  String get dictationDeniedMessage;
+
+  /// Says that the device restricts dictation.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone\'s rules keep Kanso from using the microphone or speech recognition.'**
+  String get dictationRestrictedMessage;
+
+  /// Opens the phone's settings page for Kanso.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get dictationOpenSettings;
+
+  /// The title of the card shown when dictation failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictation stopped'**
+  String get dictationErrorTitle;
+
+  /// Says that the microphone was interrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Something interrupted the microphone. Try again.'**
+  String get dictationErrorMessage;
+
+  /// Says that no speech was heard.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was heard. Tap the mic and try again.'**
+  String get dictationNoSpeech;
+
+  /// Dismisses the notice that dictation could not run.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get dictationDismiss;
+
+  /// The title of the voice settings page and of its row in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get dictationSettingsTitle;
+
+  /// The heading of the voice input rows.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input'**
+  String get dictationSettingsInputSection;
+
+  /// The label of the row that says how dictation works.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input'**
+  String get dictationSettingsInput;
+
+  /// Says how dictation works on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the mic above the keyboard, speak, and tap it again: what you said goes in at the cursor. A voice note makes a new note from what you say.'**
+  String get dictationSettingsInputDetail;
+
+  /// The label of the switch for spoken punctuation and commands.
+  ///
+  /// In en, this message translates to:
+  /// **'Spoken punctuation and commands'**
+  String get dictationSettingsCommands;
+
+  /// Explains the spoken commands.
+  ///
+  /// In en, this message translates to:
+  /// **'Say \"comma\", \"full stop\", \"new line\", \"new paragraph\", \"bullet point\" or \"new to-do\" on their own, with a short pause either side, and they\'re written. \"Delete that\" takes out the last thing you said, and \"undo that\" the last step.'**
+  String get dictationSettingsCommandsDetail;
+
+  /// The heading of the row that says whether speech is recognized on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognition'**
+  String get dictationSettingsRecognitionSection;
+
+  /// Says that speech is turned into text on the phone itself, for the language.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device recognition is available for {language}'**
+  String dictationRecognizerReady(String language);
+
+  /// Says that the phone's speech service, not the phone alone, recognizes the language.
+  ///
+  /// In en, this message translates to:
+  /// **'{language} is recognized by the phone\'s speech service, which may use the network.'**
+  String dictationRecognizerSystem(String language);
+
+  /// Says that speech cannot be turned into text on the phone for the language.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device recognition isn\'t available for {language}'**
+  String dictationRecognizerUnavailable(String language);
+
+  /// The label of the row shown when the microphone or speech recognition is refused.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso can\'t use the microphone'**
+  String get dictationSettingsMicDenied;
 }
 
 class _AppLocalizationsDelegate

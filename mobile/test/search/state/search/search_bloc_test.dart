@@ -21,6 +21,7 @@ const _failure = ApplicationError.storage(message: 'Disk error.');
 
 void main() {
   late MockLibraryRepository library;
+  late MockDiscoveryRepository discovery;
   late StreamController<List<String>> changes;
   var hits = mockHits;
 
@@ -33,6 +34,11 @@ void main() {
     changes = StreamController<List<String>>.broadcast();
     addTearDown(changes.close);
     library = MockLibraryRepository();
+    discovery = MockDiscoveryRepository();
+    when(() => discovery.meaningQuery(any())).thenReturn(null);
+    when(() => discovery.relatedEnabled()).thenAnswer(
+      (_) async => const Right<ApplicationError, bool>(false),
+    );
     when(() => library.changes()).thenAnswer((_) => changes.stream);
     when(
       () => library.search(
@@ -43,7 +49,7 @@ void main() {
     ).thenAnswer((_) async => Right<ApplicationError, List<Hit>>(hits));
   });
 
-  SearchBloc build() => SearchBloc(library);
+  SearchBloc build() => SearchBloc(library, discovery);
 
   List<(String, SearchScope)> searched() {
     final calls = verify(
@@ -60,6 +66,68 @@ void main() {
   }
 
   group('SearchBloc', () {
+    blocTest<SearchBloc, SearchState>(
+      'shows local semantic matches only when the model is enabled',
+      setUp: () {
+        when(
+          () => discovery.meaningQuery('orchard fruit'),
+        ).thenReturn('orchard fruit');
+        when(() => discovery.relatedEnabled()).thenAnswer(
+          (_) async => const Right<ApplicationError, bool>(true),
+        );
+        when(
+          () => discovery.searchByMeaning('orchard fruit', k: 20),
+        ).thenAnswer(
+          (_) async => const Right<ApplicationError, MeaningResult>(
+            MeaningResult.found(
+              rows: <RelatedRow>[
+                RelatedRow(
+                  id: 'semantic-note',
+                  title: 'Fruit garden',
+                  score: 0.9,
+                  label: 'very close',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      build: build,
+      act: (bloc) => bloc.add(
+        const SearchEvent.started('orchard fruit', SearchScopeKind.all, null),
+      ),
+      wait: const Duration(milliseconds: 20),
+      expect: () => <Matcher>[
+        isA<SearchState>().having(
+          (state) => state.status,
+          'status',
+          SearchStatus.idle,
+        ),
+        isA<SearchState>().having(
+          (state) => state.status,
+          'status',
+          SearchStatus.searching,
+        ),
+        isA<SearchState>().having(
+          (state) => state.meaningHits,
+          'meaning matches',
+          <RelatedRow>[
+            const RelatedRow(
+              id: 'semantic-note',
+              title: 'Fruit garden',
+              score: 0.9,
+              label: 'very close',
+            ),
+          ],
+        ),
+      ],
+      verify: (_) {
+        verify(
+          () => discovery.searchByMeaning('orchard fruit', k: 20),
+        ).called(1);
+      },
+    );
+
     test('starts idle, with nothing to look for', () {
       final state = build().state;
       expect(state.status, SearchStatus.idle);

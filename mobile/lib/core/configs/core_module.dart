@@ -14,6 +14,7 @@ import 'package:path_provider_foundation/path_provider_foundation.dart';
 
 import '../bridge/api/account.dart';
 import '../bridge/api/account_settings.dart';
+import '../bridge/api/ai.dart';
 import '../bridge/api/approvals.dart';
 import '../bridge/api/gallery.dart';
 import '../bridge/api/library.dart';
@@ -40,6 +41,11 @@ const String libraryFolderName = 'kanso';
 /// iOS. The library lives in its container so all of them can open it.
 const String appGroupIdentifier = 'group.app.kanso.Kanso';
 
+/// The library folder a note's own window is told to use: the main window's,
+/// so that both engines open the one library (an integration test's is a
+/// temporary folder, not the app's). Null in the main window.
+String? libraryFolderOverride;
+
 /// Opens the library and hands out its parts.
 @module
 abstract class CoreModule {
@@ -49,6 +55,12 @@ abstract class CoreModule {
   @singleton
   @preResolve
   Future<LibraryFolder> libraryFolder(LibraryFolderMigration migration) async {
+    // A note's own window opens the main window's library rather than the
+    // app's own folder.
+    final given = libraryFolderOverride;
+    if (given != null) {
+      return LibraryFolder(given);
+    }
     final support = await getApplicationSupportDirectory();
     final own = p.join(support.path, libraryFolderName);
     var path = own;
@@ -101,6 +113,10 @@ abstract class CoreModule {
   @singleton
   @preResolve
   Future<LibraryFolder> temporaryLibraryFolder() async {
+    final given = libraryFolderOverride;
+    if (given != null) {
+      return LibraryFolder(given);
+    }
     final root = await getTemporaryDirectory();
     final folder = await root.createTemp('kanso_integration_');
     return LibraryFolder(folder.path);
@@ -114,6 +130,9 @@ abstract class CoreModule {
 
   @lazySingleton
   KansoLocks locks(KansoLibrary library) => library.locks();
+
+  @lazySingleton
+  KansoAi ai(KansoLibrary library) => library.ai();
 
   @lazySingleton
   KansoSync sync(KansoLibrary library) => library.syncing();

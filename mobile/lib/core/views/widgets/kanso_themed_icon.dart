@@ -22,6 +22,7 @@ class KansoThemedIcon extends StatelessWidget {
     this.size = 20,
     this.color,
     this.semanticLabel,
+    this.fallback,
     super.key,
   });
 
@@ -34,11 +35,18 @@ class KansoThemedIcon extends StatelessWidget {
   final Color? color;
   final String? semanticLabel;
 
+  /// A bundled Lucide icon to draw when [lucideName] has no asset of its own.
+  ///
+  /// The palette asks for the desktop's names, and the app bundles the ones
+  /// it draws; a name outside that set shows [fallback] instead of failing.
+  final String? fallback;
+
   @override
   Widget build(BuildContext context) {
     final resolved =
         color ?? IconTheme.of(context).color ?? context.colors.text;
     final filter = ColorFilter.mode(resolved, BlendMode.srcIn);
+    final named = fallback;
     final lucide = SvgPicture.asset(
       KansoIcons.assetPathOf(lucideName),
       width: size,
@@ -46,6 +54,16 @@ class KansoThemedIcon extends StatelessWidget {
       colorFilter: filter,
       semanticsLabel: semanticLabel,
       excludeFromSemantics: semanticLabel == null,
+      errorBuilder: named == null
+          ? null
+          : (context, error, stackTrace) => SvgPicture.asset(
+              KansoIcons.assetPathOf(named),
+              width: size,
+              height: size,
+              colorFilter: filter,
+              semanticsLabel: semanticLabel,
+              excludeFromSemantics: semanticLabel == null,
+            ),
     );
     final themed = svg;
     if (themed == null) {

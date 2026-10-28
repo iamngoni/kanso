@@ -6,10 +6,12 @@ import 'package:flutter_test/flutter_test.dart' show addTearDown;
 import 'package:kanso/editor/models/repos/abs/editor_repository.dart';
 import 'package:kanso/editor/state/editor/editor_bloc.dart';
 import 'package:kanso/injection.dart';
+import 'package:kanso/journal/state/journal/journal_bloc.dart';
 
 import 'fake_editor_repository.dart';
 import 'fake_media_picker_repository.dart';
 import 'fake_web_link_repository.dart';
+import 'fixture_journal_repository.dart';
 
 /// Registers, for a test that builds the note page in edit mode, an
 /// `EditorBloc` that opens [document]; it is taken out when the test ends.
@@ -40,9 +42,19 @@ void registerEditorBlocOn(
       picker ?? FakeMediaPickerRepository(),
     ),
   );
+  // The note page carries the journal's day stepper and New menu, which the
+  // note pane gets from a JournalOpener reading this one.
+  final journal = FixtureJournalRepository();
+  if (getIt.isRegistered<JournalBloc>()) {
+    getIt.unregister<JournalBloc>();
+  }
+  getIt.registerFactory<JournalBloc>(() => JournalBloc(journal, journal));
   addTearDown(() {
     if (getIt.isRegistered<EditorBloc>()) {
       getIt.unregister<EditorBloc>();
+    }
+    if (getIt.isRegistered<JournalBloc>()) {
+      getIt.unregister<JournalBloc>();
     }
   });
 }

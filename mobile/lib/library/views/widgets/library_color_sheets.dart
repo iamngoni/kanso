@@ -150,8 +150,8 @@ class _NotebookColorSheetState extends State<NotebookColorSheet> {
   }
 
   Future<void> _load() async {
-    final Either<ApplicationError, List<ColorChoice>> result =
-        await library.notebookColors();
+    final Either<ApplicationError, List<ColorChoice>> result = await library
+        .notebookColors();
     if (!mounted) {
       return;
     }
@@ -200,8 +200,7 @@ class _NotebookColorSheetState extends State<NotebookColorSheet> {
                   none: true,
                   selected: widget.current == null,
                   label: l10n.libraryColorDefault,
-                  onTap: () =>
-                      Navigator.of(context).pop(const ColorPick(null)),
+                  onTap: () => Navigator.of(context).pop(const ColorPick(null)),
                 ),
                 for (final swatch in swatches)
                   _Swatch(
@@ -280,8 +279,8 @@ class _TagColorSheetState extends State<TagColorSheet> {
   }
 
   Future<void> _load() async {
-    final Either<ApplicationError, List<ColorChoice>> result =
-        await library.tagColors();
+    final Either<ApplicationError, List<ColorChoice>> result = await library
+        .tagColors();
     if (!mounted) {
       return;
     }

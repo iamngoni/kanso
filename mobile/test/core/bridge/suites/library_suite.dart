@@ -927,8 +927,9 @@ void librarySuite(OpenLibrary open) {
         ids: <String>[note],
         change: const NoteChange.setStatus(status: 'completed'),
       );
-      final done = (await library.list(query: everyNote)).rows
-          .firstWhere((row) => row.id == note);
+      final done = (await library.list(
+        query: everyNote,
+      )).rows.firstWhere((row) => row.id == note);
       expect(done.status, 'completed');
 
       await library.change(

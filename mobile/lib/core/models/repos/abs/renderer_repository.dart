@@ -28,9 +28,19 @@ abstract interface class RendererRepository {
     PreviewOptions options,
   );
 
-  /// The note [id] as the page the desktop exports: one self-contained
-  /// file whose links anyone who opens it can follow, and the name a file of
-  /// it gets. Locked while the note is locked and closed.
+  /// The note [id] as the page the desktop exports, to print: one
+  /// self-contained file whose links anyone who opens it can follow, and the
+  /// name a file of it gets, which names a PDF. Locked while the note is
+  /// locked and closed.
+  Future<Either<ApplicationError, ExportedPage>> pagePdf(
+    String id,
+    PaletteDto palette,
+    PreviewOptions options,
+  );
+
+  /// The same page, saved as the desktop's "Export as web page" saves it:
+  /// one self-contained HTML file, and the name a file of it gets, which
+  /// names a web page. Locked while the note is locked and closed.
   Future<Either<ApplicationError, ExportedPage>> pageHtml(
     String id,
     PaletteDto palette,

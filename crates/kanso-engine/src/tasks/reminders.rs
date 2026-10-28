@@ -127,6 +127,49 @@ pub fn due<'a>(
     out
 }
 
+/// A reminder still to come: its task, and when it falls due in local
+/// milliseconds (see [`Due::local_ms`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Upcoming<'a> {
+    pub task: &'a ReminderTask,
+    pub at_local_ms: i64,
+}
+
+/// The reminders that fall due after local time `now_local` (ms) and no
+/// later than `horizon` on: not acknowledged anywhere and not in `shown`.
+/// Each task once, soonest first, at most `limit`. A phone has the system
+/// show these at their times while the app is closed. Pure.
+pub fn upcoming<'a>(
+    tasks: &'a [ReminderTask],
+    shown: &BTreeMap<String, i64>,
+    now_local: i64,
+    horizon: Duration,
+    limit: usize,
+) -> Vec<Upcoming<'a>> {
+    let end = now_local.saturating_add(i64::try_from(horizon.as_millis()).unwrap_or(i64::MAX));
+    let mut out: Vec<Upcoming<'a>> = Vec::new();
+    for (timed, task) in timed_tasks(tasks) {
+        let acked = tasks
+            .iter()
+            .any(|t| t.key == task.key && t.acks.contains_key(&task.key));
+        if timed.at_local_ms <= now_local
+            || timed.at_local_ms > end
+            || acked
+            || shown.contains_key(&task.key)
+            || out.iter().any(|seen| seen.task.key == task.key)
+        {
+            continue;
+        }
+        out.push(Upcoming {
+            task,
+            at_local_ms: timed.at_local_ms,
+        });
+    }
+    out.sort_by_key(|coming| coming.at_local_ms);
+    out.truncate(limit);
+    out
+}
+
 /// How long until the next look at local time `now_local` (ms): until the
 /// next reminder falls due, kept between [`MIN_WAIT`] and [`MAX_WAIT`]. Pure.
 pub fn next_wait(tasks: &[ReminderTask], now_local: i64) -> Duration {
@@ -286,6 +329,46 @@ mod tests {
     }
 
     #[test]
+    fn upcoming_is_what_falls_due_next_within_the_horizon() {
+        let mut tasks = vec![
+            task("note:a", "Evening", "2026-10-22T18:00"),
+            task("note:a", "Morning", "2026-10-22T09:30"),
+            task("note:a", "Far off", "2026-12-01T09:00"),
+            task("note:a", "Past", "2026-10-22T08:00"),
+            task("note:a", "No time", "2026-10-22"),
+        ];
+        let now = local("2026-10-22T09:00");
+        let day = Duration::from_secs(86_400);
+        let names =
+            |got: Vec<Upcoming>| got.iter().map(|c| c.task.text.clone()).collect::<Vec<_>>();
+        let mut shown = BTreeMap::new();
+        assert_eq!(
+            names(upcoming(&tasks, &shown, now, day, 10)),
+            ["Morning", "Evening"]
+        );
+        assert_eq!(names(upcoming(&tasks, &shown, now, day, 1)), ["Morning"]);
+        assert_eq!(
+            upcoming(&tasks, &shown, now, day, 10)[0].at_local_ms,
+            local("2026-10-22T09:30")
+        );
+        // Not at the very moment it is due: that is `due`'s.
+        assert!(
+            upcoming(
+                &tasks,
+                &shown,
+                local("2026-10-22T09:30"),
+                Duration::ZERO,
+                10
+            )
+            .is_empty()
+        );
+        shown.insert(tasks[1].key.clone(), NOW);
+        let key = tasks[0].key.clone();
+        tasks[0].acks.insert(key, NOW);
+        assert!(upcoming(&tasks, &shown, now, day, 10).is_empty());
+    }
+
+    #[test]
     fn answers_follow_the_button() {
         assert_eq!(Answer::from_action(Some(MARK_DONE)), Answer::MarkDone);
         assert_eq!(Answer::from_action(Some(DISMISS)), Answer::Dismiss);
@@ -436,6 +519,53 @@ mod tests {
                 }
             }
             prop_assert_eq!(got.iter().map(|t| t.key.as_str()).collect::<Vec<_>>(), distinct);
+        }
+
+        /// What is upcoming is a subset of the timed tasks, each once,
+        /// after now and within the horizon, soonest first, never past the
+        /// limit, never acknowledged or shown, and never also due. With a
+        /// limit to spare it is every task that qualifies.
+        #[test]
+        fn prop_upcoming_is_a_clean_prefix(
+            tasks in prop::collection::vec(arb_task(), 0..10),
+            shown_keys in prop::collection::vec(0usize..10, 0..4),
+            offset in -60_000i64..40_000_000,
+            horizon_s in 0u64..100_000,
+            limit in 0usize..12,
+        ) {
+            let now = local("2026-10-22T09:00") + offset;
+            let horizon = Duration::from_secs(horizon_s);
+            let shown: BTreeMap<String, i64> = shown_keys
+                .iter()
+                .filter_map(|&i| tasks.get(i))
+                .map(|t| (t.key.clone(), NOW))
+                .collect();
+            let got = upcoming(&tasks, &shown, now, horizon, limit);
+            let all = upcoming(&tasks, &shown, now, horizon, usize::MAX);
+            prop_assert_eq!(got.len(), all.len().min(limit));
+            prop_assert_eq!(&got[..], &all[..got.len()]);
+            let in_due: Vec<String> = due(&tasks, &shown, now).iter().map(|t| t.key.clone()).collect();
+            let mut seen = std::collections::HashSet::new();
+            for coming in &got {
+                let t = coming.task;
+                prop_assert!(seen.insert(&t.key));
+                prop_assert_eq!(coming.at_local_ms, Due::parse(&t.due).unwrap().local_ms());
+                prop_assert!(coming.at_local_ms > now);
+                prop_assert!(coming.at_local_ms - now <= horizon_s as i64 * 1000);
+                prop_assert!(!shown.contains_key(&t.key) && !t.acks.contains_key(&t.key));
+                prop_assert!(!in_due.contains(&t.key));
+            }
+            for pair in all.windows(2) {
+                prop_assert!(pair[0].at_local_ms <= pair[1].at_local_ms);
+            }
+            // Nothing that qualifies is left out when the limit allows.
+            for t in &tasks {
+                let qualifies = Due::parse(&t.due).is_some_and(|d| {
+                    d.time.is_some() && d.local_ms() > now && d.local_ms() - now <= horizon_s as i64 * 1000
+                }) && !shown.contains_key(&t.key)
+                    && !tasks.iter().any(|x| x.key == t.key && x.acks.contains_key(&x.key));
+                prop_assert_eq!(qualifies, all.iter().any(|c| c.task.key == t.key));
+            }
         }
 
         /// The wait always lies between the shortest and longest look.

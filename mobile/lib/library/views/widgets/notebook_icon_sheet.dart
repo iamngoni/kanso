@@ -58,8 +58,8 @@ class _NotebookIconSheetState extends State<NotebookIconSheet> {
   }
 
   Future<void> _load(String text) async {
-    final Either<ApplicationError, List<IconChoice>> result =
-        await library.notebookIcons(text);
+    final Either<ApplicationError, List<IconChoice>> result = await library
+        .notebookIcons(text);
     if (!mounted) {
       return;
     }

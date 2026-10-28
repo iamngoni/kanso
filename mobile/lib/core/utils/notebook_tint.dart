@@ -11,9 +11,7 @@ Color? notebookColor(String? text) {
   if (trimmed == null || trimmed.isEmpty) {
     return null;
   }
-  final digits = trimmed.startsWith('#')
-      ? trimmed.substring(1)
-      : trimmed;
+  final digits = trimmed.startsWith('#') ? trimmed.substring(1) : trimmed;
   if (!RegExp(r'^[0-9a-fA-F]+$').hasMatch(digits)) {
     return null;
   }

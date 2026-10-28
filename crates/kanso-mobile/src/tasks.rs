@@ -174,7 +174,7 @@ fn kind(group: TaskGroup) -> TaskGroupKind {
 }
 
 /// The phone's local time now.
-fn local_now() -> DateTime {
+pub(crate) fn local_now() -> DateTime {
     let now = now_ms();
     let offset = Local
         .timestamp_millis_opt(now)

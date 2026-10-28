@@ -274,7 +274,7 @@ enum Step {
     Redo,
 }
 
-const FORMATS: [FormatKind; 12] = [
+const FORMATS: [FormatKind; 19] = [
     FormatKind::Bold,
     FormatKind::Italic,
     FormatKind::Strikethrough,
@@ -287,6 +287,13 @@ const FORMATS: [FormatKind; 12] = [
     FormatKind::Image,
     FormatKind::Table,
     FormatKind::Rule,
+    FormatKind::Heading1,
+    FormatKind::Heading2,
+    FormatKind::Heading3,
+    FormatKind::Heading4,
+    FormatKind::Heading5,
+    FormatKind::Heading6,
+    FormatKind::CodeBlock,
 ];
 
 fn steps() -> impl Strategy<Value = Vec<Step>> {
@@ -371,6 +378,44 @@ proptest! {
 
 // no-prop-test: the examples the desktop's rules are known by; the rules
 // themselves are property-tested in kanso_engine::edit.
+// no-prop-test: the formats are property-tested in kanso_engine::edit; this
+// is the facade's mapping of each heading level and the code block onto them.
+#[test]
+fn every_heading_level_and_the_code_block_format_the_line() {
+    let phone = lone_phone();
+    let headings = [
+        FormatKind::Heading1,
+        FormatKind::Heading2,
+        FormatKind::Heading3,
+        FormatKind::Heading4,
+        FormatKind::Heading5,
+        FormatKind::Heading6,
+    ];
+    for (ix, format) in headings.into_iter().enumerate() {
+        let (mut typed, _) = Typed::open(&phone, "word");
+        typed.session.select(caret(4), false).unwrap();
+        let out = typed
+            .session
+            .command(EditCommand::Format { format })
+            .unwrap()
+            .unwrap();
+        typed.follow(&out);
+        assert_eq!(typed.text(), format!("{} word", "#".repeat(ix + 1)));
+    }
+    let (mut typed, _) = Typed::open(&phone, "word");
+    typed.session.select(sel(0, 4), false).unwrap();
+    let out = typed
+        .session
+        .command(EditCommand::Format {
+            format: FormatKind::CodeBlock,
+        })
+        .unwrap()
+        .unwrap();
+    typed.follow(&out);
+    assert!(typed.text().starts_with("```"), "{}", typed.text());
+    assert!(typed.text().contains("word"));
+}
+
 #[test]
 fn enter_continues_a_list_tab_moves_cells_and_indents() {
     let phone = lone_phone();

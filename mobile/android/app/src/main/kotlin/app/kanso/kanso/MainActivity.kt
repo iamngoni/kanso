@@ -20,6 +20,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             files.handleIntent(intent)
+            KansoReminders.handleOpen(this, intent)
         }
     }
 
@@ -27,6 +28,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         KansoCrashes.register(flutterEngine)
         files.register(flutterEngine)
+        KansoReminders.register(this, flutterEngine)
         // `app.kanso.kanso/widgets`: the app asks for the home-screen widget
         // to be drawn again once it has written its colors (`widget.json`).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.kanso.kanso/widgets")
@@ -44,12 +46,40 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                 }
             }
+        // `app.kanso.kanso/note_windows`: a note in a window of its own
+        // (NoteWindows.kt), launched beside this one.
+        NoteWindows.registerMain(flutterEngine, this)
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        KansoReminders.unregister()
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         files.handleIntent(intent)
+        KansoReminders.handleOpen(this, intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        KansoReminders.inFront = true
+    }
+
+    override fun onPause() {
+        KansoReminders.inFront = false
+        super.onPause()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        KansoReminders.onPermissionResult(requestCode, grantResults)
     }
 
     @Deprecated("The document picker result comes back through here.")

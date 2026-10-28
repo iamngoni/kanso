@@ -49,6 +49,7 @@
 //! [`apply`]: EditorSession::apply
 //! [`AUTOSAVE_DELAY`]: kanso_engine::saving::AUTOSAVE_DELAY
 
+use std::collections::VecDeque;
 use std::ops::Range;
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
@@ -114,7 +115,14 @@ pub(crate) struct Editors {
     /// A library made for tests saves when told to ([`EditorSession::tick`])
     /// rather than by the clock.
     manual: bool,
+    /// The revisions the library's sessions wrote lately, so that a session
+    /// can tell a save by a peer (another window's editor of the same note,
+    /// whose text it already has) from one made elsewhere.
+    written: Mutex<VecDeque<String>>,
 }
+
+/// How many written revisions are remembered.
+const WRITTEN_KEPT: usize = 32;
 
 /// What wakes the autosave thread: a count that goes up with every change
 /// to when something is due.
@@ -133,7 +141,22 @@ impl Editors {
             }),
             started: Mutex::new(false),
             manual,
+            written: Mutex::new(VecDeque::new()),
         }
+    }
+
+    /// Remembers that a session wrote revision `rev`.
+    fn note_written(&self, rev: &str) {
+        let mut written = held(&self.written);
+        written.push_back(rev.to_owned());
+        while written.len() > WRITTEN_KEPT {
+            written.pop_front();
+        }
+    }
+
+    /// Whether a session of this library wrote revision `rev`.
+    fn wrote(&self, rev: &str) -> bool {
+        held(&self.written).iter().any(|seen| seen == rev)
     }
 
     /// The sessions still open.
@@ -361,6 +384,17 @@ struct State {
     /// after it.
     writing: bool,
     deferred: Vec<Change>,
+    /// The title or text changed in this session and the other sessions on
+    /// the note have not been told yet.
+    echo: bool,
+}
+
+/// The text of a note as one session has it, handed to the other sessions
+/// open on the same note (a note in two windows).
+struct PeerText {
+    title: String,
+    hidden: String,
+    text: String,
 }
 
 /// What completion knows of the library, read again when it is old.
@@ -885,6 +919,7 @@ impl State {
             closing: false,
             writing: false,
             deferred: Vec::new(),
+            echo: false,
         }
     }
 
@@ -1072,7 +1107,7 @@ impl Shared {
         f: impl FnOnce(&mut State, &mut Vec<EditorEvent>) -> Result<T, KansoError>,
     ) -> Result<T, KansoError> {
         let mut events = Vec::new();
-        let result = {
+        let (result, echo) = {
             let mut st = held(&self.state);
             if let Some(end) = st.end {
                 return Err(end.error());
@@ -1080,9 +1115,15 @@ impl Shared {
             if st.closing {
                 return Err(KansoError::Locked);
             }
-            f(&mut st, &mut events)
+            let result = f(&mut st, &mut events);
+            (result, st.take_echo())
         };
         self.send(events);
+        // Told with this session's state free: two sessions telling each
+        // other at once would otherwise wait for each other.
+        if let Some(text) = echo {
+            self.echo_to_peers(&text);
+        }
         result
     }
 
@@ -1114,6 +1155,7 @@ impl Shared {
         if st.incoming.is_none() {
             st.autosave.changed(Instant::now());
             st.save = SaveState::Pending;
+            st.echo = true;
             self.inner.editors.wake();
         }
     }
@@ -1276,6 +1318,13 @@ fn format_of(format: FormatKind) -> markdown::Format {
         FormatKind::Image => markdown::Format::Image,
         FormatKind::Table => markdown::Format::Table,
         FormatKind::Rule => markdown::Format::Rule,
+        FormatKind::Heading1 => markdown::Format::Heading(1),
+        FormatKind::Heading2 => markdown::Format::Heading(2),
+        FormatKind::Heading3 => markdown::Format::Heading(3),
+        FormatKind::Heading4 => markdown::Format::Heading(4),
+        FormatKind::Heading5 => markdown::Format::Heading(5),
+        FormatKind::Heading6 => markdown::Format::Heading(6),
+        FormatKind::CodeBlock => markdown::Format::CodeBlock,
     }
 }
 
@@ -1735,6 +1784,7 @@ impl Shared {
                 // nothing left to choose between.
                 st.incoming = None;
                 let rev = note.rev.clone().unwrap_or_default();
+                self.inner.editors.note_written(&rev);
                 st.note = *note;
                 let at_ms = now_ms();
                 events.push(EditorEvent::Saved {
@@ -1748,6 +1798,7 @@ impl Shared {
                 st.note = *latest;
                 st.incoming = None;
                 let rev = st.note.rev.clone().unwrap_or_default();
+                self.inner.editors.note_written(&rev);
                 self.settled(st, rev, now_ms());
                 true
             }
@@ -2016,9 +2067,29 @@ impl Shared {
                 }
                 // Another writer saved what this session shows.
                 if st.lock_matches(&latest) && has_text(&latest, &st.title, &st.full_body()) {
+                    let was_pending = matches!(st.save, SaveState::Pending);
                     st.note = latest;
                     st.incoming = None;
                     st.save = saved_as(&st.note);
+                    if was_pending && let SaveState::Saved { rev, at_ms } = st.save.clone() {
+                        // A peer's save of this text: this session is saved
+                        // by it, and its listener is told.
+                        events.push(EditorEvent::Saved { rev, at_ms });
+                    }
+                    return;
+                }
+                // A peer saved the text it had when it was written; this
+                // session has typed on since (and the peer has been told),
+                // so its base moves to the peer's version and what it has
+                // goes on being saved over it.
+                if st.unsaved()
+                    && st.lock_matches(&latest)
+                    && self
+                        .inner
+                        .editors
+                        .wrote(latest.rev.as_deref().unwrap_or_default())
+                {
+                    st.note = latest;
                     return;
                 }
                 Incoming::Changed(Box::new(latest))
@@ -2077,6 +2148,54 @@ impl Shared {
         st.save = saved_as(&note);
         st.note = note;
         st.version += 1;
+    }
+
+    // MARK: Peers
+
+    /// Hands the text to the other sessions open on this note, in this
+    /// library: a note in two windows shows what is typed in either at once.
+    /// Only the session typed in saves; the others take the save when it
+    /// reaches them through the store, their text being the same.
+    fn echo_to_peers(&self, text: &PeerText) {
+        for peer in self.inner.editors.live() {
+            if peer.id != self.id || std::ptr::eq(Arc::as_ptr(&peer), self) {
+                continue;
+            }
+            let _ = guard(|| {
+                peer.take_peer_text(text);
+                Ok(())
+            });
+        }
+    }
+
+    /// A peer's text becomes this session's, with the caret kept where it
+    /// was in the text around the change, and nothing to save here.
+    fn take_peer_text(&self, peer: &PeerText) {
+        self.with_state(|st, events| {
+            if st.end.is_some() || st.closing || st.incoming.is_some() {
+                return;
+            }
+            if st.title == peer.title && st.hidden == peer.hidden && st.text == peer.text {
+                return;
+            }
+            let selection = shifted(&st.text, &peer.text, &st.selection);
+            st.title = peer.title.clone();
+            st.hidden = peer.hidden.clone();
+            st.text = peer.text.clone();
+            st.index = Utf16Index::new(&st.text);
+            st.selection = selection;
+            st.composing = false;
+            // The history is of the typing here; the peer's typing is not
+            // in it, so a step back could not be told from a lost edit.
+            st.history.clear();
+            st.version += 1;
+            if st.unsaved() {
+                st.save = SaveState::Pending;
+            }
+            events.push(EditorEvent::Reloaded {
+                snapshot: st.snapshot(),
+            });
+        });
     }
 
     // MARK: The lock
@@ -2140,7 +2259,57 @@ impl Shared {
     }
 }
 
+/// `selection` of `old`, moved to where the same place is in `new`, which
+/// differs from it by one change: what lies before the change stays, what
+/// lies after moves with it, and what is inside it goes to its start.
+fn shifted(old: &str, new: &str, selection: &Range<usize>) -> Range<usize> {
+    let mut prefix = old
+        .bytes()
+        .zip(new.bytes())
+        .take_while(|(a, b)| a == b)
+        .count();
+    while !old.is_char_boundary(prefix) || !new.is_char_boundary(prefix) {
+        prefix -= 1;
+    }
+    let room = old.len().min(new.len()) - prefix;
+    let mut suffix = old
+        .bytes()
+        .rev()
+        .zip(new.bytes().rev())
+        .take(room)
+        .take_while(|(a, b)| a == b)
+        .count();
+    while !old.is_char_boundary(old.len() - suffix) || !new.is_char_boundary(new.len() - suffix) {
+        suffix -= 1;
+    }
+    let old_end = old.len() - suffix;
+    let new_end = new.len() - suffix;
+    let moved = |at: usize| {
+        if at <= prefix {
+            at
+        } else if at >= old_end {
+            new_end + (at - old_end)
+        } else {
+            prefix
+        }
+    };
+    moved(selection.start)..moved(selection.end)
+}
+
 impl State {
+    /// The text to hand to the other sessions on the note, if it changed
+    /// since they were last told.
+    fn take_echo(&mut self) -> Option<PeerText> {
+        if !std::mem::take(&mut self.echo) || self.end.is_some() || self.closing {
+            return None;
+        }
+        Some(PeerText {
+            title: self.title.clone(),
+            hidden: self.hidden.clone(),
+            text: self.text.clone(),
+        })
+    }
+
     /// Whether `latest` is locked as the open note is.
     fn lock_matches(&self, latest: &Note) -> bool {
         self.note.is_locked() == latest.is_locked()

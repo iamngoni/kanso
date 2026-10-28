@@ -40,8 +40,7 @@ abstract class LibraryIndexState with _$LibraryIndexState {
     @Default(<StatusChoice>[]) List<StatusChoice> statuses,
 
     /// The notebooks opened or folded with their arrows.
-    @Default(FoldState(open: <String>[], folded: <String>[]))
-    FoldState folds,
+    @Default(FoldState(open: <String>[], folded: <String>[])) FoldState folds,
 
     /// The tag levels opened with their arrows, by lower-case path.
     @Default(<String>[]) List<String> openTags,

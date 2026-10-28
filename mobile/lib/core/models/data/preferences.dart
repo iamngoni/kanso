@@ -68,6 +68,25 @@ abstract class Preferences with _$Preferences {
     /// The notebook new notes go in, unless they are made from a notebook's
     /// own list. Null, or one that is gone or locked, is the first notebook.
     String? defaultNotebookId,
+
+    /// The notes open as tabs on a tablet, left to right (the desktop keeps
+    /// them in its settings too). Notes that are gone by the next start are
+    /// dropped then. Empty on a phone, which has no tabs.
+    @Default(<String>[]) List<String> openTabs,
+
+    /// The index in [openTabs] of the tab that was showing.
+    @Default(0) int activeTab,
+
+    /// Whether pictures attached to notes are read on this device for search.
+    @Default(false) bool searchImageText,
+
+    /// Whether this phone may show reminders for tasks with a due time.
+    /// Notification permission is asked separately by the operating system.
+    @Default(true) bool remindersEnabled,
+
+    /// Whether the open note is shown by itself, without the library, the
+    /// list, tabs or the note's bars.
+    @Default(false) bool focusMode,
   }) = _Preferences;
 
   factory Preferences.fromJson(Map<String, dynamic> json) =>

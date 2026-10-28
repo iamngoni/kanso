@@ -7,7 +7,7 @@
 //! not): its text is only ever returned by [`Library::note`] and read for
 //! [`Library::properties`] and the preview when a key this session holds
 //! opens it. A place that is made of what a note holds (a tag, a status, a
-//! tag search) leaves a locked note out.
+//! tag, status or tag search) leaves a locked note out.
 
 use std::time::Instant;
 
@@ -19,7 +19,7 @@ use kanso_core::{DocType, Note, NoteStatus, new_id, now_ms};
 use kanso_engine::links::tags::apply_inline_tags;
 use kanso_engine::list::{self, DAY_MS, DateKey, Filter, RECENT_DAYS};
 use kanso_engine::lock::LockView;
-use kanso_store::{Origin, Put, SearchParams, Sort};
+use kanso_store::{NoteSummary, Origin, Put, SearchParams, Sort};
 use serde_json::{Value, json};
 
 use crate::boundary::{guard, held};
@@ -38,45 +38,11 @@ impl Library {
     /// pinned notes first (Recent is newest edit first, whatever the sort),
     /// narrowed to one status or to pinned notes when asked. A locked note is
     /// listed with its title and its lock; its snippet, tags, status and
-    /// tasks are empty, and a place made of tags or a status leaves it out.
+    /// tasks are empty, and a place made of tags, a status or a tag search
+    /// leaves it out.
     pub fn list(&self, query: ListQuery) -> Result<NoteList, KansoError> {
         guard(|| {
-            let filter = match &query.place {
-                ListPlace::All => Filter::All,
-                ListPlace::Pinned => Filter::Pinned,
-                ListPlace::Recent => Filter::Recent,
-                ListPlace::Notebook { id } => Filter::Book(id.clone()),
-                ListPlace::Tag { id } => Filter::Tag(id.clone()),
-                ListPlace::Status { status } => Filter::Status(parse_status(status)?),
-                ListPlace::TagPath { path } => Filter::TagPath(path.clone()),
-                ListPlace::Trash => Filter::Trash,
-            };
-            let sort = match query.sort {
-                SortKey::Updated => Sort::UpdatedAt,
-                SortKey::Created => Sort::CreatedAt,
-                SortKey::Title => Sort::Title,
-            };
-            let mut params = list::search_params(&filter, "", sort, query.descending);
-            let status = match &query.status_only {
-                Some(status) => Some(parse_status(status)?),
-                None => None,
-            };
-            list::refine_status(&mut params, status);
-            let mut notes = list::list_notes(
-                &self.inner.store,
-                &filter,
-                &params,
-                query.pinned_only,
-                recent_since(),
-            )?;
-            if status.is_some()
-                || matches!(
-                    query.place,
-                    ListPlace::Tag { .. } | ListPlace::Status { .. } | ListPlace::TagPath { .. }
-                )
-            {
-                notes.retain(|note| !note.locked);
-            }
+            let (notes, filter, sort) = self.listed(&query)?;
             let shape = list::shape(&filter, query.pinned_only, sort);
             Ok(NoteList {
                 rows: notes.into_iter().map(row).collect(),
@@ -95,6 +61,55 @@ impl Library {
                 },
             })
         })
+    }
+
+    /// The notes `query` lists, in order, as the store has them (a locked
+    /// note's snippet and tags are for [`row`] to hide), and the filter and
+    /// sort that made them.
+    pub(crate) fn listed(
+        &self,
+        query: &ListQuery,
+    ) -> Result<(Vec<NoteSummary>, Filter, Sort), KansoError> {
+        let filter = match &query.place {
+            ListPlace::All => Filter::All,
+            ListPlace::Pinned => Filter::Pinned,
+            ListPlace::Recent => Filter::Recent,
+            ListPlace::Notebook { id } => Filter::Book(id.clone()),
+            ListPlace::Tag { id } => Filter::Tag(id.clone()),
+            ListPlace::Status { status } => Filter::Status(parse_status(status)?),
+            ListPlace::TagPath { path } => Filter::TagPath(path.clone()),
+            ListPlace::Trash => Filter::Trash,
+        };
+        let sort = match query.sort {
+            SortKey::Updated => Sort::UpdatedAt,
+            SortKey::Created => Sort::CreatedAt,
+            SortKey::Title => Sort::Title,
+        };
+        let mut params = list::search_params(&filter, "", sort, query.descending);
+        let status = match &query.status_only {
+            Some(status) => Some(
+                NoteStatus::parse(status)
+                    .ok_or_else(|| KansoError::invalid(format!("“{status}” isn't a status.")))?,
+            ),
+            None => None,
+        };
+        list::refine_status(&mut params, status);
+        let mut notes = list::list_notes(
+            &self.inner.store,
+            &filter,
+            &params,
+            query.pinned_only,
+            recent_since(),
+        )?;
+        if status.is_some()
+            || matches!(
+                query.place,
+                ListPlace::Tag { .. } | ListPlace::Status { .. } | ListPlace::TagPath { .. }
+            )
+        {
+            notes.retain(|note| !note.locked);
+        }
+        Ok((notes, filter, sort))
     }
 
     /// How many notes each place of the library lists.
@@ -580,7 +595,7 @@ pub(crate) fn notebook_rows(books: &[kanso_core::Book]) -> Vec<NotebookRow> {
 /// A list row. A locked note's row is its title and its lock: whatever the
 /// store holds of its snippet, tags, status and tasks, none of it is passed
 /// on.
-fn row(summary: kanso_store::NoteSummary) -> NoteRow {
+pub(crate) fn row(summary: kanso_store::NoteSummary) -> NoteRow {
     let locked = summary.locked;
     NoteRow {
         id: summary.id,

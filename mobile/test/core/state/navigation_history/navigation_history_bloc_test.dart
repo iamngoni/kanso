@@ -36,7 +36,7 @@ void main() {
     });
   });
 
-  NavigationHistoryBloc build() => NavigationHistoryBloc(library);
+  NavigationHistoryBloc build() => NavigationHistoryBloc(library, null);
 
   NavigationHistoryEvent visit(String id) => NavigationHistoryEvent.visited(id);
 

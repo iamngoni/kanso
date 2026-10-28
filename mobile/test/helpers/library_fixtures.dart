@@ -39,7 +39,8 @@ NotebookRow notebookRow(
     count: count,
     locked: locked,
     role: role,
-    depth: depth, hasChildren: false,
+    depth: depth,
+    hasChildren: false,
   );
 }
 
@@ -175,7 +176,8 @@ const LibraryOverview mockOverview = LibraryOverview(
   all: 142,
   pinned: 3,
   recent: 11,
-  trash: 4, byStatus: <StatusCount>[],
+  trash: 4,
+  byStatus: <StatusCount>[],
 );
 
 /// A row of a list, with the facts the mock list shows.
@@ -368,6 +370,24 @@ final NoteView mockOpenNote = NoteView(
   pinned: false,
   createdMs: mockMs(10, 12, 8, 5),
   updatedMs: mockMs(10, 26, 9, 41),
+);
+
+/// The daily note of Monday 26 October 2026 in the Journal notebook.
+final NoteView mockDailyNote = NoteView(
+  id: 'note:daily-2026-10-26',
+  rev: '1-note:daily',
+  title: 'Monday, October 26',
+  body:
+      '# Monday, October 26\n\n- [ ] Call about the allotment '
+      '@2026-10-26T09:00\n'
+      '- [x] Plan the beds\n\nSlept well. The sourdough finally rose.\n',
+  lock: const LockState.plain(),
+  notebookId: MockIds.journal,
+  tags: const <String>[],
+  status: 'none',
+  pinned: false,
+  createdMs: mockMs(10, 26, 7, 30),
+  updatedMs: mockMs(10, 26, 7, 45),
 );
 
 /// The locked note of the mock screens, closed: its title and its lock.

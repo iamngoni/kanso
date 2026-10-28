@@ -131,10 +131,10 @@ return retried(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String id,  String themeId)?  started,TResult Function( List<String> ids)?  changesReceived,TResult Function( String themeId)?  syntaxThemeChanged,TResult Function( NoteMode mode,  int? bodyCaret)?  modeChanged,TResult Function( int caret,  double scroll)?  placeKept,TResult Function()?  retried,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String id,  String themeId,  int? bodyLine,  int? cursor16,  bool titleFirst)?  started,TResult Function( List<String> ids)?  changesReceived,TResult Function( String themeId)?  syntaxThemeChanged,TResult Function( NoteMode mode,  int? bodyCaret)?  modeChanged,TResult Function( int caret,  double scroll)?  placeKept,TResult Function()?  retried,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case NoteStartedEvent() when started != null:
-return started(_that.id,_that.themeId);case NoteChangesReceivedEvent() when changesReceived != null:
+return started(_that.id,_that.themeId,_that.bodyLine,_that.cursor16,_that.titleFirst);case NoteChangesReceivedEvent() when changesReceived != null:
 return changesReceived(_that.ids);case NoteSyntaxThemeChangedEvent() when syntaxThemeChanged != null:
 return syntaxThemeChanged(_that.themeId);case NoteModeChangedEvent() when modeChanged != null:
 return modeChanged(_that.mode,_that.bodyCaret);case NotePlaceKeptEvent() when placeKept != null:
@@ -157,10 +157,10 @@ return retried();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String id,  String themeId)  started,required TResult Function( List<String> ids)  changesReceived,required TResult Function( String themeId)  syntaxThemeChanged,required TResult Function( NoteMode mode,  int? bodyCaret)  modeChanged,required TResult Function( int caret,  double scroll)  placeKept,required TResult Function()  retried,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String id,  String themeId,  int? bodyLine,  int? cursor16,  bool titleFirst)  started,required TResult Function( List<String> ids)  changesReceived,required TResult Function( String themeId)  syntaxThemeChanged,required TResult Function( NoteMode mode,  int? bodyCaret)  modeChanged,required TResult Function( int caret,  double scroll)  placeKept,required TResult Function()  retried,}) {final _that = this;
 switch (_that) {
 case NoteStartedEvent():
-return started(_that.id,_that.themeId);case NoteChangesReceivedEvent():
+return started(_that.id,_that.themeId,_that.bodyLine,_that.cursor16,_that.titleFirst);case NoteChangesReceivedEvent():
 return changesReceived(_that.ids);case NoteSyntaxThemeChangedEvent():
 return syntaxThemeChanged(_that.themeId);case NoteModeChangedEvent():
 return modeChanged(_that.mode,_that.bodyCaret);case NotePlaceKeptEvent():
@@ -179,10 +179,10 @@ return retried();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String id,  String themeId)?  started,TResult? Function( List<String> ids)?  changesReceived,TResult? Function( String themeId)?  syntaxThemeChanged,TResult? Function( NoteMode mode,  int? bodyCaret)?  modeChanged,TResult? Function( int caret,  double scroll)?  placeKept,TResult? Function()?  retried,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String id,  String themeId,  int? bodyLine,  int? cursor16,  bool titleFirst)?  started,TResult? Function( List<String> ids)?  changesReceived,TResult? Function( String themeId)?  syntaxThemeChanged,TResult? Function( NoteMode mode,  int? bodyCaret)?  modeChanged,TResult? Function( int caret,  double scroll)?  placeKept,TResult? Function()?  retried,}) {final _that = this;
 switch (_that) {
 case NoteStartedEvent() when started != null:
-return started(_that.id,_that.themeId);case NoteChangesReceivedEvent() when changesReceived != null:
+return started(_that.id,_that.themeId,_that.bodyLine,_that.cursor16,_that.titleFirst);case NoteChangesReceivedEvent() when changesReceived != null:
 return changesReceived(_that.ids);case NoteSyntaxThemeChangedEvent() when syntaxThemeChanged != null:
 return syntaxThemeChanged(_that.themeId);case NoteModeChangedEvent() when modeChanged != null:
 return modeChanged(_that.mode,_that.bodyCaret);case NotePlaceKeptEvent() when placeKept != null:
@@ -199,11 +199,14 @@ return retried();case _:
 
 
 class NoteStartedEvent implements NoteEvent {
-  const NoteStartedEvent(this.id, this.themeId);
+  const NoteStartedEvent(this.id, this.themeId, {this.bodyLine, this.cursor16, this.titleFirst = false});
   
 
  final  String id;
  final  String themeId;
+ final  int? bodyLine;
+ final  int? cursor16;
+@JsonKey() final  bool titleFirst;
 
 /// Create a copy of NoteEvent
 /// with the given fields replaced by the non-null parameter values.
@@ -215,16 +218,16 @@ $NoteStartedEventCopyWith<NoteStartedEvent> get copyWith => _$NoteStartedEventCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NoteStartedEvent&&(identical(other.id, id) || other.id == id)&&(identical(other.themeId, themeId) || other.themeId == themeId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NoteStartedEvent&&(identical(other.id, id) || other.id == id)&&(identical(other.themeId, themeId) || other.themeId == themeId)&&(identical(other.bodyLine, bodyLine) || other.bodyLine == bodyLine)&&(identical(other.cursor16, cursor16) || other.cursor16 == cursor16)&&(identical(other.titleFirst, titleFirst) || other.titleFirst == titleFirst));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,themeId);
+int get hashCode => Object.hash(runtimeType,id,themeId,bodyLine,cursor16,titleFirst);
 
 @override
 String toString() {
-  return 'NoteEvent.started(id: $id, themeId: $themeId)';
+  return 'NoteEvent.started(id: $id, themeId: $themeId, bodyLine: $bodyLine, cursor16: $cursor16, titleFirst: $titleFirst)';
 }
 
 
@@ -235,7 +238,7 @@ abstract mixin class $NoteStartedEventCopyWith<$Res> implements $NoteEventCopyWi
   factory $NoteStartedEventCopyWith(NoteStartedEvent value, $Res Function(NoteStartedEvent) _then) = _$NoteStartedEventCopyWithImpl;
 @useResult
 $Res call({
- String id, String themeId
+ String id, String themeId, int? bodyLine, int? cursor16, bool titleFirst
 });
 
 
@@ -252,11 +255,14 @@ class _$NoteStartedEventCopyWithImpl<$Res>
 
 /// Create a copy of NoteEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? themeId = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? themeId = null,Object? bodyLine = freezed,Object? cursor16 = freezed,Object? titleFirst = null,}) {
   return _then(NoteStartedEvent(
 null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,null == themeId ? _self.themeId : themeId // ignore: cast_nullable_to_non_nullable
-as String,
+as String,bodyLine: freezed == bodyLine ? _self.bodyLine : bodyLine // ignore: cast_nullable_to_non_nullable
+as int?,cursor16: freezed == cursor16 ? _self.cursor16 : cursor16 // ignore: cast_nullable_to_non_nullable
+as int?,titleFirst: null == titleFirst ? _self.titleFirst : titleFirst // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

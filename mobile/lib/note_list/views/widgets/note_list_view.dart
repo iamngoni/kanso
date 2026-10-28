@@ -4,6 +4,7 @@
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,6 +22,7 @@ import '../../../core/views/widgets/kanso_large_title.dart';
 import '../../../core/views/widgets/kanso_refresh_control.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_swipe_host.dart';
+import '../../../tabs/state/tabs/tabs_bloc.dart';
 import '../../models/data/note_list_entry.dart';
 import '../../state/note_list/note_list_bloc.dart';
 import 'note_list_row.dart';
@@ -64,6 +66,8 @@ class NoteListView extends StatelessWidget {
     final byCreated = state.shape?.date == DateField.created;
     final entries = state.entries;
     final bloc = context.read<NoteListBloc>();
+    // With panes for tabs a note can open in a new tab.
+    final tabs = context.select<TabsBloc, bool>((tabs) => tabs.state.enabled);
     // Only an account has anything to pull: a phone that is signed out
     // just bounces.
     final signedIn = context.select<SyncStatusBloc, bool>(
@@ -125,7 +129,14 @@ class NoteListView extends StatelessWidget {
                             : null,
                         onTap: () => state.selecting
                             ? bloc.add(NoteListEvent.selectionToggled(row.id))
-                            : openNote(context, row.id),
+                            : openNote(
+                                context,
+                                row.id,
+                                inNewTab: tabs && newTabKeyHeld(),
+                              ),
+                        onOpenInNewTab: tabs && !state.selecting
+                            ? () => openNote(context, row.id, inNewTab: true)
+                            : null,
                         onLongPress: () => state.selecting
                             ? bloc.add(NoteListEvent.selectionToggled(row.id))
                             : bloc.add(NoteListEvent.selectionStarted(row.id)),
@@ -148,8 +159,21 @@ class NoteListView extends StatelessWidget {
     return sync.stream.firstWhere((state) => !state.syncing);
   }
 
-  /// Opens the note [id] in the place being listed, and tells the history.
-  void openNote(BuildContext context, String id) {
+  /// Whether ⌘ (Ctrl on Android) is held: with a pointer, a click on a note
+  /// then opens it in a new tab.
+  @visibleForTesting
+  static bool newTabKeyHeld() {
+    final keyboard = HardwareKeyboard.instance;
+    return keyboard.isMetaPressed || keyboard.isControlPressed;
+  }
+
+  /// Opens the note [id] in the place being listed, and tells the history;
+  /// or, with [inNewTab], in a new tab (the tabs then open it).
+  void openNote(BuildContext context, String id, {bool inNewTab = false}) {
+    if (inNewTab) {
+      context.read<TabsBloc>().add(TabsEvent.openedInNewTab(id));
+      return;
+    }
     context.read<NavigationHistoryBloc>().add(
       NavigationHistoryEvent.visited(id),
     );

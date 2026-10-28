@@ -9,29 +9,25 @@
 //! reading the image again. Windows and Linux have no reader: they skip it
 //! and still search text another device read.
 //!
-//! The reader is behind [`TextReader`], so tests use a fake.
+//! The reader is behind [`TextReader`], so tests use a fake. Which image is
+//! next, and keeping what was read, are the engine's
+//! (`kanso_engine::discovery::ocr`), which the phones read through their own
+//! reader with. Only images a note shows that may be read are offered: not
+//! those only a locked note or a note tagged `#ai-exclude` shows.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use gpui_kit::{App, Global, Task};
-use kanso_store::Store;
-
 use crate::workspace::AppState;
+use gpui_kit::{App, Global, Task};
+
+pub use kanso_engine::discovery::ocr::{Status, TextReader, read_next};
 
 /// The pause between images, so reading many never crowds the app.
 const IMAGE_PAUSE: Duration = Duration::from_millis(120);
 /// How long attachments stay still before new ones are read.
 const SETTLE: Duration = Duration::from_millis(2000);
-
-/// Reads the words in an image.
-pub trait TextReader: Send + Sync {
-    /// Names the reader in the file's `kansoOcr`.
-    fn engine(&self) -> &'static str;
-    /// The image's words, line by line; empty when it has none.
-    fn read(&self, image: &[u8]) -> Result<String, String>;
-}
 
 /// The system's reader, where there is one.
 pub fn system_reader() -> Option<Arc<dyn TextReader>> {
@@ -50,17 +46,6 @@ pub fn supported() -> bool {
     cfg!(target_os = "macos")
 }
 
-/// Where reading stands.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum Status {
-    #[default]
-    Off,
-    /// Reading: how many images are left.
-    Reading { left: usize },
-    /// Every image is read.
-    Idle,
-}
-
 #[derive(Default)]
 pub struct ImageText {
     pub status: Status,
@@ -69,26 +54,6 @@ pub struct ImageText {
 }
 
 impl Global for ImageText {}
-
-/// Reads the next unread image, if there is one: returns how many were
-/// waiting (this one included), 0 when none. An image the reader can't
-/// read is kept as having no words, so it isn't tried again until its
-/// bytes change.
-pub fn read_next(store: &Store, reader: &dyn TextReader) -> kanso_store::Result<usize> {
-    let waiting = store.unread_images(64)?;
-    let Some(image) = waiting.first() else {
-        return Ok(0);
-    };
-    let text = match store.attachment(&image.id)? {
-        Some((_, attachment)) => reader.read(&attachment.data).unwrap_or_else(|err| {
-            eprintln!("kanso: couldn't read the text in {}: {err}", image.id);
-            String::new()
-        }),
-        None => String::new(),
-    };
-    store.set_image_text(&image.id, &image.md5, text.trim(), reader.engine())?;
-    Ok(waiting.len())
-}
 
 fn set_status(status: Status, cx: &mut App) {
     let state = cx.default_global::<ImageText>();
@@ -150,7 +115,12 @@ fn start(cx: &mut App) {
                         let Ok(change) = changes.recv().await else {
                             return;
                         };
-                        if change.id.starts_with("file:") && !change.deleted {
+                        // A new picture, or a note that may now show one
+                        // (or no longer be locked or excluded).
+                        if (change.id.starts_with("file:") && !change.deleted)
+                            || change.id.starts_with("note:")
+                            || change.id.starts_with("tag:")
+                        {
                             break;
                         }
                     }
@@ -226,97 +196,11 @@ mod vision {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::*;
-    use base64::Engine as _;
-    use kanso_core::DocType;
-    use kanso_store::{Origin, Put};
-    use serde_json::json;
-    use std::sync::Mutex;
-
-    /// Says what it was given, and counts.
-    struct Fake(Mutex<usize>, bool);
-
-    impl TextReader for Fake {
-        fn engine(&self) -> &'static str {
-            "fake"
-        }
-        fn read(&self, image: &[u8]) -> Result<String, String> {
-            *self.0.lock().unwrap() += 1;
-            if self.1 {
-                return Err("unreadable".into());
-            }
-            Ok(format!("words of {}", String::from_utf8_lossy(image)))
-        }
-    }
-
-    fn attach(store: &Store, bytes: &[u8], content_type: &str) -> String {
-        store
-            .put(
-                DocType::File,
-                json!({
-                    "name": "a",
-                    "contentType": content_type,
-                    "_attachments": {"index": {
-                        "content_type": content_type,
-                        "data": base64::engine::general_purpose::STANDARD.encode(bytes),
-                    }},
-                }),
-                Put::Upsert,
-                Origin::Ui,
-            )
-            .unwrap()
-            .id
-    }
-
-    #[test]
-    fn images_are_read_once_and_again_when_they_change() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = Store::open(dir.path().join("k.db")).unwrap();
-        let png = attach(&store, b"one", "image/png");
-        attach(&store, b"<svg/>", "image/svg+xml");
-        let reader = Fake(Mutex::new(0), false);
-        assert_eq!(read_next(&store, &reader).unwrap(), 1);
-        assert_eq!(read_next(&store, &reader).unwrap(), 0);
-        assert_eq!(*reader.0.lock().unwrap(), 1);
-        assert_eq!(
-            store.image_text(&png).unwrap().as_deref(),
-            Some("words of one")
-        );
-        // New bytes: read again.
-        let rev = store.get(&png).unwrap().unwrap().rev;
-        store
-            .put(
-                DocType::File,
-                json!({"_id": png, "_rev": rev, "_attachments": {"index": {
-                    "content_type": "image/png",
-                    "data": base64::engine::general_purpose::STANDARD.encode(b"two"),
-                }}}),
-                Put::Merge,
-                Origin::Ui,
-            )
-            .unwrap();
-        assert_eq!(read_next(&store, &reader).unwrap(), 1);
-        assert_eq!(
-            store.image_text(&png).unwrap().as_deref(),
-            Some("words of two")
-        );
-    }
-
-    #[test]
-    fn an_unreadable_image_is_not_tried_forever() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = Store::open(dir.path().join("k.db")).unwrap();
-        let png = attach(&store, b"x", "image/jpeg");
-        let reader = Fake(Mutex::new(0), true);
-        assert_eq!(read_next(&store, &reader).unwrap(), 1);
-        assert_eq!(read_next(&store, &reader).unwrap(), 0);
-        assert_eq!(store.image_text(&png).unwrap().as_deref(), Some(""));
-    }
 
     /// "KANSO" in big block letters, black on white, as a PNG.
-    #[cfg(target_os = "macos")]
     fn kanso_png() -> Vec<u8> {
         const GLYPHS: [[&str; 7]; 5] = [
             [
@@ -360,7 +244,6 @@ mod tests {
     }
 
     /// Reads a real picture with Vision.
-    #[cfg(target_os = "macos")]
     #[test]
     #[ignore = "uses the system's Vision framework; run on demand"]
     fn vision_reads_words() {

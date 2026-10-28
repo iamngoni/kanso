@@ -217,6 +217,43 @@ macro_rules! note_locked {
 }
 pub(crate) use note_locked;
 
+/// Whether a note is tagged `#ai-exclude` (by the tag's name, however it is
+/// written): the same rule retrieval and the agents' notes server apply.
+/// The argument is the `docs` table's alias with its dot (`"d."`).
+macro_rules! ai_excluded {
+    ($d:literal) => {
+        concat!(
+            "EXISTS (SELECT 1 FROM note_tags nt JOIN docs t ON t.id = nt.tag_id
+                WHERE nt.note_id = ",
+            $d,
+            "id AND t.deleted = 0 AND kanso_ai_exclude(json_extract(t.json, '$.name')))"
+        )
+    };
+}
+pub(crate) use ai_excluded;
+
+/// Whether a live note outside the trash may be embedded, read for its
+/// words by the discovery features and shown to them: it isn't locked
+/// (sealed, or in a locked notebook) and isn't tagged `#ai-exclude`.
+macro_rules! discoverable {
+    ($d:literal) => {
+        concat!(
+            "(",
+            $d,
+            "type = 'note' AND ",
+            $d,
+            "deleted = 0 AND IFNULL(",
+            $d,
+            "book_id, '') != 'trash' AND NOT ",
+            $crate::schema::note_locked!($d),
+            " AND NOT ",
+            $crate::schema::ai_excluded!($d),
+            ")"
+        )
+    };
+}
+pub(crate) use discoverable;
+
 pub fn connect(path: &Path) -> Result<Connection> {
     let conn = Connection::open(path)?;
     conn.busy_timeout(std::time::Duration::from_secs(5))?;
@@ -258,6 +295,16 @@ pub fn connect(path: &Path) -> Result<Connection> {
             Ok(kanso_core::properties::front_matter(&body)
                 .unwrap_or_default()
                 .to_owned())
+        },
+    )?;
+    // Whether a tag's name is `#ai-exclude`.
+    conn.create_scalar_function(
+        "kanso_ai_exclude",
+        1,
+        FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+        |ctx| {
+            let name = ctx.get::<Option<String>>(0)?.unwrap_or_default();
+            Ok(kanso_core::tags::is_ai_exclude(&name))
         },
     )?;
     // A title as wiki-links match it.

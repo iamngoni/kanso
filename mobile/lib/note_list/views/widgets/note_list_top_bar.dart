@@ -23,6 +23,7 @@ class NoteListTopBar extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.onSearch,
+    this.onNew,
     this.onOptions,
     this.onNewNote,
     this.onNewNoteHeld,
@@ -34,6 +35,9 @@ class NoteListTopBar extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? onSearch;
+
+  /// Opens the menu for making notes; the bar has no new button without it.
+  final VoidCallback? onNew;
   final VoidCallback? onOptions;
   final VoidCallback? onNewNote;
   final VoidCallback? onNewNoteHeld;
@@ -73,6 +77,12 @@ class NoteListTopBar extends StatelessWidget {
             icon: KansoIcons.search,
             semanticLabel: l10n.noteSearch,
             onPressed: onSearch,
+          ),
+        if (onNew != null)
+          KansoIconButton(
+            icon: KansoIcons.plus,
+            semanticLabel: l10n.newMenuLabel,
+            onPressed: onNew,
           ),
         KansoIconButton(
           icon: KansoIcons.ellipsis,

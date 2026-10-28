@@ -16,9 +16,9 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::tasks::Due;
+use kanso_engine::board::{Board, BoardKind, Card, CardId, Lane, Move, Written, cards, write_move};
 use kanso_store::{Sort, Store, TaskQuery};
 
-use crate::board::{Board, BoardKind, Card, CardId, Lane, Move, cards};
 use crate::clock::Clock;
 use crate::due::{Tone, chip_colors, chip_label, tone};
 use crate::icon_themes::{Slot, library_icon};
@@ -835,9 +835,9 @@ impl Workspace {
         }
         self.flush(cx);
         let now = Clock::now_ms(cx);
-        match crate::board::write_move(&self.store, mv, now) {
-            Ok(crate::board::Written::Done) => {}
-            Ok(crate::board::Written::Moved) => {
+        match write_move(&self.store, mv, now) {
+            Ok(Written::Done) => {}
+            Ok(Written::Moved) => {
                 window.push_notification(
                     Notification::info(
                         "That task changed in its note. The board is up to date now.",

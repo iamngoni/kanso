@@ -12,14 +12,20 @@ part 'browse_location.freezed.dart';
 /// Where in the notes the person is: a place or a search, and the note open
 /// in it, if any. It is what the app's address (`/notes/note/n1`,
 /// `/search?q=tea`) says, and [location] and [BrowseLocation.parse] turn it
-/// into that address and back.
+/// into that address and back. A place can show its notes as a board
+/// (`/notes/board?kind=tasks`) instead of a note.
 ///
 /// Ids are written with `Uri.encodeComponent`: note ids contain `:`.
 @freezed
 sealed class BrowseLocation with _$BrowseLocation {
   /// A list of notes: a place of the library.
-  const factory BrowseLocation.place(ListPlace place, {String? noteId}) =
-      PlaceLocation;
+  const factory BrowseLocation.place(
+    ListPlace place, {
+    String? noteId,
+
+    /// The board of the place's notes shown instead of a note.
+    BoardKind? board,
+  }) = PlaceLocation;
 
   /// A search for [query] in [scope]. [notebookId] is the notebook it was
   /// opened from, the one the notebook scope looks in.
@@ -39,7 +45,10 @@ sealed class BrowseLocation with _$BrowseLocation {
   String get location {
     final note = noteId == null ? '' : '/note/${Uri.encodeComponent(noteId!)}';
     return switch (this) {
-      PlaceLocation(:final place) => '${_placePath(place)}$note',
+      PlaceLocation(:final place, :final board) =>
+        board == null
+            ? '${_placePath(place)}$note'
+            : '${_placePath(place)}/board${_boardQuery(board)}',
       SearchLocation(:final query, :final scope, :final notebookId) =>
         '/search$note${_searchQuery(query, scope, notebookId)}',
       TasksLocation() => '/tasks$note',
@@ -48,14 +57,14 @@ sealed class BrowseLocation with _$BrowseLocation {
 
   /// This location with the note [id] open.
   BrowseLocation withNote(String id) => switch (this) {
-    final PlaceLocation here => here.copyWith(noteId: id),
+    final PlaceLocation here => here.copyWith(noteId: id, board: null),
     final SearchLocation here => here.copyWith(noteId: id),
     final TasksLocation here => here.copyWith(noteId: id),
   };
 
   /// This location with no note open: the list alone.
   BrowseLocation get withoutNote => switch (this) {
-    final PlaceLocation here => here.copyWith(noteId: null),
+    final PlaceLocation here => here.copyWith(noteId: null, board: null),
     final SearchLocation here => here.copyWith(noteId: null),
     final TasksLocation here => here.copyWith(noteId: null),
   };
@@ -124,6 +133,14 @@ sealed class BrowseLocation with _$BrowseLocation {
       default:
         return null;
     }
+    if (tail.length == 1 && tail.first == 'board') {
+      return BrowseLocation.place(
+        place,
+        board: uri.queryParameters['kind'] == BoardKind.tasks.name
+            ? BoardKind.tasks
+            : BoardKind.notes,
+      );
+    }
     final noteId = _noteIdOf(tail);
     if (tail.isNotEmpty && noteId == null) {
       return null;
@@ -140,6 +157,9 @@ String? _noteIdOf(List<String> segments) {
   return null;
 }
 
+String _boardQuery(BoardKind kind) =>
+    kind == BoardKind.notes ? '' : '?kind=${kind.name}';
+
 String? _nonEmpty(String? value) =>
     value == null || value.isEmpty ? null : value;
 
@@ -150,10 +170,8 @@ String _placePath(ListPlace place) => switch (place) {
   ListPlace_Trash() => '/trash',
   ListPlace_Notebook(:final id) => '/notebooks/${Uri.encodeComponent(id)}',
   ListPlace_Tag(:final id) => '/tags/${Uri.encodeComponent(id)}',
-  ListPlace_Status(:final status) =>
-    '/statuses/${Uri.encodeComponent(status)}',
-  ListPlace_TagPath(:final path) =>
-    '/tag-paths/${Uri.encodeComponent(path)}',
+  ListPlace_Status(:final status) => '/statuses/${Uri.encodeComponent(status)}',
+  ListPlace_TagPath(:final path) => '/tag-paths/${Uri.encodeComponent(path)}',
 };
 
 String _searchQuery(String query, SearchScopeKind scope, String? notebookId) {

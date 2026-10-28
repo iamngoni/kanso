@@ -900,6 +900,187 @@ pub struct LocalTime {
     pub second: u32,
 }
 
+/// A calendar day.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DayDate {
+    pub year: i32,
+    /// 1 to 12.
+    pub month: u32,
+    /// 1 to 31.
+    pub day: u32,
+}
+
+/// A note found or made, for the app to open.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MadeNote {
+    pub id: String,
+    /// Where a template put `{{cursor}}`, as a UTF-16 offset into the text.
+    pub cursor16: Option<u32>,
+    /// Whether the keyboard goes to the title first: the note has none yet.
+    pub title_first: bool,
+}
+
+/// A day in the Journal's month calendar.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CalendarDay {
+    pub date: DayDate,
+    /// In the month itself, not a neighbour's.
+    pub in_month: bool,
+    /// The day has a daily note outside the trash.
+    pub has_note: bool,
+    pub is_today: bool,
+}
+
+/// A month in whole weeks, from the week's first day.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MonthGrid {
+    pub year: i32,
+    /// 1 to 12.
+    pub month: u32,
+    /// "October 2026".
+    pub title: String,
+    /// The weekdays' short names, in the weeks' order: "Mon" first, or "Sun".
+    pub weekday_labels: Vec<String>,
+    /// Four to six weeks of seven days.
+    pub weeks: Vec<Vec<CalendarDay>>,
+}
+
+/// A note in the Templates notebook.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TemplateRow {
+    pub id: String,
+    pub title: String,
+}
+
+/// What a board lays out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BoardKind {
+    /// Notes, in a column per status.
+    Notes,
+    /// Tasks, in To do and Done.
+    Tasks,
+}
+
+/// A board's column.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BoardLane {
+    /// A note status's column: `none`, `active`, `onHold`, `completed` or
+    /// `dropped`, as [`NoteRow::status`] says it.
+    Status {
+        status: String,
+    },
+    Todo,
+    Done,
+}
+
+/// Which card: a note, or a task in its note.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CardKey {
+    Note {
+        id: String,
+    },
+    /// The task as the note's text has it: its line and its words, so a note
+    /// that changed since the board was read isn't written to blindly.
+    Task {
+        note_id: String,
+        line: u32,
+        text: String,
+    },
+}
+
+/// A card and what it shows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoardCard {
+    pub key: CardKey,
+    /// A note's title, or a task's words as a list shows them.
+    pub title: String,
+    /// The note it opens.
+    pub note_title: String,
+    /// A few lines of a note's text; empty for a task and for a locked note.
+    pub snippet: String,
+    /// A task's due date, `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`.
+    pub due: Option<String>,
+    /// The chip its due date reads as; `None` for a card without a date.
+    pub due_chip: Option<DueChipRow>,
+    /// Whether a task is ticked.
+    pub checked: bool,
+    /// A locked note: its title and its lock, nothing of its text.
+    pub locked: bool,
+}
+
+/// A board's column with its cards.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoardColumn {
+    pub lane: BoardLane,
+    /// "Active", "To do".
+    pub label: String,
+    pub cards: Vec<BoardCard>,
+}
+
+/// A board: its columns, left to right.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoardView {
+    pub kind: BoardKind,
+    pub columns: Vec<BoardColumn>,
+}
+
+/// What moving a card did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardMoved {
+    Changed,
+    Unchanged,
+    Missing,
+}
+
+/// A due date's chip.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DueChipRow {
+    /// "Tomorrow", "Fri 25 Oct 09:00", "Overdue · Yesterday".
+    pub label: String,
+    pub tone: DueTone,
+    /// "Due Sunday, 25 October 2026 at 09:00".
+    pub tooltip: String,
+}
+
+/// A reminder to show: what the desktop's notification says, and which task
+/// it is.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReminderNote {
+    /// The task's reminder key; what an answer names.
+    pub key: String,
+    pub note_id: String,
+    /// The task's line (0-based) in its note.
+    pub line: u32,
+    /// The task's words as a list shows them.
+    pub title: String,
+    /// When it is due and in which note: "Today 09:00 · Plans".
+    pub body: String,
+    /// When it falls due, in local time.
+    pub fire_at: LocalTime,
+}
+
+/// The reminders to hand the system.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReminderPlan {
+    pub show_now: Vec<ReminderNote>,
+    pub schedule: Vec<ReminderNote>,
+}
+
+/// What the person did with a reminder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReminderAnswer {
+    Open,
+    MarkDone,
+    Dismiss,
+}
+
+/// A task to open: its note and its line (0-based).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskPlace {
+    pub note_id: String,
+    pub line: u32,
+}
+
 /// Something shared from inside the app (photos, the camera, a PDF), to be
 /// saved as a note in the Inbox ([`Library::capture`](crate::Library::capture)).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -1009,6 +1190,15 @@ pub enum FormatKind {
     Image,
     Table,
     Rule,
+    /// A heading of level 1 to 6. The accessory bar has no key for these;
+    /// the hardware keyboard's shortcuts do.
+    Heading1,
+    Heading2,
+    Heading3,
+    Heading4,
+    Heading5,
+    Heading6,
+    CodeBlock,
 }
 
 /// A change the editor decides on, from a key or a button.
@@ -1301,4 +1491,220 @@ pub struct TagPlaces {
     pub more: bool,
     /// The tree's rows that show, top to bottom.
     pub tree: Vec<TagTreeRow>,
+}
+
+/// Where a keyboard shortcut acts: the desktop's key contexts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShortcutPlace {
+    Global,
+    NoteList,
+    Editor,
+    FocusMode,
+    NoteWindow,
+    Palette,
+    TasksView,
+    BoardView,
+    CalendarView,
+    GraphView,
+    Settings,
+    SettingsNav,
+    Capture,
+}
+
+/// The menu a keyboard shortcut is listed under in the overlay.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShortcutSection {
+    App,
+    File,
+    Edit,
+    Format,
+    View,
+    Go,
+    Note,
+    Window,
+    Tabs,
+    List,
+    Palette,
+    Calendar,
+    Tasks,
+    Board,
+    Graph,
+    Settings,
+    Capture,
+}
+
+/// One key of the desktop's shortcut catalog, for a phone or tablet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ShortcutEntry {
+    /// The desktop action's name in snake case. An action with two keys, or
+    /// in two places, has an entry for each.
+    pub id: String,
+    /// The keys on macOS and iPadOS, in GPUI's keystroke syntax
+    /// (`secondary-shift-t`).
+    pub mac: String,
+    /// The keys on Windows, Linux and Android; empty when none are bound.
+    pub other: String,
+    pub place: ShortcutPlace,
+    /// What the desktop's menu calls the action.
+    pub label: String,
+    pub section: ShortcutSection,
+}
+
+// MARK: Discovery
+
+/// Where related notes stand (`kanso_engine::discovery::related::Status`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum RelatedStatus {
+    #[default]
+    Off,
+    /// Fetching the model: bytes so far, of all.
+    Downloading { done: u64, total: u64 },
+    /// Checking and loading the model.
+    Loading,
+    /// Embedding notes: how many are done, of all.
+    Indexing { done: u32, total: u32 },
+    /// Every note is embedded.
+    Ready { notes: u32 },
+    /// Something went wrong; turning related notes on again starts over.
+    Failed { message: String },
+}
+
+/// Related notes' status, with the words the desktop's Settings tells it in.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RelatedState {
+    pub status: RelatedStatus,
+    /// The status row's title and line; `None` while it is off.
+    pub title: Option<String>,
+    pub detail: Option<String>,
+}
+
+/// A note close in meaning to another, or to a search.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RelatedRow {
+    pub id: String,
+    pub title: String,
+    /// The cosine similarity, from -1 to 1.
+    pub score: f32,
+    /// How close, in words: "Very close", "Close", "Related" or "Loosely
+    /// related".
+    pub label: String,
+}
+
+/// A tag the note's nearest notes have and it hasn't.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SuggestedTag {
+    pub tag_id: String,
+    pub name: String,
+    /// The similarities of the near notes that have it, added up.
+    pub weight: f32,
+}
+
+/// A note that says nearly the same as another.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TwinRow {
+    pub id: String,
+    pub title: String,
+    /// How alike the two are, from 0 to 100.
+    pub percent: u32,
+}
+
+/// What the stored embeddings say about a note.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct NoteMeaning {
+    /// At most five, heaviest first, without the note's own tags.
+    pub tags: Vec<SuggestedTag>,
+    /// Unless it was dismissed this session.
+    pub twin: Option<TwinRow>,
+}
+
+/// What a search by meaning found.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MeaningResult {
+    /// Related notes are off.
+    Off,
+    /// Related notes are on, but the model isn't loaded yet.
+    NoModel,
+    /// Notes close in meaning to the search, closest first; none when the
+    /// search is too short or has qualifiers (`meaning_query`).
+    Found { rows: Vec<RelatedRow> },
+}
+
+/// Which graph to lay out.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GraphRequest {
+    /// Every note, or the notes of one notebook (and the notebooks inside
+    /// it) or tag.
+    Library { filter: GraphFilter },
+    /// A note and the notes up to `hops` links from it (1 to 3).
+    Local { center: String, hops: u8 },
+}
+
+/// What the library's graph is narrowed to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GraphFilter {
+    All,
+    Book { id: String },
+    Tag { id: String },
+}
+
+/// A note in the graph, placed.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GraphNodeRow {
+    pub id: String,
+    pub title: String,
+    pub notebook_id: String,
+    /// How many other notes it links with.
+    pub degree: u32,
+    /// Where it goes, in layout units around the origin.
+    pub x: f32,
+    pub y: f32,
+    /// How big, in layout units: bigger the more it links.
+    pub radius: f32,
+    /// Its notebook's color in the light and the dark theme, `0xAARRGGBB`
+    /// and opaque.
+    pub color_light: u32,
+    pub color_dark: u32,
+    /// The local graph's middle.
+    pub is_center: bool,
+}
+
+/// A link between two notes, as indexes into the graph's nodes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GraphEdgeRow {
+    pub from: u32,
+    pub to: u32,
+}
+
+/// A laid-out graph.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct GraphLayout {
+    pub nodes: Vec<GraphNodeRow>,
+    pub edges: Vec<GraphEdgeRow>,
+    /// How many links it draws, a note linking to itself left out.
+    pub link_count: u32,
+}
+
+/// An image waiting to be read for its words.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImageToRead {
+    pub id: String,
+    /// Give it back with the words, so new bytes are read again.
+    pub md5: String,
+    pub bytes: Vec<u8>,
+}
+
+/// What the embedding model costs on this phone.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DiscoveryMeasure {
+    /// The model's files on disk, in bytes.
+    pub model_bytes: u64,
+    /// Checking and loading the model, in milliseconds.
+    pub load_ms: u64,
+    /// The app's resident memory before and after loading, in bytes, when
+    /// the phone says.
+    pub resident_before: Option<u64>,
+    pub resident_after: Option<u64>,
+    /// Sample notes embedded, and how many a second.
+    pub notes: u32,
+    pub notes_per_second: f64,
 }

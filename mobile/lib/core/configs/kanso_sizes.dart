@@ -79,4 +79,14 @@ abstract final class KansoSizes {
 
   /// 256: a theme card's width in a horizontal row.
   static const double themeCardWidth = 256;
+
+  /// 38: the row of tabs above a note on a tablet (the desktop's height).
+  static const double tabBarHeight = 38;
+
+  /// 30: one tab in that row.
+  static const double tab = 30;
+
+  /// 72 and 220: the least and the most a tab is wide.
+  static const double tabMinWidth = 72;
+  static const double tabMaxWidth = 220;
 }

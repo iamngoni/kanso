@@ -6,6 +6,9 @@
 enum NoteMenuAction {
   /// Writes the note as a PDF and offers it to share.
   exportPdf,
+
+  /// Writes the note as one web page file and offers it to share.
+  exportHtml,
   lockNote,
   removeLock,
   lockNow,

@@ -48,8 +48,7 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
     on<LibraryIndexTagToggledEvent>(_onTagToggled);
     on<LibraryIndexAllTagsToggledEvent>(_onAllTagsToggled);
     on<LibraryIndexStatusGroupToggledEvent>(
-      (event, emit) =>
-          emit(state.copyWith(statusOpen: !state.statusOpen)),
+      (event, emit) => emit(state.copyWith(statusOpen: !state.statusOpen)),
     );
   }
 

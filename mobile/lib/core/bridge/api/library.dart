@@ -6,17 +6,21 @@
 import '../frb_generated.dart';
 import 'account.dart';
 import 'account_settings.dart';
+import 'ai.dart';
 import 'approvals.dart';
+import 'discovery.dart';
 import 'editor.dart';
 import 'gallery.dart';
 import 'linking.dart';
 import 'locks.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'publish.dart';
 import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
 import 'themes.dart';
 import 'types.dart';
+import 'voice.dart';
 
 /// What the Replace button says, or nothing when there is nothing to do.
 String? replaceApplyLabel({required int matches, required int notes}) =>
@@ -35,6 +39,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   KansoAccountSettings accountSettings();
 
+  /// The AI features scoped to this library; provider keys stay in Rust's
+  /// secret store and are never returned through this bridge.
+  KansoAi ai();
+
   KansoApprovals approvals();
 
   Future<AttachmentFile> attachment({required String id});
@@ -46,6 +54,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// The backups, newest first.
   Future<List<BackupFile>> backups();
+
+  Future<BoardView> board({required BoardKind kind, required ListQuery query});
 
   /// Saves something shared from inside the app as a note in the Inbox.
   Future<CaptureOutcome> capture({required Share share});
@@ -70,6 +80,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Names a tag `name`, making it; returns the tag.
   Future<TagRow> createTag({required String name});
 
+  static DayDate? dailyDateOf({required String noteId}) => KansoCore
+      .instance
+      .api
+      .crateApiLibraryKansoLibraryDailyDateOf(noteId: noteId);
+
+  Future<String?> dailyTemplate();
+
   /// Deletes a backup made with `back_up_now`; refuses any other.
   Future<void> deleteBackup({required String path});
 
@@ -79,6 +96,18 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Deletes tag `id`, and takes it off the notes that had it.
   Future<void> deleteTag({required String id});
+
+  KansoDiscovery discovery();
+
+  static DueChipRow? dueChip({
+    required String due,
+    required bool checked,
+    required LocalTime now,
+  }) => KansoCore.instance.api.crateApiLibraryKansoLibraryDueChip(
+    due: due,
+    checked: checked,
+    now: now,
+  );
 
   /// Copies note `id` as the desktop does; returns the copy.
   Future<Saved> duplicate({required String id});
@@ -106,11 +135,50 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// once; the work runs on a thread of its own.
   Stream<ImportEvent> importPlan({required String kind, required String path});
 
+  Future<MonthGrid> journalMonth({
+    required int year,
+    required int month,
+    required int weekStart,
+    required DayDate today,
+  });
+
+  Future<MadeNote> journalOpenDay({
+    required DayDate day,
+    required LocalTime now,
+  });
+
+  Future<MadeNote?> journalStep({
+    String? openNote,
+    required LocalTime now,
+    required bool forward,
+  });
+
+  Future<MadeNote> journalToday({required LocalTime now});
+
+  static int journalWeekStart({required int firstWeekday}) => KansoCore
+      .instance
+      .api
+      .crateApiLibraryKansoLibraryJournalWeekStart(firstWeekday: firstWeekday);
+
   KansoLinking linking();
 
   Future<NoteList> list({required ListQuery query});
 
   KansoLocks locks();
+
+  Future<CardMoved> moveCard({
+    required CardKey card,
+    required BoardLane to,
+    required int nowMs,
+  });
+
+  Future<MadeNote> newFromTemplate({
+    required String templateId,
+    String? bookId,
+    required LocalTime now,
+  });
+
+  Future<MadeNote> newTemplate();
 
   Future<NoteView> note({required String id});
 
@@ -153,7 +221,29 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<List<Property>> properties({required String id});
 
+  /// Publishing uses the signed-in session held by this library.
+  Future<KansoPublisher> publisher();
+
   Future<Table> queryView({required String source, String? selfId});
+
+  Future<TaskPlace?> reminderAnswer({
+    required String key,
+    required ReminderAnswer answer,
+    required int nowUtcMs,
+  });
+
+  Future<void> remindersForget({
+    required List<String> keys,
+    required int nowUtcMs,
+  });
+
+  Future<void> remindersForgetFuture({required int nowUtcMs});
+
+  Future<ReminderPlan> remindersPlan({
+    required int nowUtcMs,
+    required int offsetMs,
+    required bool canNotify,
+  });
 
   /// Renames notebook `id`; names needn't be unique.
   Future<void> renameNotebook({required String id, required String name});
@@ -198,6 +288,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required int limit,
   });
 
+  Future<void> setDailyTemplate({String? templateId});
+
   /// Sets notebook `id`'s colour to `color` (`#RRGGBB`), or takes its own
   /// colour away with null.
   Future<void> setNotebookColor({required String id, String? color});
@@ -215,6 +307,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required String text,
     required bool checked,
   });
+
+  /// Saves voice dictation settings beside the library database.
+  Future<void> setVoiceSettings({required VoiceSettings settings});
 
   KansoShared shared();
 
@@ -241,6 +336,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// The Tasks place: open tasks across the notes, in groups; locked
   /// notes are left out.
   Future<TaskBoard> tasks({required TaskListQuery query});
+
+  Future<List<TemplateRow>> templates();
 
   KansoThemes themes();
 
@@ -273,4 +370,7 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required FoldState folds,
     String? showing,
   });
+
+  /// Voice dictation settings saved beside the library database.
+  Future<VoiceSettings> voiceSettings();
 }

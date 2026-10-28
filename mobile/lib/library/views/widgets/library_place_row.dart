@@ -2,12 +2,13 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/models/data/browse_location.dart';
+import '../../../core/models/data/note_drag_data.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
 import '../../../core/views/widgets/kanso_sidebar_row.dart';
 
@@ -28,6 +29,7 @@ class LibraryPlaceRow extends StatelessWidget {
     this.selected = false,
     this.locked = false,
     this.onLongPress,
+    this.onDropNotes,
     super.key,
   });
 
@@ -57,9 +59,12 @@ class LibraryPlaceRow extends StatelessWidget {
   /// What a long press does: a notebook's menu.
   final VoidCallback? onLongPress;
 
+  /// Applies the dragged notes to this notebook or tag place.
+  final ValueChanged<List<String>>? onDropNotes;
+
   @override
   Widget build(BuildContext context) {
-    return KansoSidebarRow(
+    Widget row({required bool highlighted}) => KansoSidebarRow(
       icon: icon,
       leading: leading,
       label: label,
@@ -70,12 +75,23 @@ class LibraryPlaceRow extends StatelessWidget {
       onFold: onFold,
       wash: wash,
       selected: selected,
+      highlighted: highlighted,
       locked: locked,
       onLongPress: onLongPress,
       onTap: () {
         KansoDrawerScope.maybeOf(context)?.close();
         context.go(BrowseLocation.place(place).location);
       },
+    );
+    final onDrop = onDropNotes;
+    if (onDrop == null) {
+      return row(highlighted: false);
+    }
+    return DragTarget<NoteDragData>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (details) => onDrop(details.data.noteIds),
+      builder: (context, hovering, rejected) =>
+          row(highlighted: hovering.isNotEmpty),
     );
   }
 }

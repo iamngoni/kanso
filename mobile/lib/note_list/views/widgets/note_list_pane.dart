@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../capture/models/data/capture_first_row.dart';
 import '../../../capture/views/widgets/capture_sheet.dart';
+import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
@@ -15,6 +16,8 @@ import '../../../core/state/capture_inbox/capture_inbox_bloc.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_large_title.dart';
+import '../../../journal/views/widgets/journal_opener.dart';
+import '../../../journal/views/widgets/journal_strip.dart';
 import '../../../shell/models/data/note_creation_failure.dart';
 import '../../../shell/state/note_creation/note_creation_bloc.dart';
 import '../../state/note_list/note_list_bloc.dart';
@@ -50,6 +53,10 @@ class NoteListPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return JournalOpener(child: _buildList(context));
+  }
+
+  Widget _buildList(BuildContext context) {
     final colors = context.colors;
     final l10n = context.l10n;
     final bottom = MediaQuery.paddingOf(context).bottom;
@@ -149,6 +156,8 @@ class NoteListPane extends StatelessWidget {
                                         ? collapsed
                                         : null,
                                   ),
+                                  if (_isJournal(state.place, index))
+                                    const JournalStrip(),
                                   Expanded(
                                     child: NoteListBody(
                                       largeTitle: floating,
@@ -228,4 +237,8 @@ class NoteListPane extends StatelessWidget {
       ),
     );
   }
+
+  static bool _isJournal(ListPlace place, LibraryIndexState index) =>
+      place is ListPlace_Notebook &&
+      index.notebook(place.id)?.role == NotebookRole.journal;
 }

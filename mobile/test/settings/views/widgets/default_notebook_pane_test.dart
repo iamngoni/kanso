@@ -71,7 +71,8 @@ void main() {
                 name: row.name,
                 count: row.count,
                 locked: true,
-                depth: row.depth, hasChildren: false,
+                depth: row.depth,
+                hasChildren: false,
               )
             else
               row,

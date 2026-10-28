@@ -11,6 +11,8 @@ class SceneDelegate: FlutterSceneDelegate {
   ) {
     super.scene(scene, willConnectTo: session, options: connectionOptions)
     KansoFiles.shared.open(connectionOptions.urlContexts.map { $0.url })
+    // Note windows hand what only the main window does to this scene.
+    NoteWindows.shared.mainSceneConnected(session)
   }
 
   override func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {

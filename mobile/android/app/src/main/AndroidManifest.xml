@@ -2,6 +2,10 @@
     <!-- Sync and the sync server check reach the network in release builds
          too; the debug and profile manifests only add it for development. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Dictation listens only while the person has the microphone on. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- The notes stay on this phone: no cloud backup, no device transfer.
          allowBackup covers the older versions, fullBackupContent Android
          6 to 11 and dataExtractionRules Android 12 and later (allowBackup
@@ -17,6 +21,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:resizeableActivity="true"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -102,6 +107,38 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/kanso_widget_info" />
         </receiver>
+        <!-- A note in a window of its own: a task per note, beside the app
+             (split screen, freeform), each with an engine of its own
+             (NoteWindows.kt). Android 10 and later show them always. -->
+        <activity
+            android:name=".NoteWindowActivity"
+            android:exported="false"
+            android:documentLaunchMode="always"
+            android:taskAffinity="app.kanso.kanso.note"
+            android:resizeableActivity="true"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+        </activity>
+        <receiver
+            android:name=".KansoReminderReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="app.kanso.kanso.REMINDER_FIRE"/>
+                <action android:name="app.kanso.kanso.REMINDER_MARK_DONE"/>
+                <action android:name="app.kanso.kanso.REMINDER_DISMISS"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -114,6 +151,10 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- The on-device speech recognizer. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

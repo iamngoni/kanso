@@ -21,6 +21,7 @@ use crate::approvals::Approvals;
 use crate::approver_model::Approver;
 use crate::backup;
 use crate::boundary::{guard, held};
+use crate::discovery::DiscoveryState;
 use crate::editing::Editors;
 use crate::errors::KansoError;
 use crate::gallery::Gallery;
@@ -64,6 +65,8 @@ pub(crate) struct Inner {
     pub(crate) sync_gate: Mutex<()>,
     /// Set to stop the sync that is running.
     pub(crate) sync_cancel: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
+    /// Related notes' thread and status, and the twins dismissed.
+    pub(crate) discovery: DiscoveryState,
     /// Shared notes: the collab server client, the engine of the signed-in
     /// session, the open rooms (`sharing.rs`).
     pub(crate) shared: SharedState,
@@ -341,6 +344,7 @@ fn open_inner(
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),
         sync_cancel: Mutex::new(None),
+        discovery: DiscoveryState::default(),
         shared: SharedState::new(collab),
         auto: AutoSync::new(settings),
         ended: Mutex::new(None),
@@ -354,7 +358,10 @@ fn open_inner(
     open.insert(key, Arc::downgrade(&inner));
     drop(open);
     spawn_auto_lock(Arc::downgrade(&inner));
-    Ok(Library { inner })
+    let library = Library { inner };
+    // Related notes left on start again.
+    library.discovery().resume();
+    Ok(library)
 }
 
 /// The timer that closes locked notes once the auto-lock time has passed. It

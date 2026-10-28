@@ -8,11 +8,13 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
 import 'package:kanso/core/models/data/load_status.dart';
+import 'package:kanso/core/models/data/note_drag_data.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_badge.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer.dart';
@@ -21,7 +23,9 @@ import 'package:kanso/core/views/widgets/kanso_sidebar_row.dart';
 import 'package:kanso/library/views/widgets/library_pane.dart';
 import 'package:kanso/sharing/state/invitations/invitations_bloc.dart';
 
+import '../../../helpers/browse_blocs.dart';
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_ai_repository.dart';
 import '../../../helpers/fixture_library_repository.dart';
 import '../../../helpers/fixture_shared_notes_repository.dart';
 import '../../../helpers/golden.dart';
@@ -52,8 +56,12 @@ Widget _pane(
   if (invitations == null) {
     closeBlocLater(shared);
   }
+  final aiStatus = AiStatusBloc(FixtureAiRepository())
+    ..add(const AiStatusEvent.started());
+  closeBlocLater(aiStatus);
   return MultiBlocProvider(
     providers: <BlocProvider<dynamic>>[
+      BlocProvider<AiStatusBloc>.value(value: aiStatus),
       BlocProvider<LibraryIndexBloc>.value(value: bloc),
       BlocProvider<InvitationsBloc>.value(value: shared),
     ],
@@ -61,6 +69,39 @@ Widget _pane(
       location: location ?? const BrowseLocation.place(ListPlace.all()),
     ),
   );
+}
+
+Widget _dragHarness(Widget child) => Column(
+  children: <Widget>[
+    const SizedBox(
+      height: 56,
+      child: Draggable<NoteDragData>(
+        data: NoteDragData(
+          noteIds: <String>[
+            MockIds.syncDesign,
+            MockIds.weeklyReview,
+            MockIds.privateJournal,
+          ],
+          titles: <String>['Sync design notes', 'Weekly review', ''],
+        ),
+        feedback: Material(
+          child: Text('Sync design notes'),
+        ),
+        child: Text('Drag note'),
+      ),
+    ),
+    Expanded(child: child),
+  ],
+);
+
+Future<void> _dropNote(WidgetTester tester, Finder target) async {
+  final gesture = await tester.startGesture(
+    tester.getCenter(find.text('Drag note')),
+  );
+  await gesture.moveTo(tester.getCenter(target));
+  await tester.pump();
+  await gesture.up();
+  await tester.pump();
 }
 
 Map<String, bool> _selection(WidgetTester tester) => <String, bool>{
@@ -118,14 +159,63 @@ void main() {
       await tester.scrollUntilVisible(find.text('idea'), 120);
       expect(find.text('idea'), findsOneWidget);
       // So is the Trash, at the foot of the pane.
-      await tester.scrollUntilVisible(
-        find.text('Trash', skipOffstage: false),
-        120,
-      );
+      await tester.scrollUntilVisible(find.text('Trash'), 120);
       expect(find.text('Trash'), findsOneWidget);
       expect(find.text('4'), findsOneWidget);
       // There is no Templates notebook in this library.
       expect(find.text('Templates'), findsNothing);
+    });
+
+    testWidgets('dropping on a notebook moves the note there', (tester) async {
+      final blocs = await BrowseBlocs.start(library);
+      final list = await blocs.listOf(const ListPlace.all());
+      await pumpRouted(
+        tester,
+        blocs.provide(_dragHarness(_pane(blocs.index)), list: list),
+        size: const Size(800, 1200),
+      );
+      await _dropNote(tester, find.text('Work'));
+      await tester.pumpAndSettle();
+      expect(library.changesMade, hasLength(1));
+      expect(
+        library.changesMade.single.$1,
+        <String>[
+          MockIds.syncDesign,
+          MockIds.weeklyReview,
+          MockIds.privateJournal,
+        ],
+      );
+      expect(
+        library.changesMade.single.$2,
+        const NoteChange.move(notebookId: MockIds.work),
+      );
+    });
+
+    testWidgets('dropping on a tag adds it to the note', (tester) async {
+      final blocs = await BrowseBlocs.start(library);
+      final list = await blocs.listOf(const ListPlace.all());
+      await pumpRouted(
+        tester,
+        blocs.provide(_dragHarness(_pane(blocs.index)), list: list),
+        size: const Size(800, 1200),
+      );
+      await tester.scrollUntilVisible(find.text('idea'), 100);
+      await tester.pumpAndSettle();
+      await _dropNote(tester, find.text('idea'));
+      await tester.pumpAndSettle();
+      expect(library.changesMade, hasLength(1));
+      expect(
+        library.changesMade.single.$1,
+        <String>[
+          MockIds.syncDesign,
+          MockIds.weeklyReview,
+          MockIds.privateJournal,
+        ],
+      );
+      expect(
+        library.changesMade.single.$2,
+        const NoteChange.addTag(tagId: MockIds.tagIdea),
+      );
     });
 
     testWidgets('counts the overdue tasks on the Tasks row, or nothing', (
@@ -390,7 +480,8 @@ void main() {
         all: 150,
         pinned: 3,
         recent: 11,
-        trash: 4, byStatus: <StatusCount>[],
+        trash: 4,
+        byStatus: <StatusCount>[],
       );
       library.changeStream.add(<String>['note:new']);
       await tester.pump(const Duration(milliseconds: 150));

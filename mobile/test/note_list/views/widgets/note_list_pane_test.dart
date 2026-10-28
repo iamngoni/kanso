@@ -3,11 +3,13 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/list_options.dart';
+import 'package:kanso/core/models/data/note_drag_data.dart';
 import 'package:kanso/core/views/widgets/kanso_bottom_sheet.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer.dart';
 import 'package:kanso/core/views/widgets/kanso_large_title.dart';
@@ -73,6 +75,79 @@ void main() {
         find.widgetWithText(NoteListRow, 'Private journal'),
       );
       expect(row.row.locked, isTrue);
+    });
+
+    testWidgets('selection long press is preserved and selected rows drag', (
+      tester,
+    ) async {
+      final blocs = await BrowseBlocs.start();
+      final list = await blocs.listOf(const ListPlace.all());
+      final received = <NoteDragData>[];
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(
+            DragTarget<NoteDragData>(
+              onWillAcceptWithDetails: (_) => true,
+              onAcceptWithDetails: (details) => received.add(details.data),
+              builder: (context, hovering, rejected) => const NoteListPane(),
+            ),
+            list: list,
+          ),
+          size: const Size(393, 1700),
+        ),
+      );
+
+      final firstPress = await tester.startGesture(
+        tester.getCenter(find.text('Sync design notes')),
+      );
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      await firstPress.up();
+      await tester.pumpAndSettle();
+      expect(list.state.selected, <String>{MockIds.syncDesign});
+
+      await tester.tap(find.text('Weekly review'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Private journal'));
+      await tester.pumpAndSettle();
+      expect(
+        list.state.selected,
+        <String>{
+          MockIds.syncDesign,
+          MockIds.weeklyReview,
+          MockIds.privateJournal,
+        },
+      );
+
+      final draggable = tester.widget<LongPressDraggable<NoteDragData>>(
+        find.ancestor(
+          of: find.text('Sync design notes'),
+          matching: find.byType(LongPressDraggable<NoteDragData>),
+        ),
+      );
+      final rows = list.state.selectedRows;
+      expect(
+        draggable.data!.noteIds,
+        <String>[for (final row in rows) row.id],
+      );
+      expect(
+        draggable.data!.titles,
+        <String>[for (final row in rows) row.locked ? '' : row.title],
+      );
+
+      final drag = await tester.startGesture(
+        tester.getCenter(find.text('Sync design notes')),
+      );
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      await drag.moveTo(
+        tester.getCenter(find.byType(DragTarget<NoteDragData>)),
+      );
+      await tester.pump();
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(received, hasLength(1));
+      expect(received.single.noteIds, draggable.data!.noteIds);
+      expect(received.single.titles, draggable.data!.titles);
     });
 
     testWidgets('a tap opens the note in the place being listed', (

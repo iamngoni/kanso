@@ -122,6 +122,42 @@ void main() {
       expect(_parsed('/search?in='), const BrowseLocation.search());
     });
 
+    test('writes and reads the board of a place', () {
+      const notes = BrowseLocation.place(
+        ListPlace.notebook(id: 'book:a'),
+        board: BoardKind.notes,
+      );
+      const tasks = BrowseLocation.place(
+        ListPlace.all(),
+        board: BoardKind.tasks,
+      );
+      expect(notes.location, '/notebooks/book%3Aa/board');
+      expect(tasks.location, '/notes/board?kind=tasks');
+      expect(_parsed(notes.location), notes);
+      expect(_parsed(tasks.location), tasks);
+      expect(
+        _parsed('/pinned/board?kind=weird'),
+        const BrowseLocation.place(
+          ListPlace.pinned(),
+          board: BoardKind.notes,
+        ),
+      );
+    });
+
+    test('opening a note, or closing it, leaves the board', () {
+      const board = BrowseLocation.place(
+        ListPlace.all(),
+        board: BoardKind.tasks,
+      );
+      expect(board.withNote('n:1').location, '/notes/note/n%3A1');
+      expect(board.withoutNote.location, '/notes');
+    });
+
+    test('a board of a search, or with more after it, is no address', () {
+      expect(BrowseLocation.parse(Uri.parse('/search/board')), isNull);
+      expect(BrowseLocation.parse(Uri.parse('/notes/board/more')), isNull);
+    });
+
     Glados<BrowseLocation>(any.browseLocation, kansoExploreConfig()).test(
       'an address reads back as the location it was written from',
       (location) {

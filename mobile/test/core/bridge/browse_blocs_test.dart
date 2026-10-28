@@ -19,6 +19,7 @@ import 'package:kanso/search/state/search/search_bloc.dart';
 import '../../helpers/browse_blocs.dart';
 import '../../helpers/core_library.dart';
 import '../../helpers/dump.dart';
+import '../../helpers/fixture_discovery_repository.dart';
 import '../../helpers/seeded_appearance_bloc.dart';
 import 'suites/open_library.dart';
 
@@ -130,7 +131,7 @@ void main() {
 
     // Search never reads a locked note's text: the words only it has find
     // nothing, and the words only the open note has find it.
-    final search = SearchBloc(repository)
+    final search = SearchBloc(repository, FixtureDiscoveryRepository())
       ..add(const SearchEvent.started(_secret, SearchScopeKind.all, null));
     addTearDown(search.close);
     final nothing = await search.stream.firstWhere(

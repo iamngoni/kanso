@@ -31,7 +31,7 @@ class _FakeRenderer extends Fake implements RendererRepository {
   ) async => tokens!;
 
   @override
-  Future<Either<ApplicationError, ExportedPage>> pageHtml(
+  Future<Either<ApplicationError, ExportedPage>> pagePdf(
     String id,
     PaletteDto palette,
     PreviewOptions options,

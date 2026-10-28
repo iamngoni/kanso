@@ -23,7 +23,6 @@ mod ask_panel;
 #[cfg(test)]
 mod ask_tests;
 mod assets;
-mod board;
 mod board_view;
 mod book_colors;
 mod book_icons;
@@ -143,6 +142,8 @@ mod settings_voice;
 mod settings_window_tests;
 mod share_sheet;
 mod shared_inbox;
+#[cfg(test)]
+mod shortcuts_parity_tests;
 mod sidebar;
 mod smart_paste;
 #[cfg(test)]

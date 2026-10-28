@@ -74,7 +74,7 @@ class NotePdfExporter {
       return Left<ApplicationError, String>(error);
     }
     final theme = tokens.getOrElse(() => throw StateError('unreachable'));
-    final page = await _renderer.pageHtml(
+    final page = await _renderer.pagePdf(
       noteId,
       theme.palette,
       PreviewOptions(

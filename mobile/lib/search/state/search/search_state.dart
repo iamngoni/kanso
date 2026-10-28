@@ -21,6 +21,9 @@ abstract class SearchState with _$SearchState {
     /// What was found for [query] in [scope], best match first.
     @Default(<Hit>[]) List<Hit> hits,
 
+    /// Notes found with the local semantic model, when it is available.
+    @Default(<RelatedRow>[]) List<RelatedRow> meaningHits,
+
     /// Why the last search failed, while [status] is failed.
     ApplicationError? error,
   }) = _SearchState;

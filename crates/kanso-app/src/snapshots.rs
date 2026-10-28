@@ -3403,7 +3403,7 @@ fn status_board(
     workspace: &Entity<Workspace>,
     _: &Store,
 ) {
-    show_board(cx, window, workspace, crate::board::BoardKind::Notes);
+    show_board(cx, window, workspace, kanso_engine::board::BoardKind::Notes);
 }
 
 /// The tasks board: the demo's tasks as To do and Done.
@@ -3414,14 +3414,14 @@ fn task_board(
     store: &Store,
 ) {
     seed_tasks(store);
-    show_board(cx, window, workspace, crate::board::BoardKind::Tasks);
+    show_board(cx, window, workspace, kanso_engine::board::BoardKind::Tasks);
 }
 
 fn show_board(
     cx: &mut HeadlessAppContext,
     window: AnyWindowHandle,
     workspace: &Entity<Workspace>,
-    kind: crate::board::BoardKind,
+    kind: kanso_engine::board::BoardKind,
 ) {
     cx.run_until_parked();
     cx.update_window(window, |_, window, cx| {

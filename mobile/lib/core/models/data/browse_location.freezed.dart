@@ -153,10 +153,10 @@ return tasks(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ListPlace place,  String? noteId)?  place,TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,TResult Function( String? noteId)?  tasks,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ListPlace place,  String? noteId,  BoardKind? board)?  place,TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,TResult Function( String? noteId)?  tasks,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PlaceLocation() when place != null:
-return place(_that.place,_that.noteId);case SearchLocation() when search != null:
+return place(_that.place,_that.noteId,_that.board);case SearchLocation() when search != null:
 return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case TasksLocation() when tasks != null:
 return tasks(_that.noteId);case _:
   return orElse();
@@ -176,10 +176,10 @@ return tasks(_that.noteId);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ListPlace place,  String? noteId)  place,required TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)  search,required TResult Function( String? noteId)  tasks,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ListPlace place,  String? noteId,  BoardKind? board)  place,required TResult Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)  search,required TResult Function( String? noteId)  tasks,}) {final _that = this;
 switch (_that) {
 case PlaceLocation():
-return place(_that.place,_that.noteId);case SearchLocation():
+return place(_that.place,_that.noteId,_that.board);case SearchLocation():
 return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case TasksLocation():
 return tasks(_that.noteId);}
 }
@@ -195,10 +195,10 @@ return tasks(_that.noteId);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ListPlace place,  String? noteId)?  place,TResult? Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,TResult? Function( String? noteId)?  tasks,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ListPlace place,  String? noteId,  BoardKind? board)?  place,TResult? Function( String query,  SearchScopeKind scope,  String? notebookId,  String? noteId)?  search,TResult? Function( String? noteId)?  tasks,}) {final _that = this;
 switch (_that) {
 case PlaceLocation() when place != null:
-return place(_that.place,_that.noteId);case SearchLocation() when search != null:
+return place(_that.place,_that.noteId,_that.board);case SearchLocation() when search != null:
 return search(_that.query,_that.scope,_that.notebookId,_that.noteId);case TasksLocation() when tasks != null:
 return tasks(_that.noteId);case _:
   return null;
@@ -212,11 +212,13 @@ return tasks(_that.noteId);case _:
 
 
 class PlaceLocation extends BrowseLocation {
-  const PlaceLocation(this.place, {this.noteId}): super._();
+  const PlaceLocation(this.place, {this.noteId, this.board}): super._();
   
 
  final  ListPlace place;
 @override final  String? noteId;
+/// The board of the place's notes shown instead of a note.
+ final  BoardKind? board;
 
 /// Create a copy of BrowseLocation
 /// with the given fields replaced by the non-null parameter values.
@@ -228,16 +230,16 @@ $PlaceLocationCopyWith<PlaceLocation> get copyWith => _$PlaceLocationCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaceLocation&&(identical(other.place, place) || other.place == place)&&(identical(other.noteId, noteId) || other.noteId == noteId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaceLocation&&(identical(other.place, place) || other.place == place)&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.board, board) || other.board == board));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,place,noteId);
+int get hashCode => Object.hash(runtimeType,place,noteId,board);
 
 @override
 String toString() {
-  return 'BrowseLocation.place(place: $place, noteId: $noteId)';
+  return 'BrowseLocation.place(place: $place, noteId: $noteId, board: $board)';
 }
 
 
@@ -248,7 +250,7 @@ abstract mixin class $PlaceLocationCopyWith<$Res> implements $BrowseLocationCopy
   factory $PlaceLocationCopyWith(PlaceLocation value, $Res Function(PlaceLocation) _then) = _$PlaceLocationCopyWithImpl;
 @override @useResult
 $Res call({
- ListPlace place, String? noteId
+ ListPlace place, String? noteId, BoardKind? board
 });
 
 
@@ -265,11 +267,12 @@ class _$PlaceLocationCopyWithImpl<$Res>
 
 /// Create a copy of BrowseLocation
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? place = null,Object? noteId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? place = null,Object? noteId = freezed,Object? board = freezed,}) {
   return _then(PlaceLocation(
 null == place ? _self.place : place // ignore: cast_nullable_to_non_nullable
 as ListPlace,noteId: freezed == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,board: freezed == board ? _self.board : board // ignore: cast_nullable_to_non_nullable
+as BoardKind?,
   ));
 }
 
