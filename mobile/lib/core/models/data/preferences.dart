@@ -72,6 +72,10 @@ abstract class Preferences with _$Preferences {
     /// Whether this phone may show reminders for tasks with a due time.
     /// Notification permission is asked separately by the operating system.
     @Default(true) bool remindersEnabled,
+
+    /// Whether the open note is shown by itself, without the library, the
+    /// list, tabs or the note's bars.
+    @Default(false) bool focusMode,
   }) = _Preferences;
 
   factory Preferences.fromJson(Map<String, dynamic> json) =>

@@ -24,6 +24,7 @@ void main() {
       expect(preferences.backupNoticeSeen, isFalse);
       expect(preferences.iconTheme, 'lucide');
       expect(preferences.fonts, const KansoFonts());
+      expect(preferences.focusMode, isFalse);
     });
 
     Glados<Preferences>(any.preferences, kansoExploreConfig()).test(

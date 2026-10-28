@@ -180,6 +180,7 @@ import 'sharing/state/join_link/join_link_bloc.dart' as _i676;
 import 'sharing/state/share_note/share_note_bloc.dart' as _i252;
 import 'sharing/state/shared_note_live/shared_note_live_bloc.dart' as _i361;
 import 'sharing/state/shared_note_status/shared_note_status_bloc.dart' as _i109;
+import 'shell/state/focus_mode/focus_mode_bloc.dart' as _i427;
 import 'shell/state/library_pane/library_pane_bloc.dart' as _i612;
 import 'shell/state/note_creation/note_creation_bloc.dart' as _i34;
 import 'tabs/state/tabs/tabs_bloc.dart' as _i380;
@@ -313,6 +314,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i925.DefaultNotebookBloc>(
       () => _i925.DefaultNotebookBloc(gh<_i384.PreferencesRepository>()),
+    );
+    gh.factory<_i427.FocusModeBloc>(
+      () => _i427.FocusModeBloc(gh<_i384.PreferencesRepository>()),
     );
     gh.lazySingleton<_i288.CrashReportRepository>(
       () => crashModule.crashReports(

@@ -3741,4 +3741,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paletteCommands => 'Commands';
+
+  @override
+  String get focusModeExit => 'Leave focus mode';
 }

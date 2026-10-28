@@ -36,7 +36,9 @@ mixin _$Preferences {
  int get activeTab;/// Whether pictures attached to notes are read on this device for search.
  bool get searchImageText;/// Whether this phone may show reminders for tasks with a due time.
 /// Notification permission is asked separately by the operating system.
- bool get remindersEnabled;
+ bool get remindersEnabled;/// Whether the open note is shown by itself, without the library, the
+/// list, tabs or the note's bars.
+ bool get focusMode;
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -49,16 +51,16 @@ $PreferencesCopyWith<Preferences> get copyWith => _$PreferencesCopyWithImpl<Pref
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other.openTabs, openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other.openTabs, openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled)&&(identical(other.focusMode, focusMode) || other.focusMode == focusMode));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,themeSelection,fonts,textSize,iconTheme,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(openTabs),activeTab,searchImageText,remindersEnabled);
+int get hashCode => Object.hash(runtimeType,themeSelection,fonts,textSize,iconTheme,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(openTabs),activeTab,searchImageText,remindersEnabled,focusMode);
 
 @override
 String toString() {
-  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, iconTheme: $iconTheme, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled)';
+  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, iconTheme: $iconTheme, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled, focusMode: $focusMode)';
 }
 
 
@@ -69,7 +71,7 @@ abstract mixin class $PreferencesCopyWith<$Res>  {
   factory $PreferencesCopyWith(Preferences value, $Res Function(Preferences) _then) = _$PreferencesCopyWithImpl;
 @useResult
 $Res call({
- ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(unknownEnumValue: KansoTextSize.standard) KansoTextSize textSize, String iconTheme,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled
+ ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(unknownEnumValue: KansoTextSize.standard) KansoTextSize textSize, String iconTheme,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled, bool focusMode
 });
 
 
@@ -86,7 +88,7 @@ class _$PreferencesCopyWithImpl<$Res>
 
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? iconTheme = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? iconTheme = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,Object? focusMode = null,}) {
   return _then(_self.copyWith(
 themeSelection: null == themeSelection ? _self.themeSelection : themeSelection // ignore: cast_nullable_to_non_nullable
 as ThemeSelection,fonts: null == fonts ? _self.fonts : fonts // ignore: cast_nullable_to_non_nullable
@@ -101,6 +103,7 @@ as String?,openTabs: null == openTabs ? _self.openTabs : openTabs // ignore: cas
 as List<String>,activeTab: null == activeTab ? _self.activeTab : activeTab // ignore: cast_nullable_to_non_nullable
 as int,searchImageText: null == searchImageText ? _self.searchImageText : searchImageText // ignore: cast_nullable_to_non_nullable
 as bool,remindersEnabled: null == remindersEnabled ? _self.remindersEnabled : remindersEnabled // ignore: cast_nullable_to_non_nullable
+as bool,focusMode: null == focusMode ? _self.focusMode : focusMode // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -204,10 +207,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(unknownEnumValue: KansoTextSize.standard)  KansoTextSize textSize,  String iconTheme, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(unknownEnumValue: KansoTextSize.standard)  KansoTextSize textSize,  String iconTheme, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Preferences() when $default != null:
-return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled);case _:
+return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode);case _:
   return orElse();
 
 }
@@ -225,10 +228,10 @@ return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(unknownEnumValue: KansoTextSize.standard)  KansoTextSize textSize,  String iconTheme, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(unknownEnumValue: KansoTextSize.standard)  KansoTextSize textSize,  String iconTheme, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode)  $default,) {final _that = this;
 switch (_that) {
 case _Preferences():
-return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled);case _:
+return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -245,10 +248,10 @@ return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(unknownEnumValue: KansoTextSize.standard)  KansoTextSize textSize,  String iconTheme, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(unknownEnumValue: KansoTextSize.standard)  KansoTextSize textSize,  String iconTheme, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode)?  $default,) {final _that = this;
 switch (_that) {
 case _Preferences() when $default != null:
-return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled);case _:
+return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode);case _:
   return null;
 
 }
@@ -260,7 +263,7 @@ return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.iconTheme,
 @JsonSerializable()
 
 class _Preferences implements Preferences {
-  const _Preferences({this.themeSelection = const ThemeSelection(), this.fonts = const KansoFonts(), @JsonKey(unknownEnumValue: KansoTextSize.standard) this.textSize = KansoTextSize.standard, this.iconTheme = KansoIconSet.lucideId, @JsonKey(unknownEnumValue: SortKey.updated) this.sort = SortKey.updated, this.descending = true, this.backupNoticeSeen = false, this.biometricOfferSeen = false, this.defaultNotebookId, final  List<String> openTabs = const <String>[], this.activeTab = 0, this.searchImageText = false, this.remindersEnabled = true}): _openTabs = openTabs;
+  const _Preferences({this.themeSelection = const ThemeSelection(), this.fonts = const KansoFonts(), @JsonKey(unknownEnumValue: KansoTextSize.standard) this.textSize = KansoTextSize.standard, this.iconTheme = KansoIconSet.lucideId, @JsonKey(unknownEnumValue: SortKey.updated) this.sort = SortKey.updated, this.descending = true, this.backupNoticeSeen = false, this.biometricOfferSeen = false, this.defaultNotebookId, final  List<String> openTabs = const <String>[], this.activeTab = 0, this.searchImageText = false, this.remindersEnabled = true, this.focusMode = false}): _openTabs = openTabs;
   factory _Preferences.fromJson(Map<String, dynamic> json) => _$PreferencesFromJson(json);
 
 /// The themes the interface is drawn in.
@@ -306,6 +309,9 @@ class _Preferences implements Preferences {
 /// Whether this phone may show reminders for tasks with a due time.
 /// Notification permission is asked separately by the operating system.
 @override@JsonKey() final  bool remindersEnabled;
+/// Whether the open note is shown by itself, without the library, the
+/// list, tabs or the note's bars.
+@override@JsonKey() final  bool focusMode;
 
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
@@ -320,16 +326,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other._openTabs, _openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other._openTabs, _openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled)&&(identical(other.focusMode, focusMode) || other.focusMode == focusMode));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,themeSelection,fonts,textSize,iconTheme,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(_openTabs),activeTab,searchImageText,remindersEnabled);
+int get hashCode => Object.hash(runtimeType,themeSelection,fonts,textSize,iconTheme,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(_openTabs),activeTab,searchImageText,remindersEnabled,focusMode);
 
 @override
 String toString() {
-  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, iconTheme: $iconTheme, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled)';
+  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, iconTheme: $iconTheme, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled, focusMode: $focusMode)';
 }
 
 
@@ -340,7 +346,7 @@ abstract mixin class _$PreferencesCopyWith<$Res> implements $PreferencesCopyWith
   factory _$PreferencesCopyWith(_Preferences value, $Res Function(_Preferences) _then) = __$PreferencesCopyWithImpl;
 @override @useResult
 $Res call({
- ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(unknownEnumValue: KansoTextSize.standard) KansoTextSize textSize, String iconTheme,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled
+ ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(unknownEnumValue: KansoTextSize.standard) KansoTextSize textSize, String iconTheme,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled, bool focusMode
 });
 
 
@@ -357,7 +363,7 @@ class __$PreferencesCopyWithImpl<$Res>
 
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? iconTheme = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? iconTheme = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,Object? focusMode = null,}) {
   return _then(_Preferences(
 themeSelection: null == themeSelection ? _self.themeSelection : themeSelection // ignore: cast_nullable_to_non_nullable
 as ThemeSelection,fonts: null == fonts ? _self.fonts : fonts // ignore: cast_nullable_to_non_nullable
@@ -372,6 +378,7 @@ as String?,openTabs: null == openTabs ? _self._openTabs : openTabs // ignore: ca
 as List<String>,activeTab: null == activeTab ? _self.activeTab : activeTab // ignore: cast_nullable_to_non_nullable
 as int,searchImageText: null == searchImageText ? _self.searchImageText : searchImageText // ignore: cast_nullable_to_non_nullable
 as bool,remindersEnabled: null == remindersEnabled ? _self.remindersEnabled : remindersEnabled // ignore: cast_nullable_to_non_nullable
+as bool,focusMode: null == focusMode ? _self.focusMode : focusMode // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

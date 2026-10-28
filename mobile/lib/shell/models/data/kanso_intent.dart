@@ -100,3 +100,13 @@ class SettingsPageStepIntent extends KansoIntent {
 class OpenPaletteIntent extends KansoIntent {
   const OpenPaletteIntent();
 }
+
+/// Show the open note by itself, or bring the rest of the app back.
+class ToggleFocusModeIntent extends KansoIntent {
+  const ToggleFocusModeIntent();
+}
+
+/// Bring the rest of the app back from focus mode.
+class ExitFocusModeIntent extends KansoIntent {
+  const ExitFocusModeIntent();
+}

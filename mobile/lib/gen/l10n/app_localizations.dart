@@ -6393,6 +6393,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Commands'**
   String get paletteCommands;
+
+  /// Leaves focus mode and brings back the sidebar and bars.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave focus mode'**
+  String get focusModeExit;
 }
 
 class _AppLocalizationsDelegate

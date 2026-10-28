@@ -38,6 +38,7 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
   activeTab: (json['activeTab'] as num?)?.toInt() ?? 0,
   searchImageText: json['searchImageText'] as bool? ?? false,
   remindersEnabled: json['remindersEnabled'] as bool? ?? true,
+  focusMode: json['focusMode'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
@@ -55,6 +56,7 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'activeTab': instance.activeTab,
       'searchImageText': instance.searchImageText,
       'remindersEnabled': instance.remindersEnabled,
+      'focusMode': instance.focusMode,
     };
 
 const _$KansoTextSizeEnumMap = {

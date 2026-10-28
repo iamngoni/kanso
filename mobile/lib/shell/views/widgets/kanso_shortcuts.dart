@@ -27,6 +27,7 @@ import '../../../palette/views/palette_launcher.dart';
 import '../../../tabs/models/data/tab_intent.dart';
 import '../../../tabs/state/tabs/tabs_bloc.dart';
 import '../../models/data/kanso_intent.dart';
+import '../../state/focus_mode/focus_mode_bloc.dart';
 import '../../state/library_pane/library_pane_bloc.dart';
 import '../../state/note_creation/note_creation_bloc.dart';
 import '../../utils/kanso_shortcut_bindings.dart'
@@ -63,9 +64,22 @@ class KansoShortcuts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final focus = _maybeReadBloc<FocusModeBloc>(context);
+    final focusActive = focus?.state.active ?? false;
+    final activeContexts = <ShortcutContext>{
+      ...contexts,
+      if (focusActive) ShortcutContext.focusMode,
+    };
+    void leaveFocusMode() {
+      final bloc = focus;
+      if (bloc != null && bloc.state.active) {
+        bloc.add(const FocusModeEvent.exited());
+      }
+    }
+
     return Shortcuts(
       shortcuts: shortcutBindingsFor(
-        contexts,
+        activeContexts,
         platform ?? defaultTargetPlatform,
       ),
       child: Actions(
@@ -88,18 +102,24 @@ class KansoShortcuts extends StatelessWidget {
           ),
           SearchAllIntent: CallbackAction<SearchAllIntent>(
             onInvoke: (_) {
+              leaveFocusMode();
               context.go(const BrowseLocation.search().location);
               return null;
             },
           ),
           SettingsIntent: CallbackAction<SettingsIntent>(
             onInvoke: (_) {
+              leaveFocusMode();
               context.push(KansoRoutes.settings);
               return null;
             },
           ),
           ToggleLibraryIntent: CallbackAction<ToggleLibraryIntent>(
             onInvoke: (_) {
+              if (focusActive) {
+                leaveFocusMode();
+                return null;
+              }
               if (layout == LayoutClass.triple) {
                 context.read<LibraryPaneBloc>().add(
                   const LibraryPaneEvent.toggled(),
@@ -107,6 +127,18 @@ class KansoShortcuts extends StatelessWidget {
               } else {
                 KansoDrawerScope.maybeOf(context)?.toggle();
               }
+              return null;
+            },
+          ),
+          ToggleFocusModeIntent: CallbackAction<ToggleFocusModeIntent>(
+            onInvoke: (_) {
+              focus?.add(const FocusModeEvent.toggled());
+              return null;
+            },
+          ),
+          ExitFocusModeIntent: CallbackAction<ExitFocusModeIntent>(
+            onInvoke: (_) {
+              focus?.add(const FocusModeEvent.exited());
               return null;
             },
           ),
@@ -150,6 +182,7 @@ class KansoShortcuts extends StatelessWidget {
           ),
           ReplaceInNotesIntent: CallbackAction<ReplaceInNotesIntent>(
             onInvoke: (_) {
+              leaveFocusMode();
               context.go(KansoRoutes.replace);
               return null;
             },

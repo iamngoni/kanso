@@ -4711,5 +4711,9 @@
   "paletteCommands": "Commands",
   "@paletteCommands": {
     "description": "The library's way into the command palette."
+  },
+  "focusModeExit": "Leave focus mode",
+  "@focusModeExit": {
+    "description": "Leaves focus mode and brings back the sidebar and bars."
   }
 }

@@ -30,6 +30,7 @@ import 'settings/state/default_notebook/default_notebook_bloc.dart';
 import 'settings/state/discovery/discovery_settings_bloc.dart';
 import 'settings/state/sync_settings/sync_settings_bloc.dart';
 import 'sharing/state/invitations/invitations_bloc.dart';
+import 'shell/state/focus_mode/focus_mode_bloc.dart';
 import 'shell/state/library_pane/library_pane_bloc.dart';
 import 'shell/state/note_creation/note_creation_bloc.dart';
 import 'tabs/state/tabs/tabs_bloc.dart';
@@ -121,6 +122,10 @@ class AppProviders extends StatelessWidget {
           create: (_) => getIt<ListNavigationBloc>(),
         ),
         BlocProvider<LibraryPaneBloc>(create: (_) => getIt<LibraryPaneBloc>()),
+        BlocProvider<FocusModeBloc>(
+          create: (_) =>
+              getIt<FocusModeBloc>()..add(const FocusModeEvent.started()),
+        ),
         BlocProvider<NoteCreationBloc>(
           create: (_) => getIt<NoteCreationBloc>(),
         ),

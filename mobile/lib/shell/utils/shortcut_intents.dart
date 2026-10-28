@@ -18,8 +18,6 @@ const Set<String> unboundOnMobile = <String>{
   'cancel_capture', // Quick Capture is a separate desktop window.
   'dictate', // Voice input is not reachable from the shell.
   'show_split', // A phone has no split view.
-  'toggle_focus_mode', // Focus mode is not on the mobile app.
-  'exit_focus_mode', // Focus mode is not on the mobile app.
   'zoom_in', // The mobile app has no page zoom.
   'zoom_out', // The mobile app has no page zoom.
   'actual_size', // The mobile app has no page zoom.
@@ -99,8 +97,8 @@ Intent? intentForShortcut(ShortcutEntry entry) => switch (entry.id) {
   'show_preview' => const PreviewNoteIntent(),
   'toggle_sidebar' => const ToggleLibraryIntent(),
   'toggle_inspector' => const ToggleInspectorIntent(),
-  'toggle_focus_mode' ||
-  'exit_focus_mode' => null, // Focus mode is not on mobile.
+  'toggle_focus_mode' => const ToggleFocusModeIntent(),
+  'exit_focus_mode' => const ExitFocusModeIntent(),
   'ask_your_notes' => null, // The Ask screen is not on master.
   'search_all_notes' => const SearchAllIntent(),
   'replace_in_notes' => const ReplaceInNotesIntent(),

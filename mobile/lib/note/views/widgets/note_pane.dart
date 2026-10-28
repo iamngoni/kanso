@@ -24,6 +24,7 @@ import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
 import '../../../sharing/views/widgets/comments_button.dart';
 import '../../../sharing/views/widgets/share_note_button.dart';
 import '../../../sharing/views/widgets/shared_note_status_strip.dart';
+import '../../../shell/state/focus_mode/focus_mode_bloc.dart';
 import '../../../window/views/widgets/note_window_scope.dart';
 import '../../../window/views/widgets/window_actions.dart';
 import '../../models/data/note_mode.dart';
@@ -54,19 +55,32 @@ class NotePane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final focus = _maybeReadBloc<FocusModeBloc>(context);
+    if (focus == null) {
+      return _build(context, focusActive: false);
+    }
+    return BlocBuilder<FocusModeBloc, FocusModeState>(
+      buildWhen: (before, after) => before.active != after.active,
+      builder: (context, state) => _build(context, focusActive: state.active),
+    );
+  }
+
+  Widget _build(BuildContext context, {required bool focusActive}) {
     return NoteLockSync(
       // The cover is on exactly while an open locked note is shown.
       child: BlocSelector<NoteBloc, NoteState, bool>(
         selector: (state) =>
             state.status == NoteScreenStatus.ready &&
             state.note?.lock is LockState_Open,
-        builder: (context, secure) =>
-            PrivacyCoverSync(secure: secure, child: content(context)),
+        builder: (context, secure) => PrivacyCoverSync(
+          secure: secure,
+          child: content(context, focusActive: focusActive),
+        ),
       ),
     );
   }
 
-  Widget content(BuildContext context) {
+  Widget content(BuildContext context, {required bool focusActive}) {
     final l10n = context.l10n;
     final gutter = inPane ? KansoSpacing.lg : KansoSpacing.md;
     final history = context.read<NavigationHistoryBloc>();
@@ -102,113 +116,110 @@ class NotePane extends StatelessWidget {
           final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
           // The window intents are found from the focus, which
           // `NoteModeShortcuts` may hold: their actions are above it.
+          final body =
+              BlocBuilder<NavigationHistoryBloc, NavigationHistoryState>(
+                builder: (context, steps) {
+                  void goBack() => history.add(
+                    const NavigationHistoryEvent.backRequested(),
+                  );
+                  void goForward() => history.add(
+                    const NavigationHistoryEvent.forwardRequested(),
+                  );
+                  return Column(
+                    children: <Widget>[
+                      if (!focusActive)
+                        NoteTopBar(
+                          phone: !inPane,
+                          onBack: () => leave(context),
+                          onGoBack: steps.canGoBack ? goBack : null,
+                          onGoForward: steps.canGoForward ? goForward : null,
+                          trailing: <Widget>[
+                            if (readable) const NoteJournalActions(),
+                            if (readable) ...<Widget>[
+                              NoteModeToggle(
+                                mode: shown.mode,
+                                onChanged: (mode) =>
+                                    context.read<NoteBloc>().add(
+                                      NoteEvent.modeChanged(mode),
+                                    ),
+                              ),
+                              KansoIconButton(
+                                icon: KansoIcons.info,
+                                semanticLabel: l10n.noteInfo,
+                                onPressed: () => showKansoBottomSheet<void>(
+                                  context,
+                                  builder: (_) =>
+                                      BlocProvider<NoteDiscoveryBloc>.value(
+                                        value: context
+                                            .read<NoteDiscoveryBloc>(),
+                                        child: NoteInfoSheet(
+                                          note: note,
+                                          index: context
+                                              .read<LibraryIndexBloc>()
+                                              .state,
+                                        ),
+                                      ),
+                                ),
+                              ),
+                            ],
+                            if (comments != null && readable)
+                              CommentsButton(
+                                // Select in the editor: open it first.
+                                onSelect: (commentId) {
+                                  if (!editing) {
+                                    context.read<NoteBloc>().add(
+                                      const NoteEvent.modeChanged(
+                                        NoteMode.edit,
+                                      ),
+                                    );
+                                  }
+                                  comments?.add(
+                                    CommentsEvent.selected(commentId),
+                                  );
+                                },
+                              ),
+                            const ShareNoteButton(),
+                            const NoteLockMenuButton(),
+                            // Only a device that shows more than one window
+                            // has anything to put in this menu.
+                            if (windows != null && windows.supported)
+                              KansoIconButton(
+                                icon: KansoIcons.ellipsis,
+                                semanticLabel: l10n.noteMenu,
+                                onPressed: () => showKansoBottomSheet<void>(
+                                  context,
+                                  builder: (_) => NoteMenuSheet(
+                                    noteId: shown.noteId,
+                                    windows: windows,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      if (hasStatus && readable && !focusActive)
+                        SharedNoteStatusStrip(gutter: gutter),
+                      Expanded(
+                        child: NoteStage(shown: shown, gutter: gutter),
+                      ),
+                      if (!inPane && !focusActive && !(editing && keyboardUp))
+                        NoteBottomBar(
+                          onGoBack: steps.canGoBack ? goBack : null,
+                          onGoForward: steps.canGoForward ? goForward : null,
+                          onSearch: () => context.go(
+                            const BrowseLocation.search().location,
+                          ),
+                          onSettings: () => context.push(KansoRoutes.settings),
+                        ),
+                    ],
+                  );
+                },
+              );
           return WindowActions(
             noteId: shown.noteId,
             child: NoteModeShortcuts(
               child: ColoredBox(
                 color: context.colors.editor,
-                child:
-                    BlocBuilder<NavigationHistoryBloc, NavigationHistoryState>(
-                      builder: (context, steps) {
-                        void goBack() => history.add(
-                          const NavigationHistoryEvent.backRequested(),
-                        );
-                        void goForward() => history.add(
-                          const NavigationHistoryEvent.forwardRequested(),
-                        );
-                        return Column(
-                          children: <Widget>[
-                            NoteTopBar(
-                              phone: !inPane,
-                              onBack: () => leave(context),
-                              onGoBack: steps.canGoBack ? goBack : null,
-                              onGoForward: steps.canGoForward
-                                  ? goForward
-                                  : null,
-                              trailing: <Widget>[
-                                if (readable) const NoteJournalActions(),
-                                if (readable) ...<Widget>[
-                                  NoteModeToggle(
-                                    mode: shown.mode,
-                                    onChanged: (mode) =>
-                                        context.read<NoteBloc>().add(
-                                          NoteEvent.modeChanged(mode),
-                                        ),
-                                  ),
-                                  KansoIconButton(
-                                    icon: KansoIcons.info,
-                                    semanticLabel: l10n.noteInfo,
-                                    onPressed: () => showKansoBottomSheet<void>(
-                                      context,
-                                      builder: (_) =>
-                                          BlocProvider<NoteDiscoveryBloc>.value(
-                                            value: context
-                                                .read<NoteDiscoveryBloc>(),
-                                            child: NoteInfoSheet(
-                                              note: note,
-                                              index: context
-                                                  .read<LibraryIndexBloc>()
-                                                  .state,
-                                            ),
-                                          ),
-                                    ),
-                                  ),
-                                ],
-                                if (comments != null && readable)
-                                  CommentsButton(
-                                    // Select in the editor: open it first.
-                                    onSelect: (commentId) {
-                                      if (!editing) {
-                                        context.read<NoteBloc>().add(
-                                          const NoteEvent.modeChanged(
-                                            NoteMode.edit,
-                                          ),
-                                        );
-                                      }
-                                      comments?.add(
-                                        CommentsEvent.selected(commentId),
-                                      );
-                                    },
-                                  ),
-                                const ShareNoteButton(),
-                                const NoteLockMenuButton(),
-                                // Only a device that shows more than one window
-                                // has anything to put in this menu.
-                                if (windows != null && windows.supported)
-                                  KansoIconButton(
-                                    icon: KansoIcons.ellipsis,
-                                    semanticLabel: l10n.noteMenu,
-                                    onPressed: () => showKansoBottomSheet<void>(
-                                      context,
-                                      builder: (_) => NoteMenuSheet(
-                                        noteId: shown.noteId,
-                                        windows: windows,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            if (hasStatus && readable)
-                              SharedNoteStatusStrip(gutter: gutter),
-                            Expanded(
-                              child: NoteStage(shown: shown, gutter: gutter),
-                            ),
-                            if (!inPane && !(editing && keyboardUp))
-                              NoteBottomBar(
-                                onGoBack: steps.canGoBack ? goBack : null,
-                                onGoForward: steps.canGoForward
-                                    ? goForward
-                                    : null,
-                                onSearch: () => context.go(
-                                  const BrowseLocation.search().location,
-                                ),
-                                onSettings: () =>
-                                    context.push(KansoRoutes.settings),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
+                child: body,
               ),
             ),
           );
@@ -224,5 +235,13 @@ class NotePane extends StatelessWidget {
     } else {
       context.go(KansoRoutes.notes);
     }
+  }
+}
+
+T? _maybeReadBloc<T>(BuildContext context) {
+  try {
+    return context.read<T>();
+  } on ProviderNotFoundException {
+    return null;
   }
 }

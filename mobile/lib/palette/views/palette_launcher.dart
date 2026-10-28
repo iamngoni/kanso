@@ -26,6 +26,7 @@ import '../../note/views/widgets/note_pdf_export.dart';
 import '../../note_links/views/widgets/backlinks_sheet.dart';
 import '../../note_links/views/widgets/outline_sheet.dart';
 import '../../publish/views/widgets/publish_sheet.dart';
+import '../../shell/state/focus_mode/focus_mode_bloc.dart';
 import '../models/data/palette_choice.dart';
 import 'widgets/palette_choice_sheet.dart';
 import 'widgets/palette_sheet.dart';
@@ -40,7 +41,7 @@ abstract final class PaletteLauncher {
   /// The commands the mobile app can run now.
   ///
   /// Everything else the catalog has is left out on purpose: it has no
-  /// surface here yet (Ask, focus mode, word goal, export HTML, Vim,
+  /// surface here yet (Ask, word goal, export HTML, Vim,
   /// transcribe, plugins), so offering it would be a dead row.
   ///
   /// `publish-notebook` is added only where a notebook is showing: the
@@ -72,6 +73,7 @@ abstract final class PaletteLauncher {
     'toggle-inspector',
     'show-outline',
     'show-backlinks',
+    'focus-mode',
     'sync',
     'sign-in',
     'settings',
@@ -218,22 +220,29 @@ abstract final class PaletteLauncher {
       case 'new-notebook':
         await NewNotebookSheet.open(context);
       case 'search':
+        _leaveFocus(context);
         router.go(KansoRoutes.search);
       case 'replace-all':
+        _leaveFocus(context);
         router.go(KansoRoutes.replace);
       case 'today':
         router.go(KansoRoutes.daily);
       case 'import':
         router.go(KansoRoutes.import);
       case 'go-to-notebook':
+        _leaveFocus(context);
         router.go(KansoRoutes.notebooks);
       case 'go-to-tag':
+        _leaveFocus(context);
         router.go(KansoRoutes.tags);
       case 'back-to-notes':
+        _leaveFocus(context);
         router.go(KansoRoutes.notes);
       case 'show-graph':
+        _leaveFocus(context);
         router.go(KansoRoutes.graph);
       case 'show-board':
+        _leaveFocus(context);
         router.go(
           const BrowseLocation.place(
             ListPlace.all(),
@@ -241,12 +250,16 @@ abstract final class PaletteLauncher {
           ).location,
         );
       case 'settings':
+        _leaveFocus(context);
         router.go(KansoRoutes.settings);
       case 'settings-appearance':
+        _leaveFocus(context);
         router.go(KansoRoutes.settingsTheme);
       case 'settings-account':
+        _leaveFocus(context);
         router.go(KansoRoutes.settingsAccount);
       case 'sign-in':
+        _leaveFocus(context);
         router.go(KansoRoutes.settingsSignIn);
       case 'sync':
         final sync = _maybeRead<SyncStatusBloc>(context);
@@ -325,6 +338,9 @@ abstract final class PaletteLauncher {
         if (open != null) {
           await BacklinksSheet.show(context, noteId: open);
         }
+      case 'focus-mode':
+        final focus = _maybeRead<FocusModeBloc>(context);
+        focus?.add(const FocusModeEvent.toggled());
       case 'toggle-inspector':
         final index = _maybeRead<LibraryIndexBloc>(context);
         final discovery = _maybeRead<NoteDiscoveryBloc>(context);
@@ -469,6 +485,12 @@ abstract final class PaletteLauncher {
     if (picked != null) {
       await _change(context, NoteChange.addTag(tagId: picked), id);
     }
+  }
+
+  /// Leaves focus mode before opening a surface that is not the note.
+  static void _leaveFocus(BuildContext context) {
+    final focus = _maybeRead<FocusModeBloc>(context);
+    focus?.add(const FocusModeEvent.exited());
   }
 
   static void _say(BuildContext context, String message) {

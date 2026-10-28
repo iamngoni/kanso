@@ -40,6 +40,7 @@ void main() {
           OpenPaletteIntent,
           OpenTodayIntent,
           ReplaceInNotesIntent,
+          ToggleFocusModeIntent,
           ToggleInspectorIntent,
           OpenInNewWindowIntent,
           CloseTabIntent,
@@ -48,7 +49,7 @@ void main() {
           ReopenClosedTabIntent,
           GoToTabIntent,
         });
-        expect(bindings, hasLength(31));
+        expect(bindings, hasLength(32));
       }
     });
 
@@ -99,6 +100,21 @@ void main() {
       expect(bindings[NewNotebookIntent]!.shift, isTrue);
       expect(bindings[EditNoteIntent]!.trigger, LogicalKeyboardKey.digit1);
       expect(bindings[PreviewNoteIntent]!.trigger, LogicalKeyboardKey.digit3);
+    });
+
+    test('Escape leaves focus mode only while it is on', () {
+      final focus = shortcutBindingsFor(
+        const <ShortcutContext>[ShortcutContext.focusMode],
+        TargetPlatform.iOS,
+      );
+      final escape = focus.entries.singleWhere(
+        (entry) => entry.value is ExitFocusModeIntent,
+      );
+      expect(_activator(escape.key).trigger, LogicalKeyboardKey.escape);
+      expect(
+        kansoShortcutBindings(TargetPlatform.iOS).values,
+        isNot(contains(isA<ExitFocusModeIntent>())),
+      );
     });
 
     test('the command palette is bound to its catalog shortcut', () {
