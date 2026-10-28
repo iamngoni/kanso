@@ -7,7 +7,8 @@ use base64::Engine as _;
 use kanso_core::DocType;
 use kanso_core::model::{
     FILE_LOCK_FIELD, FileLock, KANSO_FILES_FIELD, LOCK_FIELD, MAX_ATTACHMENT_SIZE,
-    MAX_SEALED_ATTACHMENT, NoteFile, OCR_FIELD, UNSEALED_FIELD,
+    MAX_SEALED_ATTACHMENT, NoteFile, OCR_FIELD, SEALED_FILE_CONTENT_TYPE, SEALED_FILE_NAME,
+    UNSEALED_FIELD,
 };
 use kanso_store::{Attachment, AttachmentState, Origin, Put, Store, StoreError};
 use proptest::prelude::*;
@@ -89,6 +90,49 @@ fn a_sealed_file_reads_as_sealed_and_never_as_plain() {
     let listed = store.list_api(DocType::File, None, 0).unwrap();
     assert!(listed[0].get(FILE_LOCK_FIELD).is_none());
     assert_eq!(listed[0]["locked"], true);
+}
+
+#[test]
+fn a_served_sealed_file_has_no_real_name_or_type() {
+    let (_dir, store) = store();
+    let id = plain(&store, b"private attachment");
+    let mut file = store.file_meta(&id).unwrap().unwrap();
+    let mut lock = FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into());
+    lock.meta = true;
+    FileLock::store(Some(&lock), &mut file.extra);
+    store
+        .put_sealed_file(file, Attachment::new(container(b"opaque")))
+        .unwrap();
+
+    let raw = store.get(&id).unwrap().unwrap();
+    assert_eq!(raw.fields["name"], SEALED_FILE_NAME);
+    assert_eq!(raw.fields["contentType"], SEALED_FILE_CONTENT_TYPE);
+    assert_eq!(raw.fields["publicIn"], json!([]));
+    assert!(FileLock::from_extra(&raw.fields).unwrap().meta);
+    let raw_json = serde_json::to_string(&raw.fields).unwrap();
+    assert!(!raw_json.contains("shot.png"));
+    assert!(!raw_json.contains("image/png"));
+
+    let served = store.get_api(&id, None, true).unwrap();
+    assert_eq!(served["name"], SEALED_FILE_NAME);
+    assert_eq!(served["contentType"], SEALED_FILE_CONTENT_TYPE);
+    assert_eq!(
+        served["_attachments"]["index"]["content_type"],
+        SEALED_FILE_CONTENT_TYPE
+    );
+    assert_eq!(served["publicIn"], json!([]));
+    assert_eq!(served["locked"], true);
+    assert_eq!(served["_attachments"]["index"]["stub"], true);
+    assert!(served["_attachments"]["index"].get("data").is_none());
+    let listed = store.list_api(DocType::File, None, 0).unwrap();
+    assert_eq!(listed[0]["name"], SEALED_FILE_NAME);
+    assert_eq!(listed[0]["contentType"], SEALED_FILE_CONTENT_TYPE);
+    assert!(!listed[0].to_string().contains("shot.png"));
+    assert!(!listed[0].to_string().contains("image/png"));
+    assert_eq!(
+        store.file_meta(&id).unwrap().unwrap().name,
+        SEALED_FILE_NAME
+    );
 }
 
 #[test]
@@ -334,7 +378,8 @@ fn a_local_write_cannot_drop_the_seal_marker() {
     );
     let meta = store.file_meta(&id).unwrap().unwrap();
     assert!(meta.extra.contains_key(FILE_LOCK_FIELD));
-    assert_eq!(meta.name, "renamed.png");
+    assert_eq!(meta.name, "shot.png");
+    assert_eq!(meta.content_type, "image/png");
 
     // A merge that tries to null the marker keeps it too.
     let rev = store.file_meta(&id).unwrap().unwrap().rev.unwrap();
@@ -428,12 +473,11 @@ fn put_sealed_file_refuses_an_unmarked_file_and_an_oversized_container() {
         .unwrap_err();
     assert!(matches!(err, StoreError::Invalid(_)), "{err}");
 
-    // A malformed marker is not a seal: version, kind, metadata state and the
-    // canonical 16-byte seal ID must all be exact.
+    // A malformed marker is not a seal: version, kind and the canonical
+    // 16-byte seal ID must all be exact.
     for marker in [
         json!({"v": 2, "kind": "file", "seal": "AAAAAAAAAAAAAAAAAAAAAA", "meta": false}),
         json!({"v": 1, "kind": "note", "seal": "AAAAAAAAAAAAAAAAAAAAAA", "meta": false}),
-        json!({"v": 1, "kind": "file", "seal": "AAAAAAAAAAAAAAAAAAAAAA", "meta": true}),
         json!({"v": 1, "kind": "file", "seal": "short", "meta": false}),
         json!({"v": 1, "kind": "file", "seal": "AAAAAAAAAAAAAAAAAAAAAA=", "meta": false}),
     ] {

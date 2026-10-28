@@ -361,22 +361,40 @@ impl Library {
             if !self.linked_from_readable_note(id)? {
                 return Err(KansoError::NotFound);
             }
-            let (content_type, bytes) = if let Some((seal, file_key)) = seal_and_key {
+            let (name, content_type, bytes) = if let Some((seal, file_key)) = seal_and_key {
                 let blob = store.stored_attachment(id)?.ok_or(KansoError::NotFound)?;
                 let segments = open_container(id, &seal, &file_key, &blob.data)
                     .map_err(|_| KansoError::Locked)?;
                 let content = segments
-                    .into_iter()
+                    .iter()
                     .find(|segment| segment.kind == SEGMENT_CONTENT)
                     .ok_or(KansoError::Locked)?;
-                (meta.content_type.clone(), content.bytes)
+                let unlocked = if FileLock::from_extra(&meta.extra)
+                    .is_some_and(|marker| marker.meta)
+                {
+                    let segment = segments
+                        .iter()
+                        .find(|segment| segment.kind == kanso_sync::lock::SEGMENT_METADATA)
+                        .ok_or(KansoError::Locked)?;
+                    Some(
+                        kanso_sync::lock::SealedFileMetadata::from_canonical_json(&segment.bytes)
+                            .map_err(|_| KansoError::Locked)?,
+                    )
+                } else {
+                    None
+                };
+                let (name, content_type) = unlocked.map_or_else(
+                    || (meta.name.clone(), meta.content_type.clone()),
+                    |metadata| (metadata.name, metadata.content_type),
+                );
+                (name, content_type, content.bytes.clone())
             } else {
                 let (content_type, blob) = store.attachment(id)?.ok_or(KansoError::NotFound)?;
-                (content_type, blob.data)
+                (meta.name.clone(), content_type, blob.data)
             };
             Ok(AttachmentFile {
                 id: id.to_owned(),
-                name: meta.name,
+                name,
                 content_type,
                 bytes,
             })

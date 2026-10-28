@@ -197,7 +197,10 @@ fn normalize_file(f: &mut Map<String, Value>, refs: Refs) -> Result<()> {
         return invalid("The file needs a name of 1 to 128 characters.".into());
     }
     let content_type = string_or(f, "contentType", "")?;
-    let supported = SUPPORTED_IMAGE_TYPES.contains(&content_type.as_str())
+    let sealed_metadata = kanso_core::model::FileLock::from_extra(f).is_some_and(|lock| lock.meta);
+    let supported = (sealed_metadata
+        && content_type == kanso_core::model::SEALED_FILE_CONTENT_TYPE)
+        || SUPPORTED_IMAGE_TYPES.contains(&content_type.as_str())
         || SUPPORTED_AUDIO_TYPES.contains(&content_type.as_str())
         || SUPPORTED_DOCUMENT_TYPES.contains(&content_type.as_str());
     if matches!(refs, Refs::Check(_)) && !supported {

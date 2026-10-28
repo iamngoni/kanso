@@ -9,18 +9,119 @@ use std::time::{Duration, Instant};
 use base64::Engine as _;
 use common::*;
 use kanso_core::DocType;
-use kanso_core::model::{FILE_LOCK_FIELD, KANSO_FILES_FIELD, note_files_from_extra};
+use kanso_core::model::{FILE_LOCK_FIELD, FileLock, KANSO_FILES_FIELD, note_files_from_extra};
 use kanso_core::tasks::linked_file_ids;
 use kanso_engine::lock::AUTO_LOCK;
 use kanso_mobile::{KansoError, ListPlace, ListQuery, LockEvent, LockReason, LockState, NewNote};
 use kanso_store::{Origin, Put};
 use kanso_store::{SearchParams, Store};
 use kanso_sync::KdfParams;
+use kanso_sync::MemoryServer;
 use kanso_sync::lock::{Envelope, LockKey, LockPassword};
 use proptest::prelude::*;
 use serde_json::json;
 
 const SECRET: &str = "the secret plan";
+
+#[test]
+fn the_app_shows_the_real_name_while_the_note_is_open() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let file = store
+        .put(
+            DocType::File,
+            json!({"name":"memo.wav", "contentType":"audio/wav", "publicIn":["web"],
+                "_attachments":{"index":{"content_type":"audio/wav",
+                "data":base64::engine::general_purpose::STANDARD.encode(b"recording")}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let note = phone
+        .library
+        .create(NewNote {
+            body: format!("[memo](inkdrop://{file})"),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+    phone
+        .library
+        .locks()
+        .lock_note(&note, LOCK_PASSWORD.into())
+        .unwrap();
+
+    let stored = store.file_meta(&file).unwrap().unwrap();
+    assert_eq!(stored.name, kanso_core::model::SEALED_FILE_NAME);
+    assert_eq!(
+        stored.content_type,
+        kanso_core::model::SEALED_FILE_CONTENT_TYPE
+    );
+    assert!(FileLock::from_extra(&stored.extra).unwrap().meta);
+    let opened = phone.library.attachment(&file).unwrap();
+    assert_eq!(opened.name, "memo.wav");
+    assert_eq!(opened.content_type, "audio/wav");
+    assert_eq!(opened.bytes, b"recording");
+
+    phone.library.locks().remove_note_lock(&note).unwrap();
+    let restored = store.file_meta(&file).unwrap().unwrap();
+    assert_eq!(restored.name, "memo.wav");
+    assert_eq!(restored.content_type, "audio/wav");
+    assert_eq!(restored.public_in, ["web"]);
+}
+
+#[test]
+fn a_device_without_the_password_never_sees_the_name() {
+    let server = std::sync::Arc::new(MemoryServer::new());
+    make_account(&server);
+    let (a, b) = (phone(&server), phone(&server));
+    sign_in(&a, "Phone A");
+    sign_in(&b, "Phone B");
+    let store = a.library.store();
+    let file = store
+        .put(
+            DocType::File,
+            json!({"name":"private-recording.wav", "contentType":"audio/wav",
+                "_attachments":{"index":{"content_type":"audio/wav",
+                "data":base64::engine::general_purpose::STANDARD.encode(b"recording")}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let note = a
+        .library
+        .create(NewNote {
+            body: format!("[recording](inkdrop://{file})"),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+    a.library
+        .locks()
+        .lock_note(&note, LOCK_PASSWORD.into())
+        .unwrap();
+    a.library.sync().sync_now().unwrap();
+    b.library.sync().sync_now().unwrap();
+
+    let remote = b.library.store();
+    let stored = remote.get(&file).unwrap().unwrap();
+    assert_eq!(stored.fields["name"], kanso_core::model::SEALED_FILE_NAME);
+    assert_eq!(
+        stored.fields["contentType"],
+        kanso_core::model::SEALED_FILE_CONTENT_TYPE
+    );
+    let api = remote.get_api(&file, None, true).unwrap();
+    let list = remote.list_api(DocType::File, None, 0).unwrap();
+    let output = api.to_string() + &list[0].to_string();
+    assert!(!output.contains("private-recording.wav"));
+    assert!(!output.contains("audio/wav"));
+    assert!(output.contains("Locked attachment"));
+    assert!(output.contains("application/octet-stream"));
+    assert!(remote.attachment(&file).unwrap().is_none());
+    assert!(remote.stored_attachment(&file).unwrap().is_some());
+}
 
 /// Two notes sealed in one notebook pass share one sealed attachment: the
 /// file is wrapped under both notes' keys, and a password change re-wraps

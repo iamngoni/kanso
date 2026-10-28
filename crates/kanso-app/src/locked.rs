@@ -12,15 +12,21 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 use kanso_core::Note;
+use kanso_core::model::note_files_from_extra;
 use kanso_store::Store;
 use kanso_sync::SecretStore;
 use kanso_sync::keychain::{delete_lock_keys, load_lock_keys, save_lock_keys};
-use kanso_sync::lock::{Envelope, LockError, LockKey, LockPassword};
+use kanso_sync::lock::{
+    Envelope, LockError, LockKey, LockPassword, SEGMENT_METADATA, SealId, SealedFileMetadata,
+    open_container, unwrap_file_key,
+};
 
 use crate::dialogs::{self, Field, FormSpec, FormView, Progress, Submit};
 use crate::editor::NoteEditor;
@@ -142,6 +148,47 @@ pub fn reveal(note: &mut Note, cx: &mut App) -> LockView {
 // no-prop-test: delegates to kanso_engine::lock::Session::seal, tested there.
 pub fn seal(note: &mut Note, cx: &mut App) -> Result<(), String> {
     LockKeys::get_mut(cx).0.seal(note, Instant::now())
+}
+
+/// Opens the sealed metadata of a file owned by this open note. The note's
+/// own envelope and ownership wrap must both match a key held by this app
+/// session; the local API never calls this path.
+pub(crate) fn opened_file(
+    note: &Note,
+    file_id: &str,
+    cx: &App,
+) -> Option<(SealedFileMetadata, Vec<u8>)> {
+    let envelope = Envelope::from_extra(&note.extra)?.ok()?;
+    let key = LockKeys::fitting(cx, &envelope)?;
+    let ownership = note_files_from_extra(&note.extra)?
+        .into_iter()
+        .find(|file| file.file == file_id)?;
+    let file_meta = store(cx).file_meta(file_id).ok()??;
+    let marker = kanso_core::model::FileLock::from_extra(&file_meta.extra)?;
+    let seal = SealId::decode(&marker.seal)?;
+    if ownership.seal != marker.seal {
+        return None;
+    }
+    let wrapped = STANDARD.decode(&ownership.key).ok()?;
+    let file_key = unwrap_file_key(&key, &envelope, &note.id, file_id, &seal, &wrapped).ok()?;
+    let container = store(cx).stored_attachment(file_id).ok()??;
+    let segments = open_container(file_id, &seal, &file_key, &container.data).ok()?;
+    let metadata = if marker.meta {
+        segments
+            .iter()
+            .find(|segment| segment.kind == SEGMENT_METADATA)
+            .and_then(|segment| SealedFileMetadata::from_canonical_json(&segment.bytes).ok())?
+    } else {
+        SealedFileMetadata {
+            name: file_meta.name,
+            content_type: file_meta.content_type,
+            public_in: file_meta.public_in,
+        }
+    };
+    let content = segments
+        .into_iter()
+        .find(|segment| segment.kind == kanso_sync::lock::SEGMENT_CONTENT)?;
+    Some((metadata, content.bytes))
 }
 
 // MARK: Dialogs

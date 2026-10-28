@@ -2481,7 +2481,16 @@ impl NoteEditor {
     /// The audio attachment linked on the caret's line: its file ID and
     /// name.
     pub fn audio_on_caret_line(&self, cx: &App) -> Option<(String, String)> {
-        self.note.as_ref()?;
+        match self.audio_source_on_caret_line(cx)? {
+            crate::transcribe::Source::Attachment { file_id, name, .. } => Some((file_id, name)),
+            crate::transcribe::Source::Path { .. } => None,
+        }
+    }
+
+    /// The recording source at the caret, with opened bytes when this file
+    /// is sealed under the open note's file-key wrap.
+    pub fn audio_source_on_caret_line(&self, cx: &App) -> Option<crate::transcribe::Source> {
+        let note = self.note.as_ref()?;
         let state = self.body.read(cx);
         let text = state.value();
         let caret = state.selected_range().start.min(text.len());
@@ -2491,10 +2500,30 @@ impl NoteEditor {
             .into_iter()
             .find_map(|id| {
                 let doc = self.store.get(&id).ok()??;
-                let content_type = doc.str_field("contentType")?;
-                kanso_voice::file::extension(content_type)?;
-                let name = doc.str_field("name").unwrap_or("recording").to_owned();
-                Some((id, name))
+                let sealed = kanso_core::model::FileLock::from_extra(&doc.fields).is_some();
+                let opened = sealed
+                    .then(|| crate::locked::opened_file(note, &id, cx))
+                    .flatten();
+                let content_type = opened
+                    .as_ref()
+                    .map(|(metadata, _)| metadata.content_type.clone())
+                    .or_else(|| doc.str_field("contentType").map(str::to_owned))?;
+                kanso_voice::file::extension(&content_type)?;
+                let (name, bytes) = opened.map_or_else(
+                    || {
+                        (
+                            doc.str_field("name").unwrap_or("recording").to_owned(),
+                            None,
+                        )
+                    },
+                    |(metadata, bytes)| (metadata.name, Some(bytes)),
+                );
+                Some(crate::transcribe::Source::Attachment {
+                    file_id: id,
+                    name,
+                    content_type,
+                    bytes,
+                })
             })
     }
 

@@ -338,7 +338,7 @@ impl LockSession {
             for ownership in &owned {
                 let owners = self.inner.store.file_owners(&ownership.file)?;
                 let shared = owners.iter().any(|owner| owner != id);
-                let Some(meta) = self.inner.store.file_meta(&ownership.file)? else {
+                let Some(mut meta) = self.inner.store.file_meta(&ownership.file)? else {
                     continue;
                 };
                 let Some(marker) = FileLock::from_extra(&meta.extra) else {
@@ -364,9 +364,31 @@ impl LockSession {
                 )
                 .map_err(|_| KansoError::Locked)?;
                 let content = segments
-                    .into_iter()
+                    .iter()
                     .find(|segment| segment.kind == kanso_sync::lock::SEGMENT_CONTENT)
                     .ok_or(KansoError::Locked)?;
+                let metadata = if marker.meta {
+                    let bytes = segments
+                        .iter()
+                        .find(|segment| segment.kind == kanso_sync::lock::SEGMENT_METADATA)
+                        .ok_or(KansoError::Locked)?;
+                    Some(
+                        kanso_sync::lock::SealedFileMetadata::from_canonical_json(&bytes.bytes)
+                            .map_err(|_| KansoError::Locked)?,
+                    )
+                } else {
+                    None
+                };
+                let (name, content_type, public_in) = metadata.map_or_else(
+                    || {
+                        (
+                            meta.name.clone(),
+                            meta.content_type.clone(),
+                            meta.public_in.clone(),
+                        )
+                    },
+                    |metadata| (metadata.name, metadata.content_type, metadata.public_in),
+                );
                 if shared {
                     // Another locked note still shows the sealed original;
                     // give this now-plain note its own readable copy so the
@@ -374,10 +396,11 @@ impl LockSession {
                     let copy = self.inner.store.put(
                         DocType::File,
                         serde_json::json!({
-                            "name": meta.name.clone(),
-                            "contentType": meta.content_type.clone(),
+                            "name": name.clone(),
+                            "contentType": content_type.clone(),
+                            "publicIn": public_in.clone(),
                             "_attachments": {"index": {
-                                "content_type": meta.content_type.clone(),
+                                "content_type": content_type.clone(),
                                 "data": STANDARD.encode(&content.bytes),
                             }},
                         }),
@@ -386,9 +409,12 @@ impl LockSession {
                     )?;
                     note.body = note.body.replace(&ownership.file, &copy.id);
                 } else {
+                    meta.name = name;
+                    meta.content_type = content_type;
+                    meta.public_in = public_in;
                     self.inner
                         .store
-                        .put_unsealed_file(meta, Attachment::new(content.bytes))?;
+                        .put_unsealed_file(meta, Attachment::new(content.bytes.clone()))?;
                 }
             }
             store_note_files(None, &mut note.extra);
@@ -889,16 +915,31 @@ impl LockSession {
                     };
                     let seal = SealId::random();
                     let file_key = FileKey::random();
+                    let metadata = kanso_sync::lock::SealedFileMetadata {
+                        name: meta.name.clone(),
+                        content_type: meta.content_type.clone(),
+                        public_in: meta.public_in.clone(),
+                    }
+                    .to_canonical_json()
+                    .map_err(|_| KansoError::invalid("The attachment metadata is invalid."))?;
                     let container = kanso_sync::lock::seal_container(
                         &target,
                         &seal,
                         &file_key,
-                        &[SealedSegment {
-                            kind: kanso_sync::lock::SEGMENT_CONTENT,
-                            bytes: stored.data,
-                        }],
+                        &[
+                            SealedSegment {
+                                kind: kanso_sync::lock::SEGMENT_CONTENT,
+                                bytes: stored.data,
+                            },
+                            SealedSegment {
+                                kind: kanso_sync::lock::SEGMENT_METADATA,
+                                bytes: metadata,
+                            },
+                        ],
                     );
-                    FileLock::store(Some(&FileLock::sealed(seal.encode())), &mut meta.extra);
+                    let mut marker = FileLock::sealed(seal.encode());
+                    marker.meta = true;
+                    FileLock::store(Some(&marker), &mut meta.extra);
                     self.inner
                         .store
                         .put_sealed_file(meta, Attachment::new(container))?;

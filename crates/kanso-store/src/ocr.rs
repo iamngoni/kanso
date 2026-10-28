@@ -210,7 +210,9 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::doc::Attachment;
     use base64::Engine as _;
+    use kanso_core::model::FileLock;
 
     fn open() -> (tempfile::TempDir, Store) {
         let dir = tempfile::tempdir().unwrap();
@@ -292,6 +294,22 @@ mod tests {
         );
         store.delete(&id, Origin::Ui).unwrap();
         assert_eq!(store.image_text(&id).unwrap(), None);
+    }
+
+    #[test]
+    fn a_sealed_png_is_not_sent_to_ocr() {
+        let (_dir, store) = open();
+        let id = image(&store, b"png bytes");
+        show(&store, &id, &[]);
+        let mut meta = store.file_meta(&id).unwrap().unwrap();
+        let mut lock = FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into());
+        lock.meta = true;
+        FileLock::store(Some(&lock), &mut meta.extra);
+        store
+            .put_sealed_file(meta, Attachment::new(b"sealed container".to_vec()))
+            .unwrap();
+
+        assert!(store.unread_images(10).unwrap().is_empty());
     }
 
     #[test]

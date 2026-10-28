@@ -475,21 +475,46 @@ async fn a_sealed_file_keeps_its_marker_from_the_local_api() {
     // The app seals the file: the store writes the marker and the
     // container, and nothing else may.
     let mut file = app.store.file_meta(&id).unwrap().unwrap();
-    FileLock::store(
-        Some(&FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into())),
-        &mut file.extra,
-    );
+    let mut lock = FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into());
+    lock.meta = true;
+    FileLock::store(Some(&lock), &mut file.extra);
     app.store
         .put_sealed_file(file, Attachment::new(vec![0x01, 0x01, 0x00, 0x03, 0, 0, 0]))
         .unwrap();
+    let raw = app.store.get(&id).unwrap().unwrap();
+    assert_eq!(raw.fields["name"], "Locked attachment");
+    assert_eq!(raw.fields["contentType"], "application/octet-stream");
+    assert_eq!(raw.fields["publicIn"], json!([]));
+    assert!(
+        !serde_json::to_string(&raw.fields)
+            .unwrap()
+            .contains("pixel.png")
+    );
 
     // Served output never carries the marker, in either form.
     let (_, stub) = get(&app.router, &format!("/{id}")).await;
     assert!(stub.get(FILE_LOCK_FIELD).is_none(), "{stub}");
+    assert_eq!(stub["name"], "Locked attachment", "{stub}");
+    assert_eq!(stub["contentType"], "application/octet-stream", "{stub}");
+    assert_eq!(stub["publicIn"], json!([]), "{stub}");
     let (_, files) = get(&app.router, "/files").await;
     assert!(files[0].get(FILE_LOCK_FIELD).is_none(), "{}", files[0]);
+    assert_eq!(files[0]["name"], "Locked attachment", "{}", files[0]);
+    assert_eq!(
+        files[0]["contentType"], "application/octet-stream",
+        "{}",
+        files[0]
+    );
+    assert_eq!(
+        files[0]["_attachments"]["index"]["stub"], true,
+        "{}",
+        files[0]
+    );
+    assert!(files[0]["_attachments"]["index"].get("data").is_none());
     let (_, asked) = get(&app.router, &format!("/{id}?attachments=true")).await;
     assert_eq!(asked["locked"], true, "{asked}");
+    assert_eq!(asked["name"], "Locked attachment", "{asked}");
+    assert_eq!(asked["contentType"], "application/octet-stream", "{asked}");
     assert_eq!(asked["_attachments"]["index"]["stub"], true, "{asked}");
     assert!(
         asked["_attachments"]["index"].get("data").is_none(),
@@ -512,7 +537,7 @@ async fn a_sealed_file_keeps_its_marker_from_the_local_api() {
     };
     assert_eq!(
         app.store.file_meta(&id).unwrap().unwrap().name,
-        "renamed.png"
+        "Locked attachment"
     );
     assert!(sealed(&app.store).is_some());
 

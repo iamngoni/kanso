@@ -1312,10 +1312,9 @@ async fn mcp_never_returns_sealed_attachment_bytes_or_exports_them() {
         )
         .unwrap();
     let mut meta = app.store.file_meta(&file.id).unwrap().unwrap();
-    FileLock::store(
-        Some(&FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into())),
-        &mut meta.extra,
-    );
+    let mut lock = FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into());
+    lock.meta = true;
+    FileLock::store(Some(&lock), &mut meta.extra);
     let container = b"opaque-sealed-container";
     app.store
         .put_sealed_file(meta, Attachment::new(container.to_vec()))
@@ -1338,6 +1337,11 @@ async fn mcp_never_returns_sealed_attachment_bytes_or_exports_them() {
         "That attachment is in a locked note. Open the note in Kanso and unlock it to use the file."
     );
     assert!(!read.to_string().contains(&encoded));
+    assert!(!read.to_string().contains("secret.png"));
+    assert!(!read.to_string().contains("image/png"));
     let export = tool(&app.router, "kanso-export-html", json!({"noteId": note.id})).await;
     assert!(!text(&export, 0).contains(&encoded));
+    assert!(!export.to_string().contains("secret.png"));
+    assert!(!export.to_string().contains("image/png"));
+    assert!(!export.to_string().contains("opaque-sealed-container"));
 }

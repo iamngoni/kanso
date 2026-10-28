@@ -91,7 +91,11 @@ impl Doc {
     pub fn file_to_api(&self, content_type: &str, attachment: &Attachment, data: bool) -> Value {
         let locked = self.fields.contains_key(kanso_core::model::FILE_LOCK_FIELD);
         let mut index = json!({
-            "content_type": content_type,
+            "content_type": if locked {
+                kanso_core::model::SEALED_FILE_CONTENT_TYPE
+            } else {
+                content_type
+            },
             "digest": attachment.digest(),
             "length": attachment.data.len(),
         });
@@ -108,6 +112,12 @@ impl Doc {
         let mut out = self.to_api(extra);
         if let Some(fields) = out.as_object_mut() {
             if locked {
+                fields.insert("name".into(), kanso_core::model::SEALED_FILE_NAME.into());
+                fields.insert(
+                    "contentType".into(),
+                    kanso_core::model::SEALED_FILE_CONTENT_TYPE.into(),
+                );
+                fields.insert("publicIn".into(), Value::Array(Vec::new()));
                 fields.insert("locked".into(), Value::Bool(true));
                 // Sealed attachments never expose their OCR text, even if an
                 // older writer left a copy in the document.

@@ -143,7 +143,13 @@ pub fn transcript_edit(
 #[derive(Clone, Debug)]
 pub enum Source {
     /// An audio attachment already in the library.
-    Attachment { file_id: String, name: String },
+    Attachment {
+        file_id: String,
+        name: String,
+        content_type: String,
+        /// Present when the open note had to decrypt the attachment first.
+        bytes: Option<Vec<u8>>,
+    },
     /// A file on disk; `file_id` when it was attached too.
     Path {
         path: PathBuf,
@@ -226,6 +232,8 @@ pub fn show_for_snapshot(
         source: Source::Attachment {
             file_id: "file:snapshot".into(),
             name: name.into(),
+            content_type: "audio/wav".into(),
+            bytes: None,
         },
         progress: Arc::new(Mutex::new(Progress {
             done: total.mul_f32(share),
@@ -420,13 +428,25 @@ fn read_source(
     source: &Source,
 ) -> Result<(Box<dyn file::MediaSource>, Option<String>), VoiceError> {
     match source {
-        Source::Attachment { file_id, .. } => {
-            let (content_type, attachment) = store
-                .attachment(file_id)
-                .map_err(|e| VoiceError::Audio(e.to_string()))?
-                .ok_or_else(|| VoiceError::Audio("the attachment is gone".into()))?;
-            let ext = file::extension(&content_type).map(str::to_owned);
-            Ok((file::from_bytes(attachment.data), ext))
+        Source::Attachment {
+            file_id,
+            content_type,
+            bytes,
+            ..
+        } => {
+            let bytes = match bytes {
+                Some(bytes) => bytes.clone(),
+                None => {
+                    store
+                        .attachment(file_id)
+                        .map_err(|e| VoiceError::Audio(e.to_string()))?
+                        .ok_or_else(|| VoiceError::Audio("the attachment is gone".into()))?
+                        .1
+                        .data
+                }
+            };
+            let ext = file::extension(content_type).map(str::to_owned);
+            Ok((file::from_bytes(bytes), ext))
         }
         Source::Path { path, .. } => {
             let ext = path

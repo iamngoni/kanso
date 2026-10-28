@@ -821,8 +821,17 @@ impl Store {
     /// checkpointed after the write ([`Store::write`]), as for a locked
     /// note's forgotten text, so the plaintext the container replaced
     /// doesn't linger there.
-    pub fn put_sealed_file(&self, file: FileMeta, container: Attachment) -> Result<WriteResult> {
-        checked_file_lock(&file)?;
+    pub fn put_sealed_file(
+        &self,
+        mut file: FileMeta,
+        container: Attachment,
+    ) -> Result<WriteResult> {
+        let lock = checked_file_lock(&file)?;
+        if lock.meta {
+            file.name = kanso_core::model::SEALED_FILE_NAME.to_owned();
+            file.content_type = kanso_core::model::SEALED_FILE_CONTENT_TYPE.to_owned();
+            file.public_in.clear();
+        }
         if container.data.len() > MAX_SEALED_ATTACHMENT {
             return Err(StoreError::Invalid(format!(
                 "The sealed file is larger than {MAX_SEALED_ATTACHMENT} bytes."
@@ -964,7 +973,7 @@ fn validate_note_files(tx: &Transaction, fields: &Map<String, Value>) -> Result<
 fn checked_file_lock(file: &FileMeta) -> Result<FileLock> {
     let lock = FileLock::from_extra(&file.extra)
         .ok_or_else(|| StoreError::Invalid("The file isn't sealed.".into()))?;
-    if lock.v != 1 || lock.kind != "file" || lock.meta {
+    if lock.v != 1 || lock.kind != "file" {
         return Err(StoreError::Invalid(
             "The sealed file's marker is invalid.".into(),
         ));
@@ -1070,6 +1079,11 @@ fn put_in(
                 ));
             }
             merged.insert(FILE_LOCK_FIELD.to_owned(), marker);
+            for field in ["name", "contentType", "publicIn"] {
+                if let Some(value) = live.and_then(|p| p.fields.get(field)) {
+                    merged.insert(field.to_owned(), value.clone());
+                }
+            }
             merged.remove(OCR_FIELD);
         } else {
             merged.remove(FILE_LOCK_FIELD);

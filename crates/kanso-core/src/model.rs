@@ -48,6 +48,10 @@ pub const LOCK_FIELD: &str = "kansoLock";
 /// the sealed bytes, so sync keeps working unchanged. Only the app sets it.
 pub const FILE_LOCK_FIELD: &str = "kansoFileLock";
 
+/// Public placeholder fields on a file whose name and type are sealed.
+pub const SEALED_FILE_NAME: &str = "Locked attachment";
+pub const SEALED_FILE_CONTENT_TYPE: &str = "application/octet-stream";
+
 /// The file field a deliberate unseal leaves for sync: `{"seal": "<b64 16>"}`.
 /// It distinguishes an app unseal from an older device replaying plaintext.
 pub const UNSEALED_FIELD: &str = "kansoUnsealed";

@@ -690,13 +690,10 @@ impl Render for NoteWindow {
             }))
             .on_action(cx.listener(
                 |this, _: &crate::transcribe::TranscribeAudio, window, cx| {
-                    let found = this.editor.read(cx).audio_on_caret_line(cx);
+                    let found = this.editor.read(cx).audio_source_on_caret_line(cx);
                     match found {
-                        Some((file_id, name)) => crate::transcribe::start(
-                            this.editor.clone(),
-                            crate::transcribe::Source::Attachment { file_id, name },
-                            window,
-                            cx,
+                        Some(source) => crate::transcribe::start(
+                            this.editor.clone(), source, window, cx,
                         ),
                         None => window.push_notification(
                             Notification::info(

@@ -70,6 +70,32 @@ pub const FILE_CONTAINER_FORMAT: u8 = 0x01;
 pub const SEGMENT_CONTENT: u8 = 0;
 pub const SEGMENT_METADATA: u8 = 1;
 
+/// The name, MIME type and publish targets hidden in a sealed attachment.
+/// Its struct field order is the canonical JSON byte order used in segment 1.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SealedFileMetadata {
+    pub name: String,
+    pub content_type: String,
+    pub public_in: Vec<String>,
+}
+
+impl SealedFileMetadata {
+    /// The canonical JSON representation stored in a metadata segment.
+    pub fn to_canonical_json(&self) -> Result<Vec<u8>, SealError> {
+        serde_json::to_vec(self).map_err(|_| SealError::Malformed)
+    }
+
+    /// Decodes metadata only when its bytes are the canonical JSON encoding.
+    pub fn from_canonical_json(bytes: &[u8]) -> Result<Self, SealError> {
+        let metadata: Self = serde_json::from_slice(bytes).map_err(|_| SealError::Malformed)?;
+        if metadata.to_canonical_json()?.as_slice() != bytes {
+            return Err(SealError::Malformed);
+        }
+        Ok(metadata)
+    }
+}
+
 /// Bytes a segment adds beyond its plaintext: the format byte, the 24-byte
 /// nonce and the 16-byte tag.
 const SEGMENT_OVERHEAD: usize = 1 + NONCE_LEN + 16;
@@ -111,7 +137,7 @@ pub enum SealError {
 /// One plaintext segment of a sealed attachment's container.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SealedSegment {
-    /// [`SEGMENT_CONTENT`] (or [`SEGMENT_METADATA`] in a later step).
+    /// [`SEGMENT_CONTENT`] or [`SEGMENT_METADATA`].
     pub kind: u8,
     /// The plaintext of this segment.
     pub bytes: Vec<u8>,
@@ -726,6 +752,27 @@ mod tests {
         }
     }
 
+    #[test]
+    fn metadata_json_uses_field_order_and_rejects_noncanonical_bytes() {
+        let metadata = SealedFileMetadata {
+            name: "memo.wav".into(),
+            content_type: "audio/wav".into(),
+            public_in: vec!["site".into()],
+        };
+        let canonical = br#"{"name":"memo.wav","contentType":"audio/wav","publicIn":["site"]}"#;
+        assert_eq!(metadata.to_canonical_json().unwrap(), canonical);
+        assert_eq!(
+            SealedFileMetadata::from_canonical_json(canonical).unwrap(),
+            metadata
+        );
+        assert!(
+            SealedFileMetadata::from_canonical_json(
+                br#"{ "name":"memo.wav","contentType":"audio/wav","publicIn":["site"]}"#
+            )
+            .is_err()
+        );
+    }
+
     // -- Sealed attachments ------------------------------------------------
 
     const FILE_ID: &str = "file:AbCd1234";
@@ -946,6 +993,17 @@ mod tests {
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
+        #[test]
+        fn prop_metadata_round_trips(
+            name in any::<String>(),
+            content_type in any::<String>(),
+            public_in in proptest::collection::vec(any::<String>(), 0..16),
+        ) {
+            let metadata = SealedFileMetadata { name, content_type, public_in };
+            let encoded = metadata.to_canonical_json().unwrap();
+            prop_assert_eq!(SealedFileMetadata::from_canonical_json(&encoded).unwrap(), metadata);
+        }
+
         /// Invariant: whatever the bytes and however they are split into
         /// segments, sealing then opening gives them back, and the seal
         /// never holds the plaintext canary.
