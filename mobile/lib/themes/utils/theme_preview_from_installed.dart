@@ -2,41 +2,63 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'package:flutter/material.dart';
+
+import '../../core/bridge/api/types.dart' show BuiltinTheme, SyntaxStyleRow;
 import '../../core/models/data/installed_theme.dart';
+import '../../core/models/data/installed_theme_origin.dart';
 import '../../core/utils/palette_from_tokens.dart';
 import '../models/data/theme_preview.dart';
 
-/// The preview of [theme]: the colours of its fitted tokens, as the app would
-/// draw a few lines of Markdown in it. An installed gallery theme is fitted
-/// as a built-in one is; [builtIn] says which it is.
-ThemePreview themePreviewFromBuiltin(
-  BuiltinTheme theme, {
-  bool builtIn = true,
-}) {
+/// The preview of [theme], drawn from the tokens the core fitted for it.
+ThemePreview themePreviewFromInstalled(InstalledTheme theme) {
   final palette = paletteFromTokens(theme.id, theme.tokens);
-  final colors = palette.colors;
   final syntax = palette.syntax;
-  final rows = <String, int?>{
-    for (final row in theme.tokens.syntax) row.token: row.color,
+  final styles = <String, SyntaxStyleRow>{
+    for (final row in theme.tokens.syntax) row.token: row,
   };
-  final quote = rows['quote'];
-  final strong = rows['strong'];
-  final emphasis = rows['emphasis'];
+  Color token(String name, Color fallback) {
+    final color = styles[name]?.color;
+    return color == null ? fallback : opaqueColor(color);
+  }
+
   return ThemePreview(
     id: theme.id,
     name: theme.name,
     dark: theme.dark,
-    editor: colors.editor,
-    text: colors.text,
-    accent: colors.accent,
+    editor: palette.colors.editor,
+    text: palette.colors.text,
+    accent: palette.colors.accent,
     heading: syntax.heading,
     marker: syntax.marker,
-    quote: quote == null ? syntax.marker : opaqueColor(quote),
+    quote: token('quote', syntax.marker),
     link: syntax.link,
     url: syntax.url,
     code: syntax.code,
-    strong: strong == null ? colors.text : opaqueColor(strong),
-    emphasis: emphasis == null ? colors.text : opaqueColor(emphasis),
-    builtIn: builtIn,
+    strong: token('strong', syntax.text),
+    emphasis: token('emphasis', syntax.text),
+    palette: palette,
+    origin: theme.origin,
+    author: theme.author,
   );
 }
+
+/// The preview of a built-in theme, or a gallery theme the older renderer
+/// call returned, drawn from its fitted tokens.
+ThemePreview themePreviewFromBuiltin(
+  BuiltinTheme theme, {
+  bool builtIn = true,
+}) => themePreviewFromInstalled(
+  InstalledTheme(
+    id: theme.id,
+    name: theme.name,
+    author: theme.author,
+    license: theme.license,
+    dark: theme.dark,
+    origin: builtIn
+        ? InstalledThemeOrigin.builtin
+        : InstalledThemeOrigin.gallery,
+    tokens: theme.tokens,
+    source: theme.source,
+  ),
+);

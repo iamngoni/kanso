@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:kanso/core/bridge/api/types.dart' show DiagramRenderer;
@@ -15,6 +16,9 @@ import 'package:kanso/core/models/data/kanso_text_size.dart';
 import 'package:kanso/core/models/repos/abs/file_picker_repository.dart';
 import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/injection.dart';
+import 'package:kanso/themes/models/data/theme_import_outcome.dart';
+import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
+import 'package:kanso/themes/views/widgets/icon_themes_pane.dart';
 import 'package:kanso/themes/views/widgets/installed_theme_card.dart';
 import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 
@@ -77,7 +81,7 @@ void main() {
     // The system's file picker is replaced by one that chooses the file.
     await getIt.unregister<FilePickerRepository>();
     getIt.registerSingleton<FilePickerRepository>(_ChosenFile(themeFile.path));
-    final appearance = getIt<AppearanceBloc>();
+    late final AppearanceBloc appearance;
 
     // Settings, from the library.
     await pumpUntil(tester, inList('Weekly review'));
@@ -89,6 +93,12 @@ void main() {
     // Themes: the three sections and Theme files.
     await tester.tap(find.text('Theme'));
     await pumpUntil(tester, find.byType(InstalledThemeCard));
+    appearance = BlocProvider.of<AppearanceBloc>(
+      tester.element(find.byType(ThemePickerPane)),
+    );
+    final themes = BlocProvider.of<ThemePickerBloc>(
+      tester.element(find.byType(ThemePickerPane)),
+    );
     for (final heading in <String>['Theme', 'Editor syntax', 'Preview']) {
       expect(find.text(heading), findsWidgets, reason: heading);
     }
@@ -117,14 +127,42 @@ void main() {
 
     // Import a theme from a file: it is listed in every section and the page
     // says so.
-    final page = find.descendant(
-      of: find.byType(ThemePickerPane),
-      matching: find.byType(Scrollable),
+    final page = find
+        .descendant(
+          of: find.byType(ThemePickerPane),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey<String>('import-theme')),
+      400,
+      scrollable: page,
     );
-    await tester.drag(page.first, const Offset(0, -4000));
-    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Import Theme…'));
     await tester.tap(find.text('Import Theme…'));
-    await pumpUntil(tester, find.textContaining('Imported'));
+    await pumpUntilTrue(
+      tester,
+      () => themes.state.outcome != null,
+      reason: 'the chosen theme file to finish importing',
+    );
+    expect(
+      themes.state.outcome,
+      const ThemeImportOutcome.imported(names: <String>['Flow Dark']),
+    );
+    expect(
+      themes.state.themes.map((theme) => theme.id),
+      contains('flow-dark'),
+    );
+    expect(find.text('Imported Flow Dark.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      card('ui', 'flow-dark'),
+      -400,
+      scrollable: page,
+    );
     expect(card('ui', 'flow-dark'), findsOneWidget);
 
     // Back to Settings: the preview text size and the diagrams.
@@ -152,6 +190,22 @@ void main() {
     // Icon themes: the page is there, with its import row.
     await tester.tap(find.text('Icon themes'));
     await tester.pumpAndSettle();
+    expect(find.byType(IconThemesPane), findsOneWidget);
+    final iconThemesList = find
+        .descendant(
+          of: find.byType(IconThemesPane),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey<String>('import-icon-theme')),
+      400,
+      scrollable: iconThemesList,
+    );
     expect(find.text('Import icon theme'), findsOneWidget);
     semantics.dispose();
   });

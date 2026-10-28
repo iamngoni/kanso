@@ -1,10 +1,10 @@
-//! The plain data the icon theme calls return (`themes_icons.rs`).
+//! The plain data returned by the library's icon-theme calls.
 
 use crate::themes_model::ThemeOrigin;
 
 /// One icon theme on the phone.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct IconThemeRow {
+pub struct InstalledIconThemeRow {
     /// The theme's folder name.
     pub id: String,
     pub name: String,

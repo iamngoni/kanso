@@ -17,7 +17,7 @@ abstract class KansoThemes implements RustOpaqueInterface {
     String? preview,
   });
 
-  Future<List<IconThemeRow>> iconThemes();
+  Future<List<InstalledIconThemeRow>> iconThemes();
 
   Future<ThemeImport> import_({required String path});
 

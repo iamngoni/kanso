@@ -22,7 +22,7 @@ void main() {
       tester,
     ) async {
       final blocs = await BrowseBlocs.start();
-      registerPageBlocs(blocs.library, blocs.renderer);
+      registerPageBlocs(blocs.library, renderer: blocs.renderer);
       final appearance = SeededAppearanceBloc(const AppearanceState());
       addTearDown(appearance.close);
       await atMockNow(
@@ -43,7 +43,7 @@ void main() {
 
     testWidgets('is a visit, however the note was opened', (tester) async {
       final blocs = await BrowseBlocs.start();
-      registerPageBlocs(blocs.library, blocs.renderer);
+      registerPageBlocs(blocs.library, renderer: blocs.renderer);
       final appearance = SeededAppearanceBloc(const AppearanceState());
       addTearDown(appearance.close);
       await atMockNow(
@@ -62,7 +62,7 @@ void main() {
     testWidgets('highlights in the theme the screen is in, and again when it '
         'changes', (tester) async {
       final blocs = await BrowseBlocs.start();
-      registerPageBlocs(blocs.library, blocs.renderer);
+      registerPageBlocs(blocs.library, renderer: blocs.renderer);
       final appearance = SeededAppearanceBloc(const AppearanceState());
       addTearDown(appearance.close);
       final brightness = ValueNotifier<Brightness>(Brightness.light);
@@ -98,7 +98,7 @@ void main() {
 
     testWidgets('is a new note for a new id', (tester) async {
       final blocs = await BrowseBlocs.start();
-      registerPageBlocs(blocs.library, blocs.renderer);
+      registerPageBlocs(blocs.library, renderer: blocs.renderer);
       final appearance = SeededAppearanceBloc(const AppearanceState());
       addTearDown(appearance.close);
       final id = ValueNotifier<String>(MockIds.syncDesign);

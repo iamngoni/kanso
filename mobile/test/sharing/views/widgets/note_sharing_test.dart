@@ -30,7 +30,7 @@ Future<BrowseBlocs> _pumpNote(
   FixtureLibraryRepository? library,
 }) async {
   final blocs = await BrowseBlocs.start(library, null, shared);
-  registerPageBlocs(blocs.library, blocs.renderer, null, null, shared);
+  registerPageBlocs(blocs.library, renderer: blocs.renderer, shared: shared);
   final appearance = SeededAppearanceBloc(const AppearanceState());
   addTearDown(appearance.close);
   await atMockNow(

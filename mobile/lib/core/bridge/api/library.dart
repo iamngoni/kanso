@@ -242,6 +242,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// notes are left out.
   Future<TaskBoard> tasks({required TaskListQuery query});
 
+  KansoThemes themes();
+
   /// The ID of today's daily note at the phone's local time `now`, made
   /// if it isn't there.
   Future<String> todayNote({required LocalTime now});

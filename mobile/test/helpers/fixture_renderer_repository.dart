@@ -55,6 +55,7 @@ class FixtureRendererRepository extends Fake implements RendererRepository {
               name: 'Lucide',
               author: 'Lucide Contributors',
               license: 'ISC',
+              iconCount: 1,
               preview: <ThemedIcon>[ThemedIcon(name: 'notebook')],
             ),
             IconThemeRow(
@@ -62,6 +63,7 @@ class FixtureRendererRepository extends Fake implements RendererRepository {
               name: 'Outline',
               author: 'Someone',
               license: 'MIT',
+              iconCount: 1,
               preview: <ThemedIcon>[
                 ThemedIcon(name: 'notebook', svg: fixtureIconSvg),
               ],

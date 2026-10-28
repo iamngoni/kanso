@@ -253,8 +253,10 @@ fn load(folder: &Path) -> Loaded {
 }
 
 /// What was read for each folder, and the files' signature then.
-static KEPT: LazyLock<Mutex<HashMap<PathBuf, (Signature, Arc<Loaded>)>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+type CachedThemes = (Signature, Arc<Loaded>);
+type ThemeCache = Mutex<HashMap<PathBuf, CachedThemes>>;
+
+static KEPT: LazyLock<ThemeCache> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// The themes of the library whose files are in `folder`, read again only if
 /// a file changed.

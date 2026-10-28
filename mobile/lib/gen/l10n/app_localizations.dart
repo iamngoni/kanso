@@ -580,6 +580,114 @@ abstract class AppLocalizations {
   /// **'a quote'**
   String get themesSampleQuote;
 
+  /// A badge on a theme from the person's own folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Yours'**
+  String get themesBadgeYours;
+
+  /// A badge on a theme installed from the gallery.
+  ///
+  /// In en, this message translates to:
+  /// **'From the gallery'**
+  String get themesBadgeGallery;
+
+  /// A card that uses the interface theme for the editor or preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as theme'**
+  String get themesSameAsTheme;
+
+  /// The interface theme section of the theme picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get themesSectionTheme;
+
+  /// The Markdown and code colour section of the theme picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Editor syntax'**
+  String get themesSectionSyntax;
+
+  /// The rendered note colour section of the theme picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get themesSectionPreview;
+
+  /// Explains what the Theme cards colour.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors the sidebar, the note list, menus and every control.'**
+  String get themesSectionThemeDetail;
+
+  /// Explains what the Editor syntax cards colour.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown and code in the editor.'**
+  String get themesSectionSyntaxDetail;
+
+  /// Explains what the Preview cards colour.
+  ///
+  /// In en, this message translates to:
+  /// **'A note after it is rendered.'**
+  String get themesSectionPreviewDetail;
+
+  /// The first word in the note preview's sample line.
+  ///
+  /// In en, this message translates to:
+  /// **'Some'**
+  String get themesThumbSome;
+
+  /// The bold words in the note preview's sample line.
+  ///
+  /// In en, this message translates to:
+  /// **'bold,'**
+  String get themesThumbBoldComma;
+
+  /// The linked words in the note preview's sample line.
+  ///
+  /// In en, this message translates to:
+  /// **'a link,'**
+  String get themesThumbLinkComma;
+
+  /// The inline code in a theme preview.
+  ///
+  /// In en, this message translates to:
+  /// **'code'**
+  String get themesThumbInlineCode;
+
+  /// The bold word in the syntax preview.
+  ///
+  /// In en, this message translates to:
+  /// **'bold'**
+  String get themesThumbBold;
+
+  /// The word between bold and italic words in the syntax preview.
+  ///
+  /// In en, this message translates to:
+  /// **'and'**
+  String get themesThumbAnd;
+
+  /// The italic word in the syntax preview.
+  ///
+  /// In en, this message translates to:
+  /// **'italic'**
+  String get themesThumbItalic;
+
+  /// The linked word in the syntax preview.
+  ///
+  /// In en, this message translates to:
+  /// **'link'**
+  String get themesThumbLink;
+
+  /// The checked task in the syntax preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get themesThumbDone;
+
   /// The settings row that opens the fonts of notes.
   ///
   /// In en, this message translates to:
@@ -591,6 +699,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Icons'**
   String get settingsIcons;
+
+  /// The settings row that opens the page for installed icon themes.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon themes'**
+  String get settingsIconThemes;
 
   /// The title of the page where the icon theme is chosen.
   ///
@@ -681,6 +795,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The font a note is read in.'**
   String get fontsPreviewFooter;
+
+  /// The setting for the size of rendered note text.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview text size'**
+  String get fontsPreviewTextSizeSection;
+
+  /// Explains that preview text size is set apart from editor text size.
+  ///
+  /// In en, this message translates to:
+  /// **'The preview’s text, in Split and Preview.'**
+  String get fontsPreviewTextSizeFooter;
 
   /// The section of fonts for code.
   ///
@@ -1545,6 +1671,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Loading themes'**
   String get themesLoading;
+
+  /// The section for importing a theme file and theme notices.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme files'**
+  String get themesFiles;
+
+  /// Explains which theme files can be imported.
+  ///
+  /// In en, this message translates to:
+  /// **'A theme package (its folder or .tgz) or a Zed theme (.json), converted into the themes folder.'**
+  String get themesImportDetail;
+
+  /// The row that opens the file picker to import a theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Import theme'**
+  String get themesImport;
+
+  /// The import button while a theme is being read.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get themesImporting;
+
+  /// Opens the file picker to choose a theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Theme…'**
+  String get themesImportButton;
+
+  /// Says which theme was imported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {names}.'**
+  String themesImportedOne(String names);
+
+  /// Says why a theme file could not be imported.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t import the theme. {message}'**
+  String themesImportFailed(String message);
+
+  /// The settings section for preview text.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get settingsPreview;
+
+  /// The appearance section for the Mermaid diagram renderer.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagrams'**
+  String get settingsDiagrams;
+
+  /// Explains the diagram renderer choices in the same words as desktop settings.
+  ///
+  /// In en, this message translates to:
+  /// **'What draws Mermaid diagrams, here and in exports. Pele, Obsidian\'s renderer, lays them out tidily in the theme\'s colors; Kanso\'s own also draws ZenUML.'**
+  String get settingsDiagramsDetail;
+
+  /// The setting that draws Mermaid diagrams with Pele.
+  ///
+  /// In en, this message translates to:
+  /// **'Pele'**
+  String get diagramRendererPele;
+
+  /// The setting that draws Mermaid diagrams with Kanso.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso'**
+  String get diagramRendererKanso;
+
+  /// Who made an icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'By {author}'**
+  String iconThemeAuthor(String author);
+
+  /// The title of the page for installed icon themes.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon themes'**
+  String get iconThemesTitle;
+
+  /// The title shown when installed icon themes could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The icon themes didn’t load'**
+  String get iconThemesFailedTitle;
+
+  /// Says what to do when installed icon themes could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong reading the icon themes. Try again.'**
+  String get iconThemesFailedMessage;
+
+  /// The title shown before an icon theme is imported.
+  ///
+  /// In en, this message translates to:
+  /// **'No icon themes yet'**
+  String get iconThemesEmptyTitle;
+
+  /// Explains what to do when there are no installed icon themes.
+  ///
+  /// In en, this message translates to:
+  /// **'Import one to see it here.'**
+  String get iconThemesEmptyMessage;
+
+  /// The list of icon themes already installed.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed icon themes'**
+  String get iconThemesListSection;
+
+  /// The section that imports an icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an icon theme'**
+  String get iconThemesSection;
+
+  /// Explains which icon theme files can be imported.
+  ///
+  /// In en, this message translates to:
+  /// **'A Zed icon theme (its extension folder or .tar.gz), a theme package carrying one, or a Kanso icon theme folder, converted into the icon themes folder.'**
+  String get iconThemesImportDetail;
+
+  /// The row that opens the file picker for an icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Import icon theme'**
+  String get iconThemesImport;
+
+  /// Opens the file picker to choose an icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Import…'**
+  String get iconThemesImportButton;
+
+  /// Says which icon theme was imported and what it contains.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {names}. {summary}'**
+  String iconThemesImported(String names, String summary);
+
+  /// Says why an icon theme file could not be imported.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t import the icon theme. {message}'**
+  String iconThemesImportFailed(String message);
 
   /// The title of the card that says the notes are not in device backups.
   ///

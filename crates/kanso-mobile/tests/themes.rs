@@ -313,15 +313,53 @@ fn the_diagram_renderer_is_set_and_read_back() {
     Renderer::set_diagram_renderer(before);
 }
 
-// no-prop-test: both calls fail the same way until the icon themes arrive.
+// no-prop-test: a fixed folder, read back by the facade.
 #[test]
-fn icon_themes_say_they_are_not_here_yet() {
+fn icon_themes_list_builtins_and_import_one() {
     let f = fixture();
-    let invalid = KansoError::invalid("Icon theme import arrives with the icon themes.");
-    assert_eq!(f.themes.icon_themes().unwrap_err(), invalid);
+    let builtins = f.themes.icon_themes().unwrap();
+    assert_eq!(builtins.first().unwrap().id, "lucide");
+    assert!(builtins.iter().any(|theme| theme.id == "phosphor"));
+
+    let source = f.dir.path().join("sketch");
+    std::fs::create_dir_all(source.join("icons")).unwrap();
+    std::fs::write(
+        source.join("sketch.json"),
+        r#"{"schema_version":1,"name":"Sketch","author":"Ada","license":"MIT","icons":{"search":"icons/search.svg"}}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        source.join("icons/search.svg"),
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20v20H2z"/></svg>"#,
+    )
+    .unwrap();
+
+    let imported = f
+        .themes
+        .import_icon_theme(source.to_string_lossy().into_owned())
+        .unwrap();
+    assert_eq!(imported.ids, ["sketch"]);
+    assert_eq!(imported.names, ["Sketch"]);
     assert_eq!(
-        f.themes.import_icon_theme("/nowhere".into()).unwrap_err(),
-        invalid
+        imported.summary,
+        "Imported Sketch: 1 icon mapped, 0 others left to Kanso's own icons."
+    );
+
+    let row = f
+        .themes
+        .icon_themes()
+        .unwrap()
+        .into_iter()
+        .find(|theme| theme.id == "sketch")
+        .unwrap();
+    assert_eq!(row.name, "Sketch");
+    assert_eq!(row.origin, ThemeOrigin::Own);
+    assert_eq!(row.icon_count, 1);
+    assert!(
+        f.dir
+            .path()
+            .join("icon-themes/sketch/sketch.json")
+            .is_file()
     );
 }
 

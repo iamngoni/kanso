@@ -1202,6 +1202,30 @@ class IconChoice {
           label == other.label;
 }
 
+class IconThemeImport {
+  final List<String> ids;
+  final List<String> names;
+  final String summary;
+
+  const IconThemeImport({
+    required this.ids,
+    required this.names,
+    required this.summary,
+  });
+
+  @override
+  int get hashCode => ids.hashCode ^ names.hashCode ^ summary.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is IconThemeImport &&
+          runtimeType == other.runtimeType &&
+          ids == other.ids &&
+          names == other.names &&
+          summary == other.summary;
+}
+
 class IconThemeRow {
   final String id;
   final String name;
@@ -1209,6 +1233,7 @@ class IconThemeRow {
   final String license;
   final String? source;
   final String? description;
+  final int iconCount;
   final List<ThemedIcon> preview;
 
   const IconThemeRow({
@@ -1218,6 +1243,7 @@ class IconThemeRow {
     required this.license,
     this.source,
     this.description,
+    required this.iconCount,
     required this.preview,
   });
 
@@ -1229,6 +1255,7 @@ class IconThemeRow {
       license.hashCode ^
       source.hashCode ^
       description.hashCode ^
+      iconCount.hashCode ^
       preview.hashCode;
 
   @override
@@ -1242,6 +1269,7 @@ class IconThemeRow {
           license == other.license &&
           source == other.source &&
           description == other.description &&
+          iconCount == other.iconCount &&
           preview == other.preview;
 }
 
@@ -1416,6 +1444,45 @@ class ImportSummary {
           skipped == other.skipped &&
           rejected == other.rejected &&
           firstNote == other.firstNote;
+}
+
+class InstalledIconThemeRow {
+  final String id;
+  final String name;
+  final String author;
+  final String license;
+  final ThemeOrigin origin;
+  final int iconCount;
+
+  const InstalledIconThemeRow({
+    required this.id,
+    required this.name,
+    required this.author,
+    required this.license,
+    required this.origin,
+    required this.iconCount,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      author.hashCode ^
+      license.hashCode ^
+      origin.hashCode ^
+      iconCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InstalledIconThemeRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          author == other.author &&
+          license == other.license &&
+          origin == other.origin &&
+          iconCount == other.iconCount;
 }
 
 class InvitationRow {
@@ -3891,6 +3958,101 @@ class TextChange {
           text == other.text &&
           selection == other.selection &&
           composing == other.composing;
+}
+
+class ThemeImport {
+  final List<String> ids;
+  final List<String> names;
+
+  const ThemeImport({
+    required this.ids,
+    required this.names,
+  });
+
+  @override
+  int get hashCode => ids.hashCode ^ names.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThemeImport &&
+          runtimeType == other.runtimeType &&
+          ids == other.ids &&
+          names == other.names;
+}
+
+class ThemeNotice {
+  final String file;
+  final String sentence;
+
+  const ThemeNotice({
+    required this.file,
+    required this.sentence,
+  });
+
+  @override
+  int get hashCode => file.hashCode ^ sentence.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThemeNotice &&
+          runtimeType == other.runtimeType &&
+          file == other.file &&
+          sentence == other.sentence;
+}
+
+enum ThemeOrigin {
+  builtin,
+  own,
+  gallery,
+}
+
+class ThemeRow {
+  final String id;
+  final String name;
+  final String author;
+  final String license;
+  final String? source;
+  final bool dark;
+  final ThemeOrigin origin;
+  final ThemeTokens tokens;
+
+  const ThemeRow({
+    required this.id,
+    required this.name,
+    required this.author,
+    required this.license,
+    this.source,
+    required this.dark,
+    required this.origin,
+    required this.tokens,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      author.hashCode ^
+      license.hashCode ^
+      source.hashCode ^
+      dark.hashCode ^
+      origin.hashCode ^
+      tokens.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThemeRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          author == other.author &&
+          license == other.license &&
+          source == other.source &&
+          dark == other.dark &&
+          origin == other.origin &&
+          tokens == other.tokens;
 }
 
 class ThemeTokens {

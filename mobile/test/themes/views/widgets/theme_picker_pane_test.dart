@@ -15,23 +15,30 @@ import 'package:kanso/core/models/data/theme_file_notice.dart';
 import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_check_badge.dart';
 import 'package:kanso/core/views/widgets/kanso_switch.dart';
+import 'package:kanso/themes/models/data/theme_card_kind.dart';
 import 'package:kanso/themes/state/theme_gallery/theme_gallery_bloc.dart';
 import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 import 'package:kanso/themes/views/widgets/installed_theme_card.dart';
 import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_file_picker_repository.dart';
 import '../../../helpers/fixture_gallery_repository.dart';
+import '../../../helpers/fixture_renderer_repository.dart';
+import '../../../helpers/fixture_themes_repository.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
 import '../../../helpers/theme_picker_blocs.dart';
+import '../../../helpers/theme_tokens.dart';
 
 class _Picker {
-  _Picker(this.appearance, this.picker, this.gallery);
+  _Picker(this.appearance, this.picker, this.gallery, this.themes, this.files);
 
   final AppearanceBloc appearance;
   final ThemePickerBloc picker;
   final ThemeGalleryBloc gallery;
+  final FixtureThemesRepository themes;
+  final FixtureFilePickerRepository files;
 }
 
 List<InstalledTheme> _themes() => <InstalledTheme>[
@@ -50,22 +57,26 @@ List<InstalledTheme> _themes() => <InstalledTheme>[
 
 Future<_Picker> _pump(
   WidgetTester tester, {
-  MockRendererRepository? renderer,
-  FixtureGalleryRepository? themes,
+  FixtureThemesRepository? themes,
+  FixtureGalleryRepository? gallery,
+  FixtureFilePickerRepository? files,
 }) async {
-  final fixtures = themes ?? emptyGallery();
+  final themeRepository = themes ?? FixtureThemesRepository(themes: _themes());
+  final galleryRepository = gallery ?? emptyGallery();
+  final fileRepository = files ?? FixtureFilePickerRepository();
   final appearance = AppearanceBloc(
     ForgetfulPreferencesRepository(),
-    RealThemesRenderer(),
-    fixtures,
+    FixtureRendererRepository(),
+    galleryRepository,
+    themeRepository,
   );
   closeBlocLater(appearance);
-  final picker = ThemePickerBloc(renderer ?? RealThemesRenderer(), fixtures)
+  final picker = ThemePickerBloc(themeRepository, fileRepository)
     ..add(const ThemePickerEvent.started());
   closeBlocLater(picker);
-  final gallery = ThemeGalleryBloc(fixtures)
+  final galleryBloc = ThemeGalleryBloc(galleryRepository)
     ..add(const ThemeGalleryEvent.started());
-  closeBlocLater(gallery);
+  closeBlocLater(galleryBloc);
   appearance.add(const AppearanceEvent.started());
   await pumpRouted(
     tester,
@@ -73,7 +84,7 @@ Future<_Picker> _pump(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: appearance),
         BlocProvider<ThemePickerBloc>.value(value: picker),
-        BlocProvider<ThemeGalleryBloc>.value(value: gallery),
+        BlocProvider<ThemeGalleryBloc>.value(value: galleryBloc),
       ],
       child: const ThemePickerPane(),
     ),
@@ -82,7 +93,13 @@ Future<_Picker> _pump(
   for (var i = 0; i < 4; i++) {
     await tester.pump();
   }
-  return _Picker(appearance, picker, gallery);
+  return _Picker(
+    appearance,
+    picker,
+    galleryBloc,
+    themeRepository,
+    fileRepository,
+  );
 }
 
 Finder _cards(ThemeCardKind kind) => find.byWidgetPredicate(

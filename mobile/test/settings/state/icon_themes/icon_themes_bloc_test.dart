@@ -19,6 +19,7 @@ const List<IconThemeRow> _themes = <IconThemeRow>[
     name: 'Lucide',
     author: 'Lucide Contributors',
     license: 'ISC',
+    iconCount: 1,
     preview: <ThemedIcon>[ThemedIcon(name: 'notebook')],
   ),
   IconThemeRow(
@@ -26,6 +27,7 @@ const List<IconThemeRow> _themes = <IconThemeRow>[
     name: 'Phosphor',
     author: 'Phosphor Icons',
     license: 'MIT',
+    iconCount: 1,
     preview: <ThemedIcon>[ThemedIcon(name: 'notebook', svg: '<svg/>')],
   ),
 ];

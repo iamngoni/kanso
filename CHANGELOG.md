@@ -7,6 +7,7 @@ heading compares the release with the one before.
 
 ### New
 
+- **mobile:** Choose themes and icon themes, set preview text size, and choose the diagram renderer on phones and tablets.
 - **mobile:** The Tasks place's library: open tasks across the notes grouped Overdue, Today, Upcoming and No date (and Completed when shown) as the desktop's Tasks view groups them, with a notebook filter, the overdue count for the place's badge, ticking one as one undo step, and locked notes left out whether their lock is open or not; the grouping now lives in the shared engine (#48 step 7)
 - **mobile:** The Tasks place on the phone and tablet: a Tasks row in the library with the overdue count, and a list of the tasks in the desktop's groups with due chips, a notebook filter and Show Completed, ticking with a tap (struck through in place, with Undo), the note a tap opens, pull to sync, and the keyboard's arrows, space, return and undo on a tablet (#48 step 7)
 - **editor:** Formatting shortcuts in the note's text, shown in the toolbar's tooltips and More menu and in Note › Format: ⌘B bold, ⌘I italic, ⇧⌘X strikethrough, ⌘E code, ⌥⌘C code block, ⇧⌘K link, ⌥⌘1 to ⌥⌘6 headings, ⌥⌘9 task, ⌥⌘8 bulleted and ⌥⌘7 numbered list, ⇧⌘. quote (Ctrl on Windows and Linux). Each acts on the selection (every line it touches for line formats), takes the format off again when pressed twice, and is one undo step. They don't fire in the title or search, or in Vim's Normal mode

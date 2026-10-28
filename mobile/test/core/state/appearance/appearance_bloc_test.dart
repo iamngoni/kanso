@@ -8,8 +8,8 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart' show Color, ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kanso/core/bridge/api/types.dart' show DiagramRenderer;
-import 'package:kanso/core/bridge/api/types.dart' show SortKey;
+import 'package:kanso/core/bridge/api/types.dart'
+    show DiagramRenderer, IconThemeRow, SortKey, ThemeTokens, ThemedIcon;
 import 'package:kanso/core/configs/kanso_palette.dart';
 import 'package:kanso/core/configs/kanso_syntax_colors.dart';
 import 'package:kanso/core/models/data/appearance_status.dart';
@@ -25,6 +25,7 @@ import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/core/utils/palette_from_tokens.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../../helpers/fixture_themes_repository.dart';
 import '../../../helpers/mock_repositories.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
 import '../../../helpers/theme_tokens.dart';
@@ -37,6 +38,7 @@ const IconThemeRow _phosphorRow = IconThemeRow(
   name: 'Phosphor',
   author: 'Phosphor Icons',
   license: 'MIT',
+  iconCount: 1,
   preview: <ThemedIcon>[],
 );
 
@@ -47,10 +49,51 @@ const KansoIconSet _phosphor = KansoIconSet(
   svgs: <String, String>{'search': '<svg id="search"/>'},
 );
 
+Map<String, Color> _syntaxColors(KansoSyntaxColors syntax) => <String, Color>{
+  'text': syntax.text,
+  'heading': syntax.heading,
+  'blockMarker': syntax.blockMarker,
+  'marker': syntax.marker,
+  'listMarker': syntax.listMarker,
+  'task': syntax.task,
+  'hr': syntax.hr,
+  'link': syntax.link,
+  'url': syntax.url,
+  'code': syntax.code,
+  'codeBlock': syntax.codeBlock,
+  'escape': syntax.escape,
+  'comment': syntax.comment,
+  'commentDoc': syntax.commentDoc,
+  'keyword': syntax.keyword,
+  'string': syntax.string,
+  'stringSpecial': syntax.stringSpecial,
+  'function': syntax.function,
+  'typeName': syntax.typeName,
+  'typeConstructor': syntax.typeConstructor,
+  'number': syntax.number,
+  'boolean': syntax.boolean,
+  'constant': syntax.constant,
+  'variable': syntax.variable,
+  'variableSpecial': syntax.variableSpecial,
+  'property': syntax.property,
+  'attribute': syntax.attribute,
+  'tag': syntax.tag,
+  'label': syntax.label,
+  'operator': syntax.operator,
+  'punctuation': syntax.punctuation,
+  'bracket': syntax.bracket,
+  'embedded': syntax.embedded,
+};
+
+void _expectSyntaxColors(KansoSyntaxColors actual, KansoSyntaxColors expected) {
+  expect(_syntaxColors(actual), _syntaxColors(expected));
+}
+
 void main() {
   late MockPreferencesRepository preferences;
   late MockRendererRepository renderer;
   late MockGalleryRepository gallery;
+  late FixtureThemesRepository themes;
   late Preferences saved;
 
   setUpAll(() {
@@ -62,6 +105,14 @@ void main() {
     preferences = MockPreferencesRepository();
     renderer = MockRendererRepository();
     gallery = MockGalleryRepository();
+    themes = FixtureThemesRepository(
+      themes: <InstalledTheme>[
+        ...defaultFixtureThemes(),
+        fixtureTheme(_nord),
+        fixtureTheme(_github),
+        fixtureTheme(fakePalette('dusk', dark: true)),
+      ],
+    );
     when(
       () => gallery.themeChanges(),
     ).thenAnswer((_) => const Stream<String>.empty());
@@ -81,12 +132,6 @@ void main() {
       saved = change(saved);
       return Right<ApplicationError, Preferences>(saved);
     });
-    when(() => renderer.builtinThemeTokens('nord')).thenAnswer(
-      (_) async => Right<ApplicationError, ThemeTokens>(tokensFor(_nord)),
-    );
-    when(() => renderer.builtinThemeTokens('github-light')).thenAnswer(
-      (_) async => Right<ApplicationError, ThemeTokens>(tokensFor(_github)),
-    );
     when(() => renderer.iconThemes()).thenAnswer(
       (_) async => const Right<ApplicationError, List<IconThemeRow>>(
         <IconThemeRow>[_phosphorRow],
@@ -105,14 +150,10 @@ void main() {
         ApplicationError.notFound(message: 'No such icon theme.'),
       ),
     );
-    when(() => renderer.builtinThemeTokens('gone')).thenAnswer(
-      (_) async => const Left<ApplicationError, ThemeTokens>(
-        ApplicationError.notFound(message: 'No such theme.'),
-      ),
-    );
   });
 
-  AppearanceBloc build() => AppearanceBloc(preferences, renderer, gallery);
+  AppearanceBloc build() =>
+      AppearanceBloc(preferences, renderer, gallery, themes);
 
   group('AppearanceBloc', () {
     test('starts loading, in the Kanso themes, following the system', () {
@@ -168,10 +209,12 @@ void main() {
       ],
       verify: (bloc) {
         expect(bloc.state.themeMode, ThemeMode.dark);
-        verify(() => renderer.builtinThemeTokens('nord')).called(1);
-        // The slot not shown is read too, to know it is still there; it is
-        // read once and kept.
-        verify(() => renderer.builtinThemeTokens('github-light')).called(1);
+        expect(themes.fits, contains(('nord', 'nord', 'nord')));
+        // The slot not shown is read too, to know it is still there.
+        expect(
+          themes.fits,
+          contains(('github-light', 'github-light', 'github-light')),
+        );
       },
     );
 
@@ -329,7 +372,7 @@ void main() {
           dark: _nord,
         ),
       ],
-      verify: (_) => expect(themes.fits, <(String, String, String)>[
+      verify: (_) => expect(themes.fits, <(String, String?, String?)>[
         ('nord', 'nord', 'nord'),
       ]),
     );
@@ -572,17 +615,6 @@ void main() {
       final dusk = fakePalette('dusk', dark: true);
       final duskUpdated = dusk.copyWith(name: 'Dusk, updated');
 
-      setUp(() {
-        when(() => renderer.builtinThemeTokens('dusk')).thenAnswer(
-          (_) async => const Left<ApplicationError, ThemeTokens>(
-            ApplicationError.notFound(message: 'Not built in.'),
-          ),
-        );
-        when(() => gallery.installedThemeTokens('dusk')).thenAnswer(
-          (_) async => Right<ApplicationError, ThemeTokens>(tokensFor(dusk)),
-        );
-      });
-
       blocTest<AppearanceBloc, AppearanceState>(
         'picking an installed theme reads it from the gallery when it is not '
         'built in',
@@ -596,7 +628,7 @@ void main() {
           ),
         ],
         verify: (_) {
-          verify(() => gallery.installedThemeTokens('dusk')).called(1);
+          expect(themes.fits, contains(('dusk', 'dusk', 'dusk')));
           expect(saved.themeSelection.dark, 'dusk');
         },
       );
@@ -606,7 +638,10 @@ void main() {
         build: build,
         act: (bloc) =>
             bloc.add(const AppearanceEvent.themePicked('nord', dark: true)),
-        verify: (_) => verifyNever(() => gallery.installedThemeTokens(any())),
+        verify: (_) => expect(
+          themes.fits,
+          contains(('nord', 'nord', 'nord')),
+        ),
       );
 
       blocTest<AppearanceBloc, AppearanceState>(
@@ -616,10 +651,8 @@ void main() {
           dark: paletteFromTokens('dusk', tokensFor(dusk)),
         ),
         setUp: () {
-          when(() => gallery.installedThemeTokens('dusk')).thenAnswer(
-            (_) async =>
-                Right<ApplicationError, ThemeTokens>(tokensFor(duskUpdated)),
-          );
+          final index = themes.themes.indexWhere((theme) => theme.id == 'dusk');
+          themes.themes[index] = fixtureTheme(duskUpdated);
         },
         build: build,
         act: (bloc) => bloc.add(const AppearanceEvent.themeChanged('dusk')),
@@ -645,11 +678,7 @@ void main() {
           dark: paletteFromTokens('dusk', tokensFor(dusk)),
         ),
         setUp: () {
-          when(() => gallery.installedThemeTokens('dusk')).thenAnswer(
-            (_) async => const Left<ApplicationError, ThemeTokens>(
-              ApplicationError.notFound(message: 'Removed.'),
-            ),
-          );
+          themes.themes.removeWhere((theme) => theme.id == 'dusk');
         },
         build: build,
         act: (bloc) => bloc.add(const AppearanceEvent.themeChanged('dusk')),
@@ -675,11 +704,7 @@ void main() {
           selection: ThemeSelection(ui: 'dusk'),
         ),
         setUp: () {
-          when(() => gallery.installedThemeTokens('dusk')).thenAnswer(
-            (_) async => const Left<ApplicationError, ThemeTokens>(
-              ApplicationError.notFound(message: 'Removed.'),
-            ),
-          );
+          themes.themes.removeWhere((theme) => theme.id == 'dusk');
         },
         build: build,
         act: (bloc) => bloc.add(const AppearanceEvent.themeChanged('dusk')),
@@ -694,28 +719,19 @@ void main() {
         final changes = StreamController<String>.broadcast();
         addTearDown(changes.close);
         when(() => gallery.themeChanges()).thenAnswer((_) => changes.stream);
-        when(() => gallery.installedThemeTokens('dusk')).thenAnswer(
-          (_) async => const Left<ApplicationError, ThemeTokens>(
-            ApplicationError.notFound(message: 'Withdrawn.'),
-          ),
-        );
         saved = const Preferences(
-          themeSelection: ThemeSelection(followSystem: false, ui: 'nord'),
+          themeSelection: ThemeSelection(followSystem: false, ui: 'dusk'),
         );
         final bloc = build()..add(const AppearanceEvent.started());
         addTearDown(bloc.close);
         await bloc.stream.firstWhere(
           (state) => state.status == AppearanceStatus.ready,
         );
-        bloc.add(const AppearanceEvent.themePicked('nord', dark: true));
+        bloc.add(const AppearanceEvent.themePicked('dusk', dark: true));
         // The catalog withdrew a theme in use, and nobody had the picker
-        // open: the gallery alone says so.
-        when(() => renderer.builtinThemeTokens('nord')).thenAnswer(
-          (_) async => const Left<ApplicationError, ThemeTokens>(
-            ApplicationError.notFound(message: 'Gone.'),
-          ),
-        );
-        changes.add('nord');
+        // open: the themes folder changed underneath it.
+        themes.themes.removeWhere((theme) => theme.id == 'dusk');
+        changes.add('dusk');
         await bloc.stream.firstWhere(
           (state) => state.selection.ui == ThemeSelection.kansoDark,
         );
@@ -801,9 +817,17 @@ void main() {
           expect(state.light.colors, KansoPalette.kansoLight.colors);
           // The Markdown is coloured by the syntax theme's tokens (the code
           // block's background is the preview theme's).
-          expect(_tokensOnly(state.light.syntax), _tokensOnly(_nord.syntax));
+          _expectSyntaxColors(state.light.syntax, _nord.syntax);
           expect(state.light.preview, KansoPalette.kansoLight.preview);
-          expect(_tokensOnly(state.dark.syntax), _tokensOnly(_nord.syntax));
+          expect(
+            state.light.syntax.codeBackground,
+            Color(0xFF000000 | KansoPalette.kansoLight.preview.surface),
+          );
+          _expectSyntaxColors(state.dark.syntax, _nord.syntax);
+          expect(
+            state.dark.syntax.codeBackground,
+            Color(0xFF000000 | KansoPalette.kansoDark.preview.surface),
+          );
           expect(themes.fits, contains(('kanso-light', 'nord', 'kanso-light')));
           expect(themes.fits, contains(('kanso-dark', 'nord', 'kanso-dark')));
           expect(saved.themeSelection.syntax, 'nord');
@@ -820,9 +844,9 @@ void main() {
           final state = bloc.state;
           expect(state.selection.preview, 'github-light');
           expect(state.dark.colors, KansoPalette.kansoDark.colors);
-          expect(
-            _tokensOnly(state.dark.syntax),
-            _tokensOnly(KansoPalette.kansoDark.syntax),
+          _expectSyntaxColors(
+            state.dark.syntax,
+            KansoPalette.kansoDark.syntax,
           );
           expect(
             state.dark.syntax.codeBackground,
@@ -892,12 +916,13 @@ void main() {
         act: (bloc) => bloc.add(const AppearanceEvent.started()),
         verify: (bloc) {
           expect(bloc.state.status, AppearanceStatus.ready);
-          expect(
-            _tokensOnly(bloc.state.light.syntax),
-            _tokensOnly(_nord.syntax),
-          );
+          _expectSyntaxColors(bloc.state.light.syntax, _nord.syntax);
           expect(bloc.state.light.preview, _github.preview);
           expect(bloc.state.dark.preview, _github.preview);
+          expect(
+            bloc.state.light.syntax.codeBackground,
+            Color(0xFF000000 | _github.preview.surface),
+          );
         },
       );
     });

@@ -14,4 +14,8 @@ sealed class ThemePickerEvent with _$ThemePickerEvent {
   /// themes again, with the built-in ones left as they are.
   const factory ThemePickerEvent.installedChanged() =
       ThemePickerInstalledChangedEvent;
+
+  /// A theme file was picked for import.
+  const factory ThemePickerEvent.importRequested() =
+      ThemePickerImportRequestedEvent;
 }

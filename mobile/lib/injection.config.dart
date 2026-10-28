@@ -36,6 +36,7 @@ import 'core/bridge/api/locks.dart' as _i983;
 import 'core/bridge/api/renderer.dart' as _i832;
 import 'core/bridge/api/shared.dart' as _i315;
 import 'core/bridge/api/sync.dart' as _i591;
+import 'core/bridge/api/themes.dart' as _i737;
 import 'core/configs/app_module.dart' as _i216;
 import 'core/configs/core_module.dart' as _i418;
 import 'core/models/data/design_gallery_access.dart' as _i289;
@@ -47,6 +48,7 @@ import 'core/models/repos/abs/approvals_repository.dart' as _i465;
 import 'core/models/repos/abs/auth_session_repository.dart' as _i227;
 import 'core/models/repos/abs/capture_repository.dart' as _i23;
 import 'core/models/repos/abs/diagnostics_repository.dart' as _i984;
+import 'core/models/repos/abs/file_picker_repository.dart' as _i205;
 import 'core/models/repos/abs/gallery_repository.dart' as _i550;
 import 'core/models/repos/abs/haptics_repository.dart' as _i1056;
 import 'core/models/repos/abs/library_repository.dart' as _i38;
@@ -58,6 +60,7 @@ import 'core/models/repos/abs/session_repository.dart' as _i333;
 import 'core/models/repos/abs/shared_notes_repository.dart' as _i374;
 import 'core/models/repos/abs/sync_repository.dart' as _i601;
 import 'core/models/repos/abs/system_share_repository.dart' as _i202;
+import 'core/models/repos/abs/themes_repository.dart' as _i40;
 import 'core/models/repos/abs/widget_colors_repository.dart' as _i978;
 import 'core/models/repos/impl/file_preferences_repository.dart' as _i207;
 import 'core/models/repos/impl/file_widget_colors_repository.dart' as _i2;
@@ -156,6 +159,7 @@ import 'sharing/state/shared_note_status/shared_note_status_bloc.dart' as _i109;
 import 'shell/state/library_pane/library_pane_bloc.dart' as _i612;
 import 'shell/state/note_creation/note_creation_bloc.dart' as _i34;
 import 'tasks/state/tasks/tasks_bloc.dart' as _i470;
+import 'themes/state/icon_themes/icon_themes_bloc.dart' as _i778;
 import 'themes/state/theme_gallery/theme_gallery_bloc.dart' as _i569;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
 
@@ -191,6 +195,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i1056.HapticsRepository>(
       () => _i438.FlutterHapticsRepository(),
+    );
+    gh.lazySingleton<_i205.FilePickerRepository>(
+      () => _i448.SystemFilePickerRepository(),
     );
     gh.lazySingleton<_i272.WebLinkRepository>(
       () => _i635.UrlLauncherWebLinkRepository(),
@@ -325,6 +332,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i832.KansoRenderer>(
       () => coreModule.renderer(gh<_i455.KansoLibrary>()),
+    );
+    gh.lazySingleton<_i737.KansoThemes>(
+      () => coreModule.themes(gh<_i455.KansoLibrary>()),
     );
     gh.lazySingleton<_i315.KansoShared>(
       () => coreModule.shared(gh<_i455.KansoLibrary>()),
@@ -475,6 +485,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i384.PreferencesRepository>(),
       ),
     );
+    gh.lazySingleton<_i40.ThemesRepository>(
+      () => _i48.ThemesRepositoryImpl(gh<_i737.KansoThemes>()),
+    );
     gh.lazySingleton<_i550.GalleryRepository>(
       () => _i692.RustGalleryRepository(gh<_i783.KansoGallery>()),
     );
@@ -483,6 +496,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i374.SharedNotesRepository>(
       () => _i628.RustSharedNotesRepository(gh<_i315.KansoShared>()),
+    );
+    gh.factory<_i551.AppearanceBloc>(
+      () => _i551.AppearanceBloc(
+        gh<_i384.PreferencesRepository>(),
+        gh<_i732.RendererRepository>(),
+        gh<_i550.GalleryRepository>(),
+        gh<_i40.ThemesRepository>(),
+      ),
     );
     gh.factory<_i552.SignInBloc>(
       () => _i552.SignInBloc(
@@ -530,12 +551,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i601.SyncRepository>(),
       ),
     );
-    gh.factory<_i149.ThemePickerBloc>(
-      () => _i149.ThemePickerBloc(
-        gh<_i732.RendererRepository>(),
-        gh<_i550.GalleryRepository>(),
-      ),
-    );
     gh.factory<_i35.RecoveryKeyBloc>(
       () => _i35.RecoveryKeyBloc(gh<_i1035.AccountRepository>()),
     );
@@ -549,6 +564,18 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i252.ShareNoteBloc(
         gh<_i374.SharedNotesRepository>(),
         gh<_i202.SystemShareRepository>(),
+      ),
+    );
+    gh.factory<_i778.IconThemesBloc>(
+      () => _i778.IconThemesBloc(
+        gh<_i40.ThemesRepository>(),
+        gh<_i205.FilePickerRepository>(),
+      ),
+    );
+    gh.factory<_i149.ThemePickerBloc>(
+      () => _i149.ThemePickerBloc(
+        gh<_i40.ThemesRepository>(),
+        gh<_i205.FilePickerRepository>(),
       ),
     );
     gh.factory<_i295.CommentsBloc>(
@@ -565,13 +592,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i109.SharedNoteStatusBloc>(
       () => _i109.SharedNoteStatusBloc(gh<_i374.SharedNotesRepository>()),
-    );
-    gh.factory<_i551.AppearanceBloc>(
-      () => _i551.AppearanceBloc(
-        gh<_i384.PreferencesRepository>(),
-        gh<_i732.RendererRepository>(),
-        gh<_i550.GalleryRepository>(),
-      ),
     );
     gh.factory<_i645.AccountDetailsBloc>(
       () => _i645.AccountDetailsBloc(

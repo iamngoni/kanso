@@ -33,6 +33,7 @@ use crate::secrets;
 use crate::sharing::{SharedNotes, SharedState};
 use crate::stream::Listeners;
 use crate::syncing::SyncHandle;
+use crate::themes::Themes;
 use crate::undo::UndoBook;
 use crate::{Secrets, boundary};
 

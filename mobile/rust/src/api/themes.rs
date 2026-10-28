@@ -3,8 +3,8 @@
 
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    IconThemeImport, IconThemeRow, KansoError, StyledRun, ThemeImport, ThemeNotice, ThemeRow,
-    ThemeTokens, Themes,
+    IconThemeImport, InstalledIconThemeRow, KansoError, StyledRun, ThemeImport, ThemeNotice,
+    ThemeRow, ThemeTokens, Themes,
 };
 
 /// The themes of one library.
@@ -48,7 +48,7 @@ impl KansoThemes {
         self.0.import(path)
     }
 
-    pub fn icon_themes(&self) -> Result<Vec<IconThemeRow>, KansoError> {
+    pub fn icon_themes(&self) -> Result<Vec<InstalledIconThemeRow>, KansoError> {
         self.0.icon_themes()
     }
 

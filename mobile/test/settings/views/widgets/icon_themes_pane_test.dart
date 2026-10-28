@@ -19,6 +19,7 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/close_bloc_later.dart';
 import '../../../helpers/fixture_gallery_repository.dart';
+import '../../../helpers/fixture_themes_repository.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/real_icon_themes.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
@@ -38,6 +39,7 @@ Future<_Icons> _pump(
     ForgetfulPreferencesRepository(),
     RealIconThemesRenderer(),
     FixtureGalleryRepository(),
+    FixtureThemesRepository(),
   );
   closeBlocLater(appearance);
   final themes = IconThemesBloc(renderer ?? RealIconThemesRenderer())

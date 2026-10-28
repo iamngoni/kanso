@@ -4,7 +4,8 @@
 
 import 'package:dartz/dartz.dart';
 
-import '../../../bridge/api/types.dart' show DiagramRenderer, ThemeTokens;
+import '../../../bridge/api/types.dart'
+    show DiagramRenderer, StyledRun, ThemeTokens;
 import '../../data/application_error.dart';
 import '../../data/icon_theme_import_result.dart';
 import '../../data/installed_icon_theme.dart';
@@ -30,9 +31,18 @@ abstract interface class ThemesRepository {
   /// together so text stays readable on the surfaces it lands on.
   Future<Either<ApplicationError, ThemeTokens>> fit(
     String ui,
-    String syntax,
-    String preview,
+    String? syntax,
+    String? preview,
   );
+
+  /// The source runs styled with the fitted UI and syntax themes.
+  Future<Either<ApplicationError, List<StyledRun>>> styledRuns(
+    String text, {
+    required int start,
+    required int end,
+    required String ui,
+    String? syntax,
+  });
 
   /// Imports the theme package (a folder or `.tgz`) or Zed theme (`.json`)
   /// at [path] into the themes folder.

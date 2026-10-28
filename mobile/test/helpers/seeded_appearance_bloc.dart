@@ -13,6 +13,7 @@ import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'fixture_gallery_repository.dart';
+import 'fixture_themes_repository.dart';
 
 class MockPreferencesRepository extends Mock implements PreferencesRepository {}
 
@@ -62,6 +63,7 @@ class SeededAppearanceBloc extends AppearanceBloc {
         ForgetfulPreferencesRepository(),
         MockRendererRepository(),
         FixtureGalleryRepository(),
+        FixtureThemesRepository(),
       ) {
     emit(seed);
   }

@@ -25,6 +25,7 @@ import '../test/core/bridge/suites/locks_suite.dart';
 import '../test/core/bridge/suites/renderer_suite.dart';
 import '../test/core/bridge/suites/shared_suite.dart';
 import '../test/core/bridge/suites/sync_suite.dart';
+import '../test/core/bridge/suites/themes_suite.dart';
 import '../test/helpers/biometric_answer.dart';
 
 /// Every call of the bridge, on a simulator or an emulator: the library the
@@ -59,6 +60,7 @@ void main() {
   );
   syncSuite(openDeviceLibrary);
   rendererSuite(openDeviceLibrary);
+  themesSuite(openDeviceLibrary);
   diagnosticsSuite(openDeviceLibrary);
   accountSuite(openDeviceLibrary);
   accountSettingsSuite(openDeviceLibrary);

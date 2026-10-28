@@ -172,33 +172,37 @@ extension KansoThemeSelectionAny on Any {
   );
 
   /// Preferences with the icon theme left as the default.
-  Generator<Preferences> get appearanceAndLists => combine6(
-    themeSelection,
-    fonts,
-    textSize,
-    textSize,
-    diagramRenderer,
-    choose(SortKey.values),
-    this.bool,
-    this.bool,
-    (
-      ThemeSelection themes,
-      KansoFonts fonts,
-      KansoTextSize size,
-      KansoTextSize previewSize,
-      DiagramRenderer diagrams,
-      SortKey sort,
-      bool descending,
-      bool seen,
-    ) => Preferences(
-      themeSelection: themes,
-      fonts: fonts,
-      textSize: size,
-      previewTextSize: previewSize,
-      diagramRenderer: diagrams,
-      sort: sort,
-      descending: descending,
-      backupNoticeSeen: seen,
+  Generator<Preferences> get appearanceAndLists => combine2(
+    combine6(
+      themeSelection,
+      fonts,
+      textSize,
+      textSize,
+      diagramRenderer,
+      choose(SortKey.values),
+      (
+        ThemeSelection themes,
+        KansoFonts fonts,
+        KansoTextSize size,
+        KansoTextSize previewSize,
+        DiagramRenderer diagrams,
+        SortKey sort,
+      ) => (themes, fonts, size, previewSize, diagrams, sort),
+    ),
+    combine2(
+      this.bool,
+      this.bool,
+      (bool descending, bool seen) => (descending, seen),
+    ),
+    (appearance, flags) => Preferences(
+      themeSelection: appearance.$1,
+      fonts: appearance.$2,
+      textSize: appearance.$3,
+      previewTextSize: appearance.$4,
+      diagramRenderer: appearance.$5,
+      sort: appearance.$6,
+      descending: flags.$1,
+      backupNoticeSeen: flags.$2,
     ),
   );
 }

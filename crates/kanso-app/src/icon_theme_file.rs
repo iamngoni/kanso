@@ -25,7 +25,7 @@ use serde_json::{Map, Value, json};
 pub use kanso_engine::icons::file::{
     Files, Fingerprint, MAX_ENTRIES, MAX_JSON_BYTES, MAX_PATH_BYTES, MAX_SVG_BYTES,
     MAX_THEME_BYTES, ParseError, SCHEMA_URL, SCHEMA_VERSION, SlotSource, SvgFiles, is_valid_name,
-    is_valid_svg_path, looks_like_svg, slot_source, theme_key,
+    is_valid_svg_path, slot_source, theme_key,
 };
 
 use crate::models::icon_theme::{IconTheme, IconThemeFile, Slot};
@@ -40,11 +40,6 @@ pub fn is_ui_icon(name: &str) -> bool {
 /// Reads a theme file, its `icons` naming only icons Kanso draws.
 pub fn parse(text: &str) -> Result<IconThemeFile, ParseError> {
     IconThemeFile::parse(text, &is_ui_icon)
-}
-
-/// Reads a theme file already parsed as JSON, as [`parse`] does.
-pub fn from_value(value: &Value) -> Result<IconThemeFile, ParseError> {
-    IconThemeFile::from_value(value, &is_ui_icon)
 }
 
 /// The theme `file` describes, its SVGs read from `files`, under folder
@@ -356,8 +351,8 @@ mod tests {
             assert!(!is_valid_svg_path(bad), "{bad}");
         }
         assert_eq!(label_from_name("rocket-launch"), "Rocket launch");
-        assert!(looks_like_svg(SVG.as_bytes()));
-        assert!(!looks_like_svg(b"<html>"));
+        assert!(kanso_engine::icons::file::looks_like_svg(SVG.as_bytes()));
+        assert!(!kanso_engine::icons::file::looks_like_svg(b"<html>"));
     }
 
     /// The smallest theme there is, a full one, and what is wrong with
@@ -628,7 +623,7 @@ mod tests {
         /// the folder, and writes back to the same file.
         #[test]
         fn prop_parser_never_panics_and_keeps_its_promises(value in any_json()) {
-            if let Ok(file) = from_value(&value) {
+            if let Ok(file) = IconThemeFile::from_value(&value, &is_ui_icon) {
                 prop_assert!(!file.name.trim().is_empty());
                 prop_assert!(file.icons.len() + file.library.len() + file.notebook_icons.len() <= MAX_ENTRIES);
                 prop_assert!(file.icons.keys().all(|name| is_ui_icon(name)));

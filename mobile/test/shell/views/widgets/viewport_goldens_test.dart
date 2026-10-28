@@ -261,12 +261,30 @@ final List<Screen> _screens = <Screen>[
             matching: find.byType(Scrollable),
           )
           .first;
-      await tester.drag(page, const Offset(0, -4000));
+      final import = find.byKey(const ValueKey<String>('import-theme'));
+      await tester.scrollUntilVisible(
+        import,
+        240,
+        scrollable: page,
+      );
+      await tester.tap(import);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Import Theme…'));
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey<String>('theme-import-outcome')),
+        240,
+        scrollable: page,
+      );
+      await tester.ensureVisible(import);
       await tester.pumpAndSettle();
-      await tester.drag(page, const Offset(0, -4000));
-      await tester.pumpAndSettle();
+      expect(import, findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('theme-import-outcome')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('theme-notice-broken.json')),
+        findsOneWidget,
+      );
     },
   ),
   Screen(
@@ -276,7 +294,11 @@ final List<Screen> _screens = <Screen>[
     interact: (tester, app) async {
       await _push(tester, app, '/settings');
       await _push(tester, app, '/settings/icon-themes');
-      await tester.tap(find.text('Import…'));
+      final import = find.byKey(
+        const ValueKey<String>('import-icon-theme'),
+      );
+      await tester.ensureVisible(import);
+      await tester.tap(import);
       await tester.pumpAndSettle();
     },
   ),
@@ -317,9 +339,12 @@ Future<void> _swipe(WidgetTester tester, BrowseApp app) async {
   await tester.drag(find.text('Sourdough starter'), const Offset(120, 0));
 }
 
-/// The screens a phone has no picture of yet: the others are in the tests of
-/// their panes, at the phone's size.
+/// The settings screens in the app shell on a phone; pane-only pictures do
+/// not show how they sit inside the app's navigation.
 const Set<String> _phoneScreens = <String>{
+  'settings_theme',
+  'settings_theme_files',
+  'settings_icon_themes',
   'settings_licences',
   'tasks',
   'tasks_loading',

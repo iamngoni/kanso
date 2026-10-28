@@ -123,40 +123,110 @@ class SettingsPane extends StatelessWidget {
                                 appearance.dark.name,
                               )
                             : appearance.light.name;
-                        return KansoGroupedSection(
-                          title: l10n.settingsAppearance,
-                          dividerIndent: iconInset,
+                        return Column(
                           children: <Widget>[
-                            KansoSettingsRow(
-                              icon: KansoIcons.palette,
-                              label: l10n.settingsTheme,
-                              value: theme,
-                              chevron: true,
-                              onTap: () =>
-                                  context.push(KansoRoutes.settingsTheme),
+                            KansoGroupedSection(
+                              title: l10n.settingsAppearance,
+                              dividerIndent: iconInset,
+                              children: <Widget>[
+                                KansoSettingsRow(
+                                  icon: KansoIcons.palette,
+                                  label: l10n.settingsTheme,
+                                  value: theme,
+                                  chevron: true,
+                                  onTap: () => context.push(
+                                    KansoRoutes.settingsTheme,
+                                  ),
+                                ),
+                                KansoSettingsRow(
+                                  icon: KansoIcons.shapes,
+                                  label: l10n.settingsIcons,
+                                  value: appearance.iconSet.name,
+                                  chevron: true,
+                                  onTap: () => context.push(
+                                    KansoRoutes.settingsIcons,
+                                  ),
+                                ),
+                                KansoSettingsRow(
+                                  icon: KansoIcons.download,
+                                  label: l10n.settingsIconThemes,
+                                  chevron: true,
+                                  onTap: () => context.push(
+                                    KansoRoutes.settingsIconThemes,
+                                  ),
+                                ),
+                                KansoSettingsRow(
+                                  icon: KansoIcons.typeface,
+                                  label: l10n.settingsFonts,
+                                  value: l10n.fontsSummary(appearance.fonts),
+                                  chevron: true,
+                                  onTap: () =>
+                                      context.push(KansoRoutes.fonts()),
+                                ),
+                                KansoSettingsRow(
+                                  icon: KansoIcons.textSize,
+                                  label: l10n.settingsTextSize,
+                                  value: l10n.textSizeName(appearance.textSize),
+                                  chevron: true,
+                                  onTap: () => context.push(
+                                    KansoRoutes.fonts(atSize: true),
+                                  ),
+                                ),
+                              ],
                             ),
-                            KansoSettingsRow(
-                              icon: KansoIcons.shapes,
-                              label: l10n.settingsIcons,
-                              value: appearance.iconSet.name,
-                              chevron: true,
-                              onTap: () =>
-                                  context.push(KansoRoutes.settingsIcons),
+                            const SizedBox(height: KansoSpacing.lg),
+                            KansoGroupedSection(
+                              title: l10n.settingsPreview,
+                              footer: l10n.fontsPreviewTextSizeFooter,
+                              dividerIndent: iconInset,
+                              children: <Widget>[
+                                KansoSettingsRow(
+                                  icon: KansoIcons.textSize,
+                                  label: l10n.fontsPreviewTextSizeSection,
+                                  value: l10n.textSizeName(
+                                    appearance.previewTextSize,
+                                  ),
+                                  chevron: true,
+                                  onTap: () => context.push(
+                                    KansoRoutes.fonts(atSize: true),
+                                  ),
+                                ),
+                              ],
                             ),
-                            KansoSettingsRow(
-                              icon: KansoIcons.typeface,
-                              label: l10n.settingsFonts,
-                              value: l10n.fontsSummary(appearance.fonts),
-                              chevron: true,
-                              onTap: () => context.push(KansoRoutes.fonts()),
-                            ),
-                            KansoSettingsRow(
-                              icon: KansoIcons.textSize,
-                              label: l10n.settingsTextSize,
-                              value: l10n.textSizeName(appearance.textSize),
-                              chevron: true,
-                              onTap: () =>
-                                  context.push(KansoRoutes.fonts(atSize: true)),
+                            const SizedBox(height: KansoSpacing.lg),
+                            KansoGroupedSection(
+                              title: l10n.settingsDiagrams,
+                              footer: l10n.settingsDiagramsDetail,
+                              dividerIndent: iconInset,
+                              children: <Widget>[
+                                Padding(
+                                  padding: const EdgeInsets.all(
+                                    KansoSpacing.md,
+                                  ),
+                                  child: SegmentedButton<DiagramRenderer>(
+                                    segments: <ButtonSegment<DiagramRenderer>>[
+                                      ButtonSegment<DiagramRenderer>(
+                                        value: DiagramRenderer.pele,
+                                        label: Text(l10n.diagramRendererPele),
+                                      ),
+                                      ButtonSegment<DiagramRenderer>(
+                                        value: DiagramRenderer.kanso,
+                                        label: Text(l10n.diagramRendererKanso),
+                                      ),
+                                    ],
+                                    selected: <DiagramRenderer>{
+                                      appearance.diagramRenderer,
+                                    },
+                                    onSelectionChanged: (selection) {
+                                      context.read<AppearanceBloc>().add(
+                                        AppearanceEvent.diagramRendererChanged(
+                                          selection.first,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         );

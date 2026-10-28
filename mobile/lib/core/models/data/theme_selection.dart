@@ -97,6 +97,15 @@ abstract class ThemeSelection with _$ThemeSelection {
     return light == dark ? <String>[light] : <String>[light, dark];
   }
 
+  /// Every theme saved in a slot, whether or not the system shows it now.
+  Set<String> get allIds => <String>{
+    ui,
+    light,
+    dark,
+    if (syntax != null) syntax!,
+    if (preview != null) preview!,
+  };
+
   /// The selection once the theme [id] is gone (removed from the gallery's
   /// installed themes): each slot that held it is Kanso's own theme for that
   /// slot, and the rest is as it was.
@@ -105,6 +114,8 @@ abstract class ThemeSelection with _$ThemeSelection {
       ui: ui == id ? kansoDark : ui,
       light: light == id ? kansoLight : light,
       dark: dark == id ? kansoDark : dark,
+      syntax: syntax == id ? null : syntax,
+      preview: preview == id ? null : preview,
     );
   }
 }

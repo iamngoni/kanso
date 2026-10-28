@@ -46,11 +46,11 @@ impl KansoRenderer {
         self.0.code_block(&note_id, index)
     }
 
-    pub fn set_diagram_renderer(renderer: DiagramRenderer) -> Result<(), KansoError> {
+    pub fn set_diagram_renderer(renderer: DiagramRenderer) {
         Renderer::set_diagram_renderer(renderer)
     }
 
-    pub fn diagram_renderer() -> Result<DiagramRenderer, KansoError> {
+    pub fn diagram_renderer() -> DiagramRenderer {
         Renderer::diagram_renderer()
     }
 
@@ -101,14 +101,6 @@ impl KansoRenderer {
         palette: PaletteDto,
     ) -> Result<SvgRow, KansoError> {
         Renderer::diagram_svg(kind, source, palette)
-    }
-
-    pub fn set_diagram_renderer(renderer: DiagramRenderer) {
-        Renderer::set_diagram_renderer(renderer)
-    }
-
-    pub fn diagram_renderer() -> DiagramRenderer {
-        Renderer::diagram_renderer()
     }
 
     pub fn set_fonts(fonts: Vec<Vec<u8>>) -> bool {

@@ -137,6 +137,7 @@ monitor
 moon
 mountain
 music
+network
 newspaper
 notebook notebook
 notebook-pen
@@ -191,6 +192,7 @@ terminal
 train-front
 trash trash
 trees
+triangle-alert
 trophy
 truck
 type

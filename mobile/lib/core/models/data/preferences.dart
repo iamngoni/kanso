@@ -34,9 +34,19 @@ abstract class Preferences with _$Preferences {
     @Default(KansoTextSize.standard)
     KansoTextSize textSize,
 
+    /// The size of the rendered preview's text.
+    @JsonKey(unknownEnumValue: KansoTextSize.standard)
+    @Default(KansoTextSize.standard)
+    KansoTextSize previewTextSize,
+
     /// The icon theme the app is drawn in, by its ID. A theme this version
     /// does not know is Kanso's own icons.
     @Default(KansoIconSet.lucideId) String iconTheme,
+
+    /// What draws Mermaid diagrams.
+    @JsonKey(unknownEnumValue: DiagramRenderer.pele)
+    @Default(DiagramRenderer.pele)
+    DiagramRenderer diagramRenderer,
 
     /// What note lists are sorted by.
     @JsonKey(unknownEnumValue: SortKey.updated)

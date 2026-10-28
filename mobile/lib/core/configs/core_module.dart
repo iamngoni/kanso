@@ -21,6 +21,7 @@ import '../bridge/api/locks.dart';
 import '../bridge/api/renderer.dart';
 import '../bridge/api/shared.dart';
 import '../bridge/api/sync.dart';
+import '../bridge/api/themes.dart';
 import '../models/data/application_error.dart';
 import '../models/data/folder_move.dart';
 import '../models/data/library_folder.dart';
@@ -129,6 +130,9 @@ abstract class CoreModule {
 
   @lazySingleton
   KansoRenderer renderer(KansoLibrary library) => library.renderer();
+
+  @lazySingleton
+  KansoThemes themes(KansoLibrary library) => library.themes();
 
   @lazySingleton
   KansoShared shared(KansoLibrary library) => library.shared();

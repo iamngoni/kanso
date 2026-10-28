@@ -22,6 +22,8 @@ fastrand.workspace = true
 # (attach.rs). GPUI already builds these decoders for the desktop app.
 image = { version = "0.25", default-features = false, features = ["png", "tiff", "webp", "bmp", "ico"] }
 kanso-core.workspace = true
+# Importing icon themes also uses the gallery's SVG sanitizer.
+kanso-gallery.workspace = true
 # A note's web page (`export`, `publish`) and Excalidraw scenes as a note
 # keeps them, and image widths (edit/image.rs).
 kanso-render.workspace = true
@@ -34,6 +36,8 @@ serde.workspace = true
 # (theme/file.rs), which a map keeps only with `preserve_order`.
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
+tar = "0.4.45"
+toml = "0.8"
 # What changed between a saved version and the note (history/diff.rs).
 similar.workspace = true
 # Vim keys step over a character as it is read, a grapheme cluster

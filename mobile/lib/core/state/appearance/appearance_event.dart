@@ -49,6 +49,15 @@ sealed class AppearanceEvent with _$AppearanceEvent {
   const factory AppearanceEvent.textSizeChanged(KansoTextSize size) =
       AppearanceTextSizeChangedEvent;
 
+  /// The person picked [size] for rendered previews.
+  const factory AppearanceEvent.previewTextSizeChanged(KansoTextSize size) =
+      AppearancePreviewTextSizeChangedEvent;
+
+  /// The person picked [renderer] for Mermaid diagrams.
+  const factory AppearanceEvent.diagramRendererChanged(
+    DiagramRenderer renderer,
+  ) = AppearanceDiagramRendererChangedEvent;
+
   /// The theme [id] installed from the gallery was installed again (updated)
   /// or removed: a theme in use is drawn again from its new tokens, and one
   /// that is gone is replaced, in any slot that used it, by Kanso's own.

@@ -379,14 +379,11 @@ fn library_store_put(phone: &Phone) -> String {
 
 #[test]
 fn the_diagram_renderer_is_set_and_read() {
-    assert_eq!(Renderer::diagram_renderer().unwrap(), DiagramRenderer::Pele);
-    Renderer::set_diagram_renderer(DiagramRenderer::Kanso).unwrap();
-    assert_eq!(
-        Renderer::diagram_renderer().unwrap(),
-        DiagramRenderer::Kanso
-    );
-    Renderer::set_diagram_renderer(DiagramRenderer::Pele).unwrap();
-    assert_eq!(Renderer::diagram_renderer().unwrap(), DiagramRenderer::Pele);
+    assert_eq!(Renderer::diagram_renderer(), DiagramRenderer::Pele);
+    Renderer::set_diagram_renderer(DiagramRenderer::Kanso);
+    assert_eq!(Renderer::diagram_renderer(), DiagramRenderer::Kanso);
+    Renderer::set_diagram_renderer(DiagramRenderer::Pele);
+    assert_eq!(Renderer::diagram_renderer(), DiagramRenderer::Pele);
 }
 
 proptest! {

@@ -14,6 +14,7 @@ import 'package:kanso/core/models/data/theme_file_notice.dart';
 import 'package:kanso/core/models/data/theme_import_result.dart';
 import 'package:kanso/core/models/repos/abs/themes_repository.dart';
 
+import 'fixture_renderer_repository.dart' show fixtureRuns;
 import 'theme_tokens.dart';
 
 /// The themes [FixtureThemesRepository] has unless a test gives others:
@@ -57,11 +58,16 @@ class FixtureThemesRepository implements ThemesRepository {
     List<InstalledTheme>? themes,
     this.themeNotices = const <ThemeFileNotice>[],
     List<InstalledIconTheme>? iconThemeList,
+    this.additionalThemes,
   }) : themes = themes ?? defaultFixtureThemes(),
        icons = iconThemeList ?? <InstalledIconTheme>[];
 
   /// The installed themes.
   final List<InstalledTheme> themes;
+
+  /// More themes read from a separate fixture, as gallery themes are read
+  /// from the gallery's folder by the Rust themes facade.
+  final List<InstalledTheme> Function()? additionalThemes;
 
   /// The theme files that were left out.
   List<ThemeFileNotice> themeNotices;
@@ -70,7 +76,7 @@ class FixtureThemesRepository implements ThemesRepository {
   final List<InstalledIconTheme> icons;
 
   /// The combinations it was asked to fit, in order.
-  final List<(String, String, String)> fits = <(String, String, String)>[];
+  final List<(String, String?, String?)> fits = <(String, String?, String?)>[];
 
   /// The paths it was asked to import as themes, in order.
   final List<String> importedThemePaths = <String>[];
@@ -95,7 +101,10 @@ class FixtureThemesRepository implements ThemesRepository {
   ApplicationError? listFailure;
 
   InstalledTheme? _find(String id) {
-    for (final theme in themes) {
+    for (final theme in <InstalledTheme>[
+      ...themes,
+      ...?additionalThemes?.call(),
+    ]) {
       if (theme.id == id) {
         return theme;
       }
@@ -111,7 +120,7 @@ class FixtureThemesRepository implements ThemesRepository {
       return Left<ApplicationError, List<InstalledTheme>>(error);
     }
     return Right<ApplicationError, List<InstalledTheme>>(
-      List<InstalledTheme>.of(themes),
+      <InstalledTheme>[...themes, ...?additionalThemes?.call()],
     );
   }
 
@@ -122,13 +131,13 @@ class FixtureThemesRepository implements ThemesRepository {
   @override
   Future<Either<ApplicationError, ThemeTokens>> fit(
     String ui,
-    String syntax,
-    String preview,
+    String? syntax,
+    String? preview,
   ) async {
     fits.add((ui, syntax, preview));
     final interface = _find(ui);
-    final source = _find(syntax);
-    final shown = _find(preview);
+    final source = _find(syntax ?? ui);
+    final shown = _find(preview ?? ui);
     if (interface == null || source == null || shown == null) {
       return const Left<ApplicationError, ThemeTokens>(
         ApplicationError.notFound(message: 'No such theme.'),
@@ -148,6 +157,17 @@ class FixtureThemesRepository implements ThemesRepository {
       ),
     );
   }
+
+  @override
+  Future<Either<ApplicationError, List<StyledRun>>> styledRuns(
+    String text, {
+    required int start,
+    required int end,
+    required String ui,
+    String? syntax,
+  }) async => Right<ApplicationError, List<StyledRun>>(
+    fixtureRuns(text.substring(start, end), offset: start),
+  );
 
   @override
   Future<Either<ApplicationError, ThemeImportResult>> importTheme(

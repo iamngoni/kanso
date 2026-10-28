@@ -399,6 +399,11 @@ impl KansoLibrary {
     }
 
     #[frb(sync)]
+    pub fn themes(&self) -> KansoThemes {
+        KansoThemes::new(self.0.themes())
+    }
+
+    #[frb(sync)]
     pub fn account(&self) -> KansoAccount {
         KansoAccount::new(self.0.account())
     }

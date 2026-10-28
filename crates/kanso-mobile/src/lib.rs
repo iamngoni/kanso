@@ -135,6 +135,10 @@ mod sync_words;
 mod syncing;
 mod tasks;
 mod theme_tokens;
+mod themes;
+mod themes_icons;
+mod themes_icons_model;
+mod themes_model;
 mod undo;
 
 pub use account::AccountHandle;
@@ -161,7 +165,7 @@ pub use stream::Sink;
 pub use sync_model::*;
 pub use syncing::SyncHandle;
 pub use themes::Themes;
-pub use themes_icons_model::*;
+pub use themes_icons_model::{IconThemeImport, InstalledIconThemeRow};
 pub use themes_model::*;
 
 /// Where secrets live: the seam the Keychain, the Keystore and the tests'

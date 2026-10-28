@@ -44,6 +44,7 @@ import 'account_blocs.dart';
 import 'browse_blocs.dart';
 import 'crash_samples.dart';
 import 'fixture_device_lock_repository.dart';
+import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_parity_repositories.dart';
@@ -51,6 +52,7 @@ import 'fixture_renderer_repository.dart';
 import 'fixture_session_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_sync_repository.dart';
+import 'fixture_themes_repository.dart';
 import 'register_page_blocs.dart';
 import 'seeded_appearance_bloc.dart';
 import 'sync_settings_blocs.dart';
@@ -112,6 +114,8 @@ Future<BrowseApp> pumpBrowseApp(
   BackupNoticeBloc? backupNotice,
   FixtureSharedNotesRepository? shared,
   FixtureGalleryRepository? gallery,
+  FixtureThemesRepository? themes,
+  FixtureFilePickerRepository? files,
   AccountBlocs? accounts,
   FixtureSyncRepository? sync,
   FixtureSessionRepository? session,
@@ -132,14 +136,15 @@ Future<BrowseApp> pumpBrowseApp(
   );
   registerPageBlocs(
     blocs.library,
-    renderer,
-    blocs.undoNotice,
-    gallery,
-    blocs.shared,
-    null,
-    history,
-    replace,
-    backups,
+    renderer: renderer,
+    undo: blocs.undoNotice,
+    gallery: gallery,
+    themes: themes,
+    files: files,
+    shared: blocs.shared,
+    history: history,
+    replace: replace,
+    backups: backups,
   );
   final accountBlocs = (accounts ?? AccountBlocs())..register();
   final opened =

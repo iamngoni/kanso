@@ -25,7 +25,9 @@ import '../../state/theme_picker/theme_picker_bloc.dart';
 import '../../utils/themes_in_use_first.dart';
 import 'installed_theme_loading_row.dart';
 import 'installed_theme_row.dart';
+import 'theme_files_section.dart';
 import 'theme_gallery_section.dart';
+import 'theme_picker_section.dart';
 
 /// The theme picker: a switch to follow the system's light and dark mode,
 /// the installed themes in a row, each a preview of Markdown in its own
@@ -124,13 +126,15 @@ class ThemePickerPane extends StatelessWidget {
                               ],
                             ),
                           ),
-                          LoadStatus.ready => InstalledThemeRow(
-                            themes: themesInUseFirst(picker.themes, selection),
+                          LoadStatus.ready => _Grids(
+                            themes: picker.themes,
                             selection: selection,
                           ),
                         };
                       },
                     ),
+                    const SizedBox(height: KansoSpacing.xs),
+                    const ThemeFilesSection(),
                     const SizedBox(height: KansoSpacing.xs),
                     const ThemeGallerySection(),
                   ],

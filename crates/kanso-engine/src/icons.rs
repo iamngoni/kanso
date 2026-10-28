@@ -7,4 +7,5 @@
 //! theme file and its SVGs; [`model`] holds what is read.
 
 pub mod file;
+pub mod import;
 pub mod model;

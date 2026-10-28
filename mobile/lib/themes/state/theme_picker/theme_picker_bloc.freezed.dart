@@ -55,12 +55,13 @@ extension ThemePickerEventPatterns on ThemePickerEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ThemePickerStartedEvent value)?  started,TResult Function( ThemePickerInstalledChangedEvent value)?  installedChanged,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ThemePickerStartedEvent value)?  started,TResult Function( ThemePickerInstalledChangedEvent value)?  installedChanged,TResult Function( ThemePickerImportRequestedEvent value)?  importRequested,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case ThemePickerStartedEvent() when started != null:
 return started(_that);case ThemePickerInstalledChangedEvent() when installedChanged != null:
-return installedChanged(_that);case _:
+return installedChanged(_that);case ThemePickerImportRequestedEvent() when importRequested != null:
+return importRequested(_that);case _:
   return orElse();
 
 }
@@ -78,12 +79,13 @@ return installedChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ThemePickerStartedEvent value)  started,required TResult Function( ThemePickerInstalledChangedEvent value)  installedChanged,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ThemePickerStartedEvent value)  started,required TResult Function( ThemePickerInstalledChangedEvent value)  installedChanged,required TResult Function( ThemePickerImportRequestedEvent value)  importRequested,}){
 final _that = this;
 switch (_that) {
 case ThemePickerStartedEvent():
 return started(_that);case ThemePickerInstalledChangedEvent():
-return installedChanged(_that);}
+return installedChanged(_that);case ThemePickerImportRequestedEvent():
+return importRequested(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -97,12 +99,13 @@ return installedChanged(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ThemePickerStartedEvent value)?  started,TResult? Function( ThemePickerInstalledChangedEvent value)?  installedChanged,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ThemePickerStartedEvent value)?  started,TResult? Function( ThemePickerInstalledChangedEvent value)?  installedChanged,TResult? Function( ThemePickerImportRequestedEvent value)?  importRequested,}){
 final _that = this;
 switch (_that) {
 case ThemePickerStartedEvent() when started != null:
 return started(_that);case ThemePickerInstalledChangedEvent() when installedChanged != null:
-return installedChanged(_that);case _:
+return installedChanged(_that);case ThemePickerImportRequestedEvent() when importRequested != null:
+return importRequested(_that);case _:
   return null;
 
 }
@@ -119,11 +122,12 @@ return installedChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  installedChanged,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  installedChanged,TResult Function()?  importRequested,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case ThemePickerStartedEvent() when started != null:
 return started();case ThemePickerInstalledChangedEvent() when installedChanged != null:
-return installedChanged();case _:
+return installedChanged();case ThemePickerImportRequestedEvent() when importRequested != null:
+return importRequested();case _:
   return orElse();
 
 }
@@ -141,11 +145,12 @@ return installedChanged();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  installedChanged,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  installedChanged,required TResult Function()  importRequested,}) {final _that = this;
 switch (_that) {
 case ThemePickerStartedEvent():
 return started();case ThemePickerInstalledChangedEvent():
-return installedChanged();}
+return installedChanged();case ThemePickerImportRequestedEvent():
+return importRequested();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -159,11 +164,12 @@ return installedChanged();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  installedChanged,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  installedChanged,TResult? Function()?  importRequested,}) {final _that = this;
 switch (_that) {
 case ThemePickerStartedEvent() when started != null:
 return started();case ThemePickerInstalledChangedEvent() when installedChanged != null:
-return installedChanged();case _:
+return installedChanged();case ThemePickerImportRequestedEvent() when importRequested != null:
+return importRequested();case _:
   return null;
 
 }
@@ -227,6 +233,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'ThemePickerEvent.installedChanged()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class ThemePickerImportRequestedEvent implements ThemePickerEvent {
+  const ThemePickerImportRequestedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ThemePickerImportRequestedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ThemePickerEvent.importRequested()';
 }
 
 
