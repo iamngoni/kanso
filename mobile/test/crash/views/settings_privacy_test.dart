@@ -108,6 +108,15 @@ Future<GoRouter> _pump(WidgetTester tester, {int? patch}) async {
   return router;
 }
 
+Future<void> _showPrivacy(WidgetTester tester) async {
+  await tester.scrollUntilVisible(
+    find.text('Privacy'),
+    320,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<void> _showVersion(WidgetTester tester) async {
   await tester.scrollUntilVisible(
     find.text('Version'),
@@ -123,6 +132,7 @@ void main() {
       tester,
     ) async {
       final router = await _pump(tester);
+      await _showPrivacy(tester);
       expect(find.text('Privacy'), findsOneWidget);
       expect(
         find.text('Kanso sends a crash report only when you choose to.'),

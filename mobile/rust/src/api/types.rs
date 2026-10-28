@@ -36,6 +36,9 @@ pub use kanso_mobile::{
     TaskPlace, TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow,
     VisibleNotebook,
 };
+pub use kanso_mobile::{
+    IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
+};
 
 #[frb(mirror(KansoError))]
 pub enum _KansoError {
@@ -647,6 +650,37 @@ pub struct _BuiltinTheme {
     pub tokens: ThemeTokens,
 }
 
+#[frb(mirror(ThemeOrigin))]
+pub enum _ThemeOrigin {
+    Builtin,
+    Own,
+    Gallery,
+}
+
+#[frb(mirror(ThemeRow))]
+pub struct _ThemeRow {
+    pub id: String,
+    pub name: String,
+    pub author: String,
+    pub license: String,
+    pub source: Option<String>,
+    pub dark: bool,
+    pub origin: ThemeOrigin,
+    pub tokens: ThemeTokens,
+}
+
+#[frb(mirror(ThemeNotice))]
+pub struct _ThemeNotice {
+    pub file: String,
+    pub sentence: String,
+}
+
+#[frb(mirror(ThemeImport))]
+pub struct _ThemeImport {
+    pub ids: Vec<String>,
+    pub names: Vec<String>,
+}
+
 #[frb(mirror(ThemedIcon))]
 pub struct _ThemedIcon {
     pub name: String,
@@ -661,7 +695,25 @@ pub struct _IconThemeRow {
     pub license: String,
     pub source: Option<String>,
     pub description: Option<String>,
+    pub icon_count: u32,
     pub preview: Vec<ThemedIcon>,
+}
+
+#[frb(mirror(InstalledIconThemeRow))]
+pub struct _InstalledIconThemeRow {
+    pub id: String,
+    pub name: String,
+    pub author: String,
+    pub license: String,
+    pub origin: ThemeOrigin,
+    pub icon_count: u32,
+}
+
+#[frb(mirror(IconThemeImport))]
+pub struct _IconThemeImport {
+    pub ids: Vec<String>,
+    pub names: Vec<String>,
+    pub summary: String,
 }
 
 #[frb(mirror(StyledRun))]

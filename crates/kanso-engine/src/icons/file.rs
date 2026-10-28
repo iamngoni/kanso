@@ -19,7 +19,8 @@
 //! draws.
 
 use std::collections::{BTreeMap, HashMap};
-use std::path::PathBuf;
+use std::io::Read as _;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::{Map, Value};
@@ -359,6 +360,52 @@ pub trait SvgFiles {
     /// The file at `path` (already checked by [`is_valid_svg_path`]), at
     /// most `limit` bytes long.
     fn read(&self, path: &str, limit: u64) -> Result<Vec<u8>, String>;
+}
+
+/// A theme folder whose links may only lead to files inside that folder.
+pub struct Folder {
+    root: PathBuf,
+}
+
+impl Folder {
+    /// Opens `dir` after resolving its path.
+    pub fn new(dir: &Path) -> Result<Folder, String> {
+        let root = dir
+            .canonicalize()
+            .map_err(|err| format!("couldn't be read: {err}"))?;
+        Ok(Folder { root })
+    }
+}
+
+impl SvgFiles for Folder {
+    fn read(&self, path: &str, limit: u64) -> Result<Vec<u8>, String> {
+        if !is_valid_svg_path(path) {
+            return Err("isn't a path inside the theme's folder".into());
+        }
+        let full = self
+            .root
+            .join(path)
+            .canonicalize()
+            .map_err(|_| "isn't in the theme's folder".to_owned())?;
+        if !full.starts_with(&self.root) {
+            return Err("leads out of the theme's folder; only files inside it are read".into());
+        }
+        let meta = std::fs::metadata(&full).map_err(|err| format!("couldn't be read: {err}"))?;
+        if !meta.is_file() {
+            return Err("isn't a file".into());
+        }
+        if meta.len() > limit {
+            return Err(format!("is larger than {} KB", limit.div_ceil(1024)));
+        }
+        let mut bytes = Vec::new();
+        std::fs::File::open(&full)
+            .and_then(|file| file.take(limit + 1).read_to_end(&mut bytes))
+            .map_err(|err| format!("couldn't be read: {err}"))?;
+        if bytes.len() as u64 > limit {
+            return Err(format!("is larger than {} KB", limit.div_ceil(1024)));
+        }
+        Ok(bytes)
+    }
 }
 
 /// Files in memory, by path: the built-in themes, and tests.

@@ -18,6 +18,7 @@ import 'publish.dart';
 import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
+import 'themes.dart';
 import 'types.dart';
 import 'voice.dart';
 
@@ -352,6 +353,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<TaskBoard> tasks({required TaskListQuery query});
 
   Future<List<TemplateRow>> templates();
+
+  KansoThemes themes();
 
   /// The ID of today's daily note at the phone's local time `now`, made
   /// if it isn't there.

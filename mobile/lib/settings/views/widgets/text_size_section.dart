@@ -14,12 +14,20 @@ import '../../../core/views/widgets/kanso_segmented.dart';
 
 /// The text size control: Kanso's segmented control over a paragraph set
 /// in the preview font at the chosen size, so the effect is seen at once.
+///
+/// It serves the editor's text size and the preview's: [title] and [footer]
+/// say which, and default to the editor's.
 class TextSizeSection extends StatelessWidget {
   const TextSizeSection({
     required this.selected,
     required this.onChanged,
+    this.title,
+    this.footer,
     super.key,
   });
+
+  final String? title;
+  final String? footer;
 
   final KansoTextSize selected;
   final ValueChanged<KansoTextSize> onChanged;
@@ -28,15 +36,15 @@ class TextSizeSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return KansoGroupedSection(
-      title: l10n.fontsTextSizeSection,
-      footer: l10n.fontsTextSizeFooter,
+      title: title ?? l10n.fontsTextSizeSection,
+      footer: footer ?? l10n.fontsTextSizeFooter,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.all(KansoSpacing.sm),
           child: KansoSegmented<KansoTextSize>(
             expanded: true,
             selected: selected,
-            semanticLabel: l10n.fontsTextSizeSection,
+            semanticLabel: title ?? l10n.fontsTextSizeSection,
             onChanged: onChanged,
             segments: <KansoSegment<KansoTextSize>>[
               for (final size in KansoTextSize.values)

@@ -20,7 +20,21 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
         unknownValue: KansoTextSize.standard,
       ) ??
       KansoTextSize.standard,
+  previewTextSize:
+      $enumDecodeNullable(
+        _$KansoTextSizeEnumMap,
+        json['previewTextSize'],
+        unknownValue: KansoTextSize.standard,
+      ) ??
+      KansoTextSize.standard,
   iconTheme: json['iconTheme'] as String? ?? KansoIconSet.lucideId,
+  diagramRenderer:
+      $enumDecodeNullable(
+        _$DiagramRendererEnumMap,
+        json['diagramRenderer'],
+        unknownValue: DiagramRenderer.pele,
+      ) ??
+      DiagramRenderer.pele,
   sort:
       $enumDecodeNullable(
         _$SortKeyEnumMap,
@@ -46,7 +60,9 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'themeSelection': instance.themeSelection.toJson(),
       'fonts': instance.fonts.toJson(),
       'textSize': _$KansoTextSizeEnumMap[instance.textSize]!,
+      'previewTextSize': _$KansoTextSizeEnumMap[instance.previewTextSize]!,
       'iconTheme': instance.iconTheme,
+      'diagramRenderer': _$DiagramRendererEnumMap[instance.diagramRenderer]!,
       'sort': _$SortKeyEnumMap[instance.sort]!,
       'descending': instance.descending,
       'backupNoticeSeen': instance.backupNoticeSeen,
@@ -64,6 +80,11 @@ const _$KansoTextSizeEnumMap = {
   KansoTextSize.standard: 'standard',
   KansoTextSize.large: 'large',
   KansoTextSize.larger: 'larger',
+};
+
+const _$DiagramRendererEnumMap = {
+  DiagramRenderer.pele: 'pele',
+  DiagramRenderer.kanso: 'kanso',
 };
 
 const _$SortKeyEnumMap = {

@@ -31,14 +31,13 @@ use kanso_render::html::{
     self, AppMode, CodeSpan, DueChip, DueTone, Highlighter, PageOptions, QueryResult, QueryRow,
     QueryTable, QueryViews, TaskSlot,
 };
-use kanso_render::{MermaidEngine, mermaid_engine, set_mermaid_engine};
 
 use crate::boundary::guard;
 use crate::errors::KansoError;
 use crate::library::Library;
 use crate::model::{
-    AttachmentFile, DiagramRenderer, ExportedPage, NewNote, PaletteDto, PreviewLink,
-    PreviewOptions, Saved, SyntaxStyleRow, Ticked,
+    AttachmentFile, ExportedPage, NewNote, PaletteDto, PreviewLink, PreviewOptions, Saved,
+    SyntaxStyleRow, Ticked,
 };
 use crate::renderer::{Renderer, palette_of};
 
@@ -250,29 +249,6 @@ impl Renderer {
                 .into_iter()
                 .nth(index as usize)
                 .ok_or(KansoError::NotFound)
-        })
-    }
-
-    /// Chooses what draws Mermaid diagrams from now on (the desktop's
-    /// Settings › Appearance › Diagrams). It applies to the whole process.
-    pub fn set_diagram_renderer(renderer: DiagramRenderer) -> Result<(), KansoError> {
-        guard(|| {
-            set_mermaid_engine(match renderer {
-                DiagramRenderer::Pele => MermaidEngine::Pele,
-                DiagramRenderer::Kanso => MermaidEngine::MermaidSvg,
-            });
-            Ok(())
-        })
-    }
-
-    /// What draws Mermaid diagrams now: [`DiagramRenderer::Pele`] until
-    /// [`Renderer::set_diagram_renderer`] says otherwise.
-    pub fn diagram_renderer() -> Result<DiagramRenderer, KansoError> {
-        guard(|| {
-            Ok(match mermaid_engine() {
-                MermaidEngine::Pele => DiagramRenderer::Pele,
-                MermaidEngine::MermaidSvg => DiagramRenderer::Kanso,
-            })
         })
     }
 

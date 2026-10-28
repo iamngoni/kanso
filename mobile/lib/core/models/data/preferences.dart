@@ -5,6 +5,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../bridge/api/types.dart' show SortKey;
+import '../../bridge/api/types.dart' show DiagramRenderer;
 import 'kanso_fonts.dart';
 import 'kanso_icon_set.dart';
 import 'kanso_text_size.dart';
@@ -28,14 +29,24 @@ abstract class Preferences with _$Preferences {
     /// The fonts of notes.
     @Default(KansoFonts()) KansoFonts fonts,
 
-    /// The size of the text of notes.
+    /// The size of the text of notes in the editor.
     @JsonKey(unknownEnumValue: KansoTextSize.standard)
     @Default(KansoTextSize.standard)
     KansoTextSize textSize,
 
+    /// The size of the rendered preview's text.
+    @JsonKey(unknownEnumValue: KansoTextSize.standard)
+    @Default(KansoTextSize.standard)
+    KansoTextSize previewTextSize,
+
     /// The icon theme the app is drawn in, by its ID. A theme this version
     /// does not know is Kanso's own icons.
     @Default(KansoIconSet.lucideId) String iconTheme,
+
+    /// What draws Mermaid diagrams.
+    @JsonKey(unknownEnumValue: DiagramRenderer.pele)
+    @Default(DiagramRenderer.pele)
+    DiagramRenderer diagramRenderer,
 
     /// What note lists are sorted by.
     @JsonKey(unknownEnumValue: SortKey.updated)

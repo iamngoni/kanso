@@ -14,6 +14,7 @@ import 'account_blocs.dart';
 import 'browse_blocs.dart';
 import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
+import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_parity_repositories.dart';
@@ -21,6 +22,7 @@ import 'fixture_renderer_repository.dart';
 import 'fixture_session_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_sync_repository.dart';
+import 'fixture_themes_repository.dart';
 import 'golden.dart';
 import 'kanso_viewport.dart';
 import 'page_fixtures.dart';
@@ -57,6 +59,8 @@ Future<void> expectAppGoldenOnBothPlatforms(
   Future<BackupNoticeBloc> Function()? backupNotice,
   FixtureSharedNotesRepository Function()? shared,
   FixtureGalleryRepository Function()? gallery,
+  FixtureThemesRepository Function()? themes,
+  FixtureFilePickerRepository Function()? files,
   AccountBlocs Function()? accounts,
   FixtureSyncRepository Function()? sync,
   FixtureSessionRepository Function()? session,
@@ -106,6 +110,8 @@ Future<void> expectAppGoldenOnBothPlatforms(
           backupNotice: backupNotice == null ? null : await backupNotice(),
           shared: shared?.call(),
           gallery: gallery?.call(),
+          themes: themes?.call(),
+          files: files?.call(),
           accounts: accounts?.call(),
           sync: sync?.call(),
           session: session?.call(),

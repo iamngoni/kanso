@@ -39,6 +39,8 @@ import 'package:kanso/sharing/state/shared_note_status/shared_note_status_bloc.d
 import 'package:kanso/tasks/state/tasks/tasks_bloc.dart';
 import 'package:kanso/templates/state/daily_template/daily_template_bloc.dart';
 import 'package:kanso/templates/state/template_picker/template_picker_bloc.dart';
+import 'package:kanso/themes/state/icon_themes/icon_themes_bloc.dart'
+    as installed_icon_themes;
 import 'package:kanso/themes/state/theme_gallery/theme_gallery_bloc.dart';
 import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 
@@ -49,6 +51,7 @@ import 'fake_media_picker_repository.dart';
 import 'fake_web_link_repository.dart';
 import 'fixture_about_repository.dart';
 import 'fixture_discovery_repository.dart';
+import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_licences_repository.dart';
@@ -58,6 +61,7 @@ import 'fixture_reminders_repository.dart';
 import 'fixture_renderer_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_system_share_repository.dart';
+import 'fixture_themes_repository.dart';
 import 'page_fixtures.dart';
 import 'seeded_appearance_bloc.dart';
 
@@ -69,7 +73,7 @@ import 'seeded_appearance_bloc.dart';
 /// and the clipboard those BLoCs use; fixtures of them are made when a test
 /// gives none.
 void registerPageBlocs(
-  FixtureLibraryRepository library, [
+  FixtureLibraryRepository library, {
   FixtureRendererRepository? renderer,
   UndoNoticeBloc? undo,
   FixtureGalleryRepository? gallery,
@@ -79,7 +83,9 @@ void registerPageBlocs(
   FixtureReplaceRepository? replace,
   FixtureBackupsRepository? backups,
   PageFixtures? fixtures,
-]) {
+  FixtureThemesRepository? themes,
+  FixtureFilePickerRepository? files,
+}) {
   _registerPageBlocs(
     library: library,
     renderer: renderer,
@@ -91,6 +97,8 @@ void registerPageBlocs(
     replace: replace,
     backups: backups,
     fixtures: fixtures,
+    appearanceThemes: themes,
+    appearanceFiles: files,
   );
 }
 
@@ -113,10 +121,14 @@ void _registerPageBlocs({
   FixtureReplaceRepository? replace,
   FixtureBackupsRepository? backups,
   PageFixtures? fixtures,
+  FixtureThemesRepository? appearanceThemes,
+  FixtureFilePickerRepository? appearanceFiles,
 }) {
   final page = fixtures ?? PageFixtures();
   page.journal.library = library;
   final themes = gallery ?? FixtureGalleryRepository();
+  final themeRepository = appearanceThemes ?? FixtureThemesRepository();
+  final filePicker = appearanceFiles ?? FixtureFilePickerRepository();
   final sharing = shared ?? FixtureSharedNotesRepository();
   final clipboard = system ?? FixtureSystemShareRepository();
   final noteHistory = history ?? FixtureHistoryRepository();
@@ -195,7 +207,7 @@ void _registerPageBlocs({
     getIt.unregister<ThemePickerBloc>();
   }
   getIt.registerFactory<ThemePickerBloc>(
-    () => ThemePickerBloc(renderer ?? FixtureRendererRepository(), themes),
+    () => ThemePickerBloc(themeRepository, filePicker),
   );
   if (getIt.isRegistered<ThemeGalleryBloc>()) {
     getIt.unregister<ThemeGalleryBloc>();
@@ -230,6 +242,12 @@ void _registerPageBlocs({
   }
   getIt.registerFactory<IconThemesBloc>(
     () => IconThemesBloc(renderer ?? FixtureRendererRepository()),
+  );
+  if (getIt.isRegistered<installed_icon_themes.IconThemesBloc>()) {
+    getIt.unregister<installed_icon_themes.IconThemesBloc>();
+  }
+  getIt.registerFactory<installed_icon_themes.IconThemesBloc>(
+    () => installed_icon_themes.IconThemesBloc(themeRepository, filePicker),
   );
   if (getIt.isRegistered<NoteHistoryBloc>()) {
     getIt.unregister<NoteHistoryBloc>();

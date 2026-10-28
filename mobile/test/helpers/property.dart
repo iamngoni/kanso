@@ -130,19 +130,38 @@ extension KansoThemeSelectionAny on Any {
   /// Any built-in theme's name, out of five.
   Generator<String> get themeId => choose(_themeIds);
 
+  /// A syntax or preview theme: none, or any theme's name.
+  Generator<String?> get optionalThemeId =>
+      combine2(this.bool, themeId, (bool none, String id) => none ? null : id);
+
   /// Any selection of themes.
-  Generator<ThemeSelection> get themeSelection => combine4(
+  Generator<ThemeSelection> get themeSelection => combine6(
     this.bool,
     themeId,
     themeId,
     themeId,
-    (bool follow, String ui, String light, String dark) => ThemeSelection(
+    optionalThemeId,
+    optionalThemeId,
+    (
+      bool follow,
+      String ui,
+      String light,
+      String dark,
+      String? syntax,
+      String? preview,
+    ) => ThemeSelection(
       followSystem: follow,
       ui: ui,
       light: light,
       dark: dark,
+      syntax: syntax,
+      preview: preview,
     ),
   );
+
+  /// Any way of drawing diagrams.
+  Generator<DiagramRenderer> get diagramRenderer =>
+      choose(DiagramRenderer.values);
 
   /// Any preferences.
   Generator<Preferences> get preferences => combine3(
@@ -156,27 +175,37 @@ extension KansoThemeSelectionAny on Any {
   );
 
   /// Preferences with the icon theme left as the default.
-  Generator<Preferences> get appearanceAndLists => combine6(
-    themeSelection,
-    fonts,
-    textSize,
-    choose(SortKey.values),
-    this.bool,
-    this.bool,
-    (
-      ThemeSelection themes,
-      KansoFonts fonts,
-      KansoTextSize size,
-      SortKey sort,
-      bool descending,
-      bool seen,
-    ) => Preferences(
-      themeSelection: themes,
-      fonts: fonts,
-      textSize: size,
-      sort: sort,
-      descending: descending,
-      backupNoticeSeen: seen,
+  Generator<Preferences> get appearanceAndLists => combine2(
+    combine6(
+      themeSelection,
+      fonts,
+      textSize,
+      textSize,
+      diagramRenderer,
+      choose(SortKey.values),
+      (
+        ThemeSelection themes,
+        KansoFonts fonts,
+        KansoTextSize size,
+        KansoTextSize previewSize,
+        DiagramRenderer diagrams,
+        SortKey sort,
+      ) => (themes, fonts, size, previewSize, diagrams, sort),
+    ),
+    combine2(
+      this.bool,
+      this.bool,
+      (bool descending, bool seen) => (descending, seen),
+    ),
+    (appearance, flags) => Preferences(
+      themeSelection: appearance.$1,
+      fonts: appearance.$2,
+      textSize: appearance.$3,
+      previewTextSize: appearance.$4,
+      diagramRenderer: appearance.$5,
+      sort: appearance.$6,
+      descending: flags.$1,
+      backupNoticeSeen: flags.$2,
     ),
   );
 }

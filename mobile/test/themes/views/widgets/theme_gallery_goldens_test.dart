@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/views/widgets/kanso_search_input.dart';
+import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 
 import '../../../helpers/app_golden.dart';
 import '../../../helpers/fixture_gallery_repository.dart';
@@ -70,7 +72,25 @@ final List<_Screen> _screens = <_Screen>[
         (
           tester,
         ) async {
-          await tester.enterText(find.byType(EditableText), 'zzz');
+          final hint = find.text('Search themes');
+          await tester.scrollUntilVisible(
+            hint,
+            240,
+            scrollable: find
+                .descendant(
+                  of: find.byType(ThemePickerPane),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
+          final field = find.ancestor(
+            of: hint,
+            matching: find.byType(KansoSearchInput),
+          );
+          await tester.enterText(
+            find.descendant(of: field, matching: find.byType(EditableText)),
+            'zzz',
+          );
           await tester.pumpAndSettle();
         },
   ),

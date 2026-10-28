@@ -7,21 +7,25 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# Changes delivered to note consumers over the shared store channel.
+async-channel.workspace = true
 # `export` and `publish` fail with context (export.rs).
 anyhow.workspace = true
-# The changes a store tells its listeners (discovery/indexer.rs): the same
-# channel `kanso-store` sends them on.
-async-channel.workspace = true
 # Google's PKCE challenge (account/provider.rs) and attachments' bytes
 # (attach.rs).
 base64.workspace = true
 # The recovery-key file's date and the resume time (account/words.rs).
 chrono.workspace = true
+# Theme packages (.tgz) unpack in process, as a phone can't run `tar`
+# (theme/import.rs).
+flate2.workspace = true
 fastrand.workspace = true
 # Images the API doesn't take (TIFF, WebP, BMP) are attached as PNG
 # (attach.rs). GPUI already builds these decoders for the desktop app.
 image = { version = "0.25", default-features = false, features = ["png", "tiff", "webp", "bmp", "ico"] }
 kanso-core.workspace = true
+# Importing icon themes also uses the gallery's SVG sanitizer.
+kanso-gallery.workspace = true
 # A note's web page (`export`, `publish`) and Excalidraw scenes as a note
 # keeps them, and image widths (edit/image.rs).
 kanso-render.workspace = true
@@ -34,12 +38,18 @@ serde.workspace = true
 # (theme/file.rs), which a map keeps only with `preserve_order`.
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
-# The shared providers and prompt rules, without the desktop's ACP agent.
+# Shared assistant providers and prompt rules, without the desktop agent.
 kanso-ai = { path = "../kanso-ai", optional = true, default-features = false }
-# Filters answer Markdown before the phone renders it.
+# Markdown filtering and tool argument schemas for the phone assistant.
 markdown = { workspace = true, optional = true }
-# Argument schemas for the tools exposed during Ask.
 schemars = { version = "0.8", optional = true }
+# Discovery model and downloader, using the platform's TLS verifier.
+model2vec-rs = { version = "=0.3.0", default-features = false, optional = true }
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"], optional = true }
+kanso-tls = { workspace = true, features = ["ureq"], optional = true }
+ureq = { version = "3.4", optional = true }
+tar = "0.4.45"
+toml = "0.8"
 # What changed between a saved version and the note (history/diff.rs).
 similar.workspace = true
 # Vim keys step over a character as it is read, a grapheme cluster
@@ -51,21 +61,6 @@ unicode-width.workspace = true
 htmd = "0.5.6"
 # The generators the apps' view tests share (strategies.rs).
 proptest = { workspace = true, optional = true }
-
-# Discovery (discovery/): related notes' embedding model and the download that
-# fetches it. Their dependencies build for iOS and Android with the same
-# compilers as SQLite's.
-# Without its Hugging Face client or Oniguruma: `discovery::related` fetches
-# the model and checks it against pinned SHA-256s, and the tokenizer uses
-# pure-Rust regexes.
-model2vec-rs = { version = "=0.3.0", default-features = false, optional = true }
-# Model2Vec's tokenizer, at the version it uses, with pure-Rust regexes.
-tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"], optional = true }
-# The model downloads over HTTPS (discovery::model_fetch), trusting what
-# `kanso-tls` says: the web's roots on a computer, the phone's own store on
-# iOS and Android. The sync client already builds both.
-kanso-tls = { workspace = true, features = ["ureq"], optional = true }
-ureq = { version = "3.4", optional = true }
 
 # Highlighting (highlight/): the runtime and the Markdown grammar, then a
 # grammar for each language a fence names. Their C code builds for iOS and
@@ -131,14 +126,12 @@ code-grammars = [
     "dep:tree-sitter-typescript",
     "dep:tree-sitter-yaml",
 ]
-# `discovery`: the graph, the embedding model with its download and indexer,
-# the meaning of a note and reading the words in images.
-discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
-# Ask, the inline assistant and note summary; both app surfaces share the
-# same retrieval eligibility and safe-answer rules.
-ai = ["dep:kanso-ai", "dep:markdown", "dep:schemars"]
 # `strategies`: generators for kanso-app's view tests.
 test-support = ["dep:proptest"]
+# Model-backed discovery on mobile and desktop.
+discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
+# Ask, inline assistance and summaries.
+ai = ["dep:kanso-ai", "dep:markdown", "dep:schemars"]
 
 [dev-dependencies]
 # An export read back by the importer (export.rs).

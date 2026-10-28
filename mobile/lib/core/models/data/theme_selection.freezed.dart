@@ -19,7 +19,11 @@ mixin _$ThemeSelection {
  bool get followSystem;/// The theme shown while the system is not followed.
  String get ui;/// The theme shown in light mode while the system is followed.
  String get light;/// The theme shown in dark mode while the system is followed.
- String get dark;
+ String get dark;/// The theme that colours the Markdown source and the code in it; null
+/// for the interface's own.
+ String? get syntax;/// The theme that colours the rendered note; null for the interface's
+/// own.
+ String? get preview;
 /// Create a copy of ThemeSelection
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -32,16 +36,16 @@ $ThemeSelectionCopyWith<ThemeSelection> get copyWith => _$ThemeSelectionCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ThemeSelection&&(identical(other.followSystem, followSystem) || other.followSystem == followSystem)&&(identical(other.ui, ui) || other.ui == ui)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ThemeSelection&&(identical(other.followSystem, followSystem) || other.followSystem == followSystem)&&(identical(other.ui, ui) || other.ui == ui)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.syntax, syntax) || other.syntax == syntax)&&(identical(other.preview, preview) || other.preview == preview));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,followSystem,ui,light,dark);
+int get hashCode => Object.hash(runtimeType,followSystem,ui,light,dark,syntax,preview);
 
 @override
 String toString() {
-  return 'ThemeSelection(followSystem: $followSystem, ui: $ui, light: $light, dark: $dark)';
+  return 'ThemeSelection(followSystem: $followSystem, ui: $ui, light: $light, dark: $dark, syntax: $syntax, preview: $preview)';
 }
 
 
@@ -52,7 +56,7 @@ abstract mixin class $ThemeSelectionCopyWith<$Res>  {
   factory $ThemeSelectionCopyWith(ThemeSelection value, $Res Function(ThemeSelection) _then) = _$ThemeSelectionCopyWithImpl;
 @useResult
 $Res call({
- bool followSystem, String ui, String light, String dark
+ bool followSystem, String ui, String light, String dark, String? syntax, String? preview
 });
 
 
@@ -69,13 +73,15 @@ class _$ThemeSelectionCopyWithImpl<$Res>
 
 /// Create a copy of ThemeSelection
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? followSystem = null,Object? ui = null,Object? light = null,Object? dark = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? followSystem = null,Object? ui = null,Object? light = null,Object? dark = null,Object? syntax = freezed,Object? preview = freezed,}) {
   return _then(_self.copyWith(
 followSystem: null == followSystem ? _self.followSystem : followSystem // ignore: cast_nullable_to_non_nullable
 as bool,ui: null == ui ? _self.ui : ui // ignore: cast_nullable_to_non_nullable
 as String,light: null == light ? _self.light : light // ignore: cast_nullable_to_non_nullable
 as String,dark: null == dark ? _self.dark : dark // ignore: cast_nullable_to_non_nullable
-as String,
+as String,syntax: freezed == syntax ? _self.syntax : syntax // ignore: cast_nullable_to_non_nullable
+as String?,preview: freezed == preview ? _self.preview : preview // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -160,10 +166,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool followSystem,  String ui,  String light,  String dark)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool followSystem,  String ui,  String light,  String dark,  String? syntax,  String? preview)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ThemeSelection() when $default != null:
-return $default(_that.followSystem,_that.ui,_that.light,_that.dark);case _:
+return $default(_that.followSystem,_that.ui,_that.light,_that.dark,_that.syntax,_that.preview);case _:
   return orElse();
 
 }
@@ -181,10 +187,10 @@ return $default(_that.followSystem,_that.ui,_that.light,_that.dark);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool followSystem,  String ui,  String light,  String dark)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool followSystem,  String ui,  String light,  String dark,  String? syntax,  String? preview)  $default,) {final _that = this;
 switch (_that) {
 case _ThemeSelection():
-return $default(_that.followSystem,_that.ui,_that.light,_that.dark);case _:
+return $default(_that.followSystem,_that.ui,_that.light,_that.dark,_that.syntax,_that.preview);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +207,10 @@ return $default(_that.followSystem,_that.ui,_that.light,_that.dark);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool followSystem,  String ui,  String light,  String dark)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool followSystem,  String ui,  String light,  String dark,  String? syntax,  String? preview)?  $default,) {final _that = this;
 switch (_that) {
 case _ThemeSelection() when $default != null:
-return $default(_that.followSystem,_that.ui,_that.light,_that.dark);case _:
+return $default(_that.followSystem,_that.ui,_that.light,_that.dark,_that.syntax,_that.preview);case _:
   return null;
 
 }
@@ -216,7 +222,7 @@ return $default(_that.followSystem,_that.ui,_that.light,_that.dark);case _:
 @JsonSerializable()
 
 class _ThemeSelection extends ThemeSelection {
-  const _ThemeSelection({this.followSystem = true, this.ui = 'kanso-dark', this.light = 'kanso-light', this.dark = 'kanso-dark'}): super._();
+  const _ThemeSelection({this.followSystem = true, this.ui = 'kanso-dark', this.light = 'kanso-light', this.dark = 'kanso-dark', this.syntax, this.preview}): super._();
   factory _ThemeSelection.fromJson(Map<String, dynamic> json) => _$ThemeSelectionFromJson(json);
 
 /// Whether the system's light or dark mode picks the theme.
@@ -227,6 +233,12 @@ class _ThemeSelection extends ThemeSelection {
 @override@JsonKey() final  String light;
 /// The theme shown in dark mode while the system is followed.
 @override@JsonKey() final  String dark;
+/// The theme that colours the Markdown source and the code in it; null
+/// for the interface's own.
+@override final  String? syntax;
+/// The theme that colours the rendered note; null for the interface's
+/// own.
+@override final  String? preview;
 
 /// Create a copy of ThemeSelection
 /// with the given fields replaced by the non-null parameter values.
@@ -241,16 +253,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ThemeSelection&&(identical(other.followSystem, followSystem) || other.followSystem == followSystem)&&(identical(other.ui, ui) || other.ui == ui)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ThemeSelection&&(identical(other.followSystem, followSystem) || other.followSystem == followSystem)&&(identical(other.ui, ui) || other.ui == ui)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.syntax, syntax) || other.syntax == syntax)&&(identical(other.preview, preview) || other.preview == preview));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,followSystem,ui,light,dark);
+int get hashCode => Object.hash(runtimeType,followSystem,ui,light,dark,syntax,preview);
 
 @override
 String toString() {
-  return 'ThemeSelection(followSystem: $followSystem, ui: $ui, light: $light, dark: $dark)';
+  return 'ThemeSelection(followSystem: $followSystem, ui: $ui, light: $light, dark: $dark, syntax: $syntax, preview: $preview)';
 }
 
 
@@ -261,7 +273,7 @@ abstract mixin class _$ThemeSelectionCopyWith<$Res> implements $ThemeSelectionCo
   factory _$ThemeSelectionCopyWith(_ThemeSelection value, $Res Function(_ThemeSelection) _then) = __$ThemeSelectionCopyWithImpl;
 @override @useResult
 $Res call({
- bool followSystem, String ui, String light, String dark
+ bool followSystem, String ui, String light, String dark, String? syntax, String? preview
 });
 
 
@@ -278,13 +290,15 @@ class __$ThemeSelectionCopyWithImpl<$Res>
 
 /// Create a copy of ThemeSelection
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? followSystem = null,Object? ui = null,Object? light = null,Object? dark = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? followSystem = null,Object? ui = null,Object? light = null,Object? dark = null,Object? syntax = freezed,Object? preview = freezed,}) {
   return _then(_ThemeSelection(
 followSystem: null == followSystem ? _self.followSystem : followSystem // ignore: cast_nullable_to_non_nullable
 as bool,ui: null == ui ? _self.ui : ui // ignore: cast_nullable_to_non_nullable
 as String,light: null == light ? _self.light : light // ignore: cast_nullable_to_non_nullable
 as String,dark: null == dark ? _self.dark : dark // ignore: cast_nullable_to_non_nullable
-as String,
+as String,syntax: freezed == syntax ? _self.syntax : syntax // ignore: cast_nullable_to_non_nullable
+as String?,preview: freezed == preview ? _self.preview : preview // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

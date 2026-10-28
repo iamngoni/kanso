@@ -5,7 +5,7 @@ The Flutter app of [Kanso](../README.md), tracked in
 design system (colours, type, icons, spacing, motion), the app shell (routes,
 links, one to three panes, preferences, keyboard shortcuts), the screens for
 browsing (the library, the note list, a note's text, search) and for settings
-(theme, fonts, text size, sync status, About), the test and golden-image
+(themes, icon themes, fonts, text size, the preview, sync status, About), the test and golden-image
 tooling, CI, and the Rust core behind a bridge (`rust/`, `lib/core/bridge/`).
 Writing and editing a note, and the rendered preview, come in later steps.
 
@@ -260,12 +260,23 @@ to type; in a notebook that is locked and closed a line says to unlock it.
 secondary+shift+N: a sheet with a name (`NewNotebookBloc`) that makes a
 notebook at the top and opens its list.
 
-**Theme picker** (`lib/themes/`): a switch to follow the system's light and dark
-mode, with the desktop's words, and the built-in themes as cards in a row, each
-drawn from its own tokens (`themePreviewFromBuiltin`), the ones in use outlined
-and first. Choosing one is `ThemeSelection.picked`, as on the desktop. The
-gallery of themes to install needs the signed catalogue and a network, and is not
-here.
+**Theme picker** (`lib/themes/`) is the desktop's Themes page: a switch to follow
+the system's light and dark mode, then three rows of cards, one each for the
+interface's theme, the Markdown source's (Editor syntax) and the rendered
+note's (Preview), the last two beginning with "Same as theme". The cards come
+from `ThemesRepository.list()` (built in, the person's own and the gallery's,
+each with its origin badge) and are drawn from their own tokens
+(`themePreviewFromInstalled`). Choosing a card is `ThemeSelection.picked` for
+the interface, and `syntax` or `preview` of `ThemeSelection` for the others (null is
+the interface theme's own). The core fits the three together
+(`ThemesRepository.fit`, the desktop's `Tokens::fit`) and `AppearanceBloc`
+draws the palette of each light and dark slot from the fitted tokens, so
+`palette.syntax` is the syntax theme's and `palette.preview` the preview
+theme's. The Theme files section imports a theme from the system file picker
+(`FilePickerRepository`) and lists the theme files that were left out. Icon
+themes (Settings › Icon themes) lists and imports icon themes; choosing one
+comes later. The gallery of themes to install needs the signed catalogue and
+a network, and is not here.
 
 **First launch.** A card says once that the notes on this phone are not in
 device backups; OK is remembered in the preferences (`backupNoticeSeen`).

@@ -155,18 +155,18 @@ Future<_Settings> _pump(
         BlocProvider<LockStatusBloc>.value(value: lockBloc),
         BlocProvider<BiometricsBloc>.value(value: biometricsBloc),
         BlocProvider<PushSettingBloc>.value(value: pushBloc),
+        BlocProvider<LibraryIndexBloc>.value(value: blocs.index),
+        BlocProvider<DefaultNotebookBloc>.value(value: blocs.defaultNotebook),
         BlocProvider<DiscoverySettingsBloc>.value(
           value: blocs.discoverySettings,
         ),
-        BlocProvider<LibraryIndexBloc>.value(value: blocs.index),
-        BlocProvider<DefaultNotebookBloc>.value(value: blocs.defaultNotebook),
         BlocProvider<WordGoalSettingsBloc>.value(value: blocs.wordGoal),
         BlocProvider<DailyTemplateBloc>.value(value: blocs.dailyTemplate),
         BlocProvider<RemindersSettingsBloc>.value(value: blocs.reminders),
       ],
       child: const SettingsPane(),
     ),
-    size: const Size(393, 1900),
+    size: const Size(393, 3200),
   );
   await tester.pump();
   await tester.pump();
@@ -214,6 +214,9 @@ void main() {
         'Icons',
         'Fonts',
         'Text size',
+        'Preview',
+        'Preview text size',
+        'Diagrams',
         'AI',
         'Voice',
         'Sync',
@@ -237,11 +240,8 @@ void main() {
       expect(find.textContaining('Wake this device'), findsNothing);
     });
 
-    testWidgets('Discovery switches update the live and persisted choices', (
-      tester,
-    ) async {
+    testWidgets('Discovery switches update the live choices', (tester) async {
       await _pump(tester);
-
       await tester.ensureVisible(find.text('Related notes'));
       await tester.pumpAndSettle();
       await tester.tap(_discoverySwitchOf('Related notes'));
@@ -250,7 +250,6 @@ void main() {
           .element(find.byType(SettingsPane))
           .read<DiscoverySettingsBloc>();
       expect(discovery.state.relatedEnabled, isTrue);
-
       await tester.ensureVisible(find.text('Search text in images'));
       await tester.pumpAndSettle();
       await tester.tap(_discoverySwitchOf('Search text in images'));
@@ -317,12 +316,58 @@ void main() {
 
     testWidgets('the Text size row shows the size chosen', (tester) async {
       final screen = await _pump(tester);
-      expect(find.text('Default'), findsOneWidget);
+      // The text size and the preview text size.
+      expect(find.text('Default'), findsNWidgets(2));
       screen.appearance.add(
         const AppearanceEvent.textSizeChanged(KansoTextSize.larger),
       );
       await tester.pumpAndSettle();
       expect(find.text('Larger'), findsOneWidget);
+      expect(find.text('Default'), findsOneWidget);
+    });
+
+    testWidgets('the Preview text size row shows the size chosen apart from '
+        'the editor’s', (tester) async {
+      final screen = await _pump(tester);
+      screen.appearance.add(
+        const AppearanceEvent.previewTextSizeChanged(KansoTextSize.small),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Small'), findsOneWidget);
+      expect(find.text('Default'), findsOneWidget);
+    });
+
+    testWidgets('the Diagrams row chooses between Pele and Kanso, Pele by '
+        'default, with the desktop’s words', (tester) async {
+      final screen = await _pump(tester);
+      expect(find.text('Pele'), findsOneWidget);
+      expect(find.text('Kanso'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'What draws Mermaid diagrams, here and in exports.',
+        ),
+        findsOneWidget,
+      );
+      expect(screen.appearance.state.diagramRenderer, DiagramRenderer.pele);
+      await tester.tap(find.text('Kanso'));
+      await tester.pumpAndSettle();
+      expect(screen.appearance.state.diagramRenderer, DiagramRenderer.kanso);
+      await tester.tap(find.text('Pele'));
+      await tester.pumpAndSettle();
+      expect(screen.appearance.state.diagramRenderer, DiagramRenderer.pele);
+    });
+
+    testWidgets('the Icon themes and Preview text size rows open their '
+        'pages', (tester) async {
+      final screen = await _pump(tester);
+      await tester.tap(find.text('Icon themes'));
+      await tester.pumpAndSettle();
+      expect(topOf(screen.router), '/settings/icon-themes');
+      screen.router.pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Preview text size'));
+      await tester.pumpAndSettle();
+      expect(topOf(screen.router), '/settings/fonts');
     });
 
     testWidgets('the Theme row names both themes while the system is '
@@ -583,7 +628,6 @@ void main() {
 
     testWidgets('the Website row opens the website', (tester) async {
       final screen = await _pump(tester);
-      await _scrollIntoView(tester, find.text('Website'));
       await tester.tap(find.text('Website'));
       await tester.pump();
       verify(screen.about.openWebsite).called(1);
@@ -593,7 +637,6 @@ void main() {
       tester,
     ) async {
       final screen = await _pump(tester);
-      await _scrollIntoView(tester, find.text('Release notes'));
       await tester.tap(find.text('Release notes'));
       await tester.pump();
       verify(screen.about.openReleaseNotes).called(1);
@@ -602,7 +645,6 @@ void main() {
 
     testWidgets('the Help row opens the help page', (tester) async {
       final screen = await _pump(tester);
-      await _scrollIntoView(tester, find.text('Help'));
       await tester.tap(find.text('Help'));
       await tester.pump();
       verify(screen.about.openHelp).called(1);
@@ -613,35 +655,25 @@ void main() {
       tester,
     ) async {
       final screen = await _pump(tester);
-      await tester.ensureVisible(find.text('Theme'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Theme'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/theme');
       screen.router.pop();
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Icons'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Icons'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/icons');
       screen.router.pop();
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Fonts'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Fonts'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/fonts');
       screen.router.pop();
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Text size'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Text size'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/fonts');
       screen.router.pop();
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Licences'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Licences'));
       await tester.pumpAndSettle();

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../bridge/api/types.dart' show DiagramRenderer;
 import '../../configs/kanso_palette.dart';
 import '../../models/data/appearance_status.dart';
 import '../../models/data/kanso_font_family.dart';
@@ -21,6 +22,7 @@ import '../../models/data/theme_selection.dart';
 import '../../models/repos/abs/gallery_repository.dart';
 import '../../models/repos/abs/preferences_repository.dart';
 import '../../models/repos/abs/renderer_repository.dart';
+import '../../models/repos/abs/themes_repository.dart';
 import '../../utils/palette_from_tokens.dart';
 
 part 'appearance_bloc.freezed.dart';
@@ -40,7 +42,7 @@ part 'appearance_state.dart';
 /// theme that cannot be read at start is replaced the same way.
 @injectable
 class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
-  AppearanceBloc(this._preferences, this._renderer, this._gallery)
+  AppearanceBloc(this._preferences, this._renderer, this._gallery, this._themes)
     : super(const AppearanceState()) {
     // One handler for every event, so they all run one after another in the
     // order they came (a transformer orders only the events of one handler).
@@ -50,6 +52,14 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
         AppearanceThemePickedEvent(:final id, :final dark) => _onThemePicked(
           id,
           dark,
+          emit,
+        ),
+        AppearanceSyntaxPickedEvent(:final id) => _select(
+          state.selection.copyWith(syntax: id),
+          emit,
+        ),
+        AppearancePreviewPickedEvent(:final id) => _select(
+          state.selection.copyWith(preview: id),
           emit,
         ),
         AppearanceFollowSystemChangedEvent(:final follow) =>
@@ -75,6 +85,10 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
           size,
           emit,
         ),
+        AppearancePreviewTextSizeChangedEvent(:final size) =>
+          _onPreviewTextSizeChanged(size, emit),
+        AppearanceDiagramRendererChangedEvent(:final renderer) =>
+          _onDiagramRendererChanged(renderer, emit),
         AppearanceThemeChangedEvent(:final id) => _onThemeChanged(id, emit),
       },
       transformer: sequential(),
@@ -87,14 +101,18 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
   final PreferencesRepository _preferences;
   final RendererRepository _renderer;
   final GalleryRepository _gallery;
+  final ThemesRepository _themes;
   late final StreamSubscription<String> _themeChanges;
   final Map<String, KansoPalette> _palettes = <String, KansoPalette>{
-    KansoPalette.kansoLight.id: KansoPalette.kansoLight,
-    KansoPalette.kansoDark.id: KansoPalette.kansoDark,
+    _key('kanso-light', 'kanso-light', 'kanso-light'): KansoPalette.kansoLight,
+    _key('kanso-dark', 'kanso-dark', 'kanso-dark'): KansoPalette.kansoDark,
   };
   final Map<String, KansoIconSet> _iconSets = <String, KansoIconSet>{
     KansoIconSet.lucideId: KansoIconSet.lucide,
   };
+
+  static String _key(String ui, String syntax, String preview) =>
+      '$ui|$syntax|$preview';
 
   Future<void> _onStarted(Emitter<AppearanceState> emit) async {
     final loaded = await _preferences.load();
@@ -103,8 +121,8 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
     // A theme that is gone (removed while the app was not running) is
     // Kanso's own in its slots from now on.
     var selection = saved;
-    for (final id in <String>{saved.ui, saved.light, saved.dark}) {
-      if (await _palette(id) == null) {
+    for (final id in saved.allIds) {
+      if (await _palette(id, id, id) == null) {
         selection = selection.without(id);
       }
     }
@@ -118,6 +136,8 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
         iconSet: icons ?? KansoIconSet.lucide,
         fonts: preferences.fonts,
         textSize: preferences.textSize,
+        previewTextSize: preferences.previewTextSize,
+        diagramRenderer: preferences.diagramRenderer,
         status: loaded.isRight() && shown.complete && icons != null
             ? AppearanceStatus.ready
             : AppearanceStatus.failed,
@@ -128,6 +148,7 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
         (current) => current.copyWith(themeSelection: selection),
       );
     }
+    await _themes.setDiagramRenderer(preferences.diagramRenderer);
   }
 
   Future<void> _onThemePicked(
@@ -140,13 +161,13 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
   }
 
   Future<void> _onThemeChanged(String id, Emitter<AppearanceState> emit) async {
-    _palettes.remove(id);
+    _palettes.removeWhere((key, _) => key.split('|').contains(id));
     final selection = state.selection;
     final without = selection.without(id);
     if (without == selection) {
       return;
     }
-    if (await _palette(id) == null) {
+    if (await _palette(id, id, id) == null) {
       // Removed: Kanso's own theme in every slot that held it, shown or
       // not, so it is not back when the system's appearance changes.
       await _select(without, emit);
@@ -187,6 +208,27 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
     await _preferences.update((current) => current.copyWith(textSize: size));
   }
 
+  Future<void> _onPreviewTextSizeChanged(
+    KansoTextSize size,
+    Emitter<AppearanceState> emit,
+  ) async {
+    emit(state.copyWith(previewTextSize: size));
+    await _preferences.update(
+      (current) => current.copyWith(previewTextSize: size),
+    );
+  }
+
+  Future<void> _onDiagramRendererChanged(
+    DiagramRenderer renderer,
+    Emitter<AppearanceState> emit,
+  ) async {
+    emit(state.copyWith(diagramRenderer: renderer));
+    await _themes.setDiagramRenderer(renderer);
+    await _preferences.update(
+      (current) => current.copyWith(diagramRenderer: renderer),
+    );
+  }
+
   Future<void> _changeFonts(
     Emitter<AppearanceState> emit,
     KansoFonts fonts,
@@ -217,14 +259,22 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
     );
   }
 
-  /// The palettes of the app's light and dark themes for [selection], and
-  /// whether every theme it names was read (a theme that was not is shown as
-  /// Kanso's own for that slot).
+  /// The palettes of the app's light and dark slots for [selection], each
+  /// drawn from the tokens the core fits for the slot's interface, syntax
+  /// and preview themes together, and whether every combination was read (a
+  /// slot that was not is shown as Kanso's own).
   Future<({KansoPalette light, KansoPalette dark, bool complete})>
   _paletteSlots(ThemeSelection selection) async {
     var complete = true;
-    Future<KansoPalette> palette(String id, KansoPalette fallback) async {
-      final found = await _palette(id);
+    Future<KansoPalette> palette({
+      required bool dark,
+      required KansoPalette fallback,
+    }) async {
+      final found = await _palette(
+        selection.uiFor(systemDark: dark),
+        selection.syntaxFor(systemDark: dark),
+        selection.previewFor(systemDark: dark),
+      );
       if (found == null) {
         complete = false;
       }
@@ -232,27 +282,31 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
     }
 
     if (selection.followSystem) {
-      final light = await palette(selection.light, KansoPalette.kansoLight);
-      final dark = await palette(selection.dark, KansoPalette.kansoDark);
+      final light = await palette(
+        dark: false,
+        fallback: KansoPalette.kansoLight,
+      );
+      final dark = await palette(dark: true, fallback: KansoPalette.kansoDark);
       return (light: light, dark: dark, complete: complete);
     }
-    final fixed = await palette(selection.ui, KansoPalette.kansoDark);
+    final fixed = await palette(dark: true, fallback: KansoPalette.kansoDark);
     return (light: fixed, dark: fixed, complete: complete);
   }
 
-  Future<KansoPalette?> _palette(String id) async {
-    final known = _palettes[id];
+  Future<KansoPalette?> _palette(
+    String ui,
+    String syntax,
+    String preview,
+  ) async {
+    final key = _key(ui, syntax, preview);
+    final known = _palettes[key];
     if (known != null) {
       return known;
     }
-    // A built-in theme, or one installed from the gallery.
-    var tokens = await _renderer.builtinThemeTokens(id);
-    if (tokens.isLeft()) {
-      tokens = await _gallery.installedThemeTokens(id);
-    }
+    final tokens = await _themes.fit(ui, syntax, preview);
     return tokens.fold((_) => null, (found) {
-      final made = paletteFromTokens(id, found);
-      _palettes[id] = made;
+      final made = paletteFromTokens(ui, found);
+      _palettes[key] = made;
       return made;
     });
   }

@@ -67,7 +67,7 @@ Future<GoRouter> _pump(
   final bloc = SeededAppearanceBloc(const AppearanceState());
   addTearDown(bloc.close);
   final blocs = await BrowseBlocs.start();
-  registerPageBlocs(blocs.library, null, blocs.undoNotice);
+  registerPageBlocs(blocs.library, undo: blocs.undoNotice);
   final appFeatures = AppFeatureFixtures()..register();
   addTearDown(appFeatures.dispose);
   final history = blocs.history;

@@ -13,6 +13,16 @@ sealed class AppearanceEvent with _$AppearanceEvent {
   const factory AppearanceEvent.themePicked(String id, {required bool dark}) =
       AppearanceThemePickedEvent;
 
+  /// The person picked [id] to colour the Markdown source and the code in it;
+  /// null for the interface's own theme.
+  const factory AppearanceEvent.syntaxPicked(String? id) =
+      AppearanceSyntaxPickedEvent;
+
+  /// The person picked [id] to colour the rendered note; null for the
+  /// interface's own theme.
+  const factory AppearanceEvent.previewPicked(String? id) =
+      AppearancePreviewPickedEvent;
+
   /// The person turned following the system's light and dark mode on or off.
   const factory AppearanceEvent.followSystemChanged({required bool follow}) =
       AppearanceFollowSystemChangedEvent;
@@ -38,6 +48,15 @@ sealed class AppearanceEvent with _$AppearanceEvent {
   /// The person picked [size] for the text of notes.
   const factory AppearanceEvent.textSizeChanged(KansoTextSize size) =
       AppearanceTextSizeChangedEvent;
+
+  /// The person picked [size] for rendered previews.
+  const factory AppearanceEvent.previewTextSizeChanged(KansoTextSize size) =
+      AppearancePreviewTextSizeChangedEvent;
+
+  /// The person picked [renderer] for Mermaid diagrams.
+  const factory AppearanceEvent.diagramRendererChanged(
+    DiagramRenderer renderer,
+  ) = AppearanceDiagramRendererChangedEvent;
 
   /// The theme [id] installed from the gallery was installed again (updated)
   /// or removed: a theme in use is drawn again from its new tokens, and one

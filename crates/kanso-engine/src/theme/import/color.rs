@@ -8,8 +8,8 @@
 //! value is often a shorthand with a color inside it (`1px solid #333`), so
 //! [`extract`] finds the first color among a value's words.
 
-use crate::theme_file::Color;
-use kanso_engine::theme::Rgb;
+use crate::theme::Rgb;
+use crate::theme::file::Color;
 
 /// The color `text` names, or `None` when it isn't one this reads (a
 /// length, `inherit`, `currentColor`, an unresolved `var()`).
@@ -347,7 +347,7 @@ fn color_mix(args: &str) -> Option<Color> {
     .clamp(0., 1.);
     let alpha = f64::from(ca.alpha) * wa + f64::from(cb.alpha) * (1. - wa);
     Some(Color {
-        rgb: crate::theme_file::mix(ca.rgb, cb.rgb, wa),
+        rgb: crate::theme::file::mix(ca.rgb, cb.rgb, wa),
         alpha: alpha.round() as u8,
     })
 }
@@ -425,8 +425,8 @@ fn named(name: &str) -> Option<Color> {
 #[cfg(test)]
 mod tests {
     use super::{extract, hsl_to_rgb, parse, rgb_to_hsl};
-    use crate::theme_file::Color;
-    use kanso_engine::theme::Rgb;
+    use crate::theme::Rgb;
+    use crate::theme::file::Color;
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
 

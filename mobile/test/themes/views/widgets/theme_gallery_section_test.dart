@@ -20,8 +20,9 @@ import 'package:kanso/themes/views/widgets/installed_theme_card.dart';
 import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_file_picker_repository.dart';
 import '../../../helpers/fixture_gallery_repository.dart';
-import '../../../helpers/fixture_renderer_repository.dart';
+import '../../../helpers/fixture_themes_repository.dart';
 import '../../../helpers/gallery_fixtures.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
@@ -56,14 +57,20 @@ Future<_Picker> _pump(
   FixtureGalleryRepository fixtures, {
   Size size = const Size(393, 2400),
 }) async {
+  final themeRepository = FixtureThemesRepository(
+    additionalThemes: fixtures.installedColorThemes,
+  );
   final appearance = AppearanceBloc(
     ForgetfulPreferencesRepository(),
     _BuiltInlessRenderer(),
     fixtures,
+    themeRepository,
   );
   closeBlocLater(appearance);
-  final picker = ThemePickerBloc(FixtureRendererRepository(), fixtures)
-    ..add(const ThemePickerEvent.started());
+  final picker = ThemePickerBloc(
+    themeRepository,
+    FixtureFilePickerRepository(),
+  )..add(const ThemePickerEvent.started());
   closeBlocLater(picker);
   final gallery = ThemeGalleryBloc(fixtures)
     ..add(const ThemeGalleryEvent.started());
@@ -99,7 +106,8 @@ List<String> _galleryOrder(WidgetTester tester) => tester
 
 List<String> _installedRow(WidgetTester tester) => tester
     .widgetList<InstalledThemeCard>(find.byType(InstalledThemeCard))
-    .map((card) => card.theme.id)
+    .where((card) => card.theme != null)
+    .map((card) => card.theme!.id)
     .toList();
 
 Future<void> _press(WidgetTester tester, Finder button) async {
@@ -166,16 +174,23 @@ void main() {
       expect(_installedRow(tester), containsAll(<String>['paper', 'moss']));
       expect(_installedRow(tester), isNot(contains('lines')));
       expect(_installedRow(tester), isNot(contains('dusk')));
-      final moss = tester
-          .widgetList<InstalledThemeCard>(find.byType(InstalledThemeCard))
-          .firstWhere((card) => card.theme.id == 'moss');
-      expect(moss.theme.builtIn, isFalse);
+      final moss = tester.widget<InstalledThemeCard>(
+        find.byKey(const ValueKey<String>('ui-moss')),
+      );
+      expect(moss.theme!.builtIn, isFalse);
       expect(
         find.descendant(
-          of: find.byType(InstalledThemeCard),
-          matching: find.text('Installed'),
+          of: find.byKey(const ValueKey<String>('ui-moss')),
+          matching: find.text('From the gallery'),
         ),
-        findsNWidgets(2),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey<String>('ui-paper')),
+          matching: find.text('From the gallery'),
+        ),
+        findsOneWidget,
       );
     });
 
@@ -242,13 +257,7 @@ void main() {
     ) async {
       final fixtures = FixtureGalleryRepository();
       final picker = await _pump(tester, fixtures);
-      final moss = find.ancestor(
-        of: find.descendant(
-          of: find.byType(InstalledThemeCard),
-          matching: find.text('Moss'),
-        ),
-        matching: find.byType(InstalledThemeCard),
-      );
+      final moss = find.byKey(const ValueKey<String>('ui-moss'));
       await tester.ensureVisible(moss);
       await tester.tap(moss);
       await _settle(tester);

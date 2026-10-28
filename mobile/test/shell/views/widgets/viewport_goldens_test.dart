@@ -9,13 +9,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/installed_icon_theme.dart';
+import 'package:kanso/core/models/data/installed_theme_origin.dart';
 import 'package:kanso/core/models/data/layout_class.dart';
+import 'package:kanso/core/models/data/theme_file_notice.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:kanso/shell/state/library_pane/library_pane_bloc.dart';
+import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 
 import '../../../helpers/app_golden.dart';
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_file_picker_repository.dart';
 import '../../../helpers/fixture_library_repository.dart';
+import '../../../helpers/fixture_themes_repository.dart';
 import '../../../helpers/kanso_viewport.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/pump_browse_app.dart';
@@ -30,6 +36,8 @@ class Screen {
     this.library,
     this.interact,
     this.backupNotice,
+    this.themes,
+    this.files,
     this.only,
   });
 
@@ -46,6 +54,12 @@ class Screen {
   final Future<void> Function(WidgetTester tester, BrowseApp app)? interact;
 
   final Future<BackupNoticeBloc> Function()? backupNotice;
+
+  /// Makes the themes the theme pages read, if not Kanso's two.
+  final FixtureThemesRepository Function()? themes;
+
+  /// Makes the file picker the import rows use.
+  final FixtureFilePickerRepository Function()? files;
 
   /// The layout classes the screen exists in; all if null.
   final Set<LayoutClass>? only;
@@ -81,6 +95,24 @@ Future<void> _select(WidgetTester tester, BrowseApp app) async {
   await tester.tap(find.text('Sourdough starter'));
   await tester.pumpAndSettle();
 }
+
+FixtureThemesRepository _showcaseThemes() => showcaseThemesRepository(
+  notices: const <ThemeFileNotice>[
+    ThemeFileNotice(
+      file: 'broken.json',
+      sentence: 'Isn’t a theme file Kanso can read.',
+    ),
+  ],
+  iconThemes: const <InstalledIconTheme>[
+    InstalledIconTheme(
+      id: 'material',
+      name: 'Material Icons',
+      author: 'Ana',
+      license: 'MIT',
+      origin: InstalledThemeOrigin.gallery,
+    ),
+  ],
+);
 
 final List<Screen> _screens = <Screen>[
   // The library is a pane beside the list on three panes, which is the
@@ -208,9 +240,66 @@ final List<Screen> _screens = <Screen>[
   ),
   Screen(
     'settings_theme',
+    themes: _showcaseThemes,
     interact: (tester, app) async {
       await _push(tester, app, '/settings');
       await _push(tester, app, '/settings/theme');
+    },
+  ),
+  // The foot of the theme page after a file was imported: the Theme files
+  // section with the import row, its outcome and a file left out.
+  Screen(
+    'settings_theme_files',
+    themes: _showcaseThemes,
+    files: () => FixtureFilePickerRepository(<String?>['/tmp/solarized.tgz']),
+    interact: (tester, app) async {
+      await _push(tester, app, '/settings');
+      await _push(tester, app, '/settings/theme');
+      final page = find
+          .descendant(
+            of: find.byType(ThemePickerPane),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      final import = find.byKey(const ValueKey<String>('import-theme'));
+      await tester.scrollUntilVisible(
+        import,
+        240,
+        scrollable: page,
+      );
+      await tester.tap(import);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey<String>('theme-import-outcome')),
+        240,
+        scrollable: page,
+      );
+      await tester.ensureVisible(import);
+      await tester.pumpAndSettle();
+      expect(import, findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('theme-import-outcome')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('theme-notice-broken.json')),
+        findsOneWidget,
+      );
+    },
+  ),
+  Screen(
+    'settings_icon_themes',
+    themes: _showcaseThemes,
+    files: () => FixtureFilePickerRepository(<String?>['/tmp/lucide.tar.gz']),
+    interact: (tester, app) async {
+      await _push(tester, app, '/settings');
+      await _push(tester, app, '/settings/icon-themes');
+      final import = find.byKey(
+        const ValueKey<String>('import-icon-theme'),
+      );
+      await tester.ensureVisible(import);
+      await tester.tap(import);
+      await tester.pumpAndSettle();
     },
   ),
   Screen(
@@ -250,9 +339,12 @@ Future<void> _swipe(WidgetTester tester, BrowseApp app) async {
   await tester.drag(find.text('Sourdough starter'), const Offset(120, 0));
 }
 
-/// The screens a phone has no picture of yet: the others are in the tests of
-/// their panes, at the phone's size.
+/// The settings screens in the app shell on a phone; pane-only pictures do
+/// not show how they sit inside the app's navigation.
 const Set<String> _phoneScreens = <String>{
+  'settings_theme',
+  'settings_theme_files',
+  'settings_icon_themes',
   'settings_licences',
   'tasks',
   'tasks_loading',
@@ -276,6 +368,8 @@ void main() {
           brightness: brightness,
           at: screen.at,
           library: screen.library,
+          themes: screen.themes,
+          files: screen.files,
           interact: screen.interact,
         );
       });
@@ -298,6 +392,8 @@ void main() {
               at: screen.at,
               library: screen.library,
               backupNotice: screen.backupNotice,
+              themes: screen.themes,
+              files: screen.files,
               interact: screen.interact,
             );
           });

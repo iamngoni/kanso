@@ -54,6 +54,7 @@ import 'crash_samples.dart';
 import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_discovery_repository.dart';
+import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_parity_repositories.dart';
@@ -61,6 +62,7 @@ import 'fixture_renderer_repository.dart';
 import 'fixture_session_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_sync_repository.dart';
+import 'fixture_themes_repository.dart';
 import 'page_fixtures.dart';
 import 'register_page_blocs.dart';
 import 'seeded_appearance_bloc.dart';
@@ -134,6 +136,8 @@ Future<BrowseApp> pumpBrowseApp(
   FixtureReplaceRepository? replace,
   FixtureBackupsRepository? backups,
   PageFixtures? fixtures,
+  FixtureThemesRepository? themes,
+  FixtureFilePickerRepository? files,
 }) async {
   final bloc = SeededAppearanceBloc(appearance);
   addTearDown(bloc.close);
@@ -146,15 +150,16 @@ Future<BrowseApp> pumpBrowseApp(
   );
   registerPageBlocs(
     blocs.library,
-    renderer,
-    blocs.undoNotice,
-    gallery,
-    blocs.shared,
-    null,
-    history,
-    replace,
-    backups,
-    fixtures,
+    renderer: renderer,
+    undo: blocs.undoNotice,
+    gallery: gallery,
+    shared: blocs.shared,
+    history: history,
+    replace: replace,
+    backups: backups,
+    fixtures: fixtures,
+    themes: themes,
+    files: files,
   );
   final appFeatures = AppFeatureFixtures(ai: ai)..register();
   addTearDown(appFeatures.dispose);
@@ -199,7 +204,6 @@ Future<BrowseApp> pumpBrowseApp(
         providers: <BlocProvider<dynamic>>[
           BlocProvider<AppearanceBloc>.value(value: bloc),
           BlocProvider<AiStatusBloc>.value(value: appFeatures.status),
-          BlocProvider<TabsBloc>.value(value: blocs.tabs),
           BlocProvider<TabsBloc>.value(value: blocs.tabs),
           BlocProvider<NavigationHistoryBloc>.value(value: blocs.history),
           BlocProvider<LibraryIndexBloc>.value(value: blocs.index),

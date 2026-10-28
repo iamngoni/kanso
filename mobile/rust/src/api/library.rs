@@ -30,6 +30,7 @@ use super::publish::KansoPublisher;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
+use super::themes::KansoThemes;
 
 /// An open library. Cheap to clone on the Rust side; Dart holds one.
 #[frb(opaque)]
@@ -459,6 +460,11 @@ impl KansoLibrary {
     /// Publishing uses the signed-in session held by this library.
     pub fn publisher(&self) -> KansoPublisher {
         KansoPublisher::new(self.0.clone())
+    }
+
+    #[frb(sync)]
+    pub fn themes(&self) -> KansoThemes {
+        KansoThemes::new(self.0.themes())
     }
 
     #[frb(sync)]

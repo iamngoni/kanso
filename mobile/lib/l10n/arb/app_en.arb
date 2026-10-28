@@ -409,17 +409,9 @@
   "@themesTitle": {
     "description": "The title of the theme page."
   },
-  "themesInstalled": "Installed",
-  "@themesInstalled": {
-    "description": "The label above the installed themes."
-  },
   "themesBadgeBuiltIn": "Built in",
   "@themesBadgeBuiltIn": {
     "description": "A badge on a theme that comes with Kanso."
-  },
-  "themesBadgeInstalled": "Installed",
-  "@themesBadgeInstalled": {
-    "description": "A badge on a theme that is installed."
   },
   "themesCurrent": "In use",
   "@themesCurrent": {
@@ -493,6 +485,78 @@
   "@themesSampleQuote": {
     "description": "The quote in a theme's sample Markdown; the > mark is added."
   },
+  "themesBadgeYours": "Yours",
+  "@themesBadgeYours": {
+    "description": "A badge on a theme from the person's own folder."
+  },
+  "themesBadgeGallery": "From the gallery",
+  "@themesBadgeGallery": {
+    "description": "A badge on a theme installed from the gallery."
+  },
+  "themesSameAsTheme": "Same as theme",
+  "@themesSameAsTheme": {
+    "description": "A card that uses the interface theme for the editor or preview."
+  },
+  "themesSectionTheme": "Theme",
+  "@themesSectionTheme": {
+    "description": "The interface theme section of the theme picker."
+  },
+  "themesSectionSyntax": "Editor syntax",
+  "@themesSectionSyntax": {
+    "description": "The Markdown and code colour section of the theme picker."
+  },
+  "themesSectionPreview": "Preview",
+  "@themesSectionPreview": {
+    "description": "The rendered note colour section of the theme picker."
+  },
+  "themesSectionThemeDetail": "Colors the sidebar, the note list, menus and every control.",
+  "@themesSectionThemeDetail": {
+    "description": "Explains what the Theme cards colour."
+  },
+  "themesSectionSyntaxDetail": "Markdown and code in the editor.",
+  "@themesSectionSyntaxDetail": {
+    "description": "Explains what the Editor syntax cards colour."
+  },
+  "themesSectionPreviewDetail": "A note after it is rendered.",
+  "@themesSectionPreviewDetail": {
+    "description": "Explains what the Preview cards colour."
+  },
+  "themesThumbSome": "Some",
+  "@themesThumbSome": {
+    "description": "The first word in the note preview's sample line."
+  },
+  "themesThumbBoldComma": "bold,",
+  "@themesThumbBoldComma": {
+    "description": "The bold words in the note preview's sample line."
+  },
+  "themesThumbLinkComma": "a link,",
+  "@themesThumbLinkComma": {
+    "description": "The linked words in the note preview's sample line."
+  },
+  "themesThumbInlineCode": "code",
+  "@themesThumbInlineCode": {
+    "description": "The inline code in a theme preview."
+  },
+  "themesThumbBold": "bold",
+  "@themesThumbBold": {
+    "description": "The bold word in the syntax preview."
+  },
+  "themesThumbAnd": "and",
+  "@themesThumbAnd": {
+    "description": "The word between bold and italic words in the syntax preview."
+  },
+  "themesThumbItalic": "italic",
+  "@themesThumbItalic": {
+    "description": "The italic word in the syntax preview."
+  },
+  "themesThumbLink": "link",
+  "@themesThumbLink": {
+    "description": "The linked word in the syntax preview."
+  },
+  "themesThumbDone": "Done",
+  "@themesThumbDone": {
+    "description": "The checked task in the syntax preview."
+  },
   "settingsFonts": "Fonts",
   "@settingsFonts": {
     "description": "The settings row that opens the fonts of notes."
@@ -500,6 +564,10 @@
   "settingsIcons": "Icons",
   "@settingsIcons": {
     "description": "The settings row that opens the icon themes."
+  },
+  "settingsIconThemes": "Icon themes",
+  "@settingsIconThemes": {
+    "description": "The settings row that opens the page for installed icon themes."
   },
   "iconsTitle": "Icons",
   "@iconsTitle": {
@@ -573,6 +641,14 @@
   "fontsPreviewFooter": "The font a note is read in.",
   "@fontsPreviewFooter": {
     "description": "Explains the preview font."
+  },
+  "fontsPreviewTextSizeSection": "Preview text size",
+  "@fontsPreviewTextSizeSection": {
+    "description": "The setting for the size of rendered note text."
+  },
+  "fontsPreviewTextSizeFooter": "The preview’s text, in Split and Preview.",
+  "@fontsPreviewTextSizeFooter": {
+    "description": "Explains that preview text size is set apart from editor text size."
   },
   "fontsCodeSection": "Code font",
   "@fontsCodeSection": {
@@ -1200,6 +1276,134 @@
   "themesLoading": "Loading themes",
   "@themesLoading": {
     "description": "Says to a screen reader that the themes are being read."
+  },
+  "themesFiles": "Theme files",
+  "@themesFiles": {
+    "description": "The section for importing a theme file and theme notices."
+  },
+  "themesImportDetail": "A theme package (its folder or .tgz) or a Zed theme (.json), converted into the themes folder.",
+  "@themesImportDetail": {
+    "description": "Explains which theme files can be imported."
+  },
+  "themesImport": "Import theme",
+  "@themesImport": {
+    "description": "The row that opens the file picker to import a theme."
+  },
+  "themesImporting": "Importing…",
+  "@themesImporting": {
+    "description": "The import button while a theme is being read."
+  },
+  "themesImportButton": "Import Theme…",
+  "@themesImportButton": {
+    "description": "Opens the file picker to choose a theme."
+  },
+  "themesImportedOne": "Imported {names}.",
+  "@themesImportedOne": {
+    "description": "Says which theme was imported.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "themesImportFailed": "Couldn’t import the theme. {message}",
+  "@themesImportFailed": {
+    "description": "Says why a theme file could not be imported.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPreview": "Preview",
+  "@settingsPreview": {
+    "description": "The settings section for preview text."
+  },
+  "settingsDiagrams": "Diagrams",
+  "@settingsDiagrams": {
+    "description": "The appearance section for the Mermaid diagram renderer."
+  },
+  "settingsDiagramsDetail": "What draws Mermaid diagrams, here and in exports. Pele, Obsidian's renderer, lays them out tidily in the theme's colors; Kanso's own also draws ZenUML.",
+  "@settingsDiagramsDetail": {
+    "description": "Explains the diagram renderer choices in the same words as desktop settings."
+  },
+  "diagramRendererPele": "Pele",
+  "@diagramRendererPele": {
+    "description": "The setting that draws Mermaid diagrams with Pele."
+  },
+  "diagramRendererKanso": "Kanso",
+  "@diagramRendererKanso": {
+    "description": "The setting that draws Mermaid diagrams with Kanso."
+  },
+  "iconThemeAuthor": "By {author}",
+  "@iconThemeAuthor": {
+    "description": "Who made an icon theme.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "iconThemesTitle": "Icon themes",
+  "@iconThemesTitle": {
+    "description": "The title of the page for installed icon themes."
+  },
+  "iconThemesFailedTitle": "The icon themes didn’t load",
+  "@iconThemesFailedTitle": {
+    "description": "The title shown when installed icon themes could not be read."
+  },
+  "iconThemesFailedMessage": "Something went wrong reading the icon themes. Try again.",
+  "@iconThemesFailedMessage": {
+    "description": "Says what to do when installed icon themes could not be read."
+  },
+  "iconThemesEmptyTitle": "No icon themes yet",
+  "@iconThemesEmptyTitle": {
+    "description": "The title shown before an icon theme is imported."
+  },
+  "iconThemesEmptyMessage": "Import one to see it here.",
+  "@iconThemesEmptyMessage": {
+    "description": "Explains what to do when there are no installed icon themes."
+  },
+  "iconThemesListSection": "Installed icon themes",
+  "@iconThemesListSection": {
+    "description": "The list of icon themes already installed."
+  },
+  "iconThemesSection": "Add an icon theme",
+  "@iconThemesSection": {
+    "description": "The section that imports an icon theme."
+  },
+  "iconThemesImportDetail": "A Zed icon theme (its extension folder or .tar.gz), a theme package carrying one, or a Kanso icon theme folder, converted into the icon themes folder.",
+  "@iconThemesImportDetail": {
+    "description": "Explains which icon theme files can be imported."
+  },
+  "iconThemesImport": "Import icon theme",
+  "@iconThemesImport": {
+    "description": "The row that opens the file picker for an icon theme."
+  },
+  "iconThemesImportButton": "Import…",
+  "@iconThemesImportButton": {
+    "description": "Opens the file picker to choose an icon theme."
+  },
+  "iconThemesImported": "Imported {names}. {summary}",
+  "@iconThemesImported": {
+    "description": "Says which icon theme was imported and what it contains.",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      },
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "iconThemesImportFailed": "Couldn’t import the icon theme. {message}",
+  "@iconThemesImportFailed": {
+    "description": "Says why an icon theme file could not be imported.",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
   },
   "backupNoticeTitle": "Notes stay on this device",
   "@backupNoticeTitle": {

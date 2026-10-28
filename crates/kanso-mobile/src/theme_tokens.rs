@@ -23,7 +23,7 @@ pub fn fit_file(file: &ThemeFile) -> (ThemeTokens, Tokens) {
     (rows(&tokens), tokens)
 }
 
-fn rows(tokens: &Tokens) -> ThemeTokens {
+pub(crate) fn rows(tokens: &Tokens) -> ThemeTokens {
     ThemeTokens {
         palette: palette(tokens),
         ui: ui_colors(&tokens.ui),

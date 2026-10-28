@@ -124,6 +124,7 @@ fn row(theme: &IconTheme) -> IconThemeRow {
         license: theme.license.clone(),
         source: theme.source.clone(),
         description: theme.description.clone(),
+        icon_count: theme.count() as u32,
         preview,
     }
 }

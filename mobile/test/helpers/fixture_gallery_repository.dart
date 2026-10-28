@@ -8,6 +8,8 @@ import 'package:dartz/dartz.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_palette.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/installed_theme.dart';
+import 'package:kanso/core/models/data/installed_theme_origin.dart';
 import 'package:kanso/core/models/repos/abs/gallery_repository.dart';
 import 'package:kanso/core/utils/theme_changes.dart';
 
@@ -59,6 +61,23 @@ class FixtureGalleryRepository implements GalleryRepository {
   KansoPalette _paletteOf(GalleryItem item) =>
       palettes[item.id] ??
       fakePalette(item.id, dark: item.dark).copyWith(name: item.name);
+
+  /// The installed colour themes as rows in the themes folder.
+  List<InstalledTheme> installedColorThemes() => <InstalledTheme>[
+    for (final item in items)
+      if (item.installed &&
+          !item.disabled &&
+          item.kind == GalleryKind.colorTheme)
+        InstalledTheme(
+          id: item.id,
+          name: item.name,
+          author: item.author,
+          license: item.license,
+          dark: item.dark,
+          origin: InstalledThemeOrigin.gallery,
+          tokens: tokensFor(_paletteOf(item)),
+        ),
+  ];
 
   @override
   Future<Either<ApplicationError, List<GalleryItem>>> index({

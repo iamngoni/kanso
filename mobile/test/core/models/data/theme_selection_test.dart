@@ -166,5 +166,120 @@ void main() {
         const ThemeSelection(light: 'nord'),
       );
     });
+
+    group('the syntax and preview themes', () {
+      test('are the interface theme’s own until chosen', () {
+        const selection = ThemeSelection();
+        expect(selection.syntax, isNull);
+        expect(selection.preview, isNull);
+        expect(selection.syntaxFor(systemDark: false), 'kanso-light');
+        expect(selection.syntaxFor(systemDark: true), 'kanso-dark');
+        expect(selection.previewFor(systemDark: false), 'kanso-light');
+        expect(selection.previewFor(systemDark: true), 'kanso-dark');
+      });
+
+      test('are the same in both modes once chosen', () {
+        const selection = ThemeSelection(syntax: 'nord', preview: 'dracula');
+        expect(selection.syntaxFor(systemDark: false), 'nord');
+        expect(selection.syntaxFor(systemDark: true), 'nord');
+        expect(selection.previewFor(systemDark: false), 'dracula');
+        expect(selection.previewFor(systemDark: true), 'dracula');
+      });
+
+      test('follow the fixed interface theme while the system is not '
+          'followed', () {
+        const selection = ThemeSelection(followSystem: false, ui: 'nord');
+        expect(selection.syntaxFor(systemDark: false), 'nord');
+        expect(selection.previewFor(systemDark: true), 'nord');
+      });
+
+      test('choosing none again goes back to the interface theme', () {
+        const chosen = ThemeSelection(syntax: 'nord', preview: 'dracula');
+        final cleared = chosen.copyWith(syntax: null, preview: null);
+        expect(cleared, const ThemeSelection());
+      });
+
+      test('picking an interface theme leaves them alone', () {
+        const selection = ThemeSelection(syntax: 'nord', preview: 'dracula');
+        final picked = selection.picked('github-light', dark: false);
+        expect(picked.syntax, 'nord');
+        expect(picked.preview, 'dracula');
+      });
+
+      test('are read from the saved file when it has them', () {
+        final read = ThemeSelection.fromJson(<String, dynamic>{
+          'syntax': 'nord',
+          'preview': null,
+        });
+        expect(read, const ThemeSelection(syntax: 'nord'));
+      });
+
+      test('are none when an old saved file lacks them', () {
+        // What a version without separate syntax and preview themes wrote.
+        final read = ThemeSelection.fromJson(<String, dynamic>{
+          'followSystem': false,
+          'ui': 'nord',
+          'light': 'github-light',
+          'dark': 'nord',
+        });
+        expect(
+          read,
+          const ThemeSelection(
+            followSystem: false,
+            ui: 'nord',
+            light: 'github-light',
+            dark: 'nord',
+          ),
+        );
+        expect(read.syntax, isNull);
+        expect(read.preview, isNull);
+      });
+
+      Glados2<ThemeSelection, bool>(
+        any.themeSelection,
+        any.bool,
+        kansoExploreConfig(),
+      ).test('syntaxFor and previewFor are the chosen theme or the '
+          'interface’s', (selection, systemDark) {
+        final ui = selection.uiFor(systemDark: systemDark);
+        expect(
+          selection.syntaxFor(systemDark: systemDark),
+          selection.syntax ?? ui,
+        );
+        expect(
+          selection.previewFor(systemDark: systemDark),
+          selection.preview ?? ui,
+        );
+      });
+
+      Glados<ThemeSelection>(any.themeSelection, kansoExploreConfig()).test(
+        'allIds holds every theme to read, once, and the ones drawn',
+        (selection) {
+          final all = selection.allIds;
+          expect(all, containsAll(selection.ids));
+          for (final dark in <bool>[false, true]) {
+            expect(all, contains(selection.syntaxFor(systemDark: dark)));
+            expect(all, contains(selection.previewFor(systemDark: dark)));
+          }
+          final syntax = selection.syntax;
+          if (syntax != null) {
+            expect(all, contains(syntax));
+          }
+        },
+      );
+
+      Glados2<ThemeSelection, String>(
+        any.themeSelection,
+        any.themeId,
+        kansoExploreConfig(),
+      ).test('choosing a syntax theme changes only that', (selection, id) {
+        final next = selection.copyWith(syntax: id);
+        expect(next.preview, selection.preview);
+        expect(next.ui, selection.ui);
+        expect(next.followSystem, selection.followSystem);
+        expect(next.syntaxFor(systemDark: true), id);
+        expect(next.syntaxFor(systemDark: false), id);
+      });
+    });
   });
 }

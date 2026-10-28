@@ -75,6 +75,7 @@ abstract final class KansoRoutes {
   static const String settingsTheme = '/settings/theme';
   static const String settingsIcons = '/settings/icons';
   static const String settingsFonts = '/settings/fonts';
+  static const String settingsIconThemes = '/settings/icon-themes';
   static const String settingsLicences = '/settings/licences';
   static const String settingsCrashReports = '/settings/crash-reports';
   static const String settingsBackups = '/settings/backups';

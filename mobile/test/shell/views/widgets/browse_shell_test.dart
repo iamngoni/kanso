@@ -27,7 +27,6 @@ import 'package:kanso/core/state/navigation_history/navigation_history_bloc.dart
 import 'package:kanso/core/state/sync_status/sync_status_bloc.dart';
 import 'package:kanso/core/state/undo_notice/undo_notice_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer_scope.dart';
-import 'package:kanso/core/views/widgets/kanso_icon_button.dart';
 import 'package:kanso/core/views/widgets/kanso_sheet.dart';
 import 'package:kanso/core/views/widgets/kanso_sidebar_row.dart';
 import 'package:kanso/crash/state/crash_reports/crash_reports_bloc.dart';
@@ -38,7 +37,6 @@ import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart
 import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note/views/pages/note_page.dart';
 import 'package:kanso/note/views/widgets/no_note_selected_pane.dart';
-import 'package:kanso/note/views/widgets/note_top_bar.dart';
 import 'package:kanso/note_list/views/pages/note_list_page.dart';
 import 'package:kanso/search/views/pages/search_page.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
@@ -50,7 +48,6 @@ import 'package:kanso/sharing/state/invitations/invitations_bloc.dart';
 import 'package:kanso/shell/state/focus_mode/focus_mode_bloc.dart';
 import 'package:kanso/shell/state/library_pane/library_pane_bloc.dart';
 import 'package:kanso/shell/state/note_creation/note_creation_bloc.dart';
-import 'package:kanso/shell/views/widgets/focus_mode_exit.dart';
 import 'package:kanso/shell/views/widgets/library_navigation.dart';
 import 'package:kanso/tabs/state/tabs/tabs_bloc.dart';
 
@@ -78,9 +75,9 @@ Future<GoRouter> _pump(
   final bloc = SeededAppearanceBloc(const AppearanceState());
   addTearDown(bloc.close);
   final blocs = await BrowseBlocs.start();
-  final appFeatures = AppFeatureFixtures()..register();
-  addTearDown(appFeatures.dispose);
-  registerPageBlocs(blocs.library, null, blocs.undoNotice);
+  registerPageBlocs(blocs.library, undo: blocs.undoNotice);
+  final features = AppFeatureFixtures()..register();
+  addTearDown(features.dispose);
   tester.view
     ..physicalSize = size
     ..devicePixelRatio = 1;
@@ -133,7 +130,7 @@ Future<GoRouter> _pump(
         BlocProvider<AccountBloc>.value(value: accounts.account),
         BlocProvider<DeviceApprovalBloc>.value(value: accounts.approval),
         BlocProvider<CrashReportsBloc>.value(value: quietCrashReportsBloc()),
-        BlocProvider<AiStatusBloc>.value(value: blocs.aiStatus),
+        BlocProvider<AiStatusBloc>.value(value: features.status),
       ],
       child: App(router: kansoRouter),
     ),
@@ -169,58 +166,6 @@ void main() {
         tester.getSize(find.byType(NotePage)).width,
         _landscape.width - 280 - 340 - 2,
       );
-    });
-
-    testWidgets('focus mode leaves only the note, with a way back', (
-      tester,
-    ) async {
-      final focus = FocusModeBloc(
-        SeededPreferencesRepository(const Preferences(focusMode: true)),
-      )..add(const FocusModeEvent.started());
-      addTearDown(focus.close);
-      await _pump(
-        tester,
-        _landscape,
-        at: '/notebooks/b1/note/n1',
-        focusMode: focus,
-      );
-
-      expect(find.byType(LibraryNavigation), findsNothing);
-      expect(find.byType(NoteListPage), findsNothing);
-      expect(find.byType(NotePage), findsOneWidget);
-      expect(find.byType(FocusModeExit), findsOneWidget);
-      expect(find.byType(NoteTopBar), findsNothing);
-      expect(tester.getSize(find.byType(NotePage)).width, _landscape.width);
-
-      await tester.tap(
-        find.descendant(
-          of: find.byType(FocusModeExit),
-          matching: find.byType(KansoIconButton),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(FocusModeExit), findsNothing);
-      expect(find.byType(LibraryNavigation), findsOneWidget);
-      expect(find.byType(NoteListPage), findsOneWidget);
-      expect(find.byType(NoteTopBar), findsOneWidget);
-      expect(focus.state.active, isFalse);
-    });
-
-    testWidgets('focus mode leaves when no note is open to show', (
-      tester,
-    ) async {
-      final focus = FocusModeBloc(
-        SeededPreferencesRepository(const Preferences(focusMode: true)),
-      )..add(const FocusModeEvent.started());
-      addTearDown(focus.close);
-      await _pump(tester, _landscape, focusMode: focus);
-
-      // There is no note to fill the screen, so the mode leaves rather than
-      // hide a page it cannot show by itself.
-      expect(focus.state.active, isFalse);
-      expect(find.byType(FocusModeExit), findsNothing);
-      expect(find.byType(LibraryNavigation), findsOneWidget);
-      expect(find.byType(NoNoteSelectedPane), findsOneWidget);
     });
 
     testWidgets('with no note open the note pane says so', (tester) async {

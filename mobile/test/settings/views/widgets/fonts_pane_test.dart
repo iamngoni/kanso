@@ -145,12 +145,28 @@ void main() {
 
     testWidgets('the text size control sets the size', (tester) async {
       final bloc = await _pump(tester);
-      await tester.tap(find.text('Larger'));
+      // The text size control comes first, the preview's after it.
+      await tester.tap(find.text('Larger').first);
       await tester.pump();
       expect(bloc.state.textSize, KansoTextSize.larger);
-      await tester.tap(find.text('Small'));
+      await tester.tap(find.text('Small').first);
       await tester.pump();
       expect(bloc.state.textSize, KansoTextSize.small);
+      expect(bloc.state.previewTextSize, KansoTextSize.standard);
+    });
+
+    testWidgets('the preview text size control sets the preview’s size '
+        'apart from the editor’s', (tester) async {
+      final bloc = await _pump(tester);
+      expect(find.text('Preview text size'), findsOneWidget);
+      expect(
+        find.text('The preview’s text, in Split and Preview.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Large').last);
+      await tester.pump();
+      expect(bloc.state.previewTextSize, KansoTextSize.large);
+      expect(bloc.state.textSize, KansoTextSize.standard);
     });
   });
 }

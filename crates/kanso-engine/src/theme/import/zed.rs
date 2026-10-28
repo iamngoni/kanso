@@ -12,8 +12,8 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use super::color;
-use crate::theme_file::{Appearance, CAPTURES, Color, ThemeFile, TokenStyle, contrast, luminance};
-use kanso_engine::theme::Rgb;
+use crate::theme::Rgb;
+use crate::theme::file::{Appearance, CAPTURES, Color, ThemeFile, TokenStyle, contrast, luminance};
 
 /// Whether `value` is a Zed theme family.
 pub fn is_family(value: &Value) -> bool {
@@ -365,7 +365,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::{import, keys_for, strip_jsonc};
-    use crate::theme_file::{Appearance, ThemeFile};
+    use crate::theme::file::{Appearance, ThemeFile};
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
 

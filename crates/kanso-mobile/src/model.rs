@@ -736,6 +736,8 @@ pub struct IconThemeRow {
     pub license: String,
     pub source: Option<String>,
     pub description: Option<String>,
+    /// How many icons the theme draws.
+    pub icon_count: u32,
     /// The icons that show what the theme looks like, in a fixed order.
     pub preview: Vec<ThemedIcon>,
 }
@@ -1434,17 +1436,6 @@ pub struct AttachmentFile {
     pub name: String,
     pub content_type: String,
     pub bytes: Vec<u8>,
-}
-
-/// What draws Mermaid diagrams (Settings › Appearance › Diagrams on the
-/// desktop).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum DiagramRenderer {
-    /// Pele, Obsidian's renderer: the default.
-    #[default]
-    Pele,
-    /// Kanso's own.
-    Kanso,
 }
 
 /// A notebook icon the picker offers.

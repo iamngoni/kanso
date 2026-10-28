@@ -79,6 +79,14 @@ void rendererSuite(OpenLibrary open) {
       expect(themes.first.preview.every((icon) => icon.svg == null), isTrue);
     });
 
+    test('the diagram renderer can be changed and read back', () async {
+      final previous = await KansoRenderer.diagramRenderer();
+      await KansoRenderer.setDiagramRenderer(renderer: DiagramRenderer.kanso);
+      expect(await KansoRenderer.diagramRenderer(), DiagramRenderer.kanso);
+      await KansoRenderer.setDiagramRenderer(renderer: previous);
+      expect(await KansoRenderer.diagramRenderer(), previous);
+    });
+
     test(
       'a theme draws the icons it has and leaves the rest to Lucide',
       () async {

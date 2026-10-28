@@ -22,6 +22,8 @@ use crate::model::{
     StyledRun, SvgRow, ThemeTokens, ThemedIcon,
 };
 use crate::theme_tokens;
+use crate::themes::Syntax;
+use crate::themes_model::DiagramRenderer;
 
 /// Drawing for one library; the associated functions need no library.
 #[derive(Clone)]
@@ -107,24 +109,24 @@ impl Renderer {
     ) -> Result<Vec<StyledRun>, KansoError> {
         guard(|| {
             let theme = builtin_themes::get(&theme_id)?;
-            let from = utf16_to_byte(&text, start as usize);
-            let to = utf16_to_byte(&text, end as usize).max(from);
-            Ok(highlight::spans(&text, from..to)
-                .into_iter()
-                .filter_map(|span| {
-                    let style = kanso_engine::theme::style(&span.tokens, &theme.fitted.syntax);
-                    (!style.is_empty()).then(|| StyledRun {
-                        range: Range16 {
-                            start: byte_to_utf16(&text, span.range.start) as u32,
-                            end: byte_to_utf16(&text, span.range.end) as u32,
-                        },
-                        color: style.color.map(|color| color.0),
-                        italic: style.italic,
-                        weight: style.weight,
-                    })
-                })
-                .collect())
+            Ok(styled_runs_in(&text, start, end, &theme.fitted.syntax))
         })
+    }
+
+    /// Chooses what draws Mermaid diagrams from now on, in every library.
+    pub fn set_diagram_renderer(renderer: DiagramRenderer) {
+        kanso_render::set_mermaid_engine(match renderer {
+            DiagramRenderer::Pele => kanso_render::MermaidEngine::Pele,
+            DiagramRenderer::Kanso => kanso_render::MermaidEngine::MermaidSvg,
+        });
+    }
+
+    /// What draws Mermaid diagrams now.
+    pub fn diagram_renderer() -> DiagramRenderer {
+        match kanso_render::mermaid_engine() {
+            kanso_render::MermaidEngine::Pele => DiagramRenderer::Pele,
+            kanso_render::MermaidEngine::MermaidSvg => DiagramRenderer::Kanso,
+        }
     }
 
     /// TeX math as an SVG in `palette`'s colors: `display` sets it on its own
@@ -166,6 +168,28 @@ impl Renderer {
     pub fn set_fonts(fonts: Vec<Vec<u8>>) -> bool {
         kanso_render::set_fonts(fonts)
     }
+}
+
+/// The runs of `text` between `start` and `end` (UTF-16 units) that `syntax`
+/// styles.
+pub(crate) fn styled_runs_in(text: &str, start: u32, end: u32, syntax: &Syntax) -> Vec<StyledRun> {
+    let from = utf16_to_byte(text, start as usize);
+    let to = utf16_to_byte(text, end as usize).max(from);
+    highlight::spans(text, from..to)
+        .into_iter()
+        .filter_map(|span| {
+            let style = kanso_engine::theme::style(&span.tokens, syntax);
+            (!style.is_empty()).then(|| StyledRun {
+                range: Range16 {
+                    start: byte_to_utf16(text, span.range.start) as u32,
+                    end: byte_to_utf16(text, span.range.end) as u32,
+                },
+                color: style.color.map(|color| color.0),
+                italic: style.italic,
+                weight: style.weight,
+            })
+        })
+        .collect()
 }
 
 /// Draws `job` and turns a failure into the error the shell shows.

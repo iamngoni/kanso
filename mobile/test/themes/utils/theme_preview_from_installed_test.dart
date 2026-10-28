@@ -1,4 +1,4 @@
-// Kanso — theme_preview_from_builtin_test.dart
+// Kanso — theme_preview_from_installed_test.dart
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
@@ -7,7 +7,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kanso/themes/utils/theme_preview_from_builtin.dart';
+import 'package:kanso/themes/utils/theme_preview_from_installed.dart';
 
 import '../../helpers/real_themes.dart';
 
@@ -39,7 +39,7 @@ void main() {
       }
 
       final id = theme.id;
-      final preview = themePreviewFromBuiltin(theme);
+      final preview = themePreviewFromInstalled(installedFromBuiltin(theme));
       final text = _hex(colors['text'] as String);
       final marker = token('marker', token('text', text));
       expect(preview.id, id);

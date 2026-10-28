@@ -34,6 +34,7 @@ use crate::secrets;
 use crate::sharing::{SharedNotes, SharedState};
 use crate::stream::Listeners;
 use crate::syncing::SyncHandle;
+use crate::themes::Themes;
 use crate::undo::UndoBook;
 use crate::{Secrets, boundary};
 
@@ -236,6 +237,14 @@ impl Library {
     /// Drawing: the preview, highlighting, themes, math and diagrams.
     pub fn renderer(&self) -> Renderer {
         Renderer {
+            inner: self.inner.clone(),
+        }
+    }
+
+    /// The themes: built-in, the person's own and the gallery's, and
+    /// importing more.
+    pub fn themes(&self) -> Themes {
+        Themes {
             inner: self.inner.clone(),
         }
     }

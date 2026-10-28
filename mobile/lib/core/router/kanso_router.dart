@@ -30,13 +30,14 @@ import '../../replace/views/pages/replace_page.dart';
 import '../../search/views/pages/search_page.dart';
 import '../../settings/views/pages/default_notebook_page.dart';
 import '../../settings/views/pages/fonts_page.dart';
-import '../../settings/views/pages/icon_themes_page.dart';
+import '../../settings/views/pages/icon_themes_page.dart' as icon_picker;
 import '../../settings/views/pages/licences_page.dart';
 import '../../settings/views/pages/settings_page.dart';
 import '../../sharing/views/pages/join_link_page.dart';
 import '../../sharing/views/pages/shared_with_you_page.dart';
 import '../../shell/views/widgets/browse_shell.dart';
 import '../../tasks/views/pages/tasks_page.dart';
+import '../../themes/views/pages/icon_themes_page.dart' as icon_themes;
 import '../../themes/views/pages/theme_picker_page.dart';
 import '../../voice_settings/views/pages/voice_settings_page.dart';
 import '../bridge/api/types.dart';
@@ -59,9 +60,10 @@ import 'layout_class_notifier.dart';
 ///   and a page on a phone.
 /// * `/daily` finds or makes today's note and goes to it in All Notes, and
 ///   `/new` makes a note as the + button does (`?voice=1` to dictate into).
-///   Theme, Icons, Fonts, Licences, Crash reports and the account's screens
-///   (Account, Sign in, Open your notes, Reset your password, Your recovery
-///   key) sliding inside it. It is a sheet on a tablet and a page on a phone.
+///   Theme, Icons, Icon themes, Fonts, Licences, Crash reports and the
+///   account's screens (Account, Sign in, Open your notes, Reset your
+///   password, Your recovery key) sliding inside it. It is a sheet on a
+///   tablet and a page on a phone.
 ///   Shared with you, and Join with a link inside it, and Import notes are
 ///   in that shell too.
 /// * `kanso://open/…` links and the short forms (`/note/:id`,
@@ -254,7 +256,14 @@ class KansoRouter {
                   path: 'icons',
                   pageBuilder: (context, state) => CupertinoPage<void>(
                     key: state.pageKey,
-                    child: const IconThemesPage(),
+                    child: const icon_picker.IconThemesPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'icon-themes',
+                  pageBuilder: (context, state) => CupertinoPage<void>(
+                    key: state.pageKey,
+                    child: const icon_themes.IconThemesPage(),
                   ),
                 ),
                 GoRoute(

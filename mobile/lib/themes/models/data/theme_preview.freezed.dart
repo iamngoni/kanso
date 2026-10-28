@@ -16,7 +16,11 @@ mixin _$ThemePreview {
 
 /// The theme file's name without `.json`: `nord`.
  String get id; String get name;/// Whether the theme is for a dark interface.
- bool get dark; Color get editor; Color get text; Color get accent; Color get heading; Color get marker; Color get quote; Color get link; Color get url; Color get code; Color get strong; Color get emphasis; bool get builtIn;
+ bool get dark; Color get editor; Color get text; Color get accent; Color get heading; Color get marker; Color get quote; Color get link; Color get url; Color get code; Color get strong; Color get emphasis;/// The theme as the app would draw it, for the pictures of the editor
+/// syntax and the preview.
+ KansoPalette get palette;/// Where the theme came from.
+ InstalledThemeOrigin get origin;/// Who made the theme; empty when it does not say.
+ String get author;
 /// Create a copy of ThemePreview
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,16 +31,16 @@ $ThemePreviewCopyWith<ThemePreview> get copyWith => _$ThemePreviewCopyWithImpl<T
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ThemePreview&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.editor, editor) || other.editor == editor)&&(identical(other.text, text) || other.text == text)&&(identical(other.accent, accent) || other.accent == accent)&&(identical(other.heading, heading) || other.heading == heading)&&(identical(other.marker, marker) || other.marker == marker)&&(identical(other.quote, quote) || other.quote == quote)&&(identical(other.link, link) || other.link == link)&&(identical(other.url, url) || other.url == url)&&(identical(other.code, code) || other.code == code)&&(identical(other.strong, strong) || other.strong == strong)&&(identical(other.emphasis, emphasis) || other.emphasis == emphasis)&&(identical(other.builtIn, builtIn) || other.builtIn == builtIn));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ThemePreview&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.editor, editor) || other.editor == editor)&&(identical(other.text, text) || other.text == text)&&(identical(other.accent, accent) || other.accent == accent)&&(identical(other.heading, heading) || other.heading == heading)&&(identical(other.marker, marker) || other.marker == marker)&&(identical(other.quote, quote) || other.quote == quote)&&(identical(other.link, link) || other.link == link)&&(identical(other.url, url) || other.url == url)&&(identical(other.code, code) || other.code == code)&&(identical(other.strong, strong) || other.strong == strong)&&(identical(other.emphasis, emphasis) || other.emphasis == emphasis)&&(identical(other.palette, palette) || other.palette == palette)&&(identical(other.origin, origin) || other.origin == origin)&&(identical(other.author, author) || other.author == author));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,name,dark,editor,text,accent,heading,marker,quote,link,url,code,strong,emphasis,builtIn);
+int get hashCode => Object.hash(runtimeType,id,name,dark,editor,text,accent,heading,marker,quote,link,url,code,strong,emphasis,palette,origin,author);
 
 @override
 String toString() {
-  return 'ThemePreview(id: $id, name: $name, dark: $dark, editor: $editor, text: $text, accent: $accent, heading: $heading, marker: $marker, quote: $quote, link: $link, url: $url, code: $code, strong: $strong, emphasis: $emphasis, builtIn: $builtIn)';
+  return 'ThemePreview(id: $id, name: $name, dark: $dark, editor: $editor, text: $text, accent: $accent, heading: $heading, marker: $marker, quote: $quote, link: $link, url: $url, code: $code, strong: $strong, emphasis: $emphasis, palette: $palette, origin: $origin, author: $author)';
 }
 
 
@@ -47,11 +51,11 @@ abstract mixin class $ThemePreviewCopyWith<$Res>  {
   factory $ThemePreviewCopyWith(ThemePreview value, $Res Function(ThemePreview) _then) = _$ThemePreviewCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, bool dark, Color editor, Color text, Color accent, Color heading, Color marker, Color quote, Color link, Color url, Color code, Color strong, Color emphasis, bool builtIn
+ String id, String name, bool dark, Color editor, Color text, Color accent, Color heading, Color marker, Color quote, Color link, Color url, Color code, Color strong, Color emphasis, KansoPalette palette, InstalledThemeOrigin origin, String author
 });
 
 
-
+$KansoPaletteCopyWith<$Res> get palette;
 
 }
 /// @nodoc
@@ -64,7 +68,7 @@ class _$ThemePreviewCopyWithImpl<$Res>
 
 /// Create a copy of ThemePreview
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? dark = null,Object? editor = null,Object? text = null,Object? accent = null,Object? heading = null,Object? marker = null,Object? quote = null,Object? link = null,Object? url = null,Object? code = null,Object? strong = null,Object? emphasis = null,Object? builtIn = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? dark = null,Object? editor = null,Object? text = null,Object? accent = null,Object? heading = null,Object? marker = null,Object? quote = null,Object? link = null,Object? url = null,Object? code = null,Object? strong = null,Object? emphasis = null,Object? palette = null,Object? origin = null,Object? author = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -80,11 +84,22 @@ as Color,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_null
 as Color,code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as Color,strong: null == strong ? _self.strong : strong // ignore: cast_nullable_to_non_nullable
 as Color,emphasis: null == emphasis ? _self.emphasis : emphasis // ignore: cast_nullable_to_non_nullable
-as Color,builtIn: null == builtIn ? _self.builtIn : builtIn // ignore: cast_nullable_to_non_nullable
-as bool,
+as Color,palette: null == palette ? _self.palette : palette // ignore: cast_nullable_to_non_nullable
+as KansoPalette,origin: null == origin ? _self.origin : origin // ignore: cast_nullable_to_non_nullable
+as InstalledThemeOrigin,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
-
+/// Create a copy of ThemePreview
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$KansoPaletteCopyWith<$Res> get palette {
+  
+  return $KansoPaletteCopyWith<$Res>(_self.palette, (value) {
+    return _then(_self.copyWith(palette: value));
+  });
+}
 }
 
 
@@ -166,10 +181,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  bool dark,  Color editor,  Color text,  Color accent,  Color heading,  Color marker,  Color quote,  Color link,  Color url,  Color code,  Color strong,  Color emphasis,  bool builtIn)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  bool dark,  Color editor,  Color text,  Color accent,  Color heading,  Color marker,  Color quote,  Color link,  Color url,  Color code,  Color strong,  Color emphasis,  KansoPalette palette,  InstalledThemeOrigin origin,  String author)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ThemePreview() when $default != null:
-return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.accent,_that.heading,_that.marker,_that.quote,_that.link,_that.url,_that.code,_that.strong,_that.emphasis,_that.builtIn);case _:
+return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.accent,_that.heading,_that.marker,_that.quote,_that.link,_that.url,_that.code,_that.strong,_that.emphasis,_that.palette,_that.origin,_that.author);case _:
   return orElse();
 
 }
@@ -187,10 +202,10 @@ return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.acc
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  bool dark,  Color editor,  Color text,  Color accent,  Color heading,  Color marker,  Color quote,  Color link,  Color url,  Color code,  Color strong,  Color emphasis,  bool builtIn)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  bool dark,  Color editor,  Color text,  Color accent,  Color heading,  Color marker,  Color quote,  Color link,  Color url,  Color code,  Color strong,  Color emphasis,  KansoPalette palette,  InstalledThemeOrigin origin,  String author)  $default,) {final _that = this;
 switch (_that) {
 case _ThemePreview():
-return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.accent,_that.heading,_that.marker,_that.quote,_that.link,_that.url,_that.code,_that.strong,_that.emphasis,_that.builtIn);case _:
+return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.accent,_that.heading,_that.marker,_that.quote,_that.link,_that.url,_that.code,_that.strong,_that.emphasis,_that.palette,_that.origin,_that.author);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -207,10 +222,10 @@ return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.acc
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  bool dark,  Color editor,  Color text,  Color accent,  Color heading,  Color marker,  Color quote,  Color link,  Color url,  Color code,  Color strong,  Color emphasis,  bool builtIn)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  bool dark,  Color editor,  Color text,  Color accent,  Color heading,  Color marker,  Color quote,  Color link,  Color url,  Color code,  Color strong,  Color emphasis,  KansoPalette palette,  InstalledThemeOrigin origin,  String author)?  $default,) {final _that = this;
 switch (_that) {
 case _ThemePreview() when $default != null:
-return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.accent,_that.heading,_that.marker,_that.quote,_that.link,_that.url,_that.code,_that.strong,_that.emphasis,_that.builtIn);case _:
+return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.accent,_that.heading,_that.marker,_that.quote,_that.link,_that.url,_that.code,_that.strong,_that.emphasis,_that.palette,_that.origin,_that.author);case _:
   return null;
 
 }
@@ -221,8 +236,8 @@ return $default(_that.id,_that.name,_that.dark,_that.editor,_that.text,_that.acc
 /// @nodoc
 
 
-class _ThemePreview implements ThemePreview {
-  const _ThemePreview({required this.id, required this.name, required this.dark, required this.editor, required this.text, required this.accent, required this.heading, required this.marker, required this.quote, required this.link, required this.url, required this.code, required this.strong, required this.emphasis, this.builtIn = true});
+class _ThemePreview extends ThemePreview {
+  const _ThemePreview({required this.id, required this.name, required this.dark, required this.editor, required this.text, required this.accent, required this.heading, required this.marker, required this.quote, required this.link, required this.url, required this.code, required this.strong, required this.emphasis, required this.palette, this.origin = InstalledThemeOrigin.builtin, this.author = ''}): super._();
   
 
 /// The theme file's name without `.json`: `nord`.
@@ -241,7 +256,13 @@ class _ThemePreview implements ThemePreview {
 @override final  Color code;
 @override final  Color strong;
 @override final  Color emphasis;
-@override@JsonKey() final  bool builtIn;
+/// The theme as the app would draw it, for the pictures of the editor
+/// syntax and the preview.
+@override final  KansoPalette palette;
+/// Where the theme came from.
+@override@JsonKey() final  InstalledThemeOrigin origin;
+/// Who made the theme; empty when it does not say.
+@override@JsonKey() final  String author;
 
 /// Create a copy of ThemePreview
 /// with the given fields replaced by the non-null parameter values.
@@ -253,16 +274,16 @@ _$ThemePreviewCopyWith<_ThemePreview> get copyWith => __$ThemePreviewCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ThemePreview&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.editor, editor) || other.editor == editor)&&(identical(other.text, text) || other.text == text)&&(identical(other.accent, accent) || other.accent == accent)&&(identical(other.heading, heading) || other.heading == heading)&&(identical(other.marker, marker) || other.marker == marker)&&(identical(other.quote, quote) || other.quote == quote)&&(identical(other.link, link) || other.link == link)&&(identical(other.url, url) || other.url == url)&&(identical(other.code, code) || other.code == code)&&(identical(other.strong, strong) || other.strong == strong)&&(identical(other.emphasis, emphasis) || other.emphasis == emphasis)&&(identical(other.builtIn, builtIn) || other.builtIn == builtIn));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ThemePreview&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.editor, editor) || other.editor == editor)&&(identical(other.text, text) || other.text == text)&&(identical(other.accent, accent) || other.accent == accent)&&(identical(other.heading, heading) || other.heading == heading)&&(identical(other.marker, marker) || other.marker == marker)&&(identical(other.quote, quote) || other.quote == quote)&&(identical(other.link, link) || other.link == link)&&(identical(other.url, url) || other.url == url)&&(identical(other.code, code) || other.code == code)&&(identical(other.strong, strong) || other.strong == strong)&&(identical(other.emphasis, emphasis) || other.emphasis == emphasis)&&(identical(other.palette, palette) || other.palette == palette)&&(identical(other.origin, origin) || other.origin == origin)&&(identical(other.author, author) || other.author == author));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,name,dark,editor,text,accent,heading,marker,quote,link,url,code,strong,emphasis,builtIn);
+int get hashCode => Object.hash(runtimeType,id,name,dark,editor,text,accent,heading,marker,quote,link,url,code,strong,emphasis,palette,origin,author);
 
 @override
 String toString() {
-  return 'ThemePreview(id: $id, name: $name, dark: $dark, editor: $editor, text: $text, accent: $accent, heading: $heading, marker: $marker, quote: $quote, link: $link, url: $url, code: $code, strong: $strong, emphasis: $emphasis, builtIn: $builtIn)';
+  return 'ThemePreview(id: $id, name: $name, dark: $dark, editor: $editor, text: $text, accent: $accent, heading: $heading, marker: $marker, quote: $quote, link: $link, url: $url, code: $code, strong: $strong, emphasis: $emphasis, palette: $palette, origin: $origin, author: $author)';
 }
 
 
@@ -273,11 +294,11 @@ abstract mixin class _$ThemePreviewCopyWith<$Res> implements $ThemePreviewCopyWi
   factory _$ThemePreviewCopyWith(_ThemePreview value, $Res Function(_ThemePreview) _then) = __$ThemePreviewCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, bool dark, Color editor, Color text, Color accent, Color heading, Color marker, Color quote, Color link, Color url, Color code, Color strong, Color emphasis, bool builtIn
+ String id, String name, bool dark, Color editor, Color text, Color accent, Color heading, Color marker, Color quote, Color link, Color url, Color code, Color strong, Color emphasis, KansoPalette palette, InstalledThemeOrigin origin, String author
 });
 
 
-
+@override $KansoPaletteCopyWith<$Res> get palette;
 
 }
 /// @nodoc
@@ -290,7 +311,7 @@ class __$ThemePreviewCopyWithImpl<$Res>
 
 /// Create a copy of ThemePreview
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? dark = null,Object? editor = null,Object? text = null,Object? accent = null,Object? heading = null,Object? marker = null,Object? quote = null,Object? link = null,Object? url = null,Object? code = null,Object? strong = null,Object? emphasis = null,Object? builtIn = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? dark = null,Object? editor = null,Object? text = null,Object? accent = null,Object? heading = null,Object? marker = null,Object? quote = null,Object? link = null,Object? url = null,Object? code = null,Object? strong = null,Object? emphasis = null,Object? palette = null,Object? origin = null,Object? author = null,}) {
   return _then(_ThemePreview(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -306,12 +327,23 @@ as Color,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_null
 as Color,code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as Color,strong: null == strong ? _self.strong : strong // ignore: cast_nullable_to_non_nullable
 as Color,emphasis: null == emphasis ? _self.emphasis : emphasis // ignore: cast_nullable_to_non_nullable
-as Color,builtIn: null == builtIn ? _self.builtIn : builtIn // ignore: cast_nullable_to_non_nullable
-as bool,
+as Color,palette: null == palette ? _self.palette : palette // ignore: cast_nullable_to_non_nullable
+as KansoPalette,origin: null == origin ? _self.origin : origin // ignore: cast_nullable_to_non_nullable
+as InstalledThemeOrigin,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
-
+/// Create a copy of ThemePreview
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$KansoPaletteCopyWith<$Res> get palette {
+  
+  return $KansoPaletteCopyWith<$Res>(_self.palette, (value) {
+    return _then(_self.copyWith(palette: value));
+  });
+}
 }
 
 // dart format on

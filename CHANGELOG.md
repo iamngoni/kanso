@@ -7,6 +7,7 @@ heading compares the release with the one before.
 
 ### New
 
+- **mobile:** Choose themes and icon themes, set preview text size, and choose the diagram renderer on phones and tablets.
 - **mobile:** The Tasks place's library: open tasks across the notes grouped Overdue, Today, Upcoming and No date (and Completed when shown) as the desktop's Tasks view groups them, with a notebook filter, the overdue count for the place's badge, ticking one as one undo step, and locked notes left out whether their lock is open or not; the grouping now lives in the shared engine (#48 step 7)
 - **mobile:** The Tasks place on the phone and tablet: a Tasks row in the library with the overdue count, and a list of the tasks in the desktop's groups with due chips, a notebook filter and Show Completed, ticking with a tap (struck through in place, with Undo), the note a tap opens, pull to sync, and the keyboard's arrows, space, return and undo on a tablet (#48 step 7)
 - **mobile:** Journal navigation on phones and tablets: Previous day, Next day, Today, and a calendar to open or start daily notes (#48 parity F)

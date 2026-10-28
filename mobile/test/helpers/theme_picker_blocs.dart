@@ -4,13 +4,16 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/bridge/api/types.dart' show GalleryItem;
 import 'package:kanso/core/models/data/load_status.dart';
+import 'package:kanso/core/models/repos/abs/file_picker_repository.dart';
 import 'package:kanso/themes/state/theme_gallery/theme_gallery_bloc.dart';
 import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 
 import 'close_bloc_later.dart';
+import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
+import 'fixture_themes_repository.dart';
 import 'real_themes.dart';
 
 /// A fixture gallery with nothing in it, for tests of the picker that are
@@ -18,14 +21,15 @@ import 'real_themes.dart';
 FixtureGalleryRepository emptyGallery() =>
     FixtureGalleryRepository(items: <GalleryItem>[]);
 
-/// A `ThemePickerBloc` that has read the real built-in themes (see
-/// [loadRealThemes]) and the themes installed in [gallery].
-Future<ThemePickerBloc> startThemePicker([
-  FixtureGalleryRepository? gallery,
-]) async {
+/// A `ThemePickerBloc` that has read the themes in [themes], and the file
+/// picker [files] will answer to imports.
+Future<ThemePickerBloc> startThemePicker({
+  FixtureThemesRepository? themes,
+  FilePickerRepository? files,
+}) async {
   final picker = ThemePickerBloc(
-    RealThemesRenderer(),
-    gallery ?? emptyGallery(),
+    themes ?? realThemesRepository(),
+    files ?? FixtureFilePickerRepository(),
   )..add(const ThemePickerEvent.started());
   closeBlocLater(picker);
   await picker.stream.firstWhere((state) => state.status == LoadStatus.ready);
@@ -58,16 +62,21 @@ Future<ThemeGalleryBloc> startThemeGallery(
 Future<Widget> withThemePicker(
   Widget child, {
   FixtureGalleryRepository? gallery,
+  FixtureThemesRepository? themes,
+  FilePickerRepository? files,
   bool waitForGallery = true,
 }) async {
-  final themes = gallery ?? emptyGallery();
+  final galleryRepository = gallery ?? emptyGallery();
   return MultiBlocProvider(
     providers: <BlocProvider<dynamic>>[
       BlocProvider<ThemePickerBloc>.value(
-        value: await startThemePicker(themes),
+        value: await startThemePicker(themes: themes, files: files),
       ),
       BlocProvider<ThemeGalleryBloc>.value(
-        value: await startThemeGallery(themes, wait: waitForGallery),
+        value: await startThemeGallery(
+          galleryRepository,
+          wait: waitForGallery,
+        ),
       ),
     ],
     child: child,

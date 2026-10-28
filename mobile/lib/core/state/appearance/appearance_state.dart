@@ -11,7 +11,10 @@ abstract class AppearanceState with _$AppearanceState {
     @Default(ThemeSelection()) ThemeSelection selection,
 
     /// The palette of the app's light theme: the light slot while the system
-    /// is followed, the fixed theme otherwise.
+    /// is followed, the fixed theme otherwise. It is drawn from the tokens
+    /// the core fitted for the interface, syntax and preview themes of the
+    /// slot together, so [KansoPalette.syntax] is the syntax theme's and
+    /// [KansoPalette.preview] the preview theme's.
     @Default(KansoPalette.kansoLight) KansoPalette light,
 
     /// The palette of the app's dark theme: the dark slot while the system
@@ -22,7 +25,16 @@ abstract class AppearanceState with _$AppearanceState {
     @Default(KansoIconSet.lucide) KansoIconSet iconSet,
 
     @Default(KansoFonts()) KansoFonts fonts,
+
+    /// The size of the editor's text.
     @Default(KansoTextSize.standard) KansoTextSize textSize,
+
+    /// The size of the rendered preview's text. The preview applies it where
+    /// it sets its text size; the editor does not use it.
+    @Default(KansoTextSize.standard) KansoTextSize previewTextSize,
+
+    /// What draws Mermaid diagrams.
+    @Default(DiagramRenderer.pele) DiagramRenderer diagramRenderer,
     @Default(AppearanceStatus.loading) AppearanceStatus status,
   }) = _AppearanceState;
 
@@ -36,4 +48,10 @@ abstract class AppearanceState with _$AppearanceState {
     }
     return light.dark ? ThemeMode.dark : ThemeMode.light;
   }
+
+  /// The id of the theme the Markdown source is highlighted in when the
+  /// screen is drawn dark ([dark]) or light: the syntax theme, or the
+  /// interface's own while there is none.
+  String syntaxThemeId({required bool dark}) =>
+      selection.syntaxFor(systemDark: dark);
 }

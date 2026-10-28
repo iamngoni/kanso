@@ -6,6 +6,8 @@ analyzer:
     - lib/**.g.dart
     # flutter_rust_bridge's output (flutter_rust_bridge.yaml).
     - lib/core/bridge/**
+    # Pigeon input is analyzed with the push plugin's own dependencies.
+    - plugins/kanso_push/pigeons/**
 
   errors:
     invalid_annotation_target: false

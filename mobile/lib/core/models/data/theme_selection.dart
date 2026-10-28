@@ -7,12 +7,13 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'theme_selection.freezed.dart';
 part 'theme_selection.g.dart';
 
-/// Which built-in themes the app is drawn in: the desktop's `ThemeSettings`,
-/// for the interface.
+/// Which themes the app is drawn in: the desktop's `ThemeSettings`.
 ///
 /// Themes are named by their file's name without `.json` (`nord`). Following
 /// the system shows [light] in light mode and [dark] in dark mode; otherwise
-/// [ui] is shown whatever the mode.
+/// [ui] is shown whatever the mode. The Markdown source and the rendered
+/// preview may each have a theme of their own ([syntax], [preview]); without
+/// one they are drawn in the interface's theme.
 @freezed
 abstract class ThemeSelection with _$ThemeSelection {
   const factory ThemeSelection({
@@ -27,6 +28,14 @@ abstract class ThemeSelection with _$ThemeSelection {
 
     /// The theme shown in dark mode while the system is followed.
     @Default('kanso-dark') String dark,
+
+    /// The theme that colours the Markdown source and the code in it; null
+    /// for the interface's own.
+    String? syntax,
+
+    /// The theme that colours the rendered note; null for the interface's
+    /// own.
+    String? preview,
   }) = _ThemeSelection;
 
   const ThemeSelection._();
@@ -47,6 +56,18 @@ abstract class ThemeSelection with _$ThemeSelection {
     }
     return systemDark ? dark : light;
   }
+
+  /// The theme that colours the Markdown source while the system is in dark
+  /// mode ([systemDark]) or light mode: [syntax], or the interface's theme
+  /// when there is none.
+  String syntaxFor({required bool systemDark}) =>
+      syntax ?? uiFor(systemDark: systemDark);
+
+  /// The theme that colours the rendered note while the system is in dark
+  /// mode ([systemDark]) or light mode: [preview], or the interface's theme
+  /// when there is none.
+  String previewFor({required bool systemDark}) =>
+      preview ?? uiFor(systemDark: systemDark);
 
   /// The selection after the theme [id] is picked, [dark] being whether it is
   /// a dark theme.
@@ -76,6 +97,15 @@ abstract class ThemeSelection with _$ThemeSelection {
     return light == dark ? <String>[light] : <String>[light, dark];
   }
 
+  /// Every theme saved in a slot, whether or not the system shows it now.
+  Set<String> get allIds => <String>{
+    ui,
+    light,
+    dark,
+    if (syntax != null) syntax!,
+    if (preview != null) preview!,
+  };
+
   /// The selection once the theme [id] is gone (removed from the gallery's
   /// installed themes): each slot that held it is Kanso's own theme for that
   /// slot, and the rest is as it was.
@@ -84,6 +114,8 @@ abstract class ThemeSelection with _$ThemeSelection {
       ui: ui == id ? kansoDark : ui,
       light: light == id ? kansoLight : light,
       dark: dark == id ? kansoDark : dark,
+      syntax: syntax == id ? null : syntax,
+      preview: preview == id ? null : preview,
     );
   }
 }

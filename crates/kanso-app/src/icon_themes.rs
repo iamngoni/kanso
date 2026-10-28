@@ -815,7 +815,10 @@ mod tests {
         let assets = crate::assets::KansoAssets;
         for slot in Slot::ALL {
             let bytes = assets.load(&slot_path(slot)).unwrap().unwrap();
-            assert!(icon_theme_file::looks_like_svg(&bytes), "{slot:?}");
+            assert!(
+                kanso_engine::icons::file::looks_like_svg(&bytes),
+                "{slot:?}"
+            );
         }
         assert_eq!(
             assets.load("icons/library/inbox.svg").unwrap(),

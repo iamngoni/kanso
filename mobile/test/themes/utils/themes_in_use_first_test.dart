@@ -11,6 +11,7 @@ import 'package:kanso/themes/models/data/theme_preview.dart';
 import 'package:kanso/themes/utils/themes_in_use_first.dart';
 
 import '../../helpers/property.dart';
+import '../../helpers/theme_tokens.dart';
 
 ThemePreview _theme(String id) {
   const color = Color(0xFF123456);
@@ -29,6 +30,7 @@ ThemePreview _theme(String id) {
     code: color,
     strong: color,
     emphasis: color,
+    palette: fakePalette(id),
   );
 }
 
