@@ -17,6 +17,7 @@ import 'package:kanso/dictation/state/dictation/dictation_bloc.dart';
 import 'package:kanso/dictation/utils/dictation_editor_extras.dart';
 import 'package:kanso/dictation/views/pages/voice_note_page.dart';
 import 'package:kanso/dictation/views/widgets/dictation_scope.dart';
+import 'package:kanso/dictation/views/widgets/live_transcript.dart';
 import 'package:kanso/gen/l10n/app_localizations.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso_dictation/kanso_dictation.dart' as plugin;
@@ -161,7 +162,10 @@ void main() {
         ),
       );
       expect(
-        find.textContaining('Garden beds', findRichText: true),
+        find.descendant(
+          of: find.byType(LiveTranscript),
+          matching: find.textContaining('Garden beds', findRichText: true),
+        ),
         findsOneWidget,
       );
       await say(
