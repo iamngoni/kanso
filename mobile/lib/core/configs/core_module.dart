@@ -14,6 +14,7 @@ import 'package:path_provider_foundation/path_provider_foundation.dart';
 
 import '../bridge/api/account.dart';
 import '../bridge/api/account_settings.dart';
+import '../bridge/api/ai.dart';
 import '../bridge/api/approvals.dart';
 import '../bridge/api/gallery.dart';
 import '../bridge/api/library.dart';
@@ -128,6 +129,9 @@ abstract class CoreModule {
 
   @lazySingleton
   KansoLocks locks(KansoLibrary library) => library.locks();
+
+  @lazySingleton
+  KansoAi ai(KansoLibrary library) => library.ai();
 
   @lazySingleton
   KansoSync sync(KansoLibrary library) => library.syncing();

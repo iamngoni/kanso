@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../ask/views/widgets/ask_library_row.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_radii.dart';
@@ -219,6 +220,7 @@ class _LibraryPaneState extends State<LibraryPane> {
                         label: l10n.libraryRecent,
                         selected: current == const ListPlace.recent(),
                       ),
+                      const AskLibraryRow(),
                       SharedWithYouRow(
                         onOpen: () =>
                             leave(() => context.push(KansoRoutes.shared)),

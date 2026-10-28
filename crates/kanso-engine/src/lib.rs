@@ -61,6 +61,10 @@
 //! alone; tests use [`MemorySecrets`].
 
 pub mod account;
+#[cfg(feature = "ai")]
+pub mod ask;
+#[cfg(feature = "ai")]
+pub mod assist;
 pub mod attach;
 pub mod backup;
 pub mod batch;
@@ -98,6 +102,7 @@ pub mod tasks;
 pub mod text;
 pub mod text_stats;
 pub mod theme;
+pub mod voice_commands;
 pub mod word_goal;
 
 /// Where secrets live: the seam the Keychain, the Credential Manager and the

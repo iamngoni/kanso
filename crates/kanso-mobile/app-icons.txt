@@ -10,6 +10,7 @@ apple
 archive
 arrow-left
 arrow-right
+arrow-up
 arrow-up-down
 atom
 baby
@@ -132,6 +133,7 @@ menu
 message-circle
 message-square
 mic
+mic-off
 microscope
 monitor
 moon
@@ -179,6 +181,7 @@ shopping-cart
 snowflake
 sofa
 sparkles
+square
 star
 stethoscope
 sticky-note

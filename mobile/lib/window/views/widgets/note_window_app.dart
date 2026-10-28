@@ -5,12 +5,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
+import '../../../assist/utils/assist_editor_extras.dart';
 import '../../../core/configs/kanso_theme.dart';
+import '../../../core/models/repos/abs/ai_repository.dart';
 import '../../../core/state/appearance/appearance_bloc.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/kanso_scroll_behavior.dart';
 import '../../../core/utils/syntax_theme_id.dart';
+import '../../../dictation/views/widgets/dictation_scope.dart';
 import '../../../gen/l10n/app_localizations.dart';
 import '../../../injection.dart';
 import '../../../note/state/note/note_bloc.dart';
@@ -22,7 +26,7 @@ import 'note_window_scope.dart';
 /// The app of a note's own window: the themes chosen, the language, and the
 /// note, with no routes. The library index (the notebooks and tags a note's
 /// facts are looked up in) and the appearance are shared by the window.
-class NoteWindowApp extends StatelessWidget {
+class NoteWindowApp extends StatefulWidget {
   const NoteWindowApp({
     required this.noteId,
     required this.windows,
@@ -40,17 +44,28 @@ class NoteWindowApp extends StatelessWidget {
   final AppearanceBloc appearance;
 
   @override
+  State<NoteWindowApp> createState() => _NoteWindowAppState();
+}
+
+class _NoteWindowAppState extends State<NoteWindowApp> {
+  AssistEditorExtras? assistant;
+
+  @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
-        BlocProvider<AppearanceBloc>.value(value: appearance),
+        BlocProvider<AppearanceBloc>.value(value: widget.appearance),
+        BlocProvider<AiStatusBloc>(
+          create: (_) =>
+              getIt<AiStatusBloc>()..add(const AiStatusEvent.started()),
+        ),
         BlocProvider<LibraryIndexBloc>(
           create: (_) =>
               getIt<LibraryIndexBloc>()..add(const LibraryIndexEvent.started()),
         ),
       ],
       child: NoteWindowScope(
-        repository: windows,
+        repository: widget.windows,
         child: BlocBuilder<AppearanceBloc, AppearanceState>(
           builder: (context, state) {
             return MaterialApp(
@@ -70,7 +85,23 @@ class NoteWindowApp extends StatelessWidget {
               scrollBehavior: const KansoScrollBehavior(),
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
-              home: _NoteWindowHost(noteId: noteId, windows: windows),
+              builder: (context, child) {
+                final status = context.read<AiStatusBloc>();
+                assistant ??= AssistEditorExtras(
+                  ai: getIt<AiRepository>(),
+                  isEnabled: () => status.state.enabled,
+                  selectionLabel: context.l10n.assistSelectionAction,
+                  keyLabel: context.l10n.assistAccessoryLabel,
+                );
+                return DictationScope(
+                  others: assistant,
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+              home: _NoteWindowHost(
+                noteId: widget.noteId,
+                windows: widget.windows,
+              ),
             );
           },
         ),

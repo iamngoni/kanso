@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/models/data/app_version.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/preferences.dart';
@@ -94,6 +95,7 @@ Future<GoRouter> _pump(WidgetTester tester, {int? patch}) async {
         BlocProvider<PushSettingBloc>.value(value: push),
         BlocProvider<DailyTemplateBloc>.value(value: settings.dailyTemplate),
         BlocProvider<RemindersSettingsBloc>.value(value: settings.reminders),
+        BlocProvider<AiStatusBloc>.value(value: settings.aiStatus),
       ],
       child: const SettingsPane(),
     ),
@@ -102,6 +104,15 @@ Future<GoRouter> _pump(WidgetTester tester, {int? patch}) async {
   await tester.pump();
   await tester.pump();
   return router;
+}
+
+Future<void> _showVersion(WidgetTester tester) async {
+  await tester.scrollUntilVisible(
+    find.text('Version'),
+    320,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -124,11 +135,13 @@ void main() {
       tester,
     ) async {
       await _pump(tester, patch: 2);
+      await _showVersion(tester);
       expect(find.text('0.9.0 (57), patch 2'), findsOneWidget);
     });
 
     testWidgets('and is as it was without one', (tester) async {
       await _pump(tester);
+      await _showVersion(tester);
       expect(find.text('0.9.0 (57)'), findsOneWidget);
     });
   });

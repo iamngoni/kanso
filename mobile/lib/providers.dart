@@ -5,6 +5,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'backups/state/backups/backups_bloc.dart';
 import 'core/state/account/account_bloc.dart';
 import 'core/state/appearance/appearance_bloc.dart';
@@ -58,6 +59,10 @@ class AppProviders extends StatelessWidget {
               getIt<BackupsBloc>()..add(const BackupsEvent.started()),
         ),
         BlocProvider<AppearanceBloc>.value(value: appearance),
+        BlocProvider<AiStatusBloc>(
+          create: (_) =>
+              getIt<AiStatusBloc>()..add(const AiStatusEvent.started()),
+        ),
         BlocProvider<LibraryIndexBloc>(
           create: (_) =>
               getIt<LibraryIndexBloc>()..add(const LibraryIndexEvent.started()),

@@ -2,6 +2,8 @@
     <!-- Sync and the sync server check reach the network in release builds
          too; the debug and profile manifests only add it for development. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Dictation listens only while the person has the microphone on. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- The notes stay on this phone: no cloud backup, no device transfer.
@@ -149,6 +151,10 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- The on-device speech recognizer. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

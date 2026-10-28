@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../test/core/bridge/suites/account_settings_suite.dart';
 import '../test/core/bridge/suites/account_suite.dart';
+import '../test/core/bridge/suites/ai_suite.dart';
 import '../test/core/bridge/suites/approvals_suite.dart';
 import '../test/core/bridge/suites/boards_suite.dart';
 import '../test/core/bridge/suites/diagnostics_suite.dart';
@@ -32,6 +33,7 @@ import '../test/core/bridge/suites/shared_suite.dart';
 import '../test/core/bridge/suites/shortcuts_suite.dart';
 import '../test/core/bridge/suites/sync_suite.dart';
 import '../test/core/bridge/suites/templates_suite.dart';
+import '../test/core/bridge/suites/voice_suite.dart';
 import '../test/helpers/biometric_answer.dart';
 
 /// Every call of the bridge, on a simulator or an emulator: the library the
@@ -69,6 +71,7 @@ void main() {
   diagnosticsSuite(openDeviceLibrary);
   accountSuite(openDeviceLibrary);
   accountSettingsSuite(openDeviceLibrary);
+  aiSuite(openDeviceLibrary);
   approvalsSuite(openDeviceLibrary);
   sharedSuite(openDeviceLibrary);
   gallerySuite(openDeviceLibrary);
@@ -80,6 +83,7 @@ void main() {
   boardsSuite(openDeviceLibrary);
   remindersSuite(openDeviceLibrary);
   publishSuite(openDeviceLibrary);
+  voiceSuite(openDeviceLibrary);
 
   group('the platform verifier', () {
     test(

@@ -12,6 +12,7 @@ import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 
 import 'account_blocs.dart';
 import 'browse_blocs.dart';
+import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_gallery_repository.dart';
 import 'fixture_library_repository.dart';
@@ -51,6 +52,7 @@ Future<void> expectAppGoldenOnBothPlatforms(
   String at = '/notes',
   FixtureLibraryRepository Function()? library,
   FixtureRendererRepository Function()? renderer,
+  FixtureAiRepository Function()? ai,
   AppearanceState appearance = const AppearanceState(),
   Future<BackupNoticeBloc> Function()? backupNotice,
   FixtureSharedNotesRepository Function()? shared,
@@ -96,6 +98,7 @@ Future<void> expectAppGoldenOnBothPlatforms(
           at: at,
           library: library?.call(),
           renderer: renderer?.call(),
+          ai: ai?.call(),
           appearance: appearance,
           devicePixelRatio: viewport.devicePixelRatio,
           safeArea: viewport.safeArea,

@@ -9,6 +9,8 @@ publish = false
 
 [dependencies]
 async-channel.workspace = true
+# The shared providers without the desktop's ACP agent.
+kanso-ai = { path = "../kanso-ai", default-features = false }
 # The ID of a share made in the app.
 fastrand.workspace = true
 kanso-collab.workspace = true
@@ -80,6 +82,11 @@ jni = { version = "0.22", default-features = false }
 test-support = []
 
 [dev-dependencies]
+# Scripted model responses for the AI facade tests.
+agent-runtime.workspace = true
+anyhow.workspace = true
+async-trait = "0.1"
+futures-util = "0.3"
 # Image attachments the discovery tests make.
 base64.workspace = true
 # This crate's integration tests use the test-support constructors.
