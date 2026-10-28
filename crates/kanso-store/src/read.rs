@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use kanso_core::excerpt::{HEAD_CHARS, excerpt_around};
-use kanso_core::model::TRASH_BOOK_ID;
+use kanso_core::model::{FILE_LOCK_FIELD, TRASH_BOOK_ID};
 use kanso_core::query::{Clause, Field};
 use kanso_core::{Book, DocType, FileMeta, Note, NoteStatus, Query, Tag};
 use rusqlite::types::Value as SqlValue;
@@ -39,6 +39,20 @@ impl Sort {
             Sort::Title => "d.title COLLATE NOCASE",
         }
     }
+}
+/// What a file's bytes are: the plain bytes, a sealed container, or nothing
+/// at all (never made, or deleted). The app and the API read it before
+/// touching an attachment.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AttachmentState {
+    /// The bytes in `blobs` are the attachment's plaintext.
+    #[default]
+    Plain,
+    /// The bytes in `blobs` are a sealed container, opened only with the
+    /// note's lock password; the file document carries `kansoFileLock`.
+    Sealed,
+    /// There is no live file document with this ID.
+    Missing,
 }
 
 #[derive(Clone, Debug)]
@@ -596,6 +610,39 @@ impl Store {
             .into_iter()
             .map(|v| Ok(serde_json::from_value(v)?))
             .collect()
+    }
+
+    /// Whether a file's document is live and plain, live and sealed, or
+    /// gone (`Missing` covers a file that was never made and one deleted).
+    /// The API and the app's readers check this before touching bytes: a
+    /// sealed file's stored bytes are a container, never the plaintext.
+    pub fn attachment_state(&self, id: &str) -> Result<AttachmentState> {
+        self.read(|conn| {
+            let Some(doc) = live_doc(conn, id)?.filter(|d| d.doc_type == DocType::File) else {
+                return Ok(AttachmentState::Missing);
+            };
+            Ok(if doc.fields.contains_key(FILE_LOCK_FIELD) {
+                AttachmentState::Sealed
+            } else {
+                AttachmentState::Plain
+            })
+        })
+    }
+
+    /// The attachment's bytes as stored in `blobs`: for a sealed file, the
+    /// raw container (with its digest), never the plaintext. Sync's upload
+    /// reads this, so the sealed bytes travel as they are; the app's
+    /// unsealing path is the only reader that decrypts.
+    pub fn stored_attachment(&self, id: &str) -> Result<Option<Attachment>> {
+        self.read(|conn| {
+            if live_doc(conn, id)?
+                .filter(|d| d.doc_type == DocType::File)
+                .is_none()
+            {
+                return Ok(None);
+            }
+            load_blob(conn, id)
+        })
     }
 
     /// An attachment's content type and bytes.

@@ -74,6 +74,11 @@ impl Doc {
                 fields.insert("numOfTasks".into(), 0.into());
                 fields.insert("numOfCheckedTasks".into(), 0.into());
             }
+            if self.doc_type == DocType::File {
+                // A sealed file's marker is app-only: served files never
+                // carry `kansoFileLock`, only the ordinary fields.
+                fields.remove(kanso_core::model::FILE_LOCK_FIELD);
+            }
         }
         out
     }
@@ -94,7 +99,13 @@ impl Doc {
         }
         let mut extra = Map::new();
         extra.insert("_attachments".into(), json!({ "index": index }));
-        self.to_api(extra)
+        let mut out = self.to_api(extra);
+        // `kansoFileLock` is app-only: the API's file form never carries
+        // the marker, with or without the bytes.
+        if let Some(fields) = out.as_object_mut() {
+            fields.remove(kanso_core::model::FILE_LOCK_FIELD);
+        }
+        out
     }
 
     pub fn str_field(&self, key: &str) -> Option<&str> {

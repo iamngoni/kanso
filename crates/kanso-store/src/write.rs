@@ -4,7 +4,11 @@ use std::collections::BTreeSet;
 
 use base64::Engine as _;
 use kanso_core::id::is_valid_id;
-use kanso_core::model::{LOCK_FIELD, MAX_ATTACHMENT_SIZE, TRASH_BOOK_ID};
+use kanso_core::model::FileMeta;
+use kanso_core::model::{
+    FILE_LOCK_FIELD, FileLock, LOCK_FIELD, MAX_ATTACHMENT_SIZE, MAX_SEALED_ATTACHMENT,
+    TRASH_BOOK_ID,
+};
 use kanso_core::{DocType, Rev, new_id, now_ms};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::{Map, Value, json};
@@ -639,6 +643,84 @@ impl Store {
         })
     }
 
+    /// Writes a sealed attachment: the whole file document `file`, whose
+    /// `kansoFileLock` marker must be set, with `container` as the stored
+    /// bytes, in one transaction. The only write path that may create the
+    /// marker or replace a sealed file's bytes — the ordinary [`Store::put`]
+    /// path refuses both — so the app's lock steps seal through here. The
+    /// stored `contentLength` and `md5digest` describe the container, and
+    /// the container must fit [`MAX_SEALED_ATTACHMENT`]: the 10 MiB
+    /// plaintext limit plus the container's overhead. The write-ahead log is
+    /// checkpointed after the write ([`Store::write`]), as for a locked
+    /// note's forgotten text, so the plaintext the container replaced
+    /// doesn't linger there.
+    pub fn put_sealed_file(&self, file: FileMeta, container: Attachment) -> Result<WriteResult> {
+        validate_file_lock(&file)?;
+        if container.data.len() > MAX_SEALED_ATTACHMENT {
+            return Err(StoreError::Invalid(format!(
+                "The sealed file is larger than {MAX_SEALED_ATTACHMENT} bytes."
+            )));
+        }
+        let Value::Object(mut fields) = serde_json::to_value(file)? else {
+            return Err(StoreError::Invalid("Expected a JSON object.".into()));
+        };
+        let id = fields
+            .get("_id")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(|| StoreError::Invalid("The file has no ID.".into()))?;
+        if !is_valid_id(DocType::File, &id) {
+            return Err(StoreError::Invalid(format!("Invalid document ID '{id}'.")));
+        }
+        let given_rev = fields
+            .remove("_rev")
+            .and_then(|v| v.as_str().map(str::to_owned));
+        self.write(|tx, changes| {
+            let previous = load_row(tx, &id)?;
+            if let Some(prev) = &previous
+                && prev.doc_type != DocType::File
+            {
+                return Err(StoreError::Conflict);
+            }
+            let live = previous.as_ref().filter(|p| !p.deleted);
+            if let Some(prev) = live
+                && given_rev.as_deref() != Some(prev.rev.as_str())
+            {
+                return Err(StoreError::Conflict);
+            }
+            let mut normalized = normalize(
+                DocType::File,
+                &id,
+                fields,
+                live.map(|p| &p.fields),
+                now_ms(),
+                Refs::Check(tx),
+            )?;
+            normalized.insert("contentLength".into(), container.data.len().into());
+            normalized.insert("md5digest".into(), container.md5_hex().into());
+            tx.execute(
+                "INSERT INTO blobs (file_id, md5, data) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (file_id) DO UPDATE SET md5 = excluded.md5, data = excluded.data",
+                params![id, container.md5_hex(), container.data],
+            )?;
+            let rev = next_rev(previous.as_ref(), &Value::Object(normalized.clone()))?;
+            store_row(
+                tx,
+                &id,
+                DocType::File,
+                &rev,
+                false,
+                &normalized,
+                previous.as_ref(),
+                Synced::Keep,
+                Origin::Ui,
+                changes,
+            )?;
+            FORGOT_TEXT.set(true);
+            Ok(WriteResult { id, rev })
+        })
+    }
+
     /// Merges each of `bodies` (with its `_id`) into its document of
     /// `doc_type`, in one transaction: every document changes, or none
     /// does. The app changes several selected notes at once with it.
@@ -662,6 +744,30 @@ impl Store {
                 .collect()
         })
     }
+}
+
+/// Checks the app-only `kansoFileLock` marker before a sealed write. The
+/// marker is the only thing that tells readers `blobs.data` is a container,
+/// so a malformed one must never reach storage through the dedicated writer.
+fn validate_file_lock(file: &FileMeta) -> Result<()> {
+    let lock = FileLock::from_extra(&file.extra)
+        .ok_or_else(|| StoreError::Invalid("The file isn't sealed.".into()))?;
+    if lock.v != 1 || lock.kind != "file" || lock.meta {
+        return Err(StoreError::Invalid(
+            "The sealed file's marker is invalid.".into(),
+        ));
+    }
+    let seal = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(&lock.seal)
+        .map_err(|_| StoreError::Invalid("The sealed file's marker is invalid.".into()))?;
+    if seal.len() != 16
+        || base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&seal) != lock.seal
+    {
+        return Err(StoreError::Invalid(
+            "The sealed file's marker is invalid.".into(),
+        ));
+    }
+    Ok(())
 }
 
 /// [`Store::put_keeping`] inside the writer's transaction.
@@ -724,6 +830,27 @@ fn put_in(
             Some(value) => merged.insert(key.to_owned(), value.clone()),
             None => merged.remove(key),
         };
+    }
+    // A sealed file's marker is app-only, set and cleared only by
+    // `put_sealed_file` (and, in a later step, the unseal path). The
+    // ordinary write path refuses new bytes for a sealed file, keeps its
+    // marker on every merge or replace, and never creates one: a client or
+    // an older writer can neither unseal a file nor plant the marker.
+    if doc_type == DocType::File {
+        if let Some(marker) = live
+            .as_ref()
+            .and_then(|p| p.fields.get(FILE_LOCK_FIELD))
+            .cloned()
+        {
+            if attachment.is_some() {
+                return Err(StoreError::Invalid(
+                    "The file is sealed: its bytes can only be changed in Kanso.".into(),
+                ));
+            }
+            merged.insert(FILE_LOCK_FIELD.to_owned(), marker);
+        } else {
+            merged.remove(FILE_LOCK_FIELD);
+        }
     }
     let mut normalized = normalize(
         doc_type,
@@ -901,6 +1028,10 @@ impl Store {
                 .get("createdAt")
                 .and_then(Value::as_i64)
                 .unwrap_or_else(now_ms);
+            // A sealed file's marker is app-only: an import takes the
+            // document, never the seal.
+            let mut fields = fields;
+            fields.remove(FILE_LOCK_FIELD);
             let mut normalized = normalize(doc_type, id, fields, None, created_at, Refs::Skip)?;
             if let Some(blob) = &attachment {
                 normalized.insert("contentLength".into(), blob.data.len().into());

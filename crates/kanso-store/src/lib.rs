@@ -53,7 +53,7 @@ pub use plugin::{
     set_plugin_data,
 };
 pub use query_view::QueryNoteRow;
-pub use read::{NoteSummary, Revision, SearchParams, Sort, StatusCounts};
+pub use read::{AttachmentState, NoteSummary, Revision, SearchParams, Sort, StatusCounts};
 pub use replace::{
     NoteMatches, PREVIEW_MATCHES_PER_NOTE, Planned, ReplaceReport, Skipped, UndoReport,
 };

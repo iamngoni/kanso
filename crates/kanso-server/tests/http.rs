@@ -10,7 +10,9 @@ use axum::http::{Method, Request, StatusCode, header};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use common::*;
+use kanso_core::model::{FILE_LOCK_FIELD, FileLock};
 use kanso_server::{ServerConfig, basic_header};
+use kanso_store::Attachment;
 use serde_json::{Value, json};
 
 async fn book(app: &App, name: &str) -> String {
@@ -425,6 +427,80 @@ async fn files_carry_attachments() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(err["reason"], "Unsupported file type 'image/bmp'.");
+}
+
+#[tokio::test]
+async fn a_sealed_file_keeps_its_marker_from_the_local_api() {
+    let app = app();
+    let data = STANDARD.encode(PNG);
+    let (id, _) = write(
+        &app.router,
+        "/files",
+        json!({
+            "name": "pixel.png", "contentType": "image/png", "publicIn": [],
+            "_attachments": { "index": { "content_type": "image/png", "data": data } }
+        }),
+    )
+    .await;
+    // The app seals the file: the store writes the marker and the
+    // container, and nothing else may.
+    let mut file = app.store.file_meta(&id).unwrap().unwrap();
+    FileLock::store(
+        Some(&FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into())),
+        &mut file.extra,
+    );
+    app.store
+        .put_sealed_file(file, Attachment::new(vec![0x01, 0x01, 0x00, 0x03, 0, 0, 0]))
+        .unwrap();
+
+    // Served output never carries the marker, in either form.
+    let (_, stub) = get(&app.router, &format!("/{id}")).await;
+    assert!(stub.get(FILE_LOCK_FIELD).is_none(), "{stub}");
+    let (_, files) = get(&app.router, "/files").await;
+    assert!(files[0].get(FILE_LOCK_FIELD).is_none(), "{}", files[0]);
+
+    // A client's replace and merge keep the marker the store already has,
+    // and a client's new bytes are refused.
+    let (_, mut doc) = get(&app.router, &format!("/{id}")).await;
+    doc["name"] = "renamed.png".into();
+    write(&app.router, "/files", doc).await;
+    let sealed = |store: &kanso_store::Store| {
+        store
+            .file_meta(&id)
+            .unwrap()
+            .unwrap()
+            .extra
+            .get(FILE_LOCK_FIELD)
+            .cloned()
+    };
+    assert_eq!(
+        app.store.file_meta(&id).unwrap().unwrap().name,
+        "renamed.png"
+    );
+    assert!(sealed(&app.store).is_some());
+
+    let (status, _) = post(
+        &app.router,
+        &format!("/{id}"),
+        json!({ FILE_LOCK_FIELD: null }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(sealed(&app.store).is_some());
+
+    let replacement = STANDARD.encode(b"plaintext");
+    let (status, _) = post(
+        &app.router,
+        &format!("/{id}"),
+        json!({ "_attachments": { "index": { "content_type": "image/png", "data": replacement } } }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(sealed(&app.store).is_some());
+    assert_eq!(
+        app.store.stored_attachment(&id).unwrap().unwrap().data,
+        vec![0x01, 0x01, 0x00, 0x03, 0, 0, 0]
+    );
 }
 
 #[tokio::test]
