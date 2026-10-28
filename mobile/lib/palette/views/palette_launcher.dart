@@ -25,6 +25,7 @@ import '../../note/views/widgets/note_info_sheet.dart';
 import '../../note/views/widgets/note_pdf_export.dart';
 import '../../note_links/views/widgets/backlinks_sheet.dart';
 import '../../note_links/views/widgets/outline_sheet.dart';
+import '../../publish/views/widgets/publish_sheet.dart';
 import '../models/data/palette_choice.dart';
 import 'widgets/palette_choice_sheet.dart';
 import 'widgets/palette_sheet.dart';
@@ -39,8 +40,12 @@ abstract final class PaletteLauncher {
   /// The commands the mobile app can run now.
   ///
   /// Everything else the catalog has is left out on purpose: it has no
-  /// surface here yet (publish, Ask, focus mode, word goal, export HTML,
-  /// Vim, transcribe, plugins), so offering it would be a dead row.
+  /// surface here yet (Ask, focus mode, word goal, export HTML, Vim,
+  /// transcribe, plugins), so offering it would be a dead row.
+  ///
+  /// `publish-notebook` is added only where a notebook is showing: the
+  /// catalog offers it with nothing needed, but the sheet needs to know
+  /// which notebook to publish.
   static const List<String> handlers = <String>[
     'new-note',
     'new-notebook',
@@ -54,6 +59,7 @@ abstract final class PaletteLauncher {
     'show-graph',
     'show-board',
     'history',
+    'publish',
     'export-pdf',
     'copy-note-link',
     'copy-kanso-link',
@@ -90,6 +96,11 @@ abstract final class PaletteLauncher {
     final note = _maybeRead<NoteBloc>(context)?.state.note;
     final uri = GoRouterState.of(context).uri;
     final path = uri.path;
+    final showing = _showing(uri);
+    final notebookId = switch (showing) {
+      PalettePlace_Notebook(:final id) => id,
+      _ => null,
+    };
     await showKansoPalette(
       context,
       paletteContext: PaletteContext(
@@ -101,12 +112,21 @@ abstract final class PaletteLauncher {
         imageLine: false,
         audioLine: false,
         sharedNote: path.startsWith(KansoRoutes.shared),
-        handlers: handlers,
-        showing: _showing(uri),
+        handlers: <String>[
+          ...handlers,
+          if (notebookId != null) 'publish-notebook',
+        ],
+        showing: showing,
         overdueTasks: overdue,
       ),
       onSelected: (target) => unawaited(
-        _run(context, target, note: note, router: router),
+        _run(
+          context,
+          target,
+          note: note,
+          notebookId: notebookId,
+          router: router,
+        ),
       ),
     );
   }
@@ -136,6 +156,7 @@ abstract final class PaletteLauncher {
     BuildContext context,
     PaletteTarget target, {
     required NoteView? note,
+    required String? notebookId,
     required GoRouter router,
   }) async {
     switch (target) {
@@ -149,7 +170,13 @@ abstract final class PaletteLauncher {
           '?${KansoRoutes.taskLineParameter}=$line',
         );
       case PaletteTarget_Command(:final id):
-        await _runCommand(context, id, note: note, router: router);
+        await _runCommand(
+          context,
+          id,
+          note: note,
+          notebookId: notebookId,
+          router: router,
+        );
     }
   }
 
@@ -180,6 +207,7 @@ abstract final class PaletteLauncher {
     BuildContext context,
     String id, {
     required NoteView? note,
+    required String? notebookId,
     required GoRouter router,
   }) async {
     final library = getIt<LibraryRepository>();
@@ -277,6 +305,15 @@ abstract final class PaletteLauncher {
             open,
             note?.tags ?? const <String>[],
           );
+        }
+      case 'publish':
+        if (open != null) {
+          await PublishSheet.showNote(context, open);
+        }
+      case 'publish-notebook':
+        final notebook = notebookId;
+        if (notebook != null) {
+          await PublishSheet.showNotebook(context, notebook);
         }
       case 'show-outline':
         final view = note;
