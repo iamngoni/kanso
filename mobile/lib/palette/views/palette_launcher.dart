@@ -15,6 +15,7 @@ import '../../core/bridge/api/types.dart';
 import '../../core/models/data/browse_location.dart';
 import '../../core/models/repos/abs/journal_repository.dart';
 import '../../core/models/repos/abs/library_repository.dart';
+import '../../core/models/repos/abs/templates_repository.dart';
 import '../../core/router/kanso_routes.dart';
 import '../../core/state/library_index/library_index_bloc.dart';
 import '../../core/state/sync_status/sync_status_bloc.dart';
@@ -24,16 +25,25 @@ import '../../injection.dart';
 import '../../journal/utils/open_made_note.dart';
 import '../../journal/views/widgets/calendar_sheet.dart';
 import '../../library/views/widgets/new_notebook_sheet.dart';
+import '../../lock/models/data/lock_target.dart';
+import '../../lock/models/data/note_menu_action.dart';
+import '../../lock/state/lock_status/lock_status_bloc.dart';
+import '../../lock/utils/note_menu_actions.dart';
+import '../../lock/views/widgets/change_password_sheet.dart';
+import '../../lock/views/widgets/lock_item_sheet.dart';
+import '../../lock/views/widgets/remove_lock_sheet.dart';
 import '../../note/state/note/note_bloc.dart';
 import '../../note/state/note_discovery/note_discovery_bloc.dart';
 import '../../note/views/widgets/note_html_export.dart';
 import '../../note/views/widgets/note_info_sheet.dart';
 import '../../note/views/widgets/note_pdf_export.dart';
+import '../../note/views/widgets/related_notes_sheet.dart';
 import '../../note_links/views/widgets/backlinks_sheet.dart';
 import '../../note_links/views/widgets/outline_sheet.dart';
 import '../../publish/views/widgets/publish_sheet.dart';
 import '../../sharing/views/widgets/share_note_sheet.dart';
 import '../../shell/state/focus_mode/focus_mode_bloc.dart';
+import '../../templates/views/widgets/template_picker_sheet.dart';
 import '../models/data/palette_choice.dart';
 import 'widgets/palette_choice_sheet.dart';
 import 'widgets/palette_sheet.dart';
@@ -92,6 +102,14 @@ abstract final class PaletteLauncher {
     'previous-day',
     'next-day',
     'share',
+    'lock',
+    'remove-lock',
+    'lock-now',
+    'lock-password',
+    'new-from-template',
+    'new-template',
+    'voice-input',
+    'show-related',
   ];
 
   /// Shows the palette over the whole app.
@@ -249,10 +267,14 @@ abstract final class PaletteLauncher {
       'show-backlinks' ||
       'toggle-inspector' ||
       'share' => true,
+      'lock' || 'remove-lock' || 'show-related' => true,
       _ => false,
     };
+    final refreshNote = id == 'lock' || id == 'remove-lock';
     final commandNote = needsNote && noteId != null
-        ? note ?? await _noteById(context, noteId)
+        ? refreshNote
+              ? await _noteById(context, noteId)
+              : note ?? await _noteById(context, noteId)
         : note;
     final open = commandNote?.id;
     final openNoteId = note?.id ?? noteId;
@@ -448,6 +470,78 @@ abstract final class PaletteLauncher {
       case 'share':
         if (open != null) {
           await ShareNoteSheet.show(context, open);
+        }
+      case 'lock' || 'remove-lock':
+        final view = commandNote;
+        final status = _maybeRead<LockStatusBloc>(context);
+        if (view == null || status == null) {
+          break;
+        }
+        final actions = noteMenuActions(
+          lock: view.lock,
+          unlocked: status.state.unlocked,
+        );
+        if (id == 'lock' && actions.contains(NoteMenuAction.lockNote)) {
+          await LockItemSheet.show(
+            context,
+            LockTarget.note(view.id),
+            status: status,
+          );
+        } else if (id == 'remove-lock' &&
+            actions.contains(NoteMenuAction.removeLock)) {
+          await RemoveLockSheet.show(
+            context,
+            LockTarget.note(view.id),
+            status: status,
+          );
+        }
+      case 'lock-now':
+        final status = _maybeRead<LockStatusBloc>(context);
+        if (status != null && status.state.unlocked) {
+          status.add(const LockStatusEvent.lockedNow());
+        }
+      case 'lock-password':
+        final status = _maybeRead<LockStatusBloc>(context);
+        if (status != null) {
+          await ChangePasswordSheet.show(context, status: status);
+        }
+      case 'new-from-template':
+        final templateId = await TemplatePickerSheet.show(context);
+        if (templateId != null && context.mounted) {
+          final result = await getIt<TemplatesRepository>().newFromTemplate(
+            templateId: templateId,
+            bookId: notebookId,
+            now: localTimeOf(clock.now()),
+          );
+          if (!context.mounted) {
+            return;
+          }
+          result.fold(
+            (error) => _say(context, error.message),
+            (made) => openMadeNote(context, made),
+          );
+        }
+      case 'new-template':
+        final result = await getIt<TemplatesRepository>().newTemplate();
+        if (!context.mounted) {
+          return;
+        }
+        result.fold(
+          (error) => _say(context, error.message),
+          (made) => openMadeNote(context, made),
+        );
+      case 'voice-input':
+        router.go(
+          Uri(
+            path: KansoRoutes.newNote,
+            queryParameters: <String, String>{
+              KansoRoutes.voiceParameter: '1',
+            },
+          ).toString(),
+        );
+      case 'show-related':
+        if (open != null) {
+          await RelatedNotesSheet.show(context, noteId: open);
         }
       default:
         // The core only lists handlers this app declares; anything else is a

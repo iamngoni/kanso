@@ -2,6 +2,8 @@
 // Created 2026-10-28.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
@@ -10,20 +12,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/linking_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/repos/abs/journal_repository.dart';
 import 'package:kanso/core/models/repos/abs/library_repository.dart';
+import 'package:kanso/core/models/repos/abs/templates_repository.dart';
+import 'package:kanso/discovery/models/repos/abs/discovery_repository.dart';
 import 'package:kanso/graph/state/graph/graph_bloc.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/journal/views/widgets/calendar_sheet.dart';
+import 'package:kanso/lock/models/data/lock_target.dart';
+import 'package:kanso/lock/views/widgets/change_password_sheet.dart';
+import 'package:kanso/lock/views/widgets/lock_item_sheet.dart';
+import 'package:kanso/lock/views/widgets/remove_lock_sheet.dart';
+import 'package:kanso/note/views/widgets/related_notes_sheet.dart';
 import 'package:kanso/note_links/models/repos/abs/note_links_repository.dart';
 import 'package:kanso/note_links/views/widgets/outline_sheet.dart';
 import 'package:kanso/palette/models/repos/abs/palette_repository.dart';
 import 'package:kanso/palette/state/palette/palette_bloc.dart';
 import 'package:kanso/sharing/views/widgets/share_note_sheet.dart';
+import 'package:kanso/templates/state/template_picker/template_picker_bloc.dart';
+import 'package:kanso/templates/views/widgets/template_picker_sheet.dart';
 
 import '../../helpers/fixture_discovery_repository.dart';
 import '../../helpers/fixture_journal_repository.dart';
 import '../../helpers/fixture_library_repository.dart';
+import '../../helpers/fixture_session_repository.dart';
 import '../../helpers/library_fixtures.dart';
 import '../../helpers/page_fixtures.dart';
 import '../../helpers/pump_browse_app.dart';
@@ -32,12 +45,12 @@ const Size _size = Size(1180, 820);
 const String _noteId = 'note:palette-test';
 const String _noteRoute = '/notes/note/note%3Apalette-test';
 
-NoteView _routeNote() => NoteView(
+NoteView _routeNote({LockState lock = const LockState.plain()}) => NoteView(
   id: _noteId,
   rev: mockOpenNote.rev,
   title: mockOpenNote.title,
   body: mockOpenNote.body,
-  lock: mockOpenNote.lock,
+  lock: lock,
   notebookId: mockOpenNote.notebookId,
   tags: mockOpenNote.tags,
   status: mockOpenNote.status,
@@ -48,11 +61,18 @@ NoteView _routeNote() => NoteView(
 
 class _Library extends FixtureLibraryRepository {
   final List<String> noteReads = <String>[];
+  Completer<void>? createGate;
 
   @override
   Future<Either<ApplicationError, NoteView>> note(String id) {
     noteReads.add(id);
     return super.note(id);
+  }
+
+  @override
+  Future<Either<ApplicationError, Saved>> create(NewNote note) async {
+    await createGate?.future;
+    return super.create(note);
   }
 }
 
@@ -153,6 +173,72 @@ class _GraphDiscovery extends FixtureDiscoveryRepository {
   );
 }
 
+class _Templates implements TemplatesRepository {
+  final List<TemplateRow> rows = <TemplateRow>[
+    const TemplateRow(id: 'template:chosen', title: 'Chosen template'),
+  ];
+  final MadeNote made = const MadeNote(id: 'note:made', titleFirst: false);
+  String? pickedId;
+  String? pickedBookId;
+  LocalTime? pickedNow;
+  int newTemplateCalls = 0;
+
+  @override
+  Future<Either<ApplicationError, List<TemplateRow>>> templates() async {
+    return Right<ApplicationError, List<TemplateRow>>(rows);
+  }
+
+  @override
+  Future<Either<ApplicationError, MadeNote>> newFromTemplate({
+    required String templateId,
+    required String? bookId,
+    required LocalTime now,
+  }) async {
+    pickedId = templateId;
+    pickedBookId = bookId;
+    pickedNow = now;
+    return Right<ApplicationError, MadeNote>(made);
+  }
+
+  @override
+  Future<Either<ApplicationError, MadeNote>> newTemplate() async {
+    newTemplateCalls++;
+    return Right<ApplicationError, MadeNote>(made);
+  }
+
+  @override
+  Future<Either<ApplicationError, String?>> dailyTemplate() async =>
+      const Right<ApplicationError, String?>(null);
+
+  @override
+  Future<Either<ApplicationError, Unit>> setDailyTemplate(
+    String? templateId,
+  ) async => const Right<ApplicationError, Unit>(unit);
+}
+
+class _RelatedDiscovery extends FixtureDiscoveryRepository {
+  _RelatedDiscovery({required this.enabled, this.rows = const <RelatedRow>[]});
+
+  final bool enabled;
+  final List<RelatedRow> rows;
+  String? requestedNoteId;
+  int? requestedLimit;
+
+  @override
+  Future<Either<ApplicationError, bool>> relatedEnabled() async =>
+      Right<ApplicationError, bool>(enabled);
+
+  @override
+  Future<Either<ApplicationError, List<RelatedRow>>> relatedNotes(
+    String id, {
+    required int limit,
+  }) async {
+    requestedNoteId = id;
+    requestedLimit = limit;
+    return Right<ApplicationError, List<RelatedRow>>(rows);
+  }
+}
+
 Future<_Palette> _installPalette(String command) async {
   final palette = _Palette(command);
   if (getIt.isRegistered<PaletteBloc>()) {
@@ -191,6 +277,9 @@ Future<BrowseApp> _pump(
   String at = _noteRoute,
   FixtureLibraryRepository? library,
   PageFixtures? fixtures,
+  FixtureSessionRepository? session,
+  _Templates? templates,
+  _RelatedDiscovery? discovery,
 }) async {
   await _installPalette(command);
   if (getIt.isRegistered<LibraryRepository>()) {
@@ -202,14 +291,24 @@ Future<BrowseApp> _pump(
   if (getIt.isRegistered<NoteLinksRepository>()) {
     getIt.unregister<NoteLinksRepository>();
   }
+  if (getIt.isRegistered<TemplatesRepository>()) {
+    getIt.unregister<TemplatesRepository>();
+  }
+  if (getIt.isRegistered<DiscoveryRepository>()) {
+    getIt.unregister<DiscoveryRepository>();
+  }
   final testLibrary = library ?? _Library();
   testLibrary.notes.putIfAbsent(_noteId, _routeNote);
   final testFixtures = fixtures ?? PageFixtures();
   final links = _Links();
+  final testTemplates = templates ?? _Templates();
+  final testDiscovery = discovery ?? _RelatedDiscovery(enabled: false);
   getIt
     ..registerSingleton<LibraryRepository>(testLibrary)
     ..registerSingleton<JournalRepository>(testFixtures.journal)
-    ..registerSingleton<NoteLinksRepository>(links);
+    ..registerSingleton<NoteLinksRepository>(links)
+    ..registerSingleton<TemplatesRepository>(testTemplates)
+    ..registerSingleton<DiscoveryRepository>(testDiscovery);
   addTearDown(() {
     if (getIt.isRegistered<LibraryRepository>()) {
       getIt.unregister<LibraryRepository>();
@@ -220,14 +319,36 @@ Future<BrowseApp> _pump(
     if (getIt.isRegistered<NoteLinksRepository>()) {
       getIt.unregister<NoteLinksRepository>();
     }
+    if (getIt.isRegistered<TemplatesRepository>()) {
+      getIt.unregister<TemplatesRepository>();
+    }
+    if (getIt.isRegistered<DiscoveryRepository>()) {
+      getIt.unregister<DiscoveryRepository>();
+    }
+    if (getIt.isRegistered<TemplatePickerBloc>()) {
+      getIt.unregister<TemplatePickerBloc>();
+    }
   });
-  return pumpBrowseApp(
+  final app = await pumpBrowseApp(
     tester,
     _size,
     at: at,
     library: testLibrary,
+    session: session,
     fixtures: testFixtures,
   );
+  if (getIt.isRegistered<TemplatePickerBloc>()) {
+    getIt.unregister<TemplatePickerBloc>();
+  }
+  getIt.registerFactory<TemplatePickerBloc>(
+    () => TemplatePickerBloc(testTemplates),
+  );
+  addTearDown(() {
+    if (getIt.isRegistered<TemplatePickerBloc>()) {
+      getIt.unregister<TemplatePickerBloc>();
+    }
+  });
+  return app;
 }
 
 void main() {
@@ -344,6 +465,196 @@ void main() {
       tester.widget<ShareNoteSheet>(find.byType(ShareNoteSheet)).noteId,
       _noteId,
     );
+  });
+
+  testWidgets('lock opens the lock sheet for a plain route note', (
+    tester,
+  ) async {
+    await _pump(tester, command: 'lock');
+
+    await _run(tester, 'lock');
+
+    expect(find.byType(LockItemSheet), findsOneWidget);
+    expect(
+      tester.widget<LockItemSheet>(find.byType(LockItemSheet)).target,
+      const LockTarget.note(_noteId),
+    );
+  });
+
+  for (final lock in <LockState>[
+    const LockState.open(),
+    const LockState.closed(),
+  ]) {
+    testWidgets('lock does not open for $lock', (tester) async {
+      final library = _Library()..notes[_noteId] = _routeNote(lock: lock);
+      await _pump(tester, command: 'lock', library: library);
+
+      await _run(tester, 'lock');
+
+      expect(find.byType(LockItemSheet), findsNothing);
+    });
+  }
+
+  testWidgets('remove-lock opens for an open locked route note', (
+    tester,
+  ) async {
+    final session = FixtureSessionRepository(unlocked: true);
+    final library = _Library()
+      ..notes[_noteId] = _routeNote(lock: const LockState.open());
+    await _pump(
+      tester,
+      command: 'remove-lock',
+      library: library,
+      session: session,
+    );
+
+    await _run(tester, 'remove-lock');
+
+    expect(find.byType(RemoveLockSheet), findsOneWidget);
+    expect(
+      tester.widget<RemoveLockSheet>(find.byType(RemoveLockSheet)).target,
+      const LockTarget.note(_noteId),
+    );
+  });
+
+  testWidgets('lock-now locks the open session', (tester) async {
+    final session = FixtureSessionRepository(unlocked: true);
+    await _pump(
+      tester,
+      command: 'lock-now',
+      at: '/notes',
+      session: session,
+    );
+
+    await _run(tester, 'lock-now');
+
+    expect(session.calls, contains('lock'));
+  });
+
+  testWidgets('lock-password opens the change password sheet', (tester) async {
+    await _pump(tester, command: 'lock-password', at: '/notes');
+
+    await _run(tester, 'lock-password');
+
+    expect(find.byType(ChangePasswordSheet), findsOneWidget);
+  });
+
+  testWidgets('new-from-template creates and opens the chosen template', (
+    tester,
+  ) async {
+    final templates = _Templates();
+    final app = await _pump(
+      tester,
+      command: 'new-from-template',
+      at: const BrowseLocation.place(
+        ListPlace.notebook(id: 'book:palette'),
+      ).location,
+      templates: templates,
+    );
+
+    await _run(tester, 'new-from-template');
+    expect(find.byType(TemplatePickerSheet), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.text('Chosen template'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(templates.pickedId, 'template:chosen');
+    expect(templates.pickedBookId, 'book:palette');
+    expect(templates.pickedNow, isNotNull);
+    expect(app.where, contains('note%3Amade'));
+  });
+
+  testWidgets('new-template creates and opens a template note', (
+    tester,
+  ) async {
+    final templates = _Templates();
+    final app = await _pump(
+      tester,
+      command: 'new-template',
+      at: '/notes',
+      templates: templates,
+    );
+
+    await _run(tester, 'new-template');
+
+    expect(templates.newTemplateCalls, 1);
+    expect(app.where, contains('note%3Amade'));
+  });
+
+  testWidgets('voice-input opens the new note route with voice enabled', (
+    tester,
+  ) async {
+    final library = _Library()..createGate = Completer<void>();
+    final app = await _pump(
+      tester,
+      command: 'voice-input',
+      at: '/notes',
+      library: library,
+    );
+
+    await _openPalette(tester);
+    await tester.tap(find.text('voice-input'));
+    await tester.pump();
+
+    expect(app.where, '/new?voice=1');
+    library.createGate!.complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('show-related lists and opens a related route note', (
+    tester,
+  ) async {
+    final discovery = _RelatedDiscovery(
+      enabled: true,
+      rows: const <RelatedRow>[
+        RelatedRow(
+          id: 'note:related',
+          title: 'Related note',
+          score: 0.9,
+          label: 'Garden',
+        ),
+      ],
+    );
+    final app = await _pump(
+      tester,
+      command: 'show-related',
+      discovery: discovery,
+    );
+
+    await _run(tester, 'show-related');
+    expect(find.byType(RelatedNotesSheet), findsOneWidget);
+    expect(find.text('Related note'), findsOneWidget);
+    expect(discovery.requestedNoteId, _noteId);
+    expect(discovery.requestedLimit, 20);
+    await tester.tap(find.text('Related note'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(app.where, contains('note%3Arelated'));
+    expect(find.byType(RelatedNotesSheet), findsNothing);
+  });
+
+  testWidgets('show-related offers turn-on copy while related notes are off', (
+    tester,
+  ) async {
+    final discovery = _RelatedDiscovery(enabled: false);
+    await _pump(
+      tester,
+      command: 'show-related',
+      discovery: discovery,
+    );
+
+    await _run(tester, 'show-related');
+
+    expect(
+      find.text(
+        'Turn on Related notes in Settings to see notes about the same things.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(RelatedNotesSheet), findsOneWidget);
   });
 
   testWidgets('without an open note the palette command remains safe', (
