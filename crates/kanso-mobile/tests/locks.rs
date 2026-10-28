@@ -16,16 +16,210 @@ use kanso_mobile::{KansoError, ListPlace, ListQuery, LockEvent, LockReason, Lock
 use kanso_store::{Origin, Put};
 use kanso_store::{SearchParams, Store};
 use kanso_sync::KdfParams;
-use kanso_sync::lock::{Envelope, LockKey, LockPassword, SealId};
+use kanso_sync::lock::{LockKey, LockPassword};
 use proptest::prelude::*;
 use serde_json::json;
 
 const SECRET: &str = "the secret plan";
 
-/// One real attachment linked by two independently locked notes exercises
-/// wrapping, cache restoration, password rotation and shared-owner removal.
+/// Two notes sealed in one notebook pass share one sealed attachment: the
+/// file is wrapped under both notes' keys, and a password change re-wraps
+/// both without rewriting the blob.
 #[test]
-fn shared_locked_attachment_rekeys_without_rewriting_and_keeps_other_owner() {
+fn two_notes_locked_together_share_one_sealed_attachment() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let plain = b"deterministic attachment bytes";
+    let encoded = base64::engine::general_purpose::STANDARD.encode(plain);
+    let file = store
+        .put(
+            DocType::File,
+            serde_json::json!({"name":"shot.png","contentType":"image/png",
+            "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let body = format!("![shot](inkdrop://{file})");
+    let book = phone
+        .library
+        .create_notebook("Vault".into(), None)
+        .unwrap()
+        .id;
+    let first = phone
+        .library
+        .create(NewNote {
+            notebook_id: Some(book.clone()),
+            title: "First".into(),
+            body: body.clone(),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+    let second = phone
+        .library
+        .create(NewNote {
+            notebook_id: Some(book.clone()),
+            title: "Second".into(),
+            body: body.clone(),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+    let locks = phone.library.locks();
+    assert_eq!(
+        locks
+            .lock_notebook(&book, Some(LOCK_PASSWORD.into()))
+            .unwrap(),
+        2
+    );
+
+    // One sealed original, owned and wrapped under both notes' keys.
+    for id in [&first, &second] {
+        let stored = store.note(id).unwrap().unwrap();
+        assert!(stored.is_locked());
+        let ownership = note_files_from_extra(&stored.extra).unwrap();
+        assert_eq!(ownership.len(), 1);
+        assert_eq!(ownership[0].file, file);
+    }
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    let container = store.stored_attachment(&file).unwrap().unwrap().data;
+    assert_ne!(container, plain);
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+
+    let before_digest = store.file_meta(&file).unwrap().unwrap().md5digest;
+    assert_eq!(
+        locks
+            .change_password(LOCK_PASSWORD.into(), "new lock password".into())
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        store.file_meta(&file).unwrap().unwrap().md5digest,
+        before_digest
+    );
+    assert_eq!(
+        store.stored_attachment(&file).unwrap().unwrap().data,
+        container
+    );
+    locks.lock().unwrap();
+    assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
+    assert_eq!(locks.unlock("new lock password".into()), Ok(true));
+    for id in [&first, &second] {
+        assert_eq!(
+            phone.library.note(id).unwrap().body.as_deref(),
+            Some(body.as_str())
+        );
+    }
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+}
+
+/// A notebook whose notes share a file with an unlocked note gets one
+/// sealed copy for the whole notebook; the unlocked note keeps the original.
+#[test]
+fn locking_a_notebook_copies_a_shared_file_once() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let plain = b"a picture inside and outside the vault";
+    let encoded = base64::engine::general_purpose::STANDARD.encode(plain);
+    let file = store
+        .put(
+            DocType::File,
+            serde_json::json!({"name":"shared.png","contentType":"image/png",
+            "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let body = format!("![](inkdrop://{file})");
+    let outside = note(&phone.library, "Outside", &body);
+    let book = phone
+        .library
+        .create_notebook("Vault".into(), None)
+        .unwrap()
+        .id;
+    let mut inside = Vec::new();
+    for title in ["First", "Second"] {
+        inside.push(
+            phone
+                .library
+                .create(NewNote {
+                    notebook_id: Some(book.clone()),
+                    title: title.into(),
+                    body: body.clone(),
+                    ..Default::default()
+                })
+                .unwrap()
+                .id,
+        );
+    }
+    let locks = phone.library.locks();
+    assert_eq!(
+        locks
+            .lock_notebook(&book, Some(LOCK_PASSWORD.into()))
+            .unwrap(),
+        2
+    );
+
+    // The unlocked note keeps the readable original...
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    assert_eq!(store.file_owners(&file).unwrap(), vec![outside.clone()]);
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+    // ...and both locked notes share one sealed copy.
+    let mut copy = None;
+    for id in &inside {
+        let view = phone.library.note(id).unwrap();
+        let links = linked_file_ids(view.body.as_deref().unwrap());
+        assert_eq!(links.len(), 1);
+        assert_ne!(links[0], file);
+        assert_eq!(*copy.get_or_insert(links[0].clone()), links[0]);
+        let stored = store.note(id).unwrap().unwrap();
+        assert_eq!(
+            note_files_from_extra(&stored.extra).unwrap()[0].file,
+            links[0]
+        );
+    }
+    let copy = copy.unwrap();
+    assert_eq!(
+        store.attachment_state(&copy).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    let mut owners = store.file_owners(&copy).unwrap();
+    owners.sort();
+    let mut expected = inside.clone();
+    expected.sort();
+    assert_eq!(owners, expected);
+
+    locks.lock().unwrap();
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+    assert_eq!(phone.library.attachment(&copy), Err(KansoError::Locked));
+}
+
+/// Locking two notes one at a time gives each its own sealed file, so the
+/// note left plain keeps a readable original. Removing one lock decrypts
+/// only that note's copy; the other note's seal and ownership stay put.
+#[test]
+fn notes_locked_one_at_a_time_get_their_own_sealed_copy() {
     let phone = lone_phone();
     let store = phone.library.store();
     let plain = b"deterministic attachment bytes";
@@ -46,107 +240,112 @@ fn shared_locked_attachment_rekeys_without_rewriting_and_keeps_other_owner() {
     let locks = phone.library.locks();
 
     locks.lock_note(&first, LOCK_PASSWORD.into()).unwrap();
+    let first_view = phone.library.note(&first).unwrap();
+    let first_file = linked_file_ids(first_view.body.as_deref().unwrap())[0].clone();
+    assert_ne!(first_file, file);
+    assert_eq!(
+        store.attachment_state(&first_file).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    assert_eq!(store.file_owners(&file).unwrap(), vec![second.clone()]);
+
     locks.lock_note_with_session(&second).unwrap();
-    let stored_note = store.note(&first).unwrap().unwrap();
-    assert!(stored_note.extra.contains_key(KANSO_FILES_FIELD));
-    assert!(
-        store
-            .file_meta(&file)
-            .unwrap()
-            .unwrap()
-            .extra
-            .contains_key(FILE_LOCK_FIELD)
-    );
-    let container = store.stored_attachment(&file).unwrap().unwrap().data;
-    assert_ne!(container, plain);
-
-    locks.lock().unwrap();
-    assert!(matches!(
-        phone.library.attachment(&file),
-        Err(KansoError::Locked)
-    ));
+    let second_view = phone.library.note(&second).unwrap();
     assert_eq!(
-        store.stored_attachment(&file).unwrap().unwrap().data,
-        container
+        linked_file_ids(second_view.body.as_deref().unwrap()),
+        vec![file.clone()]
     );
-    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
     assert_eq!(
-        phone.library.attachment(&file).unwrap().bytes.as_slice(),
-        plain
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed
     );
 
-    let wrapped_note = store.note(&first).unwrap().unwrap();
-    let envelope = Envelope::from_extra(&wrapped_note.extra).unwrap().unwrap();
-    let ownership = note_files_from_extra(&wrapped_note.extra)
-        .unwrap()
-        .remove(0);
-    let seal = SealId::decode(&ownership.seal).unwrap();
-    let wrong_password = LockPassword::new("not the right password").unwrap();
-    let wrong_key = LockKey::for_envelope(&wrong_password, &envelope).unwrap();
-    let wrapped = base64::engine::general_purpose::STANDARD
-        .decode(ownership.key)
-        .unwrap();
-    assert!(
-        kanso_sync::lock::unwrap_file_key(&wrong_key, &envelope, &first, &file, &seal, &wrapped,)
-            .is_err()
-    );
-
-    let before_digest = store.file_meta(&file).unwrap().unwrap().md5digest;
+    let before = [&first_file, &file].map(|id| {
+        (
+            store.file_meta(id).unwrap().unwrap().md5digest,
+            store.stored_attachment(id).unwrap().unwrap().data,
+        )
+    });
     assert_eq!(
         locks
             .change_password(LOCK_PASSWORD.into(), "new lock password".into())
             .unwrap(),
         0
     );
+    for (id, (digest, container)) in [&first_file, &file].into_iter().zip(before) {
+        assert_eq!(store.file_meta(id).unwrap().unwrap().md5digest, digest);
+        assert_eq!(
+            store.stored_attachment(id).unwrap().unwrap().data,
+            container
+        );
+    }
+    locks.lock().unwrap();
     assert_eq!(
-        store.file_meta(&file).unwrap().unwrap().md5digest,
-        before_digest
+        phone.library.attachment(&first_file),
+        Err(KansoError::Locked)
     );
+    assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
+    assert_eq!(locks.unlock("new lock password".into()), Ok(true));
     assert_eq!(
-        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        phone
+            .library
+            .attachment(&first_file)
+            .unwrap()
+            .bytes
+            .as_slice(),
         plain
     );
-    locks.lock().unwrap();
-    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(false));
-    assert_eq!(locks.unlock("new lock password".into()), Ok(true));
     assert_eq!(
         phone.library.attachment(&file).unwrap().bytes.as_slice(),
         plain
     );
 
-    // The first note can become plain while the second still owns the seal.
     locks.remove_note_lock(&first).unwrap();
+    let first_view = phone.library.note(&first).unwrap();
+    assert_eq!(
+        linked_file_ids(first_view.body.as_deref().unwrap()),
+        vec![first_file.clone()]
+    );
+    assert_eq!(
+        store.attachment_state(&first_file).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    assert_eq!(store.file_owners(&first_file).unwrap(), vec![first.clone()]);
+    assert_eq!(
+        phone
+            .library
+            .attachment(&first_file)
+            .unwrap()
+            .bytes
+            .as_slice(),
+        plain
+    );
+    // The second note's sealed original is untouched.
     assert_eq!(
         store.attachment_state(&file).unwrap(),
         kanso_store::AttachmentState::Sealed
     );
     assert_eq!(store.file_owners(&file).unwrap(), vec![second.clone()]);
-    let first_note = store.note(&first).unwrap().unwrap();
-    let links = linked_file_ids(&first_note.body);
-    assert_eq!(links, vec![file.clone()], "the original file stays linked");
-    assert!(!first_note.extra.contains_key(KANSO_FILES_FIELD));
+    let second_view = phone.library.note(&second).unwrap();
     assert_eq!(
-        store.attachment_state(&file).unwrap(),
-        kanso_store::AttachmentState::Sealed
-    );
-    assert_eq!(
-        phone.library.attachment(&file).unwrap().bytes.as_slice(),
-        plain
+        linked_file_ids(second_view.body.as_deref().unwrap()),
+        vec![file.clone()]
     );
     locks.lock().unwrap();
-    assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
-    assert_eq!(locks.unlock("new lock password".into()), Ok(true));
     assert_eq!(
-        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        phone
+            .library
+            .attachment(&first_file)
+            .unwrap()
+            .bytes
+            .as_slice(),
         plain
     );
-    let second_note = store.note(&second).unwrap().unwrap();
-    assert!(
-        note_files_from_extra(&second_note.extra)
-            .unwrap()
-            .iter()
-            .any(|owner| owner.file == file)
-    );
+    assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
 }
 
 #[test]
@@ -547,6 +746,56 @@ fn the_notes_of_a_locked_notebook_are_locked_with_it() {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(16))]
+
+    /// A file that unlocked notes still show is copied for the note being
+    /// locked: the original stays readable and keeps those owners.
+    #[test]
+    fn prop_locking_copies_a_file_unlocked_notes_still_show(
+        bytes in proptest::collection::vec(any::<u8>(), 0..=2048)
+    ) {
+        let phone = lone_phone();
+        let store = phone.library.store();
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        let file = store
+            .put(
+                DocType::File,
+                serde_json::json!({"name":"shared.png","contentType":"image/png",
+                "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+                Put::Upsert,
+                Origin::Api,
+            )
+            .unwrap()
+            .id;
+        let body = format!("![](inkdrop://{file})");
+        let locked = note(&phone.library, "Locked", &body);
+        let first_plain = note(&phone.library, "One", &body);
+        let second_plain = note(&phone.library, "Two", &body);
+        let locks = phone.library.locks();
+
+        locks.lock_note(&locked, LOCK_PASSWORD.into()).unwrap();
+
+        prop_assert_eq!(
+            store.attachment_state(&file).unwrap(),
+            kanso_store::AttachmentState::Plain
+        );
+        let mut owners = store.file_owners(&file).unwrap();
+        let mut expected = vec![first_plain.clone(), second_plain.clone()];
+        owners.sort();
+        expected.sort();
+        prop_assert_eq!(owners, expected);
+        let original = phone.library.attachment(&file).unwrap();
+        prop_assert_eq!(original.bytes.as_slice(), bytes.as_slice());
+        let view = phone.library.note(&locked).unwrap();
+        let links = linked_file_ids(view.body.as_deref().unwrap());
+        prop_assert_eq!(links.len(), 1);
+        prop_assert_ne!(&links[0], &file);
+        prop_assert_eq!(
+            store.attachment_state(&links[0]).unwrap(),
+            kanso_store::AttachmentState::Sealed
+        );
+        let sealed = phone.library.attachment(&links[0]).unwrap();
+        prop_assert_eq!(sealed.bytes.as_slice(), bytes.as_slice());
+    }
 
     /// A text locked and opened again is the text, whatever it is: the
     /// seal round-trips through the store, and a note made plain by nothing

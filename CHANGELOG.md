@@ -55,6 +55,7 @@ heading compares the release with the one before.
 
 ### Fixed
 
+- **locked:** Locking a note copies a picture or file that an unlocked note still shows, so the unlocked note keeps its readable original and the locked note gets its own sealed copy; locking a notebook seals a shared file once for all its notes, and removing one note's lock decrypts only that note's copy (#44 step 3, mobile)
 - **export:** Published notes and exported pages keep their code readable when Kanso uses a dark theme: a light page takes the code colors of your light theme (Kanso Light's if it can't be found), where it had pale colors meant for a dark background
 - **discovery:** A locked note (sealed, or in a locked notebook) or a note tagged `#ai-exclude` is never embedded for related notes, so it is never a related note, a suggested tag's source, a near-duplicate or a hit of a search by meaning, and any vector it already had is deleted; an image only such a note shows is never read for its text; and the graph leaves locked notes and their links out until the lock password has opened them. Locked notes were embedded by their title before (#48 package M)
 - **accounts:** Approving a new device from another one works without restarting Kanso first, and cancelling the sign-in cancels that request
