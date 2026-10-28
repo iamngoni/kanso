@@ -2,11 +2,13 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/ask/models/data/ask_outcome.dart';
 import 'package:kanso/ask/models/data/ask_phase.dart';
 import 'package:kanso/ask/state/ask/ask_bloc.dart';
 import 'package:kanso/core/models/data/ai_note_ref.dart';
+import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/ask_update.dart';
 import 'package:kanso/core/models/data/load_status.dart';
 
@@ -17,6 +19,26 @@ const _pricing = AiNoteRef(id: 'n1', title: 'Pricing');
 const _plan = AiNoteRef(id: 'n2', title: 'Plan');
 
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
+
+class RememberingAiRepository extends FixtureAiRepository {
+  RememberingAiRepository() : super(settings: aiSettings(enabled: true));
+
+  final List<String> conversation = <String>[];
+  final List<List<String>> histories = <List<String>>[];
+
+  @override
+  Stream<AskUpdate> ask(String question) {
+    histories.add(List<String>.of(conversation));
+    conversation.add(question);
+    return const Stream<AskUpdate>.empty();
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> clear() async {
+    conversation.clear();
+    return super.clear();
+  }
+}
 
 Future<(AskBloc, FixtureAiRepository)> _open({bool enabled = true}) async {
   final ai = FixtureAiRepository(settings: aiSettings(enabled: enabled));
@@ -192,6 +214,24 @@ void main() {
       await _settle();
       await bloc.close();
       expect(ai.stops, 1);
+    });
+
+    test('reopening starts a new repository conversation', () async {
+      final ai = RememberingAiRepository();
+      final first = AskBloc(ai)..add(const AskEvent.started());
+      await first.stream.firstWhere((s) => s.status == LoadStatus.ready);
+      first.add(const AskEvent.questionAsked('first question'));
+      await _settle();
+      await first.close();
+
+      final second = AskBloc(ai)..add(const AskEvent.started());
+      await second.stream.firstWhere((s) => s.status == LoadStatus.ready);
+      second.add(const AskEvent.questionAsked('second question'));
+      await _settle();
+
+      expect(ai.histories, <List<String>>[<String>[], <String>[]]);
+      await second.close();
+      await ai.close();
     });
   });
 }

@@ -234,8 +234,9 @@ class AskBloc extends Bloc<AskEvent, AskState> {
     await _settingsChanges?.cancel();
     await _updates?.cancel();
     if (state.busy) {
-      unawaited(_ai.stop());
+      await _ai.stop();
     }
+    await _ai.clear();
     return super.close();
   }
 }
