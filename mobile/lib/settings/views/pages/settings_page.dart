@@ -19,6 +19,7 @@ import '../../../shell/utils/kanso_shortcut_bindings.dart'
     show ShortcutContext, shortcutBindingsFor;
 import '../../../templates/state/daily_template/daily_template_bloc.dart';
 import '../../state/about/about_bloc.dart';
+import '../../state/word_goal_settings/word_goal_settings_bloc.dart';
 import '../widgets/settings_pane.dart';
 
 /// Settings: where the appearance and the rest are changed.
@@ -49,6 +50,11 @@ class SettingsPage extends StatelessWidget {
         BlocProvider<PushSettingBloc>(
           create: (context) =>
               getIt<PushSettingBloc>()..add(const PushSettingEvent.started()),
+        ),
+        BlocProvider<WordGoalSettingsBloc>(
+          create: (context) =>
+              getIt<WordGoalSettingsBloc>()
+                ..add(const WordGoalSettingsEvent.started()),
         ),
       ],
       child: Shortcuts(

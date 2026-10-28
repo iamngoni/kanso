@@ -21,6 +21,8 @@ class FakeEditorDocument implements EditorDocument {
   int version = 1;
   HistoryState history = const HistoryState(canUndo: false, canRedo: false);
   SaveState save = const SaveState.saved(rev: 'r1', atMs: 0);
+  GoalSetting wordGoal = const GoalSetting.default_();
+  int? defaultGoal;
   List<Property> properties = const <Property>[];
   Completion? offered;
   LinkTarget? link;
@@ -81,7 +83,39 @@ class FakeEditorDocument implements EditorDocument {
     selection: Range16(start: text.length, end: text.length),
     history: history,
     save: save,
+    wordGoal: wordGoal,
   );
+
+  @override
+  Future<Either<ApplicationError, int?>> effectiveWordGoal() async {
+    final failure = failed<int?>('effectiveWordGoal');
+    if (failure != null) {
+      return failure;
+    }
+    return Right<ApplicationError, int?>(switch (wordGoal) {
+      GoalSetting_Default() => defaultGoal,
+      GoalSetting_Off() => null,
+      GoalSetting_Words(:final field0) => field0,
+    });
+  }
+
+  @override
+  Future<Either<ApplicationError, int?>> defaultWordGoal() async =>
+      failed<int?>('defaultWordGoal') ??
+      Right<ApplicationError, int?>(defaultGoal);
+
+  @override
+  Future<Either<ApplicationError, Unit>> setWordGoal(
+    GoalSetting setting,
+  ) async {
+    calls.add('setWordGoal $setting');
+    final failure = failed<Unit>('setWordGoal');
+    if (failure != null) {
+      return failure;
+    }
+    wordGoal = setting;
+    return const Right<ApplicationError, Unit>(unit);
+  }
 
   Either<ApplicationError, T> failure<T>() =>
       Left<ApplicationError, T>(failAll!);

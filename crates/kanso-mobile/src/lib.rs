@@ -144,6 +144,7 @@ mod syncing;
 mod tasks;
 mod theme_tokens;
 mod undo;
+mod word_goals;
 
 pub use account::AccountHandle;
 pub use account_model::*;
@@ -156,6 +157,10 @@ pub use editing::EditorSession;
 pub use errors::KansoError;
 pub use gallery::Gallery;
 pub use gallery_model::*;
+pub use kanso_engine::text_stats::{format_count, word_count};
+pub use kanso_engine::word_goal::{
+    MAX_GOAL, PRESETS, effective_goal, goal_label, note_goal, parse_goal, progress, set_note_goal,
+};
 pub use library::Library;
 pub use linking::Linking;
 pub use linking_model::*;

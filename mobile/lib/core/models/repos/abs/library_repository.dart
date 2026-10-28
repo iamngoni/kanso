@@ -14,6 +14,21 @@ import '../../data/application_error.dart';
 /// place, a status narrowing and a tag search never list one. Streams do not
 /// fail: they end when the library closes.
 abstract interface class LibraryRepository {
+  /// The library's default word goal for notes without their own choice.
+  Future<Either<ApplicationError, int?>> defaultWordGoal();
+
+  /// Sets the library's default word goal (or clears it with null).
+  Future<Either<ApplicationError, int?>> setDefaultWordGoal(int? goal);
+
+  /// A note's own choice, kept separate from the library default.
+  Future<Either<ApplicationError, GoalSetting>> noteWordGoal(String id);
+
+  /// Sets a note's goal, using its open editor session when one exists.
+  Future<Either<ApplicationError, Unit>> setNoteWordGoal(
+    String id,
+    GoalSetting setting,
+  );
+
   /// The notes [query] picks, in its order, with the layout the desktop
   /// gives that list (pinned first; Recent by edit time; headers by date).
   Future<Either<ApplicationError, NoteList>> list(ListQuery query);

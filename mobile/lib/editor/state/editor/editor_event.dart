@@ -43,6 +43,10 @@ sealed class EditorEvent with _$EditorEvent {
   const factory EditorEvent.propertyRemoved(int index) =
       EditorPropertyRemovedEvent;
 
+  /// The person chose a note-specific word goal.
+  const factory EditorEvent.wordGoalChanged(core.GoalSetting setting) =
+      EditorWordGoalChangedEvent;
+
   /// The person chose to keep what they typed over a change made elsewhere.
   const factory EditorEvent.keepMineRequested() = EditorKeepMineRequestedEvent;
 

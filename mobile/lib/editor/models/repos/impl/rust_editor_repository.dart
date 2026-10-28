@@ -34,6 +34,21 @@ class RustEditorDocument implements EditorDocument {
   final KansoEditor _editor;
 
   @override
+  Future<Either<ApplicationError, int?>> effectiveWordGoal() =>
+      attempt(_editor.effectiveWordGoal);
+
+  @override
+  Future<Either<ApplicationError, int?>> defaultWordGoal() =>
+      attempt(_editor.defaultWordGoal);
+
+  @override
+  Future<Either<ApplicationError, Unit>> setWordGoal(GoalSetting setting) =>
+      attempt(() async {
+        await _editor.setWordGoal(setting: setting);
+        return unit;
+      });
+
+  @override
   Future<Either<ApplicationError, EditorSnapshot>> snapshot() =>
       attempt(_editor.snapshot);
 

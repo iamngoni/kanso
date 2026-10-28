@@ -31,6 +31,15 @@ abstract interface class EditorRepository {
 /// document is closed, every call is a [LockedError] (or an error that says
 /// it is closed); nothing of a locked note's text is kept here.
 abstract interface class EditorDocument {
+  /// The note-specific choice, and the library default it resolves against.
+  Future<Either<ApplicationError, int?>> effectiveWordGoal();
+
+  /// The library default, even if this note is turned off or has its own goal.
+  Future<Either<ApplicationError, int?>> defaultWordGoal();
+
+  /// Sets this note's own choice; [GoalSetting.default_] follows Settings.
+  Future<Either<ApplicationError, Unit>> setWordGoal(GoalSetting setting);
+
   /// The note as it is now.
   Future<Either<ApplicationError, EditorSnapshot>> snapshot();
 

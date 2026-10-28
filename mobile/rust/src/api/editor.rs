@@ -10,8 +10,8 @@ use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
     Completion, CursorMark, EditCommand, EditOutcome, EditorContext, EditorEvent, EditorSession,
-    EditorSnapshot, KansoError, LinkTarget, Property, Range16, RunBatch, SaveState, ShareFile,
-    TextChange,
+    EditorSnapshot, GoalSetting, KansoError, LinkTarget, Property, Range16, RunBatch, SaveState,
+    ShareFile, TextChange,
 };
 
 /// A note open for editing. Cheap to clone on the Rust side; Dart holds one.
@@ -26,6 +26,21 @@ impl KansoEditor {
     /// The note as it is now.
     pub fn snapshot(&self) -> Result<EditorSnapshot, KansoError> {
         self.0.snapshot()
+    }
+
+    /// The goal that applies to this note, after its own choice and the library default.
+    pub fn effective_word_goal(&self) -> Result<Option<u32>, KansoError> {
+        self.0.effective_word_goal()
+    }
+
+    /// The library default, regardless of this note's own choice.
+    pub fn default_word_goal(&self) -> Result<Option<u32>, KansoError> {
+        self.0.default_word_goal()
+    }
+
+    /// Sets the note's own goal through its ordinary save path.
+    pub fn set_word_goal(&self, setting: GoalSetting) -> Result<(), KansoError> {
+        self.0.set_word_goal(setting)
     }
 
     /// The field's text changed.

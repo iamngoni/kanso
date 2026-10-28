@@ -5,11 +5,11 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    AttachmentFile, CaptureOutcome, Changed, ColorChoice, CopiedLink, DropsSaved, FoldState, Hit,
-    IconChoice, ImportEvent, KansoError, Library, LibraryOverview, ListQuery, LocalTime, NewNote,
-    NoteChange, NoteList, NoteView, NotebookRow, OpenedDocuments, OpenedFile, Property, Saved,
-    SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow, TaskBoard, TaskListQuery, Ticked,
-    VisibleNotebook,
+    AttachmentFile, CaptureOutcome, Changed, ColorChoice, CopiedLink, DropsSaved, FoldState,
+    GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library, LibraryOverview, ListQuery,
+    LocalTime, NewNote, NoteChange, NoteList, NoteView, NotebookRow, OpenedDocuments, OpenedFile,
+    Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow, TaskBoard,
+    TaskListQuery, Ticked, VisibleNotebook,
 };
 // A note's history, Replace in all notes and the backups.
 use kanso_mobile::{
@@ -46,6 +46,31 @@ impl KansoLibrary {
 
     pub fn overview(&self) -> Result<LibraryOverview, KansoError> {
         self.0.overview()
+    }
+
+    /// The default word goal for notes without their own choice.
+    pub fn default_word_goal(&self) -> Result<Option<u32>, KansoError> {
+        self.0.default_word_goal()
+    }
+
+    /// Sets the library's default word goal.
+    pub fn set_default_word_goal(&self, goal: Option<u32>) -> Result<Option<u32>, KansoError> {
+        self.0.set_default_word_goal(goal)
+    }
+
+    /// The word-goal presets offered by the desktop app.
+    pub fn word_goal_presets() -> Vec<u32> {
+        Library::word_goal_presets()
+    }
+
+    /// The note's own word-goal choice.
+    pub fn note_word_goal(&self, id: String) -> Result<GoalSetting, KansoError> {
+        self.0.note_word_goal(&id)
+    }
+
+    /// Sets a note's goal, using its open editor session when there is one.
+    pub fn set_note_word_goal(&self, id: String, setting: GoalSetting) -> Result<(), KansoError> {
+        self.0.set_note_word_goal(&id, setting)
     }
 
     /// The Tasks place: open tasks across the notes, in groups; locked

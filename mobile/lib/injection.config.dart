@@ -174,6 +174,8 @@ import 'settings/state/discovery/discovery_settings_bloc.dart' as _i904;
 import 'settings/state/icon_themes/icon_themes_bloc.dart' as _i636;
 import 'settings/state/licences/licences_bloc.dart' as _i570;
 import 'settings/state/sync_settings/sync_settings_bloc.dart' as _i794;
+import 'settings/state/word_goal_settings/word_goal_settings_bloc.dart'
+    as _i893;
 import 'sharing/state/comments/comments_bloc.dart' as _i295;
 import 'sharing/state/invitations/invitations_bloc.dart' as _i1;
 import 'sharing/state/join_link/join_link_bloc.dart' as _i676;
@@ -478,6 +480,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i991.NewNotebookBloc>(
       () => _i991.NewNotebookBloc(gh<_i38.LibraryRepository>()),
+    );
+    gh.factory<_i893.WordGoalSettingsBloc>(
+      () => _i893.WordGoalSettingsBloc(gh<_i38.LibraryRepository>()),
     );
     gh.lazySingleton<_i393.NoteLinksRepository>(
       () => _i199.RustNoteLinksRepository(gh<_i455.KansoLibrary>()),

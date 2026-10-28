@@ -100,6 +100,34 @@ void main() {
   }
 
   group('EditorBloc started', () {
+    test('opens with the note goal and resolved library default', () async {
+      document
+        ..wordGoal = const GoalSetting.default_()
+        ..defaultGoal = 500;
+      final bloc = await ready();
+
+      expect(bloc.state.wordGoalSetting, const GoalSetting.default_());
+      expect(bloc.state.defaultWordGoal, 500);
+      expect(bloc.state.effectiveWordGoal, 500);
+    });
+
+    test('a chosen goal updates the document and progress state', () async {
+      final bloc = await ready();
+      final changed = bloc.stream.firstWhere(
+        (state) => state.wordGoalSetting == const GoalSetting.words(1200),
+      );
+
+      bloc.add(const EditorEvent.wordGoalChanged(GoalSetting.words(1200)));
+      final state = await changed;
+
+      expect(state.effectiveWordGoal, 1200);
+      expect(document.wordGoal, const GoalSetting.words(1200));
+      expect(
+        document.calls,
+        contains('setWordGoal GoalSetting.words(field0: 1200)'),
+      );
+    });
+
     blocTest<EditorBloc, EditorState>(
       'opens the note and takes its text, properties and save state',
       build: build,
@@ -206,6 +234,7 @@ void main() {
         selection: Range16(start: 0, end: 0),
         history: _noHistory,
         save: SaveState.saved(rev: 'r2', atMs: 1),
+        wordGoal: GoalSetting.default_(),
       );
       document.events_.add(const core.EditorEvent.reloaded(snapshot: reloaded));
       final state = await bloc.stream.firstWhere((s) => s.reloadSeq == 1);

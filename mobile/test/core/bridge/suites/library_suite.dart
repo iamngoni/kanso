@@ -20,6 +20,39 @@ import 'open_library.dart';
 /// emulator (`integration_test`).
 void librarySuite(OpenLibrary open) {
   group('KansoLibrary', () {
+    test('note and library word goals round-trip through the bridge', () async {
+      final library = await open();
+      final made = await makeNote(library, 'Goal', 'one two three');
+
+      expect(await library.defaultWordGoal(), isNull);
+      expect(await library.setDefaultWordGoal(goal: 500), 500);
+      expect(await library.defaultWordGoal(), 500);
+      expect(await KansoLibrary.wordGoalPresets(), contains(500));
+      expect(await library.noteWordGoal(id: made), isA<GoalSetting_Default>());
+
+      await library.setNoteWordGoal(
+        id: made,
+        setting: const GoalSetting.words(750),
+      );
+      expect(
+        await library.noteWordGoal(id: made),
+        const GoalSetting.words(750),
+      );
+      await library.setNoteWordGoal(
+        id: made,
+        setting: const GoalSetting.off(),
+      );
+      expect(await library.noteWordGoal(id: made), const GoalSetting.off());
+      await library.setNoteWordGoal(
+        id: made,
+        setting: const GoalSetting.default_(),
+      );
+      expect(
+        await library.noteWordGoal(id: made),
+        const GoalSetting.default_(),
+      );
+    });
+
     test('imports an export and opens a Markdown document', () async {
       final library = await open();
       final folder = await Directory.systemTemp.createTemp('kanso_import_');

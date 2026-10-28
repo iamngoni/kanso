@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/bridge/api/word_goal.dart';
 
 import 'open_library.dart';
 
@@ -14,6 +15,32 @@ import 'open_library.dart';
 /// `KansoLibrary.edit` that opens it.
 void editorSuite(OpenLibrary open) {
   group('KansoEditor', () {
+    test(
+      'word goals share the desktop counting, parsing and progress rules',
+      () async {
+        expect(wordGoalPresets(), <int>[250, 500, 750, 1000, 1500, 2000, 5000]);
+        expect(wordGoalWordCount(text: 'One **two** `three`'), 3);
+        expect(wordGoalParse(input: '1.5k words'), 1500);
+        expect(wordGoalFormatCount(count: 1500), '1,500');
+        expect(wordGoalLabel(words: 12, goal: 250), '12 / 250');
+        expect(wordGoalProgress(words: 12, goal: 25), closeTo(0.48, 0.001));
+
+        final library = await open();
+        final id = await makeNote(library, 'Word goal', 'one two three');
+        await library.setDefaultWordGoal(goal: 500);
+        final editor = await library.edit(id: id);
+        expect(await editor.defaultWordGoal(), 500);
+        expect(await editor.effectiveWordGoal(), 500);
+        await editor.setWordGoal(setting: const GoalSetting.words(250));
+        expect(await editor.effectiveWordGoal(), 250);
+        await editor.setWordGoal(setting: const GoalSetting.off());
+        expect(await editor.effectiveWordGoal(), isNull);
+        await editor.setWordGoal(setting: const GoalSetting.default_());
+        expect(await editor.effectiveWordGoal(), 500);
+        await editor.close();
+      },
+    );
+
     test('a note opens with its text, and typing is kept in Rust', () async {
       final library = await open();
       final id = await makeNote(library, 'Plan', 'hello');

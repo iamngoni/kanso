@@ -54,6 +54,12 @@ abstract class EditorState with _$EditorState {
     /// Why things could not be attached, one each, until it is dismissed.
     @Default(<ApplicationError>[]) List<ApplicationError> attachProblems,
 
+    /// The note's own goal, the library default, and the resolved target.
+    core.GoalSetting? wordGoalSetting,
+    int? defaultWordGoal,
+    int? effectiveWordGoal,
+    ApplicationError? wordGoalError,
+
     /// Why opening failed, while [status] is failed.
     ApplicationError? error,
   }) = _EditorState;

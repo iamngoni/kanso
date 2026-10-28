@@ -32,6 +32,12 @@ abstract class KansoEditor implements RustOpaqueInterface {
   /// What the caret completes, if anything.
   Future<Completion?> completion();
 
+  /// The library default, regardless of this note's own choice.
+  Future<int?> defaultWordGoal();
+
+  /// The goal that applies to this note, after its own choice and the library default.
+  Future<int?> effectiveWordGoal();
+
   /// What happens to the note that Dart didn't ask for, until Dart stops
   /// listening.
   Stream<EditorEvent> events();
@@ -64,6 +70,9 @@ abstract class KansoEditor implements RustOpaqueInterface {
   });
 
   void setTitle({required String title});
+
+  /// Sets the note's own goal through its ordinary save path.
+  Future<void> setWordGoal({required GoalSetting setting});
 
   /// The note as it is now.
   Future<EditorSnapshot> snapshot();

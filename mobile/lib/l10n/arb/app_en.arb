@@ -4723,5 +4723,45 @@
   "focusModeExit": "Leave focus mode",
   "@focusModeExit": {
     "description": "Leaves focus mode and brings back the sidebar and bars."
-  }
+  },
+  "editorWritingSection": "Writing",
+  "editorDefaultWordGoal": "Default word goal",
+  "editorDefaultWordGoalDetail": "Notes without their own goal use this. A note’s progress appears in its editor footer.",
+  "editorWordGoalNone": "None",
+  "editorWordGoalLoading": "Loading…",
+  "editorWordGoalUnavailable": "Unavailable",
+  "editorWordGoalWords": "{words} words",
+  "@editorWordGoalWords": {
+    "placeholders": {
+      "words": { "type": "String" }
+    }
+  },
+  "editorWordGoalAim": "Aim for {words}",
+  "@editorWordGoalAim": {
+    "placeholders": {
+      "words": { "type": "String" }
+    }
+  },
+  "editorWordGoalProgress": "{current} of {goal} words",
+  "@editorWordGoalProgress": {
+    "placeholders": {
+      "current": { "type": "String" },
+      "goal": { "type": "String" }
+    }
+  },
+  "editorWordGoalSet": "Set word goal",
+  "editorWordGoalForNote": "Word goal for this note",
+  "editorWordGoalDefault": "Default ({words} words)",
+  "@editorWordGoalDefault": {
+    "placeholders": {
+      "words": { "type": "String" }
+    }
+  },
+  "editorWordGoalNoGoalForNote": "No goal for this note",
+  "editorWordGoalCustom": "Custom…",
+  "editorWordGoalCustomTitle": "Custom word goal",
+  "editorWordGoalCustomHint": "Words, such as 1,500 or 1.5k",
+  "editorWordGoalInvalid": "Enter a word goal from 1 to 1,000,000.",
+  "editorWordGoalCancel": "Cancel",
+  "editorWordGoalSave": "Set goal"
 }

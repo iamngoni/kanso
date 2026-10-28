@@ -29,6 +29,7 @@ import 'discovery_setting_switch_row.dart';
 import 'discovery_status_row.dart';
 import 'locked_notes_section.dart';
 import 'settings_sync_section.dart';
+import 'word_goal_default_section.dart';
 
 /// Settings: a close button, a centred title and rows grouped in rounded
 /// sections, each with an icon, a label and its current value.
@@ -116,6 +117,8 @@ class SettingsPane extends StatelessWidget {
                         );
                       },
                     ),
+                    const SizedBox(height: KansoSpacing.lg),
+                    const WordGoalDefaultSection(),
                     const SizedBox(height: KansoSpacing.lg),
                     BlocBuilder<AppearanceBloc, AppearanceState>(
                       builder: (context, appearance) {

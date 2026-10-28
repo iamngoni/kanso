@@ -30,6 +30,7 @@ import 'package:kanso/search/state/search/search_bloc.dart';
 import 'package:kanso/settings/state/about/about_bloc.dart';
 import 'package:kanso/settings/state/icon_themes/icon_themes_bloc.dart';
 import 'package:kanso/settings/state/licences/licences_bloc.dart';
+import 'package:kanso/settings/state/word_goal_settings/word_goal_settings_bloc.dart';
 import 'package:kanso/sharing/state/comments/comments_bloc.dart';
 import 'package:kanso/sharing/state/join_link/join_link_bloc.dart';
 import 'package:kanso/sharing/state/share_note/share_note_bloc.dart';
@@ -279,6 +280,7 @@ void _registerPageBlocs({
   register<TemplatePickerBloc>(() => TemplatePickerBloc(page.journal));
   register<DailyTemplateBloc>(() => DailyTemplateBloc(page.journal));
   register<BoardBloc>(() => BoardBloc(page.boards, library));
+  register<WordGoalSettingsBloc>(() => WordGoalSettingsBloc(library));
 
   final preferences = ForgetfulPreferencesRepository();
   final coordinator = RemindersCoordinator(

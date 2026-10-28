@@ -3750,4 +3750,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get focusModeExit => 'Leave focus mode';
+
+  @override
+  String get editorWritingSection => 'Writing';
+
+  @override
+  String get editorDefaultWordGoal => 'Default word goal';
+
+  @override
+  String get editorDefaultWordGoalDetail =>
+      'Notes without their own goal use this. A note’s progress appears in its editor footer.';
+
+  @override
+  String get editorWordGoalNone => 'None';
+
+  @override
+  String get editorWordGoalLoading => 'Loading…';
+
+  @override
+  String get editorWordGoalUnavailable => 'Unavailable';
+
+  @override
+  String editorWordGoalWords(String words) {
+    return '$words words';
+  }
+
+  @override
+  String editorWordGoalAim(String words) {
+    return 'Aim for $words';
+  }
+
+  @override
+  String editorWordGoalProgress(String current, String goal) {
+    return '$current of $goal words';
+  }
+
+  @override
+  String get editorWordGoalSet => 'Set word goal';
+
+  @override
+  String get editorWordGoalForNote => 'Word goal for this note';
+
+  @override
+  String editorWordGoalDefault(String words) {
+    return 'Default ($words words)';
+  }
+
+  @override
+  String get editorWordGoalNoGoalForNote => 'No goal for this note';
+
+  @override
+  String get editorWordGoalCustom => 'Custom…';
+
+  @override
+  String get editorWordGoalCustomTitle => 'Custom word goal';
+
+  @override
+  String get editorWordGoalCustomHint => 'Words, such as 1,500 or 1.5k';
+
+  @override
+  String get editorWordGoalInvalid => 'Enter a word goal from 1 to 1,000,000.';
+
+  @override
+  String get editorWordGoalCancel => 'Cancel';
+
+  @override
+  String get editorWordGoalSave => 'Set goal';
 }

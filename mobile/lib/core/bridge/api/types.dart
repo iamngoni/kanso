@@ -1143,6 +1143,7 @@ class EditorSnapshot {
   final Range16 selection;
   final HistoryState history;
   final SaveState save;
+  final GoalSetting wordGoal;
 
   const EditorSnapshot({
     required this.id,
@@ -1155,6 +1156,7 @@ class EditorSnapshot {
     required this.selection,
     required this.history,
     required this.save,
+    required this.wordGoal,
   });
 
   @override
@@ -1168,7 +1170,8 @@ class EditorSnapshot {
       version.hashCode ^
       selection.hashCode ^
       history.hashCode ^
-      save.hashCode;
+      save.hashCode ^
+      wordGoal.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1184,7 +1187,8 @@ class EditorSnapshot {
           version == other.version &&
           selection == other.selection &&
           history == other.history &&
-          save == other.save;
+          save == other.save &&
+          wordGoal == other.wordGoal;
 }
 
 class ExportedPage {
@@ -1383,6 +1387,17 @@ class GalleryItem {
 enum GalleryKind {
   colorTheme,
   iconTheme,
+}
+
+@freezed
+sealed class GoalSetting with _$GoalSetting {
+  const GoalSetting._();
+
+  const factory GoalSetting.default_() = GoalSetting_Default;
+  const factory GoalSetting.off() = GoalSetting_Off;
+  const factory GoalSetting.words(
+    int field0,
+  ) = GoalSetting_Words;
 }
 
 class GraphEdgeRow {

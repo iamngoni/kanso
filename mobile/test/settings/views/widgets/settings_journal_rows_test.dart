@@ -52,7 +52,7 @@ void main() {
       await _pump(tester);
       expect(find.text('Daily notes'), findsOneWidget);
       expect(find.text('Daily template'), findsOneWidget);
-      expect(find.text('None'), findsOneWidget);
+      expect(find.text('None'), findsNWidgets(2));
       expect(
         find.text(
           'New daily notes start from this template, with {{date}}, {{time}} '
@@ -80,7 +80,7 @@ void main() {
       await tester.tap(find.text('Daily template'));
       await tester.pumpAndSettle();
       // None first, checked; then the templates.
-      expect(find.text('None'), findsNWidgets(2));
+      expect(find.text('None'), findsNWidgets(3));
       await tester.tap(find.text('Meeting notes'));
       await tester.pumpAndSettle();
       expect(fixtures.journal.daily, 'note:tpl-meeting');

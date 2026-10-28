@@ -6411,6 +6411,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Leave focus mode'**
   String get focusModeExit;
+
+  /// No description provided for @editorWritingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing'**
+  String get editorWritingSection;
+
+  /// No description provided for @editorDefaultWordGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Default word goal'**
+  String get editorDefaultWordGoal;
+
+  /// No description provided for @editorDefaultWordGoalDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes without their own goal use this. A note’s progress appears in its editor footer.'**
+  String get editorDefaultWordGoalDetail;
+
+  /// No description provided for @editorWordGoalNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get editorWordGoalNone;
+
+  /// No description provided for @editorWordGoalLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get editorWordGoalLoading;
+
+  /// No description provided for @editorWordGoalUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get editorWordGoalUnavailable;
+
+  /// No description provided for @editorWordGoalWords.
+  ///
+  /// In en, this message translates to:
+  /// **'{words} words'**
+  String editorWordGoalWords(String words);
+
+  /// No description provided for @editorWordGoalAim.
+  ///
+  /// In en, this message translates to:
+  /// **'Aim for {words}'**
+  String editorWordGoalAim(String words);
+
+  /// No description provided for @editorWordGoalProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {goal} words'**
+  String editorWordGoalProgress(String current, String goal);
+
+  /// No description provided for @editorWordGoalSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set word goal'**
+  String get editorWordGoalSet;
+
+  /// No description provided for @editorWordGoalForNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Word goal for this note'**
+  String get editorWordGoalForNote;
+
+  /// No description provided for @editorWordGoalDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default ({words} words)'**
+  String editorWordGoalDefault(String words);
+
+  /// No description provided for @editorWordGoalNoGoalForNote.
+  ///
+  /// In en, this message translates to:
+  /// **'No goal for this note'**
+  String get editorWordGoalNoGoalForNote;
+
+  /// No description provided for @editorWordGoalCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom…'**
+  String get editorWordGoalCustom;
+
+  /// No description provided for @editorWordGoalCustomTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom word goal'**
+  String get editorWordGoalCustomTitle;
+
+  /// No description provided for @editorWordGoalCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Words, such as 1,500 or 1.5k'**
+  String get editorWordGoalCustomHint;
+
+  /// No description provided for @editorWordGoalInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a word goal from 1 to 1,000,000.'**
+  String get editorWordGoalInvalid;
+
+  /// No description provided for @editorWordGoalCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get editorWordGoalCancel;
+
+  /// No description provided for @editorWordGoalSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Set goal'**
+  String get editorWordGoalSave;
 }
 
 class _AppLocalizationsDelegate

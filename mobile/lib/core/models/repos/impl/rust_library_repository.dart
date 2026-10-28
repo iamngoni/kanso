@@ -27,6 +27,27 @@ class RustLibraryRepository implements LibraryRepository {
   final ExternalChanges _external;
 
   @override
+  Future<Either<ApplicationError, int?>> defaultWordGoal() =>
+      attempt(_library.defaultWordGoal);
+
+  @override
+  Future<Either<ApplicationError, int?>> setDefaultWordGoal(int? goal) =>
+      attempt(() => _library.setDefaultWordGoal(goal: goal));
+
+  @override
+  Future<Either<ApplicationError, GoalSetting>> noteWordGoal(String id) =>
+      attempt(() => _library.noteWordGoal(id: id));
+
+  @override
+  Future<Either<ApplicationError, Unit>> setNoteWordGoal(
+    String id,
+    GoalSetting setting,
+  ) => attempt(() async {
+    await _library.setNoteWordGoal(id: id, setting: setting);
+    return unit;
+  });
+
+  @override
   Future<Either<ApplicationError, NoteList>> list(ListQuery query) =>
       attempt(() => _library.list(query: query));
 

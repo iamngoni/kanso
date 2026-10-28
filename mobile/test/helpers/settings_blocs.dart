@@ -24,6 +24,7 @@ import 'package:kanso/settings/state/about/about_bloc.dart';
 import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart';
 import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
 import 'package:kanso/settings/state/sync_settings/sync_settings_bloc.dart';
+import 'package:kanso/settings/state/word_goal_settings/word_goal_settings_bloc.dart';
 import 'package:kanso/templates/state/daily_template/daily_template_bloc.dart';
 
 import 'close_bloc_later.dart';
@@ -51,6 +52,7 @@ class SettingsBlocs {
     this.account,
     this.index,
     this.defaultNotebook,
+    this.wordGoal,
     this.session,
     this.device,
     this.lock,
@@ -69,6 +71,7 @@ class SettingsBlocs {
   /// The notebooks of the mock library.
   final LibraryIndexBloc index;
   final DefaultNotebookBloc defaultNotebook;
+  final WordGoalSettingsBloc wordGoal;
 
   /// The lock session and the phone's biometrics (see
   /// [FixtureSessionRepository]), and the BLoCs over them.
@@ -117,6 +120,9 @@ class SettingsBlocs {
     final defaultNotebook = DefaultNotebookBloc(preferencesRepository)
       ..add(const DefaultNotebookEvent.started());
     closeBlocLater(defaultNotebook);
+    final wordGoal = WordGoalSettingsBloc(fixture)
+      ..add(const WordGoalSettingsEvent.started());
+    closeBlocLater(wordGoal);
     if (about.state.status != LoadStatus.ready) {
       await about.stream.firstWhere(
         (state) => state.status == LoadStatus.ready,
@@ -128,6 +134,11 @@ class SettingsBlocs {
     if (index.state.status == LibraryIndexStatus.loading) {
       await index.stream.firstWhere(
         (state) => state.status != LibraryIndexStatus.loading,
+      );
+    }
+    if (wordGoal.state.status != LoadStatus.ready) {
+      await wordGoal.stream.firstWhere(
+        (state) => state.status == LoadStatus.ready,
       );
     }
     // Its reading is a few turns of the event loop; a seed that is the
@@ -191,6 +202,7 @@ class SettingsBlocs {
       seeded,
       index,
       defaultNotebook,
+      wordGoal,
       lockSession,
       lockDevice,
       lock,
@@ -212,6 +224,7 @@ class SettingsBlocs {
     BlocProvider<AccountBloc>.value(value: account),
     BlocProvider<LibraryIndexBloc>.value(value: index),
     BlocProvider<DefaultNotebookBloc>.value(value: defaultNotebook),
+    BlocProvider<WordGoalSettingsBloc>.value(value: wordGoal),
     BlocProvider<LockStatusBloc>.value(value: lock),
     BlocProvider<BiometricsBloc>.value(value: biometrics),
     BlocProvider<DailyTemplateBloc>.value(value: dailyTemplate),

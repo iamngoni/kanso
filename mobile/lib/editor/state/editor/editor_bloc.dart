@@ -55,6 +55,10 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
       _onPropertyRemoved,
       transformer: sequential(),
     );
+    on<EditorWordGoalChangedEvent>(
+      _onWordGoalChanged,
+      transformer: sequential(),
+    );
     on<EditorKeepMineRequestedEvent>(_onKeepMine, transformer: droppable());
     on<EditorUseTheirsRequestedEvent>(_onUseTheirs, transformer: droppable());
     on<EditorFlushRequestedEvent>(_onFlush, transformer: sequential());
@@ -125,28 +129,46 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
       unawaited(document.close());
       return;
     }
-    read.fold(
-      (error) {
-        unawaited(document.close());
-        emit(_unavailable(event.noteId, error));
-      },
-      (snapshot) {
-        _document = document;
-        _events = document.events().listen(
-          (signal) => add(EditorEvent.signalReceived(signal)),
-          onError: (Object _) {},
-        );
-        emit(
-          EditorState(
-            noteId: event.noteId,
-            status: EditorStatus.ready,
-            document: document,
-            snapshot: snapshot,
-            save: snapshot.save,
-            properties: snapshot.properties,
-          ),
-        );
-      },
+    final snapshotError = read.fold<ApplicationError?>(
+      (error) => error,
+      (_) => null,
+    );
+    if (snapshotError != null) {
+      unawaited(document.close());
+      emit(_unavailable(event.noteId, snapshotError));
+      return;
+    }
+    final snapshot = read.fold<EditorSnapshot?>((_) => null, (value) => value);
+    if (snapshot == null) {
+      unawaited(document.close());
+      emit(
+        _unavailable(
+          event.noteId,
+          const InternalError(message: 'No editor snapshot.'),
+        ),
+      );
+      return;
+    }
+    _document = document;
+    _events = document.events().listen(
+      (signal) => add(EditorEvent.signalReceived(signal)),
+      onError: (Object _) {},
+    );
+    final defaultGoal = await document.defaultWordGoal();
+    final effectiveGoal = await document.effectiveWordGoal();
+    emit(
+      EditorState(
+        noteId: event.noteId,
+        status: EditorStatus.ready,
+        document: document,
+        snapshot: snapshot,
+        save: snapshot.save,
+        properties: snapshot.properties,
+        wordGoalSetting: snapshot.wordGoal,
+        defaultWordGoal: defaultGoal.getOrElse(() => null),
+        effectiveWordGoal: effectiveGoal.getOrElse(() => null),
+        wordGoalError: defaultGoal.fold((error) => error, (_) => null),
+      ),
     );
   }
 
@@ -179,11 +201,18 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
       case core.EditorEvent_Incoming(:final deleted):
         emit(state.copyWith(save: SaveState.conflict(deleted: deleted)));
       case core.EditorEvent_Reloaded(:final snapshot):
+        final effectiveGoal = switch (snapshot.wordGoal) {
+          core.GoalSetting_Default() => state.defaultWordGoal,
+          core.GoalSetting_Off() => null,
+          core.GoalSetting_Words(:final field0) => field0,
+        };
         emit(
           state.copyWith(
             snapshot: snapshot,
             save: snapshot.save,
             properties: snapshot.properties,
+            wordGoalSetting: snapshot.wordGoal,
+            effectiveWordGoal: effectiveGoal,
             completion: null,
             reloadSeq: state.reloadSeq + 1,
           ),
@@ -269,6 +298,39 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
       return;
     }
     _adoptProperties(await document.removeProperty(event.index), emit);
+  }
+
+  Future<void> _onWordGoalChanged(
+    EditorWordGoalChangedEvent event,
+    Emitter<EditorState> emit,
+  ) async {
+    final document = _document;
+    if (document == null || state.status != EditorStatus.ready) {
+      return;
+    }
+    final saved = await document.setWordGoal(event.setting);
+    final error = saved.fold<ApplicationError?>(
+      (problem) => problem,
+      (_) => null,
+    );
+    if (error != null) {
+      emit(state.copyWith(wordGoalError: error));
+      return;
+    }
+    final effective = await document.effectiveWordGoal();
+    effective.fold(
+      (problem) => emit(state.copyWith(wordGoalError: problem)),
+      (goal) => emit(
+        state.copyWith(
+          wordGoalSetting: event.setting,
+          effectiveWordGoal: goal,
+          wordGoalError: null,
+          save: state.save is SaveState_Conflict
+              ? state.save
+              : const SaveState.pending(),
+        ),
+      ),
+    );
   }
 
   void _adoptProperties(

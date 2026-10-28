@@ -9,6 +9,10 @@
 
 use crate::sync_model::{QuotaLimit, SignOutReasonKind, SyncAccount};
 
+/// A note's own word-goal setting: use the library default, turn the goal
+/// off, or set a note-specific word count.
+pub use kanso_engine::word_goal::GoalSetting;
+
 /// One note in a list.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoteRow {
@@ -1256,6 +1260,9 @@ pub struct EditorSnapshot {
     pub selection: Range16,
     pub history: HistoryState,
     pub save: SaveState,
+    /// The note's own goal setting. `Default` means the library setting
+    /// applies.
+    pub word_goal: GoalSetting,
 }
 
 /// Something that happened to an open note that the shell didn't ask for.

@@ -57,6 +57,9 @@ class FixtureLibraryRepository implements LibraryRepository {
 
   /// What `overdueTasks` answers.
   int overdueValue = mockOverdueTasks;
+  int? wordGoalDefault;
+  GoalSetting noteWordGoalValue = const GoalSetting.default_();
+  ApplicationError? wordGoalError;
 
   /// What `setTask` answers.
   Either<ApplicationError, Ticked> setTaskResult =
@@ -115,6 +118,35 @@ class FixtureLibraryRepository implements LibraryRepository {
       StreamController<List<String>>.broadcast();
 
   Future<void> close() => changeStream.close();
+
+  @override
+  Future<Either<ApplicationError, int?>> defaultWordGoal() async =>
+      wordGoalError == null
+      ? Right<ApplicationError, int?>(wordGoalDefault)
+      : Left<ApplicationError, int?>(wordGoalError!);
+
+  @override
+  Future<Either<ApplicationError, int?>> setDefaultWordGoal(int? goal) async {
+    final error = wordGoalError;
+    if (error != null) {
+      return Left<ApplicationError, int?>(error);
+    }
+    wordGoalDefault = goal;
+    return Right<ApplicationError, int?>(goal);
+  }
+
+  @override
+  Future<Either<ApplicationError, GoalSetting>> noteWordGoal(String id) async =>
+      Right<ApplicationError, GoalSetting>(noteWordGoalValue);
+
+  @override
+  Future<Either<ApplicationError, Unit>> setNoteWordGoal(
+    String id,
+    GoalSetting setting,
+  ) async {
+    noteWordGoalValue = setting;
+    return const Right<ApplicationError, Unit>(unit);
+  }
 
   @override
   Future<Either<ApplicationError, NoteList>> list(ListQuery query) async {

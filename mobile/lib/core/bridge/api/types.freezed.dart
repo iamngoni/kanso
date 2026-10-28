@@ -2816,6 +2816,302 @@ as String,
 }
 
 /// @nodoc
+mixin _$GoalSetting {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoalSetting);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'GoalSetting()';
+}
+
+
+}
+
+/// @nodoc
+class $GoalSettingCopyWith<$Res>  {
+$GoalSettingCopyWith(GoalSetting _, $Res Function(GoalSetting) __);
+}
+
+
+/// Adds pattern-matching-related methods to [GoalSetting].
+extension GoalSettingPatterns on GoalSetting {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( GoalSetting_Default value)?  default_,TResult Function( GoalSetting_Off value)?  off,TResult Function( GoalSetting_Words value)?  words,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case GoalSetting_Default() when default_ != null:
+return default_(_that);case GoalSetting_Off() when off != null:
+return off(_that);case GoalSetting_Words() when words != null:
+return words(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( GoalSetting_Default value)  default_,required TResult Function( GoalSetting_Off value)  off,required TResult Function( GoalSetting_Words value)  words,}){
+final _that = this;
+switch (_that) {
+case GoalSetting_Default():
+return default_(_that);case GoalSetting_Off():
+return off(_that);case GoalSetting_Words():
+return words(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( GoalSetting_Default value)?  default_,TResult? Function( GoalSetting_Off value)?  off,TResult? Function( GoalSetting_Words value)?  words,}){
+final _that = this;
+switch (_that) {
+case GoalSetting_Default() when default_ != null:
+return default_(_that);case GoalSetting_Off() when off != null:
+return off(_that);case GoalSetting_Words() when words != null:
+return words(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  default_,TResult Function()?  off,TResult Function( int field0)?  words,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case GoalSetting_Default() when default_ != null:
+return default_();case GoalSetting_Off() when off != null:
+return off();case GoalSetting_Words() when words != null:
+return words(_that.field0);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  default_,required TResult Function()  off,required TResult Function( int field0)  words,}) {final _that = this;
+switch (_that) {
+case GoalSetting_Default():
+return default_();case GoalSetting_Off():
+return off();case GoalSetting_Words():
+return words(_that.field0);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  default_,TResult? Function()?  off,TResult? Function( int field0)?  words,}) {final _that = this;
+switch (_that) {
+case GoalSetting_Default() when default_ != null:
+return default_();case GoalSetting_Off() when off != null:
+return off();case GoalSetting_Words() when words != null:
+return words(_that.field0);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class GoalSetting_Default extends GoalSetting {
+  const GoalSetting_Default(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoalSetting_Default);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'GoalSetting.default_()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class GoalSetting_Off extends GoalSetting {
+  const GoalSetting_Off(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoalSetting_Off);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'GoalSetting.off()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class GoalSetting_Words extends GoalSetting {
+  const GoalSetting_Words(this.field0): super._();
+  
+
+ final  int field0;
+
+/// Create a copy of GoalSetting
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$GoalSetting_WordsCopyWith<GoalSetting_Words> get copyWith => _$GoalSetting_WordsCopyWithImpl<GoalSetting_Words>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GoalSetting_Words&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'GoalSetting.words(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $GoalSetting_WordsCopyWith<$Res> implements $GoalSettingCopyWith<$Res> {
+  factory $GoalSetting_WordsCopyWith(GoalSetting_Words value, $Res Function(GoalSetting_Words) _then) = _$GoalSetting_WordsCopyWithImpl;
+@useResult
+$Res call({
+ int field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$GoalSetting_WordsCopyWithImpl<$Res>
+    implements $GoalSetting_WordsCopyWith<$Res> {
+  _$GoalSetting_WordsCopyWithImpl(this._self, this._then);
+
+  final GoalSetting_Words _self;
+  final $Res Function(GoalSetting_Words) _then;
+
+/// Create a copy of GoalSetting
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(GoalSetting_Words(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$GraphFilter {
 
 

@@ -28,3 +28,4 @@ pub mod shared;
 pub mod shortcuts;
 pub mod sync;
 pub mod types;
+pub mod word_goal;

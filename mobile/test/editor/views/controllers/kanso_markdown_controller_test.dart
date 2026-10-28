@@ -156,6 +156,7 @@ void main() {
           selection: outside.selection,
           history: outside.history,
           save: outside.save,
+          wordGoal: outside.wordGoal,
         ),
       );
       await tester.pump();

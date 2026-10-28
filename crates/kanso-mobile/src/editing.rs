@@ -69,6 +69,7 @@ use kanso_engine::lock::LockView;
 use kanso_engine::saving::{Autosave, has_text, same_content, text_caught_up, writes_the_same};
 use kanso_engine::text::Utf16Index;
 use kanso_engine::theme::CURSOR_COLOURS;
+use kanso_engine::word_goal::{self, GoalSetting};
 use kanso_store::{Change, Origin, Put, StoreError};
 use zeroize::Zeroize;
 
@@ -164,6 +165,35 @@ impl Editors {
         let mut sessions = held(&self.sessions);
         sessions.retain(|session| session.strong_count() > 0);
         sessions.iter().filter_map(Weak::upgrade).collect()
+    }
+
+    /// Updates an already-open session so its normal autosave remains the
+    /// sole writer for that note.
+    pub(crate) fn set_goal_if_open(
+        &self,
+        id: &str,
+        setting: GoalSetting,
+    ) -> Result<bool, KansoError> {
+        let session = self.live().into_iter().find(|session| session.id == id);
+        if let Some(shared) = session {
+            EditorSession { shared }.set_word_goal(setting)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// The current goal setting of an open note, including unsaved editor
+    /// changes.
+    pub(crate) fn goal_if_open(&self, id: &str) -> Result<Option<GoalSetting>, KansoError> {
+        let session = self.live().into_iter().find(|session| session.id == id);
+        session
+            .map(|shared| {
+                EditorSession { shared }
+                    .shared
+                    .run(|st, _| Ok(st.word_goal))
+            })
+            .transpose()
     }
 
     fn register(&self, session: &Arc<Shared>) {
@@ -367,6 +397,9 @@ struct State {
     text: String,
     index: Utf16Index,
     title: String,
+    /// The requested note goal, saved with the note on the normal autosave
+    /// path.
+    word_goal: GoalSetting,
     /// The selection in `text`, in bytes.
     selection: Range<usize>,
     /// Whether an input method is composing text.
@@ -437,6 +470,35 @@ impl EditorSession {
     /// The note as it is now.
     pub fn snapshot(&self) -> Result<EditorSnapshot, KansoError> {
         guard(|| self.shared.run(|st, _| Ok(st.snapshot())))
+    }
+
+    /// The goal that applies after combining this note's setting with the
+    /// library default.
+    pub fn effective_word_goal(&self) -> Result<Option<u32>, KansoError> {
+        guard(|| {
+            let setting = self.shared.run(|st, _| Ok(st.word_goal))?;
+            let default = crate::word_goals::read_default(&self.shared.inner.store)?;
+            Ok(word_goal::effective_goal(setting, default))
+        })
+    }
+
+    /// The library default visible to this editor.
+    pub fn default_word_goal(&self) -> Result<Option<u32>, KansoError> {
+        guard(|| crate::word_goals::read_default(&self.shared.inner.store))
+    }
+
+    /// Sets this note's goal through the editor's ordinary autosave path.
+    pub fn set_word_goal(&self, setting: GoalSetting) -> Result<(), KansoError> {
+        guard(|| {
+            crate::word_goals::validate_note_goal(setting)?;
+            self.shared.run(|st, _| {
+                if st.word_goal != setting {
+                    st.word_goal = setting;
+                    self.shared.touched(st);
+                }
+                Ok(())
+            })
+        })
     }
 
     /// The shell's field changed. Hot path.
@@ -898,9 +960,11 @@ impl EditorSession {
 impl State {
     fn new(note: Note, lock: LockView) -> State {
         let (hidden, text) = split_front(&note.body);
+        let word_goal = word_goal::note_goal(&note);
         State {
             index: Utf16Index::new(&text),
             title: note.title.clone(),
+            word_goal,
             save: SaveState::Saved {
                 rev: note.rev.clone().unwrap_or_default(),
                 at_ms: note.updated_at,
@@ -934,6 +998,7 @@ impl State {
     /// Whether the title or the text differ from the note as last saved.
     fn unsaved(&self) -> bool {
         self.title != self.note.title
+            || self.word_goal != word_goal::note_goal(&self.note)
             || self
                 .note
                 .body
@@ -970,6 +1035,7 @@ impl State {
             selection: self.range16(&self.selection),
             history: self.history_state(),
             save: self.save.clone(),
+            word_goal: self.word_goal,
         }
     }
 
@@ -1634,12 +1700,14 @@ impl Shared {
         }
         let caret = typing.then(|| st.hidden.len() + st.selection.end);
         let inline = st.lock == LockView::Plain;
+        let word_goal = st.word_goal;
         let store = self.inner.store.clone();
         let base = st.note.clone();
         Some(self.job(
             st,
             base,
             move |note| {
+                word_goal::set_note_goal(note, word_goal);
                 if inline {
                     apply_inline_tags(&store, note, caret);
                 }
@@ -2146,6 +2214,7 @@ impl Shared {
         st.autosave.saved();
         st.incoming = None;
         st.save = saved_as(&note);
+        st.word_goal = word_goal::note_goal(&note);
         st.note = note;
         st.version += 1;
     }

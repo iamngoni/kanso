@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import '../../../capture/models/data/capture_first_row.dart';
 import '../../../capture/views/widgets/capture_sheet.dart';
 import '../../../core/bridge/api/types.dart' hide EditorEvent;
+import '../../../core/bridge/api/word_goal.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
@@ -29,6 +30,7 @@ import '../../../shell/state/note_creation/note_creation_bloc.dart';
 import '../../models/data/editor_destination.dart';
 import '../../models/data/flush_reason.dart';
 import '../../models/data/outside_side.dart';
+import '../../models/data/word_goal_choice.dart';
 import '../../models/repos/abs/editor_repository.dart';
 import '../../state/editor/editor_bloc.dart';
 import '../controllers/kanso_markdown_controller.dart';
@@ -38,12 +40,14 @@ import 'editor_destination_scope.dart';
 import 'editor_failure_strip.dart';
 import 'editor_shortcuts.dart';
 import 'editor_title_field.dart';
+import 'editor_word_goal_footer.dart';
 import 'keyboard_accessory_bar.dart';
 import 'link_context_menu.dart';
 import 'markdown_editor.dart';
 import 'outside_text.dart';
 import 'properties_section.dart';
 import 'remote_carets.dart';
+import 'word_goal_picker_sheet.dart';
 
 /// The open note's editor: the strips for a change made elsewhere or a
 /// failed save, the title, the properties, and the text, in one page that
@@ -102,6 +106,8 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   final GlobalKey<EditableTextState> editableKey =
       GlobalKey<EditableTextState>();
   late final AppLifecycleListener lifecycle;
+  late final ValueNotifier<int> wordCount;
+  Timer? wordCountTimer;
   EditorContext? lastContext;
 
   /// The note's comments, where the page has them.
@@ -164,6 +170,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       ),
     )..onWindowWillMove = anchorAt;
     controller.addListener(keepPlace);
+    wordCount = ValueNotifier<int>(
+      wordGoalWordCount(text: widget.snapshot.text),
+    );
+    controller.addListener(scheduleWordCount);
     title = TextEditingController(text: widget.snapshot.title);
     textFocus = FocusNode(debugLabel: 'Note text');
     titleFocus = FocusNode(debugLabel: 'Note title');
@@ -296,6 +306,9 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       );
     }
     scroll.dispose();
+    wordCountTimer?.cancel();
+    controller.removeListener(scheduleWordCount);
+    wordCount.dispose();
     titleFocus.dispose();
     textFocus.dispose();
     title.dispose();
@@ -306,6 +319,42 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   void onTitleChanged(String text) {
     widget.document.setTitle(text);
     editor.add(const EditorEvent.edited());
+  }
+
+  /// Debounces Markdown counting while a long note is being typed in.
+  void scheduleWordCount() {
+    wordCountTimer?.cancel();
+    wordCountTimer = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        wordCount.value = wordGoalWordCount(text: controller.text);
+      }
+    });
+  }
+
+  Future<void> chooseWordGoal(EditorState state) async {
+    final setting = state.wordGoalSetting;
+    if (setting == null) {
+      return;
+    }
+    final current = switch (setting) {
+      GoalSetting_Default() => const WordGoalDefault(),
+      GoalSetting_Off() => const WordGoalOff(),
+      GoalSetting_Words(:final field0) => WordGoalWords(field0),
+    };
+    final picked = await WordGoalPickerSheet.show(
+      context,
+      setting: current,
+      defaultGoal: state.defaultWordGoal,
+    );
+    if (!mounted || picked == null) {
+      return;
+    }
+    final selected = switch (picked) {
+      WordGoalDefault() => const GoalSetting.default_(),
+      WordGoalOff() => const GoalSetting.off(),
+      WordGoalWords(:final words) => GoalSetting.words(words),
+    };
+    editor.add(EditorEvent.wordGoalChanged(selected));
   }
 
   void focusText() {
@@ -463,6 +512,16 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
             controller
               ..themeId = state.themeId
               ..requestRuns();
+          },
+        ),
+        BlocListener<EditorBloc, EditorState>(
+          listenWhen: (before, now) =>
+              before.wordGoalError != now.wordGoalError &&
+              now.wordGoalError != null,
+          listener: (context, state) {
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              SnackBar(content: Text(state.wordGoalError!.message)),
+            );
           },
         ),
       ],
@@ -724,6 +783,20 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+            BlocBuilder<EditorBloc, EditorState>(
+              buildWhen: (before, now) =>
+                  before.wordGoalSetting != now.wordGoalSetting ||
+                  before.defaultWordGoal != now.defaultWordGoal ||
+                  before.effectiveWordGoal != now.effectiveWordGoal,
+              builder: (context, state) => ValueListenableBuilder<int>(
+                valueListenable: wordCount,
+                builder: (context, count, _) => EditorWordGoalFooter(
+                  words: count,
+                  goal: state.effectiveWordGoal,
+                  onTap: readOnly ? null : () => chooseWordGoal(state),
                 ),
               ),
             ),

@@ -16,9 +16,9 @@ pub use kanso_mobile::{
     CursorMark, DateField, DayDate, DeviceRow, DiagramKind, DiagramRenderer, DiscoveryMeasure,
     DropsSaved, DueChipRow, DueTone, EditCommand, EditOutcome, EditorContext, EditorEvent,
     EditorRun, EditorSnapshot, ExportedPage, FoldState, FormatKind, GalleryColors, GalleryItem,
-    GalleryKind, GraphEdgeRow, GraphFilter, GraphLayout, GraphNodeRow, GraphRequest, HistoryState,
-    Hit, IconChoice, IconThemeRow, ImageToRead, ImportEvent, ImportFound, ImportPhase,
-    ImportProgress, ImportSource, ImportSummary, InvitationRow, JoinRow, KansoError,
+    GalleryKind, GoalSetting, GraphEdgeRow, GraphFilter, GraphLayout, GraphNodeRow, GraphRequest,
+    HistoryState, Hit, IconChoice, IconThemeRow, ImageToRead, ImportEvent, ImportFound,
+    ImportPhase, ImportProgress, ImportSource, ImportSummary, InvitationRow, JoinRow, KansoError,
     LibraryOverview, LinkTarget, LinkedProviderRow, ListPlace, ListQuery, ListShape, LiveStatus,
     LocalTime, LockEvent, LockReason, LockState, LockStatus, LockedInfo, MadeNote, MeaningResult,
     MemberRow, MentionSpan, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning, NoteRow,
@@ -48,6 +48,13 @@ pub enum _KansoError {
     SignedOut,
     Auth { message: String },
     Internal { message: String },
+}
+
+#[frb(mirror(GoalSetting))]
+pub enum _GoalSetting {
+    Default,
+    Off,
+    Words(u32),
 }
 
 #[frb(mirror(NoteRow))]
@@ -1262,6 +1269,7 @@ pub struct _EditorSnapshot {
     pub selection: Range16,
     pub history: HistoryState,
     pub save: SaveState,
+    pub word_goal: GoalSetting,
 }
 
 #[frb(mirror(EditorEvent))]
