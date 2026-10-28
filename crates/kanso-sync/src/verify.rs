@@ -261,7 +261,7 @@ pub fn verify(
             continue;
         }
         if !doc.deleted && is_file_id(id) {
-            let Some((_, blob)) = store.attachment(id)? else {
+            let Some(blob) = store.stored_attachment(id)? else {
                 report.missing += 1;
                 continue;
             };
@@ -312,7 +312,7 @@ fn repair_one(
     };
     if !bumped.deleted
         && is_file_id(&bumped.id)
-        && let Some((_, blob)) = store.attachment(&bumped.id)?
+        && let Some(blob) = store.stored_attachment(&bumped.id)?
     {
         sealed.put_file(&bumped.id, &blob.data)?;
     }
@@ -376,8 +376,9 @@ fn check_legacy(
                 let bytes = if is_file_id(&row.id) {
                     match &row.md5digest {
                         Some(md5) => store.has_blob(&row.id, &md5.to_ascii_lowercase())?,
-                        None => match (store.blob_md5(&row.id)?, store.attachment(&row.id)?) {
-                            (Some(recorded), Some((_, blob))) => md5_hex(&blob.data) == recorded,
+                        None => match (store.blob_md5(&row.id)?, store.stored_attachment(&row.id)?)
+                        {
+                            (Some(recorded), Some(blob)) => md5_hex(&blob.data) == recorded,
                             _ => false,
                         },
                     }
@@ -416,7 +417,7 @@ pub fn estimate(store: &Store) -> Result<Estimate, StoreError> {
         }
         estimate.docs += 1;
         if is_file_id(&doc.id)
-            && let Some((_, blob)) = store.attachment(&doc.id)?
+            && let Some(blob) = store.stored_attachment(&doc.id)?
         {
             estimate.files += 1;
             estimate.file_bytes += blob.data.len() as u64 + SEAL_OVERHEAD as u64 + FILE_ROW_COST;

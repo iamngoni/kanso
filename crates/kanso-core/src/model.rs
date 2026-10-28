@@ -48,6 +48,50 @@ pub const LOCK_FIELD: &str = "kansoLock";
 /// the sealed bytes, so sync keeps working unchanged. Only the app sets it.
 pub const FILE_LOCK_FIELD: &str = "kansoFileLock";
 
+/// The file field a deliberate unseal leaves for sync: `{"seal": "<b64 16>"}`.
+/// It distinguishes an app unseal from an older device replaying plaintext.
+pub const UNSEALED_FIELD: &str = "kansoUnsealed";
+
+/// App-only note field recording the sealed attachments owned by that note.
+/// An empty list means ownership was checked and the note owns no files;
+/// absence means an older writer may not have recorded ownership.
+pub const KANSO_FILES_FIELD: &str = "kansoFiles";
+
+/// A sealed attachment key wrapped by its owning note's lock key.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteFile {
+    /// The full `file:…` document ID.
+    pub file: String,
+    /// Ownership record version, currently 1.
+    pub v: u8,
+    /// Base64url encoded 16-byte seal ID.
+    pub seal: String,
+    /// Base64 wrapped attachment key.
+    pub key: String,
+    /// Future app fields round-trip without being interpreted.
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+/// Read the checked attachment ownership list; `None` means legacy/unknown.
+pub fn note_files_from_extra(extra: &Map<String, Value>) -> Option<Vec<NoteFile>> {
+    extra
+        .get(KANSO_FILES_FIELD)
+        .and_then(|value| serde_json::from_value::<Vec<NoteFile>>(value.clone()).ok())
+}
+
+/// Store or clear the attachment ownership list in app-only extra fields.
+pub fn store_note_files(files: Option<&[NoteFile]>, extra: &mut Map<String, Value>) {
+    if let Some(files) = files {
+        if let Ok(value) = serde_json::to_value(files) {
+            extra.insert(KANSO_FILES_FIELD.to_owned(), value);
+        }
+    } else {
+        extra.remove(KANSO_FILES_FIELD);
+    }
+}
+
 /// The note field (in `extra`) marking a shared note (docs/ACCOUNTS.md ›
 /// Collaboration): `{"shareId", "role", "owner", "ownerName"}`. Its text
 /// is the shared note's CRDT's, written back by `kanso-collab`; private sync
@@ -447,6 +491,24 @@ mod tests {
         assert!(FileLock::from_extra(&extra).is_some());
         FileLock::store(None, &mut extra);
         assert!(FileLock::from_extra(&extra).is_none());
+    }
+
+    #[test]
+    fn note_file_lists_distinguish_legacy_from_checked_empty_and_keep_unknowns() {
+        let mut extra = Map::new();
+        assert!(note_files_from_extra(&extra).is_none());
+        store_note_files(Some(&[]), &mut extra);
+        assert_eq!(note_files_from_extra(&extra), Some(Vec::new()));
+
+        extra.insert(
+            KANSO_FILES_FIELD.into(),
+            json!([{"file":"file:a", "v":1, "seal":"AAAAAAAAAAAAAAAAAAAAAA", "key":"wrapped", "future":true}]),
+        );
+        let parsed = note_files_from_extra(&extra).unwrap();
+        assert_eq!(parsed[0].extra["future"], true);
+        let mut rewritten = Map::new();
+        store_note_files(Some(&parsed), &mut rewritten);
+        assert_eq!(rewritten[KANSO_FILES_FIELD][0]["future"], true);
     }
 
     #[test]

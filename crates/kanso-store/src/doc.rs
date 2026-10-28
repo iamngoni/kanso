@@ -68,6 +68,9 @@ impl Doc {
     pub fn to_served(&self, extra: Map<String, Value>) -> Value {
         let mut out = self.to_api(extra);
         if let Some(fields) = out.as_object_mut() {
+            if self.doc_type == DocType::Note {
+                fields.remove(kanso_core::model::KANSO_FILES_FIELD);
+            }
             let sealed = fields.remove(kanso_core::model::LOCK_FIELD).is_some();
             if self.doc_type == DocType::Note && (sealed || self.in_locked_notebook) {
                 fields.insert("body".into(), Value::String(String::new()));
@@ -75,9 +78,9 @@ impl Doc {
                 fields.insert("numOfCheckedTasks".into(), 0.into());
             }
             if self.doc_type == DocType::File {
-                // A sealed file's marker is app-only: served files never
-                // carry `kansoFileLock`, only the ordinary fields.
+                // Sealing and deliberate-unseal markers are app-only.
                 fields.remove(kanso_core::model::FILE_LOCK_FIELD);
+                fields.remove(kanso_core::model::UNSEALED_FIELD);
             }
         }
         out
@@ -86,12 +89,15 @@ impl Doc {
     /// The API form of a file document. With `data`, the attachment carries its
     /// base64 bytes; otherwise it is a stub, as in CouchDB.
     pub fn file_to_api(&self, content_type: &str, attachment: &Attachment, data: bool) -> Value {
+        let locked = self.fields.contains_key(kanso_core::model::FILE_LOCK_FIELD);
         let mut index = json!({
             "content_type": content_type,
             "digest": attachment.digest(),
             "length": attachment.data.len(),
         });
-        if data {
+        // The local API is lock-blind: a sealed file is always a stub, even
+        // when a caller asks for its bytes and even while the app is open.
+        if data && !locked {
             index["data"] =
                 Value::String(base64::engine::general_purpose::STANDARD.encode(&attachment.data));
         } else {
@@ -100,10 +106,16 @@ impl Doc {
         let mut extra = Map::new();
         extra.insert("_attachments".into(), json!({ "index": index }));
         let mut out = self.to_api(extra);
-        // `kansoFileLock` is app-only: the API's file form never carries
-        // the marker, with or without the bytes.
         if let Some(fields) = out.as_object_mut() {
+            if locked {
+                fields.insert("locked".into(), Value::Bool(true));
+                // Sealed attachments never expose their OCR text, even if an
+                // older writer left a copy in the document.
+                fields.remove(kanso_core::model::OCR_FIELD);
+            }
+            // Both are app-only sync/lock bookkeeping, never API fields.
             fields.remove(kanso_core::model::FILE_LOCK_FIELD);
+            fields.remove(kanso_core::model::UNSEALED_FIELD);
         }
         out
     }

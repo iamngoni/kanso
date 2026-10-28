@@ -7,7 +7,10 @@ use axum::http::{Method, Request, StatusCode, header};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use common::*;
+use kanso_core::DocType;
+use kanso_core::model::FileLock;
 use kanso_server::basic_header;
+use kanso_store::{Attachment, Origin, Put};
 use serde_json::{Value, json};
 
 fn mcp_request(body: &str, extra: &[(&str, &str)]) -> Request<Body> {
@@ -1289,4 +1292,52 @@ fn hash_of(store: &kanso_store::Store, id: &str) -> String {
         .find(|pending| pending.id == id)
         .unwrap()
         .hash
+}
+
+#[tokio::test]
+async fn mcp_never_returns_sealed_attachment_bytes_or_exports_them() {
+    let app = app();
+    let canary = b"mcp-sealed-canary-8421";
+    let encoded = STANDARD.encode(canary);
+    let file = app
+        .store
+        .put(
+            DocType::File,
+            json!({
+                "_id":"file:mcpsealed", "name":"secret.png", "contentType":"image/png",
+                "_attachments":{"index":{"content_type":"image/png","data":encoded}}
+            }),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap();
+    let mut meta = app.store.file_meta(&file.id).unwrap().unwrap();
+    FileLock::store(
+        Some(&FileLock::sealed("AAAAAAAAAAAAAAAAAAAAAA".into())),
+        &mut meta.extra,
+    );
+    let container = b"opaque-sealed-container";
+    app.store
+        .put_sealed_file(meta, Attachment::new(container.to_vec()))
+        .unwrap();
+    let note = app
+        .store
+        .put(
+            DocType::Note,
+            json!({
+                "_id":"note:mcpsealed", "title":"Sealed file", "bookId":"trash",
+                "body":format!("![secret](inkdrop://{})", file.id)
+            }),
+            Put::Upsert,
+            Origin::Sync,
+        )
+        .unwrap();
+    let read = tool(&app.router, "read-file", json!({"fileId": file.id})).await;
+    assert_eq!(
+        text(&read, 0),
+        "That attachment is in a locked note. Open the note in Kanso and unlock it to use the file."
+    );
+    assert!(!read.to_string().contains(&encoded));
+    let export = tool(&app.router, "kanso-export-html", json!({"noteId": note.id})).await;
+    assert!(!text(&export, 0).contains(&encoded));
 }

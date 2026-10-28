@@ -1,18 +1,20 @@
-//! Tables derived from note bodies: links, headings and tasks.
+//! Tables derived from note bodies and sealed-note metadata: links, headings,
+//! tasks and attachment ownership.
 //!
 //! They are local to this device: rebuilt from the bodies here, kept current
 //! by every write ([`write_note`], from `store_row`), never synced, and
 //! emptied with the library. When the way they are derived changes,
 //! [`DERIVED_VERSION`] moves on and [`rebuild_if_stale`] fills them again
-//! from the bodies when the store opens.
+//! from the bodies and note fields when the store opens.
 
 use kanso_core::links::{
     LinkTarget, line_text, mention_lines, normalize_title, note_links, plain_line,
     retitle_wiki_links,
 };
+use kanso_core::model::{LOCK_FIELD, note_files_from_extra};
 use kanso_core::now_ms;
 use kanso_core::outline::{Heading, headings};
-use kanso_core::tasks::task_items;
+use kanso_core::tasks::{linked_file_ids, task_items};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Map, Value};
 
@@ -21,11 +23,11 @@ use crate::{Origin, Result, Store, schema};
 
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
-/// Changes whenever links, headings or tasks are derived differently.
-pub const DERIVED_VERSION: &str = "1";
+/// Changes whenever a derived table's source or derivation changes.
+pub const DERIVED_VERSION: &str = "2";
 
 /// The tables, for emptying them.
-pub(crate) const TABLES: [&str; 3] = ["note_links", "note_headings", "note_tasks"];
+pub(crate) const TABLES: [&str; 4] = ["note_links", "note_headings", "note_tasks", "note_files"];
 
 /// How long a backlink's or mention's context line gets, in characters.
 const CONTEXT_CHARS: usize = 160;
@@ -59,6 +61,8 @@ pub(crate) fn write_note(
     conn: &Connection,
     id: &str,
     fields: Option<&Map<String, Value>>,
+    ownership_fields: Option<&Map<String, Value>>,
+    in_locked_notebook: bool,
 ) -> Result<()> {
     for table in TABLES {
         conn.execute(&format!("DELETE FROM {table} WHERE note_id = ?"), [id])?;
@@ -67,7 +71,40 @@ pub(crate) fn write_note(
         return Ok(());
     };
     let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
-    insert_rows(conn, id, body)
+    insert_rows(conn, id, body)?;
+    if let Some(raw_fields) = ownership_fields {
+        write_file_ownership(conn, id, raw_fields, in_locked_notebook)?;
+    }
+    Ok(())
+}
+
+fn write_file_ownership(
+    conn: &Connection,
+    note_id: &str,
+    fields: &Map<String, Value>,
+    in_locked_notebook: bool,
+) -> Result<()> {
+    let listed = note_files_from_extra(fields);
+    let files = if (fields.contains_key(LOCK_FIELD) || in_locked_notebook) && listed.is_some() {
+        listed.map(|items| items.into_iter().map(|item| item.file).collect())
+    } else if in_locked_notebook {
+        let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
+        Some(linked_file_ids(body))
+    } else if fields.contains_key(LOCK_FIELD) {
+        None
+    } else {
+        let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
+        Some(linked_file_ids(body))
+    };
+    if let Some(files) = files {
+        let mut stmt = conn.prepare_cached(
+            "INSERT OR IGNORE INTO note_files (note_id, file_id) VALUES (?1, ?2)",
+        )?;
+        for file_id in files {
+            stmt.execute(params![note_id, file_id])?;
+        }
+    }
+    Ok(())
 }
 
 fn insert_rows(conn: &Connection, id: &str, body: &str) -> Result<()> {
@@ -136,16 +173,24 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
     for table in TABLES {
         tx.execute(&format!("DELETE FROM {table}"), [])?;
     }
-    let notes: Vec<(String, Option<String>)> = tx
+    let notes: Vec<(String, Option<String>, String, bool)> = tx
         .prepare(concat!(
             "SELECT id, ",
             crate::schema::readable_body!(""),
-            " FROM docs WHERE type = 'note' AND deleted = 0"
+            ", json, IFNULL(book_id, '') IN (SELECT id FROM locked_books) ",
+            "FROM docs WHERE type = 'note' AND deleted = 0"
         ))?
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
         .collect::<rusqlite::Result<_>>()?;
-    for (id, body) in notes {
+    for (id, body, json, in_locked_notebook) in notes {
         insert_rows(&tx, &id, body.as_deref().unwrap_or(""))?;
+        let fields = match serde_json::from_str::<Value>(&json)? {
+            Value::Object(fields) => fields,
+            _ => Map::new(),
+        };
+        write_file_ownership(&tx, &id, &fields, in_locked_notebook)?;
     }
     schema::set_meta(&tx, DERIVED_VERSION_KEY, DERIVED_VERSION)?;
     tx.commit()?;

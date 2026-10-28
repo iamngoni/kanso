@@ -29,8 +29,8 @@ pub const MAX_SEALED_LEN: usize = 1_900_000;
 pub const MAX_FIELDS_JSON: usize = 1_400_000;
 /// Shortest sealed file: `0x01 || nonce(24) || tag(16)` around zero bytes.
 pub const MIN_SEALED_FILE: usize = 41;
-/// Longest sealed file: 10 MiB of plaintext plus 41 bytes.
-pub const MAX_SEALED_FILE: usize = 10_485_801;
+/// Longest sealed file: the 10 MiB plaintext limit plus container allowance.
+pub const MAX_SEALED_FILE: usize = 10_485_801 + 4_096;
 /// `changes` page size when none is given, and the largest allowed.
 pub const DEFAULT_CHANGES_LIMIT: usize = 100;
 pub const MAX_CHANGES_LIMIT: usize = 500;
@@ -1061,6 +1061,13 @@ mod tests {
             MIN_SEALED_LEN,
             MAX_SEALED_LEN
         ));
+    }
+
+    #[test]
+    fn file_limit_covers_a_ten_mib_plaintext_container() {
+        let ten_mib_container = 10 * 1024 * 1024 + 41 + 4_096;
+        assert_eq!(MAX_SEALED_FILE, ten_mib_container);
+        assert_eq!(MAX_FILE_RESPONSE, ten_mib_container as u64);
     }
 
     #[test]

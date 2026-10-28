@@ -19,7 +19,7 @@ use kanso_core::id::with_prefix;
 use kanso_core::links::{LINK_SCHEME, NOTE_LINK_PREFIX};
 use kanso_core::model::{MAX_ATTACHMENT_SIZE, SUPPORTED_IMAGE_TYPES};
 use kanso_core::{DocType, now_ms};
-use kanso_store::{Attachment, MEANING_SIMILARITY, MeaningSearch, Store};
+use kanso_store::{Attachment, AttachmentState, MEANING_SIMILARITY, MeaningSearch, Store};
 use serde_json::{Map, Value, json};
 
 use super::RpcError;
@@ -284,6 +284,9 @@ fn export_html(store: &Store, args: &Args) -> ToolResult {
         _ => kanso_render::Palette::LIGHT,
     };
     let attachments = |id: &str| {
+        if store.attachment_state(id).ok() == Some(AttachmentState::Sealed) {
+            return None;
+        }
         store
             .attachment(id)
             .ok()
@@ -582,6 +585,7 @@ fn read_attachment(store: &Store, args: &Args) -> ToolResult {
     if !kanso_core::tasks::linked_file_ids(body).contains(&id) {
         return Err(ApiError::not_found().into());
     }
+    ensure_plain_attachment(store, &id)?;
     let file = api::get_doc(store, &id, None, true)?;
     result(vec![text(pretty(&file))])
 }
@@ -1349,8 +1353,23 @@ fn is_viewable_image(content_type: &str) -> bool {
     )
 }
 
+/// Refuse a sealed attachment before any tool reads or writes its bytes.
+fn ensure_plain_attachment(store: &Store, id: &str) -> Result<(), ToolError> {
+    match store
+        .attachment_state(id)
+        .map_err(|err| ToolError(err.to_string()))?
+    {
+        AttachmentState::Sealed => Err(ToolError(
+            "That attachment is in a locked note. Open the note in Kanso and unlock it to use the file."
+                .into(),
+        )),
+        AttachmentState::Plain | AttachmentState::Missing => Ok(()),
+    }
+}
+
 fn read_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
     let id = with_prefix(DocType::File, str_arg(args, "fileId"));
+    ensure_plain_attachment(store, &id)?;
     let output_path = opt_str(args, "outputPath");
     let include_image = args
         .get("includeImage")

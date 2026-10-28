@@ -1326,7 +1326,7 @@ impl Run<'_> {
                 kept.push(doc);
                 continue;
             }
-            let Some((_, blob)) = self.store.attachment(&doc.id)? else {
+            let Some(blob) = self.store.stored_attachment(&doc.id)? else {
                 self.report.files_missing += 1;
                 kept.push(doc);
                 continue;

@@ -183,6 +183,16 @@ SELECT id FROM locked;
     r#"
 ALTER TABLE revisions ADD COLUMN agent TEXT;
 "#,
+    // Attachment ownership, locally derived from note bodies or sealed
+    // notes' app-only `kansoFiles` lists.
+    r#"
+CREATE TABLE note_files (
+    note_id TEXT NOT NULL,
+    file_id TEXT NOT NULL,
+    PRIMARY KEY (note_id, file_id)
+) WITHOUT ROWID;
+CREATE INDEX note_files_file_id ON note_files (file_id);
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -393,7 +403,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let conn = connect(&dir.path().join("k.db")).unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(MIGRATIONS.len(), 10);
+        assert_eq!(MIGRATIONS.len(), 11);
         assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "note_tasks", "due"));
         assert!(has_column(&conn, "revisions", "batch_rev"));
@@ -401,7 +411,8 @@ mod tests {
         assert!(has_column(&conn, "file_text", "md5"));
         // Running it again changes nothing.
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 10);
+        assert_eq!(version(&conn), 11);
+        assert!(has_column(&conn, "note_files", "file_id"));
         assert!(has_column(&conn, "revisions", "author"));
         assert!(has_column(&conn, "revisions", "agent"));
     }
@@ -423,7 +434,7 @@ mod tests {
         assert!(!has_column(&conn, "note_embeddings", "vector"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 10);
+        assert_eq!(version(&conn), 11);
         assert!(has_column(&conn, "revisions", "batch"));
         assert!(has_column(&conn, "note_embeddings", "vector"));
         assert!(has_column(&conn, "file_text", "text"));

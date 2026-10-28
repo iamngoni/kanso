@@ -97,6 +97,7 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
             kanso_core::reminders::ACK_FIELD,
             kanso_core::model::LOCK_FIELD,
             kanso_core::model::SHARE_FIELD,
+            kanso_core::model::KANSO_FILES_FIELD,
         ],
         // A notebook's lock, and a published notebook's link and key.
         DocType::Book => &[
@@ -109,6 +110,7 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
         DocType::File => &[
             kanso_core::model::OCR_FIELD,
             kanso_core::model::FILE_LOCK_FIELD,
+            kanso_core::model::UNSEALED_FIELD,
         ],
         _ => &[],
     }

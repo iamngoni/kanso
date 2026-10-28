@@ -121,6 +121,7 @@ impl Store {
                  WHERE d.type = 'file' AND d.deleted = 0
                    AND lower(json_extract(d.json, '$.contentType')) IN ({types})
                    AND json_extract(d.json, '$.md5digest') IS NOT NULL
+                   AND json_extract(d.json, '$.kansoFileLock') IS NULL
                    AND (t.md5 IS NULL OR t.md5 != json_extract(d.json, '$.md5digest'))
                  ORDER BY json_extract(d.json, '$.createdAt') DESC, d.id"
             ))?;
@@ -174,6 +175,7 @@ impl Store {
             return Ok(false);
         };
         if doc.doc_type != DocType::File
+            || doc.fields.contains_key(kanso_core::model::FILE_LOCK_FIELD)
             || doc.fields.get("md5digest").and_then(Value::as_str) != Some(md5)
         {
             return Ok(false);

@@ -304,6 +304,35 @@ fn search_sql(
 }
 
 impl Store {
+    /// Attachment IDs owned by a live note, including ownership retained
+    /// while the note is in the trash. A deleted note has no ownership.
+    pub fn files_of_note(&self, note_id: &str) -> Result<Vec<String>> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT nf.file_id FROM note_files nf JOIN docs d ON d.id = nf.note_id
+                 WHERE nf.note_id = ?1 AND d.type = 'note' AND d.deleted = 0
+                 ORDER BY nf.file_id",
+            )?;
+            Ok(stmt
+                .query_map([note_id], |row| row.get(0))?
+                .collect::<rusqlite::Result<_>>()?)
+        })
+    }
+
+    /// Live note IDs that own `file_id`, including notes in the trash.
+    pub fn file_owners(&self, file_id: &str) -> Result<Vec<String>> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT nf.note_id FROM note_files nf JOIN docs d ON d.id = nf.note_id
+                 WHERE nf.file_id = ?1 AND d.type = 'note' AND d.deleted = 0
+                 ORDER BY nf.note_id",
+            )?;
+            Ok(stmt
+                .query_map([file_id], |row| row.get(0))?
+                .collect::<rusqlite::Result<_>>()?)
+        })
+    }
+
     /// The live document with `id`.
     pub fn get(&self, id: &str) -> Result<Option<Doc>> {
         self.read(|conn| live_doc(conn, id))
@@ -645,12 +674,17 @@ impl Store {
         })
     }
 
-    /// An attachment's content type and bytes.
+    /// An attachment's content type and bytes. A sealed file returns `None`:
+    /// its stored bytes are a container, and only the app's lock-aware helper
+    /// may open them. Sync uses [`Store::stored_attachment`] for the raw bytes.
     pub fn attachment(&self, id: &str) -> Result<Option<(String, Attachment)>> {
         self.read(|conn| {
             let Some(doc) = live_doc(conn, id)?.filter(|d| d.doc_type == DocType::File) else {
                 return Ok(None);
             };
+            if doc.fields.contains_key(FILE_LOCK_FIELD) {
+                return Ok(None);
+            }
             let content_type = doc.str_field("contentType").unwrap_or_default().to_owned();
             Ok(load_blob(conn, id)?.map(|blob| (content_type, blob)))
         })

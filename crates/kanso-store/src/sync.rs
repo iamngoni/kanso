@@ -17,8 +17,9 @@
 //! never protected by the floor, and never "missing" in a re-merge.
 
 use kanso_core::DocType;
+use kanso_core::model::UNSEALED_FIELD;
 use kanso_core::roles::Role;
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -627,7 +628,7 @@ impl Store {
         self.write(|tx, changes| {
             check_guard(tx, guard)?;
             let local = load_row(tx, &remote.id)?;
-            let fields = if remote.deleted {
+            let mut fields = if remote.deleted {
                 Map::new()
             } else {
                 let created = remote.fields.get("createdAt").and_then(Value::as_i64).unwrap_or(0);
@@ -639,6 +640,14 @@ impl Store {
                 );
                 normalize(doc_type, &remote.id, incoming, None, created, Refs::Skip)?
             };
+            if doc_type == DocType::File
+                && fields.contains_key(kanso_core::model::FILE_LOCK_FIELD)
+            {
+                fields.remove(kanso_core::model::OCR_FIELD);
+            }
+            let requested_unseal = fields
+                .remove(UNSEALED_FIELD)
+                .and_then(|marker| marker.get("seal").and_then(Value::as_str).map(str::to_owned));
             let store_blob = |tx: &rusqlite::Transaction| -> Result<()> {
                 if let Some(blob) = &attachment {
                     tx.execute(
@@ -655,10 +664,62 @@ impl Store {
                 learned(tx, &remote.id, &remote.rev)?;
                 return Ok(ApplyOutcome::Applied);
             };
+            let clear_stale_blob = |tx: &rusqlite::Transaction| -> Result<()> {
+                // Remove an old blob only when this file document is accepted
+                // and its bytes no longer match the document. A replay that
+                // loses below must leave the current bytes intact; a plain
+                // unseal that arrives before its bytes must not keep the old
+                // sealed container behind a now-plain document.
+                if !remote.deleted
+                    && let Some(expected) = fields.get("md5digest").and_then(Value::as_str)
+                {
+                    let stored = tx
+                        .query_row(
+                            "SELECT data FROM blobs WHERE file_id = ?1",
+                            [&remote.id],
+                            |row| row.get::<_, Vec<u8>>(0),
+                        )
+                        .optional()?;
+                    if stored.is_some_and(|data| {
+                        !Attachment::new(data)
+                            .md5_hex()
+                            .eq_ignore_ascii_case(expected)
+                    }) {
+                        tx.execute("DELETE FROM blobs WHERE file_id = ?1", [&remote.id])?;
+                    }
+                }
+                Ok(())
+            };
+            // An old plaintext document must never remove a local seal. A
+            // matching `kansoUnsealed.seal` is the explicit transition
+            // token; otherwise rebase the local sealed version on the
+            // incoming revision and leave its blob untouched.
+            if !remote.deleted
+                && doc_type == DocType::File
+                && !local.deleted
+                && local.fields.contains_key(kanso_core::model::FILE_LOCK_FIELD)
+                && !fields.contains_key(kanso_core::model::FILE_LOCK_FIELD)
+            {
+                let local_seal = local.fields
+                    .get(kanso_core::model::FILE_LOCK_FIELD)
+                    .and_then(|lock| lock.get("seal"))
+                    .and_then(Value::as_str);
+                if local_seal != requested_unseal.as_deref() {
+                    let local_rev = parse_rev(&local.rev)?;
+                    let new_rev = rebased(
+                        &local_rev,
+                        local_rev.generation.max(remote_rev.generation),
+                    );
+                    set_rev(tx, &remote.id, &local, &new_rev, Some(&remote.rev), changes)?;
+                    learned(tx, &remote.id, &remote.rev)?;
+                    return Ok(ApplyOutcome::LocalWon { new_rev });
+                }
+            }
             if local.rev == remote.rev {
                 // Same revision, same content: bytes that arrive with it are
                 // this document's (e.g. fetched after an earlier miss).
                 if !remote.deleted {
+                    clear_stale_blob(tx)?;
                     store_blob(tx)?;
                 }
                 learned(tx, &remote.id, &remote.rev)?;
@@ -700,6 +761,7 @@ impl Store {
                 // file's bytes, everywhere. A replay of content this Mac
                 // held stays stale below.
                 if conflict && local.deleted {
+                    clear_stale_blob(tx)?;
                     store_blob(tx)?;
                     store_row(tx, &remote.id, doc_type, &remote.rev, false, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
                     learned(tx, &remote.id, &remote.rev)?;
@@ -735,6 +797,7 @@ impl Store {
                     (false, false) => updated_at(&remote.fields) >= updated_at(&local.fields),
                 };
             if remote_wins {
+                clear_stale_blob(tx)?;
                 store_blob(tx)?;
                 store_row(tx, &remote.id, doc_type, &remote.rev, remote.deleted, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
                 learned(tx, &remote.id, &remote.rev)?;
@@ -996,6 +1059,7 @@ fn write_meta(tx: &rusqlite::Transaction, meta: &[(&str, Option<&str>)]) -> Resu
 #[cfg(test)]
 mod tests {
     use kanso_core::DocType;
+    use kanso_core::model::{FILE_LOCK_FIELD, FileLock};
     use serde_json::json;
 
     use super::*;
@@ -1035,6 +1099,62 @@ mod tests {
                 Origin::Api,
             )
             .unwrap()
+    }
+
+    fn create_file(store: &Store, id: &str, bytes: &[u8]) -> crate::WriteResult {
+        use base64::Engine as _;
+        store
+            .put(
+                DocType::File,
+                json!({"_id": id, "name": "photo.png", "contentType": "image/png",
+                    "_attachments": {"index": {"content_type": "image/png",
+                        "data": base64::engine::general_purpose::STANDARD.encode(bytes)}}}),
+                Put::Upsert,
+                Origin::Api,
+            )
+            .unwrap()
+    }
+
+    fn seal_file(store: &Store, id: &str, seal: &str, bytes: &[u8]) -> crate::WriteResult {
+        let mut file = store.file_meta(id).unwrap().unwrap();
+        FileLock::store(Some(&FileLock::sealed(seal.to_owned())), &mut file.extra);
+        store
+            .put_sealed_file(file, Attachment::new(bytes.to_vec()))
+            .unwrap()
+    }
+
+    fn remote_file(id: &str, generation: u64, bytes: &[u8], lock: Option<&str>) -> SyncDoc {
+        let blob = Attachment::new(bytes.to_vec());
+        let mut fields = json!({"name": "photo.png", "contentType": "image/png",
+            "contentLength": bytes.len(), "md5digest": blob.md5_hex(), "createdAt": 1,
+            "updatedAt": 9_999_999_999_999i64})
+        .as_object()
+        .unwrap()
+        .clone();
+        if let Some(seal) = lock {
+            fields.insert(
+                FILE_LOCK_FIELD.into(),
+                serde_json::to_value(FileLock::sealed(seal.to_owned())).unwrap(),
+            );
+        }
+        SyncDoc {
+            id: id.into(),
+            rev: format!(
+                "{generation}-{}",
+                char::from(b'a' + (generation % 26) as u8)
+                    .to_string()
+                    .repeat(32)
+            ),
+            deleted: false,
+            fields,
+            base_rev: None,
+        }
+    }
+
+    fn plain_doc_with_unseal(mut doc: SyncDoc, seal: &str) -> SyncDoc {
+        doc.fields
+            .insert(UNSEALED_FIELD.into(), json!({"seal": seal}));
+        doc
     }
 
     /// Pushing R1, editing to R2 and then pulling R1 back through the change
@@ -1124,6 +1244,170 @@ mod tests {
         assert_eq!(stored.data, bytes);
         assert!(store.has_blob(&doc.id, &blob.md5_hex()).unwrap());
         assert!(store.pending_push(10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn replayed_plaintext_file_cannot_remove_a_local_seal() {
+        let (_dir, store) = store();
+        let id = "file:seal-replay";
+        create_file(&store, id, b"old plaintext");
+        let sealed = b"sealed container";
+        seal_file(&store, id, "AAAAAAAAAAAAAAAAAAAAAA", sealed);
+
+        let replay = remote_file(id, 1, b"old plaintext", None);
+        assert!(matches!(
+            store.apply_remote(&replay, None, None).unwrap(),
+            ApplyOutcome::LocalWon { .. }
+        ));
+        assert!(store.file_meta(id).unwrap().unwrap().is_sealed());
+        assert_eq!(store.stored_attachment(id).unwrap().unwrap().data, sealed);
+    }
+
+    #[test]
+    fn a_remote_sealed_file_never_keeps_ocr_text() {
+        let (_dir, store) = store();
+        let id = "file:seal-ocr";
+        create_file(&store, id, b"old");
+        let sealed_bytes = b"fresh sealed container";
+        let mut remote = remote_file(id, 3, sealed_bytes, Some("AAAAAAAAAAAAAAAAAAAAAA"));
+        remote.fields.insert(
+            kanso_core::model::OCR_FIELD.into(),
+            json!({"text": "secret words", "md5": "whatever", "engine": "test"}),
+        );
+        assert!(matches!(
+            store
+                .apply_remote(&remote, Some(Attachment::new(sealed_bytes.to_vec())), None)
+                .unwrap(),
+            ApplyOutcome::Applied | ApplyOutcome::RemoteWon
+        ));
+        let meta = store.file_meta(id).unwrap().unwrap();
+        assert!(!meta.extra.contains_key(kanso_core::model::OCR_FIELD));
+        assert_eq!(store.image_text(id).unwrap(), None);
+    }
+
+    #[test]
+    fn a_matching_unseal_without_bytes_drops_the_old_container() {
+        let (_dir, store) = store();
+        let id = "file:seal-awaiting-bytes";
+        create_file(&store, id, b"old");
+        let sealed = seal_file(&store, id, "AAAAAAAAAAAAAAAAAAAAAA", b"container");
+        store.mark_synced(id, &sealed.rev, None).unwrap();
+
+        let plain = b"deliberately unsealed";
+        let remote =
+            plain_doc_with_unseal(remote_file(id, 3, plain, None), "AAAAAAAAAAAAAAAAAAAAAA");
+        assert_eq!(
+            store.apply_remote(&remote, None, None).unwrap(),
+            ApplyOutcome::Applied
+        );
+        assert!(!store.file_meta(id).unwrap().unwrap().is_sealed());
+        assert_eq!(store.stored_attachment(id).unwrap(), None);
+
+        assert_eq!(
+            store
+                .apply_remote(&remote, Some(Attachment::new(plain.to_vec())), None)
+                .unwrap(),
+            ApplyOutcome::Unchanged
+        );
+        assert_eq!(store.stored_attachment(id).unwrap().unwrap().data, plain);
+    }
+
+    #[test]
+    fn matching_unseal_marker_allows_a_remote_unseal() {
+        let (_dir, store) = store();
+        let id = "file:seal-accept";
+        create_file(&store, id, b"old");
+        let sealed = seal_file(&store, id, "AAAAAAAAAAAAAAAAAAAAAA", b"container");
+        store.mark_synced(id, &sealed.rev, None).unwrap();
+
+        let plain = b"deliberately unsealed";
+        let remote =
+            plain_doc_with_unseal(remote_file(id, 3, plain, None), "AAAAAAAAAAAAAAAAAAAAAA");
+        assert_eq!(
+            store
+                .apply_remote(&remote, Some(Attachment::new(plain.to_vec())), None)
+                .unwrap(),
+            ApplyOutcome::Applied
+        );
+        let meta = store.file_meta(id).unwrap().unwrap();
+        assert!(!meta.is_sealed());
+        assert!(!meta.extra.contains_key(UNSEALED_FIELD));
+        assert_eq!(store.stored_attachment(id).unwrap().unwrap().data, plain);
+    }
+
+    #[test]
+    fn mismatched_unseal_marker_cannot_remove_a_local_seal() {
+        let (_dir, store) = store();
+        let id = "file:seal-refuse";
+        create_file(&store, id, b"old");
+        let sealed_bytes = b"container";
+        seal_file(&store, id, "AAAAAAAAAAAAAAAAAAAAAA", sealed_bytes);
+
+        let remote = plain_doc_with_unseal(
+            remote_file(id, 3, b"plaintext", None),
+            "BBBBBBBBBBBBBBBBBBBBBB",
+        );
+        assert!(matches!(
+            store
+                .apply_remote(&remote, Some(Attachment::new(b"plaintext".to_vec())), None)
+                .unwrap(),
+            ApplyOutcome::LocalWon { .. }
+        ));
+        assert!(store.file_meta(id).unwrap().unwrap().is_sealed());
+        assert_eq!(
+            store.stored_attachment(id).unwrap().unwrap().data,
+            sealed_bytes
+        );
+    }
+
+    #[test]
+    fn a_new_sealed_document_drops_stale_blob_until_its_bytes_arrive() {
+        let (_dir, store) = store();
+        let id = "file:seal-replace";
+        let initial = create_file(&store, id, b"stale plaintext");
+        store.mark_synced(id, &initial.rev, None).unwrap();
+
+        let sealed_bytes = b"fresh sealed container";
+        let remote = remote_file(id, 3, sealed_bytes, Some("AAAAAAAAAAAAAAAAAAAAAA"));
+        assert_eq!(
+            store.apply_remote(&remote, None, None).unwrap(),
+            ApplyOutcome::Applied
+        );
+        assert!(store.file_meta(id).unwrap().unwrap().is_sealed());
+        assert!(store.stored_attachment(id).unwrap().is_none());
+
+        assert_eq!(
+            store
+                .apply_remote(&remote, Some(Attachment::new(sealed_bytes.to_vec())), None)
+                .unwrap(),
+            ApplyOutcome::Unchanged
+        );
+        assert_eq!(
+            store.stored_attachment(id).unwrap().unwrap().data,
+            sealed_bytes
+        );
+    }
+
+    #[test]
+    fn a_rejected_old_sealed_document_keeps_the_current_blob() {
+        let (_dir, store) = store();
+        let id = "file:seal-old";
+        create_file(&store, id, b"plain");
+        let current = b"current sealed container";
+        let current_doc = seal_file(&store, id, "AAAAAAAAAAAAAAAAAAAAAA", current);
+        store.mark_synced(id, &current_doc.rev, None).unwrap();
+
+        let replay = remote_file(
+            id,
+            1,
+            b"old sealed container",
+            Some("BBBBBBBBBBBBBBBBBBBBBB"),
+        );
+        assert!(matches!(
+            store.apply_remote(&replay, None, None).unwrap(),
+            ApplyOutcome::Stale { .. }
+        ));
+        assert_eq!(store.stored_attachment(id).unwrap().unwrap().data, current);
     }
 
     fn guard_meta(store: &Store, origin: &str, account: &str) {

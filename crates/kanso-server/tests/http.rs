@@ -10,9 +10,10 @@ use axum::http::{Method, Request, StatusCode, header};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use common::*;
+use kanso_core::DocType;
 use kanso_core::model::{FILE_LOCK_FIELD, FileLock};
 use kanso_server::{ServerConfig, basic_header};
-use kanso_store::Attachment;
+use kanso_store::{Attachment, Origin, Put};
 use serde_json::{Value, json};
 
 async fn book(app: &App, name: &str) -> String {
@@ -149,6 +150,35 @@ async fn notebooks_are_created_read_listed_and_merged() {
     .await;
     let (_, doc) = get(&app.router, &format!("/{child}")).await;
     assert_eq!(doc["parentBookId"], Value::Null);
+}
+
+#[tokio::test]
+async fn note_file_ownership_is_hidden_and_preserved_on_api_writes() {
+    let app = app();
+    let book_id = book(&app, "B").await;
+    let note_id = "note:owned";
+    app.store
+        .put(
+            DocType::Note,
+            json!({
+                "_id":note_id, "title":"Owner", "body":"", "bookId":book_id,
+                "kansoLock":{"v":1},
+                "kansoFiles":[{"file":"file:sealed", "v":1, "seal":"AAAAAAAAAAAAAAAAAAAAAA", "key":"wrapped"}]
+            }),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+
+    let (status, served) = get(&app.router, "/note:owned").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(served.get("kansoFiles").is_none(), "{served}");
+    let mut update = served;
+    update["title"] = "Renamed".into();
+    let (status, _) = post(&app.router, "/notes", update).await;
+    assert_eq!(status, StatusCode::OK);
+    let stored = app.store.get(note_id).unwrap().unwrap();
+    assert_eq!(stored.fields["kansoFiles"][0]["file"], "file:sealed");
 }
 
 #[tokio::test]
@@ -458,6 +488,13 @@ async fn a_sealed_file_keeps_its_marker_from_the_local_api() {
     assert!(stub.get(FILE_LOCK_FIELD).is_none(), "{stub}");
     let (_, files) = get(&app.router, "/files").await;
     assert!(files[0].get(FILE_LOCK_FIELD).is_none(), "{}", files[0]);
+    let (_, asked) = get(&app.router, &format!("/{id}?attachments=true")).await;
+    assert_eq!(asked["locked"], true, "{asked}");
+    assert_eq!(asked["_attachments"]["index"]["stub"], true, "{asked}");
+    assert!(
+        asked["_attachments"]["index"].get("data").is_none(),
+        "{asked}"
+    );
 
     // A client's replace and merge keep the marker the store already has,
     // and a client's new bytes are refused.

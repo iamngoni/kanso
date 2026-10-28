@@ -298,3 +298,36 @@ describe("0011_push.sql", () => {
 		);
 	});
 });
+
+// ---------------------------------------------------------------------- 0013
+
+describe("0013_sealed_file_size.sql", () => {
+	it("widens the stored-file limit without losing existing rows or quota triggers", async () => {
+		await emptyDatabase();
+		await applyD1Migrations(db, env.TEST_MIGRATIONS.filter((m) => m.name < "0013"));
+		await accountWithSession();
+		const fileId = `file:${"A".repeat(22)}`;
+		await db
+			.prepare("INSERT INTO account_files (account_id, id, size, uploaded_at) VALUES (?1, ?2, 41, 1)")
+			.bind(ACCOUNT_ID, fileId)
+			.run();
+		await applyD1Migrations(db, env.TEST_MIGRATIONS);
+		expect(await db.prepare("SELECT size FROM account_files WHERE id = ?1").bind(fileId).first()).toEqual({ size: 41 });
+		expect(
+			(
+				await db
+					.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name IN ('uploads_global', 'uploads_count_insert', 'uploads_count_update') ORDER BY name")
+					.all()
+			).results,
+		).toEqual([{ name: "uploads_count_insert" }, { name: "uploads_count_update" }, { name: "uploads_global" }]);
+		const add = (letter: string, size: number) =>
+			refusal(
+				"INSERT INTO account_files (account_id, id, size, uploaded_at) VALUES (?1, ?2, ?3, 2)",
+				ACCOUNT_ID,
+				`file:${letter.repeat(22)}`,
+				size,
+			);
+		expect(await add("B", 10_489_897)).toBe("accepted");
+		expect(await add("C", 10_489_898)).toContain("CHECK constraint failed");
+	});
+});

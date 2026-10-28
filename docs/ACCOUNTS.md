@@ -621,7 +621,7 @@ A file travels as `sealed = 0x01 || nonce(24) || XChaCha20-Poly1305(file_key, no
 sent raw.
 
 - **AAD.** `"kanso-file" || 0x01 || lp(account_id) || lp(wire_id)`.
-- **Size.** The plaintext limit is 10 MiB (`MAX_ATTACHMENT_SIZE`), so a sealed file is 41 to 10,485,801 bytes.
+- **Size.** The plaintext limit is 10 MiB (`MAX_ATTACHMENT_SIZE`), and the container allowance is 4,096 bytes, so a sealed file is 41 to 10,489,897 bytes.
 - **Content type.** It stays inside the sealed file document. R2 objects are always `application/octet-stream`.
 - **Matching bytes to a version.** The opened bytes must match the file document's `md5digest`. A
   mismatch counts as missing, and a later ordinary sync fetches them again ("Sync with encryption ›
@@ -1416,7 +1416,7 @@ Bitwarden's phrase derivation are not public; only their user-facing behaviour i
   |---|---|
   | Health, auth and account routes | 64 KiB |
   | Push and changes | 12 MiB |
-  | Files | 10,485,801 bytes |
+  | Files | 10,489,897 bytes |
 
 | Status | Code | Extras | When |
 |---|---|---|---|
@@ -1450,7 +1450,7 @@ Bitwarden's phrase derivation are not public; only their user-facing behaviour i
 | 409 | `no_password` | | `account/password` on an account that has none |
 | 409 | `credential_exists` | | A passkey credential ID already registered |
 | 409 | `approval_used` / `approval_expired` | | A second approval, or an expired request |
-| 413 | `too_large` | | More than 200 documents, a push body over 4 MiB, sealed over 1,900,000 characters, a file over 10,485,801 bytes, an auth body over 8 KiB |
+| 413 | `too_large` | | More than 200 documents, a push body over 4 MiB, sealed over 1,900,000 characters, a file over 10,489,897 bytes, an auth body over 8 KiB |
 | 413 | `quota_exceeded` | `quota`: `docs`, `doc_bytes`, `files`, `file_bytes` or `server`; `used` (usage before this request); `limit` | When several apply, the first in that order |
 | 415 | `unsupported_media_type` | | Wrong `Content-Type` |
 | 429 | `rate_limited` | `retry_after` (seconds to the end of the window, rounded up), `Retry-After` header, `limit`: the rule name, `binding` or `session-account` (the bindings), `provider-poll`, or `writes-global` or `uploads-global` | A rate-limit rule or binding, or a server-wide daily cap |
@@ -2187,7 +2187,7 @@ PUT takes the sealed bytes with `Content-Type: application/octet-stream`, `Conte
 hex is 400. Steps:
 
 1. Check the path's wire ID and the headers (400 or 415). Then count `writes-account` by 1.
-2. Read the body: under 41 bytes is 400; over 10,485,801 bytes is 413.
+2. Read the body: under 41 bytes is 400; over 10,489,897 bytes is 413.
 3. Hash it with `crypto.subtle.digest("SHA-256")` and compare: 400 `checksum_mismatch` if different.
 4. One batch:
    1. `SELECT size` of the row this replaces.
@@ -2471,7 +2471,7 @@ END;
 CREATE TABLE account_files (
     account_id TEXT NOT NULL REFERENCES accounts (id),
     id TEXT NOT NULL CHECK (substr(id, 1, 5) = 'file:' AND length(id) = 27 AND substr(id, 6) NOT GLOB '*[^A-Za-z0-9_-]*'),
-    size INTEGER NOT NULL CHECK (size BETWEEN 41 AND 10485801),
+    size INTEGER NOT NULL CHECK (size BETWEEN 41 AND 10489897),
     uploaded_at INTEGER NOT NULL,
     PRIMARY KEY (account_id, id)
 );
