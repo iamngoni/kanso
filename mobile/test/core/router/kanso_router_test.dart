@@ -31,6 +31,7 @@ import 'package:kanso/crash/state/crash_reports/crash_reports_bloc.dart';
 import 'package:kanso/design/views/pages/design_gallery_page.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note/views/pages/note_page.dart';
 import 'package:kanso/note_list/views/pages/note_list_page.dart';
@@ -98,6 +99,9 @@ Future<GoRouter> _pump(
         BlocProvider<ListNavigationBloc>.value(value: blocs.listNavigation),
         BlocProvider<LibraryPaneBloc>.value(value: blocs.libraryPane),
         BlocProvider<LockStatusBloc>.value(value: blocs.lock),
+        BlocProvider<NoteAssistIntentBloc>(
+          create: (_) => NoteAssistIntentBloc(),
+        ),
         BlocProvider<NoteModeIntentBloc>(
           create: (_) => NoteModeIntentBloc(),
         ),

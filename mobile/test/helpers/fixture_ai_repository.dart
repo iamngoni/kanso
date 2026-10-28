@@ -115,6 +115,14 @@ class FixtureAiRepository implements AiRepository {
 
   /// The questions asked, and what was set, in order.
   final List<String> asked = <String>[];
+  final List<
+    ({String noteId, AssistAction action, String before, String selection})
+  >
+  assistRequests =
+      <
+        ({String noteId, AssistAction action, String before, String selection})
+      >[];
+  final List<String> summarized = <String>[];
   final List<AiSettingsChange> saved = <AiSettingsChange>[];
   final List<String> keysSet = <String>[];
   int stops = 0;
@@ -207,8 +215,19 @@ class FixtureAiRepository implements AiRepository {
     required AssistAction action,
     required String before,
     required String selection,
-  }) => assistUpdates.stream;
+  }) {
+    assistRequests.add((
+      noteId: noteId,
+      action: action,
+      before: before,
+      selection: selection,
+    ));
+    return assistUpdates.stream;
+  }
 
   @override
-  Stream<AssistUpdate> summarize(String noteId) => assistUpdates.stream;
+  Stream<AssistUpdate> summarize(String noteId) {
+    summarized.add(noteId);
+    return assistUpdates.stream;
+  }
 }

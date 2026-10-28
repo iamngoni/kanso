@@ -160,6 +160,7 @@ import 'lock/state/unlock/unlock_bloc.dart' as _i797;
 import 'note/models/repos/abs/note_place_repository.dart' as _i930;
 import 'note/models/repos/impl/memory_note_place_repository.dart' as _i503;
 import 'note/state/note/note_bloc.dart' as _i618;
+import 'note/state/note_assist_intent/note_assist_intent_bloc.dart' as _i247;
 import 'note/state/note_discovery/note_discovery_bloc.dart' as _i779;
 import 'note/state/note_mode_intent/note_mode_intent_bloc.dart' as _i908;
 import 'note/state/preview/preview_bloc.dart' as _i435;
@@ -232,6 +233,7 @@ extension GetItInjectableX on _i174.GetIt {
     final crashModule = _$CrashModule();
     final appModule = _$AppModule();
     final windowModule = _$WindowModule();
+    gh.factory<_i247.NoteAssistIntentBloc>(() => _i247.NoteAssistIntentBloc());
     gh.factory<_i908.NoteModeIntentBloc>(() => _i908.NoteModeIntentBloc());
     gh.factory<_i612.LibraryPaneBloc>(() => _i612.LibraryPaneBloc());
     gh.singleton<_i609.LayoutClassNotifier>(() => _i609.LayoutClassNotifier());

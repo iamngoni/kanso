@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/models/data/assist_action.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../injection.dart';
 import '../../models/data/assist_placement.dart';
@@ -17,8 +18,9 @@ import 'assist_sheet.dart';
 /// [hasSelection] is false. [onApply] puts an
 /// accepted suggestion in the note; see [AssistSheet].
 ///
-/// With [summarizeNote] it opens on the note's summary at once. The sheet's
-/// `AssistBloc` lives as long as the sheet.
+/// With [summarizeNote] it opens on the note's summary at once, and
+/// [startWith] starts one selected action without the action list first.
+/// The sheet's `AssistBloc` lives as long as the sheet.
 Future<void> showAssistSheet(
   BuildContext context, {
   required String noteId,
@@ -29,6 +31,7 @@ Future<void> showAssistSheet(
   bool Function()? canApply,
   bool Function(AssistPlacement placement, String suggestion)? onApply,
   bool summarizeNote = false,
+  AssistAction? startWith,
 }) {
   return showKansoBottomSheet<void>(
     context,
@@ -37,6 +40,15 @@ Future<void> showAssistSheet(
         final bloc = getIt<AssistBloc>();
         if (summarizeNote) {
           bloc.add(AssistEvent.summaryRequested(noteId));
+        } else if (startWith case final action?) {
+          bloc.add(
+            AssistEvent.requested(
+              noteId: noteId,
+              action: action,
+              before: before,
+              selection: selection,
+            ),
+          );
         }
         return bloc;
       },
@@ -49,6 +61,7 @@ Future<void> showAssistSheet(
         canApply: canApply,
         onApply: onApply,
         summarizeNote: summarizeNote,
+        startWith: startWith,
       ),
     ),
   );

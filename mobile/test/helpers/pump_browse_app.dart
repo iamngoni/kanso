@@ -35,6 +35,7 @@ import 'package:kanso/import/state/opened_documents/opened_documents_bloc.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart';
@@ -209,6 +210,9 @@ Future<BrowseApp> pumpBrowseApp(
           BlocProvider<ListNavigationBloc>.value(value: blocs.listNavigation),
           BlocProvider<LibraryPaneBloc>.value(value: blocs.libraryPane),
           BlocProvider<LockStatusBloc>.value(value: blocs.lock),
+          BlocProvider<NoteAssistIntentBloc>(
+            create: (_) => NoteAssistIntentBloc(),
+          ),
           BlocProvider<NoteModeIntentBloc>(
             create: (_) => NoteModeIntentBloc(),
           ),

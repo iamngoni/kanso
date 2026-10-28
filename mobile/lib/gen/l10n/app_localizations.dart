@@ -6760,6 +6760,24 @@ abstract class AppLocalizations {
   /// **'This note is kept out of AI.'**
   String get assistKeptOut;
 
+  /// Says that an assistant rewrite needs text selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Select some text first.'**
+  String get assistSelectText;
+
+  /// Says that Continue Writing needs a paragraph before the cursor.
+  ///
+  /// In en, this message translates to:
+  /// **'Put the cursor after some text to continue it.'**
+  String get assistContinueAfterText;
+
+  /// Says that the assistant cannot change a shared note that is read only.
+  ///
+  /// In en, this message translates to:
+  /// **'This note can’t be edited.'**
+  String get assistReadOnly;
+
   /// Says that a stopped suggestion is not offered.
   ///
   /// In en, this message translates to:

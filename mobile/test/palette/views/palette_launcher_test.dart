@@ -7,12 +7,14 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' hide LockState;
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/linking_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/assist_action.dart';
 import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/repos/abs/journal_repository.dart';
 import 'package:kanso/core/models/repos/abs/library_repository.dart';
@@ -27,6 +29,7 @@ import 'package:kanso/lock/views/widgets/lock_item_sheet.dart';
 import 'package:kanso/lock/views/widgets/remove_lock_sheet.dart';
 import 'package:kanso/note/models/data/note_mode.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note/views/widgets/note_pane.dart';
 import 'package:kanso/note/views/widgets/related_notes_sheet.dart';
@@ -38,6 +41,8 @@ import 'package:kanso/sharing/views/widgets/share_note_sheet.dart';
 import 'package:kanso/templates/state/template_picker/template_picker_bloc.dart';
 import 'package:kanso/templates/views/widgets/template_picker_sheet.dart';
 
+import '../../helpers/ai_blocs.dart';
+import '../../helpers/fixture_ai_repository.dart';
 import '../../helpers/fixture_discovery_repository.dart';
 import '../../helpers/fixture_journal_repository.dart';
 import '../../helpers/fixture_library_repository.dart';
@@ -45,6 +50,7 @@ import '../../helpers/fixture_session_repository.dart';
 import '../../helpers/library_fixtures.dart';
 import '../../helpers/page_fixtures.dart';
 import '../../helpers/pump_browse_app.dart';
+import '../../helpers/pump_routed.dart';
 
 const Size _size = Size(1180, 820);
 const String _noteId = 'note:palette-test';
@@ -129,6 +135,21 @@ class _Palette implements PaletteRepository {
     this.context = context;
     if ((command == 'edit-mode' || command == 'preview-mode') &&
         context.openNoteId == null) {
+      return const Right<ApplicationError, List<PaletteSection>>(
+        <PaletteSection>[],
+      );
+    }
+    const aiNoteCommands = <String>{
+      'summarize-note',
+      'improve-writing',
+      'make-shorter',
+      'fix-spelling-and-grammar',
+      'continue-writing',
+      'summarize-selection',
+    };
+    if ((aiNoteCommands.contains(command) &&
+            (!context.aiOn || context.openNoteId == null)) ||
+        (command == 'ask-your-notes' && !context.aiOn)) {
       return const Right<ApplicationError, List<PaletteSection>>(
         <PaletteSection>[],
       );
@@ -302,6 +323,7 @@ Future<BrowseApp> _pump(
   FixtureSessionRepository? session,
   _Templates? templates,
   _RelatedDiscovery? discovery,
+  FixtureAiRepository? ai,
 }) async {
   await _installPalette(command);
   if (getIt.isRegistered<LibraryRepository>()) {
@@ -358,6 +380,7 @@ Future<BrowseApp> _pump(
     library: testLibrary,
     session: session,
     fixtures: testFixtures,
+    ai: ai,
   );
   if (getIt.isRegistered<TemplatePickerBloc>()) {
     getIt.unregister<TemplatePickerBloc>();
@@ -749,5 +772,138 @@ void main() {
 
     expect(note.state.noteId, noteB);
     expect(note.state.mode, NoteMode.preview);
+  });
+
+  group('AI palette commands', () {
+    testWidgets('palette reads live AI state and hides AI commands while off', (
+      tester,
+    ) async {
+      await _pump(tester, command: 'improve-writing');
+
+      await _openPalette(tester);
+
+      expect(_Palette.latest.context?.aiOn, isFalse);
+      expect(find.text('improve-writing'), findsNothing);
+    });
+
+    testWidgets('AI commands appear when AI is enabled', (tester) async {
+      final ai = FixtureAiRepository(
+        settings: aiSettings(enabled: true, hasKey: true),
+      );
+      await _pump(tester, command: 'improve-writing', ai: ai);
+
+      await _openPalette(tester);
+
+      expect(_Palette.latest.context?.aiOn, isTrue);
+      expect(find.text('improve-writing'), findsOneWidget);
+    });
+
+    testWidgets('Ask Your Notes opens the Ask screen', (tester) async {
+      final ai = FixtureAiRepository(
+        settings: aiSettings(enabled: true, hasKey: true),
+      );
+      final app = await _pump(
+        tester,
+        command: 'ask-your-notes',
+        at: '/notes',
+        ai: ai,
+      );
+
+      await _run(tester, 'ask-your-notes');
+
+      expect(app.where, '/ask');
+    });
+
+    testWidgets('AI settings opens the AI settings screen', (tester) async {
+      final app = await _pump(
+        tester,
+        command: 'settings-ai',
+        at: '/notes',
+      );
+
+      await _run(tester, 'settings-ai');
+
+      expect(app.where, '/settings/ai');
+    });
+
+    testWidgets('Join a shared note opens the join screen', (tester) async {
+      final app = await _pump(
+        tester,
+        command: 'join-shared-note',
+        at: '/notes',
+      );
+
+      await _run(tester, 'join-shared-note');
+
+      expect(topOf(app.router), '/shared/join');
+    });
+
+    testWidgets('Summarize Note stays in Preview and opens the summary', (
+      tester,
+    ) async {
+      final ai = FixtureAiRepository(
+        settings: aiSettings(enabled: true, hasKey: true),
+      );
+      await _pump(tester, command: 'summarize-note', ai: ai);
+      final noteElement = tester.element(find.byType(NotePane));
+      final note = BlocProvider.of<NoteBloc>(noteElement);
+      final intents = BlocProvider.of<NoteAssistIntentBloc>(noteElement);
+
+      await _run(tester, 'summarize-note');
+      await tester.pumpAndSettle();
+
+      expect(note.state.mode, NoteMode.preview);
+      expect(find.text('Summary'), findsOneWidget);
+      expect(ai.summarized, <String>[_noteId]);
+      expect(intents.state.pending, isFalse);
+    });
+
+    testWidgets('An inline action enters Edit and consumes the request', (
+      tester,
+    ) async {
+      final ai = FixtureAiRepository(
+        settings: aiSettings(enabled: true, hasKey: true),
+      );
+      await _pump(tester, command: 'improve-writing', ai: ai);
+      final noteElement = tester.element(find.byType(NotePane));
+      final note = BlocProvider.of<NoteBloc>(noteElement);
+      final intents = BlocProvider.of<NoteAssistIntentBloc>(noteElement);
+
+      await _run(tester, 'improve-writing');
+      await tester.pumpAndSettle();
+
+      expect(note.state.mode, NoteMode.edit);
+      // Two panes are mounted in this layout, and each Scaffold shows the
+      // same snackbar from the shared messenger.
+      expect(find.text('Select some text first.'), findsWidgets);
+      expect(intents.state.pending, isFalse);
+    });
+
+    testWidgets('An assistant request for note A does not change note B', (
+      tester,
+    ) async {
+      const noteB = 'note:other';
+      final library = _Library()..notes[noteB] = _routeNote(id: noteB);
+      await _pump(
+        tester,
+        command: 'improve-writing',
+        at: '/notes/note/note%3Aother',
+        library: library,
+      );
+      final noteElement = tester.element(find.byType(NotePane));
+      final intents = BlocProvider.of<NoteAssistIntentBloc>(noteElement)
+        ..add(
+          const NoteAssistIntentEvent.requested(
+            noteId: _noteId,
+            action: AssistAction.improve,
+          ),
+        );
+      await tester.pump();
+
+      final note = tester.element(find.byType(Scaffold).last).read<NoteBloc>();
+      expect(note.state.noteId, noteB);
+      expect(note.state.mode, NoteMode.preview);
+      expect(intents.state.pending, isTrue);
+    });
   });
 }
