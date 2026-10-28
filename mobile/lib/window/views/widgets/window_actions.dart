@@ -4,8 +4,11 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../../shell/utils/kanso_shortcut_bindings.dart'
+    show ShortcutContext, shortcutBindingsFor;
 import '../../models/data/window_intent.dart';
 import 'note_window_scope.dart';
 
@@ -27,27 +30,33 @@ class WindowActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final windows = NoteWindowScope.maybeOf(context);
-    return Actions(
-      actions: <Type, Action<Intent>>{
-        CloseNoteWindowIntent: CallbackAction<CloseNoteWindowIntent>(
-          onInvoke: (_) {
-            if (windows != null) {
-              unawaited(windows.closeThisWindow());
-            }
-            return null;
-          },
-        ),
-        OpenInNewWindowIntent: _OpenInNewWindowAction(
-          noteId: noteId,
-          enabledWhen: windows?.supported ?? false,
-          onOpen: (id) {
-            if (windows != null) {
-              unawaited(windows.open(id));
-            }
-          },
-        ),
-      },
-      child: child,
+    return Shortcuts(
+      shortcuts: shortcutBindingsFor(
+        const <ShortcutContext>[ShortcutContext.noteWindow],
+        defaultTargetPlatform,
+      ),
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          CloseNoteWindowIntent: CallbackAction<CloseNoteWindowIntent>(
+            onInvoke: (_) {
+              if (windows != null) {
+                unawaited(windows.closeThisWindow());
+              }
+              return null;
+            },
+          ),
+          OpenInNewWindowIntent: _OpenInNewWindowAction(
+            noteId: noteId,
+            enabledWhen: windows?.supported ?? false,
+            onOpen: (id) {
+              if (windows != null) {
+                unawaited(windows.open(id));
+              }
+            },
+          ),
+        },
+        child: child,
+      ),
     );
   }
 }

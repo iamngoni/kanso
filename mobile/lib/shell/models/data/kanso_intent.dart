@@ -68,3 +68,35 @@ class EditNoteIntent extends KansoIntent {
 class PreviewNoteIntent extends KansoIntent {
   const PreviewNoteIntent();
 }
+
+/// Open or make today's daily note.
+class OpenTodayIntent extends KansoIntent {
+  const OpenTodayIntent();
+}
+
+/// Open the library-wide replace screen.
+class ReplaceInNotesIntent extends KansoIntent {
+  const ReplaceInNotesIntent();
+}
+
+/// Show the open note's information sheet.
+class ToggleInspectorIntent extends KansoIntent {
+  const ToggleInspectorIntent();
+}
+
+/// Leave the settings page.
+class CloseSettingsIntent extends KansoIntent {
+  const CloseSettingsIntent();
+}
+
+/// Move to the next or previous settings page.
+class SettingsPageStepIntent extends KansoIntent {
+  const SettingsPageStepIntent({required this.forward});
+
+  final bool forward;
+}
+
+/// Open the command palette.
+class OpenPaletteIntent extends KansoIntent {
+  const OpenPaletteIntent();
+}

@@ -21,7 +21,12 @@ class TabActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = context.read<TabsBloc>();
+    final TabsBloc tabs;
+    try {
+      tabs = context.read<TabsBloc>();
+    } on ProviderNotFoundException {
+      return child;
+    }
     CallbackAction<T> on<T extends Intent>(Object? Function(T intent) run) =>
         _TabAction<T>(() => tabs.state.enabled, run);
     return Actions(

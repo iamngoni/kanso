@@ -4659,5 +4659,57 @@
     "placeholders": {"date": {"type": "String"}}
   },
   "publishExpired": "This link has expired. Update to create a new link.",
-  "@publishExpired": {"description": "Explains that update replaces an expired link."}
+  "@publishExpired": {"description": "Explains that update replaces an expired link."},
+  "paletteHint": "Search or run a command",
+  "@paletteHint": {
+    "description": "The command palette's field, before anything is typed."
+  },
+  "paletteEmptyTitle": "Nothing matches",
+  "@paletteEmptyTitle": {
+    "description": "The command palette's empty state heading."
+  },
+  "paletteEmptyMessage": "Try a shorter word, or another name.",
+  "@paletteEmptyMessage": {
+    "description": "The command palette's empty state, under the heading."
+  },
+  "paletteAddTag": "Add tag",
+  "@paletteAddTag": {
+    "description": "The title of the sheet that picks a tag to add to a note."
+  },
+  "noteOutline": "Outline",
+  "@noteOutline": {
+    "description": "The sheet of a note's headings."
+  },
+  "noteOutlineEmptyTitle": "No headings",
+  "@noteOutlineEmptyTitle": {
+    "description": "The outline's empty state heading."
+  },
+  "noteOutlineEmptyMessage": "Headings in the note show up here.",
+  "@noteOutlineEmptyMessage": {
+    "description": "The outline's empty state, under the heading."
+  },
+  "noteBacklinks": "Backlinks",
+  "@noteBacklinks": {
+    "description": "The sheet of the notes that name the open note."
+  },
+  "noteBacklinksLinked": "Linked from",
+  "@noteBacklinksLinked": {
+    "description": "The backlinks section of notes that link to this one."
+  },
+  "noteBacklinksUnlinked": "Unlinked mentions",
+  "@noteBacklinksUnlinked": {
+    "description": "The backlinks section of notes that name this one without a link."
+  },
+  "noteBacklinksEmptyTitle": "Nothing links here",
+  "@noteBacklinksEmptyTitle": {
+    "description": "The backlinks' empty state heading."
+  },
+  "noteBacklinksEmptyMessage": "A note that links to this one shows up here.",
+  "@noteBacklinksEmptyMessage": {
+    "description": "The backlinks' empty state, under the heading."
+  },
+  "paletteCommands": "Commands",
+  "@paletteCommands": {
+    "description": "The library's way into the command palette."
+  }
 }

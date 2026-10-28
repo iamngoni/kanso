@@ -146,7 +146,12 @@ import 'note/models/repos/impl/memory_note_place_repository.dart' as _i503;
 import 'note/state/note/note_bloc.dart' as _i618;
 import 'note/state/note_discovery/note_discovery_bloc.dart' as _i779;
 import 'note/state/preview/preview_bloc.dart' as _i435;
+import 'note_links/models/repos/abs/note_links_repository.dart' as _i393;
+import 'note_links/models/repos/impl/rust_note_links_repository.dart' as _i199;
 import 'note_list/state/note_list/note_list_bloc.dart' as _i351;
+import 'palette/models/repos/abs/palette_repository.dart' as _i704;
+import 'palette/models/repos/impl/rust_palette_repository.dart' as _i97;
+import 'palette/state/palette/palette_bloc.dart' as _i204;
 import 'publish/models/repos/abs/publish_repository.dart' as _i1047;
 import 'publish/models/repos/impl/rust_publish_repository.dart' as _i99;
 import 'publish/state/publish/publish_bloc.dart' as _i614;
@@ -374,6 +379,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i732.RendererRepository>(
       () => _i820.RustRendererRepository(gh<_i832.KansoRenderer>()),
     );
+    gh.lazySingleton<_i704.PaletteRepository>(
+      () => _i97.RustPaletteRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i696.SearchBloc>(
       () => _i696.SearchBloc(
         gh<_i38.LibraryRepository>(),
@@ -466,6 +474,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i991.NewNotebookBloc>(
       () => _i991.NewNotebookBloc(gh<_i38.LibraryRepository>()),
+    );
+    gh.lazySingleton<_i393.NoteLinksRepository>(
+      () => _i199.RustNoteLinksRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i34.NoteCreationBloc>(
       () => _i34.NoteCreationBloc(
@@ -574,6 +585,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i550.GalleryRepository>(
       () => _i692.RustGalleryRepository(gh<_i783.KansoGallery>()),
+    );
+    gh.factory<_i204.PaletteBloc>(
+      () => _i204.PaletteBloc(gh<_i704.PaletteRepository>()),
     );
     gh.factory<_i770.BackupsBloc>(
       () => _i770.BackupsBloc(gh<_i1002.BackupsRepository>()),

@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/core_library.dart';
 import 'helpers/kanso_golden_comparator.dart';
 
 /// Loads the bundled fonts (the variable ones draw every weight from one
@@ -16,6 +17,7 @@ import 'helpers/kanso_golden_comparator.dart';
 /// test harness's placeholder font.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
+  await initCoreForTests();
   final comparator = goldenFileComparator;
   if (comparator is LocalFileComparator) {
     goldenFileComparator = KansoGoldenComparator(

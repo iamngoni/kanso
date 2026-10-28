@@ -6315,6 +6315,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This link has expired. Update to create a new link.'**
   String get publishExpired;
+
+  /// The command palette's field, before anything is typed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search or run a command'**
+  String get paletteHint;
+
+  /// The command palette's empty state heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches'**
+  String get paletteEmptyTitle;
+
+  /// The command palette's empty state, under the heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a shorter word, or another name.'**
+  String get paletteEmptyMessage;
+
+  /// The title of the sheet that picks a tag to add to a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tag'**
+  String get paletteAddTag;
+
+  /// The sheet of a note's headings.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get noteOutline;
+
+  /// The outline's empty state heading.
+  ///
+  /// In en, this message translates to:
+  /// **'No headings'**
+  String get noteOutlineEmptyTitle;
+
+  /// The outline's empty state, under the heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Headings in the note show up here.'**
+  String get noteOutlineEmptyMessage;
+
+  /// The sheet of the notes that name the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Backlinks'**
+  String get noteBacklinks;
+
+  /// The backlinks section of notes that link to this one.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked from'**
+  String get noteBacklinksLinked;
+
+  /// The backlinks section of notes that name this one without a link.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlinked mentions'**
+  String get noteBacklinksUnlinked;
+
+  /// The backlinks' empty state heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing links here'**
+  String get noteBacklinksEmptyTitle;
+
+  /// The backlinks' empty state, under the heading.
+  ///
+  /// In en, this message translates to:
+  /// **'A note that links to this one shows up here.'**
+  String get noteBacklinksEmptyMessage;
+
+  /// The library's way into the command palette.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands'**
+  String get paletteCommands;
 }
 
 class _AppLocalizationsDelegate
