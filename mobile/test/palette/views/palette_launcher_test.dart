@@ -8,6 +8,7 @@ import 'package:clock/clock.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/linking_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
@@ -24,6 +25,10 @@ import 'package:kanso/lock/models/data/lock_target.dart';
 import 'package:kanso/lock/views/widgets/change_password_sheet.dart';
 import 'package:kanso/lock/views/widgets/lock_item_sheet.dart';
 import 'package:kanso/lock/views/widgets/remove_lock_sheet.dart';
+import 'package:kanso/note/models/data/note_mode.dart';
+import 'package:kanso/note/state/note/note_bloc.dart';
+import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
+import 'package:kanso/note/views/widgets/note_pane.dart';
 import 'package:kanso/note/views/widgets/related_notes_sheet.dart';
 import 'package:kanso/note_links/models/repos/abs/note_links_repository.dart';
 import 'package:kanso/note_links/views/widgets/outline_sheet.dart';
@@ -45,8 +50,11 @@ const Size _size = Size(1180, 820);
 const String _noteId = 'note:palette-test';
 const String _noteRoute = '/notes/note/note%3Apalette-test';
 
-NoteView _routeNote({LockState lock = const LockState.plain()}) => NoteView(
-  id: _noteId,
+NoteView _routeNote({
+  String id = _noteId,
+  LockState lock = const LockState.plain(),
+}) => NoteView(
+  id: id,
   rev: mockOpenNote.rev,
   title: mockOpenNote.title,
   body: mockOpenNote.body,
@@ -119,6 +127,12 @@ class _Palette implements PaletteRepository {
     required PaletteContext context,
   }) async {
     this.context = context;
+    if ((command == 'edit-mode' || command == 'preview-mode') &&
+        context.openNoteId == null) {
+      return const Right<ApplicationError, List<PaletteSection>>(
+        <PaletteSection>[],
+      );
+    }
     return Right<ApplicationError, List<PaletteSection>>(
       <PaletteSection>[
         PaletteSection(
@@ -269,6 +283,14 @@ Future<void> _run(WidgetTester tester, String command) async {
   await tester.tap(find.text(command));
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+void _requestMode(
+  NoteModeIntentBloc intents,
+  String noteId,
+  NoteMode mode,
+) {
+  intents.add(NoteModeIntentEvent.requested(noteId: noteId, mode: mode));
 }
 
 Future<BrowseApp> _pump(
@@ -666,5 +688,66 @@ void main() {
 
     expect(_Palette.latest.context?.openNoteId, isNull);
     expect(app.where, startsWith('/notes/note/'));
+  });
+
+  testWidgets('edit-mode switches the open note without replacing its bloc', (
+    tester,
+  ) async {
+    await _pump(tester, command: 'edit-mode');
+    final note = tester.element(find.byType(NotePane)).read<NoteBloc>();
+
+    expect(note.state.mode, NoteMode.preview);
+    await _run(tester, 'edit-mode');
+
+    expect(note.state.mode, NoteMode.edit);
+    expect(tester.element(find.byType(NotePane)).read<NoteBloc>(), same(note));
+  });
+
+  testWidgets('preview-mode returns the open note to preview', (tester) async {
+    await _pump(tester, command: 'preview-mode');
+    final noteElement = tester.element(find.byType(NotePane));
+    final note = BlocProvider.of<NoteBloc>(noteElement);
+    final intents = BlocProvider.of<NoteModeIntentBloc>(noteElement);
+    _requestMode(intents, _noteId, NoteMode.edit);
+    await tester.pump();
+    expect(note.state.mode, NoteMode.edit);
+
+    await _run(tester, 'preview-mode');
+
+    expect(note.state.mode, NoteMode.preview);
+    expect(tester.element(find.byType(NotePane)).read<NoteBloc>(), same(note));
+  });
+
+  for (final command in <String>['edit-mode', 'preview-mode']) {
+    testWidgets('$command is absent without an open note', (tester) async {
+      await _pump(tester, command: command, at: '/notes');
+
+      await _openPalette(tester);
+
+      expect(_Palette.latest.context?.openNoteId, isNull);
+      expect(find.text(command), findsNothing);
+    });
+  }
+
+  testWidgets('a mode request for note A does not change note B', (
+    tester,
+  ) async {
+    const noteB = 'note:other';
+    final library = _Library()..notes[noteB] = _routeNote(id: noteB);
+    await _pump(
+      tester,
+      command: 'edit-mode',
+      at: '/notes/note/note%3Aother',
+      library: library,
+    );
+    final noteElement = tester.element(find.byType(NotePane));
+    final note = BlocProvider.of<NoteBloc>(noteElement);
+    final intents = BlocProvider.of<NoteModeIntentBloc>(noteElement);
+
+    _requestMode(intents, _noteId, NoteMode.edit);
+    await tester.pump();
+
+    expect(note.state.noteId, noteB);
+    expect(note.state.mode, NoteMode.preview);
   });
 }

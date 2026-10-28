@@ -15,6 +15,7 @@ import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
 import '../../../sharing/views/widgets/shared_note_live.dart';
 import '../../state/note/note_bloc.dart';
 import '../../state/note_discovery/note_discovery_bloc.dart';
+import '../../state/note_mode_intent/note_mode_intent_bloc.dart';
 import '../widgets/note_pane.dart';
 import '../widgets/note_theme_sync.dart';
 
@@ -98,7 +99,19 @@ class NotePage extends StatelessWidget {
             child: Scaffold(
               resizeToAvoidBottomInset: false,
               backgroundColor: context.colors.editor,
-              body: NotePane(inPane: inPane),
+              body: BlocListener<NoteModeIntentBloc, NoteModeIntentState>(
+                listenWhen: (previous, current) =>
+                    previous.noteId != current.noteId ||
+                    previous.mode != current.mode,
+                listener: (context, intent) {
+                  final mode = intent.mode;
+                  if (intent.noteId == noteId && mode != null &&
+                      context.read<NoteBloc>().state.mode != mode) {
+                    context.read<NoteBloc>().add(NoteEvent.modeChanged(mode));
+                  }
+                },
+                child: NotePane(inPane: inPane),
+              ),
             ),
           ),
         ),

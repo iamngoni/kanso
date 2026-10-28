@@ -33,6 +33,7 @@ import 'package:kanso/crash/state/crash_reports/crash_reports_bloc.dart';
 import 'package:kanso/library/views/widgets/library_pane.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note/views/pages/note_page.dart';
 import 'package:kanso/note/views/widgets/no_note_selected_pane.dart';
 import 'package:kanso/note/views/widgets/note_top_bar.dart';
@@ -105,6 +106,9 @@ Future<GoRouter> _pump(
         if (focusMode != null)
           BlocProvider<FocusModeBloc>.value(value: focusMode),
         BlocProvider<LockStatusBloc>.value(value: blocs.lock),
+        BlocProvider<NoteModeIntentBloc>(
+          create: (_) => NoteModeIntentBloc(),
+        ),
         BlocProvider<PrivacyCoverBloc>.value(value: blocs.cover),
         BlocProvider<UndoNoticeBloc>.value(value: blocs.undoNotice),
         BlocProvider<NoteCreationBloc>.value(value: blocs.creation),

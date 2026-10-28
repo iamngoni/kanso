@@ -32,8 +32,10 @@ import '../../lock/utils/note_menu_actions.dart';
 import '../../lock/views/widgets/change_password_sheet.dart';
 import '../../lock/views/widgets/lock_item_sheet.dart';
 import '../../lock/views/widgets/remove_lock_sheet.dart';
+import '../../note/models/data/note_mode.dart';
 import '../../note/state/note/note_bloc.dart';
 import '../../note/state/note_discovery/note_discovery_bloc.dart';
+import '../../note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import '../../note/views/widgets/note_html_export.dart';
 import '../../note/views/widgets/note_info_sheet.dart';
 import '../../note/views/widgets/note_pdf_export.dart';
@@ -110,6 +112,8 @@ abstract final class PaletteLauncher {
     'new-template',
     'voice-input',
     'show-related',
+    'edit-mode',
+    'preview-mode',
   ];
 
   /// Shows the palette over the whole app.
@@ -542,6 +546,16 @@ abstract final class PaletteLauncher {
       case 'show-related':
         if (open != null) {
           await RelatedNotesSheet.show(context, noteId: open);
+        }
+      case 'edit-mode' || 'preview-mode':
+        final noteToSwitch = note?.id ?? noteId;
+        if (noteToSwitch != null) {
+          _maybeRead<NoteModeIntentBloc>(context)?.add(
+            NoteModeIntentEvent.requested(
+              noteId: noteToSwitch,
+              mode: id == 'edit-mode' ? NoteMode.edit : NoteMode.preview,
+            ),
+          );
         }
       default:
         // The core only lists handlers this app declares; anything else is a
