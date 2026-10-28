@@ -196,22 +196,26 @@ impl Preview {
             }
             if let Ok(mut files) = self.opened_files.lock() {
                 files.clear();
-                if let Some(note_id) = changed_id {
-                    if let (Ok(Some(note)), Ok(file_ids)) = (
-                        self.store.note(&note_id),
-                        self.store.files_of_note(&note_id),
-                    ) {
-                        for file_id in file_ids {
-                            if let Some((metadata, bytes)) =
-                                crate::locked::opened_file(&note, &file_id, cx)
-                            {
-                                files.insert(file_id, (metadata.content_type, bytes));
-                            }
-                        }
-                    }
+                if let Some(note_id) = changed_id.clone() {
+                    fill_opened_files(&self.store, note_id.as_str(), &mut files, cx);
                 }
             }
             cx.notify();
+        }
+        // Lock Notes Now forgets the keys without changing the note, so the
+        // decrypted bytes go with them. Unlocking the same note again has no
+        // new ID either; fill the cache back when a held key opens it.
+        if let Some(note_id) = changed_id.as_deref()
+            && self.store.note_is_locked(note_id).unwrap_or(false)
+            && let Ok(mut files) = self.opened_files.lock()
+        {
+            if crate::locked::LockKeys::is_unlocked(cx) {
+                if files.is_empty() {
+                    fill_opened_files(&self.store, note_id, &mut files, cx);
+                }
+            } else {
+                files.clear();
+            }
         }
     }
 
@@ -430,6 +434,24 @@ impl Preview {
 /// Finds a note's images: attachment links from the store, decoded once
 /// and cached; anything else as the URI says.
 type ImageResolver = Arc<dyn Fn(&SharedUri) -> ImageSource + Send + Sync>;
+
+/// Decrypts the attachments of a locked note whose keys this session holds,
+/// so the preview can draw them. Only called from `set_note`.
+fn fill_opened_files(
+    store: &Store,
+    note_id: &str,
+    files: &mut HashMap<String, (String, Vec<u8>)>,
+    cx: &App,
+) {
+    let (Ok(Some(note)), Ok(file_ids)) = (store.note(note_id), store.files_of_note(note_id)) else {
+        return;
+    };
+    for file_id in file_ids {
+        if let Some((metadata, bytes)) = crate::locked::opened_file(&note, &file_id, cx) {
+            files.insert(file_id, (metadata.content_type, bytes));
+        }
+    }
+}
 
 fn image_resolver(
     store: Arc<Store>,
