@@ -2133,7 +2133,13 @@ mod tests {
             let answer = format!("{before}![alt](https://{host}/{path}){after}");
             let cleaned = strip_remote_images(&answer);
             prop_assert!(!cleaned.contains("https://"));
-            prop_assert!(!cleaned.contains("!["));
+            let safe = sanitize_answer(&answer, &[]);
+            let (images, html) = rendered_markup(&safe);
+            prop_assert_eq!(images, 0, "{} rendered an image", answer);
+            for node in html {
+                let lower = node.to_ascii_lowercase();
+                prop_assert!(!lower.contains("src") && !lower.contains("srcset"), "{node}");
+            }
         }
     }
 

@@ -49,8 +49,10 @@ fn builtin_themes() {
         root.is_dir(),
         "themes is missing: run `git submodule update --init` (the themes are the kanso-themes submodule)"
     );
+    // Watch the index and every file it names, never the directory itself:
+    // directory watches make Flutter's hooks runner report a changed file on
+    // every build and rebuild the native library for no reason.
     let index = root.join("index.json");
-    println!("cargo:rerun-if-changed={}", root.display());
     println!("cargo:rerun-if-changed={}", index.display());
     let text = std::fs::read_to_string(&index)
         .unwrap_or_else(|err| panic!("{} couldn't be read: {err}", index.display()));

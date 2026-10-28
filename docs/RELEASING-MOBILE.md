@@ -437,10 +437,11 @@ All secrets, in one table (names are exact):
 
 ## Known gaps
 
-- **The app's own screens are still being built** (steps 6-12). The store text describes the
-  design; the screenshots show what exists (the note picture shows Markdown as plain text).
-- **The app icon is still Flutter's placeholder** on both platforms. The Play icon and
-  feature graphic use the website's icon; the app needs its own before App Store submission.
+- **Attachment work is not finished:** sealed attachments (#44), PDF attachments (#43), and
+  recordings (#38) are still outstanding. The existing app screens and the custom app icon
+  are in place; do not describe either as unfinished or as Flutter placeholders.
+- **Physical-device QA, TestFlight/Play uploads, and store submission are unverified.** Do
+  the device checks in step 4 above before claiming the build is ready for testing.
 - **iOS cloud signing and the Shorebird steps are untested** until the accounts exist (see
   above).
 - **Mac Catalyst / "iPhone apps on Apple silicon Macs":** App Store Connect makes the iPhone

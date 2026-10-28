@@ -48,12 +48,14 @@ has not shipped.
 | Preview, math and diagrams, wiki-links followed | 7 |
 | End-to-end encrypted sync, sign-in methods, device approval, recovery key | 8 |
 | Locked notes, Face ID / fingerprint, the cover in the app switcher | 9 |
-| Share sheet, widgets | 10 |
-| Not claimed (drop-in later): canvases and ink (11), Ask your notes, recordings (12) | |
+| Share sheet, widgets | implemented; device QA pending |
+| Ask your notes | implemented; keep out of public copy until live-model QA |
+| Not claimed (drop-in later): canvases and ink (11), recordings (12) | |
 | Kept out of iCloud and device backups | 5 (merged) |
 | No ads, trackers or analytics | true while crash reporting stays undecided |
 
-If Ask your notes ships in 0.9.0, add it to the descriptions and to the privacy answers.
+If Ask your notes ships in 0.9.0 after live-model QA, add it to the descriptions and to the
+privacy answers.
 
 ## Screenshots
 

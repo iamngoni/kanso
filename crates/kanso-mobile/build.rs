@@ -41,7 +41,12 @@ fn main() {
         root.is_dir(),
         "themes/icon-themes is missing: run `git submodule update --init` (the themes are the kanso-themes submodule)"
     );
-    println!("cargo:rerun-if-changed={}", root.display());
+    // Watch the manifest and every JSON/SVG it leads us to, never the
+    // directory itself. A directory watch makes Flutter's hooks runner report
+    // the tree as modified on every build.
+    let index = root.join("index.json");
+    assert!(index.is_file(), "themes/icon-themes/index.json is missing");
+    println!("cargo:rerun-if-changed={}", index.display());
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     let json_dir = out_dir.join("icon-themes");
     std::fs::create_dir_all(&json_dir).expect("creating the icon themes folder");

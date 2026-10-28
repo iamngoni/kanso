@@ -75,7 +75,12 @@ fn builtin_icon_themes() {
         root.is_dir(),
         "themes/icon-themes is missing: run `git submodule update --init` (the themes are the kanso-themes submodule)"
     );
-    println!("cargo:rerun-if-changed={}", root.display());
+    // A directory dependency makes Flutter's hooks runner consider the native
+    // assets stale on every test/build. The icon-theme index is the manifest
+    // that changes when a theme folder is added.
+    let index = root.join("index.json");
+    assert!(index.is_file(), "themes/icon-themes/index.json is missing");
+    println!("cargo:rerun-if-changed={}", index.display());
     let mut code = String::from(
         "/// The built-in icon themes: (ID, theme JSON, SVGs by path).\n\
          pub const BUILTIN_FILES: &[BuiltinTheme] = &[\n",
@@ -98,7 +103,6 @@ fn builtin_icon_themes() {
         let Some(json) = json else {
             continue;
         };
-        println!("cargo:rerun-if-changed={}", folder.display());
         println!("cargo:rerun-if-changed={}", json.display());
         let mut files = Vec::new();
         svgs(&folder, "", &mut files);
