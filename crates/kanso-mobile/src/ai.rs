@@ -243,7 +243,7 @@ impl AiHandle {
         guard(|| {
             let file = self.load();
             let settings = self.client_settings(&file);
-            kanso_ai::probe(&settings).map_err(ai_error)
+            kanso_ai::probe(&settings).map_err(|err| ai_error(err, settings.api_key.as_deref()))
         })
     }
 
@@ -420,7 +420,7 @@ impl AiHandle {
     /// The provider to ask under `settings`, or why one can't be made (no
     /// key, no model).
     fn provider_for(&self, settings: &ClientSettings) -> Result<SharedProvider, KansoError> {
-        (self.maker)(settings).map_err(ai_error)
+        (self.maker)(settings).map_err(|err| ai_error(err, settings.api_key.as_deref()))
     }
 
     /// Note `id`, when it may be sent to AI; otherwise [`KEPT_OUT`].
@@ -786,10 +786,11 @@ fn spawn(name: &str, work: impl FnOnce() + Send + 'static) -> Result<(), KansoEr
         .map_err(|err| KansoError::storage(format!("Couldn't start the request: {err}")))
 }
 
-fn ai_error(err: AiError) -> KansoError {
+fn ai_error(err: AiError, api_key: Option<&str>) -> KansoError {
+    let message = kanso_ai::redact_provider_error(&err.to_string(), api_key);
     match err {
-        AiError::Transport(_) | AiError::Timeout(_) => KansoError::network(err.to_string()),
-        other => KansoError::invalid(other.to_string()),
+        AiError::Transport(_) | AiError::Timeout(_) => KansoError::network(message),
+        _ => KansoError::invalid(message),
     }
 }
 
