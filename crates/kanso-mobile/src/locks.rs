@@ -733,6 +733,42 @@ impl LockSession {
         })
     }
 
+    /// Seals the attachments of a note locked by an older Kanso, whose
+    /// `kansoFiles` list is missing, now that its key is held. The note's
+    /// text is already open in `note.body`; the returned count is what was
+    /// sealed. No-op once the list exists.
+    pub(crate) fn migrate_note_attachments(&self, note: &mut Note) -> Result<u32, KansoError> {
+        if !note.is_locked()
+            || note
+                .extra
+                .contains_key(kanso_core::model::KANSO_FILES_FIELD)
+        {
+            return Ok(0);
+        }
+        let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
+            return Ok(0);
+        };
+        let key = held(&self.inner.keys)
+            .fitting(&envelope)
+            .ok_or(KansoError::Locked)?;
+        let body = note.body.clone();
+        let locking = HashSet::from([note.id.clone()]);
+        let copies = HashMap::new();
+        let (body, envelope) = self.seal_note_files(note, &body, &key, &locking, &copies)?;
+        note.body = body;
+        Envelope::store(Some(&envelope), &mut note.extra);
+        let count = note_files_from_extra(&note.extra)
+            .map(|files| u32::try_from(files.len()).unwrap_or(u32::MAX))
+            .unwrap_or_default();
+        let mut stored = note.clone();
+        stored.body.clear();
+        let value =
+            serde_json::to_value(stored).map_err(|err| KansoError::storage(err.to_string()))?;
+        let written = self.inner.store.lock_note(value)?;
+        note.rev = Some(written.rev);
+        Ok(count)
+    }
+
     /// Whether a plain file has an owner outside `locking` that is still
     /// unlocked, and so must keep the readable original.
     fn shared_with_unlocked(

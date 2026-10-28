@@ -16,7 +16,7 @@ use kanso_mobile::{KansoError, ListPlace, ListQuery, LockEvent, LockReason, Lock
 use kanso_store::{Origin, Put};
 use kanso_store::{SearchParams, Store};
 use kanso_sync::KdfParams;
-use kanso_sync::lock::{LockKey, LockPassword};
+use kanso_sync::lock::{Envelope, LockKey, LockPassword};
 use proptest::prelude::*;
 use serde_json::json;
 
@@ -387,6 +387,79 @@ fn removing_the_last_note_lock_restores_plain_attachment_without_session_keys() 
     );
 }
 
+/// A note locked by an older Kanso has sealed text and a plain attachment,
+/// with no `kansoFiles` list. Opening it with the password seals the file and
+/// writes the list once; opening it again does not write the note again.
+#[test]
+fn a_legacy_locked_note_seals_its_attachment_when_opened() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let plain = b"legacy attachment bytes";
+    let encoded = base64::engine::general_purpose::STANDARD.encode(plain);
+    let file = store
+        .put(
+            DocType::File,
+            serde_json::json!({"name":"legacy.png","contentType":"image/png",
+            "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let body = format!("![](inkdrop://{file})");
+    let id = note(&phone.library, "Legacy", &body);
+
+    // The older Kanso sealed only the text.
+    let mut stored = store.note(&id).unwrap().unwrap();
+    let key = LockKey::create(&LockPassword::new(LOCK_PASSWORD).unwrap(), KdfParams::TEST).unwrap();
+    let envelope = key.seal(&id, &stored.body);
+    Envelope::store(Some(&envelope), &mut stored.extra);
+    stored.body.clear();
+    assert!(!stored.extra.contains_key(KANSO_FILES_FIELD));
+    store
+        .lock_note(serde_json::to_value(stored).unwrap())
+        .unwrap();
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+
+    let locks = phone.library.locks();
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    let view = phone.library.note(&id).unwrap();
+    assert_eq!(view.body.as_deref(), Some(body.as_str()));
+    let stored = store.note(&id).unwrap().unwrap();
+    let ownership = note_files_from_extra(&stored.extra).unwrap();
+    assert_eq!(ownership.len(), 1);
+    assert_eq!(ownership[0].file, file);
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+
+    // A second open sees the list and leaves the revision alone.
+    let rev = stored.rev;
+    assert_eq!(
+        phone.library.note(&id).unwrap().body.as_deref(),
+        Some(body.as_str())
+    );
+    let stored = store.note(&id).unwrap().unwrap();
+    assert_eq!(stored.rev, rev);
+    assert_eq!(note_files_from_extra(&stored.extra).unwrap().len(), 1);
+
+    locks.lock().unwrap();
+    assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    assert_eq!(
+        phone.library.attachment(&file).unwrap().bytes.as_slice(),
+        plain
+    );
+}
+
 #[test]
 fn locking_a_notebook_seals_and_reveals_its_attachment() {
     let phone = lone_phone();
@@ -746,6 +819,62 @@ fn the_notes_of_a_locked_notebook_are_locked_with_it() {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(16))]
+
+    /// Sealing a legacy note's attachment list is idempotent: one open
+    /// seals it, a second leaves its revision and list alone.
+    #[test]
+    fn prop_legacy_attachment_migration_is_idempotent(
+        prefix in "\\PC{0,40}",
+        suffix in "\\PC{0,40}",
+    ) {
+        let phone = lone_phone();
+        let store = phone.library.store();
+        let encoded = base64::engine::general_purpose::STANDARD.encode(b"legacy");
+        let file = store
+            .put(
+                DocType::File,
+                serde_json::json!({"name":"legacy.png","contentType":"image/png",
+                "_attachments":{"index":{"content_type":"image/png","data":encoded}}}),
+                Put::Upsert,
+                Origin::Api,
+            )
+            .unwrap()
+            .id;
+        let body = format!("{prefix}![](inkdrop://{file}){suffix}");
+        let id = note(&phone.library, "Legacy", &body);
+        let mut stored = store.note(&id).unwrap().unwrap();
+        let key = LockKey::create(
+            &LockPassword::new(LOCK_PASSWORD).unwrap(),
+            KdfParams::TEST,
+        )
+        .unwrap();
+        let envelope = key.seal(&id, &stored.body);
+        Envelope::store(Some(&envelope), &mut stored.extra);
+        stored.body.clear();
+        store
+            .lock_note(serde_json::to_value(stored).unwrap())
+            .unwrap();
+
+        let locks = phone.library.locks();
+        locks.unlock(LOCK_PASSWORD.into()).unwrap();
+        let first = phone.library.note(&id).unwrap();
+        prop_assert_eq!(first.body.as_deref(), Some(body.as_str()));
+        let sealed = store.note(&id).unwrap().unwrap();
+        let rev = sealed.rev.clone();
+        let ownership = note_files_from_extra(&sealed.extra).unwrap();
+        prop_assert_eq!(ownership.len(), 1);
+        prop_assert_eq!(&ownership[0].file, &file);
+        prop_assert_eq!(
+            store.attachment_state(&file).unwrap(),
+            kanso_store::AttachmentState::Sealed
+        );
+
+        let second = phone.library.note(&id).unwrap();
+        prop_assert_eq!(second.body.as_deref(), Some(body.as_str()));
+        let again = store.note(&id).unwrap().unwrap();
+        prop_assert_eq!(again.rev, rev);
+        prop_assert_eq!(note_files_from_extra(&again.extra).unwrap().len(), 1);
+    }
 
     /// A file that unlocked notes still show is copied for the note being
     /// locked: the original stays readable and keeps those owners.

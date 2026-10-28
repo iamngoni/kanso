@@ -483,7 +483,16 @@ impl Library {
         }
         let view = held(&self.inner.keys).reveal(note, Some(&self.inner.store));
         if view == LockView::Open {
-            self.locks().cache_note_file_keys_for_note(note);
+            let locks = self.locks();
+            locks.cache_note_file_keys_for_note(note);
+            if note.is_locked()
+                && !note
+                    .extra
+                    .contains_key(kanso_core::model::KANSO_FILES_FIELD)
+                && let Err(error) = locks.migrate_note_attachments(note)
+            {
+                eprintln!("kanso: locked notes: couldn't seal an attachment list: {error}");
+            }
         }
         view
     }
