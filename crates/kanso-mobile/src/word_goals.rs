@@ -227,4 +227,28 @@ mod tests {
             Err(KansoError::Invalid { .. })
         ));
     }
+
+    #[test]
+    fn a_closed_editor_session_is_ignored_by_later_goal_reads_and_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = library(&dir.path().join("library.db"));
+        let saved = library.create(NewNote::default()).unwrap();
+        let editor = library.edit(&saved.id).unwrap();
+        editor.set_word_goal(GoalSetting::Words(900)).unwrap();
+        editor.close().unwrap();
+
+        // The UI may still hold the closed handle. It must not be treated as
+        // the open editor for this note.
+        assert_eq!(
+            library.note_word_goal(&saved.id).unwrap(),
+            GoalSetting::Words(900)
+        );
+        library
+            .set_note_word_goal(&saved.id, GoalSetting::Words(600))
+            .unwrap();
+        assert_eq!(
+            library.note_word_goal(&saved.id).unwrap(),
+            GoalSetting::Words(600)
+        );
+    }
 }
