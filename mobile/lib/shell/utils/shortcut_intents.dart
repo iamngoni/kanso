@@ -25,7 +25,6 @@ const Set<String> unboundOnMobile = <String>{
   'actual_size', // The mobile app has no page zoom.
   'ask_your_notes', // The Ask screen is not on master.
   'open_note_picker', // There is no mobile note picker or quick-open screen.
-  'open_command_palette', // There is no mobile command palette.
   'focus_search', // The shell cannot focus the search field from this context.
   'focus_note_list', // The note list has no keyboard focus model.
   'paste_plain_text', // The editor has no paste-as-plain-text action.
@@ -114,8 +113,8 @@ Intent? intentForShortcut(ShortcutEntry entry) => switch (entry.id) {
   'go_forward' => const ForwardIntent(),
   'next_note' => const NextNoteIntent(),
   'previous_note' => const PreviousNoteIntent(),
-  'open_command_palette' ||
-  'open_note_picker' => null, // No palette or quick-open surface exists.
+  'open_command_palette' => const OpenPaletteIntent(),
+  'open_note_picker' => null, // There is no quick-open surface yet.
   'close_tab' => const CloseTabIntent(),
   'next_tab' => const NextTabIntent(),
   'previous_tab' => const PreviousTabIntent(),

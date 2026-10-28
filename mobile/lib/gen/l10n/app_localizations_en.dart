@@ -3638,4 +3638,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String tabLocked(String title) {
     return '$title, locked';
   }
+
+  @override
+  String get paletteHint => 'Search or run a command';
+
+  @override
+  String get paletteEmptyTitle => 'Nothing matches';
+
+  @override
+  String get paletteEmptyMessage => 'Try a shorter word, or another name.';
+
+  @override
+  String get paletteAddTag => 'Add tag';
+
+  @override
+  String get noteOutline => 'Outline';
+
+  @override
+  String get noteOutlineEmptyTitle => 'No headings';
+
+  @override
+  String get noteOutlineEmptyMessage => 'Headings in the note show up here.';
+
+  @override
+  String get noteBacklinks => 'Backlinks';
+
+  @override
+  String get noteBacklinksLinked => 'Linked from';
+
+  @override
+  String get noteBacklinksUnlinked => 'Unlinked mentions';
+
+  @override
+  String get noteBacklinksEmptyTitle => 'Nothing links here';
+
+  @override
+  String get noteBacklinksEmptyMessage =>
+      'A note that links to this one shows up here.';
+
+  @override
+  String get paletteCommands => 'Commands';
 }

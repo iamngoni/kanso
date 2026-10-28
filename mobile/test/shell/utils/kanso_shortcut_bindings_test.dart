@@ -37,6 +37,7 @@ void main() {
           EditNoteIntent,
           PreviewNoteIntent,
           SaveIntent,
+          OpenPaletteIntent,
           OpenTodayIntent,
           ReplaceInNotesIntent,
           ToggleInspectorIntent,
@@ -47,7 +48,7 @@ void main() {
           ReopenClosedTabIntent,
           GoToTabIntent,
         });
-        expect(bindings, hasLength(30));
+        expect(bindings, hasLength(31));
       }
     });
 
@@ -100,11 +101,15 @@ void main() {
       expect(bindings[PreviewNoteIntent]!.trigger, LogicalKeyboardKey.digit3);
     });
 
+    test('the command palette is bound to its catalog shortcut', () {
+      final palette = kansoShortcutBindings(TargetPlatform.iOS).entries
+          .where((entry) => entry.value is OpenPaletteIntent)
+          .map((entry) => entry.key)
+          .toList();
+      expect(palette, hasLength(1));
+    });
+
     test('there is no shortcut for unsupported list focus or page zoom', () {
-      final triggers = kansoShortcutBindings(
-        TargetPlatform.iOS,
-      ).keys.map(_activator).map((activator) => activator.trigger).toSet();
-      expect(triggers, isNot(contains(LogicalKeyboardKey.keyK)));
       final plainF = kansoShortcutBindings(TargetPlatform.iOS).keys
           .map(_activator)
           .where(

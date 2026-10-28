@@ -95,3 +95,8 @@ class SettingsPageStepIntent extends KansoIntent {
 
   final bool forward;
 }
+
+/// Open the command palette.
+class OpenPaletteIntent extends KansoIntent {
+  const OpenPaletteIntent();
+}

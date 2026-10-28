@@ -23,6 +23,7 @@ import '../../../library/views/widgets/new_notebook_sheet.dart';
 import '../../../note/state/note/note_bloc.dart';
 import '../../../note/state/note_discovery/note_discovery_bloc.dart';
 import '../../../note/views/widgets/note_info_sheet.dart';
+import '../../../palette/views/palette_launcher.dart';
 import '../../../tabs/models/data/tab_intent.dart';
 import '../../../tabs/state/tabs/tabs_bloc.dart';
 import '../../models/data/kanso_intent.dart';
@@ -132,6 +133,12 @@ class KansoShortcuts extends StatelessWidget {
           NewNotebookIntent: CallbackAction<NewNotebookIntent>(
             onInvoke: (_) {
               unawaited(NewNotebookSheet.open(context));
+              return null;
+            },
+          ),
+          OpenPaletteIntent: CallbackAction<OpenPaletteIntent>(
+            onInvoke: (_) {
+              unawaited(PaletteLauncher.open(context));
               return null;
             },
           ),

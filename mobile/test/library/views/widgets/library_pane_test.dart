@@ -153,10 +153,7 @@ void main() {
       await tester.scrollUntilVisible(find.text('idea'), 120);
       expect(find.text('idea'), findsOneWidget);
       // So is the Trash, at the foot of the pane.
-      await tester.scrollUntilVisible(
-        find.text('Trash', skipOffstage: false),
-        120,
-      );
+      await tester.scrollUntilVisible(find.text('Trash'), 120);
       expect(find.text('Trash'), findsOneWidget);
       expect(find.text('4'), findsOneWidget);
       // There is no Templates notebook in this library.
@@ -197,6 +194,7 @@ void main() {
         size: const Size(800, 1200),
       );
       await tester.scrollUntilVisible(find.text('idea'), 100);
+      await tester.pumpAndSettle();
       await _dropNote(tester, find.text('idea'));
       await tester.pumpAndSettle();
       expect(library.changesMade, hasLength(1));

@@ -2,6 +2,8 @@
 // Created 2026-10-25.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -32,12 +34,14 @@ import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_search_field.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
+import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sidebar_row.dart';
 import '../../../core/views/widgets/kanso_status_glyph.dart';
 import '../../../core/views/widgets/kanso_themed_icon.dart';
 import '../../../injection.dart';
 import '../../../lock/utils/notebook_lock_rule.dart';
 import '../../../note_list/state/note_list/note_list_bloc.dart';
+import '../../../palette/views/palette_launcher.dart';
 import '../../../sharing/views/widgets/shared_with_you_row.dart';
 import 'library_actions.dart';
 import 'library_header.dart';
@@ -145,6 +149,11 @@ class _LibraryPaneState extends State<LibraryPane> {
                 ),
               ),
             ),
+          ),
+          KansoSettingsRow(
+            icon: KansoIcons.terminal,
+            label: l10n.paletteCommands,
+            onTap: () => leave(() => unawaited(PaletteLauncher.open(context))),
           ),
           Expanded(
             child: BlocBuilder<LibraryIndexBloc, LibraryIndexState>(

@@ -147,6 +147,9 @@ import 'note/state/note/note_bloc.dart' as _i618;
 import 'note/state/note_discovery/note_discovery_bloc.dart' as _i779;
 import 'note/state/preview/preview_bloc.dart' as _i435;
 import 'note_list/state/note_list/note_list_bloc.dart' as _i351;
+import 'palette/models/repos/abs/palette_repository.dart' as _i704;
+import 'palette/models/repos/impl/rust_palette_repository.dart' as _i97;
+import 'palette/state/palette/palette_bloc.dart' as _i204;
 import 'push/configs/push_module.dart' as _i78;
 import 'push/models/repos/abs/push_repository.dart' as _i937;
 import 'push/models/repos/impl/plugin_push_repository.dart' as _i506;
@@ -371,6 +374,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i732.RendererRepository>(
       () => _i820.RustRendererRepository(gh<_i832.KansoRenderer>()),
     );
+    gh.lazySingleton<_i704.PaletteRepository>(
+      () => _i97.RustPaletteRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i696.SearchBloc>(
       () => _i696.SearchBloc(
         gh<_i38.LibraryRepository>(),
@@ -568,6 +574,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i550.GalleryRepository>(
       () => _i692.RustGalleryRepository(gh<_i783.KansoGallery>()),
+    );
+    gh.factory<_i204.PaletteBloc>(
+      () => _i204.PaletteBloc(gh<_i704.PaletteRepository>()),
     );
     gh.factory<_i770.BackupsBloc>(
       () => _i770.BackupsBloc(gh<_i1002.BackupsRepository>()),

@@ -2,14 +2,22 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
+import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show EditableText, MaterialApp, Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/bridge/api/linking_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/layout_class.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer_scope.dart';
+import 'package:kanso/injection.dart';
 import 'package:kanso/note_list/views/pages/note_list_page.dart';
+import 'package:kanso/palette/models/repos/abs/palette_repository.dart';
+import 'package:kanso/palette/state/palette/palette_bloc.dart';
 import 'package:kanso/shell/views/widgets/kanso_shortcuts.dart';
 import 'package:kanso/shell/views/widgets/library_navigation.dart';
 import 'package:kanso/tabs/views/widgets/tab_actions.dart';
@@ -19,6 +27,28 @@ import '../../../helpers/fixture_library_repository.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/pump_browse_app.dart';
 import '../../../helpers/pump_routed.dart';
+
+/// Answers the palette with one command, so opening it is visible.
+class _FakePalette implements PaletteRepository {
+  @override
+  Future<Either<ApplicationError, List<PaletteSection>>> search({
+    required String query,
+    required PaletteContext context,
+  }) async => const Right(<PaletteSection>[
+    PaletteSection(
+      label: 'Note actions',
+      entries: <PaletteEntry>[
+        PaletteEntry(
+          target: PaletteTarget.command(id: 'new-note'),
+          label: 'New note',
+          icon: 'file-plus',
+          checked: false,
+          depth: 0,
+        ),
+      ],
+    ),
+  ]);
+}
 
 const Size _landscape = Size(1180, 820);
 const Size _portrait = Size(820, 1180);
@@ -279,13 +309,23 @@ void main() {
       expect(app.where, startsWith('/notes/note/'));
     });
 
+    testWidgets('the palette shortcut opens the palette', (tester) async {
+      getIt.registerFactory<PaletteBloc>(() => PaletteBloc(_FakePalette()));
+      addTearDown(() => unawaited(getIt.reset()));
+      final app = await pumpBrowseApp(tester, _landscape, at: '/pinned');
+      await _shortcut(tester, LogicalKeyboardKey.keyK);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('New note'), findsOneWidget);
+      expect(app.where, '/pinned');
+    });
+
     testWidgets('has no shortcut for what is not built: find in a note, the '
-        'modes of a note on the list, the command palette', (tester) async {
+        'modes of a note on the list', (tester) async {
       final app = await pumpBrowseApp(tester, _landscape, at: '/pinned');
       await _shortcut(tester, LogicalKeyboardKey.digit1);
       await _shortcut(tester, LogicalKeyboardKey.digit2);
       await _shortcut(tester, LogicalKeyboardKey.digit3);
-      await _shortcut(tester, LogicalKeyboardKey.keyK);
       expect(app.where, '/pinned');
       expect(app.blocs.library.changesMade, isEmpty);
     });
