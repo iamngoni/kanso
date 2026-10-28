@@ -53,10 +53,6 @@ class KansoStatusGlyph extends StatelessWidget {
     if (icon == null) {
       return const SizedBox.shrink();
     }
-    return KansoIcon(
-      icon,
-      size: size,
-      color: colorFor(status, context.colors),
-    );
+    return KansoIcon(icon, size: size, color: colorFor(status, context.colors));
   }
 }

@@ -495,13 +495,7 @@ fn fallback(
         .into_any_element()
 }
 
-/// The fenced block a drawing becomes in a note.
-pub fn scene_block(scene: &str) -> Result<String, Failure> {
-    Ok(format!(
-        "```excalidraw\n{}\n```",
-        kanso_render::excalidraw::to_note(scene)?
-    ))
-}
+pub use kanso_engine::edit::image::drawing_block as scene_block;
 
 /// A drawing with its actions over its corner, shown on hover: edit it in
 /// Excalidraw, bring it back, or keep it as a file.

@@ -10,6 +10,7 @@ import '../../configs/kanso_sizes.dart';
 import '../../configs/kanso_spacing.dart';
 import '../../utils/context_extensions.dart';
 import 'kanso_icon.dart';
+import 'kanso_lock_mark.dart';
 import 'kanso_pressable.dart';
 
 /// A row of the library: an icon (or any [leading] widget), a label, a
@@ -23,10 +24,13 @@ class KansoSidebarRow extends StatelessWidget {
     this.icon,
     this.leading,
     this.count,
+    this.badge,
     this.selected = false,
     this.chevron = false,
     this.depth = 0,
+    this.locked = false,
     this.onTap,
+    this.onLongPress,
     super.key,
   });
 
@@ -36,10 +40,17 @@ class KansoSidebarRow extends StatelessWidget {
   /// Replaces [icon], for a coloured dot.
   final Widget? leading;
   final int? count;
+
+  /// Shown at the end of the row in place of [count]: a pill.
+  final Widget? badge;
   final bool selected;
   final bool chevron;
   final int depth;
+
+  /// Whether the notebook is locked: a lock is drawn after its label.
+  final bool locked;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   /// How far each level of [depth] moves a row in.
   static const double depthIndent = KansoSpacing.md;
@@ -51,8 +62,10 @@ class KansoSidebarRow extends StatelessWidget {
     final glyph = icon;
     final head = leading;
     final total = count;
+    final pill = badge;
     return KansoPressable(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: KansoSpacing.xs),
         child: Container(
@@ -93,13 +106,18 @@ class KansoSidebarRow extends StatelessWidget {
                   ),
                 ),
               ),
-              if (total != null) ...<Widget>[
+              if (locked) ...<Widget>[
+                const SizedBox(width: KansoSpacing.xs),
+                const KansoLockMark(),
+              ],
+              if (pill != null) ...<Widget>[
+                const SizedBox(width: KansoSpacing.xs),
+                pill,
+              ] else if (total != null) ...<Widget>[
                 const SizedBox(width: KansoSpacing.xs),
                 Text(
                   '$total',
-                  style: typography.secondary.copyWith(
-                    color: colors.textMuted,
-                  ),
+                  style: typography.secondary.copyWith(color: colors.textMuted),
                 ),
               ],
               if (chevron) ...<Widget>[

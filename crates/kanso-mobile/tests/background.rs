@@ -112,3 +112,47 @@ fn a_library_that_cannot_be_opened_is_internal() {
     assert_eq!(outcome, BackgroundOutcome::Internal);
     assert_eq!(outcome.code(), -5);
 }
+
+// no-prop-test: one setting, on and off (the schedule's own property covers
+// the foreground).
+#[test]
+fn a_background_sync_with_sync_automatically_off_pulls_nothing() {
+    let server = Arc::new(MemoryServer::new());
+    make_account(&server);
+    let writer = phone(&server);
+    sign_in(&writer, "Writer");
+    let id = note(&writer.library, "From elsewhere", "text");
+    writer.library.sync().sync_now().unwrap();
+
+    let reader = phone(&server);
+    sign_in(&reader, "Reader");
+    let off = reader.library.sync().settings().unwrap();
+    reader
+        .library
+        .sync()
+        .set_settings(false, off.interval_secs)
+        .unwrap();
+    let (path, secrets) = (reader.path(), reader.secrets.clone());
+    let keep = reader.dir;
+    drop(reader.library);
+
+    // Nothing to do, and nothing pulled.
+    let outcome = run(
+        &path,
+        Duration::from_secs(30),
+        backend(&server),
+        secrets.clone(),
+    );
+    assert_eq!(outcome, BackgroundOutcome::Done { changed: false });
+    let library =
+        kanso_mobile::Library::open_for_test(&path, secrets.clone(), backend(&server)).unwrap();
+    assert!(library.note(&id).is_err());
+
+    // Turned on again, the next run pulls the note.
+    let on = library.sync().settings().unwrap();
+    library.sync().set_settings(true, on.interval_secs).unwrap();
+    drop(library);
+    let outcome = run(&path, Duration::from_secs(30), backend(&server), secrets);
+    assert_eq!(outcome, BackgroundOutcome::Done { changed: true });
+    drop(keep);
+}

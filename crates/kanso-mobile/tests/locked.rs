@@ -10,6 +10,19 @@
 //! payloads, which only ever carry IDs and states, are checked at the end for
 //! any marker at all. A model of which notes are closed (locked, and the
 //! session not open) decides what "closed" means; it never asks the library.
+//!
+//! Locking by hand, by the auto-lock or by the app going to the background,
+//! and opening and closing with biometrics, are among the calls: after any
+//! lock no key survives, and every locked note reads closed through every
+//! read path.
+//!
+//! Notes open for editing are in the sequence too: a session on a closed note
+//! is refused, every call of a session on an open one is checked like the
+//! rest (snapshots, runs, completions, links, properties), and when the lock
+//! closes the sessions on locked notes are saved sealed first, then return
+//! `Locked` and send `Closed` and nothing after it. What was typed in them
+//! comes back when the notes are opened again; the store holds none of it in
+//! the clear.
 
 mod common;
 
@@ -18,9 +31,10 @@ use std::time::{Duration, Instant};
 
 use common::*;
 use kanso_engine::lock::AUTO_LOCK;
+use kanso_mobile::biometrics;
 use kanso_mobile::{
-    KansoError, ListPlace, ListQuery, LockEvent, NoteChange, NoteRow, PaletteDto, Renderer,
-    SearchScope, SortKey,
+    EditorSession, KansoError, ListPlace, ListQuery, LockEvent, NoteChange, NoteRow, PaletteDto,
+    Range16, Renderer, SearchScope, SortKey, TextChange,
 };
 use proptest::prelude::*;
 
@@ -39,7 +53,7 @@ fn tag_name(i: usize) -> String {
 fn body_of(i: usize) -> String {
     let m = marker(i);
     format!(
-        "---\nowner: {m}\nlevel: {m}\n---\nThe plan {m} is here. #{tag}\n- [ ] do {m}\n- [x] done {m}\n",
+        "---\nowner: {m}\nlevel: {m}\n---\nThe plan {m} is here. #{tag}\n- [ ] do {m}\n- [x] done {m}\n```rust\nlet code = \"{m}\";\n```\n",
         tag = tag_name(i)
     )
 }
@@ -71,6 +85,41 @@ fn palette() -> PaletteDto {
     Renderer::theme_tokens(theme.into()).unwrap().palette
 }
 
+/// The secret the platform keeps, and one that isn't it.
+const SECRET_B: [u8; 32] = [9; 32];
+const OTHER_B: [u8; 32] = [8; 32];
+
+/// What no key leaves open: every note locked reads closed by every path.
+fn sweep(
+    library: &kanso_mobile::Library,
+    ids: &[String],
+    locked: &[bool],
+) -> Result<(), TestCaseError> {
+    for (i, id) in ids.iter().enumerate() {
+        if !locked[i] {
+            continue;
+        }
+        let view = library.note(id).unwrap();
+        prop_assert_eq!(&view.body, &None);
+        prop_assert!(view.lock.is_closed());
+        prop_assert_eq!(
+            library.save(id, &view.rev, "x".into()),
+            Err(KansoError::Locked)
+        );
+        prop_assert!(!library.locks().is_note_unlocked(id).unwrap());
+        let text = format!(
+            "{:?}",
+            (
+                library.list(ListQuery::default()).unwrap().rows,
+                library.search(&marker(i), SearchScope::All, 0).unwrap(),
+                library.renderer().preview_html(id, palette()),
+            )
+        );
+        prop_assert!(!text.contains(&marker(i)), "{text}");
+    }
+    Ok(())
+}
+
 /// One call of the sequence.
 #[derive(Clone, Debug)]
 enum Op {
@@ -91,6 +140,13 @@ enum Op {
     UnlockWrong,
     IsNoteUnlocked(usize),
     Idle,
+    /// The app goes to the background.
+    Background,
+    /// Biometrics are turned on.
+    BioEnroll,
+    /// Biometrics are asked to open the notes, with the right secret or not.
+    BioUnlock(bool),
+    BioOff,
     /// A place and narrowing of the list: which place, status narrowing,
     /// pinned only, which sort.
     List(usize, bool, bool, usize),
@@ -98,6 +154,22 @@ enum Op {
     SearchIn(usize, usize),
     CreateNotebook,
     SaveWithTag(usize),
+    EditOpen(usize),
+    EditCalls(usize),
+    EditType(usize),
+    TypeThenLock(usize),
+    /// The page of a note that links every note by wiki-link and by
+    /// address and lists them in a query view.
+    PreviewHub,
+    /// What a tapped address in the hub's page is, for note `i`: with a
+    /// heading, so the anchor looks into the note's text.
+    PreviewLink(usize),
+    /// The first code block of note `i`.
+    CodeBlock(usize),
+    /// Ticks the first task of note `i`, as the page last drew it.
+    Toggle(usize),
+    /// A note made from a wiki-link in note `i`.
+    CreateLinked(usize),
 }
 
 fn ops() -> impl Strategy<Value = Vec<Op>> {
@@ -121,15 +193,63 @@ fn ops() -> impl Strategy<Value = Vec<Op>> {
             1 => Just(Op::UnlockWrong),
             1 => index.clone().prop_map(Op::IsNoteUnlocked),
             1 => Just(Op::Idle),
+            2 => Just(Op::Background),
+            2 => Just(Op::BioEnroll),
+            2 => any::<bool>().prop_map(Op::BioUnlock),
+            1 => Just(Op::BioOff),
             4 => (0..6usize, any::<bool>(), any::<bool>(), 0..3usize)
                 .prop_map(|(p, s, o, k)| Op::List(p, s, o, k)),
             3 => (index.clone(), 0..3usize).prop_map(|(i, k)| Op::Change(i, k)),
             3 => (0..4usize, 0..5usize).prop_map(|(s, w)| Op::SearchIn(s, w)),
             1 => Just(Op::CreateNotebook),
             1 => index.clone().prop_map(Op::SaveWithTag),
+            3 => index.clone().prop_map(Op::EditOpen),
+            3 => index.clone().prop_map(Op::EditCalls),
+            2 => index.clone().prop_map(Op::EditType),
+            2 => index.clone().prop_map(Op::TypeThenLock),
+            2 => Just(Op::PreviewHub),
+            2 => index.clone().prop_map(Op::PreviewLink),
+            2 => index.clone().prop_map(Op::CodeBlock),
+            2 => index.clone().prop_map(Op::Toggle),
+            1 => index.clone().prop_map(Op::CreateLinked),
         ],
         1..24,
     )
+}
+
+/// The events of a session, as debug text, in the order they came.
+type Log = Arc<Mutex<Vec<String>>>;
+
+fn listen(session: &EditorSession) -> Log {
+    let log: Log = Arc::default();
+    let sink = log.clone();
+    session.events(move |event| {
+        sink.lock().unwrap().push(format!("{event:?}"));
+        true
+    });
+    log
+}
+
+fn caret(at: u32) -> Range16 {
+    Range16 { start: at, end: at }
+}
+
+/// Types `text` at the start of the session's text. `Ok(false)` when the
+/// text changed under it meanwhile.
+fn type_first(session: &EditorSession, text: &str) -> Result<bool, KansoError> {
+    let version = session.snapshot()?.version;
+    match session.apply(TextChange {
+        base_version: version,
+        start: 0,
+        end: 0,
+        text: text.to_owned(),
+        selection: caret(text.encode_utf16().count() as u32),
+        composing: None,
+    }) {
+        Ok(_) => Ok(true),
+        Err(KansoError::Invalid { .. }) => Ok(false),
+        Err(err) => Err(err),
+    }
 }
 
 proptest! {
@@ -169,6 +289,23 @@ proptest! {
             }
         }
         let mut trashed = [false; NOTES];
+        let mut biometrics_on = false;
+        // The sessions open for editing, which of them still work, and the
+        // events each one sent.
+        let mut sessions: Vec<Option<EditorSession>> = (0..NOTES).map(|_| None).collect();
+        let mut alive = [false; NOTES];
+        let mut logs: Vec<(usize, Log)> = Vec::new();
+        let hub = note(
+            library,
+            "Hub",
+            &format!(
+                "{}\n```query\nfrom: SECRET\ncolumns: owner, level\n```\n",
+                (0..NOTES)
+                    .map(|i| format!("[[Note {i}#Plan]] [there](inkdrop://note/{}#Plan)", ids[i].trim_start_matches("note:")))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+        );
 
         for op in ops {
             // What is closed as this call starts, and what it returns, as text.
@@ -217,7 +354,10 @@ proptest! {
                         .unwrap();
                     // Locked notes are never listed, open or not.
                     for row in &table.rows {
-                        let at = ids.iter().position(|id| *id == row.id).unwrap();
+                        // (The hub holds the word in its query; it isn't one of the notes.)
+                        let Some(at) = ids.iter().position(|id| *id == row.id) else {
+                            continue;
+                        };
                         prop_assert!(!locked[at]);
                     }
                     returned.push(format!("{table:?}"));
@@ -295,7 +435,7 @@ proptest! {
                     };
                     // Pinning, trashing and moving between unlocked
                     // notebooks are allowed on a locked note, open or not.
-                    let written = library.change(vec![ids[*i].clone()], change).unwrap();
+                    let written = library.change(vec![ids[*i].clone()], change).unwrap().count;
                     if *kind == 1 {
                         trashed[*i] = true;
                     }
@@ -360,12 +500,155 @@ proptest! {
                         }
                     }
                 }
+                Op::EditOpen(i) => {
+                    match library.edit(&ids[*i]) {
+                        Ok(session) => {
+                            prop_assert!(!is_closed(&locked, open, *i));
+                            let snapshot = session.snapshot().unwrap();
+                            returned.push(format!("{snapshot:?}"));
+                            let log = listen(&session);
+                            logs.push((*i, log.clone()));
+                            sessions[*i] = Some(session);
+                            alive[*i] = true;
+                        }
+                        Err(err) => {
+                            prop_assert_eq!(err, KansoError::Locked);
+                            prop_assert!(is_closed(&locked, open, *i));
+                        }
+                    }
+                }
+                Op::EditCalls(i) => {
+                    if let Some(session) = &sessions[*i] {
+                        let shown = [
+                            session.snapshot().map(|s| format!("{s:?}")),
+                            session.styled_runs(0, 400, "kanso-light".into()).map(|r| format!("{r:?}")),
+                            session.completion().map(|c| {
+                                let text = format!("{c:?}");
+                                // Titles only: nothing of any note's text.
+                                assert!(!text.contains("SECRET-MARKER"), "{text}");
+                                text
+                            }),
+                            session.link_at(0).map(|l| format!("{l:?}")),
+                            session.select(caret(0), false).map(|c| format!("{c:?}")),
+                            session.undo().map(|o| format!("{o:?}")),
+                            session.set_property(None, "added".into(), "1".into()).map(|p| format!("{p:?}")),
+                        ];
+                        for result in shown {
+                            match result {
+                                Ok(text) => {
+                                    prop_assert!(alive[*i], "a call of an ended session worked: {text}");
+                                    returned.push(text);
+                                }
+                                Err(err) => {
+                                    prop_assert_eq!(err, KansoError::Locked);
+                                    prop_assert!(!alive[*i]);
+                                }
+                            }
+                        }
+                    }
+                }
+                Op::EditType(i) => {
+                    if let Some(session) = &sessions[*i] {
+                        // `[[N` and a caret after it: titles to complete.
+                        match type_first(session, "[[N") {
+                            Ok(_) => prop_assert!(alive[*i]),
+                            Err(err) => {
+                                prop_assert_eq!(err, KansoError::Locked);
+                                prop_assert!(!alive[*i]);
+                            }
+                        }
+                    }
+                }
+                Op::TypeThenLock(i) => {
+                    // Typing in an open locked note, then the lock closing:
+                    // the typing is saved, sealed, first.
+                    if locked[*i] && open {
+                        let session = library.edit(&ids[*i]).unwrap();
+                        let log = listen(&session);
+                        logs.push((*i, log.clone()));
+                        let typed = format!("TYPED-{i} ");
+                        prop_assert!(type_first(&session, &typed).unwrap());
+                        locks.lock().unwrap();
+                        for j in 0..NOTES {
+                            alive[j] &= !locked[j];
+                        }
+                        // The session is over, and said so.
+                        prop_assert_eq!(session.snapshot().map(|_| ()), Err(KansoError::Locked));
+                        prop_assert_eq!(session.flush().map(|_| ()), Err(KansoError::Locked));
+                        prop_assert_eq!(type_first(&session, "more"), Err(KansoError::Locked));
+                        prop_assert!(log.lock().unwrap().last().is_some_and(|e| e == "Closed"));
+                        // The store has the typing, and not in the clear.
+                        let raw = library.store().note(&ids[*i]).unwrap().unwrap();
+                        prop_assert!(raw.is_locked() && raw.body.is_empty());
+                        // Open again, it is there.
+                        prop_assert!(locks.unlock(LOCK_PASSWORD.into()).unwrap());
+                        open = true;
+                        let view = library.note(&ids[*i]).unwrap();
+                        prop_assert!(view.body.as_deref().is_some_and(|b| b.contains(&typed)), "{:?}", view.body);
+                    }
+                }
+                Op::PreviewHub => {
+                    let page = library.renderer().preview_html(&hub, palette()).unwrap();
+                    // The other side: a locked note is linked, whatever its lock.
+                    for id in &ids {
+                        prop_assert!(page.contains(id.trim_start_matches("note:")), "{id} not linked");
+                    }
+                    returned.push(page);
+                }
+                Op::PreviewLink(i) => {
+                    let url = format!("inkdrop://note/{}#Plan", ids[*i].trim_start_matches("note:"));
+                    let target = library.renderer().link_target(&hub, &url).unwrap();
+                    match &target {
+                        kanso_mobile::PreviewLink::Note { id, heading, anchor } => {
+                            prop_assert_eq!(id, &ids[*i]);
+                            prop_assert_eq!(heading.as_deref(), Some("Plan"));
+                            // An anchor is only known from text that can be read.
+                            if is_closed(&locked, open, *i) {
+                                prop_assert_eq!(anchor, &None);
+                            }
+                        }
+                        // Trashed notes are not targets.
+                        kanso_mobile::PreviewLink::Nothing => prop_assert!(trashed[*i]),
+                        other => prop_assert!(false, "{other:?}"),
+                    }
+                    returned.push(format!("{target:?}"));
+                }
+                Op::CodeBlock(i) => match library.renderer().code_block(&ids[*i], 0) {
+                    Ok(code) => {
+                        prop_assert!(!is_closed(&locked, open, *i));
+                        prop_assert!(code.contains(&marker(*i)), "{code}");
+                        returned.push(code);
+                    }
+                    Err(err) => {
+                        prop_assert_eq!(err, KansoError::Locked);
+                        prop_assert!(is_closed(&locked, open, *i));
+                    }
+                },
+                Op::Toggle(i) => {
+                    let rev = library.note(&ids[*i]).unwrap().rev;
+                    match library.toggle_task_at(&ids[*i], 0, &rev) {
+                        Ok(ticked) => {
+                            prop_assert!(!is_closed(&locked, open, *i));
+                            if locked[*i] { open = true; }
+                            returned.push(format!("{ticked:?}"));
+                        }
+                        Err(err) => {
+                            prop_assert_eq!(err, KansoError::Locked);
+                            prop_assert!(is_closed(&locked, open, *i));
+                        }
+                    }
+                }
+                Op::CreateLinked(i) => {
+                    let made = library.create_linked_note("Brand new", &ids[*i]).unwrap();
+                    returned.push(format!("{made:?}"));
+                }
                 Op::Create => {
                     let saved = library
                         .create(kanso_mobile::NewNote {
                             notebook_id: None,
                             title: "Fresh".into(),
                             body: "fresh note".into(),
+                            ..Default::default()
                         })
                         .unwrap();
                     returned.push(format!("{saved:?}"));
@@ -391,6 +674,11 @@ proptest! {
                 Op::LockSession => {
                     locks.lock().unwrap();
                     open = false;
+                    for i in 0..NOTES {
+                        // Sessions on locked notes end with the lock.
+                        alive[i] &= !locked[i];
+                    }
+                    sweep(library, &ids, &locked)?;
                 }
                 Op::UnlockRight => match locks.unlock(LOCK_PASSWORD.into()) {
                     Ok(true) => { prop_assert!(any_lock); open = true; }
@@ -408,6 +696,53 @@ proptest! {
                     let later = Instant::now() + AUTO_LOCK + Duration::from_secs(1);
                     prop_assert_eq!(locks.lock_if_idle(later), open);
                     open = false;
+                    for i in 0..NOTES {
+                        alive[i] &= !locked[i];
+                    }
+                    sweep(library, &ids, &locked)?;
+                }
+                Op::Background => {
+                    locks.lock_for_background().unwrap();
+                    open = false;
+                    prop_assert!(!locks.is_unlocked().unwrap());
+                    for i in 0..NOTES {
+                        alive[i] &= !locked[i];
+                    }
+                    sweep(library, &ids, &locked)?;
+                }
+                Op::BioEnroll => match locks.begin_biometric_enrollment() {
+                    Ok(ticket) => {
+                        prop_assert!(open);
+                        prop_assert_eq!(
+                            biometrics::deliver(ticket, 0, Some(&SECRET_B)),
+                            1
+                        );
+                        biometrics_on = true;
+                    }
+                    Err(err) => {
+                        prop_assert_eq!(err, KansoError::Locked);
+                        prop_assert!(!open);
+                    }
+                },
+                Op::BioUnlock(right) => {
+                    let ticket = locks.begin_biometric_unlock().unwrap();
+                    prop_assert_eq!(ticket.is_some(), biometrics_on);
+                    if let Some(ticket) = ticket {
+                        let b = if *right { SECRET_B } else { OTHER_B };
+                        let answer = biometrics::deliver(ticket, 0, Some(&b));
+                        if *right {
+                            prop_assert_eq!(answer, 1);
+                            open = true;
+                        } else {
+                            prop_assert_eq!(answer, -1);
+                            biometrics_on = false;
+                            prop_assert_eq!(locks.begin_biometric_unlock().unwrap(), None);
+                        }
+                    }
+                }
+                Op::BioOff => {
+                    locks.turn_off_biometrics().unwrap();
+                    biometrics_on = false;
                 }
             }
             prop_assert_eq!(locks.is_unlocked().unwrap(), open, "the session after {:?}", op);
@@ -420,6 +755,15 @@ proptest! {
                     prop_assert!(!text.contains(&m), "{m} leaked from {op:?}: {text}");
                 }
             }
+        }
+
+        // A session says it is over once, and nothing of the note after.
+        for (i, log) in &logs {
+            let events = log.lock().unwrap();
+            if let Some(closed) = events.iter().position(|e| e == "Closed") {
+                prop_assert_eq!(closed + 1, events.len(), "events after Closed for {}: {:?}", i, events);
+            }
+            prop_assert!(events.iter().all(|e| !e.contains("TYPED-") || e.starts_with("Reloaded")));
         }
 
         // Streams only ever carry IDs and states: no marker at all.

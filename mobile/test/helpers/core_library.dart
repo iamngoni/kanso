@@ -17,14 +17,25 @@ import 'package:path/path.dart' as p;
 /// does not bundle its output the way an app build does, so the default
 /// loader can't find it. This opens the library the hook built, the newest
 /// if there are several, or the file named by `KANSO_CORE_LIBRARY`.
+///
+/// On a phone, a simulator or an emulator (an integration test) the library
+/// is in the app, and the default loader finds it.
 Future<void> initCoreForTests() async {
   if (KansoCore.instance.initialized) {
+    return;
+  }
+  if (Platform.isIOS || Platform.isAndroid) {
+    await KansoCore.init();
     return;
   }
   await KansoCore.init(
     externalLibrary: ExternalLibrary.open(_builtLibrary().path),
   );
 }
+
+/// The file [initCoreForTests] loads, for a test that calls the library's C
+/// entries (`kanso_biometric_answer`) directly.
+File builtCoreLibrary() => _builtLibrary();
 
 /// A library of its own, empty, in a new temporary folder that is removed
 /// when the test ends. On a computer its secrets are in memory: never the

@@ -19,6 +19,7 @@ import 'package:kanso/settings/views/widgets/settings_pane.dart';
 import 'package:kanso/shell/views/widgets/library_drawer_host.dart';
 import 'package:kanso/shell/views/widgets/list_note_layout.dart';
 import 'package:kanso/shell/views/widgets/tablet_layout.dart';
+import 'package:kanso/themes/state/theme_gallery/theme_gallery_bloc.dart';
 import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 
@@ -41,7 +42,7 @@ Widget _threePanes() {
   return _scaffold(
     const TabletLayout(
       library: LibraryPane(location: _allNotes),
-      list: NoteListPane(openNoteId: MockIds.syncDesign),
+      list: NoteListPane(openNoteId: MockIds.syncDesign, beside: true),
       note: NotePane(inPane: true),
     ),
   );
@@ -124,7 +125,10 @@ void main() {
                 edgeDragEnabled: true,
                 child: _scaffold(
                   const ListNoteLayout(
-                    list: NoteListPane(openNoteId: MockIds.syncDesign),
+                    list: NoteListPane(
+                      openNoteId: MockIds.syncDesign,
+                      beside: true,
+                    ),
                     note: NotePane(inPane: true),
                   ),
                 ),
@@ -174,6 +178,7 @@ void main() {
           themeId: 'kanso-$name',
         );
         final picker = await startThemePicker();
+        final gallery = await startThemeGallery(emptyGallery());
         await atMockNow(
           () => expectGoldenOnBothPlatforms(
             tester,
@@ -186,6 +191,7 @@ void main() {
               sheet: const ThemePickerPane(),
               providers: <BlocProvider<dynamic>>[
                 BlocProvider<ThemePickerBloc>.value(value: picker),
+                BlocProvider<ThemeGalleryBloc>.value(value: gallery),
               ],
             ),
           ),

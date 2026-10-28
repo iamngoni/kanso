@@ -99,6 +99,21 @@ pub(super) fn is_clean(parsers: &mut Parsers, block: &str, at_start: bool) -> bo
 /// The spans of `block`, relative to its start. `at_start` says whether the
 /// block begins the note.
 pub(super) fn block_spans(parsers: &mut Parsers, block: &str, at_start: bool) -> Vec<Span> {
+    spans_within(parsers, block, at_start, None)
+}
+
+/// The spans of `block` that lie in `window` (relative to its start), or all
+/// of them without one: the block is parsed whole, but only what touches the
+/// window is captured and, for injected code and inline text, parsed. Spans
+/// outside the window may be missing or cut short; inside it they are those
+/// of [`block_spans`]. For a block that is most of a note (the parse that
+/// follows a syntax error), of which a window is wanted.
+pub(super) fn spans_within(
+    parsers: &mut Parsers,
+    block: &str,
+    at_start: bool,
+    window: Option<Range<usize>>,
+) -> Vec<Span> {
     let Some(markdown) = registry::get("markdown") else {
         return Vec::new();
     };
@@ -108,13 +123,16 @@ pub(super) fn block_spans(parsers: &mut Parsers, block: &str, at_start: bool) ->
         return Vec::new();
     };
 
-    let mut items = host_items(markdown, &tree, &source);
+    // The window in the parsed text's offsets.
+    let window = window.map(|window| window.start + preamble.len()..window.end + preamble.len());
+    let mut items = host_items(markdown, &tree, &source, window.as_ref());
     items.extend(injected_items(
         parsers,
         markdown,
         &tree,
         &source,
         preamble.len(),
+        window.as_ref(),
     ));
 
     // Back to the block's own offsets, on its character boundaries.
@@ -142,12 +160,20 @@ pub(super) fn block_spans(parsers: &mut Parsers, block: &str, at_start: bool) ->
 /// A capture over the same range as the one before it takes the one before's
 /// name: the library's rule, which its grammars' queries rely on (a capture
 /// meant to be overridden says so with the same range).
-fn host_items(markdown: &'static Grammar, tree: &Tree, source: &str) -> Vec<Item> {
+fn host_items(
+    markdown: &'static Grammar,
+    tree: &Tree,
+    source: &str,
+    window: Option<&Range<usize>>,
+) -> Vec<Item> {
     let Some(highlights) = markdown.highlights() else {
         return Vec::new();
     };
     let mut items: Vec<Item> = Vec::new();
     let mut cursor = QueryCursor::new();
+    if let Some(window) = window {
+        cursor.set_byte_range(window.clone());
+    }
     let mut matches = cursor.matches(&highlights.query, tree.root_node(), source.as_bytes());
     while let Some(found) = matches.next() {
         for capture in found.captures {
@@ -170,8 +196,9 @@ fn injected_items(
     tree: &Tree,
     source: &str,
     shift: usize,
+    window: Option<&Range<usize>>,
 ) -> Vec<Item> {
-    let mut layers = layers(parsers, markdown, tree, source);
+    let mut layers = layers(parsers, markdown, tree, source, window);
     layers.retain(|layer| layer.start >= shift);
     layers.sort_by_key(|layer| layer.start);
 
@@ -215,18 +242,24 @@ fn injected_items(
 }
 
 /// The layers the host's injection query asks for: a language per fence, the
-/// inline text of every paragraph, HTML blocks and front matter.
+/// inline text of every paragraph, HTML blocks and front matter. With a
+/// `window`, only the layers that touch it (each whole, so that what is
+/// captured in it is what it is without a window).
 fn layers<'a>(
     parsers: &mut Parsers,
     markdown: &'static Grammar,
     tree: &Tree,
     source: &'a str,
+    window: Option<&Range<usize>>,
 ) -> Vec<Layer<'a>> {
     let Some(injections) = markdown.injections() else {
         return Vec::new();
     };
     let mut layers = Vec::new();
     let mut cursor = QueryCursor::new();
+    if let Some(window) = window {
+        cursor.set_byte_range(window.clone());
+    }
     let mut matches = cursor.matches(&injections.query, tree.root_node(), source.as_bytes());
     while let Some(found) = matches.next() {
         // The language is set by the pattern or named by the text.
@@ -277,6 +310,11 @@ fn layers<'a>(
         let [range] = ranges.as_slice() else {
             continue;
         };
+        if window
+            .is_some_and(|window| range.end_byte <= window.start || range.start_byte >= window.end)
+        {
+            continue;
+        }
         let Some(text) = source.get(range.start_byte..range.end_byte) else {
             continue;
         };

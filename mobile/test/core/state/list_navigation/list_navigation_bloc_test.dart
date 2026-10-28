@@ -22,7 +22,9 @@ void main() {
   setUp(() {
     library = MockLibraryRepository();
     when(() => library.change(any(), any())).thenAnswer(
-      (_) async => const Right<ApplicationError, int>(1),
+      (_) async => const Right<ApplicationError, Changed>(
+        Changed(count: 1, message: ''),
+      ),
     );
   });
 
@@ -61,7 +63,7 @@ void main() {
       'a pin that fails changes nothing shown',
       setUp: () {
         when(() => library.change(any(), any())).thenAnswer(
-          (_) async => const Left<ApplicationError, int>(
+          (_) async => const Left<ApplicationError, Changed>(
             ApplicationError.storage(message: 'Disk full.'),
           ),
         );

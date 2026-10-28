@@ -37,8 +37,6 @@ global-hotkey = "0.9"
 gpui-kit.workspace = true
 # Parses a provider's page before the system opener sees it.
 url = "2.5"
-# HTML on the clipboard pasted as Markdown (Apache-2.0).
-htmd = "0.5.6"
 # Pasted images the API doesn't take (TIFF, WebP, BMP) are stored as PNG.
 # GPUI already builds these decoders.
 image = { version = "0.25", default-features = false, features = ["png", "tiff", "webp", "bmp", "ico"] }
@@ -87,8 +85,6 @@ toml = "0.8"
 # `kanso capture` hands its text to a running Kanso's local API. The sync
 # client already builds it.
 ureq = "3.4"
-# Vim keys step over a character as it is read (a grapheme cluster).
-unicode-segmentation = "1.13"
 # A passkey's PRF output and a security key's PIN are wiped after use.
 zeroize.workspace = true
 

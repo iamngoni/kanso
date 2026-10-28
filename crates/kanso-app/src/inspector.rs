@@ -334,35 +334,24 @@ impl Inspector {
         let Some(target) = self.editor.read(cx).note_id().map(str::to_owned) else {
             return;
         };
-        let Ok(Some(title)) = self.store.note(&target).map(|n| n.map(|n| n.title)) else {
-            return;
-        };
-        let Ok(Some(note)) = self.store.note(&mention.id) else {
-            return;
-        };
-        let uri = format!(
-            "{}{}",
-            kanso_core::links::NOTE_LINK_PREFIX,
-            target.strip_prefix("note:").unwrap_or(&target)
+        let linked = kanso_engine::links::mention::link_mention(
+            &self.store,
+            &target,
+            &mention.id,
+            mention.line,
         );
-        let Some(body) = kanso_core::links::link_mention(&note.body, mention.line, &title, &uri)
-        else {
-            return;
-        };
-        let result = self.store.put(
-            DocType::Note,
-            json!({"_id": mention.id, "_rev": note.rev, "body": body}),
-            Put::Merge,
-            Origin::Ui,
-        );
-        if let Err(err) = result {
-            use gpui_kit::component::WindowExt as _;
-            window.push_notification(
-                gpui_kit::component::notification::Notification::error(format!(
-                    "Couldn't link the mention: {err}"
-                )),
-                cx,
-            );
+        match linked {
+            Ok(None) => return,
+            Ok(Some(_)) => {}
+            Err(err) => {
+                use gpui_kit::component::WindowExt as _;
+                window.push_notification(
+                    gpui_kit::component::notification::Notification::error(format!(
+                        "Couldn't link the mention: {err}"
+                    )),
+                    cx,
+                );
+            }
         }
         self.mentions.retain(|m| m.id != mention.id);
         self.mentions_for = None;
@@ -1131,10 +1120,7 @@ fn visible_tabs(ai_enabled: bool) -> Vec<InspectorTab> {
 }
 
 /// The heading the caret on `line` is under: the last one at or above it.
-/// Pure.
-pub fn current_heading(headings: &[Heading], line: u32) -> Option<usize> {
-    headings.iter().rposition(|h| h.line <= line)
-}
+pub use kanso_engine::outline::current_heading;
 
 impl Render for Inspector {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {

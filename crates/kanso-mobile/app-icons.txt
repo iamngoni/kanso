@@ -1,0 +1,88 @@
+# The icons the phones' app draws, by their Lucide names, and the library slot
+# an icon stands for where there is one. One per line: `name` or
+# `name slot`. `build.rs` compiles in, for each built-in icon theme, only the
+# SVGs these resolve to, and `src/icons.rs` resolves them with the same rule,
+# so this is the one place the list lives. A test holds it to the names in
+# `mobile/lib/core/configs/kanso_icons.dart`.
+a-large-small
+archive
+arrow-left
+arrow-right
+arrow-up-down
+bell
+bold
+book
+book-open
+calendar
+camera
+case-sensitive
+check
+chevron-down
+chevron-left
+chevron-right
+circle-check
+circle-dot
+circle-pause
+circle-question-mark
+circle-user
+circle-x
+clock recent
+cloud
+code-xml
+copy
+database-backup
+download
+ellipsis
+external-link
+eye
+file-text
+files all-notes
+fingerprint-pattern
+github
+globe
+hash
+image
+inbox inbox
+info
+layout-template
+link
+list
+list-checks
+list-indent-decrease
+list-indent-increase
+lock
+lock-open
+log-out
+menu
+message-square
+monitor
+moon
+notebook notebook
+palette
+panel-left
+pencil
+pin pinned
+plus
+refresh-cw
+regex
+replace-all
+scale
+scan-face
+search
+settings
+shapes
+share-2
+shield
+shield-alert
+shield-check
+sparkles
+star
+sun
+tag tag
+trash trash
+type
+undo-2
+user
+users
+whole-word
+x

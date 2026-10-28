@@ -68,11 +68,12 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
       _library.notebooks(),
       _library.tags(),
       _library.overview(),
+      _library.overdueTasks(),
     ).wait;
     if (reading != _reading || emit.isDone) {
       return;
     }
-    final (notebooks, tags, overview) = results;
+    final (notebooks, tags, overview, overdue) = results;
     ApplicationError? failure;
     for (final result in <Either<ApplicationError, Object?>>[
       notebooks,
@@ -92,6 +93,8 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
         notebooks: notebooks.getOrElse(() => <NotebookRow>[]),
         tags: tags.getOrElse(() => <TagRow>[]),
         overview: overview.getOrElse(() => state.overview),
+        // The badge is a nicety: a failure to count shows none.
+        overdueTasks: overdue.getOrElse(() => 0),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../bridge/api/types.dart' show SortKey;
 import 'kanso_fonts.dart';
+import 'kanso_icon_set.dart';
 import 'kanso_text_size.dart';
 import 'theme_selection.dart';
 
@@ -32,6 +33,10 @@ abstract class Preferences with _$Preferences {
     @Default(KansoTextSize.standard)
     KansoTextSize textSize,
 
+    /// The icon theme the app is drawn in, by its ID. A theme this version
+    /// does not know is Kanso's own icons.
+    @Default(KansoIconSet.lucideId) String iconTheme,
+
     /// What note lists are sorted by.
     @JsonKey(unknownEnumValue: SortKey.updated)
     @Default(SortKey.updated)
@@ -44,6 +49,14 @@ abstract class Preferences with _$Preferences {
     /// Whether the notice that this phone's notes are not in device backups
     /// has been shown.
     @Default(false) bool backupNoticeSeen,
+
+    /// Whether the offer to unlock locked notes with a biometric, made once
+    /// after the first password unlock, has been shown.
+    @Default(false) bool biometricOfferSeen,
+
+    /// The notebook new notes go in, unless they are made from a notebook's
+    /// own list. Null, or one that is gone or locked, is the first notebook.
+    String? defaultNotebookId,
   }) = _Preferences;
 
   factory Preferences.fromJson(Map<String, dynamic> json) =>

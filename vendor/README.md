@@ -7,6 +7,7 @@ the copy here through `[patch.crates-io]`:
 | Crate | Version | Why |
 |---|---|---|
 | [`gpui-component`](gpui-component) | 0.7.3, as published | One small hook, so an icon theme draws the component library's own icons too. |
+| [`gpui-base`](gpui-base) | 0.7.3, as published | One small hook, so a click on a task box in a Markdown view says which task it was. |
 
 ## What changed
 
@@ -26,6 +27,23 @@ Three files differ from the published crate (the full diff is in
 Nothing else is touched: the crate's `Cargo.toml`, features and everything
 else are the published files (its `Cargo.lock` and `.cargo-ok` are left
 out, as Cargo ignores them in a path dependency).
+
+## gpui-base: which task box was clicked
+
+Three files differ from the published `gpui-base` (the diff is in
+[UPSTREAM-gpui-base.md](UPSTREAM-gpui-base.md)):
+
+- `src/text/text_view.rs` adds `TaskClickHandlerFn`, called with the byte
+  offset in the source of the task item whose box was clicked, and a
+  `task_click_handler` on `TextView` and its builder, in the same shape as
+  the existing `link_click_handler`.
+- `src/text/state.rs` carries the handler through `TextViewStyle`.
+- `src/text/node.rs` makes the box of a task item clickable when a handler
+  is set, and reports that item's byte offset. With no handler the box draws
+  exactly as before and clicks do nothing.
+
+Nothing else is touched: `Cargo.toml`, features and the rest are the
+published files.
 
 ## Why
 

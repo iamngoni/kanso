@@ -318,7 +318,8 @@ mixin _$LibraryIndexState {
 
  LibraryIndexStatus get status;/// The notebooks in tree order, each with its depth and role.
  List<NotebookRow> get notebooks; List<TagRow> get tags;/// How many notes each place lists.
- LibraryOverview get overview;/// Why the last reading failed, while [status] is failed.
+ LibraryOverview get overview;/// How many open tasks are overdue: the badge of the Tasks row.
+ int get overdueTasks;/// Why the last reading failed, while [status] is failed.
  ApplicationError? get error;
 /// Create a copy of LibraryIndexState
 /// with the given fields replaced by the non-null parameter values.
@@ -330,16 +331,16 @@ $LibraryIndexStateCopyWith<LibraryIndexState> get copyWith => _$LibraryIndexStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.notebooks, notebooks)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.notebooks, notebooks)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.overdueTasks, overdueTasks) || other.overdueTasks == overdueTasks)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(notebooks),const DeepCollectionEquality().hash(tags),overview,error);
+int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(notebooks),const DeepCollectionEquality().hash(tags),overview,overdueTasks,error);
 
 @override
 String toString() {
-  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, error: $error)';
+  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, overdueTasks: $overdueTasks, error: $error)';
 }
 
 
@@ -350,7 +351,7 @@ abstract mixin class $LibraryIndexStateCopyWith<$Res>  {
   factory $LibraryIndexStateCopyWith(LibraryIndexState value, $Res Function(LibraryIndexState) _then) = _$LibraryIndexStateCopyWithImpl;
 @useResult
 $Res call({
- LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, ApplicationError? error
+ LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, int overdueTasks, ApplicationError? error
 });
 
 
@@ -367,13 +368,14 @@ class _$LibraryIndexStateCopyWithImpl<$Res>
 
 /// Create a copy of LibraryIndexState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? overdueTasks = null,Object? error = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LibraryIndexStatus,notebooks: null == notebooks ? _self.notebooks : notebooks // ignore: cast_nullable_to_non_nullable
 as List<NotebookRow>,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
 as List<TagRow>,overview: null == overview ? _self.overview : overview // ignore: cast_nullable_to_non_nullable
-as LibraryOverview,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as LibraryOverview,overdueTasks: null == overdueTasks ? _self.overdueTasks : overdueTasks // ignore: cast_nullable_to_non_nullable
+as int,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,
   ));
 }
@@ -471,10 +473,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LibraryIndexState() when $default != null:
-return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.error);case _:
+return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.error);case _:
   return orElse();
 
 }
@@ -492,10 +494,10 @@ return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  ApplicationError? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  ApplicationError? error)  $default,) {final _that = this;
 switch (_that) {
 case _LibraryIndexState():
-return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.error);case _:
+return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -512,10 +514,10 @@ return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.err
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  ApplicationError? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  ApplicationError? error)?  $default,) {final _that = this;
 switch (_that) {
 case _LibraryIndexState() when $default != null:
-return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.error);case _:
+return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.error);case _:
   return null;
 
 }
@@ -527,7 +529,7 @@ return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.err
 
 
 class _LibraryIndexState extends LibraryIndexState {
-  const _LibraryIndexState({this.status = LibraryIndexStatus.loading, final  List<NotebookRow> notebooks = const <NotebookRow>[], final  List<TagRow> tags = const <TagRow>[], this.overview = const LibraryOverview(all: 0, pinned: 0, recent: 0, trash: 0), this.error}): _notebooks = notebooks,_tags = tags,super._();
+  const _LibraryIndexState({this.status = LibraryIndexStatus.loading, final  List<NotebookRow> notebooks = const <NotebookRow>[], final  List<TagRow> tags = const <TagRow>[], this.overview = const LibraryOverview(all: 0, pinned: 0, recent: 0, trash: 0), this.overdueTasks = 0, this.error}): _notebooks = notebooks,_tags = tags,super._();
   
 
 @override@JsonKey() final  LibraryIndexStatus status;
@@ -549,6 +551,8 @@ class _LibraryIndexState extends LibraryIndexState {
 
 /// How many notes each place lists.
 @override@JsonKey() final  LibraryOverview overview;
+/// How many open tasks are overdue: the badge of the Tasks row.
+@override@JsonKey() final  int overdueTasks;
 /// Why the last reading failed, while [status] is failed.
 @override final  ApplicationError? error;
 
@@ -562,16 +566,16 @@ _$LibraryIndexStateCopyWith<_LibraryIndexState> get copyWith => __$LibraryIndexS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._notebooks, _notebooks)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._notebooks, _notebooks)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.overdueTasks, overdueTasks) || other.overdueTasks == overdueTasks)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(_notebooks),const DeepCollectionEquality().hash(_tags),overview,error);
+int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(_notebooks),const DeepCollectionEquality().hash(_tags),overview,overdueTasks,error);
 
 @override
 String toString() {
-  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, error: $error)';
+  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, overdueTasks: $overdueTasks, error: $error)';
 }
 
 
@@ -582,7 +586,7 @@ abstract mixin class _$LibraryIndexStateCopyWith<$Res> implements $LibraryIndexS
   factory _$LibraryIndexStateCopyWith(_LibraryIndexState value, $Res Function(_LibraryIndexState) _then) = __$LibraryIndexStateCopyWithImpl;
 @override @useResult
 $Res call({
- LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, ApplicationError? error
+ LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, int overdueTasks, ApplicationError? error
 });
 
 
@@ -599,13 +603,14 @@ class __$LibraryIndexStateCopyWithImpl<$Res>
 
 /// Create a copy of LibraryIndexState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? overdueTasks = null,Object? error = freezed,}) {
   return _then(_LibraryIndexState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LibraryIndexStatus,notebooks: null == notebooks ? _self._notebooks : notebooks // ignore: cast_nullable_to_non_nullable
 as List<NotebookRow>,tags: null == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
 as List<TagRow>,overview: null == overview ? _self.overview : overview // ignore: cast_nullable_to_non_nullable
-as LibraryOverview,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as LibraryOverview,overdueTasks: null == overdueTasks ? _self.overdueTasks : overdueTasks // ignore: cast_nullable_to_non_nullable
+as int,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,
   ));
 }

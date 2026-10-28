@@ -30,7 +30,7 @@ use std::sync::Mutex;
 
 use rusqlite::Connection;
 
-pub use backup::BackupPolicy;
+pub use backup::{BackupName, BackupPolicy, backup_name};
 pub use collab::model::{
     CommentRecord, Contact, Outgoing, SealedKey, SharedNote, SharedStatus, StoredNotice,
 };

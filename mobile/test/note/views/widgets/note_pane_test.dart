@@ -169,10 +169,11 @@ void main() {
         expect(find.byType(LockedNotePane), findsOneWidget);
         expect(find.text('Private journal'), findsOneWidget);
         expect(find.text('This note is locked'), findsOneWidget);
-        // No facts, no text, and nothing to press yet.
+        // No facts and no text; the one thing to press is the password.
         expect(find.textContaining('Created'), findsNothing);
         expect(find.textContaining('Updated'), findsNothing);
-        expect(find.byType(KansoButton), findsNothing);
+        expect(find.byType(KansoButton), findsOneWidget);
+        expect(find.text('Use password'), findsOneWidget);
         expect(
           find.textContaining(mockSecret, findRichText: true),
           findsNothing,

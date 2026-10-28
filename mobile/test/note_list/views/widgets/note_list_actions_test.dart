@@ -219,7 +219,7 @@ void main() {
       tester,
     ) async {
       final blocs = await BrowseBlocs.start();
-      blocs.library.changeResult = const Left<ApplicationError, int>(
+      blocs.library.changeResult = const Left<ApplicationError, Changed>(
         ApplicationError.locked(message: 'Locked.'),
       );
       final list = await blocs.listOf(const ListPlace.all());

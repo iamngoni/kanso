@@ -17,9 +17,10 @@ use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{Disableable as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+use kanso_import::library::words::{picks, progress_label, rejected_lines, skipped_lines, summary};
 use kanso_import::library::{
-    LibraryPhase, LibraryProgress, LibraryReport, SourceKind, apple_notes, import_markdown_file,
-    import_source, preview,
+    LibraryProgress, LibraryReport, SourceKind, apple_notes, import_source, open_note_files,
+    preview,
 };
 use kanso_store::Store;
 
@@ -75,110 +76,6 @@ impl Choice {
             }
         }
     }
-}
-
-/// What the picker should offer for `kind`: `(files, folders)`. Pure.
-pub fn picks(kind: SourceKind) -> (bool, bool) {
-    match kind {
-        SourceKind::Markdown | SourceKind::Obsidian | SourceKind::Logseq | SourceKind::UpNote => {
-            (false, true)
-        }
-        SourceKind::StandardNotes | SourceKind::Simplenote | SourceKind::Roam => (true, false),
-        SourceKind::Notion
-        | SourceKind::Bear
-        | SourceKind::Evernote
-        | SourceKind::Joplin
-        | SourceKind::AppleNotes
-        | SourceKind::AppleJournal
-        | SourceKind::GoogleKeep
-        | SourceKind::Html
-        | SourceKind::TextBundle
-        | SourceKind::Tomboy => (true, true),
-    }
-}
-
-fn phase_label(phase: LibraryPhase) -> &'static str {
-    match phase {
-        LibraryPhase::Reading => "Reading notes",
-        LibraryPhase::Notebooks => "Notebooks",
-        LibraryPhase::Notes => "Notes and attachments",
-    }
-}
-
-/// `n thing`/`n things`. Pure.
-fn count(n: usize, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
-}
-
-/// The summary lines of a report: what the source holds, then what the
-/// import did (or would do), then anything left alone. Pure.
-pub fn summary(report: &LibraryReport) -> Vec<String> {
-    let found = &report.found;
-    let mut lines = vec![format!(
-        "{}, {}, {}, {}.",
-        count(found.notes, "note", "notes"),
-        count(found.notebooks, "notebook", "notebooks"),
-        count(found.tags, "tag", "tags"),
-        count(found.attachments, "attachment", "attachments"),
-    )];
-    let notes = &report.notes;
-    let again = notes.updated + notes.unchanged + notes.kept() > 0;
-    let verb = if report.dry_run { "will be" } else { "were" };
-    if again {
-        lines.push(format!(
-            "{} new, {} {verb} updated, {} unchanged since the last import.",
-            notes.created, notes.updated, notes.unchanged
-        ));
-    } else if notes.created > 0 {
-        lines.push(format!(
-            "{} {verb} added.",
-            count(notes.created, "note", "notes")
-        ));
-    }
-    if notes.kept_edited > 0 {
-        lines.push(format!(
-            "{} changed in Kanso since {} kept as they are.",
-            count(notes.kept_edited, "note", "notes"),
-            if report.dry_run { "will be" } else { "were" }
-        ));
-    }
-    if notes.kept_deleted > 0 {
-        lines.push(format!(
-            "{} deleted in Kanso {} stay deleted.",
-            count(notes.kept_deleted, "note", "notes"),
-            if report.dry_run { "will" } else { "did" }
-        ));
-    }
-    if report.tags_created > 0 {
-        lines.push(format!(
-            "{} {}.",
-            count(report.tags_created, "new tag", "new tags"),
-            if report.dry_run {
-                "will be made"
-            } else {
-                "made"
-            }
-        ));
-    }
-    if report.unresolved_links > 0 {
-        lines.push(format!(
-            "{} to notes or files that aren't in it.",
-            count(report.unresolved_links, "link points", "links point")
-        ));
-    }
-    lines
-}
-
-/// The skipped files, a line per reason with a few examples. Pure.
-pub fn skipped_lines(report: &LibraryReport) -> Vec<String> {
-    report
-        .skipped_by_reason()
-        .into_iter()
-        .map(|(reason, n, paths)| {
-            let more = if n > paths.len() { ", …" } else { "" };
-            format!("{n} skipped — {reason}: {}{more}", paths.join(", "))
-        })
-        .collect()
 }
 
 enum Stage {
@@ -423,14 +320,7 @@ impl ImportView {
 
 fn progress_bar(progress: Option<LibraryProgress>, cx: &App) -> Div {
     let colors = Colors::get(cx);
-    let (label, fraction) = match progress {
-        None => ("Starting…".to_owned(), 0.0),
-        Some(p) if p.total == 0 => (format!("{}… {}", phase_label(p.phase), p.done), 0.0),
-        Some(p) => (
-            format!("{}… {} of {}", phase_label(p.phase), p.done, p.total),
-            p.done as f32 / p.total as f32,
-        ),
-    };
+    let (label, fraction) = progress_label(progress);
     v_flex()
         .gap_2()
         .child(
@@ -578,16 +468,7 @@ impl Render for ImportView {
                 .child(lines(summary(report), colors.text, 13.5))
                 .child(lines(skipped_lines(report), colors.text_muted, 12.))
                 .when(!report.rejected.is_empty(), |el| {
-                    el.child(lines(
-                        std::iter::once(format!(
-                            "{} couldn't be imported:",
-                            count(report.rejected.len(), "item", "items")
-                        ))
-                        .chain(report.rejected.iter().take(5).cloned())
-                        .collect(),
-                        colors.danger,
-                        12.,
-                    ))
+                    el.child(lines(rejected_lines(report), colors.danger, 12.))
                 }),
             Stage::Failed(err) => v_flex().gap(px(6.)).child("The import didn't run.").child(
                 div()
@@ -779,26 +660,7 @@ pub(crate) fn open_paths(
     paths: &[PathBuf],
     store: &Store,
 ) -> anyhow::Result<(Option<String>, Vec<String>)> {
-    let mut last = None;
-    let mut problems = Vec::new();
-    for path in paths {
-        let name = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        if !kanso_import::library::resolve::is_note_path(&name) {
-            problems.push(format!(
-                "{name} isn't a Markdown or text file. To bring in another app's export, use Import…"
-            ));
-            continue;
-        }
-        match import_markdown_file(path, store) {
-            Ok(report) if report.is_clean() => last = report.first_note.or(last),
-            Ok(report) => problems.push(format!("{name}: {}", report.rejected.join("; "))),
-            Err(err) => problems.push(format!("{name}: {err:#}")),
-        }
-    }
-    Ok((last, problems))
+    Ok(open_note_files(paths, store))
 }
 
 // MARK: Command line
@@ -929,7 +791,7 @@ pub fn run_cli(data_dir: &Path, args: &[String]) -> anyhow::Result<()> {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{Cli, LibraryReport, SourceKind, parse_cli, summary};
+    use super::{Cli, SourceKind, parse_cli};
     use proptest::prelude::*;
 
     /// Opening a file the system handed over and opening it again from
@@ -991,23 +853,6 @@ mod tests {
         assert!(parse_cli(&args(&["notion", "/x", "--force"])).is_err());
     }
 
-    #[test]
-    fn a_fresh_import_says_how_many_are_added() {
-        let mut report = LibraryReport {
-            dry_run: true,
-            ..LibraryReport::default()
-        };
-        report.found.notes = 2;
-        report.notes.created = 2;
-        assert_eq!(
-            summary(&report),
-            [
-                "2 notes, 0 notebooks, 0 tags, 0 attachments.",
-                "2 notes will be added."
-            ]
-        );
-    }
-
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(128))]
 
@@ -1021,22 +866,6 @@ mod tests {
                 parse_cli(&list).unwrap(),
                 Cli::Library { kind, path: Some(PathBuf::from(path)), dry_run: true }
             );
-        }
-
-        /// The summary's first line always counts what was found, and a
-        /// preview never says anything was done.
-        #[test]
-        fn prop_summary_tense(created in 0usize..5, updated in 0usize..5, unchanged in 0usize..5, dry in any::<bool>()) {
-            let mut report = LibraryReport { dry_run: dry, ..LibraryReport::default() };
-            report.found.notes = created + updated + unchanged;
-            report.notes.created = created;
-            report.notes.updated = updated;
-            report.notes.unchanged = unchanged;
-            let lines = summary(&report);
-            let notes_phrase = if report.found.notes == 1 { "1 note," } else { "notes," };
-            prop_assert!(lines[0].contains(notes_phrase));
-            let past = lines.iter().any(|l| l.contains(" were "));
-            prop_assert_eq!(past, !dry && report.found.notes > 0);
         }
     }
 }

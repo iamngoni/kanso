@@ -13,9 +13,8 @@ import '../models/data/frame_sample.dart';
 FrameReport frameReport(List<FrameSample> samples, double refreshRate) {
   final budget = 1000 / refreshRate;
   final builds = <double>[for (final sample in samples) sample.buildMs]..sort();
-  final rasters = <double>[
-    for (final sample in samples) sample.rasterMs,
-  ]..sort();
+  final rasters = <double>[for (final sample in samples) sample.rasterMs]
+    ..sort();
   return FrameReport(
     frames: samples.length,
     refreshRate: refreshRate,
@@ -27,9 +26,7 @@ FrameReport frameReport(List<FrameSample> samples, double refreshRate) {
     rasterP90: percentile(rasters, 90),
     rasterP99: percentile(rasters, 99),
     framesOverBudget: samples
-        .where(
-          (sample) => sample.buildMs > budget || sample.rasterMs > budget,
-        )
+        .where((sample) => sample.buildMs > budget || sample.rasterMs > budget)
         .length,
   );
 }

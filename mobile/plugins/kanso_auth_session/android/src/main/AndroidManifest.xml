@@ -1,0 +1,26 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Custom Tabs: the browsers that can show one. -->
+    <queries>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+    </queries>
+    <application>
+        <!-- Where a sign-in page ends: kanso://auth/... (Apple). It hands the
+             URL to the plugin and finishes. kanso://open stays MainActivity's. -->
+        <activity
+            android:name="app.kanso.kanso_auth_session.AuthCallbackActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kanso" android:host="auth" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

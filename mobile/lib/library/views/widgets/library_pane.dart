@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
+import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/library_index_status.dart';
@@ -18,18 +19,26 @@ import '../../../core/utils/tag_row_color.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_dot.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
+import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_search_field.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_sidebar_row.dart';
+import '../../../lock/utils/notebook_lock_rule.dart';
+import '../../../sharing/views/widgets/shared_with_you_row.dart';
 import 'library_header.dart';
 import 'library_loading_rows.dart';
 import 'library_place_row.dart';
+import 'library_tasks_row.dart';
+import 'new_notebook_sheet.dart';
+import 'notebook_actions_sheet.dart';
 
 /// The library: the app's mark and settings, a search field, then All
-/// Notes, Templates (when there is a notebook of that role), Pinned and
-/// Recent, the notebooks with their counts, the tags and Trash.
+/// Notes, Templates (when there is a notebook of that role), Pinned,
+/// Recent and Tasks (with the overdue ones counted), Shared with you (with
+/// how many invitations wait), the notebooks with their counts, the tags
+/// and Trash.
 ///
 /// A drawer on a phone, the first pane on a tablet. The place [location]
 /// is listing is selected. Its rows come from the `LibraryIndexBloc`
@@ -149,7 +158,25 @@ class LibraryPane extends StatelessWidget {
                         label: l10n.libraryRecent,
                         selected: current == const ListPlace.recent(),
                       ),
-                      KansoSectionHeader(label: l10n.libraryNotebooks),
+                      SharedWithYouRow(
+                        onOpen: () =>
+                            leave(() => context.push(KansoRoutes.shared)),
+                      ),
+                      LibraryTasksRow(
+                        overdue: index.overdueTasks,
+                        selected: here is TasksLocation,
+                      ),
+                      KansoSectionHeader(
+                        label: l10n.libraryNotebooks,
+                        trailing: <Widget>[
+                          KansoIconButton(
+                            icon: KansoIcons.plus,
+                            semanticLabel: l10n.libraryNewNotebook,
+                            iconSize: KansoSizes.iconSmall + 2,
+                            onPressed: () => NewNotebookSheet.open(context),
+                          ),
+                        ],
+                      ),
                       if (index.notebooks.every(
                         (book) => book.role == NotebookRole.templates,
                       ))
@@ -174,6 +201,11 @@ class LibraryPane extends StatelessWidget {
                             chevron: true,
                             selected:
                                 current == ListPlace.notebook(id: notebook.id),
+                            locked:
+                                notebookLockRule(notebook, index.notebooks) !=
+                                NotebookLockRule.lock,
+                            onLongPress: () =>
+                                NotebookActionsSheet.show(context, notebook),
                           ),
                       const SizedBox(height: KansoSpacing.xs),
                       KansoSectionHeader(label: l10n.libraryTags),
@@ -203,6 +235,13 @@ class LibraryPane extends StatelessWidget {
                         label: l10n.libraryTrash,
                         count: index.overview.trash,
                         selected: current == const ListPlace.trash(),
+                      ),
+                      KansoSidebarRow(
+                        icon: KansoIcons.replaceAll,
+                        label: l10n.libraryReplace,
+                        onTap: () => leave(
+                          () => context.push(KansoRoutes.replace),
+                        ),
                       ),
                       if (designGallery)
                         KansoSidebarRow(

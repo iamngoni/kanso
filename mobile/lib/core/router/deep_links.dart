@@ -20,7 +20,11 @@ const String kansoOpenHost = 'open';
 /// * `kanso://open/note/<id>` opens the note in All Notes;
 /// * `kanso://open/notebook/<id>` lists the notebook;
 /// * `kanso://open/search?q=…` searches (with `scope` and `in` as in the
-///   search address).
+///   search address);
+/// * `kanso://open/daily` is today's daily note (`/daily`, which finds or
+///   makes it and goes to it);
+/// * `kanso://open/new` is a new note in Edit (`/new`), and
+///   `kanso://open/new?voice=1` one that starts in its text, for dictation.
 ///
 /// And the short forms those become, which the router accepts too: `/` goes
 /// to All Notes, `/note/<id>` to the note in All Notes, `/notebook/<id>` to

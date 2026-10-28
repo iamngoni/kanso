@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_note"
+        android:enabled="true"
+        android:icon="@drawable/ic_square_pen_shortcut"
+        android:shortcutShortLabel="@string/shortcut_new_short"
+        android:shortcutLongLabel="@string/shortcut_new_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="kanso://open/new"
+            android:targetPackage="app.kanso.kanso"
+            android:targetClass="app.kanso.kanso.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="voice_note"
+        android:enabled="true"
+        android:icon="@drawable/ic_mic_shortcut"
+        android:shortcutShortLabel="@string/shortcut_voice_short"
+        android:shortcutLongLabel="@string/shortcut_voice_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="kanso://open/new?voice=1"
+            android:targetPackage="app.kanso.kanso"
+            android:targetClass="app.kanso.kanso.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="today_note"
+        android:enabled="true"
+        android:icon="@drawable/ic_calendar_shortcut"
+        android:shortcutShortLabel="@string/shortcut_today_short"
+        android:shortcutLongLabel="@string/shortcut_today_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="kanso://open/daily"
+            android:targetPackage="app.kanso.kanso"
+            android:targetClass="app.kanso.kanso.MainActivity" />
+    </shortcut>
+</shortcuts>

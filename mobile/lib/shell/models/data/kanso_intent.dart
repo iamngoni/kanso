@@ -48,3 +48,23 @@ class PreviousNoteIntent extends KansoIntent {
 class PinNoteIntent extends KansoIntent {
   const PinNoteIntent();
 }
+
+/// Make a new note, in the place being listed.
+class NewNoteIntent extends KansoIntent {
+  const NewNoteIntent();
+}
+
+/// Make a new notebook: asks for its name.
+class NewNotebookIntent extends KansoIntent {
+  const NewNotebookIntent();
+}
+
+/// Show the open note as text to edit.
+class EditNoteIntent extends KansoIntent {
+  const EditNoteIntent();
+}
+
+/// Show the open note to read.
+class PreviewNoteIntent extends KansoIntent {
+  const PreviewNoteIntent();
+}

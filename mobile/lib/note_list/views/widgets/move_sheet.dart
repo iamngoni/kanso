@@ -13,6 +13,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_check_row.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
+import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../state/note_list/note_list_bloc.dart';
 
 /// The notebooks, in the order of the library, to move the notes [ids] to.
@@ -98,23 +99,28 @@ class MoveSheet extends StatelessWidget {
               style: context.typography.secondary,
             ),
           ),
-        for (final notebook in notebooks)
-          KansoCheckRow(
-            label: notebook.name,
-            icon: notebook.locked ? KansoIcons.lock : KansoIcons.notebook,
-            indent: notebook.depth * KansoSpacing.md,
-            checked: holding.length == 1 && holding.single == notebook.id,
-            onTap: notebook.locked
-                ? null
-                : () {
-                    bloc.add(
-                      NoteListEvent.changeRequested(
-                        NoteChange.move(notebookId: notebook.id),
-                        ids,
-                      ),
-                    );
-                    Navigator.of(context).maybePop();
-                  },
+        if (notebooks.isNotEmpty)
+          KansoSheetGroup(
+            children: <Widget>[
+              for (final notebook in notebooks)
+                KansoCheckRow(
+                  label: notebook.name,
+                  icon: notebook.locked ? KansoIcons.lock : KansoIcons.notebook,
+                  indent: notebook.depth * KansoSpacing.md,
+                  checked: holding.length == 1 && holding.single == notebook.id,
+                  onTap: notebook.locked
+                      ? null
+                      : () {
+                          bloc.add(
+                            NoteListEvent.changeRequested(
+                              NoteChange.move(notebookId: notebook.id),
+                              ids,
+                            ),
+                          );
+                          Navigator.of(context).maybePop();
+                        },
+                ),
+            ],
           ),
       ],
     );

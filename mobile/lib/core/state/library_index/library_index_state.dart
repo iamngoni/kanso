@@ -14,10 +14,11 @@ abstract class LibraryIndexState with _$LibraryIndexState {
     @Default(<TagRow>[]) List<TagRow> tags,
 
     /// How many notes each place lists.
-    @Default(
-      LibraryOverview(all: 0, pinned: 0, recent: 0, trash: 0),
-    )
+    @Default(LibraryOverview(all: 0, pinned: 0, recent: 0, trash: 0))
     LibraryOverview overview,
+
+    /// How many open tasks are overdue: the badge of the Tasks row.
+    @Default(0) int overdueTasks,
 
     /// Why the last reading failed, while [status] is failed.
     ApplicationError? error,

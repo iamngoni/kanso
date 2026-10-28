@@ -11,26 +11,6 @@ import '../../../helpers/golden.dart';
 
 void main() {
   group('TabletMockPage', () {
-    testWidgets('note edit, light', (tester) async {
-      await expectGoldenOnBothPlatforms(
-        tester,
-        const TabletMockPage(screen: DesignScreen.noteEdit),
-        name: 'tablet_note_edit_light',
-        size: tabletLandscapeSize,
-        brightness: Brightness.light,
-      );
-    });
-
-    testWidgets('note edit, dark', (tester) async {
-      await expectGoldenOnBothPlatforms(
-        tester,
-        const TabletMockPage(screen: DesignScreen.noteEdit),
-        name: 'tablet_note_edit_dark',
-        size: tabletLandscapeSize,
-        brightness: Brightness.dark,
-      );
-    });
-
     testWidgets('error, light', (tester) async {
       await expectGoldenOnBothPlatforms(
         tester,

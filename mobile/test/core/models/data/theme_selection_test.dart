@@ -110,6 +110,56 @@ void main() {
       },
     );
 
+    test('without a theme puts Kanso’s own in each slot that held it', () {
+      const selection = ThemeSelection(
+        followSystem: false,
+        ui: 'dusk',
+        light: 'dusk',
+        dark: 'nord',
+      );
+      expect(
+        selection.without('dusk'),
+        const ThemeSelection(followSystem: false, dark: 'nord'),
+      );
+      expect(selection.without('other'), selection);
+    });
+
+    Glados2<ThemeSelection, String>(
+      any.themeSelection,
+      any.themeId,
+      kansoExploreConfig(),
+    ).test('without a theme leaves nothing that names it, unless it is '
+        'Kanso’s own', (selection, id) {
+      final without = selection.without(id);
+      final names = <String>[without.ui, without.light, without.dark];
+      if (id == ThemeSelection.kansoLight || id == ThemeSelection.kansoDark) {
+        return;
+      }
+      expect(names, isNot(contains(id)));
+    });
+
+    Glados2<ThemeSelection, String>(
+      any.themeSelection,
+      any.themeId,
+      kansoExploreConfig(),
+    ).test('without a theme keeps the slots that did not hold it', (
+      selection,
+      id,
+    ) {
+      final without = selection.without(id);
+      expect(without.followSystem, selection.followSystem);
+      for (final (before, after) in <(String, String)>[
+        (selection.ui, without.ui),
+        (selection.light, without.light),
+        (selection.dark, without.dark),
+      ]) {
+        if (before != id) {
+          expect(after, before);
+        }
+      }
+      expect(without.without(id), without);
+    });
+
     test('reads a file that lacks keys as defaults', () {
       expect(
         ThemeSelection.fromJson(<String, dynamic>{'light': 'nord'}),

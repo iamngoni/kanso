@@ -7,21 +7,39 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-# Google's PKCE challenge (account/provider.rs).
+# The changes a store tells its listeners (discovery/indexer.rs): the same
+# channel `kanso-store` sends them on.
+async-channel.workspace = true
+# Google's PKCE challenge (account/provider.rs) and attachments' bytes
+# (attach.rs).
 base64.workspace = true
 # The recovery-key file's date and the resume time (account/words.rs).
 chrono.workspace = true
 fastrand.workspace = true
+# Images the API doesn't take (TIFF, WebP, BMP) are attached as PNG
+# (attach.rs). GPUI already builds these decoders for the desktop app.
+image = { version = "0.25", default-features = false, features = ["png", "tiff", "webp", "bmp", "ico"] }
 kanso-core.workspace = true
+# Excalidraw scenes as a note keeps them, and image widths (edit/image.rs).
+kanso-render.workspace = true
 kanso-store.workspace = true
 # Without the desktop Keychain: secrets go through the `Secrets` trait.
 kanso-sync = { path = "../kanso-sync", default-features = false }
+# The editor's settings, as the config file writes them (editor_settings.rs).
+serde.workspace = true
 # Theme files are written with their keys in the order the format lists them
 # (theme/file.rs), which a map keeps only with `preserve_order`.
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
+# What changed between a saved version and the note (history/diff.rs).
+similar.workspace = true
+# Vim keys step over a character as it is read, a grapheme cluster
+# (edit/vim/text.rs).
+unicode-segmentation = "1.13"
 # Column widths of table cells (edit/table.rs).
 unicode-width.workspace = true
+# HTML on the clipboard pasted as Markdown (Apache-2.0; edit/paste.rs).
+htmd = "0.5.6"
 # The generators the apps' view tests share (strategies.rs).
 proptest = { workspace = true, optional = true }
 

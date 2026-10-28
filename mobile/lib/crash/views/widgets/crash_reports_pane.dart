@@ -79,9 +79,8 @@ class CrashReportsPane extends StatelessWidget {
                         actions: <Widget>[
                           KansoButton(
                             label: l10n.retry,
-                            onPressed: () => bloc.add(
-                              const CrashReportsEvent.started(),
-                            ),
+                            onPressed: () =>
+                                bloc.add(const CrashReportsEvent.started()),
                           ),
                         ],
                       ),

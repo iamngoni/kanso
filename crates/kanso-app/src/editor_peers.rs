@@ -75,46 +75,9 @@ fn peers(id: &str, me: EntityId, cx: &App) -> Vec<(Entity<NoteEditor>, AnyWindow
         .collect()
 }
 
-/// Whether `note` has `title` and `body` for its text. Pure.
-pub(crate) fn has_text(note: &Note, title: &str, body: &str) -> bool {
-    note.title == title && note.body == body
-}
-
-/// `note` without what a save moves by itself: the revision, the edit time
-/// and the task counts the store derives from the body.
-fn settled(note: &Note) -> Note {
-    Note {
-        rev: None,
-        updated_at: 0,
-        num_of_tasks: 0,
-        num_of_checked_tasks: 0,
-        ..note.clone()
-    }
-}
-
-/// Whether writing `writing` would change nothing `latest` doesn't already
-/// say: they differ at most in revision and edit time. Pure.
-pub(crate) fn writes_the_same(writing: &Note, latest: &Note) -> bool {
-    settled(writing) == settled(latest)
-}
-
-/// Whether `latest`, saved over `base` by someone else, only brought the
-/// text this editor is writing in `writing`: it has `writing`'s title and
-/// body, and otherwise differs from `base` only in what the text decides
-/// (the `#tags` it names) and the edit time. Then this editor's write can go
-/// on top of it. Pure.
-pub(crate) fn text_caught_up(base: &Note, latest: &Note, writing: &Note) -> bool {
-    if !has_text(latest, &writing.title, &writing.body) {
-        return false;
-    }
-    let plain = |note: &Note| Note {
-        title: String::new(),
-        body: String::new(),
-        tags: Vec::new(),
-        ..settled(note)
-    };
-    plain(base) == plain(latest)
-}
+// The rules for a save that lost a race live in the engine, where the
+// phone's editing session follows them too.
+pub(crate) use kanso_engine::saving::{has_text, text_caught_up, writes_the_same};
 
 impl NoteEditor {
     /// Whether a change made elsewhere waits for an answer: which version

@@ -74,6 +74,7 @@ impl PageStyle {
             mono: self.mono.as_deref(),
             size: self.size,
             highlight: self.highlight.as_ref().map(|_| self as &dyn Highlighter),
+            ..PageOptions::default()
         }
     }
 }

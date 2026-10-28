@@ -1,0 +1,27 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Serves the capture tests' files (assets) through a content URI with a
+         grant, as the app that shares them would. -->
+    <application>
+        <!-- AndroidX Test's helper activities declare an intent filter and no
+             android:exported, which the manifest merger refuses for Android
+             12 and later; the tests don't start them. -->
+        <activity
+            android:name="androidx.test.core.app.InstrumentationActivityInvoker$BootstrapActivity"
+            android:exported="false"
+            tools:node="merge" />
+        <activity
+            android:name="androidx.test.core.app.InstrumentationActivityInvoker$EmptyActivity"
+            android:exported="false"
+            tools:node="merge" />
+        <activity
+            android:name="androidx.test.core.app.InstrumentationActivityInvoker$EmptyFloatingActivity"
+            android:exported="false"
+            tools:node="merge" />
+        <provider
+            android:name="app.kanso.kanso.CaptureProvider"
+            android:authorities="app.kanso.kanso.test.captureprovider"
+            android:exported="true"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

@@ -64,7 +64,7 @@ pub fn config_path(data_dir: &Path) -> PathBuf {
 }
 
 pub fn backups_dir(data_dir: &Path) -> PathBuf {
-    data_dir.join("backups")
+    kanso_engine::backup::backups_dir(data_dir)
 }
 
 /// What starts Kanso at login: the LaunchAgent on macOS, an XDG autostart

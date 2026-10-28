@@ -11,16 +11,50 @@ import 'types.dart';
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLocks>>
 abstract class KansoLocks implements RustOpaqueInterface {
+  Future<int> beginBiometricEnrollment();
+
+  Future<int?> beginBiometricUnlock();
+
+  Future<bool> biometricsOn();
+
+  Future<int> changePassword({required String old, required String new_});
+
   Future<bool> isNoteUnlocked({required String id});
 
   Future<bool> isUnlocked();
+
+  /// The library's ID, which names the platform's biometric key or item.
+  Future<String> libraryId();
 
   Future<void> lock();
 
   /// Each time the notes open or close, until Dart stops listening.
   Stream<LockEvent> lockEvents();
 
+  Future<void> lockForBackground();
+
   Future<Saved> lockNote({required String id, required String password});
 
+  Future<Saved> lockNoteWithSession({required String id});
+
+  Future<int> lockNotebook({required String bookId, String? password});
+
+  Future<LockStatus> lockStatus();
+
+  Future<bool> notebookIsOpen({required String bookId});
+
+  Future<Saved> removeNoteLock({required String id});
+
+  Future<void> removeNotebookLock({required String bookId});
+
+  Future<void> turnOffBiometrics();
+
   Future<bool> unlock({required String password});
+
+  Future<bool> unlockNote({required String id, required String password});
+
+  Future<bool> unlockNotebook({
+    required String bookId,
+    required String password,
+  });
 }

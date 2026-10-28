@@ -27,6 +27,8 @@ flutter_rust_bridge = { version = "=2.13.0", default-features = false, features 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = { version = "0.22", default-features = false }
 kanso-tls.workspace = true
+# The JNI entry zeroes its copy of the biometric secret.
+zeroize.workspace = true
 
 [dev-dependencies]
 # The tests sign in with the test-support constructors.

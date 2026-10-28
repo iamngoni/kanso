@@ -55,12 +55,13 @@ extension SyncStatusEventPatterns on SyncStatusEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SyncStatusStartedEvent value)?  started,TResult Function( SyncStatusSyncRequestedEvent value)?  syncRequested,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SyncStatusStartedEvent value)?  started,TResult Function( SyncStatusSyncRequestedEvent value)?  syncRequested,TResult Function( SyncStatusForegroundChangedEvent value)?  foregroundChanged,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SyncStatusStartedEvent() when started != null:
 return started(_that);case SyncStatusSyncRequestedEvent() when syncRequested != null:
-return syncRequested(_that);case _:
+return syncRequested(_that);case SyncStatusForegroundChangedEvent() when foregroundChanged != null:
+return foregroundChanged(_that);case _:
   return orElse();
 
 }
@@ -78,12 +79,13 @@ return syncRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SyncStatusStartedEvent value)  started,required TResult Function( SyncStatusSyncRequestedEvent value)  syncRequested,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SyncStatusStartedEvent value)  started,required TResult Function( SyncStatusSyncRequestedEvent value)  syncRequested,required TResult Function( SyncStatusForegroundChangedEvent value)  foregroundChanged,}){
 final _that = this;
 switch (_that) {
 case SyncStatusStartedEvent():
 return started(_that);case SyncStatusSyncRequestedEvent():
-return syncRequested(_that);}
+return syncRequested(_that);case SyncStatusForegroundChangedEvent():
+return foregroundChanged(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -97,12 +99,13 @@ return syncRequested(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SyncStatusStartedEvent value)?  started,TResult? Function( SyncStatusSyncRequestedEvent value)?  syncRequested,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SyncStatusStartedEvent value)?  started,TResult? Function( SyncStatusSyncRequestedEvent value)?  syncRequested,TResult? Function( SyncStatusForegroundChangedEvent value)?  foregroundChanged,}){
 final _that = this;
 switch (_that) {
 case SyncStatusStartedEvent() when started != null:
 return started(_that);case SyncStatusSyncRequestedEvent() when syncRequested != null:
-return syncRequested(_that);case _:
+return syncRequested(_that);case SyncStatusForegroundChangedEvent() when foregroundChanged != null:
+return foregroundChanged(_that);case _:
   return null;
 
 }
@@ -119,11 +122,12 @@ return syncRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  syncRequested,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  syncRequested,TResult Function( bool foreground)?  foregroundChanged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SyncStatusStartedEvent() when started != null:
 return started();case SyncStatusSyncRequestedEvent() when syncRequested != null:
-return syncRequested();case _:
+return syncRequested();case SyncStatusForegroundChangedEvent() when foregroundChanged != null:
+return foregroundChanged(_that.foreground);case _:
   return orElse();
 
 }
@@ -141,11 +145,12 @@ return syncRequested();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  syncRequested,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  syncRequested,required TResult Function( bool foreground)  foregroundChanged,}) {final _that = this;
 switch (_that) {
 case SyncStatusStartedEvent():
 return started();case SyncStatusSyncRequestedEvent():
-return syncRequested();}
+return syncRequested();case SyncStatusForegroundChangedEvent():
+return foregroundChanged(_that.foreground);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -159,11 +164,12 @@ return syncRequested();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  syncRequested,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  syncRequested,TResult? Function( bool foreground)?  foregroundChanged,}) {final _that = this;
 switch (_that) {
 case SyncStatusStartedEvent() when started != null:
 return started();case SyncStatusSyncRequestedEvent() when syncRequested != null:
-return syncRequested();case _:
+return syncRequested();case SyncStatusForegroundChangedEvent() when foregroundChanged != null:
+return foregroundChanged(_that.foreground);case _:
   return null;
 
 }
@@ -234,6 +240,72 @@ String toString() {
 
 
 
+
+/// @nodoc
+
+
+class SyncStatusForegroundChangedEvent implements SyncStatusEvent {
+  const SyncStatusForegroundChangedEvent({required this.foreground});
+  
+
+ final  bool foreground;
+
+/// Create a copy of SyncStatusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SyncStatusForegroundChangedEventCopyWith<SyncStatusForegroundChangedEvent> get copyWith => _$SyncStatusForegroundChangedEventCopyWithImpl<SyncStatusForegroundChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SyncStatusForegroundChangedEvent&&(identical(other.foreground, foreground) || other.foreground == foreground));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,foreground);
+
+@override
+String toString() {
+  return 'SyncStatusEvent.foregroundChanged(foreground: $foreground)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SyncStatusForegroundChangedEventCopyWith<$Res> implements $SyncStatusEventCopyWith<$Res> {
+  factory $SyncStatusForegroundChangedEventCopyWith(SyncStatusForegroundChangedEvent value, $Res Function(SyncStatusForegroundChangedEvent) _then) = _$SyncStatusForegroundChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ bool foreground
+});
+
+
+
+
+}
+/// @nodoc
+class _$SyncStatusForegroundChangedEventCopyWithImpl<$Res>
+    implements $SyncStatusForegroundChangedEventCopyWith<$Res> {
+  _$SyncStatusForegroundChangedEventCopyWithImpl(this._self, this._then);
+
+  final SyncStatusForegroundChangedEvent _self;
+  final $Res Function(SyncStatusForegroundChangedEvent) _then;
+
+/// Create a copy of SyncStatusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? foreground = null,}) {
+  return _then(SyncStatusForegroundChangedEvent(
+foreground: null == foreground ? _self.foreground : foreground // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$SyncStatusState {

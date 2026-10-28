@@ -1751,6 +1751,83 @@ mod tests {
         }
     }
 
+    /// The phones' catalog (`kanso_engine::palette`) is the desktop's:
+    /// every command in it is a desktop command with the same label,
+    /// description, keywords, group, conditions, list and icon.
+    #[test]
+    fn the_engine_catalog_is_the_desktops_commands() {
+        use kanso_engine::palette as engine;
+        let needs = |n: engine::Needs| match n {
+            engine::Needs::Nothing => super::Needs::Nothing,
+            engine::Needs::Note => super::Needs::Note,
+            engine::Needs::LiveNote => super::Needs::LiveNote,
+            engine::Needs::UnlockedNote => super::Needs::UnlockedNote,
+            engine::Needs::LockedNote => super::Needs::LockedNote,
+            engine::Needs::Settings => super::Needs::Settings,
+            engine::Needs::SignedIn => super::Needs::SignedIn,
+            engine::Needs::SignedOut => super::Needs::SignedOut,
+            engine::Needs::ImageLine => super::Needs::ImageLine,
+            engine::Needs::AudioLine => super::Needs::AudioLine,
+            engine::Needs::SharedNote => super::Needs::SharedNote,
+            engine::Needs::AiOn => super::Needs::AiOn,
+            engine::Needs::AiNote => super::Needs::AiNote,
+        };
+        let group = |g: engine::Group| match g {
+            engine::Group::Note => super::Group::Note,
+            engine::Group::View => super::Group::View,
+            engine::Group::GoTo => super::Group::GoTo,
+            engine::Group::App => super::Group::App,
+        };
+        let picker = |p: engine::Picker| match p {
+            engine::Picker::Notebook => super::Picker::Notebook,
+            engine::Picker::Tag => super::Picker::Tag,
+            engine::Picker::Status => super::Picker::Status,
+            engine::Picker::GoToNotebook => super::Picker::GoToNotebook,
+            engine::Picker::GoToTag => super::Picker::GoToTag,
+            engine::Picker::WordGoal => super::Picker::WordGoal,
+            engine::Picker::Template => super::Picker::Template,
+            engine::Picker::ImageSize => super::Picker::ImageSize,
+        };
+        // An icon's Lucide name is its file's.
+        let lucide = |icon: gpui_kit::assets::IconName| {
+            let path = icon.path().to_string();
+            path.rsplit('/')
+                .next()
+                .and_then(|file| file.strip_suffix(".svg"))
+                .unwrap_or_default()
+                .to_owned()
+        };
+        assert!(engine::all().len() > 60, "{}", engine::all().len());
+        for theirs in engine::all() {
+            let ours = all()
+                .iter()
+                .find(|c| c.id == theirs.id)
+                .unwrap_or_else(|| panic!("no desktop command {}", theirs.id));
+            assert_eq!(theirs.label, ours.label, "{}", theirs.id);
+            // Where the PDF opens differs by system; the catalog has macOS's.
+            if theirs.id != "export-pdf" || cfg!(target_os = "macos") {
+                assert_eq!(theirs.description, ours.description, "{}", theirs.id);
+            }
+            assert_eq!(theirs.keywords, ours.keywords, "{}", theirs.id);
+            assert_eq!(group(theirs.group), ours.group, "{}", theirs.id);
+            assert_eq!(needs(theirs.needs), ours.needs, "{}", theirs.id);
+            assert_eq!(lucide(ours.icon), theirs.icon, "{}", theirs.id);
+            match (theirs.picker, ours.run) {
+                (Some(p), Run::Pick(q)) => assert_eq!(picker(p), q, "{}", theirs.id),
+                (None, Run::Action(_)) => {}
+                _ => panic!("{}: one opens a list and the other doesn't", theirs.id),
+            }
+            match (theirs.toggled, ours.label_when_pinned) {
+                (None, None) => {}
+                (Some(t), Some((label, icon))) => {
+                    assert_eq!(t.label, label, "{}", theirs.id);
+                    assert_eq!(t.icon, lucide(icon), "{}", theirs.id);
+                }
+                _ => panic!("{}: toggled labels differ", theirs.id),
+            }
+        }
+    }
+
     #[test]
     fn every_icon_is_bundled() {
         for command in all() {

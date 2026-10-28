@@ -14,17 +14,26 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/mock_repositories.dart';
 
-const _signedOut = SyncStatus(phase: SyncPhase.signedOut, conflicts: 0);
+const _signedOut = SyncStatus(
+  phase: SyncPhase.signedOut,
+  conflicts: 0,
+  skippedCount: 0,
+  account: SyncAccount.signedOut(),
+);
 const _idle = SyncStatus(
   phase: SyncPhase.idle,
   username: 'ana',
   server: 'https://example.invalid',
   conflicts: 0,
+  skippedCount: 0,
+  account: SyncAccount.signedIn(),
 );
 const _syncing = SyncStatus(
   phase: SyncPhase.syncing,
   username: 'ana',
   conflicts: 0,
+  skippedCount: 0,
+  account: SyncAccount.signedIn(),
 );
 const _report = SyncReportRow(
   pulled: 1,
@@ -143,6 +152,42 @@ void main() {
       wait: const Duration(milliseconds: 60),
       verify: (_) => verify(() => sync.syncNow()).called(1),
     );
+
+    test(
+      'tells the library when the app is in front and when it is not',
+      () async {
+        when(
+          () => sync.setForeground(foreground: any(named: 'foreground')),
+        ).thenAnswer(
+          (_) async => const Right<ApplicationError, Unit>(unit),
+        );
+        final bloc = build()
+          ..add(const SyncStatusEvent.foregroundChanged(foreground: true))
+          ..add(const SyncStatusEvent.foregroundChanged(foreground: false))
+          ..add(const SyncStatusEvent.foregroundChanged(foreground: true));
+        await pumpEventQueue();
+        verifyInOrder(<void Function()>[
+          () => sync.setForeground(foreground: true),
+          () => sync.setForeground(foreground: false),
+          () => sync.setForeground(foreground: true),
+        ]);
+        await bloc.close();
+      },
+    );
+
+    test('a failure to say so changes nothing the person sees', () async {
+      when(
+        () => sync.setForeground(foreground: any(named: 'foreground')),
+      ).thenAnswer(
+        (_) async => const Left<ApplicationError, Unit>(_offline),
+      );
+      final bloc = build()
+        ..add(const SyncStatusEvent.foregroundChanged(foreground: true));
+      await pumpEventQueue();
+      expect(bloc.state.error, isNull);
+      expect(bloc.state.busy, isFalse);
+      await bloc.close();
+    });
 
     test('lets go of the status stream when it is closed', () async {
       final bloc = build()..add(const SyncStatusEvent.started());

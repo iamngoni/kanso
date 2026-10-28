@@ -7,9 +7,10 @@ import 'package:flutter/widgets.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../note_list/views/pages/note_list_page.dart';
 import '../../../search/views/pages/search_page.dart';
+import '../../../tasks/views/pages/tasks_page.dart';
 
-/// The list pane of a wide window: the notes of the place, or the results
-/// of the search, that [location] says.
+/// The list pane of a wide window: the notes of the place, the results
+/// of the search, or the tasks, that [location] says.
 class ListSlot extends StatelessWidget {
   const ListSlot({required this.location, super.key});
 
@@ -21,6 +22,7 @@ class ListSlot extends StatelessWidget {
       PlaceLocation(:final place, :final noteId) => NoteListPage(
         place: place,
         openNoteId: noteId,
+        beside: true,
       ),
       SearchLocation(
         :final query,
@@ -34,6 +36,7 @@ class ListSlot extends StatelessWidget {
           notebookId: notebookId,
           openNoteId: noteId,
         ),
+      TasksLocation(:final noteId) => TasksPage(openNoteId: noteId),
       null => const SizedBox.shrink(),
     };
   }

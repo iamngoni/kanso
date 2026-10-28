@@ -31,10 +31,7 @@ class KansoSwipeBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final full = math.max(
-      shown,
-      SwipeThresholds.actionWidth * actions.length,
-    );
+    final full = math.max(shown, SwipeThresholds.actionWidth * actions.length);
     final outer = atStart ? 0 : actions.length - 1;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,

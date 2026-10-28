@@ -5,9 +5,6 @@
 /// The screens of the design proposal that are not built yet, in the order
 /// the gallery lists them.
 enum DesignScreen {
-  /// A note, as Markdown source, with the keyboard up.
-  noteEdit,
-
   /// The signed-out error card.
   error,
 }

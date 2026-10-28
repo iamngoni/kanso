@@ -33,6 +33,11 @@ import 'package:path/path.dart' as p;
 /// fat LTO, so tests start sooner.
 Future<void> main(List<String> args) async {
   await build(args, (input, output) async {
+    // `flutter run` also runs the hooks for data assets only; there is no
+    // library to build then.
+    if (!input.config.buildCodeAssets) {
+      return;
+    }
     final code = input.config.code;
     final os = code.targetOS;
     final onPhone = os == OS.iOS || os == OS.android;

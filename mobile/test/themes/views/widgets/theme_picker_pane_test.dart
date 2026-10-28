@@ -12,35 +12,45 @@ import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_check_badge.dart';
 import 'package:kanso/core/views/widgets/kanso_switch.dart';
+import 'package:kanso/themes/state/theme_gallery/theme_gallery_bloc.dart';
 import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 import 'package:kanso/themes/views/widgets/installed_theme_card.dart';
 import 'package:kanso/themes/views/widgets/theme_picker_pane.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_gallery_repository.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/real_themes.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
+import '../../../helpers/theme_picker_blocs.dart';
 
 class _Picker {
-  _Picker(this.appearance, this.picker);
+  _Picker(this.appearance, this.picker, this.gallery);
 
   final AppearanceBloc appearance;
   final ThemePickerBloc picker;
+  final ThemeGalleryBloc gallery;
 }
 
 Future<_Picker> _pump(
   WidgetTester tester, {
   MockRendererRepository? renderer,
+  FixtureGalleryRepository? themes,
 }) async {
+  final fixtures = themes ?? emptyGallery();
   final appearance = AppearanceBloc(
     ForgetfulPreferencesRepository(),
     RealThemesRenderer(),
+    fixtures,
   );
   closeBlocLater(appearance);
-  final picker = ThemePickerBloc(renderer ?? RealThemesRenderer())
+  final picker = ThemePickerBloc(renderer ?? RealThemesRenderer(), fixtures)
     ..add(const ThemePickerEvent.started());
   closeBlocLater(picker);
+  final gallery = ThemeGalleryBloc(fixtures)
+    ..add(const ThemeGalleryEvent.started());
+  closeBlocLater(gallery);
   appearance.add(const AppearanceEvent.started());
   await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   await pumpRouted(
@@ -49,6 +59,7 @@ Future<_Picker> _pump(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<AppearanceBloc>.value(value: appearance),
         BlocProvider<ThemePickerBloc>.value(value: picker),
+        BlocProvider<ThemeGalleryBloc>.value(value: gallery),
       ],
       child: const ThemePickerPane(),
     ),
@@ -56,7 +67,7 @@ Future<_Picker> _pump(
   for (var i = 0; i < 4; i++) {
     await tester.pump();
   }
-  return _Picker(appearance, picker);
+  return _Picker(appearance, picker, gallery);
 }
 
 Finder _card(String name) => find.ancestor(
@@ -77,9 +88,10 @@ void main() {
         find.byType(InstalledThemeCard, skipOffstage: false),
         findsNWidgets(realThemes.length),
       );
-      // There is no gallery to install from yet.
-      expect(find.text('Gallery'), findsNothing);
-      expect(find.text('Search themes'), findsNothing);
+      // The gallery is below them, empty here.
+      expect(find.text('Gallery'), findsOneWidget);
+      expect(find.text('Search themes'), findsOneWidget);
+      expect(find.text('The gallery is empty'), findsOneWidget);
       expect(find.text('Install'), findsNothing);
     });
 

@@ -81,9 +81,7 @@ class NavigationHistoryBloc
   }
 
   /// [next] with whether going back and forward would land anywhere.
-  Future<NavigationHistoryState> _withReach(
-    NavigationHistoryState next,
-  ) async {
+  Future<NavigationHistoryState> _withReach(NavigationHistoryState next) async {
     final history = next.history;
     final backward = await _liveness(history.candidatesBack, history.current);
     final forward = await _liveness(history.candidatesForward, history.current);

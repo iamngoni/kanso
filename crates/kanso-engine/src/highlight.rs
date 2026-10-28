@@ -201,7 +201,15 @@ pub fn spans(text: &str, range: Range<usize>) -> Vec<Span> {
     thread_local! {
         static PARSERS: std::cell::RefCell<Uncached> = std::cell::RefCell::default();
     }
-    PARSERS.with(|parsers| assemble(text, range, &mut *parsers.borrow_mut()))
+    PARSERS.with(|parsers| assemble(text, range, &mut *parsers.borrow_mut(), true))
+}
+
+/// [`spans`] with the parse that follows a syntax error carried to the end
+/// of the note, as it was before it was cut short: what [`spans`] must give
+/// in `range`.
+#[cfg(test)]
+pub(crate) fn spans_uncapped(text: &str, range: Range<usize>) -> Vec<Span> {
+    assemble(text, range, &mut Uncached::default(), false)
 }
 
 /// Where the blocks of a note get their spans from.
@@ -210,6 +218,10 @@ trait Blocks {
     fn clean(&mut self, block: &str, at_start: bool) -> bool;
     /// The block's spans, relative to its start.
     fn spans(&mut self, block: &str, at_start: bool) -> Arc<[Span]>;
+    /// The block's spans that lie in `window` (relative to its start; the
+    /// rest may be missing), for a block too big to be worth keeping whole:
+    /// not cached.
+    fn spans_within(&mut self, block: &str, at_start: bool, window: Range<usize>) -> Vec<Span>;
 }
 
 /// Every block parsed afresh.
@@ -223,6 +235,10 @@ impl Blocks for Uncached {
 
     fn spans(&mut self, block: &str, at_start: bool) -> Arc<[Span]> {
         Arc::from(block::block_spans(&mut self.0, block, at_start))
+    }
+
+    fn spans_within(&mut self, block: &str, at_start: bool, window: Range<usize>) -> Vec<Span> {
+        block::spans_within(&mut self.0, block, at_start, Some(window))
     }
 }
 
@@ -245,11 +261,25 @@ fn normalize(text: &str, range: Range<usize>) -> Range<usize> {
 ///
 /// Blocks are independent of each other, so each is highlighted alone, until
 /// one has a syntax error: the grammar's recovery from it can reach into what
-/// follows, so that block and everything after it are highlighted as one.
-/// (That is what the note as a whole gives, and it costs the cache nothing it
-/// had: the same text is the same key.) The blocks before the range are
-/// checked for an error, which is far less work than highlighting them.
-fn assemble(text: &str, range: Range<usize>, blocks: &mut impl Blocks) -> Vec<Span> {
+/// follows, so that block and what follows it are highlighted as one parse.
+/// For a range, that parse is made less of than it was:
+///
+/// - it stops at the end of the block that holds the end of `range` and of
+///   the block after that (the text beyond is not read at all), and
+/// - when `range` is less than half of that parse, only what touches it is
+///   captured and parsed again (inline text, fenced code), though the block
+///   grammar parses all of it; a bigger part is highlighted whole and kept
+///   in the cache, as the whole note's would be.
+///
+/// So a note with an error in it costs a range the text from the error to
+/// the range's end, parsed once for the grammar and no more, and not the
+/// rest of the note. The spans inside `range` are those of the parse to the
+/// end of the note (tested, `spans_uncapped`). Nothing is kept of the small
+/// parts (what follows an error changes with every key typed after it).
+///
+/// The blocks before the range are checked for an error, which is far less
+/// work than highlighting them.
+fn assemble(text: &str, range: Range<usize>, blocks: &mut impl Blocks, capped: bool) -> Vec<Span> {
     let range = normalize(text, range);
     let mut out: Vec<Span> = Vec::new();
     if range.is_empty() {
@@ -273,13 +303,27 @@ fn assemble(text: &str, range: Range<usize>, blocks: &mut impl Blocks) -> Vec<Sp
             }
         }
     };
-    for cut in self::blocks::cut(text) {
+    let cuts = self::blocks::cut(text);
+    for (index, cut) in cuts.iter().enumerate() {
         if cut.start >= range.end {
             break;
         }
         let at_start = cut.start == 0;
         if !blocks.clean(&text[cut.clone()], at_start) {
-            let spans = blocks.spans(&text[cut.start..], at_start);
+            let limit = if capped {
+                reach(&cuts, index, range.end, text.len())
+            } else {
+                text.len()
+            };
+            let tail = &text[cut.start..limit];
+            let wanted = range.start.max(cut.start) - cut.start..range.end - cut.start;
+            // A small part of a long parse is read for the range alone; one
+            // that is most of it is kept whole, to be read again.
+            let spans = if capped && wanted.len() * 2 <= tail.len() {
+                blocks.spans_within(tail, at_start, wanted)
+            } else {
+                blocks.spans(tail, at_start).to_vec()
+            };
             add(&mut out, cut.start, &spans);
             break;
         }
@@ -289,6 +333,16 @@ fn assemble(text: &str, range: Range<usize>, blocks: &mut impl Blocks) -> Vec<Sp
         }
     }
     out
+}
+
+/// Where the parse that starts at the broken block `cuts[from]` stops: the
+/// end of the block that holds `end` and of the one after it.
+fn reach(cuts: &[Range<usize>], from: usize, end: usize, len: usize) -> usize {
+    let holding = cuts[from..]
+        .iter()
+        .position(|cut| cut.end >= end)
+        .map_or(cuts.len() - 1, |found| from + found);
+    cuts.get(holding + 1).map_or(len, |next| next.end)
 }
 
 /// The whole note parsed as one block, with no cutting: what the block
@@ -361,7 +415,7 @@ impl Highlighter {
     /// The spans of `text` within `range`; `highlight::spans(text, range)`
     /// exactly.
     pub fn spans(&mut self, text: &str, range: Range<usize>) -> Vec<Span> {
-        let out = assemble(text, range, self);
+        let out = assemble(text, range, self, true);
         self.evict();
         out
     }
@@ -446,6 +500,11 @@ impl Blocks for Highlighter {
         // The entry grew from the text alone to text and spans.
         self.bytes = self.bytes.saturating_add(size.saturating_sub(block.len()));
         spans
+    }
+
+    fn spans_within(&mut self, block: &str, at_start: bool, window: Range<usize>) -> Vec<Span> {
+        self.parsed += 1;
+        block::spans_within(&mut self.parsers, block, at_start, Some(window))
     }
 }
 

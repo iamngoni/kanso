@@ -23,11 +23,15 @@ use gpui_kit::component::{ActiveTheme as _, Icon, StyledExt as _, WindowExt as _
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::model::TRASH_BOOK_ID;
-use kanso_core::{Clause, DocType, Field, Note, NoteStatus};
+use kanso_core::{DocType, Note, NoteStatus};
 use kanso_engine::discovery::meaning::meaning_query;
+use kanso_engine::navigate::quick_open::{
+    HEADING_LIMIT, NOTE_LIMIT, heading_words, merge_by_id, title_search,
+};
+use kanso_engine::palette::item_score;
 use kanso_store::{
-    HeadingHit, MEANING_SIMILARITY, MeaningSearch, NoteSummary, Origin, Put, SearchParams, Sort,
-    Store, blend_meaning,
+    HeadingHit, MEANING_SIMILARITY, MeaningSearch, NoteSummary, Origin, Put, Sort, Store,
+    blend_meaning,
 };
 use serde_json::json;
 
@@ -88,17 +92,11 @@ const FOOTER_HEIGHT: f32 = 36.;
 /// The panel's height: the parts above and their two dividers.
 pub(crate) const PANEL_HEIGHT: f32 = SEARCH_HEIGHT + BODY_HEIGHT + FOOTER_HEIGHT + 2.;
 const ROW_HEIGHT: f32 = 30.;
-/// How many notes a search lists.
-const NOTE_LIMIT: usize = 20;
-/// How many headings ⌘P lists under the notes.
-const HEADING_LIMIT: usize = 8;
 /// How many notes are listed for being about the search, after the notes
 /// that have its words.
 const MEANING_LIMIT: usize = 5;
 /// How long typing pauses before notes are searched.
 const SEARCH_DELAY: Duration = Duration::from_millis(80);
-/// A match in a keyword counts a little less than the same match in the label.
-const KEYWORD_PENALTY: i64 = 4;
 
 /// What choosing an entry does.
 #[derive(Clone)]
@@ -2083,35 +2081,6 @@ impl Render for Palette {
     }
 }
 
-/// The search for notes whose titles have the query's words, or `None` when
-/// it has none: its free text, asked of the title instead.
-fn title_search(params: &SearchParams) -> Option<SearchParams> {
-    let mut titled = params.clone();
-    let mut any = false;
-    for clause in &mut titled.query.clauses {
-        if clause.field.is_none() && !clause.negated {
-            *clause = Clause::field(Field::Title, std::mem::take(&mut clause.value));
-            any = true;
-        }
-    }
-    any.then_some(titled)
-}
-
-/// `first`, then the notes of `then` not already in it, at most `limit` in
-/// all.
-fn merge_by_id(first: Vec<NoteSummary>, then: Vec<NoteSummary>, limit: usize) -> Vec<NoteSummary> {
-    let mut merged: Vec<NoteSummary> = Vec::with_capacity(limit);
-    for note in first.into_iter().chain(then) {
-        if merged.len() == limit {
-            break;
-        }
-        if !merged.iter().any(|m| m.id == note.id) {
-            merged.push(note);
-        }
-    }
-    merged
-}
-
 /// The heading over the tags close notes suggest.
 const SUGGESTED_HEADING: &str = "Suggested by close notes";
 
@@ -2149,26 +2118,15 @@ fn about_notes(
 /// The words ⌘P looks for in headings: the query, when ⌘P is open and the
 /// query is plain words rather than a search with qualifiers. Pure.
 fn heading_query(mode: Option<Mode>, query: &str) -> Option<String> {
-    let words = query.trim();
-    (mode == Some(Mode::Notes) && !words.is_empty() && !words.contains(':'))
-        .then(|| words.to_owned())
+    (mode == Some(Mode::Notes))
+        .then(|| heading_words(query))
+        .flatten()
 }
 
 fn tag_name(query: &str) -> &str {
     query
         .trim_start_matches(|c: char| c == '#' || c.is_whitespace())
         .trim_end()
-}
-
-/// How well `query` fits an entry: its label, or a little less, one of its
-/// keywords.
-fn item_score(query: &str, label: &str, keywords: &[&str]) -> Option<i64> {
-    let in_keywords = keywords
-        .iter()
-        .filter_map(|keyword| fuzzy::score(query, keyword))
-        .max()
-        .map(|score| score - KEYWORD_PENALTY);
-    fuzzy::score(query, label).max(in_keywords)
 }
 
 /// The keys that run `action`, as the keymap has them now, split for

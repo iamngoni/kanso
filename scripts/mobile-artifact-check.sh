@@ -28,7 +28,7 @@ platform="${1:-}"
 }
 
 lib=kanso_mobile_bridge
-bridge_symbols=(frb_pde_ffi_dispatcher_primary kanso_background_sync)
+bridge_symbols=(frb_pde_ffi_dispatcher_primary kanso_background_sync kanso_passkey_answer)
 failed=0
 
 fail() {
@@ -76,7 +76,7 @@ android)
 	nm="$(echo "${ANDROID_NDK_HOME:?no Android NDK found}"/toolchains/llvm/prebuilt/*/bin/llvm-nm)"
 	work="$(mktemp -d)"
 	trap 'rm -rf "$work"' EXIT
-	jni=(Java_app_kanso_kanso_KansoNative_init)
+	jni=(Java_app_kanso_kanso_KansoNative_init Java_app_kanso_kanso_KansoNative_backgroundSync Java_app_kanso_kanso_KansoNative_passkeyAnswer)
 	for apk in "$@"; do
 		[ -f "$apk" ] || {
 			fail "$apk doesn't exist."

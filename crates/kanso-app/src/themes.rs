@@ -75,19 +75,7 @@ impl ThemeEntry {
     }
 }
 
-/// A theme file that couldn't be used, and why, in words for the Themes
-/// page.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Notice {
-    pub file: String,
-    pub message: String,
-}
-
-impl Notice {
-    pub fn sentence(&self) -> String {
-        format!("{} {}.", self.file, self.message.trim_end_matches('.'))
-    }
-}
+pub use kanso_engine::icons::model::Notice;
 
 /// The built-in themes, read once.
 // no-prop-test: fixed files; `builtin_themes_load` and the contrast tests

@@ -30,6 +30,9 @@ sealed class BrowseLocation with _$BrowseLocation {
     String? noteId,
   }) = SearchLocation;
 
+  /// The tasks of all the notes: the Tasks place.
+  const factory BrowseLocation.tasks({String? noteId}) = TasksLocation;
+
   const BrowseLocation._();
 
   /// The address of this location.
@@ -39,6 +42,7 @@ sealed class BrowseLocation with _$BrowseLocation {
       PlaceLocation(:final place) => '${_placePath(place)}$note',
       SearchLocation(:final query, :final scope, :final notebookId) =>
         '/search$note${_searchQuery(query, scope, notebookId)}',
+      TasksLocation() => '/tasks$note',
     };
   }
 
@@ -46,12 +50,14 @@ sealed class BrowseLocation with _$BrowseLocation {
   BrowseLocation withNote(String id) => switch (this) {
     final PlaceLocation here => here.copyWith(noteId: id),
     final SearchLocation here => here.copyWith(noteId: id),
+    final TasksLocation here => here.copyWith(noteId: id),
   };
 
   /// This location with no note open: the list alone.
   BrowseLocation get withoutNote => switch (this) {
     final PlaceLocation here => here.copyWith(noteId: null),
     final SearchLocation here => here.copyWith(noteId: null),
+    final TasksLocation here => here.copyWith(noteId: null),
   };
 
   /// The location [uri] is the address of, or null for an address that is
@@ -87,6 +93,12 @@ sealed class BrowseLocation with _$BrowseLocation {
       case 'tags' when rest.isNotEmpty:
         place = ListPlace.tag(id: rest.first);
         tail = rest.sublist(1);
+      case 'tasks':
+        final noteId = _noteIdOf(rest);
+        if (rest.isNotEmpty && noteId == null) {
+          return null;
+        }
+        return BrowseLocation.tasks(noteId: noteId);
       case 'search':
         final noteId = _noteIdOf(rest);
         if (rest.isNotEmpty && noteId == null) {
@@ -134,11 +146,7 @@ String _placePath(ListPlace place) => switch (place) {
   ListPlace_Tag(:final id) => '/tags/${Uri.encodeComponent(id)}',
 };
 
-String _searchQuery(
-  String query,
-  SearchScopeKind scope,
-  String? notebookId,
-) {
+String _searchQuery(String query, SearchScopeKind scope, String? notebookId) {
   final parameters = <String, String>{
     if (query.isNotEmpty) 'q': query,
     if (scope != SearchScopeKind.all) 'scope': scope.name,

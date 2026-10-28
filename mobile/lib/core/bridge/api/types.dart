@@ -8,6 +8,249 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
+class AccountDetails {
+  final String username;
+  final String server;
+  final List<DeviceRow> devices;
+  final String? storageLine;
+  final bool hasPassword;
+  final List<LinkedProviderRow> providers;
+  final List<PasskeyRow> passkeys;
+  final bool recoveryKeyUnsaved;
+
+  const AccountDetails({
+    required this.username,
+    required this.server,
+    required this.devices,
+    this.storageLine,
+    required this.hasPassword,
+    required this.providers,
+    required this.passkeys,
+    required this.recoveryKeyUnsaved,
+  });
+
+  @override
+  int get hashCode =>
+      username.hashCode ^
+      server.hashCode ^
+      devices.hashCode ^
+      storageLine.hashCode ^
+      hasPassword.hashCode ^
+      providers.hashCode ^
+      passkeys.hashCode ^
+      recoveryKeyUnsaved.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AccountDetails &&
+          runtimeType == other.runtimeType &&
+          username == other.username &&
+          server == other.server &&
+          devices == other.devices &&
+          storageLine == other.storageLine &&
+          hasPassword == other.hasPassword &&
+          providers == other.providers &&
+          passkeys == other.passkeys &&
+          recoveryKeyUnsaved == other.recoveryKeyUnsaved;
+}
+
+@freezed
+sealed class AccountState with _$AccountState {
+  const AccountState._();
+
+  const factory AccountState.signedOut() = AccountState_SignedOut;
+  const factory AccountState.signedIn({
+    required String username,
+    required String server,
+  }) = AccountState_SignedIn;
+  const factory AccountState.locked(
+    LockedInfo field0,
+  ) = AccountState_Locked;
+  const factory AccountState.question(
+    BindingQuestion field0,
+  ) = AccountState_Question;
+}
+
+enum AccountStep {
+  stoppingSync,
+  derivingKeys,
+  contacting,
+  saving,
+}
+
+@freezed
+sealed class ApprovalPhase with _$ApprovalPhase {
+  const ApprovalPhase._();
+
+  const factory ApprovalPhase.requesting() = ApprovalPhase_Requesting;
+  const factory ApprovalPhase.waiting() = ApprovalPhase_Waiting;
+  const factory ApprovalPhase.compare() = ApprovalPhase_Compare;
+  const factory ApprovalPhase.unlocking() = ApprovalPhase_Unlocking;
+  const factory ApprovalPhase.approved() = ApprovalPhase_Approved;
+  const factory ApprovalPhase.noDevices() = ApprovalPhase_NoDevices;
+  const factory ApprovalPhase.cancelled() = ApprovalPhase_Cancelled;
+  const factory ApprovalPhase.expired() = ApprovalPhase_Expired;
+  const factory ApprovalPhase.failed({
+    required String message,
+  }) = ApprovalPhase_Failed;
+}
+
+class ApprovalPrompt {
+  final String id;
+  final String? deviceName;
+  final int askedAtMs;
+  final int expiresAtMs;
+  final String? code;
+  final PromptState state;
+
+  const ApprovalPrompt({
+    required this.id,
+    this.deviceName,
+    required this.askedAtMs,
+    required this.expiresAtMs,
+    this.code,
+    required this.state,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      deviceName.hashCode ^
+      askedAtMs.hashCode ^
+      expiresAtMs.hashCode ^
+      code.hashCode ^
+      state.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApprovalPrompt &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          deviceName == other.deviceName &&
+          askedAtMs == other.askedAtMs &&
+          expiresAtMs == other.expiresAtMs &&
+          code == other.code &&
+          state == other.state;
+}
+
+class ApprovalWait {
+  final ApprovalPhase phase;
+  final String? code;
+  final int otherDevices;
+  final bool offerRecovery;
+
+  const ApprovalWait({
+    required this.phase,
+    this.code,
+    required this.otherDevices,
+    required this.offerRecovery,
+  });
+
+  @override
+  int get hashCode =>
+      phase.hashCode ^
+      code.hashCode ^
+      otherDevices.hashCode ^
+      offerRecovery.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApprovalWait &&
+          runtimeType == other.runtimeType &&
+          phase == other.phase &&
+          code == other.code &&
+          otherDevices == other.otherDevices &&
+          offerRecovery == other.offerRecovery;
+}
+
+class AttachmentFile {
+  final String id;
+  final String name;
+  final String contentType;
+  final Uint8List bytes;
+
+  const AttachmentFile({
+    required this.id,
+    required this.name,
+    required this.contentType,
+    required this.bytes,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ name.hashCode ^ contentType.hashCode ^ bytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AttachmentFile &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          contentType == other.contentType &&
+          bytes == other.bytes;
+}
+
+class BackupFile {
+  final String path;
+  final int madeAtMs;
+  final bool manual;
+  final int bytes;
+
+  const BackupFile({
+    required this.path,
+    required this.madeAtMs,
+    required this.manual,
+    required this.bytes,
+  });
+
+  @override
+  int get hashCode =>
+      path.hashCode ^ madeAtMs.hashCode ^ manual.hashCode ^ bytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BackupFile &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          madeAtMs == other.madeAtMs &&
+          manual == other.manual &&
+          bytes == other.bytes;
+}
+
+enum BindingAnswer {
+  add,
+  replace,
+}
+
+class BindingQuestion {
+  final String title;
+  final String body;
+  final List<BindingAnswer> answers;
+
+  const BindingQuestion({
+    required this.title,
+    required this.body,
+    required this.answers,
+  });
+
+  @override
+  int get hashCode => title.hashCode ^ body.hashCode ^ answers.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BindingQuestion &&
+          runtimeType == other.runtimeType &&
+          title == other.title &&
+          body == other.body &&
+          answers == other.answers;
+}
+
 class BuiltinTheme {
   final String id;
   final String name;
@@ -51,6 +294,51 @@ class BuiltinTheme {
           tokens == other.tokens;
 }
 
+class CaptureOutcome {
+  final String noteId;
+  final List<String> problems;
+
+  const CaptureOutcome({
+    required this.noteId,
+    required this.problems,
+  });
+
+  @override
+  int get hashCode => noteId.hashCode ^ problems.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CaptureOutcome &&
+          runtimeType == other.runtimeType &&
+          noteId == other.noteId &&
+          problems == other.problems;
+}
+
+class Changed {
+  final int count;
+  final int? undo;
+  final String message;
+
+  const Changed({
+    required this.count,
+    this.undo,
+    required this.message,
+  });
+
+  @override
+  int get hashCode => count.hashCode ^ undo.hashCode ^ message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Changed &&
+          runtimeType == other.runtimeType &&
+          count == other.count &&
+          undo == other.undo &&
+          message == other.message;
+}
+
 class ColorRow {
   final String name;
   final int rgb;
@@ -72,14 +360,878 @@ class ColorRow {
           rgb == other.rgb;
 }
 
+@freezed
+sealed class CommentPlacement with _$CommentPlacement {
+  const CommentPlacement._();
+
+  const factory CommentPlacement.anchored({
+    required int start,
+    required int end,
+  }) = CommentPlacement_Anchored;
+  const factory CommentPlacement.orphaned({
+    required int at,
+  }) = CommentPlacement_Orphaned;
+}
+
+class CommentRow {
+  final String id;
+  final String author;
+  final String authorName;
+  final String body;
+  final int createdMs;
+  final int? editedMs;
+  final bool resolved;
+  final bool mine;
+  final bool pending;
+  final bool canEdit;
+  final bool canDelete;
+  final bool canResolve;
+  final String quote;
+  final CommentPlacement placement;
+  final List<MentionSpan> mentions;
+
+  const CommentRow({
+    required this.id,
+    required this.author,
+    required this.authorName,
+    required this.body,
+    required this.createdMs,
+    this.editedMs,
+    required this.resolved,
+    required this.mine,
+    required this.pending,
+    required this.canEdit,
+    required this.canDelete,
+    required this.canResolve,
+    required this.quote,
+    required this.placement,
+    required this.mentions,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      author.hashCode ^
+      authorName.hashCode ^
+      body.hashCode ^
+      createdMs.hashCode ^
+      editedMs.hashCode ^
+      resolved.hashCode ^
+      mine.hashCode ^
+      pending.hashCode ^
+      canEdit.hashCode ^
+      canDelete.hashCode ^
+      canResolve.hashCode ^
+      quote.hashCode ^
+      placement.hashCode ^
+      mentions.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CommentRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          author == other.author &&
+          authorName == other.authorName &&
+          body == other.body &&
+          createdMs == other.createdMs &&
+          editedMs == other.editedMs &&
+          resolved == other.resolved &&
+          mine == other.mine &&
+          pending == other.pending &&
+          canEdit == other.canEdit &&
+          canDelete == other.canDelete &&
+          canResolve == other.canResolve &&
+          quote == other.quote &&
+          placement == other.placement &&
+          mentions == other.mentions;
+}
+
+class Completion {
+  final CompletionKind kind;
+  final Range16 replace;
+  final List<CompletionItem> items;
+
+  const Completion({
+    required this.kind,
+    required this.replace,
+    required this.items,
+  });
+
+  @override
+  int get hashCode => kind.hashCode ^ replace.hashCode ^ items.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Completion &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          replace == other.replace &&
+          items == other.items;
+}
+
+class CompletionItem {
+  final String label;
+  final String? detail;
+  final Range16? highlight;
+  final String insert;
+  final bool newNote;
+
+  const CompletionItem({
+    required this.label,
+    this.detail,
+    this.highlight,
+    required this.insert,
+    required this.newNote,
+  });
+
+  @override
+  int get hashCode =>
+      label.hashCode ^
+      detail.hashCode ^
+      highlight.hashCode ^
+      insert.hashCode ^
+      newNote.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompletionItem &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          detail == other.detail &&
+          highlight == other.highlight &&
+          insert == other.insert &&
+          newNote == other.newNote;
+}
+
+enum CompletionKind {
+  wiki,
+  tag,
+}
+
+class CursorMark {
+  final String name;
+  final int caret;
+  final int start;
+  final int end;
+  final int light;
+  final int dark;
+
+  const CursorMark({
+    required this.name,
+    required this.caret,
+    required this.start,
+    required this.end,
+    required this.light,
+    required this.dark,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      caret.hashCode ^
+      start.hashCode ^
+      end.hashCode ^
+      light.hashCode ^
+      dark.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CursorMark &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          caret == other.caret &&
+          start == other.start &&
+          end == other.end &&
+          light == other.light &&
+          dark == other.dark;
+}
+
 enum DateField {
   updated,
   created,
 }
 
+class DeviceRow {
+  final String id;
+  final String title;
+  final bool thisDevice;
+  final int? lastSeenMs;
+
+  const DeviceRow({
+    required this.id,
+    required this.title,
+    required this.thisDevice,
+    this.lastSeenMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ title.hashCode ^ thisDevice.hashCode ^ lastSeenMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeviceRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          thisDevice == other.thisDevice &&
+          lastSeenMs == other.lastSeenMs;
+}
+
 enum DiagramKind {
   mermaid,
   excalidraw,
+}
+
+enum DiagramRenderer {
+  pele,
+  kanso,
+}
+
+class DiffHunk {
+  final List<DiffLine> lines;
+  final String oldText;
+  final int added;
+  final int removed;
+  final int? oldStart;
+  final int? oldEnd;
+
+  const DiffHunk({
+    required this.lines,
+    required this.oldText,
+    required this.added,
+    required this.removed,
+    this.oldStart,
+    this.oldEnd,
+  });
+
+  @override
+  int get hashCode =>
+      lines.hashCode ^
+      oldText.hashCode ^
+      added.hashCode ^
+      removed.hashCode ^
+      oldStart.hashCode ^
+      oldEnd.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DiffHunk &&
+          runtimeType == other.runtimeType &&
+          lines == other.lines &&
+          oldText == other.oldText &&
+          added == other.added &&
+          removed == other.removed &&
+          oldStart == other.oldStart &&
+          oldEnd == other.oldEnd;
+}
+
+enum DiffKind {
+  same,
+  added,
+  removed,
+}
+
+class DiffLine {
+  final DiffKind kind;
+  final String text;
+  final int? oldLine;
+  final int? newLine;
+  final List<Range16> changed;
+
+  const DiffLine({
+    required this.kind,
+    required this.text,
+    this.oldLine,
+    this.newLine,
+    required this.changed,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      text.hashCode ^
+      oldLine.hashCode ^
+      newLine.hashCode ^
+      changed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DiffLine &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          text == other.text &&
+          oldLine == other.oldLine &&
+          newLine == other.newLine &&
+          changed == other.changed;
+}
+
+class DiscoveryMeasure {
+  final int modelBytes;
+  final int loadMs;
+  final int? residentBefore;
+  final int? residentAfter;
+  final int notes;
+  final double notesPerSecond;
+
+  const DiscoveryMeasure({
+    required this.modelBytes,
+    required this.loadMs,
+    this.residentBefore,
+    this.residentAfter,
+    required this.notes,
+    required this.notesPerSecond,
+  });
+
+  @override
+  int get hashCode =>
+      modelBytes.hashCode ^
+      loadMs.hashCode ^
+      residentBefore.hashCode ^
+      residentAfter.hashCode ^
+      notes.hashCode ^
+      notesPerSecond.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DiscoveryMeasure &&
+          runtimeType == other.runtimeType &&
+          modelBytes == other.modelBytes &&
+          loadMs == other.loadMs &&
+          residentBefore == other.residentBefore &&
+          residentAfter == other.residentAfter &&
+          notes == other.notes &&
+          notesPerSecond == other.notesPerSecond;
+}
+
+class DropsSaved {
+  final List<String> notes;
+  final List<String> problems;
+  final int kept;
+
+  const DropsSaved({
+    required this.notes,
+    required this.problems,
+    required this.kept,
+  });
+
+  @override
+  int get hashCode => notes.hashCode ^ problems.hashCode ^ kept.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DropsSaved &&
+          runtimeType == other.runtimeType &&
+          notes == other.notes &&
+          problems == other.problems &&
+          kept == other.kept;
+}
+
+enum DueTone {
+  plain,
+  today,
+  overdue,
+  done,
+}
+
+@freezed
+sealed class EditCommand with _$EditCommand {
+  const EditCommand._();
+
+  const factory EditCommand.enter({
+    required bool plain,
+  }) = EditCommand_Enter;
+  const factory EditCommand.tab({
+    required bool out,
+  }) = EditCommand_Tab;
+  const factory EditCommand.format({
+    required FormatKind format,
+  }) = EditCommand_Format;
+  const factory EditCommand.cycleHeading() = EditCommand_CycleHeading;
+  const factory EditCommand.wikiLink() = EditCommand_WikiLink;
+  const factory EditCommand.insert({
+    required Range16 range,
+    required String text,
+  }) = EditCommand_Insert;
+}
+
+class EditOutcome {
+  final int version;
+  final Replacement? replace;
+  final Range16 selection;
+  final HistoryState history;
+
+  const EditOutcome({
+    required this.version,
+    this.replace,
+    required this.selection,
+    required this.history,
+  });
+
+  @override
+  int get hashCode =>
+      version.hashCode ^
+      replace.hashCode ^
+      selection.hashCode ^
+      history.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditOutcome &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          replace == other.replace &&
+          selection == other.selection &&
+          history == other.history;
+}
+
+class EditorContext {
+  final bool inList;
+  final bool inTable;
+  final bool inCode;
+  final bool completionHere;
+  final HistoryState history;
+
+  const EditorContext({
+    required this.inList,
+    required this.inTable,
+    required this.inCode,
+    required this.completionHere,
+    required this.history,
+  });
+
+  @override
+  int get hashCode =>
+      inList.hashCode ^
+      inTable.hashCode ^
+      inCode.hashCode ^
+      completionHere.hashCode ^
+      history.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditorContext &&
+          runtimeType == other.runtimeType &&
+          inList == other.inList &&
+          inTable == other.inTable &&
+          inCode == other.inCode &&
+          completionHere == other.completionHere &&
+          history == other.history;
+}
+
+@freezed
+sealed class EditorEvent with _$EditorEvent {
+  const EditorEvent._();
+
+  const factory EditorEvent.saved({
+    required String rev,
+    required int atMs,
+  }) = EditorEvent_Saved;
+  const factory EditorEvent.incoming({
+    required bool deleted,
+  }) = EditorEvent_Incoming;
+  const factory EditorEvent.reloaded({
+    required EditorSnapshot snapshot,
+  }) = EditorEvent_Reloaded;
+  const factory EditorEvent.closed() = EditorEvent_Closed;
+  const factory EditorEvent.failed({
+    required String message,
+  }) = EditorEvent_Failed;
+}
+
+class EditorRun {
+  final Range16 range;
+  final int? color;
+  final bool? italic;
+  final int? weight;
+  final bool quiet;
+
+  const EditorRun({
+    required this.range,
+    this.color,
+    this.italic,
+    this.weight,
+    required this.quiet,
+  });
+
+  @override
+  int get hashCode =>
+      range.hashCode ^
+      color.hashCode ^
+      italic.hashCode ^
+      weight.hashCode ^
+      quiet.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditorRun &&
+          runtimeType == other.runtimeType &&
+          range == other.range &&
+          color == other.color &&
+          italic == other.italic &&
+          weight == other.weight &&
+          quiet == other.quiet;
+}
+
+class EditorSnapshot {
+  final String id;
+  final String title;
+  final String text;
+  final String rev;
+  final LockState lock;
+  final List<Property> properties;
+  final int version;
+  final Range16 selection;
+  final HistoryState history;
+  final SaveState save;
+
+  const EditorSnapshot({
+    required this.id,
+    required this.title,
+    required this.text,
+    required this.rev,
+    required this.lock,
+    required this.properties,
+    required this.version,
+    required this.selection,
+    required this.history,
+    required this.save,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      text.hashCode ^
+      rev.hashCode ^
+      lock.hashCode ^
+      properties.hashCode ^
+      version.hashCode ^
+      selection.hashCode ^
+      history.hashCode ^
+      save.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditorSnapshot &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          text == other.text &&
+          rev == other.rev &&
+          lock == other.lock &&
+          properties == other.properties &&
+          version == other.version &&
+          selection == other.selection &&
+          history == other.history &&
+          save == other.save;
+}
+
+enum FormatKind {
+  bold,
+  italic,
+  strikethrough,
+  code,
+  bulleted,
+  numbered,
+  task,
+  quote,
+  link,
+  image,
+  table,
+  rule,
+}
+
+class GalleryColors {
+  final int editor;
+  final int text;
+  final int accent;
+  final int sidebar;
+  final int list;
+
+  const GalleryColors({
+    required this.editor,
+    required this.text,
+    required this.accent,
+    required this.sidebar,
+    required this.list,
+  });
+
+  @override
+  int get hashCode =>
+      editor.hashCode ^
+      text.hashCode ^
+      accent.hashCode ^
+      sidebar.hashCode ^
+      list.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GalleryColors &&
+          runtimeType == other.runtimeType &&
+          editor == other.editor &&
+          text == other.text &&
+          accent == other.accent &&
+          sidebar == other.sidebar &&
+          list == other.list;
+}
+
+class GalleryItem {
+  final String id;
+  final String name;
+  final GalleryKind kind;
+  final String author;
+  final bool official;
+  final String version;
+  final int installs;
+  final int updatedMs;
+  final String? source;
+  final bool dark;
+  final GalleryColors? headline;
+  final bool installed;
+  final bool updateAvailable;
+  final bool runsHere;
+  final String description;
+  final String license;
+  final String? family;
+  final bool edited;
+  final bool disabled;
+
+  const GalleryItem({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.author,
+    required this.official,
+    required this.version,
+    required this.installs,
+    required this.updatedMs,
+    this.source,
+    required this.dark,
+    this.headline,
+    required this.installed,
+    required this.updateAvailable,
+    required this.runsHere,
+    required this.description,
+    required this.license,
+    this.family,
+    required this.edited,
+    required this.disabled,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      kind.hashCode ^
+      author.hashCode ^
+      official.hashCode ^
+      version.hashCode ^
+      installs.hashCode ^
+      updatedMs.hashCode ^
+      source.hashCode ^
+      dark.hashCode ^
+      headline.hashCode ^
+      installed.hashCode ^
+      updateAvailable.hashCode ^
+      runsHere.hashCode ^
+      description.hashCode ^
+      license.hashCode ^
+      family.hashCode ^
+      edited.hashCode ^
+      disabled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GalleryItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          kind == other.kind &&
+          author == other.author &&
+          official == other.official &&
+          version == other.version &&
+          installs == other.installs &&
+          updatedMs == other.updatedMs &&
+          source == other.source &&
+          dark == other.dark &&
+          headline == other.headline &&
+          installed == other.installed &&
+          updateAvailable == other.updateAvailable &&
+          runsHere == other.runsHere &&
+          description == other.description &&
+          license == other.license &&
+          family == other.family &&
+          edited == other.edited &&
+          disabled == other.disabled;
+}
+
+enum GalleryKind {
+  colorTheme,
+  iconTheme,
+}
+
+class GraphEdgeRow {
+  final int from;
+  final int to;
+
+  const GraphEdgeRow({
+    required this.from,
+    required this.to,
+  });
+
+  @override
+  int get hashCode => from.hashCode ^ to.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GraphEdgeRow &&
+          runtimeType == other.runtimeType &&
+          from == other.from &&
+          to == other.to;
+}
+
+@freezed
+sealed class GraphFilter with _$GraphFilter {
+  const GraphFilter._();
+
+  const factory GraphFilter.all() = GraphFilter_All;
+  const factory GraphFilter.book({
+    required String id,
+  }) = GraphFilter_Book;
+  const factory GraphFilter.tag({
+    required String id,
+  }) = GraphFilter_Tag;
+}
+
+class GraphLayout {
+  final List<GraphNodeRow> nodes;
+  final List<GraphEdgeRow> edges;
+  final int linkCount;
+
+  const GraphLayout({
+    required this.nodes,
+    required this.edges,
+    required this.linkCount,
+  });
+
+  @override
+  int get hashCode => nodes.hashCode ^ edges.hashCode ^ linkCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GraphLayout &&
+          runtimeType == other.runtimeType &&
+          nodes == other.nodes &&
+          edges == other.edges &&
+          linkCount == other.linkCount;
+}
+
+class GraphNodeRow {
+  final String id;
+  final String title;
+  final String notebookId;
+  final int degree;
+  final double x;
+  final double y;
+  final double radius;
+  final int colorLight;
+  final int colorDark;
+  final bool isCenter;
+
+  const GraphNodeRow({
+    required this.id,
+    required this.title,
+    required this.notebookId,
+    required this.degree,
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.colorLight,
+    required this.colorDark,
+    required this.isCenter,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      notebookId.hashCode ^
+      degree.hashCode ^
+      x.hashCode ^
+      y.hashCode ^
+      radius.hashCode ^
+      colorLight.hashCode ^
+      colorDark.hashCode ^
+      isCenter.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GraphNodeRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          notebookId == other.notebookId &&
+          degree == other.degree &&
+          x == other.x &&
+          y == other.y &&
+          radius == other.radius &&
+          colorLight == other.colorLight &&
+          colorDark == other.colorDark &&
+          isCenter == other.isCenter;
+}
+
+@freezed
+sealed class GraphRequest with _$GraphRequest {
+  const GraphRequest._();
+
+  const factory GraphRequest.library_({
+    required GraphFilter filter,
+  }) = GraphRequest_Library;
+  const factory GraphRequest.local({
+    required String center,
+    required int hops,
+  }) = GraphRequest_Local;
+}
+
+class HistoryState {
+  final bool canUndo;
+  final bool canRedo;
+
+  const HistoryState({
+    required this.canUndo,
+    required this.canRedo,
+  });
+
+  @override
+  int get hashCode => canUndo.hashCode ^ canRedo.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryState &&
+          runtimeType == other.runtimeType &&
+          canUndo == other.canUndo &&
+          canRedo == other.canRedo;
 }
 
 class Hit {
@@ -105,6 +1257,305 @@ class Hit {
           row == other.row &&
           titleRanges == other.titleRanges &&
           snippetRanges == other.snippetRanges;
+}
+
+class IconThemeRow {
+  final String id;
+  final String name;
+  final String author;
+  final String license;
+  final String? source;
+  final String? description;
+  final List<ThemedIcon> preview;
+
+  const IconThemeRow({
+    required this.id,
+    required this.name,
+    required this.author,
+    required this.license,
+    this.source,
+    this.description,
+    required this.preview,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      author.hashCode ^
+      license.hashCode ^
+      source.hashCode ^
+      description.hashCode ^
+      preview.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is IconThemeRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          author == other.author &&
+          license == other.license &&
+          source == other.source &&
+          description == other.description &&
+          preview == other.preview;
+}
+
+class ImageToRead {
+  final String id;
+  final String md5;
+  final Uint8List bytes;
+
+  const ImageToRead({
+    required this.id,
+    required this.md5,
+    required this.bytes,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ md5.hashCode ^ bytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImageToRead &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          md5 == other.md5 &&
+          bytes == other.bytes;
+}
+
+@freezed
+sealed class ImportEvent with _$ImportEvent {
+  const ImportEvent._();
+
+  const factory ImportEvent.progress(
+    ImportProgress field0,
+  ) = ImportEvent_Progress;
+  const factory ImportEvent.done(
+    ImportSummary field0,
+  ) = ImportEvent_Done;
+  const factory ImportEvent.failed(
+    String field0,
+  ) = ImportEvent_Failed;
+}
+
+class ImportFound {
+  final int notes;
+  final int notebooks;
+  final int tags;
+  final int attachments;
+
+  const ImportFound({
+    required this.notes,
+    required this.notebooks,
+    required this.tags,
+    required this.attachments,
+  });
+
+  @override
+  int get hashCode =>
+      notes.hashCode ^
+      notebooks.hashCode ^
+      tags.hashCode ^
+      attachments.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportFound &&
+          runtimeType == other.runtimeType &&
+          notes == other.notes &&
+          notebooks == other.notebooks &&
+          tags == other.tags &&
+          attachments == other.attachments;
+}
+
+enum ImportPhase {
+  reading,
+  notebooks,
+  notes,
+}
+
+class ImportProgress {
+  final ImportPhase? phase;
+  final String label;
+  final int done;
+  final int total;
+  final double fraction;
+
+  const ImportProgress({
+    this.phase,
+    required this.label,
+    required this.done,
+    required this.total,
+    required this.fraction,
+  });
+
+  @override
+  int get hashCode =>
+      phase.hashCode ^
+      label.hashCode ^
+      done.hashCode ^
+      total.hashCode ^
+      fraction.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportProgress &&
+          runtimeType == other.runtimeType &&
+          phase == other.phase &&
+          label == other.label &&
+          done == other.done &&
+          total == other.total &&
+          fraction == other.fraction;
+}
+
+class ImportSource {
+  final String kind;
+  final String label;
+  final String hint;
+  final bool picksFiles;
+  final bool picksFolders;
+  final List<String> extensions;
+
+  const ImportSource({
+    required this.kind,
+    required this.label,
+    required this.hint,
+    required this.picksFiles,
+    required this.picksFolders,
+    required this.extensions,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      label.hashCode ^
+      hint.hashCode ^
+      picksFiles.hashCode ^
+      picksFolders.hashCode ^
+      extensions.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportSource &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          label == other.label &&
+          hint == other.hint &&
+          picksFiles == other.picksFiles &&
+          picksFolders == other.picksFolders &&
+          extensions == other.extensions;
+}
+
+class ImportSummary {
+  final String kind;
+  final bool dryRun;
+  final ImportFound found;
+  final bool empty;
+  final List<String> lines;
+  final List<String> skipped;
+  final List<String> rejected;
+  final String? firstNote;
+
+  const ImportSummary({
+    required this.kind,
+    required this.dryRun,
+    required this.found,
+    required this.empty,
+    required this.lines,
+    required this.skipped,
+    required this.rejected,
+    this.firstNote,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      dryRun.hashCode ^
+      found.hashCode ^
+      empty.hashCode ^
+      lines.hashCode ^
+      skipped.hashCode ^
+      rejected.hashCode ^
+      firstNote.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ImportSummary &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          dryRun == other.dryRun &&
+          found == other.found &&
+          empty == other.empty &&
+          lines == other.lines &&
+          skipped == other.skipped &&
+          rejected == other.rejected &&
+          firstNote == other.firstNote;
+}
+
+class InvitationRow {
+  final String shareId;
+  final String? title;
+  final String from;
+  final ShareRole role;
+  final int atMs;
+
+  const InvitationRow({
+    required this.shareId,
+    this.title,
+    required this.from,
+    required this.role,
+    required this.atMs,
+  });
+
+  @override
+  int get hashCode =>
+      shareId.hashCode ^
+      title.hashCode ^
+      from.hashCode ^
+      role.hashCode ^
+      atMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InvitationRow &&
+          runtimeType == other.runtimeType &&
+          shareId == other.shareId &&
+          title == other.title &&
+          from == other.from &&
+          role == other.role &&
+          atMs == other.atMs;
+}
+
+class JoinRow {
+  final String shareId;
+  final String owner;
+  final ShareRole role;
+
+  const JoinRow({
+    required this.shareId,
+    required this.owner,
+    required this.role,
+  });
+
+  @override
+  int get hashCode => shareId.hashCode ^ owner.hashCode ^ role.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is JoinRow &&
+          runtimeType == other.runtimeType &&
+          shareId == other.shareId &&
+          owner == other.owner &&
+          role == other.role;
 }
 
 @freezed
@@ -160,6 +1611,42 @@ class LibraryOverview {
           pinned == other.pinned &&
           recent == other.recent &&
           trash == other.trash;
+}
+
+@freezed
+sealed class LinkTarget with _$LinkTarget {
+  const LinkTarget._();
+
+  const factory LinkTarget.note({
+    required String id,
+  }) = LinkTarget_Note;
+  const factory LinkTarget.newNote({
+    required String title,
+  }) = LinkTarget_NewNote;
+  const factory LinkTarget.web({
+    required String url,
+  }) = LinkTarget_Web;
+}
+
+class LinkedProviderRow {
+  final ProviderKind provider;
+  final bool linked;
+
+  const LinkedProviderRow({
+    required this.provider,
+    required this.linked,
+  });
+
+  @override
+  int get hashCode => provider.hashCode ^ linked.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LinkedProviderRow &&
+          runtimeType == other.runtimeType &&
+          provider == other.provider &&
+          linked == other.linked;
 }
 
 @freezed
@@ -241,6 +1728,80 @@ class ListShape {
           groupPinned == other.groupPinned;
 }
 
+class LiveStatus {
+  final ShareRole role;
+  final bool connected;
+  final bool ended;
+  final bool nearLimit;
+  final List<String> problems;
+
+  const LiveStatus({
+    required this.role,
+    required this.connected,
+    required this.ended,
+    required this.nearLimit,
+    required this.problems,
+  });
+
+  @override
+  int get hashCode =>
+      role.hashCode ^
+      connected.hashCode ^
+      ended.hashCode ^
+      nearLimit.hashCode ^
+      problems.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LiveStatus &&
+          runtimeType == other.runtimeType &&
+          role == other.role &&
+          connected == other.connected &&
+          ended == other.ended &&
+          nearLimit == other.nearLimit &&
+          problems == other.problems;
+}
+
+class LocalTime {
+  final int year;
+  final int month;
+  final int day;
+  final int hour;
+  final int minute;
+  final int second;
+
+  const LocalTime({
+    required this.year,
+    required this.month,
+    required this.day,
+    required this.hour,
+    required this.minute,
+    required this.second,
+  });
+
+  @override
+  int get hashCode =>
+      year.hashCode ^
+      month.hashCode ^
+      day.hashCode ^
+      hour.hashCode ^
+      minute.hashCode ^
+      second.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LocalTime &&
+          runtimeType == other.runtimeType &&
+          year == other.year &&
+          month == other.month &&
+          day == other.day &&
+          hour == other.hour &&
+          minute == other.minute &&
+          second == other.second;
+}
+
 @freezed
 sealed class LockEvent with _$LockEvent {
   const LockEvent._();
@@ -254,6 +1815,7 @@ sealed class LockEvent with _$LockEvent {
 enum LockReason {
   manual,
   idle,
+  background,
 }
 
 @freezed
@@ -267,19 +1829,173 @@ sealed class LockState with _$LockState {
   }) = LockState_Closed;
 }
 
+class LockStatus {
+  final bool hasLockPassword;
+  final bool unlocked;
+  final bool biometricsOn;
+
+  const LockStatus({
+    required this.hasLockPassword,
+    required this.unlocked,
+    required this.biometricsOn,
+  });
+
+  @override
+  int get hashCode =>
+      hasLockPassword.hashCode ^ unlocked.hashCode ^ biometricsOn.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockStatus &&
+          runtimeType == other.runtimeType &&
+          hasLockPassword == other.hasLockPassword &&
+          unlocked == other.unlocked &&
+          biometricsOn == other.biometricsOn;
+}
+
+class LockedInfo {
+  final String username;
+  final String server;
+  final bool hasPassword;
+  final bool approvalPending;
+
+  const LockedInfo({
+    required this.username,
+    required this.server,
+    required this.hasPassword,
+    required this.approvalPending,
+  });
+
+  @override
+  int get hashCode =>
+      username.hashCode ^
+      server.hashCode ^
+      hasPassword.hashCode ^
+      approvalPending.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockedInfo &&
+          runtimeType == other.runtimeType &&
+          username == other.username &&
+          server == other.server &&
+          hasPassword == other.hasPassword &&
+          approvalPending == other.approvalPending;
+}
+
+@freezed
+sealed class MeaningResult with _$MeaningResult {
+  const MeaningResult._();
+
+  const factory MeaningResult.off() = MeaningResult_Off;
+  const factory MeaningResult.noModel() = MeaningResult_NoModel;
+  const factory MeaningResult.found({
+    required List<RelatedRow> rows,
+  }) = MeaningResult_Found;
+}
+
+class MemberRow {
+  final String accountId;
+  final String username;
+  final ShareRole role;
+  final bool me;
+  final String fingerprint;
+  final bool keyChanged;
+  final bool invited;
+  final bool left;
+  final bool verified;
+
+  const MemberRow({
+    required this.accountId,
+    required this.username,
+    required this.role,
+    required this.me,
+    required this.fingerprint,
+    required this.keyChanged,
+    required this.invited,
+    required this.left,
+    required this.verified,
+  });
+
+  @override
+  int get hashCode =>
+      accountId.hashCode ^
+      username.hashCode ^
+      role.hashCode ^
+      me.hashCode ^
+      fingerprint.hashCode ^
+      keyChanged.hashCode ^
+      invited.hashCode ^
+      left.hashCode ^
+      verified.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemberRow &&
+          runtimeType == other.runtimeType &&
+          accountId == other.accountId &&
+          username == other.username &&
+          role == other.role &&
+          me == other.me &&
+          fingerprint == other.fingerprint &&
+          keyChanged == other.keyChanged &&
+          invited == other.invited &&
+          left == other.left &&
+          verified == other.verified;
+}
+
+class MentionSpan {
+  final int start;
+  final int end;
+
+  const MentionSpan({
+    required this.start,
+    required this.end,
+  });
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MentionSpan &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end;
+}
+
 class NewNote {
   final String? notebookId;
   final String title;
   final String body;
+  final ListPlace? place;
+  final String? preferredNotebookId;
+  final List<String> tags;
+  final bool pinned;
 
   const NewNote({
     this.notebookId,
     required this.title,
     required this.body,
+    this.place,
+    this.preferredNotebookId,
+    this.tags = const [],
+    this.pinned = false,
   });
 
   @override
-  int get hashCode => notebookId.hashCode ^ title.hashCode ^ body.hashCode;
+  int get hashCode =>
+      notebookId.hashCode ^
+      title.hashCode ^
+      body.hashCode ^
+      place.hashCode ^
+      preferredNotebookId.hashCode ^
+      tags.hashCode ^
+      pinned.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -288,7 +2004,11 @@ class NewNote {
           runtimeType == other.runtimeType &&
           notebookId == other.notebookId &&
           title == other.title &&
-          body == other.body;
+          body == other.body &&
+          place == other.place &&
+          preferredNotebookId == other.preferredNotebookId &&
+          tags == other.tags &&
+          pinned == other.pinned;
 }
 
 @freezed
@@ -300,6 +2020,37 @@ sealed class NoteChange with _$NoteChange {
     required String notebookId,
   }) = NoteChange_Move;
   const factory NoteChange.trash() = NoteChange_Trash;
+}
+
+class NoteHistory {
+  final String currentTitle;
+  final String currentBody;
+  final String? currentAuthors;
+  final List<NoteVersion> versions;
+
+  const NoteHistory({
+    required this.currentTitle,
+    required this.currentBody,
+    this.currentAuthors,
+    required this.versions,
+  });
+
+  @override
+  int get hashCode =>
+      currentTitle.hashCode ^
+      currentBody.hashCode ^
+      currentAuthors.hashCode ^
+      versions.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NoteHistory &&
+          runtimeType == other.runtimeType &&
+          currentTitle == other.currentTitle &&
+          currentBody == other.currentBody &&
+          currentAuthors == other.currentAuthors &&
+          versions == other.versions;
 }
 
 class NoteList {
@@ -321,6 +2072,27 @@ class NoteList {
           runtimeType == other.runtimeType &&
           rows == other.rows &&
           shape == other.shape;
+}
+
+class NoteMeaning {
+  final List<SuggestedTag> tags;
+  final TwinRow? twin;
+
+  const NoteMeaning({
+    required this.tags,
+    this.twin,
+  });
+
+  @override
+  int get hashCode => tags.hashCode ^ twin.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NoteMeaning &&
+          runtimeType == other.runtimeType &&
+          tags == other.tags &&
+          twin == other.twin;
 }
 
 class NoteRow {
@@ -388,6 +2160,53 @@ class NoteRow {
           tasksDone == other.tasksDone &&
           tasksTotal == other.tasksTotal &&
           locked == other.locked;
+}
+
+class NoteVersion {
+  final String rev;
+  final int savedAt;
+  final String origin;
+  final String originLabel;
+  final String? authors;
+  final String? agent;
+  final String title;
+  final String body;
+
+  const NoteVersion({
+    required this.rev,
+    required this.savedAt,
+    required this.origin,
+    required this.originLabel,
+    this.authors,
+    this.agent,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  int get hashCode =>
+      rev.hashCode ^
+      savedAt.hashCode ^
+      origin.hashCode ^
+      originLabel.hashCode ^
+      authors.hashCode ^
+      agent.hashCode ^
+      title.hashCode ^
+      body.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NoteVersion &&
+          runtimeType == other.runtimeType &&
+          rev == other.rev &&
+          savedAt == other.savedAt &&
+          origin == other.origin &&
+          originLabel == other.originLabel &&
+          authors == other.authors &&
+          agent == other.agent &&
+          title == other.title &&
+          body == other.body;
 }
 
 class NoteView {
@@ -506,6 +2325,51 @@ class NotebookRow {
           depth == other.depth;
 }
 
+class OpenedDocuments {
+  final String? noteId;
+  final List<String> problems;
+
+  const OpenedDocuments({
+    this.noteId,
+    required this.problems,
+  });
+
+  @override
+  int get hashCode => noteId.hashCode ^ problems.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OpenedDocuments &&
+          runtimeType == other.runtimeType &&
+          noteId == other.noteId &&
+          problems == other.problems;
+}
+
+class OpenedFile {
+  final String path;
+  final String name;
+  final String? identity;
+
+  const OpenedFile({
+    required this.path,
+    required this.name,
+    this.identity,
+  });
+
+  @override
+  int get hashCode => path.hashCode ^ name.hashCode ^ identity.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OpenedFile &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          name == other.name &&
+          identity == other.identity;
+}
+
 class PaletteDto {
   final bool dark;
   final int background;
@@ -577,6 +2441,220 @@ class PaletteDto {
           tableHeaderBackground == other.tableHeaderBackground;
 }
 
+enum PasskeyFailure {
+  cancelled,
+  unavailable,
+  failed,
+}
+
+class PasskeyRequest {
+  final int ticket;
+  final PasskeyRequestKind kind;
+  final String optionsJson;
+
+  const PasskeyRequest({
+    required this.ticket,
+    required this.kind,
+    required this.optionsJson,
+  });
+
+  @override
+  int get hashCode => ticket.hashCode ^ kind.hashCode ^ optionsJson.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PasskeyRequest &&
+          runtimeType == other.runtimeType &&
+          ticket == other.ticket &&
+          kind == other.kind &&
+          optionsJson == other.optionsJson;
+}
+
+enum PasskeyRequestKind {
+  register,
+  assert_,
+}
+
+class PasskeyRow {
+  final String id;
+  final String label;
+  final int addedMs;
+  final int? lastUsedMs;
+  final bool canUnlock;
+
+  const PasskeyRow({
+    required this.id,
+    required this.label,
+    required this.addedMs,
+    this.lastUsedMs,
+    required this.canUnlock,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      label.hashCode ^
+      addedMs.hashCode ^
+      lastUsedMs.hashCode ^
+      canUnlock.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PasskeyRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          label == other.label &&
+          addedMs == other.addedMs &&
+          lastUsedMs == other.lastUsedMs &&
+          canUnlock == other.canUnlock;
+}
+
+@freezed
+sealed class PersonLookup with _$PersonLookup {
+  const PersonLookup._();
+
+  const factory PersonLookup.found(
+    PersonRow field0,
+  ) = PersonLookup_Found;
+  const factory PersonLookup.changed({
+    PersonRow? pinned,
+    required PersonRow offered,
+  }) = PersonLookup_Changed;
+}
+
+class PersonRow {
+  final String accountId;
+  final String username;
+  final String fingerprint;
+  final bool verified;
+
+  const PersonRow({
+    required this.accountId,
+    required this.username,
+    required this.fingerprint,
+    required this.verified,
+  });
+
+  @override
+  int get hashCode =>
+      accountId.hashCode ^
+      username.hashCode ^
+      fingerprint.hashCode ^
+      verified.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PersonRow &&
+          runtimeType == other.runtimeType &&
+          accountId == other.accountId &&
+          username == other.username &&
+          fingerprint == other.fingerprint &&
+          verified == other.verified;
+}
+
+class PlannedNote {
+  final String id;
+  final String rev;
+
+  const PlannedNote({
+    required this.id,
+    required this.rev,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ rev.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlannedNote &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          rev == other.rev;
+}
+
+@freezed
+sealed class PreviewLink with _$PreviewLink {
+  const PreviewLink._();
+
+  const factory PreviewLink.note({
+    required String id,
+    String? heading,
+    String? anchor,
+  }) = PreviewLink_Note;
+  const factory PreviewLink.newNote({
+    required String title,
+  }) = PreviewLink_NewNote;
+  const factory PreviewLink.tag({
+    required String name,
+  }) = PreviewLink_Tag;
+  const factory PreviewLink.heading({
+    required String id,
+  }) = PreviewLink_Heading;
+  const factory PreviewLink.web({
+    required String url,
+  }) = PreviewLink_Web;
+  const factory PreviewLink.attachment({
+    required String id,
+    required String name,
+    required String contentType,
+    required int size,
+  }) = PreviewLink_Attachment;
+  const factory PreviewLink.task({
+    required int index,
+  }) = PreviewLink_Task;
+  const factory PreviewLink.copyCode({
+    required int index,
+  }) = PreviewLink_CopyCode;
+  const factory PreviewLink.due() = PreviewLink_Due;
+  const factory PreviewLink.nothing() = PreviewLink_Nothing;
+}
+
+class PreviewOptions {
+  final String? font;
+  final String? mono;
+  final double size;
+  final int utcOffsetSecs;
+  final List<SyntaxStyleRow> code;
+
+  const PreviewOptions({
+    this.font,
+    this.mono,
+    required this.size,
+    required this.utcOffsetSecs,
+    required this.code,
+  });
+
+  @override
+  int get hashCode =>
+      font.hashCode ^
+      mono.hashCode ^
+      size.hashCode ^
+      utcOffsetSecs.hashCode ^
+      code.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PreviewOptions &&
+          runtimeType == other.runtimeType &&
+          font == other.font &&
+          mono == other.mono &&
+          size == other.size &&
+          utcOffsetSecs == other.utcOffsetSecs &&
+          code == other.code;
+}
+
+enum PromptState {
+  new_,
+  challenged,
+  ready,
+  changed,
+}
+
 class Property {
   final String key;
   final PropertyKind kind;
@@ -614,6 +2692,45 @@ enum PropertyKind {
   raw,
 }
 
+@freezed
+sealed class ProviderEvent with _$ProviderEvent {
+  const ProviderEvent._();
+
+  const factory ProviderEvent.openPage({
+    required String url,
+    String? callbackScheme,
+  }) = ProviderEvent_OpenPage;
+  const factory ProviderEvent.showCode({
+    required String userCode,
+    required String verificationUri,
+  }) = ProviderEvent_ShowCode;
+  const factory ProviderEvent.closePage() = ProviderEvent_ClosePage;
+  const factory ProviderEvent.needsUsername({
+    required String suggested,
+  }) = ProviderEvent_NeedsUsername;
+  const factory ProviderEvent.finished(
+    AccountState field0,
+  ) = ProviderEvent_Finished;
+  const factory ProviderEvent.failed({
+    required String message,
+  }) = ProviderEvent_Failed;
+  const factory ProviderEvent.cancelled() = ProviderEvent_Cancelled;
+}
+
+enum ProviderKind {
+  apple,
+  google,
+  github,
+}
+
+enum QuotaLimit {
+  docs,
+  docBytes,
+  files,
+  fileBytes,
+  server,
+}
+
 class Range16 {
   final int start;
   final int end;
@@ -633,6 +2750,352 @@ class Range16 {
           runtimeType == other.runtimeType &&
           start == other.start &&
           end == other.end;
+}
+
+class RecoveryKeyText {
+  final String key;
+
+  const RecoveryKeyText({
+    required this.key,
+  });
+
+  @override
+  int get hashCode => key.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecoveryKeyText &&
+          runtimeType == other.runtimeType &&
+          key == other.key;
+}
+
+class RelatedRow {
+  final String id;
+  final String title;
+  final double score;
+  final String label;
+
+  const RelatedRow({
+    required this.id,
+    required this.title,
+    required this.score,
+    required this.label,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ title.hashCode ^ score.hashCode ^ label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RelatedRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          score == other.score &&
+          label == other.label;
+}
+
+class RelatedState {
+  final RelatedStatus status;
+  final String? title;
+  final String? detail;
+
+  const RelatedState({
+    required this.status,
+    this.title,
+    this.detail,
+  });
+
+  @override
+  int get hashCode => status.hashCode ^ title.hashCode ^ detail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RelatedState &&
+          runtimeType == other.runtimeType &&
+          status == other.status &&
+          title == other.title &&
+          detail == other.detail;
+}
+
+@freezed
+sealed class RelatedStatus with _$RelatedStatus {
+  const RelatedStatus._();
+
+  const factory RelatedStatus.off() = RelatedStatus_Off;
+  const factory RelatedStatus.downloading({
+    required int done,
+    required int total,
+  }) = RelatedStatus_Downloading;
+  const factory RelatedStatus.loading() = RelatedStatus_Loading;
+  const factory RelatedStatus.indexing({
+    required int done,
+    required int total,
+  }) = RelatedStatus_Indexing;
+  const factory RelatedStatus.ready({
+    required int notes,
+  }) = RelatedStatus_Ready;
+  const factory RelatedStatus.failed({
+    required String message,
+  }) = RelatedStatus_Failed;
+}
+
+class ReplaceMatch {
+  final String line;
+  final int startUtf16;
+  final int endUtf16;
+  final int lineNumber;
+
+  const ReplaceMatch({
+    required this.line,
+    required this.startUtf16,
+    required this.endUtf16,
+    required this.lineNumber,
+  });
+
+  @override
+  int get hashCode =>
+      line.hashCode ^
+      startUtf16.hashCode ^
+      endUtf16.hashCode ^
+      lineNumber.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplaceMatch &&
+          runtimeType == other.runtimeType &&
+          line == other.line &&
+          startUtf16 == other.startUtf16 &&
+          endUtf16 == other.endUtf16 &&
+          lineNumber == other.lineNumber;
+}
+
+class ReplaceNote {
+  final String id;
+  final String title;
+  final String rev;
+  final bool trashed;
+  final int count;
+  final List<ReplaceMatch> matches;
+
+  const ReplaceNote({
+    required this.id,
+    required this.title,
+    required this.rev,
+    required this.trashed,
+    required this.count,
+    required this.matches,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      rev.hashCode ^
+      trashed.hashCode ^
+      count.hashCode ^
+      matches.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplaceNote &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          rev == other.rev &&
+          trashed == other.trashed &&
+          count == other.count &&
+          matches == other.matches;
+}
+
+class ReplaceOptions {
+  final String find;
+  final bool matchCase;
+  final bool wholeWord;
+  final bool regex;
+  final bool skipCode;
+  final bool includeTrash;
+
+  const ReplaceOptions({
+    required this.find,
+    required this.matchCase,
+    required this.wholeWord,
+    required this.regex,
+    required this.skipCode,
+    required this.includeTrash,
+  });
+
+  @override
+  int get hashCode =>
+      find.hashCode ^
+      matchCase.hashCode ^
+      wholeWord.hashCode ^
+      regex.hashCode ^
+      skipCode.hashCode ^
+      includeTrash.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplaceOptions &&
+          runtimeType == other.runtimeType &&
+          find == other.find &&
+          matchCase == other.matchCase &&
+          wholeWord == other.wholeWord &&
+          regex == other.regex &&
+          skipCode == other.skipCode &&
+          includeTrash == other.includeTrash;
+}
+
+class ReplaceOutcome {
+  final String batch;
+  final int replaced;
+  final int notes;
+  final int skipped;
+  final String message;
+
+  const ReplaceOutcome({
+    required this.batch,
+    required this.replaced,
+    required this.notes,
+    required this.skipped,
+    required this.message,
+  });
+
+  @override
+  int get hashCode =>
+      batch.hashCode ^
+      replaced.hashCode ^
+      notes.hashCode ^
+      skipped.hashCode ^
+      message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplaceOutcome &&
+          runtimeType == other.runtimeType &&
+          batch == other.batch &&
+          replaced == other.replaced &&
+          notes == other.notes &&
+          skipped == other.skipped &&
+          message == other.message;
+}
+
+class ReplacePreview {
+  final String? error;
+  final int totalMatches;
+  final List<ReplaceNote> notes;
+
+  const ReplacePreview({
+    this.error,
+    required this.totalMatches,
+    required this.notes,
+  });
+
+  @override
+  int get hashCode => error.hashCode ^ totalMatches.hashCode ^ notes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplacePreview &&
+          runtimeType == other.runtimeType &&
+          error == other.error &&
+          totalMatches == other.totalMatches &&
+          notes == other.notes;
+}
+
+class ReplaceUndone {
+  final int restored;
+  final int skipped;
+  final String message;
+
+  const ReplaceUndone({
+    required this.restored,
+    required this.skipped,
+    required this.message,
+  });
+
+  @override
+  int get hashCode => restored.hashCode ^ skipped.hashCode ^ message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReplaceUndone &&
+          runtimeType == other.runtimeType &&
+          restored == other.restored &&
+          skipped == other.skipped &&
+          message == other.message;
+}
+
+class Replacement {
+  final int start;
+  final int end;
+  final String text;
+
+  const Replacement({
+    required this.start,
+    required this.end,
+    required this.text,
+  });
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode ^ text.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Replacement &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end &&
+          text == other.text;
+}
+
+class RunBatch {
+  final int version;
+  final List<EditorRun> runs;
+
+  const RunBatch({
+    required this.version,
+    required this.runs,
+  });
+
+  @override
+  int get hashCode => version.hashCode ^ runs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RunBatch &&
+          runtimeType == other.runtimeType &&
+          version == other.version &&
+          runs == other.runs;
+}
+
+@freezed
+sealed class SaveState with _$SaveState {
+  const SaveState._();
+
+  const factory SaveState.saved({
+    required String rev,
+    required int atMs,
+  }) = SaveState_Saved;
+  const factory SaveState.pending() = SaveState_Pending;
+  const factory SaveState.conflict({
+    required bool deleted,
+  }) = SaveState_Conflict;
+  const factory SaveState.failed({
+    required String message,
+  }) = SaveState_Failed;
 }
 
 class Saved {
@@ -684,6 +3147,226 @@ class ServerInfo {
       other is ServerInfo &&
           runtimeType == other.runtimeType &&
           signupsOpen == other.signupsOpen;
+}
+
+class ServerMethods {
+  final bool signupsOpen;
+  final bool password;
+  final bool passkeys;
+  final List<ProviderKind> providers;
+
+  const ServerMethods({
+    required this.signupsOpen,
+    required this.password,
+    required this.passkeys,
+    required this.providers,
+  });
+
+  @override
+  int get hashCode =>
+      signupsOpen.hashCode ^
+      password.hashCode ^
+      passkeys.hashCode ^
+      providers.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ServerMethods &&
+          runtimeType == other.runtimeType &&
+          signupsOpen == other.signupsOpen &&
+          password == other.password &&
+          passkeys == other.passkeys &&
+          providers == other.providers;
+}
+
+class Share {
+  final String? subject;
+  final String? text;
+  final String? url;
+  final List<ShareFile> files;
+
+  const Share({
+    this.subject,
+    this.text,
+    this.url,
+    required this.files,
+  });
+
+  @override
+  int get hashCode =>
+      subject.hashCode ^ text.hashCode ^ url.hashCode ^ files.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Share &&
+          runtimeType == other.runtimeType &&
+          subject == other.subject &&
+          text == other.text &&
+          url == other.url &&
+          files == other.files;
+}
+
+class ShareFile {
+  final String name;
+  final String? contentType;
+  final Uint8List bytes;
+
+  const ShareFile({
+    required this.name,
+    this.contentType,
+    required this.bytes,
+  });
+
+  @override
+  int get hashCode => name.hashCode ^ contentType.hashCode ^ bytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ShareFile &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          contentType == other.contentType &&
+          bytes == other.bytes;
+}
+
+class ShareInfo {
+  final String shareId;
+  final String noteId;
+  final ShareRole myRole;
+  final String owner;
+  final List<MemberRow> members;
+  final List<ShareLinkRow> links;
+  final List<MemberRow> requests;
+
+  const ShareInfo({
+    required this.shareId,
+    required this.noteId,
+    required this.myRole,
+    required this.owner,
+    required this.members,
+    required this.links,
+    required this.requests,
+  });
+
+  @override
+  int get hashCode =>
+      shareId.hashCode ^
+      noteId.hashCode ^
+      myRole.hashCode ^
+      owner.hashCode ^
+      members.hashCode ^
+      links.hashCode ^
+      requests.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ShareInfo &&
+          runtimeType == other.runtimeType &&
+          shareId == other.shareId &&
+          noteId == other.noteId &&
+          myRole == other.myRole &&
+          owner == other.owner &&
+          members == other.members &&
+          links == other.links &&
+          requests == other.requests;
+}
+
+class ShareLinkRow {
+  final String id;
+  final ShareRole role;
+  final int expiresMs;
+
+  const ShareLinkRow({
+    required this.id,
+    required this.role,
+    required this.expiresMs,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ role.hashCode ^ expiresMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ShareLinkRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          role == other.role &&
+          expiresMs == other.expiresMs;
+}
+
+enum ShareRole {
+  owner,
+  editor,
+  commenter,
+  viewer,
+}
+
+class SharedEvent {
+  final List<String> noteIds;
+  final int invitations;
+  final List<String> commentNotes;
+  final List<String> liveNotes;
+
+  const SharedEvent({
+    required this.noteIds,
+    required this.invitations,
+    required this.commentNotes,
+    required this.liveNotes,
+  });
+
+  @override
+  int get hashCode =>
+      noteIds.hashCode ^
+      invitations.hashCode ^
+      commentNotes.hashCode ^
+      liveNotes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SharedEvent &&
+          runtimeType == other.runtimeType &&
+          noteIds == other.noteIds &&
+          invitations == other.invitations &&
+          commentNotes == other.commentNotes &&
+          liveNotes == other.liveNotes;
+}
+
+enum SignOutReasonKind {
+  signedOut,
+  revoked,
+  passwordChanged,
+  recovered,
+  evicted,
+  expired,
+  rekeyed,
+  unknown,
+}
+
+class SignedUp {
+  final AccountState state;
+  final RecoveryKeyText recoveryKey;
+
+  const SignedUp({
+    required this.state,
+    required this.recoveryKey,
+  });
+
+  @override
+  int get hashCode => state.hashCode ^ recoveryKey.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SignedUp &&
+          runtimeType == other.runtimeType &&
+          state == other.state &&
+          recoveryKey == other.recoveryKey;
 }
 
 enum SortKey {
@@ -741,6 +3424,30 @@ class StyledRun {
           weight == other.weight;
 }
 
+class SuggestedTag {
+  final String tagId;
+  final String name;
+  final double weight;
+
+  const SuggestedTag({
+    required this.tagId,
+    required this.name,
+    required this.weight,
+  });
+
+  @override
+  int get hashCode => tagId.hashCode ^ name.hashCode ^ weight.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SuggestedTag &&
+          runtimeType == other.runtimeType &&
+          tagId == other.tagId &&
+          name == other.name &&
+          weight == other.weight;
+}
+
 class SvgRow {
   final String markup;
   final double width;
@@ -767,6 +3474,40 @@ class SvgRow {
           width == other.width &&
           height == other.height &&
           baseline == other.baseline;
+}
+
+@freezed
+sealed class SyncAccount with _$SyncAccount {
+  const SyncAccount._();
+
+  const factory SyncAccount.signedOut() = SyncAccount_SignedOut;
+  const factory SyncAccount.signedIn() = SyncAccount_SignedIn;
+  const factory SyncAccount.locked() = SyncAccount_Locked;
+  const factory SyncAccount.sessionEnded() = SyncAccount_SessionEnded;
+  const factory SyncAccount.busy(
+    AccountStep field0,
+  ) = SyncAccount_Busy;
+}
+
+class SyncIntervalOption {
+  final int minutes;
+  final String label;
+
+  const SyncIntervalOption({
+    required this.minutes,
+    required this.label,
+  });
+
+  @override
+  int get hashCode => minutes.hashCode ^ label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncIntervalOption &&
+          runtimeType == other.runtimeType &&
+          minutes == other.minutes &&
+          label == other.label;
 }
 
 enum SyncPhase {
@@ -828,6 +3569,27 @@ class SyncReportRow {
           queued == other.queued;
 }
 
+class SyncSettingsRow {
+  final bool enabled;
+  final int intervalSecs;
+
+  const SyncSettingsRow({
+    required this.enabled,
+    required this.intervalSecs,
+  });
+
+  @override
+  int get hashCode => enabled.hashCode ^ intervalSecs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncSettingsRow &&
+          runtimeType == other.runtimeType &&
+          enabled == other.enabled &&
+          intervalSecs == other.intervalSecs;
+}
+
 class SyncStatus {
   final SyncPhase phase;
   final String? username;
@@ -835,6 +3597,12 @@ class SyncStatus {
   final int? lastSyncedMs;
   final int conflicts;
   final SyncProblemKind? problem;
+  final String? conflictedTitle;
+  final int? resumeAtMs;
+  final int skippedCount;
+  final QuotaLimit? quota;
+  final SignOutReasonKind? signedOutReason;
+  final SyncAccount account;
 
   const SyncStatus({
     required this.phase,
@@ -843,6 +3611,12 @@ class SyncStatus {
     this.lastSyncedMs,
     required this.conflicts,
     this.problem,
+    this.conflictedTitle,
+    this.resumeAtMs,
+    required this.skippedCount,
+    this.quota,
+    this.signedOutReason,
+    required this.account,
   });
 
   @override
@@ -852,7 +3626,13 @@ class SyncStatus {
       server.hashCode ^
       lastSyncedMs.hashCode ^
       conflicts.hashCode ^
-      problem.hashCode;
+      problem.hashCode ^
+      conflictedTitle.hashCode ^
+      resumeAtMs.hashCode ^
+      skippedCount.hashCode ^
+      quota.hashCode ^
+      signedOutReason.hashCode ^
+      account.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -864,7 +3644,44 @@ class SyncStatus {
           server == other.server &&
           lastSyncedMs == other.lastSyncedMs &&
           conflicts == other.conflicts &&
-          problem == other.problem;
+          problem == other.problem &&
+          conflictedTitle == other.conflictedTitle &&
+          resumeAtMs == other.resumeAtMs &&
+          skippedCount == other.skippedCount &&
+          quota == other.quota &&
+          signedOutReason == other.signedOutReason &&
+          account == other.account;
+}
+
+class SyncStatusLine {
+  final SyncTone tone;
+  final String label;
+  final String detail;
+
+  const SyncStatusLine({
+    required this.tone,
+    required this.label,
+    required this.detail,
+  });
+
+  @override
+  int get hashCode => tone.hashCode ^ label.hashCode ^ detail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncStatusLine &&
+          runtimeType == other.runtimeType &&
+          tone == other.tone &&
+          label == other.label &&
+          detail == other.detail;
+}
+
+enum SyncTone {
+  good,
+  busy,
+  quiet,
+  warning,
 }
 
 class SyntaxStyleRow {
@@ -968,6 +3785,178 @@ class TagRow {
           count == other.count;
 }
 
+class TaskBoard {
+  final List<TaskSection> groups;
+
+  const TaskBoard({
+    required this.groups,
+  });
+
+  @override
+  int get hashCode => groups.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TaskBoard &&
+          runtimeType == other.runtimeType &&
+          groups == other.groups;
+}
+
+enum TaskGroupKind {
+  overdue,
+  today,
+  upcoming,
+  noDate,
+  done,
+}
+
+class TaskItem {
+  final String key;
+  final String noteId;
+  final String noteTitle;
+  final String notebookId;
+  final String notebookName;
+  final int line;
+  final String text;
+  final String sourceText;
+  final bool checked;
+  final String? dueLabel;
+  final DueTone? dueTone;
+
+  const TaskItem({
+    required this.key,
+    required this.noteId,
+    required this.noteTitle,
+    required this.notebookId,
+    required this.notebookName,
+    required this.line,
+    required this.text,
+    required this.sourceText,
+    required this.checked,
+    this.dueLabel,
+    this.dueTone,
+  });
+
+  @override
+  int get hashCode =>
+      key.hashCode ^
+      noteId.hashCode ^
+      noteTitle.hashCode ^
+      notebookId.hashCode ^
+      notebookName.hashCode ^
+      line.hashCode ^
+      text.hashCode ^
+      sourceText.hashCode ^
+      checked.hashCode ^
+      dueLabel.hashCode ^
+      dueTone.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TaskItem &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          noteId == other.noteId &&
+          noteTitle == other.noteTitle &&
+          notebookId == other.notebookId &&
+          notebookName == other.notebookName &&
+          line == other.line &&
+          text == other.text &&
+          sourceText == other.sourceText &&
+          checked == other.checked &&
+          dueLabel == other.dueLabel &&
+          dueTone == other.dueTone;
+}
+
+class TaskListQuery {
+  final String? notebookId;
+  final bool showDone;
+  final List<String> kept;
+
+  const TaskListQuery({
+    this.notebookId,
+    required this.showDone,
+    required this.kept,
+  });
+
+  @override
+  int get hashCode => notebookId.hashCode ^ showDone.hashCode ^ kept.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TaskListQuery &&
+          runtimeType == other.runtimeType &&
+          notebookId == other.notebookId &&
+          showDone == other.showDone &&
+          kept == other.kept;
+}
+
+class TaskSection {
+  final TaskGroupKind group;
+  final String label;
+  final List<TaskItem> items;
+
+  const TaskSection({
+    required this.group,
+    required this.label,
+    required this.items,
+  });
+
+  @override
+  int get hashCode => group.hashCode ^ label.hashCode ^ items.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TaskSection &&
+          runtimeType == other.runtimeType &&
+          group == other.group &&
+          label == other.label &&
+          items == other.items;
+}
+
+class TextChange {
+  final int baseVersion;
+  final int start;
+  final int end;
+  final String text;
+  final Range16 selection;
+  final Range16? composing;
+
+  const TextChange({
+    required this.baseVersion,
+    required this.start,
+    required this.end,
+    required this.text,
+    required this.selection,
+    this.composing,
+  });
+
+  @override
+  int get hashCode =>
+      baseVersion.hashCode ^
+      start.hashCode ^
+      end.hashCode ^
+      text.hashCode ^
+      selection.hashCode ^
+      composing.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TextChange &&
+          runtimeType == other.runtimeType &&
+          baseVersion == other.baseVersion &&
+          start == other.start &&
+          end == other.end &&
+          text == other.text &&
+          selection == other.selection &&
+          composing == other.composing;
+}
+
 class ThemeTokens {
   final String name;
   final bool dark;
@@ -1013,4 +4002,62 @@ class ThemeTokens {
           selectionAlpha == other.selectionAlpha &&
           syntax == other.syntax &&
           palette == other.palette;
+}
+
+class ThemedIcon {
+  final String name;
+  final String? svg;
+
+  const ThemedIcon({
+    required this.name,
+    this.svg,
+  });
+
+  @override
+  int get hashCode => name.hashCode ^ svg.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThemedIcon &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          svg == other.svg;
+}
+
+@freezed
+sealed class Ticked with _$Ticked {
+  const Ticked._();
+
+  const factory Ticked.changed({
+    required String rev,
+    required int undo,
+    required String message,
+  }) = Ticked_Changed;
+  const factory Ticked.unchanged() = Ticked_Unchanged;
+  const factory Ticked.missing() = Ticked_Missing;
+}
+
+class TwinRow {
+  final String id;
+  final String title;
+  final int percent;
+
+  const TwinRow({
+    required this.id,
+    required this.title,
+    required this.percent,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ title.hashCode ^ percent.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TwinRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          percent == other.percent;
 }

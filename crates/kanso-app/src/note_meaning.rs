@@ -15,8 +15,6 @@ use kanso_store::{RelatedNote, Store, TagSuggestion};
 
 use crate::related::Related;
 
-pub use kanso_engine::discovery::meaning::SUGGESTED_TAGS;
-
 pub struct NoteMeaning {
     store: Arc<Store>,
     /// What is read for the open note, and the embeddings (by

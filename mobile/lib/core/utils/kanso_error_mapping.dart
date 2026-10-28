@@ -60,3 +60,13 @@ Future<Either<ApplicationError, T>> attempt<T>(
     return Left<ApplicationError, T>(applicationErrorOf(error));
   }
 }
+
+/// [attempt] for a call that is synchronous: the editor's hot path, which
+/// runs on the UI isolate in microseconds and is never awaited.
+Either<ApplicationError, T> attemptSync<T>(T Function() call) {
+  try {
+    return Right<ApplicationError, T>(call());
+  } on Object catch (error) {
+    return Left<ApplicationError, T>(applicationErrorOf(error));
+  }
+}

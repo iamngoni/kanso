@@ -7,6 +7,7 @@
 use std::collections::HashSet;
 
 use kanso_core::NoteStatus;
+use kanso_core::model::TRASH_BOOK_ID;
 use kanso_store::NoteSummary;
 use serde_json::{Value, json};
 
@@ -89,6 +90,42 @@ pub fn undo_now(change: &Value, undo: &Value, current: &Value) -> Option<Value> 
     Some(Value::Object(back))
 }
 
+/// What the notice says once `count` notes changed. `place` names the
+/// notebook, tag or status the change is about; `on` is whether a toggle
+/// turned the tag or pin on. Pure.
+pub fn summary(change: &Change, count: usize, place: &str, on: bool) -> String {
+    let notes = if count == 1 {
+        "1 note".to_owned()
+    } else {
+        format!("{count} notes")
+    };
+    match change {
+        Change::Move(book) if book == TRASH_BOOK_ID => format!("Moved {notes} to the trash."),
+        Change::Move(_) => format!("Moved {notes} to {place}."),
+        Change::AddTag(_) => format!("Added #{place} to {notes}."),
+        Change::ToggleTag(_) if on => format!("Added #{place} to {notes}."),
+        Change::ToggleTag(_) => format!("Took #{place} off {notes}."),
+        Change::TogglePin if on => format!("Pinned {notes}."),
+        Change::TogglePin => format!("Unpinned {notes}."),
+        Change::Status(_) => format!("Set {notes} to {place}."),
+    }
+}
+
+/// Whether the `edits` of a batch turned the pin or the tag of `change`
+/// on (the first edit says: a batch is alike for every note). Pure.
+pub fn turned_on(change: &Change, edits: &[Edit]) -> bool {
+    let Some(first) = edits.first() else {
+        return true;
+    };
+    match change {
+        Change::TogglePin => first.change["pinned"] == json!(true),
+        Change::ToggleTag(tag) => first.change["tags"]
+            .as_array()
+            .is_some_and(|tags| tags.iter().any(|t| t == tag)),
+        _ => true,
+    }
+}
+
 /// Whether the notes must go one at a time: unlocked notes into a locked
 /// notebook are sealed as they go, which needs the lock's key and so one
 /// note at a time with the editor. `locked` is the locked notebooks, each
@@ -107,7 +144,7 @@ mod tests {
     use serde_json::{Value, json};
     use std::collections::HashSet;
 
-    use super::{Change, needs_one_by_one, plan, undo_now};
+    use super::{Change, needs_one_by_one, plan, summary, turned_on, undo_now};
 
     fn note(id: usize, book: &str, tags: &[&str], pinned: bool, status: NoteStatus) -> NoteSummary {
         NoteSummary {
@@ -370,6 +407,67 @@ mod tests {
             prop_assert_eq!(needs_one_by_one(&before, &moved, &locked_set), expected);
             // Nothing but a move is held up by a lock.
             prop_assert!(!needs_one_by_one(&before, &Change::TogglePin, &locked_set));
+        }
+    }
+
+    #[test]
+    fn notices() {
+        assert_eq!(
+            summary(&Change::Move(TRASH_BOOK_ID.into()), 3, "", true),
+            "Moved 3 notes to the trash."
+        );
+        assert_eq!(
+            summary(&Change::Move("book:a".into()), 1, "Work", true),
+            "Moved 1 note to Work."
+        );
+        assert_eq!(
+            summary(&Change::ToggleTag("t".into()), 2, "ideas", false),
+            "Took #ideas off 2 notes."
+        );
+        assert_eq!(
+            summary(&Change::TogglePin, 2, "", false),
+            "Unpinned 2 notes."
+        );
+        assert_eq!(
+            summary(&Change::Status(NoteStatus::Active), 1, "Active", true),
+            "Set 1 note to Active."
+        );
+    }
+
+    #[test]
+    fn a_pin_batch_says_which_way_it_went() {
+        let pinned = [note(1, "book:a", &[], false, NoteStatus::Active)];
+        let edits = plan(&pinned, &Change::TogglePin);
+        assert!(turned_on(&Change::TogglePin, &edits));
+        let unpinned = [note(1, "book:a", &[], true, NoteStatus::Active)];
+        let edits = plan(&unpinned, &Change::TogglePin);
+        assert!(!turned_on(&Change::TogglePin, &edits));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// The notice counts the notes it is about, and a pin or tag toggle
+        /// says "Pinned"/"Added" exactly when the batch turned it on.
+        #[test]
+        fn prop_the_notice_matches_the_batch(before in notes(), change in change()) {
+            let edits = plan(&before, &change);
+            let on = turned_on(&change, &edits);
+            let text = summary(&change, edits.len(), "Place", on);
+            if edits.len() == 1 {
+                prop_assert!(text.contains("1 note") && !text.contains("1 notes"));
+            } else {
+                let count = format!("{} notes", edits.len());
+                prop_assert!(text.contains(&count));
+            }
+            if matches!(change, Change::TogglePin) && !edits.is_empty() {
+                prop_assert_eq!(text.starts_with("Pinned"), on);
+                prop_assert_eq!(text.starts_with("Unpinned"), !on);
+            }
+            prop_assert!(text.ends_with('.'));
         }
     }
 }

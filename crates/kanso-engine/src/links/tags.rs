@@ -184,6 +184,42 @@ pub fn apply_inline_tags(store: &Store, note: &mut Note, caret: Option<usize>) {
     }
 }
 
+/// The scheme of the links inline `#tags` become on the phone's page.
+pub const TAG_SCHEME: &str = "kanso-tag:";
+
+/// The tag name a `kanso-tag:` link holds. Pure.
+pub fn tag_from_url(url: &str) -> Option<String> {
+    let name = super::percent_decode(url.strip_prefix(TAG_SCHEME)?)?;
+    (!name.is_empty()).then_some(name)
+}
+
+/// The note's Markdown with each inline `#tag` (what [`inline_tags`] finds:
+/// not in code, a link or a heading) written as a `kanso-tag:` link, for the
+/// phone's page to make tappable. Text without tags comes back as it is
+/// (borrowed). Pure.
+pub fn rewrite_for_app(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.contains('#') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let tags = inline_tags(text);
+    if tags.is_empty() {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len() + tags.len() * 24);
+    let mut last = 0;
+    for tag in tags {
+        out.push_str(&text[last..tag.range.start]);
+        out.push_str(&format!(
+            "[#{}]({TAG_SCHEME}{})",
+            tag.name,
+            super::percent_encode(&tag.name)
+        ));
+        last = tag.range.end;
+    }
+    out.push_str(&text[last..]);
+    std::borrow::Cow::Owned(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

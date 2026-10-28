@@ -49,6 +49,24 @@ void main() {
       );
     });
 
+    test('writes the tasks, and a note open in them', () {
+      expect(const BrowseLocation.tasks().location, '/tasks');
+      expect(
+        const BrowseLocation.tasks(noteId: 'n:1').location,
+        '/tasks/note/n%3A1',
+      );
+      expect(_parsed('/tasks'), const BrowseLocation.tasks());
+      expect(
+        _parsed('/tasks/note/n%3A1'),
+        const BrowseLocation.tasks(noteId: 'n:1'),
+      );
+      expect(BrowseLocation.parse(Uri.parse('/tasks/other')), isNull);
+      expect(
+        const BrowseLocation.tasks(noteId: 'n').withoutNote,
+        const BrowseLocation.tasks(),
+      );
+    });
+
     test('writes a search with only what differs from the default', () {
       expect(const BrowseLocation.search().location, '/search');
       expect(

@@ -17,14 +17,14 @@ abstract final class KansoEffects {
   /// A very quiet wash of the text colour, behind a badge or an icon.
   static const double quietWash = 0.08;
 
-  /// The fill of a secondary button: the text colour, softly.
-  static const double secondaryWash = 0.1;
-
   /// A control that cannot be used.
   static const double disabled = 0.45;
 
   /// A control while it is pressed.
   static const double pressed = 0.6;
+
+  /// How far a button shrinks while it is pressed.
+  static const double pressScale = 0.97;
 
   /// A search match in running text, on a soft wash.
   static const double highlight = 0.26;

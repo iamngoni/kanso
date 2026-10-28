@@ -26,7 +26,7 @@ use gpui_kit::*;
 use kanso_store::Store;
 
 use crate::graph::{self, Graph, Viewport, arrange, hit, screen_radius, segment_visible};
-pub use crate::graph::{GraphFilter, Scope, book_color, in_notebook};
+pub use crate::graph::{GraphFilter, Scope, book_color};
 use crate::icon_themes::{Slot, library_icon};
 use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT, inset_after};
 use crate::library::{Library, LibraryEvent};

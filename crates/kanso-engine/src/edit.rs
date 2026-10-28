@@ -1,8 +1,13 @@
 //! Edits to the Markdown source without a window: what the formatting
 //! toolbar does ([`markdown`]), auto-pairing as you type ([`pairing`]), Tab
-//! and Enter in lists ([`list`]) and tables ([`table`]). Each is pure: the
+//! and Enter in lists ([`list`]) and tables ([`table`]), undoing and
+//! redoing them ([`history`]), what a paste puts in the note ([`paste`]) and
+//! image widths and drawings ([`image`]). Each is pure: the
 //! note's text and the selection in, at most one [`Edit`] out, which the
 //! editor applies as one change, so one undo step reverts it.
+//!
+//! Vim keys ([`vim`]) are the same kind of thing, a key at a time: the
+//! state machine, and the [`vim::Session`] an editor holds it in.
 //!
 //! Offsets are UTF-8 byte offsets, as the desktop editor's selection is. An
 //! editor that counts in UTF-16 units converts with [`crate::text`].
@@ -13,10 +18,14 @@
 
 use std::ops::Range;
 
+pub mod history;
+pub mod image;
 pub mod list;
 pub mod markdown;
 pub mod pairing;
+pub mod paste;
 pub mod table;
+pub mod vim;
 
 /// The selected bytes of a text, `start..end` with an empty range for a
 /// caret.
@@ -39,6 +48,36 @@ impl Edit {
         out.push_str(&self.text);
         out.push_str(&text[self.range.end..]);
         out
+    }
+}
+
+/// Puts `block` (images, say) over `range` as a paragraph of its own: a
+/// blank line from the text before and after it, so the preview shows it
+/// alone and offers its sizes. The cursor goes after it.
+pub fn block_insert(text: &str, range: Range<usize>, block: &str) -> Edit {
+    let start = range.start.min(text.len());
+    let end = range.end.clamp(start, text.len());
+    let before = &text[..start];
+    let after = &text[end..];
+    let lead = if before.is_empty() || before.ends_with("\n\n") {
+        ""
+    } else if before.ends_with('\n') {
+        "\n"
+    } else {
+        "\n\n"
+    };
+    let trail = if after.is_empty() || after.starts_with("\n\n") {
+        ""
+    } else if after.starts_with('\n') {
+        "\n"
+    } else {
+        "\n\n"
+    };
+    let cursor = start + lead.len() + block.len();
+    Edit {
+        range: start..end,
+        text: format!("{lead}{block}{trail}"),
+        selection: cursor..cursor,
     }
 }
 
@@ -72,6 +111,86 @@ pub fn enter_continuing_lists(
     format_tables: bool,
 ) -> Option<Edit> {
     enter(text, selection.clone(), format_tables).or_else(|| list::enter_in_list(text, selection))
+}
+
+/// What Tab types where [`tab`] has nothing to move: two spaces, the unit
+/// the desktop's text editor indents by.
+pub const INDENT: &str = "  ";
+
+/// The editor's own Tab (Shift-Tab, with `out`), for where [`tab`] gives
+/// `None`: a caret gets [`INDENT`] at the caret; a selection indents every
+/// line it touches. Shift-Tab takes [`INDENT`] off the start of the line a
+/// caret is on, or of every line a selection touches, where the line starts
+/// with it. `None` when there is nothing to take off. As the desktop's
+/// editor does.
+pub fn indent(text: &str, selection: Selection, out: bool) -> Option<Edit> {
+    let clamp = |mut at: usize| {
+        at = at.min(text.len());
+        while !text.is_char_boundary(at) {
+            at -= 1;
+        }
+        at
+    };
+    let (start, end) = (clamp(selection.start), clamp(selection.end));
+    let (start, end) = (start.min(end), start.max(end));
+    if start == end && !out {
+        return Some(Edit {
+            range: start..start,
+            text: INDENT.to_owned(),
+            selection: start + INDENT.len()..start + INDENT.len(),
+        });
+    }
+    // Every line the selection touches, the one its end is on included.
+    let block = markdown::line_start(text, start)..markdown::line_end(text, end);
+    let lines: Vec<&str> = text[block.clone()].split('\n').collect();
+    let mut at = block.start;
+    let mut edits = Vec::new();
+    for line in &lines {
+        if !out || line.starts_with(INDENT) {
+            edits.push(at);
+        }
+        at += line.len() + 1;
+    }
+    if edits.is_empty() {
+        return None;
+    }
+    let mut new = String::with_capacity(block.len() + INDENT.len() * lines.len());
+    let mut at = block.start;
+    for (ix, line) in lines.iter().enumerate() {
+        if ix > 0 {
+            new.push('\n');
+        }
+        match (out, edits.contains(&at)) {
+            (false, _) => {
+                new.push_str(INDENT);
+                new.push_str(line);
+            }
+            (true, true) => new.push_str(&line[INDENT.len()..]),
+            (true, false) => new.push_str(line),
+        }
+        at += line.len() + 1;
+    }
+    // Where an offset goes: past every indent put in at or before it; back
+    // over every indent taken out before it, and to the line's start from
+    // inside one.
+    let map = |offset: usize| -> usize {
+        let n = INDENT.len();
+        if out {
+            let before = edits.iter().filter(|&&line| line + n <= offset).count();
+            let inside = edits
+                .iter()
+                .find(|&&line| line <= offset && offset < line + n)
+                .map_or(0, |&line| offset - line);
+            offset - before * n - inside
+        } else {
+            offset + edits.iter().filter(|&&line| line <= offset).count() * n
+        }
+    };
+    Some(Edit {
+        range: block,
+        text: new,
+        selection: map(start)..map(end),
+    })
 }
 
 #[cfg(test)]
@@ -273,6 +392,65 @@ mod tests {
             }
         }
 
+        /// E1, E2 and E3 for cycling the heading and for the wiki
+        /// brackets: valid edits that lose no text; the brackets add only
+        /// themselves and leave the caret before the closers; the cycle is
+        /// the heading format at the level it moves to.
+        #[test]
+        fn prop_cycling_and_brackets_are_valid_and_lose_no_text((text, selection) in with_selection()) {
+            let cycled = markdown::cycle_heading(&text, selection.clone());
+            let new = check_valid(&text, &cycled)?;
+            prop_assert_eq!(letters(&new), letters(&text));
+            let wrapped = markdown::wiki_brackets(&text, selection.clone());
+            let new = check_valid(&text, &wrapped)?;
+            prop_assert_eq!(letters(&new), letters(&text));
+            prop_assert_eq!(wrapped.range.clone(), selection.clone());
+            prop_assert_eq!(&wrapped.text, &format!("[[{}]]", &text[selection]));
+            prop_assert!(wrapped.selection.is_empty());
+            prop_assert!(new[wrapped.selection.start..].starts_with("]]"));
+        }
+
+        /// Cycling a plain line four times gives the line back; each step
+        /// is a heading of the next level.
+        #[test]
+        fn prop_four_cycles_return_a_plain_line(line in "[a-zé日]{1,8}", caret in 0usize..8) {
+            let mut text = line.clone();
+            let mut selection = {
+                let mut at = caret.min(text.len());
+                while !text.is_char_boundary(at) { at -= 1; }
+                at..at
+            };
+            for level in [1, 2, 3, 0] {
+                let edit = markdown::cycle_heading(&text, selection);
+                text = edit.apply(&text);
+                selection = edit.selection;
+                let want = if level == 0 { line.clone() } else { format!("{} {line}", "#".repeat(level)) };
+                prop_assert_eq!(&text, &want);
+            }
+        }
+
+        /// E1, E2 and E3 for the editor's own Tab: a valid edit that adds
+        /// only spaces (or takes only spaces away); indenting then
+        /// outdenting the selection it leaves gives the text back.
+        #[test]
+        fn prop_indent_is_valid_and_reversible((text, selection) in with_selection()) {
+            let edit = indent(&text, selection.clone(), false).unwrap();
+            let new = check_valid(&text, &edit)?;
+            prop_assert_eq!(letters(&new), letters(&text));
+            if selection.is_empty() {
+                prop_assert_eq!(edit.range.clone(), selection.start..selection.start);
+            } else {
+                let back = indent(&new, edit.selection.clone(), true).unwrap();
+                prop_assert_eq!(back.apply(&new), text.clone());
+                prop_assert_eq!(back.selection, selection.clone());
+            }
+            if let Some(out) = indent(&text, selection, true) {
+                let new = check_valid(&text, &out)?;
+                prop_assert_eq!(letters(&new), letters(&text));
+                prop_assert!(new.len() < text.len());
+            }
+        }
+
         /// E1, E2 and E3 for Tab and Shift-Tab on list items, with the
         /// words and markers kept (only indents and numbers move).
         #[test]
@@ -410,6 +588,38 @@ mod tests {
                 let again = table::format_table(&moved, edit.selection.start);
                 prop_assert!(again.is_none_or(|e| e.apply(&moved) == moved));
             }
+        }
+    }
+
+    #[test]
+    fn blocks_stand_alone() {
+        let image = "![](inkdrop://file:a)";
+        let at = |text: &str, i: usize| block_insert(text, i..i, image).apply(text);
+        assert_eq!(at("", 0), image);
+        assert_eq!(at("words", 5), format!("words\n\n{image}"));
+        assert_eq!(at("words\n", 6), format!("words\n\n{image}"));
+        assert_eq!(at("a b", 1), format!("a\n\n{image}\n\n b"));
+        assert_eq!(at("a\n\nb", 2), format!("a\n\n{image}\n\nb"));
+        let edit = block_insert("ab", 1..1, image);
+        assert_eq!(edit.selection.start, 3 + image.len());
+    }
+
+    proptest! {
+        #![proptest_config(config())]
+        /// The block ends up a paragraph of its own, only newlines are
+        /// added, and the cursor is after it.
+        #[test]
+        fn prop_blocks_are_paragraphs(text in "[a-z\n]{0,12}", i in any::<prop::sample::Index>()) {
+            let image = "![](inkdrop://file:a)";
+            let at = i.index(text.len() + 1);
+            let edit = block_insert(&text, at..at, image);
+            let out = edit.apply(&text);
+            let start = out.find(image).unwrap();
+            let end = start + image.len();
+            prop_assert!(start == 0 || out[..start].ends_with("\n\n"));
+            prop_assert!(end == out.len() || out[end..].starts_with("\n\n"));
+            prop_assert_eq!(edit.selection, end..end);
+            prop_assert_eq!(out.replace(image, "").replace('\n', ""), text.replace('\n', ""));
         }
     }
 }

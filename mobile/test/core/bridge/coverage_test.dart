@@ -103,10 +103,14 @@ void main() {
     ).readAsStringSync();
     for (final file in suiteFiles) {
       final name = file.uri.pathSegments.last.replaceAll('_suite.dart', '');
+      final call = name.replaceAllMapped(
+        RegExp('_([a-z])'),
+        (match) => match.group(1)!.toUpperCase(),
+      );
       test('the $name suite runs on this computer and on a device', () {
         expect(onComputer, contains("suites/${name}_suite.dart'"));
         expect(onDevice, contains('${name}_suite.dart'));
-        expect(onDevice, contains('${name}Suite('));
+        expect(onDevice, contains('${call}Suite('));
       });
     }
   });

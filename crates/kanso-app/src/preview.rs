@@ -24,6 +24,7 @@ use kanso_store::Store;
 
 use crate::preview_chunks::{self, End, Prepared, SPLIT_SYNC_BYTES, Splice, Start};
 use crate::preview_rich::{self, Rich};
+use crate::preview_tasks::{self, TaskTick};
 use crate::theme::Colors;
 use crate::theme_file::PreviewColors;
 use crate::zoom::px;
@@ -66,15 +67,14 @@ pub enum PreviewEdit {
     /// A block (a drawing brought back from Excalidraw) rewritten: the
     /// first `source` in the note becomes `replacement`.
     Replace { source: String, replacement: String },
+    /// A task box ticked or cleared.
+    Task(TaskTick),
 }
 
 /// Where the preview's edits go.
 pub type ResizeSender = async_channel::Sender<PreviewEdit>;
 
-/// The widths an attached image can be given in the preview, besides its
-/// own: small and medium.
-pub const IMAGE_SIZES: [(&str, Option<u32>); 3] =
-    [("Small", Some(240)), ("Medium", Some(480)), ("Full", None)];
+pub use kanso_engine::edit::image::IMAGE_SIZES;
 
 /// Shows the size buttons over every image, as a hover would.
 #[cfg(test)]
@@ -88,6 +88,8 @@ pub(crate) static PREVIEW_DRAG_WIDTH: std::sync::Mutex<Option<f32>> = std::sync:
 /// A chunk on show.
 struct Shown {
     key: u64,
+    /// The bytes of the note the chunk shows.
+    len: usize,
     start: Start,
     end: End,
     state: Entity<TextViewState>,
@@ -108,6 +110,8 @@ pub struct Preview {
     store: Arc<Store>,
     images: Arc<Mutex<HashMap<String, Option<Arc<Image>>>>>,
     links: LinkSender,
+    /// Where a ticked task box goes.
+    edits: ResizeSender,
     /// Whether text keeps to the readable measure (the setting), or fills
     /// the pane.
     readable: bool,
@@ -138,6 +142,7 @@ impl Preview {
             edits: resizes.clone(),
             note: note.clone(),
         });
+        let edits = resizes.clone();
         let extensions = quote_extensions(Arc::new(Links(links.clone())), resolver, resizes, rich);
         let rich_task = cx.spawn(async move |this, cx| {
             while woken.recv().await.is_ok() {
@@ -158,6 +163,7 @@ impl Preview {
             store,
             images,
             links,
+            edits,
             readable: false,
             extensions,
             shown_type: None,
@@ -264,6 +270,7 @@ impl Preview {
             // measured height until it is measured again.
             for (shown, chunk) in self.chunks[old_range.clone()].iter_mut().zip(&mut changed) {
                 shown.key = chunk.key;
+                shown.len = chunk.text.len();
                 shown.start = chunk.start;
                 shown.end = chunk.end;
                 shown
@@ -297,10 +304,31 @@ impl Preview {
         });
         Shown {
             key: chunk.key,
+            len: chunk.text.len(),
             start: chunk.start,
             end: chunk.end,
             state,
             _watch: watch,
+        }
+    }
+
+    /// A task box clicked in the chunk `key` at `ix`, whose item starts at
+    /// byte `offset` of the chunk: asks the editor to toggle that task. A
+    /// click the preview can't place with certainty asks for nothing.
+    fn task_clicked(&mut self, ix: usize, key: u64, offset: usize) {
+        // The chunks show the text handed over, whole: not an older text
+        // while a newer one is split, and not the plain paragraphs that text
+        // markdown-rs panics on is shown as.
+        let shown: usize = self.chunks.iter().map(|c| c.len).sum();
+        if self.shown != self.text
+            || shown != self.shown.len()
+            || self.chunks.get(ix).is_none_or(|c| c.key != key)
+        {
+            return;
+        }
+        let before: usize = self.chunks[..ix].iter().map(|c| c.len).sum();
+        if let Some(tick) = preview_tasks::tick_at(&self.shown, before + offset) {
+            self.edits.try_send(PreviewEdit::Task(tick)).ok();
         }
     }
 
@@ -1056,19 +1084,21 @@ impl Render for Preview {
         let style = text_style(colors, &preview, cx.theme().is_dark());
         let text_color = preview.text;
         let readable = self.readable;
-        let chunks: Vec<(Entity<TextViewState>, Start, End)> = self
+        let chunks: Vec<(Entity<TextViewState>, Start, End, u64)> = self
             .chunks
             .iter()
-            .map(|c| (c.state.clone(), c.start, c.end))
+            .map(|c| (c.state.clone(), c.start, c.end, c.key))
             .collect();
+        let preview = cx.entity().downgrade();
         let resolver: ImageResolver = Arc::new(self.image_resolver());
         let links = Arc::new(Links(self.links.clone()));
         let extensions = self.extensions.clone();
         div().id("preview").size_full().bg(colors.editor).child(
             list(self.list.clone(), move |ix, window, _| {
-                let Some((state, start, end)) = chunks.get(ix).cloned() else {
+                let Some((state, start, end, key)) = chunks.get(ix).cloned() else {
                     return div().into_any_element();
                 };
+                let preview = preview.clone();
                 let rem = window.rem_size();
                 let resolver = resolver.clone();
                 let links = links.clone();
@@ -1095,7 +1125,17 @@ impl Render for Preview {
                                     .markdown_extensions(extensions)
                                     .code_block_actions(code_block_actions)
                                     .image_source(move |uri| resolver(uri))
-                                    .on_link_click(move |url, _, _, cx| links.open(url, cx)),
+                                    .on_link_click(move |url, _, _, cx| links.open(url, cx))
+                                    // Only here: a quote's or a query's own
+                                    // text view has no map from its text back
+                                    // to the note, so its boxes take no clicks.
+                                    .on_task_click(move |offset, _, cx| {
+                                        preview
+                                            .update(cx, |this, _| {
+                                                this.task_clicked(ix, key, offset)
+                                            })
+                                            .ok();
+                                    }),
                             ),
                     )
                     .into_any_element()

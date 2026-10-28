@@ -17,95 +17,19 @@
 //! can't be used is skipped, with a notice, and the rest of the theme still
 //! draws.
 
-use std::collections::{BTreeMap, HashMap};
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use serde_json::{Map, Value, json};
 
-use crate::models::icon_theme::{ExtraEntry, ExtraIcon, Fallback, IconTheme, IconThemeFile, Slot};
+pub use kanso_engine::icons::file::{
+    Files, Fingerprint, MAX_ENTRIES, MAX_JSON_BYTES, MAX_PATH_BYTES, MAX_SVG_BYTES,
+    MAX_THEME_BYTES, ParseError, SCHEMA_URL, SCHEMA_VERSION, SlotSource, SvgFiles, is_valid_name,
+    is_valid_svg_path, looks_like_svg, slot_source, theme_key,
+};
+
+use crate::models::icon_theme::{IconTheme, IconThemeFile, Slot};
 use crate::themes::Notice;
-
-/// The format version this build reads and writes.
-pub const SCHEMA_VERSION: u64 = 1;
-
-/// Where the schema is published, for a theme's `$schema`.
-pub const SCHEMA_URL: &str = "https://raw.githubusercontent.com/iamngoni/kanso-themes/main/icon-themes/schema/kanso-icon-theme-v1.json";
-
-/// Largest theme JSON read.
-pub const MAX_JSON_BYTES: u64 = 512 * 1024;
-/// Largest SVG read.
-pub const MAX_SVG_BYTES: u64 = 128 * 1024;
-/// Most entries one theme may name, in its three maps together.
-pub const MAX_ENTRIES: usize = 2_000;
-/// Most bytes of SVG one theme may hold in all; the rest are skipped.
-pub const MAX_THEME_BYTES: u64 = 16 * 1024 * 1024;
-/// Longest path to an SVG, in bytes.
-pub const MAX_PATH_BYTES: usize = 200;
-
-/// What is wrong with a theme file, in a sentence that names the key.
-pub type ParseError = String;
-
-/// The metadata keys a file may carry beside its maps.
-const TOP_KEYS: &[&str] = &[
-    "$schema",
-    "schema_version",
-    "name",
-    "author",
-    "license",
-    "source",
-    "description",
-    "icons",
-    "library",
-    "notebook_icons",
-];
-
-/// Whether `name` can name a theme's folder or one of its icons: lowercase
-/// ASCII letters, digits, dashes and underscores, starting with a letter or
-/// digit, at most 64 long. Pure.
-pub fn is_valid_name(name: &str) -> bool {
-    name.len() <= 64
-        && name
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-        && name
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
-}
-
-/// Whether `path` can name an SVG in a theme's folder: relative, `/`
-/// between parts, each part of ASCII letters, digits, `.`, `-` and `_`,
-/// none of them empty, `.` or `..`, ending in `.svg`. Pure.
-pub fn is_valid_svg_path(path: &str) -> bool {
-    path.len() <= MAX_PATH_BYTES
-        && path.to_ascii_lowercase().ends_with(".svg")
-        && path.split('/').all(|part| {
-            !part.is_empty()
-                && part != "."
-                && part != ".."
-                && part
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
-        })
-}
-
-/// "rocket-launch" as "Rocket launch". Pure.
-pub fn label_from_name(name: &str) -> String {
-    let spaced = name.replace(['-', '_'], " ");
-    let mut chars = spaced.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().chain(chars).collect(),
-        None => spaced,
-    }
-}
-
-/// Whether `bytes` look like an SVG Kanso can draw: UTF-8 with an `<svg`
-/// element. Pure.
-pub fn looks_like_svg(bytes: &[u8]) -> bool {
-    std::str::from_utf8(bytes).is_ok_and(|text| text.contains("<svg"))
-}
 
 /// Whether Kanso draws a UI icon named `name`, one a theme's `icons` can
 /// draw in its place.
@@ -113,252 +37,38 @@ pub fn is_ui_icon(name: &str) -> bool {
     crate::assets::is_app_icon(name)
 }
 
-impl IconThemeFile {
-    /// Reads a theme file.
-    pub fn parse(text: &str) -> Result<IconThemeFile, ParseError> {
-        let value: Value =
-            serde_json::from_str(text).map_err(|err| format!("isn't valid JSON: {err}"))?;
-        IconThemeFile::from_value(&value)
-    }
-
-    pub fn from_value(value: &Value) -> Result<IconThemeFile, ParseError> {
-        let Value::Object(top) = value else {
-            return Err("should be a JSON object".into());
-        };
-        for key in top.keys() {
-            if !TOP_KEYS.contains(&key.as_str()) {
-                return Err(format!(
-                    "has an unknown key `{key}`; an icon theme has {}",
-                    TOP_KEYS.join(", ")
-                ));
-            }
-        }
-        match top.get("schema_version") {
-            None => {}
-            Some(Value::Number(n)) if n.as_u64() == Some(SCHEMA_VERSION) => {}
-            Some(other) => {
-                return Err(format!(
-                    "is schema_version {other}; this Kanso reads version {SCHEMA_VERSION}"
-                ));
-            }
-        }
-        let text = |key: &str, required: bool| -> Result<Option<String>, ParseError> {
-            match top.get(key) {
-                None if required => Err(format!("needs a `{key}`")),
-                None => Ok(None),
-                Some(Value::String(s)) if required && s.trim().is_empty() => {
-                    Err(format!("has an empty `{key}`"))
-                }
-                Some(Value::String(s)) => Ok(Some(s.trim().to_owned())),
-                Some(_) => Err(format!("`{key}` should be text")),
-            }
-        };
-        let name = text("name", true)?.unwrap_or_default();
-        let icons = paths(top.get("icons"), "icons", |key| {
-            is_ui_icon(key).then(|| key.to_owned()).ok_or_else(|| {
-                format!("has an unknown icon `icons.{key}`; it isn't an icon Kanso draws")
-            })
-        })?;
-        let library = paths(top.get("library"), "library", |key| {
-            Slot::parse(key).ok_or_else(|| {
-                format!(
-                    "has an unknown key `library.{key}`; `library` has {}",
-                    Slot::ALL.map(Slot::key).join(", ")
-                )
-            })
-        })?;
-        let notebook_icons = extras(top.get("notebook_icons"))?;
-        if icons.len() + library.len() + notebook_icons.len() > MAX_ENTRIES {
-            return Err(format!("names more than {MAX_ENTRIES} icons"));
-        }
-        Ok(IconThemeFile {
-            name,
-            author: text("author", false)?.unwrap_or_default(),
-            license: text("license", false)?.unwrap_or_default(),
-            source: text("source", false)?,
-            description: text("description", false)?,
-            icons,
-            library,
-            notebook_icons,
-        })
-    }
-
-    /// The file, as JSON with its keys in the documented order.
-    pub fn to_value(&self) -> Value {
-        let mut top = Map::new();
-        top.insert("$schema".into(), SCHEMA_URL.into());
-        top.insert("schema_version".into(), SCHEMA_VERSION.into());
-        top.insert("name".into(), self.name.clone().into());
-        if !self.author.is_empty() {
-            top.insert("author".into(), self.author.clone().into());
-        }
-        if !self.license.is_empty() {
-            top.insert("license".into(), self.license.clone().into());
-        }
-        if let Some(source) = &self.source {
-            top.insert("source".into(), source.clone().into());
-        }
-        if let Some(description) = &self.description {
-            top.insert("description".into(), description.clone().into());
-        }
-        if !self.icons.is_empty() {
-            let icons: Map<String, Value> = self
-                .icons
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone().into()))
-                .collect();
-            top.insert("icons".into(), Value::Object(icons));
-        }
-        if !self.library.is_empty() {
-            let library: Map<String, Value> = Slot::ALL
-                .iter()
-                .filter_map(|slot| {
-                    Some((
-                        slot.key().to_owned(),
-                        self.library.get(slot)?.clone().into(),
-                    ))
-                })
-                .collect();
-            top.insert("library".into(), Value::Object(library));
-        }
-        if !self.notebook_icons.is_empty() {
-            let extras: Map<String, Value> = self
-                .notebook_icons
-                .iter()
-                .map(|(name, entry)| {
-                    let value = match (&entry.label, &entry.keywords) {
-                        (None, None) => entry.file.clone().into(),
-                        (label, keywords) => {
-                            let mut object = Map::new();
-                            object.insert("file".into(), entry.file.clone().into());
-                            if let Some(label) = label {
-                                object.insert("label".into(), label.clone().into());
-                            }
-                            if let Some(keywords) = keywords {
-                                object.insert("keywords".into(), keywords.clone().into());
-                            }
-                            Value::Object(object)
-                        }
-                    };
-                    (name.clone(), value)
-                })
-                .collect();
-            top.insert("notebook_icons".into(), Value::Object(extras));
-        }
-        Value::Object(top)
-    }
-
-    /// The file as text, pretty-printed, ending in a newline.
-    pub fn to_json_string(&self) -> String {
-        let mut text = serde_json::to_string_pretty(&self.to_value()).unwrap_or_default();
-        text.push('\n');
-        text
-    }
+/// Reads a theme file, its `icons` naming only icons Kanso draws.
+pub fn parse(text: &str) -> Result<IconThemeFile, ParseError> {
+    IconThemeFile::parse(text, &is_ui_icon)
 }
 
-/// A map of keys to SVG paths, each key checked by `key`.
-fn paths<K: Ord>(
-    value: Option<&Value>,
-    section: &str,
-    key: impl Fn(&str) -> Result<K, ParseError>,
-) -> Result<BTreeMap<K, String>, ParseError> {
-    let Some(value) = value else {
-        return Ok(BTreeMap::new());
-    };
-    let Value::Object(map) = value else {
-        return Err(format!("`{section}` should be an object of icons"));
-    };
-    if map.len() > MAX_ENTRIES {
-        return Err(format!("names more than {MAX_ENTRIES} icons"));
-    }
-    let mut out = BTreeMap::new();
-    for (name, path) in map {
-        let k = key(name)?;
-        out.insert(k, svg_path(path, &format!("{section}.{name}"))?);
-    }
-    Ok(out)
+/// Reads a theme file already parsed as JSON, as [`parse`] does.
+pub fn from_value(value: &Value) -> Result<IconThemeFile, ParseError> {
+    IconThemeFile::from_value(value, &is_ui_icon)
 }
 
-/// An SVG path at `at`, checked.
-fn svg_path(value: &Value, at: &str) -> Result<String, ParseError> {
-    match value {
-        Value::String(path) if is_valid_svg_path(path) => Ok(path.clone()),
-        Value::String(path) => Err(format!(
-            "`{at}` is \"{}\"; it should be the path of an .svg file inside the theme's folder, such as \"icons/search.svg\"",
-            path.chars().take(80).collect::<String>()
-        )),
-        _ => Err(format!("`{at}` should be the path of an .svg file")),
-    }
-}
-
-/// The `notebook_icons` map: names to a path, or to `{file, label,
-/// keywords}`.
-fn extras(value: Option<&Value>) -> Result<BTreeMap<String, ExtraEntry>, ParseError> {
-    let Some(value) = value else {
-        return Ok(BTreeMap::new());
-    };
-    let Value::Object(map) = value else {
-        return Err("`notebook_icons` should be an object of icons".into());
-    };
-    if map.len() > MAX_ENTRIES {
-        return Err(format!("names more than {MAX_ENTRIES} icons"));
-    }
-    let mut out = BTreeMap::new();
-    for (name, entry) in map {
-        let at = format!("notebook_icons.{name}");
-        if !is_valid_name(name) {
-            return Err(format!(
-                "has an icon named `{at}`; name it with lowercase letters, digits and dashes"
-            ));
-        }
-        let entry = match entry {
-            Value::Object(fields) => {
-                for key in fields.keys() {
-                    if !["file", "label", "keywords"].contains(&key.as_str()) {
-                        return Err(format!(
-                            "has an unknown key `{at}.{key}`; an icon has file, label and keywords"
-                        ));
-                    }
-                }
-                let words = |key: &str| -> Result<Option<String>, ParseError> {
-                    match fields.get(key) {
-                        None => Ok(None),
-                        Some(Value::String(s)) => {
-                            Ok(Some(s.trim().chars().take(200).collect::<String>()))
-                        }
-                        Some(_) => Err(format!("`{at}.{key}` should be text")),
-                    }
-                };
-                ExtraEntry {
-                    file: svg_path(
-                        fields
-                            .get("file")
-                            .ok_or_else(|| format!("needs `{at}.file`"))?,
-                        &format!("{at}.file"),
-                    )?,
-                    label: words("label")?.filter(|l| !l.is_empty()),
-                    keywords: words("keywords")?.filter(|k| !k.is_empty()),
-                }
-            }
-            other => ExtraEntry {
-                file: svg_path(other, &at)?,
-                label: None,
-                keywords: None,
-            },
-        };
-        out.insert(name.clone(), entry);
-    }
-    Ok(out)
-}
-
-// MARK: Reading a theme's SVGs
-
-/// Where a theme's SVGs are read from: its folder, or the built-in themes'
-/// files compiled in.
-pub trait SvgFiles {
-    /// The file at `path` (already checked by [`is_valid_svg_path`]), at
-    /// most `limit` bytes long.
-    fn read(&self, path: &str, limit: u64) -> Result<Vec<u8>, String>;
+/// The theme `file` describes, its SVGs read from `files`, under folder
+/// name `id`; see [`kanso_engine::icons::file::load`]. A theme with a
+/// `path` is a person's or the gallery's, so its SVGs are sanitized.
+pub fn load(
+    id: &str,
+    file: &IconThemeFile,
+    files: &dyn SvgFiles,
+    path: Option<PathBuf>,
+    origin: crate::origin::Origin,
+    notices: &mut Vec<Notice>,
+) -> IconTheme {
+    let sanitize = |bytes: &[u8]| kanso_gallery::sanitize_svg(bytes).map_err(|err| err.to_string());
+    let sanitizing = path.is_some();
+    kanso_engine::icons::file::load(
+        id,
+        file,
+        files,
+        path,
+        origin,
+        sanitizing.then_some(&sanitize as kanso_engine::icons::file::Sanitize),
+        notices,
+    )
 }
 
 /// A theme's folder on disk.
@@ -406,188 +116,6 @@ impl SvgFiles for Folder {
         }
         Ok(bytes)
     }
-}
-
-/// Files in memory, by path: the built-in themes, and tests.
-pub struct Files<'a>(pub &'a [(&'a str, &'a [u8])]);
-
-impl SvgFiles for Files<'_> {
-    fn read(&self, path: &str, limit: u64) -> Result<Vec<u8>, String> {
-        let bytes = self
-            .0
-            .iter()
-            .find(|(name, _)| *name == path)
-            .map(|(_, bytes)| *bytes)
-            .ok_or_else(|| "isn't in the theme's folder".to_owned())?;
-        if bytes.len() as u64 > limit {
-            return Err(format!("is larger than {} KB", limit.div_ceil(1024)));
-        }
-        Ok(bytes.to_vec())
-    }
-}
-
-/// A 64-bit FNV-1a fingerprint: the same for the same bytes on every
-/// build, unlike the standard library's hasher.
-#[derive(Clone, Copy)]
-pub struct Fingerprint(u64);
-
-impl Default for Fingerprint {
-    fn default() -> Self {
-        Fingerprint(0xcbf2_9ce4_8422_2325)
-    }
-}
-
-impl Fingerprint {
-    pub fn add(&mut self, bytes: &[u8]) {
-        for byte in bytes {
-            self.0 ^= u64::from(*byte);
-            self.0 = self.0.wrapping_mul(0x0100_0000_01b3);
-        }
-    }
-
-    /// Adds a field, its length first, so `ab`,`c` and `a`,`bc` differ.
-    pub fn field(&mut self, bytes: &[u8]) {
-        self.add(&(bytes.len() as u64).to_le_bytes());
-        self.add(bytes);
-    }
-
-    pub fn finish(self) -> u64 {
-        self.0
-    }
-}
-
-/// The key a theme's icon paths carry: its ID and a fingerprint of every
-/// SVG it draws and where. Pure.
-pub fn theme_key(theme: &IconTheme) -> String {
-    let mut print = Fingerprint::default();
-    for (name, svg) in &theme.icons {
-        print.field(b"icon");
-        print.field(name.as_bytes());
-        print.field(svg);
-    }
-    for (slot, svg) in &theme.library {
-        print.field(b"library");
-        print.field(slot.key().as_bytes());
-        print.field(svg);
-    }
-    for extra in &theme.extras {
-        print.field(b"extra");
-        print.field(extra.name.as_bytes());
-        print.field(&extra.svg);
-    }
-    format!("{}-{:016x}", theme.id, print.finish())
-}
-
-/// The theme `file` describes, its SVGs read from `files`, under folder
-/// name `id`. An SVG that can't be used is left out with a notice saying
-/// why (its icon is then drawn as if the theme didn't name it), and so is
-/// any past [`MAX_THEME_BYTES`].
-pub fn load(
-    id: &str,
-    file: &IconThemeFile,
-    files: &dyn SvgFiles,
-    path: Option<PathBuf>,
-    origin: crate::origin::Origin,
-    notices: &mut Vec<Notice>,
-) -> IconTheme {
-    // Built-ins are compiled from a reviewed tag; every theme read from
-    // disk, a person's or the gallery's, is sanitized before it is drawn.
-    let path_is_theirs = path.is_some();
-    let mut read: HashMap<String, Option<Arc<[u8]>>> = HashMap::new();
-    let mut spent = 0u64;
-    let mut over = false;
-    let mut svg = |path: &str, notices: &mut Vec<Notice>| -> Option<Arc<[u8]>> {
-        if let Some(done) = read.get(path) {
-            return done.clone();
-        }
-        let result = if over {
-            None
-        } else {
-            match files.read(path, MAX_SVG_BYTES) {
-                Ok(bytes) if !looks_like_svg(&bytes) => {
-                    notices.push(Notice {
-                        file: format!("{id}/{path}"),
-                        message: "isn't an SVG".into(),
-                    });
-                    None
-                }
-                Ok(bytes) if path_is_theirs && kanso_gallery::sanitize_svg(&bytes).is_err() => {
-                    notices.push(Notice {
-                        file: format!("{id}/{path}"),
-                        message: "has something Kanso won't draw in an icon".into(),
-                    });
-                    None
-                }
-                Ok(bytes) if spent + bytes.len() as u64 > MAX_THEME_BYTES => {
-                    over = true;
-                    notices.push(Notice {
-                        file: id.to_owned(),
-                        message: format!(
-                            "holds more than {} MB of icons; the rest are left out",
-                            MAX_THEME_BYTES / (1024 * 1024)
-                        ),
-                    });
-                    None
-                }
-                Ok(bytes) => {
-                    let bytes = if path_is_theirs {
-                        kanso_gallery::sanitize_svg(&bytes).unwrap_or(bytes)
-                    } else {
-                        bytes
-                    };
-                    spent += bytes.len() as u64;
-                    Some(Arc::from(bytes))
-                }
-                Err(message) => {
-                    notices.push(Notice {
-                        file: format!("{id}/{path}"),
-                        message,
-                    });
-                    None
-                }
-            }
-        };
-        read.insert(path.to_owned(), result.clone());
-        result
-    };
-    let icons = file
-        .icons
-        .iter()
-        .filter_map(|(name, path)| Some((name.clone(), svg(path, notices)?)))
-        .collect();
-    let library = file
-        .library
-        .iter()
-        .filter_map(|(slot, path)| Some((*slot, svg(path, notices)?)))
-        .collect();
-    let extras = file
-        .notebook_icons
-        .iter()
-        .filter_map(|(name, entry)| {
-            Some(ExtraIcon {
-                name: name.clone(),
-                label: entry.label.clone().unwrap_or_else(|| label_from_name(name)),
-                keywords: entry.keywords.clone().unwrap_or_default(),
-                svg: svg(&entry.file, notices)?,
-            })
-        })
-        .collect();
-    let mut theme = IconTheme {
-        id: id.to_owned(),
-        name: file.name.clone(),
-        author: file.author.clone(),
-        license: file.license.clone(),
-        source: file.source.clone(),
-        description: file.description.clone(),
-        icons,
-        library,
-        extras,
-        path,
-        origin,
-        key: String::new(),
-    };
-    theme.key = theme_key(&theme);
-    theme
 }
 
 /// Reads the theme in folder `dir`, named after the folder: its one `.json`
@@ -654,7 +182,7 @@ pub fn read_folder(
                 std::fs::read_to_string(&path).map_err(|err| format!("couldn't be read: {err}"))
             }
         })
-        .and_then(|text| IconThemeFile::parse(&text));
+        .and_then(|text| parse(&text));
     match parsed {
         Ok(file) => Some(load(
             &id,
@@ -693,32 +221,6 @@ pub fn read_folder_safely(
         });
         None
     })
-}
-
-/// What a slot shows under `theme`, as the UI icon's name it falls back to
-/// or the slot whose SVG the theme draws. Pure.
-pub fn slot_source(theme: &IconTheme, slot: Slot) -> SlotSource {
-    let mut at = slot;
-    // The fallbacks form a short chain with no loops (`slots_fall_back_to_icons`).
-    for _ in 0..Slot::ALL.len() {
-        if theme.library.contains_key(&at) {
-            return SlotSource::Library(at);
-        }
-        match at.fallback() {
-            Fallback::Slot(next) => at = next,
-            Fallback::Icon(name) => return SlotSource::Icon(name),
-        }
-    }
-    SlotSource::Icon("notebook")
-}
-
-/// Where a slot's icon comes from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SlotSource {
-    /// The theme's SVG for this slot.
-    Library(Slot),
-    /// The UI icon of this name.
-    Icon(&'static str),
 }
 
 // MARK: The schema
@@ -802,6 +304,10 @@ pub fn schema() -> Value {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use kanso_engine::icons::file::label_from_name;
+
     use super::*;
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
@@ -858,10 +364,10 @@ mod tests {
     /// broken ones, in words that name the key.
     #[test]
     fn minimal_full_and_broken_files() {
-        let tiny = IconThemeFile::parse(r#"{"name": "Tiny"}"#).unwrap();
+        let tiny = parse(r#"{"name": "Tiny"}"#).unwrap();
         assert_eq!(tiny.name, "Tiny");
         assert!(tiny.icons.is_empty() && tiny.library.is_empty());
-        let full = IconThemeFile::parse(
+        let full = parse(
             r#"{"$schema": "x", "schema_version": 1, "name": "Full", "author": "A", "license": "MIT",
                 "icons": {"search": "icons/search.svg"},
                 "library": {"notebook-open": "open.svg", "inbox": "tray.svg"},
@@ -872,7 +378,7 @@ mod tests {
         assert_eq!(full.icons["search"], "icons/search.svg");
         assert_eq!(full.library[&Slot::NotebookOpen], "open.svg");
         assert_eq!(full.notebook_icons["moon"].label.as_deref(), Some("Night"));
-        assert_eq!(IconThemeFile::parse(&full.to_json_string()).unwrap(), full);
+        assert_eq!(parse(&full.to_json_string()).unwrap(), full);
         let cases = [
             ("{", "isn't valid JSON"),
             ("[]", "should be a JSON object"),
@@ -910,7 +416,7 @@ mod tests {
             ),
         ];
         for (text, expected) in cases {
-            let err = IconThemeFile::parse(text).unwrap_err();
+            let err = parse(text).unwrap_err();
             assert!(err.contains(expected), "{text}: {err}");
         }
     }
@@ -1122,20 +628,20 @@ mod tests {
         /// the folder, and writes back to the same file.
         #[test]
         fn prop_parser_never_panics_and_keeps_its_promises(value in any_json()) {
-            if let Ok(file) = IconThemeFile::from_value(&value) {
+            if let Ok(file) = from_value(&value) {
                 prop_assert!(!file.name.trim().is_empty());
                 prop_assert!(file.icons.len() + file.library.len() + file.notebook_icons.len() <= MAX_ENTRIES);
                 prop_assert!(file.icons.keys().all(|name| is_ui_icon(name)));
                 prop_assert!(file.icons.values().chain(file.library.values()).all(|p| is_valid_svg_path(p)));
                 prop_assert!(file.notebook_icons.iter().all(|(name, e)| is_valid_name(name) && is_valid_svg_path(&e.file)));
-                prop_assert_eq!(IconThemeFile::parse(&file.to_json_string()).unwrap(), file);
+                prop_assert_eq!(parse(&file.to_json_string()).unwrap(), file);
             }
         }
 
         /// Any text at all: never a panic.
         #[test]
         fn prop_any_text_never_panics(text in "\\PC{0,200}") {
-            let _ = IconThemeFile::parse(&text);
+            let _ = parse(&text);
         }
 
         /// A valid path never leaves the folder: no part climbs, none is

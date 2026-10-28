@@ -38,28 +38,7 @@ pub enum ApiState {
 
 pub use kanso_engine::sync::SyncState;
 
-/// The account as the app shows it (docs/ACCOUNTS.md › Services).
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum AccountState {
-    #[default]
-    SignedOut,
-    SignedIn {
-        username: String,
-    },
-    /// Provider identity is verified, but this device has not obtained the
-    /// library key. `Services.session` deliberately remains empty here.
-    SignedInLocked {
-        username: String,
-    },
-    /// The server ended this Mac's session (a 401): the Sign in form shows
-    /// under the reason.
-    SessionEnded {
-        username: String,
-        reason: SignOutReason,
-    },
-    /// An account task is running, at this step.
-    Busy(Step),
-}
+pub use kanso_engine::sync::AccountState;
 
 /// The account tasks, so the page knows whose button spins.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

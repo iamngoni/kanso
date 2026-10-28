@@ -20,9 +20,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::NoteStatus;
 use kanso_core::tags::{TagNode, is_within};
-use kanso_sync::SyncProblem;
 
-use crate::account_words::step_label;
 use crate::clock::Clock;
 use crate::editor::rgb_color;
 use crate::icon_themes::{Slot, library_icon};
@@ -1729,14 +1727,7 @@ fn status_choice_after(choice: Option<bool>, was_status: bool, is_status: bool) 
     }
 }
 
-/// How a status line reads at a glance, as the color of its dot.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Tone {
-    Good,
-    Busy,
-    Quiet,
-    Warning,
-}
+pub use kanso_engine::sync::Tone;
 
 /// The rail's sync icon for each tone: its shape alone says which.
 // no-prop-test: a finite domain; `tone_icons_differ` checks every pair.
@@ -1769,68 +1760,7 @@ pub(crate) fn tone_color(tone: Tone, colors: &Colors) -> Rgb {
     }
 }
 
-/// What a sync problem says in the sidebar (docs/ACCOUNTS.md › Problems):
-/// a few fixed words for each; what to do is in Settings › Account and the
-/// tooltip.
-pub fn problem_label(problem: &SyncProblem) -> &'static str {
-    match problem {
-        SyncProblem::SignedOut(_) => "Signed out",
-        SyncProblem::AccountDisabled => "Account turned off",
-        SyncProblem::Paused { .. } => "Sync paused",
-        SyncProblem::ServerBusy { .. } => "Server busy",
-        SyncProblem::BackOff { .. } => "Syncing shortly",
-        SyncProblem::QuotaExceeded(_) => "Account full",
-        SyncProblem::ServerFull => "Server full",
-        SyncProblem::Skipped { .. } => "Some items skipped",
-        SyncProblem::UpdateKanso => "Update Kanso",
-        SyncProblem::WrongKey => "Keys don't match",
-        SyncProblem::ServerOutdated => "Server needs an update",
-        SyncProblem::Offline => "Offline",
-        SyncProblem::Other => "Couldn't sync",
-    }
-}
-
-/// The sync line while signed out: quiet, and a click away from signing in.
-pub const SIGN_IN_TO_SYNC: &str = "Set up sync";
-/// A provider session has no data key yet; it cannot sync until the user
-/// unlocks it and chooses how this library should be bound.
-pub const WAITING_FOR_APPROVAL: &str = "Waiting for approval";
-
-/// The sidebar's sync line: "Set up sync" while signed out, the step of
-/// a running account task, "Synced just now", "Synced yesterday",
-/// "Syncing…", "Sync off", or a problem's label. `when` says when an
-/// instant was, as the editor's header says when a note was edited
-/// ([`Clock::edited_label`]), so the line and the list name a day alike.
-pub fn sync_line(
-    state: &SyncState,
-    account: &AccountState,
-    when: impl FnOnce(i64) -> String,
-) -> (Tone, String) {
-    match account {
-        AccountState::SignedOut => (Tone::Quiet, SIGN_IN_TO_SYNC.into()),
-        AccountState::SignedInLocked { .. } => (Tone::Quiet, WAITING_FOR_APPROVAL.into()),
-        AccountState::SessionEnded { reason, .. } => (
-            Tone::Warning,
-            problem_label(&SyncProblem::SignedOut(*reason)).into(),
-        ),
-        AccountState::Busy(step) => (Tone::Busy, step_label(*step).into()),
-        AccountState::SignedIn { .. } => match state {
-            SyncState::Off => (Tone::Quiet, "Sync off".into()),
-            SyncState::Syncing => (Tone::Busy, "Syncing…".into()),
-            SyncState::Failed(problem)
-            | SyncState::Synced {
-                problem: Some(problem),
-                ..
-            } => (Tone::Warning, problem_label(problem).into()),
-            SyncState::Synced {
-                conflicts: 0,
-                at_ms,
-                ..
-            } => (Tone::Good, format!("Synced {}", when(*at_ms))),
-            SyncState::Synced { .. } => (Tone::Warning, "Conflict detected".into()),
-        },
-    }
-}
+pub use kanso_engine::sync::words::{SIGN_IN_TO_SYNC, sync_line};
 
 /// Who the footer names: the account while signed in (or asked to sign in
 /// again), else this Mac's user.
@@ -2065,9 +1995,10 @@ pub(crate) fn mention_badge(unread: usize) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        SIGN_IN_TO_SYNC, SyncState, Tone, WAITING_FOR_APPROVAL, api_icon, footer_name, initials,
-        problem_label, status_choice_after, status_group_open, sync_line, tone_icon, visible_tags,
+        SIGN_IN_TO_SYNC, SyncState, Tone, api_icon, footer_name, initials, status_choice_after,
+        status_group_open, sync_line, tone_icon, visible_tags,
     };
+    use kanso_engine::sync::words::{WAITING_FOR_APPROVAL, problem_label};
     use std::collections::HashSet;
 
     use super::{BookFolds, flat_tag_ids, visible_book_rows, visible_tag_rows};

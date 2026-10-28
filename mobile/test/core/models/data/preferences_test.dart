@@ -22,6 +22,7 @@ void main() {
       expect(preferences.sort, SortKey.updated);
       expect(preferences.descending, isTrue);
       expect(preferences.backupNoticeSeen, isFalse);
+      expect(preferences.iconTheme, 'lucide');
       expect(preferences.fonts, const KansoFonts());
     });
 
@@ -57,6 +58,15 @@ void main() {
           descending: false,
           fonts: KansoFonts(previewFont: KansoFontFamily.literata),
         ),
+      );
+    });
+
+    test('an icon theme is kept by its ID', () {
+      final json = const Preferences(iconTheme: 'phosphor').toJson();
+      expect(json['iconTheme'], 'phosphor');
+      expect(
+        Preferences.fromJson(json),
+        const Preferences(iconTheme: 'phosphor'),
       );
     });
 

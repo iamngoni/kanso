@@ -24,6 +24,24 @@ abstract final class KansoShadows {
     return brightness == Brightness.light ? 1 : 2.4;
   }
 
+  /// A button afloat over a list.
+  static List<BoxShadow> raised(Brightness brightness) {
+    final base = _base(brightness);
+    final k = _strength(brightness);
+    return <BoxShadow>[
+      BoxShadow(
+        color: base.withValues(alpha: 0.16 * k),
+        blurRadius: 20,
+        offset: const Offset(0, 8),
+      ),
+      BoxShadow(
+        color: base.withValues(alpha: 0.10 * k),
+        blurRadius: 4,
+        offset: const Offset(0, 1),
+      ),
+    ];
+  }
+
   /// A menu or a popup over text.
   static List<BoxShadow> floating(Brightness brightness) {
     final base = _base(brightness);

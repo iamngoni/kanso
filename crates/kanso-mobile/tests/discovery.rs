@@ -234,10 +234,12 @@ fn the_models_folder_is_inside_the_folder_kept_out_of_backups() {
     install();
     let phone = lone_phone();
     let discovery = phone.library.discovery();
-    let folder = phone.dir.path();
-    assert!(discovery.model_dir().starts_with(folder));
+    // The library keeps the folder's real path (a temporary folder on macOS
+    // is under `/var`, which is a link to `/private/var`).
+    let folder = phone.dir.path().canonicalize().unwrap();
+    assert!(discovery.model_dir().starts_with(&folder));
     let expected = cfg!(target_vendor = "apple").then_some(true);
-    assert_eq!(kanso_mobile::diagnostics::backup_excluded(folder), expected);
+    assert_eq!(kanso_mobile::diagnostics::backup_excluded(&folder), expected);
 }
 
 #[test]
@@ -248,7 +250,10 @@ fn a_locked_or_excluded_note_is_never_related_suggested_twinned_or_found() {
         let topic = tag(&store, "topic");
         let secret = tag(&store, "secret");
         let book = book(&store, "Notes");
-        // The same words in every one, so each would be a twin.
+        // The same words in every one, so each would be a twin. The words
+        // are said twice because the tests' letter-count embedder needs
+        // enough of them shared to reach the duplicate threshold (0.95):
+        // titles alone would pull two otherwise identical notes apart.
         for (name, tags) in [
             ("plain", vec![&topic]),
             ("friend", vec![&topic]),
@@ -258,7 +263,7 @@ fn a_locked_or_excluded_note_is_never_related_suggested_twinned_or_found() {
         ] {
             let id = raw_note(
                 &store,
-                json!({"title": name, "body": format!("{ORCHARD} {name}"), "bookId": book, "tags": tags}),
+                json!({"title": name, "body": format!("{ORCHARD}. {ORCHARD}. {name}"), "bookId": book, "tags": tags}),
             );
             ids.insert(name, id);
         }

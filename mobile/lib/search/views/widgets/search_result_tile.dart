@@ -3,6 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
@@ -10,7 +11,9 @@ import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_icon.dart';
+import '../../../core/views/widgets/kanso_lock_mark.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
+import '../../../lock/state/lock_status/lock_status_bloc.dart';
 import 'highlighted_text.dart';
 
 /// A search result: the note's title, its notebook and the text around the
@@ -42,6 +45,9 @@ class SearchResultTile extends StatelessWidget {
     final typography = context.typography;
     final row = hit.row;
     final untitled = row.title.trim().isEmpty;
+    final unlocked =
+        row.locked &&
+        context.select<LockStatusBloc, bool>((lock) => lock.state.unlocked);
     return KansoPressable(
       onTap: onTap,
       child: Container(
@@ -65,11 +71,7 @@ class SearchResultTile extends StatelessWidget {
                 ),
                 if (row.locked) ...<Widget>[
                   const SizedBox(width: KansoSpacing.xs),
-                  KansoIcon(
-                    KansoIcons.lock,
-                    size: KansoSizes.glyph,
-                    color: colors.textMuted,
-                  ),
+                  KansoLockMark(unlocked: unlocked),
                 ],
               ],
             ),
@@ -95,7 +97,10 @@ class SearchResultTile extends StatelessWidget {
             if (row.locked || row.snippet.isNotEmpty) ...<Widget>[
               const SizedBox(height: KansoSpacing.xs),
               if (row.locked)
-                Text(l10n.noteListLocked, style: typography.secondary)
+                Text(
+                  unlocked ? l10n.noteListUnlocked : l10n.noteListLocked,
+                  style: typography.secondary,
+                )
               else
                 HighlightedText(
                   row.snippet,

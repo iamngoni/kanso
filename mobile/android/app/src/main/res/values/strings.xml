@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_saved">Saved to your Inbox.</string>
+    <string name="share_kept">Saved. It shows in Kanso when you open it.</string>
+    <string name="share_nothing">There was nothing to save.</string>
+    <string name="share_failed">Kanso couldn\'t save this. Try again.</string>
+
+    <string name="shortcut_new_short">New note</string>
+    <string name="shortcut_new_long">Write a new note</string>
+    <string name="shortcut_voice_short">Voice note</string>
+    <string name="shortcut_voice_long">Record a voice note</string>
+    <string name="shortcut_today_short">Today</string>
+    <string name="shortcut_today_long">Open today\'s note</string>
+
+    <string name="widget_description">Start a note, record a voice note or open today\'s note.</string>
+    <string name="widget_new">New note</string>
+    <string name="widget_voice">Voice note</string>
+    <string name="widget_today">Today</string>
+</resources>

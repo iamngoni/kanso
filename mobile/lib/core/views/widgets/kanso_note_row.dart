@@ -11,6 +11,7 @@ import '../../models/data/note_status.dart';
 import '../../utils/context_extensions.dart';
 import 'kanso_checkbox.dart';
 import 'kanso_icon.dart';
+import 'kanso_lock_mark.dart';
 import 'kanso_pressable.dart';
 import 'kanso_status_glyph.dart';
 import 'kanso_tag_chip.dart';
@@ -32,6 +33,7 @@ class KansoNoteRow extends StatelessWidget {
     this.tags = const <KansoTagChip>[],
     this.pinned = false,
     this.locked = false,
+    this.unlocked = false,
     this.selected = false,
     this.checked,
     this.onTap,
@@ -47,6 +49,9 @@ class KansoNoteRow extends StatelessWidget {
   final List<KansoTagChip> tags;
   final bool pinned;
   final bool locked;
+
+  /// Whether a locked note is open now: its lock is drawn open.
+  final bool unlocked;
   final bool selected;
   final bool? checked;
   final VoidCallback? onTap;
@@ -72,11 +77,7 @@ class KansoNoteRow extends StatelessWidget {
             ),
             if (locked) ...<Widget>[
               const SizedBox(width: KansoSpacing.xs),
-              KansoIcon(
-                KansoIcons.lock,
-                size: KansoSizes.glyph,
-                color: colors.textMuted,
-              ),
+              KansoLockMark(unlocked: unlocked),
             ],
             if (pinned) ...<Widget>[
               const SizedBox(width: KansoSpacing.xs),

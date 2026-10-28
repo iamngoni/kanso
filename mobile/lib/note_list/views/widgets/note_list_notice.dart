@@ -7,20 +7,19 @@ import 'package:flutter/material.dart';
 import '../../../core/configs/kanso_radii.dart';
 import '../../../core/configs/kanso_shadows.dart';
 import '../../../core/configs/kanso_spacing.dart';
-import '../../../core/models/data/application_error.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 
-/// A short line afloat at the foot of the list that says why a change to
-/// notes did not happen, and goes when it has been read.
+/// A short line afloat at the foot of the list that says [message], why a
+/// change to notes did not happen, and goes when it has been read.
 class NoteListNotice extends StatelessWidget {
   const NoteListNotice({
-    required this.error,
+    required this.message,
     required this.onDismiss,
     super.key,
   });
 
-  final ApplicationError error;
+  final String message;
   final VoidCallback onDismiss;
 
   @override
@@ -45,9 +44,7 @@ class NoteListNotice extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: Text(
-                error is LockedError
-                    ? l10n.noteListChangeLocked
-                    : l10n.noteListChangeFailed,
+                message,
                 style: context.typography.secondary.copyWith(
                   color: colors.text,
                 ),
@@ -59,9 +56,7 @@ class NoteListNotice extends StatelessWidget {
                 padding: const EdgeInsets.all(KansoSpacing.sm),
                 child: Text(
                   l10n.noteListDismiss,
-                  style: context.typography.body.copyWith(
-                    color: colors.accent,
-                  ),
+                  style: context.typography.body.copyWith(color: colors.accent),
                 ),
               ),
             ),

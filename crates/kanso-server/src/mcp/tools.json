@@ -72,7 +72,7 @@
       "type": "object",
       "properties": {
         "bookId": {
-          "description": "ID of the notebook. It always starts with 'book:'. You can retrieve a list of notebooks with `list-notebooks`",
+          "description": "ID of the notebook. It always starts with 'book:'. You can retrieve a list of notebooks with `list-notebooks`. The pseudo-notebooks 'trash' and 'template' are not supported here; use `list-templates` for templates",
           "type": "string"
         },
         "tagIds": {
@@ -114,6 +114,23 @@
     }
   },
   {
+    "name": "list-templates",
+    "description": "List note templates: your custom templates, followed by the official ones bundled with Inkdrop.\nTemplates are notes whose `bookId` is `template`. Official templates are read-only.\nThe result does not include entire template bodies as they are truncated in 200 characters.\nYou have to retrieve the full template content by calling `read-note`.\n",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "keyword": {
+          "description": "Filter templates by fuzzy-matching their titles. Search qualifiers such as `book:` or `tag:` are not supported.",
+          "type": "string"
+        }
+      }
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "create-note",
     "description": "Create a new note in the database",
     "inputSchema": {
@@ -124,8 +141,8 @@
           "type": "string",
           "minLength": 5,
           "maxLength": 128,
-          "pattern": "^(book:|trash$)",
-          "description": "The notebook ID"
+          "pattern": "^(book:|trash$|template$)",
+          "description": "The notebook ID. Specify `template` to create a custom note template"
         },
         "title": {
           "type": "string",
@@ -187,11 +204,11 @@
           "description": "This is a CouchDB specific field. The current MVCC-token/revision of this document (mandatory and immutable)."
         },
         "bookId": {
-          "description": "The notebook ID",
+          "description": "The notebook ID. Specify `template` to turn the note into a custom note template",
           "type": "string",
           "minLength": 5,
           "maxLength": 128,
-          "pattern": "^(book:|trash$)"
+          "pattern": "^(book:|trash$|template$)"
         },
         "title": {
           "description": "The note title",

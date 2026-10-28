@@ -12,16 +12,23 @@ import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
+import 'package:kanso/core/models/data/load_status.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
+import 'package:kanso/core/views/widgets/kanso_badge.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer.dart';
+import 'package:kanso/core/views/widgets/kanso_icon_button.dart';
 import 'package:kanso/core/views/widgets/kanso_sidebar_row.dart';
 import 'package:kanso/library/views/widgets/library_pane.dart';
+import 'package:kanso/sharing/state/invitations/invitations_bloc.dart';
 
 import '../../../helpers/close_bloc_later.dart';
 import '../../../helpers/fixture_library_repository.dart';
+import '../../../helpers/fixture_shared_notes_repository.dart';
 import '../../../helpers/golden.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/pump_routed.dart';
+import '../../../helpers/register_page_blocs.dart';
+import '../../../helpers/sharing_fixtures.dart';
 
 Future<LibraryIndexBloc> _readyIndex(
   WidgetTester tester,
@@ -36,9 +43,20 @@ Future<LibraryIndexBloc> _readyIndex(
   return bloc;
 }
 
-Widget _pane(LibraryIndexBloc bloc, {BrowseLocation? location}) {
-  return BlocProvider<LibraryIndexBloc>.value(
-    value: bloc,
+Widget _pane(
+  LibraryIndexBloc bloc, {
+  BrowseLocation? location,
+  InvitationsBloc? invitations,
+}) {
+  final shared = invitations ?? InvitationsBloc(FixtureSharedNotesRepository());
+  if (invitations == null) {
+    closeBlocLater(shared);
+  }
+  return MultiBlocProvider(
+    providers: <BlocProvider<dynamic>>[
+      BlocProvider<LibraryIndexBloc>.value(value: bloc),
+      BlocProvider<InvitationsBloc>.value(value: shared),
+    ],
     child: LibraryPane(
       location: location ?? const BrowseLocation.place(ListPlace.all()),
     ),
@@ -58,9 +76,30 @@ void main() {
   setUp(() {
     library = FixtureLibraryRepository();
     addTearDown(() => unawaited(library.close()));
+    registerPageBlocs(library);
   });
 
   group('LibraryPane', () {
+    testWidgets('the notebooks header has a button that asks for a name and '
+        'goes to the new notebook', (tester) async {
+      final bloc = await _readyIndex(tester, library);
+      final router = await pumpRouted(tester, _pane(bloc));
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is KansoIconButton &&
+              widget.semanticLabel == 'New notebook',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(EditableText), 'Recipes');
+      await tester.pump();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      expect(library.notebooksCreated.single.$1, 'Recipes');
+      expect(topOf(router), startsWith('/notebooks/'));
+    });
+
     testWidgets('lists the places, notebooks and tags with their counts', (
       tester,
     ) async {
@@ -74,13 +113,55 @@ void main() {
       expect(find.text('Recent'), findsOneWidget);
       expect(find.text('Work'), findsOneWidget);
       expect(find.text('31'), findsOneWidget);
+      // The tags are below the fold of a phone's library.
+      await tester.scrollUntilVisible(find.text('idea'), 120);
       expect(find.text('idea'), findsOneWidget);
       expect(find.text('Trash', skipOffstage: false), findsOneWidget);
       expect(find.text('4', skipOffstage: false), findsOneWidget);
-      // The mock's Tasks row has no screen yet, and there is no Templates
-      // notebook in this library.
-      expect(find.text('Tasks'), findsNothing);
+      expect(find.text('Tasks'), findsOneWidget);
+      // There is no Templates notebook in this library.
       expect(find.text('Templates'), findsNothing);
+    });
+
+    testWidgets('counts the overdue tasks on the Tasks row, or nothing', (
+      tester,
+    ) async {
+      final bloc = await _readyIndex(tester, library);
+      await pumpRouted(tester, _pane(bloc));
+      expect(find.text('2'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.value == '2 overdue tasks',
+        ),
+        findsOneWidget,
+      );
+
+      library.overdueValue = 0;
+      final none = await _readyIndex(tester, library);
+      await pumpRouted(tester, _pane(none));
+      expect(find.text('2'), findsNothing);
+      expect(find.text('Tasks'), findsOneWidget);
+    });
+
+    testWidgets('opens the Tasks place, and selects its row there', (
+      tester,
+    ) async {
+      final bloc = await _readyIndex(tester, library);
+      final router = await pumpRouted(tester, _pane(bloc));
+      expect(_selection(tester)['Tasks'], isFalse);
+      await tester.tap(find.text('Tasks'));
+      await tester.pumpAndSettle();
+      expect(whereIs(router), const BrowseLocation.tasks().location);
+
+      await pumpRouted(
+        tester,
+        _pane(bloc, location: const BrowseLocation.tasks()),
+      );
+      final selected = _selection(tester);
+      expect(selected['Tasks'], isTrue);
+      expect(selected['All Notes'], isFalse);
     });
 
     testWidgets('indents a notebook inside another', (tester) async {
@@ -179,6 +260,48 @@ void main() {
       await tester.tap(find.text('todo'));
       await tester.pumpAndSettle();
       expect(whereIs(router), '/tags/${Uri.encodeComponent(MockIds.tagTodo)}');
+    });
+
+    testWidgets('has Shared with you after Recent, with no count while '
+        'nothing waits', (tester) async {
+      final bloc = await _readyIndex(tester, library);
+      await pumpRouted(tester, _pane(bloc), size: const Size(393, 1400));
+      final labels = tester
+          .widgetList<KansoSidebarRow>(find.byType(KansoSidebarRow))
+          .map((row) => row.label)
+          .toList();
+      expect(labels.indexOf('Shared with you'), labels.indexOf('Recent') + 1);
+      expect(find.byType(KansoBadge), findsNothing);
+    });
+
+    testWidgets('Shared with you shows how many invitations wait, and opens '
+        'them after reading them again', (tester) async {
+      final bloc = await _readyIndex(tester, library);
+      final shared = FixtureSharedNotesRepository()
+        ..invitationList = <InvitationRow>[
+          invitationRow('s_1'),
+          invitationRow('s_2'),
+        ];
+      final invitations = InvitationsBloc(shared)
+        ..add(const InvitationsEvent.started());
+      closeBlocLater(invitations);
+      await invitations.stream.firstWhere(
+        (state) => state.status != LoadStatus.loading,
+      );
+      final router = await pumpRouted(
+        tester,
+        _pane(bloc, invitations: invitations),
+        size: const Size(393, 1400),
+      );
+      expect(
+        tester.widget<KansoBadge>(find.byType(KansoBadge)).label,
+        '2',
+      );
+      shared.invitationList = <InvitationRow>[invitationRow('s_1')];
+      await tester.tap(find.text('Shared with you'));
+      await tester.pumpAndSettle();
+      expect(topOf(router), '/shared');
+      expect(invitations.state.invitations.length, 1);
     });
 
     testWidgets('the search field opens search; settings opens settings', (

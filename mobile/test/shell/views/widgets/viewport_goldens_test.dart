@@ -70,6 +70,11 @@ Future<void> _openMore(WidgetTester tester, BrowseApp app) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _openFilter(WidgetTester tester, BrowseApp app) async {
+  await tester.tap(find.bySemanticsLabel('Filter tasks'));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _select(WidgetTester tester, BrowseApp app) async {
   await tester.longPress(find.text('Sync design notes'));
   await tester.pumpAndSettle();
@@ -123,6 +128,29 @@ final List<Screen> _screens = <Screen>[
   const Screen('note_list_options', interact: _openMore),
   const Screen('note_list_move', interact: _openMove),
   const Screen('note_list_swipe', interact: _swipe),
+  const Screen('tasks', at: '/tasks'),
+  Screen(
+    'tasks_loading',
+    at: '/tasks',
+    library: () => FixtureLibraryRepository()..tasksGate = Completer<void>(),
+  ),
+  Screen(
+    'tasks_empty',
+    at: '/tasks',
+    library: () =>
+        FixtureLibraryRepository()
+          ..tasksResult = const Right<ApplicationError, TaskBoard>(
+            TaskBoard(groups: <TaskSection>[]),
+          ),
+  ),
+  Screen(
+    'tasks_failed',
+    at: '/tasks',
+    library: () =>
+        FixtureLibraryRepository()
+          ..tasksResult = const Left<ApplicationError, TaskBoard>(_diskError),
+  ),
+  const Screen('tasks_filter', at: '/tasks', interact: _openFilter),
   Screen('note', at: _noteAt(MockIds.syncDesign)),
   Screen('note_locked', at: _noteAt(MockIds.privateJournal)),
   Screen('note_not_found', at: _noteAt('note:gone')),
@@ -224,7 +252,14 @@ Future<void> _swipe(WidgetTester tester, BrowseApp app) async {
 
 /// The screens a phone has no picture of yet: the others are in the tests of
 /// their panes, at the phone's size.
-const Set<String> _phoneScreens = <String>{'settings_licences'};
+const Set<String> _phoneScreens = <String>{
+  'settings_licences',
+  'tasks',
+  'tasks_loading',
+  'tasks_empty',
+  'tasks_failed',
+  'tasks_filter',
+};
 
 void main() {
   loadRealThemes();

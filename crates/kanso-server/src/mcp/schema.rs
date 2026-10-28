@@ -1,5 +1,5 @@
-//! The tool definitions of `@inkdropapp/mcp-server` 1.5.0 and argument
-//! validation equivalent to its zod schemas.
+//! Kanso's MCP tool definitions and argument
+//! validation equivalent to `@inkdropapp/mcp-server` 1.5.0.
 //!
 //! `tools.json` is the Node server's `tools/list` answer, verbatim, so names,
 //! descriptions and input schemas match it exactly. Validation follows zod's
@@ -349,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn kanso_tools_follow_the_seventeen_with_their_prefix() {
+    fn kanso_tools_follow_the_inkdrop_tools_with_their_prefix() {
         let names: Vec<&str> = definitions()
             .as_array()
             .unwrap()
@@ -358,16 +358,28 @@ mod tests {
             .collect();
         // Kanso's own, sorted by name.
         assert_eq!(
-            &names[17..],
+            &names[18..],
             [
+                "kanso-attach-file",
                 "kanso-create-daily-note",
                 "kanso-create-from-template",
                 "kanso-export-html",
                 "kanso-get-outline",
+                "kanso-get-properties",
+                "kanso-list-attachments",
+                "kanso-list-backlinks",
+                "kanso-list-note-links",
+                "kanso-list-tags",
                 "kanso-list-tasks",
+                "kanso-list-versions",
+                "kanso-move-note",
+                "kanso-read-attachment",
+                "kanso-read-version",
                 "kanso-related-notes",
                 "kanso-resolve-wikilink",
-                "kanso-search-by-meaning"
+                "kanso-run-query-view",
+                "kanso-search-by-meaning",
+                "kanso-set-task-done"
             ]
         );
         assert!(validate("kanso-list-tasks", json!({})).is_ok());
@@ -403,21 +415,22 @@ mod tests {
     }
 
     #[test]
-    fn the_catalog_has_the_seventeen_tools_in_order() {
+    fn the_catalog_has_the_inkdrop_tools_in_order() {
         let names: Vec<&str> = definitions()
             .as_array()
             .unwrap()
             .iter()
-            .take(17)
+            .take(18)
             .map(|t| t["name"].as_str().unwrap())
             .collect();
         assert_eq!(
-            names[..17],
+            names[..18],
             [
                 "read-note",
                 "read-backlinks",
                 "search-notes",
                 "list-notes",
+                "list-templates",
                 "create-note",
                 "update-note",
                 "patch-note",
@@ -510,7 +523,7 @@ mod tests {
             )
             .unwrap_err(),
             "Too small: expected string to have >=5 characters at bookId\n\
-             Invalid string: must match pattern /^(book:|trash$)/ at bookId"
+             Invalid string: must match pattern /^(book:|trash$|template$)/ at bookId"
         );
     }
 

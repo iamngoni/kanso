@@ -4,8 +4,10 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../configs/kanso_motion.dart';
 import '../../configs/kanso_sizes.dart';
 import '../../configs/kanso_spacing.dart';
 import '../../utils/context_extensions.dart';
@@ -23,6 +25,7 @@ class KansoTopBar extends StatelessWidget {
     this.trailing = const <Widget>[],
     this.backgroundColor,
     this.bordered = true,
+    this.titleShown,
     super.key,
   });
 
@@ -38,6 +41,11 @@ class KansoTopBar extends StatelessWidget {
 
   /// A line along the bottom edge.
   final bool bordered;
+
+  /// Whether the [title] and the line are shown, for a page whose large
+  /// title scrolls with it: they fade in once it has gone under the bar.
+  /// Always shown when null.
+  final ValueListenable<bool>? titleShown;
 
   @override
   Widget build(BuildContext context) {
@@ -73,23 +81,26 @@ class KansoTopBar extends StatelessWidget {
                   leading: leading,
                   middle: name == null
                       ? null
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: typography.barTitle,
-                            ),
-                            if (note != null)
+                      : _shown(
+                          context,
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
                               Text(
-                                note,
+                                name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: typography.meta,
+                                style: typography.barTitle,
                               ),
-                          ],
+                              if (note != null)
+                                Text(
+                                  note,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: typography.meta,
+                                ),
+                            ],
+                          ),
                         ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -99,9 +110,27 @@ class KansoTopBar extends StatelessWidget {
                 ),
               ),
             ),
-            if (bordered) const KansoDivider(),
+            if (bordered) _shown(context, const KansoDivider()),
           ],
         ),
+      ),
+    );
+  }
+
+  /// [child], fading in and out with [titleShown].
+  Widget _shown(BuildContext context, Widget child) {
+    final shown = titleShown;
+    if (shown == null) {
+      return child;
+    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: shown,
+      child: child,
+      // Gone, not just clear, while hidden: the large title is the one a
+      // screen reader finds.
+      builder: (context, visible, child) => AnimatedSwitcher(
+        duration: KansoMotion.resolve(context, KansoMotion.fast),
+        child: visible ? child : const SizedBox.shrink(),
       ),
     );
   }

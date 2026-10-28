@@ -16,12 +16,14 @@ import 'kanso_pressable.dart';
 ///
 /// [selected] draws the icon in the accent colour on a soft wash, for a
 /// control that is on. [semanticLabel] says what it does, for screen
-/// readers; there is no visible label.
+/// readers; there is no visible label. [onLongPress] is what holding it
+/// does, offered to screen readers as an action too.
 class KansoIconButton extends StatelessWidget {
   const KansoIconButton({
     required this.icon,
     required this.semanticLabel,
     this.onPressed,
+    this.onLongPress,
     this.color,
     this.selected = false,
     this.iconSize = KansoSizes.icon,
@@ -31,6 +33,7 @@ class KansoIconButton extends StatelessWidget {
   final KansoIcons icon;
   final String semanticLabel;
   final VoidCallback? onPressed;
+  final VoidCallback? onLongPress;
 
   /// The icon's colour; the secondary text colour when null.
   final Color? color;
@@ -44,7 +47,9 @@ class KansoIconButton extends StatelessWidget {
     final tint = selected ? colors.accent : color ?? colors.textSecondary;
     return KansoPressable(
       onTap: onPressed,
+      onLongPress: onLongPress,
       semanticLabel: semanticLabel,
+      scale: KansoEffects.pressScale,
       child: SizedBox.square(
         dimension: KansoSizes.touchTarget,
         child: Center(

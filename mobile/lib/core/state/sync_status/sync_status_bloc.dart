@@ -25,6 +25,10 @@ class SyncStatusBloc extends Bloc<SyncStatusEvent, SyncStatusState> {
       _onSyncRequested,
       transformer: droppable(),
     );
+    on<SyncStatusForegroundChangedEvent>(
+      _onForegroundChanged,
+      transformer: sequential(),
+    );
   }
 
   final SyncRepository _sync;
@@ -37,6 +41,15 @@ class SyncStatusBloc extends Bloc<SyncStatusEvent, SyncStatusState> {
       _sync.statusStream(),
       onData: (status) => emit(state.copyWith(status: status)),
     );
+  }
+
+  Future<void> _onForegroundChanged(
+    SyncStatusForegroundChangedEvent event,
+    Emitter<SyncStatusState> emit,
+  ) async {
+    // A failure to say so changes nothing the person can act on: the library
+    // keeps its own state, and the next change says it again.
+    await _sync.setForeground(foreground: event.foreground);
   }
 
   Future<void> _onSyncRequested(

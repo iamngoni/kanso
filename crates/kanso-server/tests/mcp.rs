@@ -47,20 +47,33 @@ async fn initialize_negotiates_the_protocol_version() {
 }
 
 #[tokio::test]
-async fn lists_the_seventeen_tools_and_the_note_template() {
+async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
     let app = app();
     let answer = rpc(&app.router, "tools/list", json!({})).await;
     let tools = answer["result"]["tools"].as_array().unwrap();
     // The 17, then Kanso's own.
-    assert_eq!(tools.len(), 25);
+    assert_eq!(tools.len(), 38);
     assert!(
-        tools[17..]
+        tools[18..]
             .iter()
             .all(|t| t["name"].as_str().unwrap().starts_with("kanso-"))
     );
     for tool in tools {
         assert!(tool["description"].as_str().is_some_and(|d| !d.is_empty()));
         assert_eq!(tool["inputSchema"]["type"], "object");
+        for (_, schema) in tool["inputSchema"]["properties"]
+            .as_object()
+            .into_iter()
+            .flatten()
+        {
+            assert!(
+                schema["description"]
+                    .as_str()
+                    .is_some_and(|d| !d.is_empty()),
+                "{}",
+                tool["name"]
+            );
+        }
     }
     let answer = rpc(&app.router, "resources/templates/list", json!({})).await;
     assert_eq!(
@@ -76,6 +89,192 @@ async fn lists_the_seventeen_tools_and_the_note_template() {
         rpc(&app.router, "ping", json!({})).await["result"],
         json!({})
     );
+}
+
+#[tokio::test]
+async fn kanso_tools_read_properties_links_query_views_and_versions() {
+    let app = app();
+    let (book_id, _) = write(&app.router, "/books", json!({ "name": "Library" })).await;
+    let (target, _) = write(&app.router, "/notes", json!({
+        "bookId": book_id, "title": "Target", "body": "---\npriority: 3\nlabels: [one, two]\n---\n# Heading\n"
+    })).await;
+    let (source, _) = write(&app.router, "/notes", json!({
+        "bookId": book_id, "title": "Source", "body": format!("[[Target]]\ninkdrop://note/{}\n", target.trim_start_matches("note:"))
+    })).await;
+
+    let props = tool_json(
+        &tool(
+            &app.router,
+            "kanso-get-properties",
+            json!({ "noteId": target }),
+        )
+        .await,
+    );
+    assert_eq!(
+        props["properties"],
+        json!([
+            { "key": "priority", "value": 3.0 },
+            { "key": "labels", "value": ["one", "two"] }
+        ])
+    );
+    let outgoing = tool_json(
+        &tool(
+            &app.router,
+            "kanso-list-note-links",
+            json!({ "noteId": source }),
+        )
+        .await,
+    );
+    assert_eq!(outgoing.as_array().unwrap().len(), 2);
+    assert_eq!(outgoing[0]["target"]["noteId"], target);
+    let backlinks = tool_json(
+        &tool(
+            &app.router,
+            "kanso-list-backlinks",
+            json!({ "noteId": target }),
+        )
+        .await,
+    );
+    assert_eq!(backlinks[0]["noteId"], source);
+
+    let (view, _) = write(&app.router, "/notes", json!({
+        "bookId": book_id, "title": "View", "body": "```query\nfrom: Target\ncolumns: priority\n```\n"
+    })).await;
+    let rows = tool_json(
+        &tool(
+            &app.router,
+            "kanso-run-query-view",
+            json!({ "noteId": view }),
+        )
+        .await,
+    );
+    assert_eq!(rows["columns"], json!(["Title", "priority"]));
+    assert_eq!(rows["rows"][0]["noteId"], target);
+    assert_eq!(rows["rows"][0]["cells"], json!([3.0]));
+
+    let (history, rev) = write(
+        &app.router,
+        "/notes",
+        json!({ "bookId": book_id, "title": "History", "body": "first" }),
+    )
+    .await;
+    let updated = tool(
+        &app.router,
+        "update-note",
+        json!({ "_id": history, "_rev": rev, "body": "second" }),
+    )
+    .await;
+    assert_ne!(updated["isError"], true);
+    let versions = tool_json(
+        &tool(
+            &app.router,
+            "kanso-list-versions",
+            json!({ "noteId": history }),
+        )
+        .await,
+    );
+    assert!(
+        versions
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|version| version["rev"] == rev)
+    );
+    let old = tool_json(
+        &tool(
+            &app.router,
+            "kanso-read-version",
+            json!({ "noteId": history, "rev": rev }),
+        )
+        .await,
+    );
+    assert_eq!(old["body"], "first");
+}
+
+#[tokio::test]
+async fn inkdrop_template_tools_map_to_kansos_templates_notebook() {
+    let app = app();
+    let created = tool_json(
+        &tool(
+            &app.router,
+            "create-note",
+            json!({ "bookId": "template", "title": "Release", "body": "# Release" }),
+        )
+        .await,
+    );
+    let listed = tool_json(
+        &tool(
+            &app.router,
+            "list-templates",
+            json!({ "keyword": "Release" }),
+        )
+        .await,
+    );
+    assert_eq!(listed[0]["_id"], created["id"]);
+    assert_eq!(listed[0]["title"], "Release");
+    assert_eq!(
+        get(
+            &app.router,
+            &format!("/{}", created["id"].as_str().unwrap()),
+        )
+        .await
+        .1["bookId"],
+        "book:templates"
+    );
+}
+
+#[tokio::test]
+async fn kanso_explicit_writes_move_notes_toggle_tasks_and_attach_files() {
+    let app = app();
+    let (book_a, _) = write(&app.router, "/books", json!({ "name": "A" })).await;
+    let (book_b, _) = write(&app.router, "/books", json!({ "name": "B" })).await;
+    let (note, _) = write(
+        &app.router,
+        "/notes",
+        json!({ "bookId": book_a, "title": "Work", "body": "- [ ] Ship it\n" }),
+    )
+    .await;
+    let task = tool(
+        &app.router,
+        "kanso-set-task-done",
+        json!({ "noteId": note, "line": 0, "text": "Ship it", "done": true }),
+    )
+    .await;
+    assert_ne!(task["isError"], true);
+    let moved = tool(
+        &app.router,
+        "kanso-move-note",
+        json!({ "noteId": note, "bookId": book_b }),
+    )
+    .await;
+    assert_ne!(moved["isError"], true);
+    assert_eq!(
+        get(&app.router, &format!("/{note}")).await.1["bookId"],
+        book_b
+    );
+
+    let attached = tool_json(&tool(&app.router, "kanso-attach-file", json!({
+        "noteId": note, "name": "pixel.png", "contentType": "image/png", "data": STANDARD.encode(PNG)
+    })).await);
+    assert_eq!(attached["contentLength"], PNG.len());
+    let listed = tool_json(
+        &tool(
+            &app.router,
+            "kanso-list-attachments",
+            json!({ "noteId": note }),
+        )
+        .await,
+    );
+    assert_eq!(listed[0]["fileId"], attached["fileId"]);
+    let file = tool_json(
+        &tool(
+            &app.router,
+            "kanso-read-attachment",
+            json!({ "noteId": note, "fileId": attached["fileId"] }),
+        )
+        .await,
+    );
+    assert_eq!(file["_attachments"]["index"]["data"], STANDARD.encode(PNG));
 }
 
 #[tokio::test]
@@ -184,7 +383,7 @@ async fn tool_errors_read_like_the_node_server() {
         text(&result, 0),
         "MCP error -32602: Input validation error: Invalid arguments for tool create-note: \
          Too small: expected string to have >=5 characters at bookId\n\
-         Invalid string: must match pattern /^(book:|trash$)/ at bookId"
+         Invalid string: must match pattern /^(book:|trash$|template$)/ at bookId"
     );
     let result = tool(
         &app.router,

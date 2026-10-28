@@ -342,6 +342,130 @@ fn undo_leaves_notes_edited_since() {
     assert_eq!(body(&store, "note:2"), "dog, edited again\n");
 }
 
+fn sealed_fields(store: &Store, id: &str) -> serde_json::Value {
+    let mut note = store.get_api(id, None, false).unwrap();
+    note["body"] = "".into();
+    note["kansoLock"] =
+        json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "sealed"});
+    note
+}
+
+/// The notebook with its lock set, as sync brings it.
+fn lock_book_by_sync(store: &Store, id: &str) {
+    let mut book = store.get_api(id, None, false).unwrap();
+    book.as_object_mut().unwrap().remove("count");
+    book["kansoLock"] =
+        json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "notebook"});
+    store
+        .put(DocType::Book, book, Put::Upsert, Origin::Sync)
+        .unwrap();
+}
+
+/// A plan that names a sealed note, or one in a locked notebook, at its
+/// right revision writes nothing into it: it is skipped and reported.
+#[test]
+fn replace_never_writes_into_a_locked_note_even_if_the_plan_names_it() {
+    let (_dir, store) = temp_store();
+    let a = book(&store, "book:a");
+    note(&store, "note:open", "cat\n", &a);
+    note(&store, "note:sealed", "cat\n", &a);
+    store
+        .lock_note(sealed_fields(&store, "note:sealed"))
+        .unwrap();
+    // Text beside the lock, as an older Kanso on another device can sync it.
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": "note:sealed", "body": "cat from an older Kanso"}),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    let private = book(&store, "book:private");
+    note(&store, "note:inside", "cat\n", &private);
+    lock_book_by_sync(&store, &private);
+    assert!(store.note_is_locked("note:sealed").unwrap());
+    assert!(store.note_is_locked("note:inside").unwrap());
+
+    let forged: Vec<Planned> = ["note:open", "note:sealed", "note:inside"]
+        .iter()
+        .map(|id| Planned {
+            id: (*id).into(),
+            rev: store.get(id).unwrap().unwrap().rev,
+        })
+        .collect();
+    let sealed_before = store.get("note:sealed").unwrap().unwrap();
+    let inside_before = store.get("note:inside").unwrap().unwrap();
+    let report = store
+        .replace_in_notes(&matcher("cat", false), "LEAK", &forged, "forged", 9000)
+        .unwrap();
+    let skipped: Vec<&str> = report.skipped.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(skipped, ["note:sealed", "note:inside"]);
+    assert_eq!(report.notes, ["note:open"]);
+    assert_eq!(store.get("note:sealed").unwrap().unwrap(), sealed_before);
+    assert_eq!(
+        sealed_before.fields["body"].as_str(),
+        Some("cat from an older Kanso")
+    );
+    assert_eq!(store.get("note:inside").unwrap().unwrap(), inside_before);
+    let pending = store.unsealed_in_locked_books().unwrap();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].body, "cat\n");
+    assert!(body(&store, "note:open").contains("LEAK"));
+}
+
+/// The preview reads only what the app reads: a locked note has no text
+/// there, so it is never listed.
+#[test]
+fn the_preview_leaves_locked_notes_out() {
+    let (_dir, store) = temp_store();
+    let a = book(&store, "book:a");
+    note(&store, "note:open", "cat\n", &a);
+    note(&store, "note:sealed", "cat\n", &a);
+    store
+        .lock_note(sealed_fields(&store, "note:sealed"))
+        .unwrap();
+    let private = book(&store, "book:private");
+    note(&store, "note:inside", "cat\n", &private);
+    lock_book_by_sync(&store, &private);
+    let found = store.replace_preview(&matcher("cat", false), true).unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].id, "note:open");
+}
+
+/// A note that reads as locked by the time the batch is undone keeps what
+/// it has, even if its revision is still the one the replace made.
+#[test]
+fn undo_never_writes_plain_text_into_a_note_locked_since() {
+    let (_dir, store) = temp_store();
+    let a = book(&store, "book:a");
+    note(&store, "note:1", "cat\n", &a);
+    let m = matcher("cat", false);
+    let planned = plan(&store, &m, false);
+    store
+        .replace_in_notes(&m, "dog", &planned, "b", 9000)
+        .unwrap();
+    // The notebook is locked on another device: the text here is kept for
+    // the app to seal, and the note's versions are forgotten.
+    lock_book_by_sync(&store, &a);
+    assert!(store.revisions("note:1").unwrap().is_empty());
+    // A batch entry that outlived that (restored from a copy, say).
+    let rev = store.get("note:1").unwrap().unwrap().rev;
+    let conn = rusqlite::Connection::open(_dir.path().join("kanso.db")).unwrap();
+    conn.execute(
+        "INSERT INTO revisions (doc_id, rev, json, saved_at, origin, batch, batch_rev)
+         VALUES ('note:1', 'old', ?1, 1, 'ui', 'b', ?2)",
+        rusqlite::params![r#"{"body":"cat\n","title":"note:1"}"#, rev],
+    )
+    .unwrap();
+    drop(conn);
+    let undo = store.undo_replace("b", 9100).unwrap();
+    assert!(undo.restored.is_empty());
+    assert_eq!(undo.skipped.len(), 1);
+    assert_eq!(undo.skipped[0].id, "note:1");
+    assert_eq!(store.unsealed_in_locked_books().unwrap()[0].body, "dog\n");
+}
+
 fn bodies() -> impl Strategy<Value = Vec<String>> {
     prop::collection::vec(
         prop::collection::vec(

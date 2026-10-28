@@ -369,6 +369,54 @@ fn comments_mentions_and_orphans() {
     assert!(seen[0].comment.resolved);
 }
 
+// no-prop-test: the last words of a note, one fixed case.
+#[test]
+fn a_comment_on_the_last_words_of_a_shared_note_stays_on_them() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared(&a, &[(&b, Role::Comment)], "The quick brown fox");
+    b.engine.add_comment(&share, 16..19, "The end").unwrap();
+    assert_eq!(
+        b.engine.comments(&share).unwrap()[0].placement,
+        Placement::Anchored(16..19)
+    );
+    b.engine.sync_note(&share).unwrap();
+    a.engine.sync_note(&share).unwrap();
+    assert_eq!(
+        a.engine.comments(&share).unwrap()[0].placement,
+        Placement::Anchored(16..19)
+    );
+    let a_id = a.store.shared_note(&share).unwrap().unwrap().note_id;
+    write_body(&a.store, &a_id, "So, the quick brown fox").unwrap();
+    a.engine.sync_note(&share).unwrap();
+    assert_eq!(
+        a.engine.comments(&share).unwrap()[0].placement,
+        Placement::Anchored(20..23)
+    );
+}
+
+// no-prop-test: the editor hands over the library text after a sync.
+#[test]
+fn the_editor_handing_over_the_librarys_text_adds_nothing_twice() {
+    let server = MemoryCollab::new();
+    let a = device(&server, 1, 1);
+    let share = shared(&a, &[], "The quick brown fox");
+    a.engine.add_comment(&share, 4..9, "On quick").unwrap();
+    let a_id = a.store.shared_note(&share).unwrap().unwrap().note_id;
+    write_body(&a.store, &a_id, "So, the quick brown fox").unwrap();
+    a.engine.sync_note(&share).unwrap();
+    let note = a.store.note(&a_id).unwrap().unwrap();
+    let merge = a
+        .engine
+        .sync_editor(&share, &note.title, &note.body)
+        .unwrap();
+    assert_eq!(merge.body_text, "So, the quick brown fox");
+    assert_eq!(
+        a.engine.comments(&share).unwrap()[0].placement,
+        Placement::Anchored(8..13)
+    );
+}
+
 #[test]
 fn many_updates_compact_and_a_new_device_starts_from_the_snapshot() {
     let server = MemoryCollab::new();

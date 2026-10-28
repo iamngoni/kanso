@@ -220,7 +220,7 @@ pub fn set_engine(engine: Engine) {
 }
 
 /// The engine new jobs draw with.
-pub(crate) fn engine() -> Engine {
+pub fn engine() -> Engine {
     if PELE.load(Ordering::Relaxed) {
         Engine::Pele
     } else {

@@ -11,4 +11,9 @@ sealed class SyncStatusEvent with _$SyncStatusEvent {
 
   /// The person asked to sync now (a pull to refresh).
   const factory SyncStatusEvent.syncRequested() = SyncStatusSyncRequestedEvent;
+
+  /// The app came in front ([foreground] true) or went behind: the library
+  /// syncs in front and stops behind.
+  const factory SyncStatusEvent.foregroundChanged({required bool foreground}) =
+      SyncStatusForegroundChangedEvent;
 }

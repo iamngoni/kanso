@@ -1,5 +1,50 @@
 [
   {
+    "name": "kanso-attach-file",
+    "description": "Create an image attachment from base64 bytes and explicitly append its Markdown image link to a note. The file must fit Kanso’s 10 MiB attachment limit and use a supported image content type.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note to update."
+        },
+        "name": {
+          "type": "string",
+          "description": "The filename to store and the image alt text."
+        },
+        "contentType": {
+          "type": "string",
+          "description": "Supported type: image/png, image/jpeg, image/jpg, image/svg+xml, image/gif, image/heic, or image/heif.",
+          "enum": [
+            "image/png",
+            "image/jpeg",
+            "image/jpg",
+            "image/svg+xml",
+            "image/gif",
+            "image/heic",
+            "image/heif"
+          ]
+        },
+        "data": {
+          "type": "string",
+          "description": "Base64 encoded file bytes, no data URI prefix."
+        }
+      },
+      "required": [
+        "noteId",
+        "name",
+        "contentType",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-create-daily-note",
     "description": "Open the daily note for a day, creating it when there is none, as Kanso's Today command does. Daily notes have fixed IDs (`note:daily-YYYY-MM-DD`) and titles (`YYYY-MM-DD`) and live in the Journal notebook (`book:journal`), which is created on first use. A new daily note is filled in from the Journal's daily template, if one is set. Returns the note's ID, title, notebook and link, and whether it was created now.",
     "inputSchema": {
@@ -60,7 +105,10 @@
           "default": "light",
           "description": "The colors of the page: Kanso's light (paper) or dark (graphite) theme.",
           "type": "string",
-          "enum": ["light", "dark"]
+          "enum": [
+            "light",
+            "dark"
+          ]
         }
       },
       "required": [
@@ -92,6 +140,104 @@
     }
   },
   {
+    "name": "kanso-get-properties",
+    "description": "Read the Kanso properties parsed from a note body. The note must be visible to this caller.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note ID, with or without the `note:` prefix."
+        }
+      },
+      "required": [
+        "noteId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-list-attachments",
+    "description": "List attachment metadata for files embedded in a note. The note must be available through the local API.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note ID, with or without the `note:` prefix."
+        }
+      },
+      "required": [
+        "noteId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-list-backlinks",
+    "description": "List notes that link to this note by ID or wiki title. The target and every returned note must be visible to this caller.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The target note ID, with or without the `note:` prefix."
+        }
+      },
+      "required": [
+        "noteId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-list-note-links",
+    "description": "List outgoing ID and wiki links in a note, with their source line and resolved visible target when available. The note must be visible to this caller.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note ID, with or without the `note:` prefix."
+        }
+      },
+      "required": [
+        "noteId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-list-tags",
+    "description": "List tags used by notes available to this caller. Counts include only notes the caller may see.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-list-tasks",
     "description": "List the task-list items (`- [ ] …` and `- [x] …`) in notes outside the trash, with the note each is in. A task's due date is an `@YYYY-MM-DD` (or `@YYYY-MM-DDTHH:MM`, which also sets a reminder) in its text. Dated tasks come first, soonest first, then tasks without a date. Each task has its text, whether it is done, its due date, its 0-based line in the note's body, and the note's ID, title, notebook and link. To tick a task off, change its `[ ]` to `[x]` on that line with patch-note.",
     "inputSchema": {
@@ -102,7 +248,11 @@
           "default": "open",
           "description": "Which tasks: open ones (not done), done ones, or all.",
           "type": "string",
-          "enum": ["open", "done", "all"]
+          "enum": [
+            "open",
+            "done",
+            "all"
+          ]
         },
         "dueBefore": {
           "type": "string",
@@ -124,6 +274,105 @@
           "type": "number"
         }
       }
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-list-versions",
+    "description": "List saved versions of a visible note. This returns revision metadata only, not historical text.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note ID, with or without the `note:` prefix."
+        }
+      },
+      "required": [
+        "noteId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-move-note",
+    "description": "Move one note to an explicitly named notebook. The store enforces notebook and lock rules.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note to move."
+        },
+        "bookId": {
+          "type": "string",
+          "description": "The destination notebook ID."
+        }
+      },
+      "required": [
+        "noteId",
+        "bookId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-read-attachment",
+    "description": "Read one attachment document embedded in a visible note, including its stored base64 bytes and metadata. Only available to the full local API caller.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "fileId": {
+          "type": "string",
+          "description": "The attachment file ID, with or without the `file:` prefix."
+        },
+        "noteId": {
+          "type": "string",
+          "description": "The note ID containing this attachment, with or without the `note:` prefix."
+        }
+      },
+      "required": [
+        "noteId",
+        "fileId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-read-version",
+    "description": "Read one saved version of a currently visible note. This does not restore or change the note.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note ID, with or without the `note:` prefix."
+        },
+        "rev": {
+          "type": "string",
+          "description": "The exact revision identifier returned by kanso-list-versions."
+        }
+      },
+      "required": [
+        "noteId",
+        "rev"
+      ],
+      "additionalProperties": false
     },
     "execution": {
       "taskSupport": "forbidden"
@@ -175,6 +424,27 @@
     }
   },
   {
+    "name": "kanso-run-query-view",
+    "description": "Run the first saved `query` fenced view in a note using Kanso’s query parser and evaluator. Locked, trashed, excluded, and out-of-scope notes are omitted.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note containing the saved query view, with or without the `note:` prefix."
+        }
+      },
+      "required": [
+        "noteId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-search-by-meaning",
     "description": "Find the notes about something, by meaning rather than by words: the search is turned into numbers by the same language model as Kanso's related notes, on the user's device, and compared with every note's. A note can match without containing any of the words; for notes containing the words, use search-notes. Returns each note's ID, title, `inkdrop://note/<id>` link and similarity (0 to 1, higher is closer), most similar first, leaving out notes less than 0.35 similar. It needs related notes on in Kanso's Settings and the Kanso app open with its model loaded (a server started with `kanso serve` has no model); otherwise it returns an empty list and says why.",
     "inputSchema": {
@@ -194,6 +464,42 @@
       "required": [
         "query"
       ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-set-task-done",
+    "description": "Set one task’s checked state by its note, current line, and exact task text. This is an explicit note write; it fails without changing the note if the task moved ambiguously.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The note containing the task."
+        },
+        "line": {
+          "type": "integer",
+          "description": "The task’s current zero-based line in the note body."
+        },
+        "text": {
+          "type": "string",
+          "description": "The exact task text returned by kanso-list-tasks, including any due token."
+        },
+        "done": {
+          "type": "boolean",
+          "description": "True to tick the task, false to clear its checkbox."
+        }
+      },
+      "required": [
+        "noteId",
+        "line",
+        "text",
+        "done"
+      ],
+      "additionalProperties": false
     },
     "execution": {
       "taskSupport": "forbidden"

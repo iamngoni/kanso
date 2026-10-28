@@ -11,9 +11,8 @@ import '../../../core/models/data/list_options.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/status_label.dart';
 import '../../../core/views/widgets/kanso_check_row.dart';
-import '../../../core/views/widgets/kanso_divider.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
-import '../../../core/views/widgets/kanso_section_header.dart';
+import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../state/note_list/note_list_bloc.dart';
 
 /// How the list is sorted and narrowed, as the desktop's list menu has it:
@@ -76,62 +75,77 @@ class ListOptionsSheet extends StatelessWidget {
                 ],
               ),
             ),
+            // The choices sit in rounded groups, as Settings draws them.
             if (ListOptions.sorts(state.place)) ...<Widget>[
-              KansoSectionHeader(label: l10n.listOptionsSortBy),
-              KansoCheckRow(
-                label: l10n.listOptionsDateUpdated,
-                checked: options.sort == SortKey.updated,
-                onTap: () => choose(options.sortedBy(SortKey.updated)),
+              KansoSheetGroup(
+                title: l10n.listOptionsSortBy,
+                children: <Widget>[
+                  KansoCheckRow(
+                    label: l10n.listOptionsDateUpdated,
+                    checked: options.sort == SortKey.updated,
+                    onTap: () => choose(options.sortedBy(SortKey.updated)),
+                  ),
+                  KansoCheckRow(
+                    label: l10n.listOptionsDateCreated,
+                    checked: options.sort == SortKey.created,
+                    onTap: () => choose(options.sortedBy(SortKey.created)),
+                  ),
+                  KansoCheckRow(
+                    label: l10n.listOptionsTitleSort,
+                    checked: titles,
+                    onTap: () => choose(options.sortedBy(SortKey.title)),
+                  ),
+                ],
               ),
-              KansoCheckRow(
-                label: l10n.listOptionsDateCreated,
-                checked: options.sort == SortKey.created,
-                onTap: () => choose(options.sortedBy(SortKey.created)),
-              ),
-              KansoCheckRow(
-                label: l10n.listOptionsTitleSort,
-                checked: titles,
-                onTap: () => choose(options.sortedBy(SortKey.title)),
-              ),
-              const KansoDivider(indent: KansoSpacing.md),
               // For titles the first choice is A to Z, ascending; for
               // dates it is the newest first, descending.
-              KansoCheckRow(
-                label: titles
-                    ? l10n.listOptionsAToZ
-                    : l10n.listOptionsNewestFirst,
-                checked: options.descending != titles,
-                onTap: () => choose(options.copyWith(descending: !titles)),
-              ),
-              KansoCheckRow(
-                label: titles
-                    ? l10n.listOptionsZToA
-                    : l10n.listOptionsOldestFirst,
-                checked: options.descending == titles,
-                onTap: () => choose(options.copyWith(descending: titles)),
+              KansoSheetGroup(
+                children: <Widget>[
+                  KansoCheckRow(
+                    label: titles
+                        ? l10n.listOptionsAToZ
+                        : l10n.listOptionsNewestFirst,
+                    checked: options.descending != titles,
+                    onTap: () => choose(options.copyWith(descending: !titles)),
+                  ),
+                  KansoCheckRow(
+                    label: titles
+                        ? l10n.listOptionsZToA
+                        : l10n.listOptionsOldestFirst,
+                    checked: options.descending == titles,
+                    onTap: () => choose(options.copyWith(descending: titles)),
+                  ),
+                ],
               ),
             ],
-            KansoSectionHeader(label: l10n.listOptionsStatus),
-            KansoCheckRow(
-              label: l10n.listOptionsAnyStatus,
-              checked: options.statusOnly == null,
-              onTap: () => choose(options.copyWith(statusOnly: null)),
+            KansoSheetGroup(
+              title: l10n.listOptionsStatus,
+              children: <Widget>[
+                KansoCheckRow(
+                  label: l10n.listOptionsAnyStatus,
+                  checked: options.statusOnly == null,
+                  onTap: () => choose(options.copyWith(statusOnly: null)),
+                ),
+                for (final status in statuses)
+                  KansoCheckRow(
+                    label: l10n.statusName(noteStatusOf(status)),
+                    checked: options.statusOnly == status,
+                    onTap: () => choose(options.copyWith(statusOnly: status)),
+                  ),
+              ],
             ),
-            for (final status in statuses)
-              KansoCheckRow(
-                label: l10n.statusName(noteStatusOf(status)),
-                checked: options.statusOnly == status,
-                onTap: () => choose(options.copyWith(statusOnly: status)),
+            if (ListOptions.narrowsToPinned(state.place))
+              KansoSheetGroup(
+                children: <Widget>[
+                  KansoCheckRow(
+                    label: l10n.listOptionsPinnedOnly,
+                    checked: options.pinnedOnly,
+                    onTap: () => choose(
+                      options.copyWith(pinnedOnly: !options.pinnedOnly),
+                    ),
+                  ),
+                ],
               ),
-            if (ListOptions.narrowsToPinned(state.place)) ...<Widget>[
-              const KansoDivider(indent: KansoSpacing.md),
-              KansoCheckRow(
-                label: l10n.listOptionsPinnedOnly,
-                checked: options.pinnedOnly,
-                onTap: () =>
-                    choose(options.copyWith(pinnedOnly: !options.pinnedOnly)),
-              ),
-            ],
           ],
         );
       },

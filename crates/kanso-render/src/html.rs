@@ -18,7 +18,13 @@ use std::hash::{Hash as _, Hasher as _};
 use base64::Engine as _;
 use markdown::mdast::Node;
 
-use crate::{Job, Kind, Palette, Rgb, Svg, escape, render_blocking};
+use crate::{Failure, Job, Kind, Outcome, Palette, Rgb, Svg, escape, render_blocking};
+
+pub mod app;
+pub use app::{
+    AppMode, DueChip, DueTone, HeadingId, QueryResult, QueryRow, QueryTable, QueryViews, TaskBox,
+    TaskSlot, heading_slug, headings, is_allowed_link, is_allowed_source, sanitize, task_boxes,
+};
 
 /// An attachment's content type and bytes, by ID (`file:…`).
 pub type Attachments<'a> = &'a dyn Fn(&str) -> Option<(String, Vec<u8>)>;
@@ -37,6 +43,10 @@ pub struct PageOptions<'a> {
     /// Colors a fenced code block by its language; `None` leaves code as
     /// plain text.
     pub highlight: Option<&'a dyn Highlighter>,
+    /// Makes the page one for the phone's app: its links keep the addresses
+    /// the app understands and nothing else a page could do (see [`app`]).
+    /// `None` is the page that is published and exported, unchanged.
+    pub app: Option<&'a AppMode<'a>>,
 }
 
 impl Default for PageOptions<'_> {
@@ -46,6 +56,7 @@ impl Default for PageOptions<'_> {
             mono: None,
             size: 16.,
             highlight: None,
+            app: None,
         }
     }
 }
@@ -399,6 +410,9 @@ fn attached_image(id: &str, alt: &str, width: Option<u32>, attachments: Attachme
 }
 
 /// Finds what the note's Markdown can't say in HTML itself, depth first.
+/// `codes` are the start offsets of the note's code blocks, in order; only
+/// the page in the app uses them, to number its copy links.
+#[allow(clippy::too_many_arguments)]
 fn collect(
     node: &Node,
     source: &str,
@@ -406,6 +420,7 @@ fn collect(
     attachments: Attachments<'_>,
     site: Option<&Site>,
     options: &PageOptions<'_>,
+    codes: &[usize],
     out: &mut Vec<(std::ops::Range<usize>, Piece)>,
 ) {
     let range = node.position().map(|p| p.start.offset..p.end.offset);
@@ -414,15 +429,31 @@ fn collect(
         .clone()
         .and_then(|r| source.get(r))
         .unwrap_or_default();
-    let drawn = |kind: Kind, code: &str| -> Option<Svg> {
-        match render_blocking(&Job::new(kind, code, *palette)).as_ref() {
-            Ok(svg) => Some(svg.clone()),
-            Err(_) => None,
-        }
+    let in_app = options.app.is_some();
+    let draw = |kind: Kind, code: &str| -> Outcome {
+        render_blocking(&Job::new(kind, code, *palette))
+            .as_ref()
+            .clone()
+    };
+    let drawn = |kind: Kind, code: &str| -> Option<Svg> { draw(kind, code).ok() };
+    // A drawing as a block; in the app, one that failed shows its code with
+    // a badge saying why, as the desktop's preview does.
+    let block = |outcome: Outcome, class: &str, fallback: &dyn Fn(&Failure) -> String| match outcome
+    {
+        Ok(svg) => Some(Piece::Block(svg_markup(&svg, class, 1.))),
+        Err(failure) if in_app => Some(Piece::Bare(fallback(&failure))),
+        Err(_) => None,
+    };
+    let copy_index = |node: &Node| {
+        let start = node.position()?.start.offset;
+        codes.iter().position(|&at| at == start)
     };
     let piece = match node {
-        Node::Math(math) => drawn(Kind::DisplayMath, &math.value)
-            .map(|svg| Piece::Block(svg_markup(&svg, "kanso-math-display", 1.))),
+        Node::Math(math) => block(
+            draw(Kind::DisplayMath, &math.value),
+            "kanso-math-display",
+            &|failure| app::failed_html(failure, None, written, None),
+        ),
         Node::InlineMath(math) => {
             let range = range.clone().unwrap_or_default();
             let span = source.get(range.clone()).unwrap_or_default();
@@ -435,37 +466,105 @@ fn collect(
                 Some(Piece::Inline(escape(span)))
             }
         }
-        Node::Code(code) if fence_is(&code.lang, "math") => drawn(Kind::DisplayMath, &code.value)
-            .map(|svg| Piece::Block(svg_markup(&svg, "kanso-math-display", 1.))),
-        Node::Code(code) if fence_is(&code.lang, "mermaid") => drawn(Kind::Mermaid, &code.value)
-            .map(|svg| Piece::Block(svg_markup(&svg, "kanso-diagram", 1.))),
-        Node::Code(code) if fence_is(&code.lang, "excalidraw") => {
-            drawn(Kind::Excalidraw, &code.value)
-                .map(|svg| Piece::Block(svg_markup(&svg, "kanso-drawing", 1.)))
+        Node::Code(code) if fence_is(&code.lang, "math") => block(
+            draw(Kind::DisplayMath, &code.value),
+            "kanso-math-display",
+            &|failure| {
+                app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
+            },
+        ),
+        Node::Code(code) if fence_is(&code.lang, "mermaid") => block(
+            draw(Kind::Mermaid, &code.value),
+            "kanso-diagram",
+            &|failure| {
+                app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
+            },
+        ),
+        Node::Code(code)
+            if in_app && fence_is(&code.lang, "excalidraw") && app::is_empty_scene(&code.value) =>
+        {
+            Some(Piece::Block(app::EMPTY_DRAWING.to_owned()))
         }
+        Node::Code(code) if fence_is(&code.lang, "excalidraw") => block(
+            draw(Kind::Excalidraw, &code.value),
+            "kanso-drawing",
+            &|failure| {
+                app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
+            },
+        ),
         Node::Code(code) if code.lang.as_deref().is_some_and(crate::is_plugin_language) => {
             let language = code.lang.as_deref().unwrap_or_default().trim();
-            match render_blocking(&Job::plugin(language, code.value.as_str(), *palette)).as_ref() {
-                Ok(svg) => Some(Piece::Block(svg_markup(svg, "kanso-drawing", 1.))),
-                Err(_) => None,
-            }
+            block(
+                render_blocking(&Job::plugin(language, code.value.as_str(), *palette))
+                    .as_ref()
+                    .clone(),
+                "kanso-drawing",
+                &|failure| {
+                    app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
+                },
+            )
+        }
+        Node::Code(code)
+            if options.app.is_some_and(|mode| mode.query.is_some())
+                && app::is_query_fence(code.lang.as_deref()) =>
+        {
+            options
+                .app
+                .and_then(|mode| mode.query)
+                .map(|query| Piece::Bare(app::query_html(&code.value, &query.run(&code.value))))
+        }
+        // In the app every code block is drawn here, with its copy link.
+        Node::Code(code) if in_app => {
+            let spans = options
+                .highlight
+                .and_then(|highlight| {
+                    highlight.highlight(code.lang.as_deref().unwrap_or_default(), &code.value)
+                })
+                .unwrap_or_default();
+            Some(Piece::Bare(code_html(
+                code.lang.as_deref(),
+                &code.value,
+                &spans,
+                copy_index(node),
+            )))
         }
         Node::Code(code) => options.highlight.and_then(|highlight| {
             let lang = code.lang.as_deref().unwrap_or_default();
-            highlight
-                .highlight(lang, &code.value)
-                .map(|spans| Piece::Bare(code_html(code.lang.as_deref(), &code.value, &spans)))
+            highlight.highlight(lang, &code.value).map(|spans| {
+                Piece::Bare(code_html(code.lang.as_deref(), &code.value, &spans, None))
+            })
         }),
         Node::Paragraph(_) if display_math_paragraph(node, written).is_some() => {
-            display_math_paragraph(node, written)
-                .and_then(|formula| drawn(Kind::DisplayMath, formula))
-                .map(|svg| Piece::Block(svg_markup(&svg, "kanso-math-display", 1.)))
+            display_math_paragraph(node, written).and_then(|formula| {
+                block(
+                    draw(Kind::DisplayMath, formula),
+                    "kanso-math-display",
+                    &|failure| app::failed_html(failure, None, written, None),
+                )
+            })
         }
-        Node::Paragraph(_) if attached_scene(node).is_some() => attached_scene(node)
-            .and_then(|id| attachments(&id))
-            .and_then(|(_, bytes)| String::from_utf8(bytes).ok())
-            .and_then(|scene| drawn(Kind::Excalidraw, &scene))
-            .map(|svg| Piece::Block(svg_markup(&svg, "kanso-drawing", 1.))),
+        Node::Paragraph(_) if attached_scene(node).is_some() => {
+            let scene = attached_scene(node)
+                .and_then(|id| attachments(&id))
+                .and_then(|(_, bytes)| String::from_utf8(bytes).ok());
+            match scene {
+                Some(scene) if in_app && app::is_empty_scene(&scene) => {
+                    Some(Piece::Block(app::EMPTY_DRAWING.to_owned()))
+                }
+                Some(scene) => block(
+                    draw(Kind::Excalidraw, &scene),
+                    "kanso-drawing",
+                    &|failure| app::failed_html(failure, None, written, None),
+                ),
+                None if in_app => Some(Piece::Bare(app::failed_html(
+                    &Failure::Invalid("The drawing's file is missing.".into()),
+                    None,
+                    written,
+                    None,
+                ))),
+                None => None,
+            }
+        }
         Node::Image(image) => {
             let (alt, width) = split_image_width(&image.alt);
             match attachment_id(&image.url) {
@@ -507,7 +606,16 @@ fn collect(
         }
         _ => {
             for child in node.children().into_iter().flatten() {
-                collect(child, source, palette, attachments, site, options, out);
+                collect(
+                    child,
+                    source,
+                    palette,
+                    attachments,
+                    site,
+                    options,
+                    codes,
+                    out,
+                );
             }
         }
     }
@@ -563,6 +671,11 @@ pub fn body_with(
     let Ok(root) = crate::markdown_safe::to_mdast(markdown, &parse) else {
         return plain_html(markdown);
     };
+    let facts = options.app.map(|_| app::facts(&root));
+    let codes: Vec<usize> = facts
+        .as_ref()
+        .map(|facts| facts.code_offsets())
+        .unwrap_or_default();
     let mut pieces = Vec::new();
     collect(
         &root,
@@ -571,6 +684,7 @@ pub fn body_with(
         attachments,
         site,
         options,
+        &codes,
         &mut pieces,
     );
     pieces.sort_by_key(|(range, _)| range.start);
@@ -594,6 +708,10 @@ pub fn body_with(
     text.push_str(&markdown[at..]);
     let compile = markdown::CompileOptions {
         gfm_tagfilter: true,
+        // In the app every address is let through to be checked once the page
+        // is whole (`app::sanitize`), not dropped here, so the app's own
+        // addresses survive.
+        allow_dangerous_protocol: options.app.is_some(),
         ..markdown::CompileOptions::default()
     };
     let Ok(mut html) =
@@ -627,15 +745,21 @@ pub fn body_with(
             Piece::Inline(markup) => html.replacen(&token, &markup, 1),
         };
     }
-    html
+    match options.app {
+        Some(mode) => app::finish(html, facts.as_ref(), mode, markdown),
+        None => html,
+    }
 }
 
 /// Escapes a code block as spans colored like the preview's highlighting.
-fn code_html(lang: Option<&str>, code: &str, spans: &[CodeSpan]) -> String {
+fn code_html(lang: Option<&str>, code: &str, spans: &[CodeSpan], copy: Option<usize>) -> String {
     let mut out = String::with_capacity(code.len() + 96);
     out.push_str("<pre class=\"kanso-code\">");
     if let Some(lang) = lang.map(str::trim).filter(|lang| !lang.is_empty()) {
         let _ = write!(out, "<span class=\"kanso-lang\">{}</span>", escape(lang));
+    }
+    if let Some(n) = copy {
+        out.push_str(&app::copy_link(n));
     }
     out.push_str("<code>");
     let mut at = 0;
@@ -791,7 +915,7 @@ ul.kanso-site-index{{list-style:none;padding:0}}
 .kanso-site-index li{{margin:0 0 1.1em}}
 .kanso-site-index a{{font-weight:600;text-decoration:none}}
 .kanso-site-index p{{margin:.2em 0 0;color:{muted}}}
-@media print{{html,body{{background:none}}body{{max-width:none;padding:0}}pre,figure,table,img{{break-inside:avoid}}h1,h2,h3{{break-after:avoid}}}}
+{app_css}@media print{{html,body{{background:none}}body{{max-width:none;padding:0}}pre,figure,table,img{{break-inside:avoid}}h1,h2,h3{{break-after:avoid}}}}
 "#,
         scheme = if p.dark { "dark" } else { "light" },
         bg = c(p.background),
@@ -837,6 +961,11 @@ ul.kanso-site-index{{list-style:none;padding:0}}
         tablehead = table_head,
         codetext = code_text,
         link = c(p.accent),
+        app_css = if options.app.is_some() {
+            app::stylesheet(p, &check)
+        } else {
+            String::new()
+        },
         check = check,
     )
 }
@@ -1437,6 +1566,7 @@ mod tests {
             mono: Some("Iosevka"),
             size: 18.,
             highlight: None,
+            app: None,
         };
         let css = stylesheet(&Palette::LIGHT, &options);
         let width = crate::typography::readable_width(18., false);
@@ -1491,6 +1621,7 @@ mod tests {
                 mono: Some(&mono),
                 size,
                 highlight: None,
+                app: None,
             };
             let css = stylesheet(&palette, &options);
             prop_assert_eq!(css.matches('{').count(), css.matches('}').count());

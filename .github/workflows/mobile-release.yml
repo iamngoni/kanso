@@ -71,7 +71,7 @@ jobs:
   # The version and build number, from nothing but the checkout and the run.
   version:
     name: Version
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     outputs:
       name: ${{ steps.version.outputs.name }}
       number: ${{ steps.version.outputs.number }}
@@ -110,7 +110,7 @@ jobs:
     name: iOS
     needs: version
     if: github.event_name != 'workflow_dispatch' || inputs.action == 'build'
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS]
     # The Apple and Shorebird secrets are in the `mobile-release` environment
     # (tags and master only); every other branch gets none.
     environment: ${{ needs.version.outputs.upload == 'true' && 'mobile-release' || '' }}
@@ -309,7 +309,7 @@ jobs:
     name: Android
     needs: version
     if: github.event_name != 'workflow_dispatch' || inputs.action == 'build'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     environment: ${{ needs.version.outputs.upload == 'true' && 'mobile-release' || '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -495,10 +495,10 @@ jobs:
       matrix:
         include:
           - platform: android
-            os: ubuntu-latest
+            os: [self-hosted, Linux, X64]
             rust_targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
           - platform: ios
-            os: macos-latest
+            os: [self-hosted, macOS]
             rust_targets: aarch64-apple-ios
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

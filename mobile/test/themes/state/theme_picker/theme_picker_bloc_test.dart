@@ -12,6 +12,7 @@ import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 import 'package:kanso/themes/utils/theme_preview_from_builtin.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../../helpers/mock_repositories.dart';
 import '../../../helpers/seeded_appearance_bloc.dart';
 import '../../../helpers/theme_tokens.dart';
 
@@ -28,6 +29,7 @@ BuiltinTheme _theme(String id, {bool dark = false}) {
 
 void main() {
   late MockRendererRepository renderer;
+  late MockGalleryRepository gallery;
   final themes = <BuiltinTheme>[
     _theme('kanso-light'),
     _theme('nord', dark: true),
@@ -35,12 +37,18 @@ void main() {
 
   setUp(() {
     renderer = MockRendererRepository();
+    gallery = MockGalleryRepository();
+    when(gallery.installedThemes).thenAnswer(
+      (_) async => const Right<ApplicationError, List<BuiltinTheme>>(
+        <BuiltinTheme>[],
+      ),
+    );
     when(renderer.builtinThemes).thenAnswer(
       (_) async => Right<ApplicationError, List<BuiltinTheme>>(themes),
     );
   });
 
-  ThemePickerBloc build() => ThemePickerBloc(renderer);
+  ThemePickerBloc build() => ThemePickerBloc(renderer, gallery);
 
   group('ThemePickerBloc', () {
     test('starts loading, with no themes', () {
@@ -68,6 +76,86 @@ void main() {
         ]);
         expect(bloc.state.themes.last.dark, isTrue);
       },
+    );
+
+    blocTest<ThemePickerBloc, ThemePickerState>(
+      'started adds the themes installed from the gallery after the built-in '
+      'ones, previewed from their tokens, and not marked as built in',
+      setUp: () => when(gallery.installedThemes).thenAnswer(
+        (_) async => Right<ApplicationError, List<BuiltinTheme>>(
+          <BuiltinTheme>[_theme('dusk', dark: true)],
+        ),
+      ),
+      build: build,
+      act: (bloc) => bloc.add(const ThemePickerEvent.started()),
+      verify: (bloc) {
+        expect(bloc.state.themes.map((theme) => theme.id), <String>[
+          'kanso-light',
+          'nord',
+          'dusk',
+        ]);
+        expect(bloc.state.themes.map((theme) => theme.builtIn), <bool>[
+          true,
+          true,
+          false,
+        ]);
+      },
+    );
+
+    blocTest<ThemePickerBloc, ThemePickerState>(
+      'installed themes that cannot be read leave the built-in ones',
+      setUp: () => when(gallery.installedThemes).thenAnswer(
+        (_) async => const Left<ApplicationError, List<BuiltinTheme>>(
+          ApplicationError.internal(message: 'No gallery.'),
+        ),
+      ),
+      build: build,
+      act: (bloc) => bloc.add(const ThemePickerEvent.started()),
+      verify: (bloc) {
+        expect(bloc.state.status, LoadStatus.ready);
+        expect(bloc.state.themes.map((theme) => theme.id), <String>[
+          'kanso-light',
+          'nord',
+        ]);
+      },
+    );
+
+    blocTest<ThemePickerBloc, ThemePickerState>(
+      'installedChanged reads the installed themes again and keeps the '
+      'built-in ones as they were',
+      build: build,
+      act: (bloc) async {
+        bloc.add(const ThemePickerEvent.started());
+        await Future<void>.delayed(Duration.zero);
+        when(gallery.installedThemes).thenAnswer(
+          (_) async => Right<ApplicationError, List<BuiltinTheme>>(
+            <BuiltinTheme>[_theme('dusk', dark: true), _theme('moss')],
+          ),
+        );
+        bloc.add(const ThemePickerEvent.installedChanged());
+        await Future<void>.delayed(Duration.zero);
+        when(gallery.installedThemes).thenAnswer(
+          (_) async => Right<ApplicationError, List<BuiltinTheme>>(
+            <BuiltinTheme>[_theme('moss')],
+          ),
+        );
+        bloc.add(const ThemePickerEvent.installedChanged());
+      },
+      verify: (bloc) {
+        expect(bloc.state.themes.map((theme) => theme.id), <String>[
+          'kanso-light',
+          'nord',
+          'moss',
+        ]);
+        verify(() => renderer.builtinThemes()).called(1);
+      },
+    );
+
+    blocTest<ThemePickerBloc, ThemePickerState>(
+      'installedChanged before the picker has read anything does nothing',
+      build: build,
+      act: (bloc) => bloc.add(const ThemePickerEvent.installedChanged()),
+      expect: () => <ThemePickerState>[],
     );
 
     blocTest<ThemePickerBloc, ThemePickerState>(

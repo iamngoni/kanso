@@ -11,6 +11,8 @@ import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/settings/state/backup_notice/backup_notice_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'fixture_gallery_repository.dart';
+
 class MockPreferencesRepository extends Mock implements PreferencesRepository {}
 
 class MockRendererRepository extends Mock implements RendererRepository {}
@@ -28,12 +30,36 @@ class ForgetfulPreferencesRepository implements PreferencesRepository {
   ) async => Right<ApplicationError, Preferences>(change(const Preferences()));
 }
 
+/// A preferences repository that starts with its seed and keeps what is saved
+/// for the run.
+class SeededPreferencesRepository implements PreferencesRepository {
+  SeededPreferencesRepository(this.current);
+
+  Preferences current;
+
+  @override
+  Future<Either<ApplicationError, Preferences>> load() async =>
+      Right<ApplicationError, Preferences>(current);
+
+  @override
+  Future<Either<ApplicationError, Preferences>> update(
+    Preferences Function(Preferences current) change,
+  ) async {
+    current = change(current);
+    return Right<ApplicationError, Preferences>(current);
+  }
+}
+
 /// An `AppearanceBloc` that starts in `seed` rather than the defaults, for
 /// pages whose picture depends on the person's choices. It saves nothing and
 /// has no themes to read besides Kanso's.
 class SeededAppearanceBloc extends AppearanceBloc {
   SeededAppearanceBloc(AppearanceState seed)
-    : super(ForgetfulPreferencesRepository(), MockRendererRepository()) {
+    : super(
+        ForgetfulPreferencesRepository(),
+        MockRendererRepository(),
+        FixtureGalleryRepository(),
+      ) {
     emit(seed);
   }
 }

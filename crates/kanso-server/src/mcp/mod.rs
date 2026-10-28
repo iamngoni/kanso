@@ -1,4 +1,4 @@
-//! A native MCP endpoint at `/mcp`: the 17 tools of `@inkdropapp/mcp-server`
+//! Kanso's native MCP endpoint at `/mcp`: the tools of `@inkdropapp/mcp-server`
 //! 1.5.0 and its note resource template
 //! ([`NOTE_LINK_PREFIX`](kanso_core::links::NOTE_LINK_PREFIX)`{noteId}`).
 //!

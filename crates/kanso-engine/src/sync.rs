@@ -21,6 +21,11 @@ use kanso_sync::{
 
 use crate::Secrets;
 
+pub mod model;
+pub mod words;
+
+pub use model::{AccountState, StatusLine, Tone};
+
 /// How long after the last local edit to sync.
 pub const AFTER_EDIT: Duration = Duration::from_secs(20);
 

@@ -40,10 +40,53 @@ class FixtureLibraryRepository implements LibraryRepository {
       Right<ApplicationError, List<Hit>>(mockHits);
 
   /// What `change` answers.
-  Either<ApplicationError, int> changeResult =
-      const Right<ApplicationError, int>(
-        1,
+  Either<ApplicationError, Changed> changeResult =
+      const Right<ApplicationError, Changed>(
+        Changed(count: 1, undo: 1, message: 'Pinned 1 note.'),
       );
+
+  /// What `undo` answers.
+  Either<ApplicationError, int> undoResult = const Right<ApplicationError, int>(
+    1,
+  );
+
+  /// What `tasks` answers; a failure shows the Tasks list's error state.
+  Either<ApplicationError, TaskBoard> tasksResult =
+      const Right<ApplicationError, TaskBoard>(mockTaskBoard);
+
+  /// What `overdueTasks` answers.
+  int overdueValue = mockOverdueTasks;
+
+  /// What `setTask` answers.
+  Either<ApplicationError, Ticked> setTaskResult =
+      const Right<ApplicationError, Ticked>(
+        Ticked.changed(rev: 'r2', undo: 7, message: 'Ticked off “Call Sam”'),
+      );
+
+  /// When set, `tasks` waits for it: tasks that are still loading.
+  Completer<void>? tasksGate;
+
+  /// The queries `tasks` was asked.
+  final List<TaskListQuery> taskQueries = <TaskListQuery>[];
+
+  /// The ticks `setTask` was asked for: note, line, text, checked.
+  final List<(String, int, String, bool)> tasksSet =
+      <(String, int, String, bool)>[];
+
+  /// The boxes `toggleTaskAt` was asked to tick: note, index, rev.
+  final List<(String, int, String)> boxesToggled = <(String, int, String)>[];
+
+  /// The titles `createLinkedNote` was asked for, with the note linking.
+  final List<(String, String)> linkedMade = <(String, String)>[];
+
+  /// What `attachment` answers.
+  Either<ApplicationError, AttachmentFile> attachmentResult =
+      const Left<ApplicationError, AttachmentFile>(
+        ApplicationError.notFound(message: 'No such file.'),
+      );
+
+  /// The tickets `undo` was asked to take back.
+  final List<int> undone = <int>[];
 
   /// When set, `list` waits for it: a list that is still loading.
   Completer<void>? listGate;
@@ -84,7 +127,13 @@ class FixtureLibraryRepository implements LibraryRepository {
       Right<ApplicationError, LibraryOverview>(overviewValue);
 
   @override
-  Future<Either<ApplicationError, int>> change(
+  Future<Either<ApplicationError, int>> undo(int ticket) async {
+    undone.add(ticket);
+    return undoResult;
+  }
+
+  @override
+  Future<Either<ApplicationError, Changed>> change(
     List<String> ids,
     NoteChange change,
   ) async {
@@ -132,6 +181,56 @@ class FixtureLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<Either<ApplicationError, TaskBoard>> tasks(
+    TaskListQuery query,
+  ) async {
+    taskQueries.add(query);
+    await tasksGate?.future;
+    return tasksResult;
+  }
+
+  @override
+  Future<Either<ApplicationError, int>> overdueTasks() async =>
+      Right<ApplicationError, int>(overdueValue);
+
+  @override
+  Future<Either<ApplicationError, Ticked>> setTask({
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+  }) async {
+    tasksSet.add((noteId, line, text, checked));
+    return setTaskResult;
+  }
+
+  @override
+  Future<Either<ApplicationError, Ticked>> toggleTaskAt({
+    required String noteId,
+    required int index,
+    required String baseRev,
+  }) async {
+    boxesToggled.add((noteId, index, baseRev));
+    return setTaskResult;
+  }
+
+  @override
+  Future<Either<ApplicationError, Saved>> createLinkedNote({
+    required String title,
+    required String fromNote,
+  }) async {
+    linkedMade.add((title, fromNote));
+    return Right<ApplicationError, Saved>(
+      Saved(id: 'note:linked-${linkedMade.length}', rev: '1'),
+    );
+  }
+
+  @override
+  Future<Either<ApplicationError, AttachmentFile>> attachment(
+    String id,
+  ) async => attachmentResult;
+
+  @override
   Stream<List<String>> changes() => changeStream.stream;
 
   @override
@@ -141,19 +240,59 @@ class FixtureLibraryRepository implements LibraryRepository {
     required String body,
   }) => throw UnimplementedError();
 
+  /// The notes `create` was asked to make.
+  final List<NewNote> created = <NewNote>[];
+
+  /// What `create` answers when it is set; a note with an id of its own
+  /// otherwise.
+  Either<ApplicationError, Saved>? createResult;
+
   @override
-  Future<Either<ApplicationError, Saved>> create(NewNote note) =>
-      throw UnimplementedError();
+  Future<Either<ApplicationError, Saved>> create(NewNote note) async {
+    created.add(note);
+    return createResult ??
+        Right<ApplicationError, Saved>(
+          Saved(id: 'note:new-${created.length}', rev: '1-new'),
+        );
+  }
 
   @override
   Future<Either<ApplicationError, Unit>> trash(String id) =>
       throw UnimplementedError();
 
+  /// The notebooks `createNotebook` was asked to make, with their parents.
+  final List<(String, String?)> notebooksCreated = <(String, String?)>[];
+
+  /// What `createNotebook` answers when it is set; the notebook, appended
+  /// to the notebooks, otherwise.
+  Either<ApplicationError, NotebookRow>? createNotebookResult;
+
+  /// When set, `createNotebook` waits for it: a notebook still being made.
+  Completer<void>? notebookGate;
+
   @override
   Future<Either<ApplicationError, NotebookRow>> createNotebook(
     String name, {
     String? parentId,
-  }) => throw UnimplementedError();
+  }) async {
+    notebooksCreated.add((name, parentId));
+    await notebookGate?.future;
+    final fixed = createNotebookResult;
+    if (fixed != null) {
+      return fixed;
+    }
+    final made = NotebookRow(
+      id: 'book:made-${notebooksCreated.length}',
+      name: name,
+      parentId: parentId,
+      count: 0,
+      locked: false,
+      depth: 0,
+    );
+    notebookRows = <NotebookRow>[...notebookRows, made];
+    changeStream.add(<String>[made.id]);
+    return Right<ApplicationError, NotebookRow>(made);
+  }
 
   @override
   Future<Either<ApplicationError, List<Property>>> properties(String id) =>

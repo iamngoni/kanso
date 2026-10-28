@@ -2,12 +2,14 @@
 //! its revision; applying writes only the notes still at that revision,
 //! in one transaction, keeping each one's earlier version in its history
 //! under one batch ID; undoing the batch brings back each note's text
-//! unless it was edited again since.
+//! unless it was edited again since. A locked note (sealed, or in a locked
+//! notebook) is never read for a preview and never written by either call,
+//! whatever the plan or the batch names.
 
 use kanso_core::DocType;
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::replace::{MatchContext, Matcher, contexts};
-use rusqlite::params;
+use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::{Map, Value};
 
 use crate::write::{SNAPSHOTS_PER_DOC, Synced, load_row, next_rev, store_row};
@@ -77,6 +79,23 @@ fn title(fields: &Map<String, Value>) -> String {
         .to_owned()
 }
 
+/// Whether note `id` reads as locked now: sealed itself, or in a locked
+/// notebook. A note that isn't there reads as not locked.
+fn locked_now(tx: &Transaction, id: &str) -> Result<bool> {
+    Ok(tx
+        .query_row(
+            concat!(
+                "SELECT ",
+                crate::schema::note_locked!(""),
+                " FROM docs WHERE id = ?"
+            ),
+            [id],
+            |row| row.get(0),
+        )
+        .optional()?
+        .unwrap_or(false))
+}
+
 impl Store {
     /// The live notes whose text `matcher` matches, most recently changed
     /// first: outside the trash, and inside it with `include_trash`.
@@ -118,7 +137,9 @@ impl Store {
     /// Replaces `matcher`'s matches with `replacement` in the `planned`
     /// notes, in one transaction. A note no longer at its planned revision
     /// (changed by sync, say, since the preview) or gone is skipped and
-    /// reported. Each changed note's earlier version is kept in its history
+    /// reported, and so is a note that reads as locked (sealed, or in a
+    /// locked notebook), whatever the plan says: its text is never written
+    /// here. Each changed note's earlier version is kept in its history
     /// under `batch`, for [`Store::undo_replace`], and its edit time
     /// becomes `now_ms`.
     pub fn replace_in_notes(
@@ -133,7 +154,11 @@ impl Store {
             let mut report = ReplaceReport::default();
             for plan in planned {
                 let row = load_row(tx, &plan.id)?.filter(|r| !r.deleted);
-                let Some(row) = row.filter(|r| r.rev == plan.rev) else {
+                let row = match row {
+                    Some(r) if r.rev == plan.rev && !locked_now(tx, &plan.id)? => Some(r),
+                    _ => None,
+                };
+                let Some(row) = row else {
                     let title = load_row(tx, &plan.id)?
                         .map(|r| title(&r.fields))
                         .unwrap_or_default();
@@ -198,8 +223,8 @@ impl Store {
     }
 
     /// Brings back the text each note had before replace `batch`, in one
-    /// transaction, unless the note was edited again since (or is gone):
-    /// those are left as they are and reported. A batch is undone once.
+    /// transaction, unless the note was edited again since, is locked now
+    /// or is gone: those are left as they are and reported. A batch is undone once.
     pub fn undo_replace(&self, batch: &str, now_ms: i64) -> Result<UndoReport> {
         self.write(|tx, changes| {
             let kept: Vec<(String, String, Option<String>)> = tx
@@ -215,7 +240,15 @@ impl Store {
                     _ => Map::new(),
                 };
                 let row = load_row(tx, &id)?.filter(|r| !r.deleted);
-                let Some(row) = row.filter(|r| Some(&r.rev) == batch_rev.as_ref()) else {
+                // A note locked since (sealed, or its notebook locked) keeps
+                // what it has: plain text never goes back into it.
+                let row = match row {
+                    Some(r) if Some(&r.rev) == batch_rev.as_ref() && !locked_now(tx, &id)? => {
+                        Some(r)
+                    }
+                    _ => None,
+                };
+                let Some(row) = row else {
                     let title = load_row(tx, &id)?
                         .filter(|r| !r.deleted)
                         .map_or_else(|| title(&before), |r| title(&r.fields));

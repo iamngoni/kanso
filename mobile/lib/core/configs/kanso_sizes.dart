@@ -16,14 +16,20 @@ abstract final class KansoSizes {
   /// 48: a row of settings.
   static const double settingsRow = 48;
 
-  /// 48: a button.
-  static const double button = 48;
+  /// 52: a button.
+  static const double button = 52;
+
+  /// 48: a field to type in.
+  static const double field = 48;
 
   /// 44: a search field.
   static const double searchField = 44;
 
   /// 32: a filter chip.
   static const double chip = 32;
+
+  /// 48: the capsule for a new note that floats over a phone's list.
+  static const double floatingButton = 48;
 
   /// 22: a tag chip.
   static const double tagChip = 22;
@@ -61,6 +67,9 @@ abstract final class KansoSizes {
 
   /// 340: a message card's width.
   static const double messageCardWidth = 340;
+
+  /// 420: the widest a notice afloat at the foot of the screen gets.
+  static const double noticeWidth = 420;
 
   /// 291: the height of a phone's keyboard, in logical pixels.
   static const double keyboardHeight = 291;

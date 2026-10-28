@@ -53,9 +53,8 @@ class SearchResults extends StatelessWidget {
             actions: <Widget>[
               KansoButton(
                 label: l10n.retry,
-                onPressed: () => context.read<SearchBloc>().add(
-                  const SearchEvent.retried(),
-                ),
+                onPressed: () =>
+                    context.read<SearchBloc>().add(const SearchEvent.retried()),
               ),
             ],
           ),

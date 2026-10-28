@@ -31,4 +31,33 @@ abstract interface class SyncRepository {
 
   /// The status now and each time it changes.
   Stream<SyncStatus> statusStream();
+
+  /// The app is in front (true) or not. In front, sync runs after an edit and
+  /// every so often; behind, it stops.
+  Future<Either<ApplicationError, Unit>> setForeground({
+    required bool foreground,
+  });
+
+  /// Whether Kanso syncs on its own, and how often.
+  Future<Either<ApplicationError, SyncSettingsRow>> settings();
+
+  /// Sets whether Kanso syncs on its own and how often; [intervalSecs] is
+  /// one of [intervalOptions] in seconds. The schedule follows at once.
+  Future<Either<ApplicationError, SyncSettingsRow>> setSettings({
+    required bool enabled,
+    required int intervalSecs,
+  });
+
+  /// How often sync may run, in the desktop's words.
+  List<SyncIntervalOption> intervalOptions();
+
+  /// The status line the desktop shows for [status] under [settings].
+  /// [when] says when the last sync was ("2 min ago"), [resume] when a
+  /// paused sync starts again ("at 14:05").
+  SyncStatusLine statusLine(
+    SyncStatus status,
+    SyncSettingsRow settings, {
+    required String when,
+    required String resume,
+  });
 }

@@ -46,6 +46,9 @@ void main() {
     when(() => library.overview()).thenAnswer(
       (_) async => Right<ApplicationError, LibraryOverview>(overview),
     );
+    when(() => library.overdueTasks()).thenAnswer(
+      (_) async => const Right<ApplicationError, int>(2),
+    );
   });
 
   LibraryIndexBloc build() => LibraryIndexBloc(library);
@@ -55,6 +58,7 @@ void main() {
     notebooks: notebooks,
     tags: tags,
     overview: overview,
+    overdueTasks: 2,
   );
 
   group('LibraryIndexBloc', () {
@@ -95,8 +99,24 @@ void main() {
       build: build,
       act: (bloc) => bloc.add(const LibraryIndexEvent.started()),
       expect: () => <LibraryIndexState>[
-        const LibraryIndexState(status: LibraryIndexStatus.ready),
+        const LibraryIndexState(
+          status: LibraryIndexStatus.ready,
+          overdueTasks: 2,
+        ),
       ],
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'a count of overdue tasks that fails shows none, and nothing else fails',
+      setUp: () => when(() => library.overdueTasks()).thenAnswer(
+        (_) async => const Left<ApplicationError, int>(_failure),
+      ),
+      build: build,
+      act: (bloc) => bloc.add(const LibraryIndexEvent.started()),
+      verify: (bloc) {
+        expect(bloc.state.status, LibraryIndexStatus.ready);
+        expect(bloc.state.overdueTasks, 0);
+      },
     );
 
     blocTest<LibraryIndexBloc, LibraryIndexState>(

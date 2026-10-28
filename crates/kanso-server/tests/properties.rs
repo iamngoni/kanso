@@ -1,4 +1,4 @@
-//! Property tests for the HTTP API and the MCP endpoint. CI pins the seed
+//! Kanso HTTP API and MCP property tests. CI pins the seed
 //! with `PROPTEST_RNG_SEED`.
 
 mod common;
@@ -13,7 +13,9 @@ use base64::engine::general_purpose::STANDARD;
 use common::*;
 use kanso_core::tasks::count_tasks;
 use kanso_core::{DocType, NoteStatus};
-use kanso_server::{ServerConfig, basic_header};
+use kanso_server::{
+    AgentScope, READ_TOOLS, ServerConfig, TokenStore, basic_header, router_with_tokens,
+};
 use kanso_store::{Origin, Put, Store, StoreError};
 use proptest::prelude::*;
 use proptest::test_runner::{FileFailurePersistence, TestCaseError};
@@ -151,6 +153,66 @@ proptest! {
                 let body = r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#;
                 let response = send(&router, request.body(Body::from(body)).unwrap()).await;
                 prop_assert_eq!(response.status == StatusCode::UNAUTHORIZED, !exact, "{} {:?}", uri, attempt);
+            }
+            Ok(())
+        })?;
+    }
+}
+
+proptest! {
+    #![proptest_config(config(16))]
+
+    /// Scoped Kanso reads never return a locked note's title or body text.
+    #[test]
+    fn prop_scoped_native_reads_never_return_locked_note_text_or_title(
+        title in "locked-title-[a-z]{1,16}",
+        secret in "locked-body-[a-z]{1,16}",
+    ) {
+        let app = app();
+        let templates = app.store.role_book(kanso_core::roles::Role::Templates, Origin::Sync).unwrap();
+        let note_id = app.store.put(
+            DocType::Note,
+            json!({ "title": title, "body": format!("---\\nsecret: {secret}\\n---\\n{secret}"), "bookId": templates }),
+            Put::Upsert,
+            Origin::Sync,
+        ).unwrap().id;
+        app.store.put(
+            DocType::Note,
+            json!({ "_id": note_id, "kansoLock": { "salt": "test-salt" } }),
+            Put::Merge,
+            Origin::Sync,
+        ).unwrap();
+
+        let tokens = TokenStore::new();
+        let minted = tokens.mint(AgentScope::with_tools(None, &READ_TOOLS));
+        let router = router_with_tokens(app.store.clone(), &common::config(), tokens);
+        let hidden_title = title.clone();
+        let hidden_body = secret.clone();
+        block_on(async move {
+            let calls = [
+                ("kanso-list-tags", json!({})),
+                ("list-templates", json!({})),
+                ("kanso-get-properties", json!({ "noteId": note_id })),
+                ("kanso-list-note-links", json!({ "noteId": note_id })),
+                ("kanso-list-backlinks", json!({ "noteId": note_id })),
+                ("kanso-run-query-view", json!({ "noteId": note_id })),
+                ("kanso-list-versions", json!({ "noteId": note_id })),
+                ("kanso-read-version", json!({ "noteId": note_id, "rev": "missing" })),
+            ];
+            for (name, arguments) in calls {
+                let request = Request::builder()
+                    .method(Method::POST)
+                    .uri("/mcp")
+                    .header(header::AUTHORIZATION, format!("Bearer {}", minted.token))
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(json!({
+                        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                        "params": { "name": name, "arguments": arguments }
+                    }).to_string())).unwrap();
+                let answer = send(&router, request).await.json();
+                let rendered = answer.to_string();
+                prop_assert!(!rendered.contains(&hidden_title), "{name}: {rendered}");
+                prop_assert!(!rendered.contains(&hidden_body), "{name}: {rendered}");
             }
             Ok(())
         })?;

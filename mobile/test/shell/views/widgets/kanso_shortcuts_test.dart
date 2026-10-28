@@ -3,6 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show EditableText;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
@@ -182,10 +183,54 @@ void main() {
       expect(find.byType(LibraryNavigation), findsNothing);
     });
 
-    testWidgets('has no shortcut for what is not built: a new note, find in '
-        'a note, the modes of a note, the command palette', (tester) async {
+    testWidgets('secondary + N makes a note in the place being listed and '
+        'opens it', (tester) async {
+      final app = await pumpBrowseApp(
+        tester,
+        _landscape,
+        at: '/notebooks/${MockIds.kanso}',
+      );
+      await _shortcut(tester, LogicalKeyboardKey.keyN);
+      final made = app.blocs.library.created.single;
+      expect(made.place, const ListPlace.notebook(id: MockIds.kanso));
+      expect(made.pinned, isFalse);
+      expect(
+        Uri.decodeComponent(app.where),
+        '/notebooks/${MockIds.kanso}/note/note:new-1',
+      );
+    });
+
+    testWidgets('secondary + shift + N asks for a notebook to make', (
+      tester,
+    ) async {
+      final app = await pumpBrowseApp(tester, _landscape, at: '/pinned');
+      await _shortcut(tester, LogicalKeyboardKey.keyN, shift: true);
+      expect(find.text('New notebook'), findsWidgets);
+      await tester.enterText(find.byType(EditableText).last, 'Recipes');
+      await tester.pump();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      expect(app.blocs.library.notebooksCreated.single.$1, 'Recipes');
+      expect(app.where, startsWith('/notebooks/'));
+      expect(app.blocs.library.created, isEmpty);
+    });
+
+    testWidgets('secondary + N in Pinned makes a pinned note, and from a '
+        'search a note in All Notes', (tester) async {
       final app = await pumpBrowseApp(tester, _landscape, at: '/pinned');
       await _shortcut(tester, LogicalKeyboardKey.keyN);
+      expect(app.blocs.library.created.single.pinned, isTrue);
+      expect(app.where, startsWith('/pinned/note/'));
+      app.router.go('/search?q=tea');
+      await tester.pumpAndSettle();
+      await _shortcut(tester, LogicalKeyboardKey.keyN);
+      expect(app.blocs.library.created.last.place, const ListPlace.all());
+      expect(app.where, startsWith('/notes/note/'));
+    });
+
+    testWidgets('has no shortcut for what is not built: find in a note, the '
+        'modes of a note on the list, the command palette', (tester) async {
+      final app = await pumpBrowseApp(tester, _landscape, at: '/pinned');
       await _shortcut(tester, LogicalKeyboardKey.digit1);
       await _shortcut(tester, LogicalKeyboardKey.digit2);
       await _shortcut(tester, LogicalKeyboardKey.digit3);

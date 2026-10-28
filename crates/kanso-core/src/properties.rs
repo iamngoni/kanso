@@ -224,6 +224,24 @@ pub fn set_property_at(body: &str, index: usize, value: &Value) -> String {
     replace_entry(body, &front, entry, value)
 }
 
+/// `body` without the property at `index`, in the order [`parse`] returns:
+/// its key line and everything that belongs to its value. Every other byte
+/// stays as it was (the comments and blank lines around it too, and the
+/// front matter itself when it was the only entry). An index out of range
+/// leaves `body` alone.
+pub fn remove_property_at(body: &str, index: usize) -> String {
+    let Some(front) = split(body) else {
+        return body.to_owned();
+    };
+    let entries = entries(front.front);
+    let Some(entry) = entries.get(index) else {
+        return body.to_owned();
+    };
+    let start = front.front_start + entry.start;
+    let end = front.front_start + entry.end;
+    format!("{}{}", &body[..start], &body[end..])
+}
+
 /// `body` with `entry`'s value replaced, keeping its key line's comment and
 /// any comment lines inside a block list. Comments from inside the old value
 /// sit after the new line, so the value's shape may change without losing
@@ -1395,6 +1413,46 @@ nested:
                 prop_assert_eq!(parsed.get(index).map(|(k, _)| k.as_str()), Some(key.as_str()));
                 prop_assert_eq!(parsed.get(index).map(|(_, v)| v), Some(&value));
             }
+        }
+
+        /// Removing the property at an index takes exactly that entry's
+        /// bytes: everything before and after stays, and the parse loses
+        /// that one entry and keeps the others in order.
+        #[test]
+        fn prop_remove_takes_exactly_the_entry(
+            (text, spans) in span_document(),
+            pick in 0usize..8,
+        ) {
+            let index = pick % spans.len();
+            let (_, key, start, end) = &spans[index];
+            let removed = remove_property_at(&text, index);
+            prop_assert_eq!(&removed[..*start], &text[..*start], "{}", key);
+            prop_assert_eq!(&removed[*start..], &text[*end..], "{}", key);
+            let mut expected = parse(&text);
+            expected.remove(index);
+            prop_assert_eq!(parse(&removed), expected);
+            // Out of range, or with no front matter: nothing changes.
+            prop_assert_eq!(remove_property_at(&text, spans.len()), text.clone());
+        }
+
+        /// Removing from any document whatever (block lists, block
+        /// scalars, comments) loses exactly one entry and no other byte of
+        /// the body after the front matter.
+        #[test]
+        fn prop_remove_loses_one_entry_of_any_document(text in arbitrary_document(), pick in 0usize..8) {
+            let before = parse(&text);
+            if before.is_empty() {
+                prop_assert_eq!(remove_property_at(&text, pick), text);
+                return Ok(());
+            }
+            let index = pick % before.len();
+            let removed = remove_property_at(&text, index);
+            let mut expected = before;
+            expected.remove(index);
+            prop_assert_eq!(parse(&removed), expected);
+            prop_assert!(removed.len() < text.len());
+            let tail = |t: &str| split(t).map(|f| t[f.body_start..].to_owned());
+            prop_assert_eq!(tail(&removed), tail(&text));
         }
 
         /// Setting a key to the value it already reads leaves every byte as

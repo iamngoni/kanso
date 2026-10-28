@@ -28,7 +28,8 @@ use std::sync::Arc;
 pub use cache::{cached, forget_plugin_drawings, render_blocking, request};
 pub use mermaid::is_supported as mermaid_is_supported;
 pub use mermaid::{
-    Engine as MermaidEngine, render_with as render_mermaid_with, set_engine as set_mermaid_engine,
+    Engine as MermaidEngine, engine as mermaid_engine, render_with as render_mermaid_with,
+    set_engine as set_mermaid_engine,
 };
 pub use plugin::{
     MAX_PLUGIN_SVG_BYTES, PluginRenderer, is_plugin_language, plugin_languages,
