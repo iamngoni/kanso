@@ -18,11 +18,13 @@ List<NoteMenuAction> noteMenuActions({
   return switch (lock) {
     LockState_Plain() => <NoteMenuAction>[
       NoteMenuAction.exportPdf,
+      NoteMenuAction.exportHtml,
       NoteMenuAction.lockNote,
       if (unlocked) NoteMenuAction.lockNow,
     ],
     LockState_Open() => <NoteMenuAction>[
       NoteMenuAction.exportPdf,
+      NoteMenuAction.exportHtml,
       NoteMenuAction.removeLock,
       NoteMenuAction.lockNow,
     ],

@@ -3452,6 +3452,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noteExportPreparing => 'Preparing the PDF';
 
   @override
+  String get noteExportHtml => 'Export as web page';
+
+  @override
+  String get noteExportPreparingPage => 'Preparing the web page';
+
+  @override
   String get noteExportFailed => 'The note could not be exported.';
 
   @override

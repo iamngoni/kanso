@@ -248,7 +248,7 @@ void rendererSuite(OpenLibrary open) {
           'Exported: a page',
           '# Heading\n\nA [[Linked]] word, and `code`.\n',
         );
-        final page = await library.renderer().pageHtml(
+        final page = await library.renderer().pagePdf(
           id: id,
           palette: palette,
           options: const PreviewOptions(size: 16, utcOffsetSecs: 0, code: []),
@@ -261,6 +261,28 @@ void rendererSuite(OpenLibrary open) {
         expect(page.fileName, isNot(contains(':')));
       },
     );
+
+    test('the same page is a web page, named for one', () async {
+      final library = await open();
+      final id = await makeNote(library, 'Exported: a page', '# Heading\n');
+      const options = PreviewOptions(size: 16, utcOffsetSecs: 0, code: []);
+
+      final pdf = await library.renderer().pagePdf(
+        id: id,
+        palette: palette,
+        options: options,
+      );
+      final page = await library.renderer().pageHtml(
+        id: id,
+        palette: palette,
+        options: options,
+      );
+
+      // The same self-contained page, told apart by the name it is saved as.
+      expect(page.html, pdf.html);
+      expect(page.fileName, endsWith('.html'));
+      expect(page.fileName, isNot(contains(':')));
+    });
 
     test('the diagram renderer is chosen, and read back', () async {
       final before = await KansoRenderer.diagramRenderer();

@@ -64,9 +64,18 @@ abstract class KansoRenderer implements RustOpaqueInterface {
     palette: palette,
   );
 
-  /// The note as the page the desktop exports, to print or keep: no app
-  /// addresses, so anyone who opens the file can follow its links.
+  /// The same page, saved as the desktop's "Export as web page" saves it:
+  /// one self-contained HTML file, named for one.
   Future<ExportedPage> pageHtml({
+    required String id,
+    required PaletteDto palette,
+    required PreviewOptions options,
+  });
+
+  /// The note as the page the desktop exports, to print or keep: no app
+  /// addresses, so anyone who opens the file can follow its links. The
+  /// file is named for a PDF.
+  Future<ExportedPage> pagePdf({
     required String id,
     required PaletteDto palette,
     required PreviewOptions options,

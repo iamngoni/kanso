@@ -130,8 +130,10 @@ void main() {
           actions.contains(NoteMenuAction.lockNow),
           open || lock is LockState_Open,
         );
-        // Any note that is read can be written as a PDF, and it comes first.
+        // Any note that is read can be written as a PDF or a web page, and
+        // the PDF comes first.
         expect(actions.first, NoteMenuAction.exportPdf);
+        expect(actions[1], NoteMenuAction.exportHtml);
       }
       expect(actions.toSet().length, actions.length);
     });

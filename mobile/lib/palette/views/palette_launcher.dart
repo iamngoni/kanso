@@ -21,6 +21,7 @@ import '../../injection.dart';
 import '../../library/views/widgets/new_notebook_sheet.dart';
 import '../../note/state/note/note_bloc.dart';
 import '../../note/state/note_discovery/note_discovery_bloc.dart';
+import '../../note/views/widgets/note_html_export.dart';
 import '../../note/views/widgets/note_info_sheet.dart';
 import '../../note/views/widgets/note_pdf_export.dart';
 import '../../note_links/views/widgets/backlinks_sheet.dart';
@@ -41,8 +42,8 @@ abstract final class PaletteLauncher {
   /// The commands the mobile app can run now.
   ///
   /// Everything else the catalog has is left out on purpose: it has no
-  /// surface here yet (Ask, word goal, export HTML, Vim,
-  /// transcribe, plugins), so offering it would be a dead row.
+  /// surface here yet (Ask, word goal, Vim, transcribe, plugins), so
+  /// offering it would be a dead row.
   ///
   /// `publish-notebook` is added only where a notebook is showing: the
   /// catalog offers it with nothing needed, but the sheet needs to know
@@ -62,6 +63,7 @@ abstract final class PaletteLauncher {
     'history',
     'publish',
     'export-pdf',
+    'export-html',
     'copy-note-link',
     'copy-kanso-link',
     'trash',
@@ -273,6 +275,10 @@ abstract final class PaletteLauncher {
       case 'export-pdf':
         if (open != null) {
           await exportNotePdf(context, noteId: open);
+        }
+      case 'export-html':
+        if (open != null) {
+          await exportNoteHtml(context, noteId: open);
         }
       case 'copy-note-link':
         if (open != null) {

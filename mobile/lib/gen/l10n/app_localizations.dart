@@ -5872,7 +5872,19 @@ abstract class AppLocalizations {
   /// **'Preparing the PDF'**
   String get noteExportPreparing;
 
-  /// Said when a note could not be written as a PDF.
+  /// The note's menu row that writes it as one HTML file to share.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as web page'**
+  String get noteExportHtml;
+
+  /// What is shown while a note is being written as a web page.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing the web page'**
+  String get noteExportPreparingPage;
+
+  /// Said when a note could not be written as a PDF or a web page.
   ///
   /// In en, this message translates to:
   /// **'The note could not be exported.'**
