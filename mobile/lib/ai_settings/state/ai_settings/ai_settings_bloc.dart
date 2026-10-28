@@ -15,7 +15,6 @@ import '../../../core/models/data/ai_test_result.dart';
 import '../../../core/models/data/application_error.dart';
 import '../../../core/models/data/load_status.dart';
 import '../../../core/models/repos/abs/ai_repository.dart';
-import '../../../core/utils/debounce.dart';
 import '../../models/data/ai_key.dart';
 import '../../models/data/ai_test_status.dart';
 
@@ -49,20 +48,12 @@ class AiSettingsBloc extends Bloc<AiSettingsEvent, AiSettingsState> {
     );
     on<AiSettingsProviderChosenEvent>(
       // A different provider starts from its own address, model and region.
-      (event, emit) => _save(
-        emit,
-        AiSettingsChange(
-          enabled: state.settings.enabled,
-          provider: event.provider,
-        ),
-      ),
+      _onProviderChosen,
       transformer: sequential(),
     );
     on<AiSettingsFieldsChangedEvent>(
-      (event, emit) => _save(emit, _changeFor(event.fields)),
-      transformer: debounceRestartable<AiSettingsFieldsChangedEvent>(
-        aiFieldsDebounce,
-      ),
+      _onFieldsChanged,
+      transformer: restartable(),
     );
     on<AiSettingsKeySavedEvent>(_onKeySaved, transformer: sequential());
     on<AiSettingsKeyRemovedEvent>(_onKeyRemoved, transformer: sequential());
@@ -70,6 +61,7 @@ class AiSettingsBloc extends Bloc<AiSettingsEvent, AiSettingsState> {
   }
 
   final AiRepository _ai;
+  int _fieldGeneration = 0;
 
   AiSettingsChange _changeFor(AiFields fields) => AiSettingsChange(
     enabled: state.settings.enabled,
@@ -78,6 +70,32 @@ class AiSettingsBloc extends Bloc<AiSettingsEvent, AiSettingsState> {
     model: fields.model.trim(),
     region: fields.region.trim(),
   );
+
+  Future<void> _onProviderChosen(
+    AiSettingsProviderChosenEvent event,
+    Emitter<AiSettingsState> emit,
+  ) async {
+    _fieldGeneration++;
+    await _save(
+      emit,
+      AiSettingsChange(
+        enabled: state.settings.enabled,
+        provider: event.provider,
+      ),
+    );
+  }
+
+  Future<void> _onFieldsChanged(
+    AiSettingsFieldsChangedEvent event,
+    Emitter<AiSettingsState> emit,
+  ) async {
+    final generation = _fieldGeneration;
+    await Future<void>.delayed(aiFieldsDebounce);
+    if (emit.isDone || generation != _fieldGeneration) {
+      return;
+    }
+    await _save(emit, _changeFor(event.fields));
+  }
 
   Future<void> _onStarted(
     AiSettingsStartedEvent event,

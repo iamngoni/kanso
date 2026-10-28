@@ -97,6 +97,27 @@ void main() {
       await bloc.close();
     });
 
+    test('switching providers discards a pending field edit', () async {
+      final ai = FixtureAiRepository(settings: aiSettings());
+      final bloc = AiSettingsBloc(ai)..add(const AiSettingsEvent.started());
+      await bloc.stream.firstWhere((s) => s.status == LoadStatus.ready);
+      bloc
+        ..add(
+          const AiSettingsEvent.fieldsChanged(
+            AiFields(address: 'https://old-provider.example', model: 'old'),
+          ),
+        )
+        ..add(const AiSettingsEvent.providerChosen('ollama'));
+      await bloc.stream.firstWhere((s) => s.settings.provider == 'ollama');
+      await Future<void>.delayed(const Duration(milliseconds: 550));
+
+      expect(ai.saved, hasLength(1));
+      expect(ai.saved.single.provider, 'ollama');
+      expect(ai.saved.single.baseUrl, isEmpty);
+      expect(ai.saved.single.model, isEmpty);
+      await bloc.close();
+    });
+
     test('typing is saved once, after a pause', () async {
       final ai = FixtureAiRepository(settings: aiSettings());
       final bloc = AiSettingsBloc(ai)..add(const AiSettingsEvent.started());
