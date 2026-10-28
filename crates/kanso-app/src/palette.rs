@@ -690,7 +690,7 @@ impl Palette {
                         // Typing flattens the tree into a ranked list.
                         .depth(if query.is_empty() { depth } else { 0 })
                         .checked(current == Some(book.id.as_str()))
-                        .hint(book.count.to_string());
+                        .hint(library.book_total_count(&book.id).to_string());
                         fit(item, &[])
                     })
                     .collect();
@@ -715,7 +715,7 @@ impl Palette {
                         )
                         .depth(if query.is_empty() { depth } else { 0 })
                         .checked(*showing == filter)
-                        .hint(book.count.to_string());
+                        .hint(library.book_total_count(&book.id).to_string());
                         fit(item, &[])
                     })
                     .collect();
@@ -1044,7 +1044,7 @@ impl Palette {
                     library.is_book_locked(&book.id),
                     crate::locked::LockKeys::is_unlocked(cx),
                 ),
-                book.count,
+                library.book_total_count(&book.id),
                 &[],
             );
             places.push((item.depth(if query.is_empty() { depth } else { 0 }), score));

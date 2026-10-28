@@ -559,6 +559,7 @@ pub(crate) fn parse_status(status: &str) -> Result<NoteStatus, KansoError> {
 
 /// The notebooks as rows, in tree order.
 pub(crate) fn notebook_rows(books: &[kanso_core::Book]) -> Vec<NotebookRow> {
+    let counts = list::book_total_counts(books);
     let tree = list::notebook_tree(books);
     let depths: Vec<usize> = tree.iter().map(|(depth, _)| *depth).collect();
     tree.into_iter()
@@ -587,7 +588,7 @@ pub(crate) fn notebook_rows(books: &[kanso_core::Book]) -> Vec<NotebookRow> {
             id: book.id.clone(),
             name: book.name.clone(),
             parent_id: book.parent_book_id.clone(),
-            count: book.count,
+            count: counts.get(&book.id).copied().unwrap_or(book.count),
         })
         .collect()
 }

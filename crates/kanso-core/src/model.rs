@@ -234,7 +234,7 @@ pub struct Book {
     pub parent_book_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub order: Option<i64>,
-    /// Number of notes in the notebook. Derived; never stored.
+    /// Number of notes directly in the notebook. Derived; never stored.
     #[serde(default)]
     pub count: u32,
     #[serde(default)]

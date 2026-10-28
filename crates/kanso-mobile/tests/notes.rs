@@ -335,6 +335,71 @@ fn a_new_note_in_an_empty_library_makes_the_notes_notebook_whatever_the_preferen
     assert_eq!(err, KansoError::NotFound);
 }
 
+#[test]
+fn notebook_counts_include_the_whole_subtree() {
+    let phone = lone_phone();
+    let root = phone
+        .library
+        .create_notebook("Clients".into(), None)
+        .unwrap();
+    let child = phone
+        .library
+        .create_notebook("Acme".into(), Some(root.id.clone()))
+        .unwrap();
+    let grandchild = phone
+        .library
+        .create_notebook("2026".into(), Some(child.id.clone()))
+        .unwrap();
+    let sibling = phone
+        .library
+        .create_notebook("Personal".into(), None)
+        .unwrap();
+
+    for (title, notebook_id) in [
+        ("Root note", root.id.clone()),
+        ("Child note", child.id.clone()),
+        ("Grandchild note", grandchild.id.clone()),
+        ("Sibling note", sibling.id.clone()),
+    ] {
+        phone
+            .library
+            .create(NewNote {
+                title: title.into(),
+                notebook_id: Some(notebook_id),
+                ..NewNote::default()
+            })
+            .unwrap();
+    }
+
+    let counts = |notebooks: Vec<kanso_mobile::NotebookRow>, id: &str| {
+        notebooks
+            .into_iter()
+            .find(|notebook| notebook.id == id)
+            .unwrap()
+            .count
+    };
+    let notebooks = phone.library.notebooks().unwrap();
+    assert_eq!(counts(notebooks.clone(), &root.id), 3);
+    assert_eq!(counts(notebooks.clone(), &child.id), 2);
+    assert_eq!(counts(notebooks.clone(), &grandchild.id), 1);
+    assert_eq!(counts(notebooks, &sibling.id), 1);
+
+    let listed: BTreeSet<String> = phone
+        .library
+        .list(ListQuery {
+            place: ListPlace::Notebook { id: root.id },
+            ..ListQuery::default()
+        })
+        .unwrap()
+        .rows
+        .into_iter()
+        .map(|row| row.title)
+        .collect();
+    // The count is the whole subtree; opening the notebook still lists
+    // only notes placed directly in it.
+    assert_eq!(listed, BTreeSet::from(["Root note".to_owned()]));
+}
+
 // no-prop-test: the errors of a missing note and of a text over the limit.
 #[test]
 fn a_missing_note_is_not_found_and_too_long_a_title_is_invalid() {

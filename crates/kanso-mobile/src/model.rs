@@ -415,7 +415,7 @@ pub struct NotebookRow {
     pub id: String,
     pub name: String,
     pub parent_id: Option<String>,
-    /// Notes in it.
+    /// Notes in it and every notebook inside it.
     pub count: u32,
     /// The notebook has a lock of its own; its notes read as locked.
     pub locked: bool,

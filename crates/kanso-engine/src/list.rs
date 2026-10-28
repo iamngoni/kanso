@@ -8,6 +8,8 @@
 //! since the phones say them in the person's language: [`grouping`] only
 //! numbers days and says where a header goes.
 
+use std::collections::{HashMap, HashSet};
+
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::{Book, Clause, Field, NoteStatus, Query};
 use kanso_store::{NoteSummary, SearchParams, Sort, Store, StoreError};
@@ -251,6 +253,38 @@ pub fn has_notes_inside(id: &str, books: &[Book]) -> bool {
     false
 }
 
+/// The notes in notebook `id` and every notebook inside it, at any depth.
+/// Each notebook's direct count contributes once; cycles and a missing root
+/// return what can be reached without repeating a notebook.
+pub fn book_total_count(books: &[Book], id: &str) -> u32 {
+    let mut seen = HashSet::new();
+    let mut pending = vec![id];
+    let mut total = 0u32;
+    while let Some(id) = pending.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        if let Some(book) = books.iter().find(|book| book.id == id) {
+            total = total.saturating_add(book.count);
+            pending.extend(
+                books
+                    .iter()
+                    .filter(|child| child.parent_book_id.as_deref() == Some(id))
+                    .map(|child| child.id.as_str()),
+            );
+        }
+    }
+    total
+}
+
+/// Every notebook's [`book_total_count`], by notebook ID.
+pub fn book_total_counts(books: &[Book]) -> HashMap<String, u32> {
+    books
+        .iter()
+        .map(|book| (book.id.clone(), book_total_count(books, &book.id)))
+        .collect()
+}
+
 /// Orders notebooks depth-first by name, children under their parent. A book
 /// whose parent is missing is shown at the top level.
 pub fn notebook_tree(books: &[Book]) -> Vec<(usize, &Book)> {
@@ -370,9 +404,9 @@ pub fn new_note_target(
 #[cfg(test)]
 mod tests {
     use super::{
-        DateKey, Filter, Narrowing, book_path, has_notes_inside, is_book_locked, list_notes,
-        new_note_target, notebook_tree, pinned_first, recent_first, recent_notes, refine_status,
-        search_params, shape,
+        DateKey, Filter, Narrowing, book_path, book_total_count, book_total_counts,
+        has_notes_inside, is_book_locked, list_notes, new_note_target, notebook_tree, pinned_first,
+        recent_first, recent_notes, refine_status, search_params, shape,
     };
     use crate::lock::book_subtree;
     use kanso_core::{Book, NoteFacts, NoteStatus, Query};
@@ -677,6 +711,36 @@ mod tests {
         assert!(inside("book:9"));
         assert!(!inside("book:8"), "its own notes come back round the loop");
         assert!(!inside("book:99"));
+    }
+
+    #[test]
+    fn notebook_counts_include_every_nested_notebook() {
+        let counted = |id, parent, count| Book {
+            count,
+            ..book(id, parent, "b")
+        };
+        let books = vec![
+            counted(1, None, 0),
+            counted(2, Some(1), 17),
+            counted(3, Some(2), 4),
+            counted(4, None, 2),
+            counted(5, Some(4), 0),
+            // A cycle counts each notebook once.
+            counted(6, Some(7), 3),
+            counted(7, Some(6), 1),
+        ];
+        assert_eq!(book_total_count(&books, "book:1"), 21);
+        assert_eq!(book_total_count(&books, "book:2"), 21);
+        assert_eq!(book_total_count(&books, "book:3"), 4);
+        assert_eq!(book_total_count(&books, "book:4"), 2);
+        assert_eq!(book_total_count(&books, "book:6"), 4);
+        assert_eq!(book_total_count(&books, "book:7"), 4);
+        assert_eq!(book_total_count(&books, "book:missing"), 0);
+        let totals = book_total_counts(&books);
+        assert_eq!(totals["book:1"], 21);
+        assert_eq!(totals["book:2"], 21);
+        assert_eq!(totals["book:3"], 4);
+        assert_eq!(totals["book:6"], 4);
     }
 
     /// Recent reads the store a page at a time and still finds every recent

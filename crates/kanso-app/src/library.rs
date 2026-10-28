@@ -2,6 +2,7 @@
 //! the current filter and search. Views read it; writes go to the store, and
 //! the store's change feed brings the lists back up to date.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use gpui_kit::*;
@@ -13,8 +14,8 @@ use crate::clock::Clock;
 use crate::selection::{Click, Selection};
 
 pub use kanso_engine::list::{
-    DAY_MS, Filter, RECENT_DAYS, book_path, has_notes_inside, is_book_locked, list_notes,
-    notebook_tree as book_tree, refine_status, search_params,
+    DAY_MS, Filter, RECENT_DAYS, book_path, book_total_counts, has_notes_inside, is_book_locked,
+    list_notes, notebook_tree as book_tree, refine_status, search_params,
 };
 
 /// The place a board lays out for the list's `filter`: the same notebook
@@ -42,6 +43,8 @@ pub enum LibraryEvent {
 pub struct Library {
     pub store: Arc<Store>,
     pub books: Vec<Book>,
+    /// Notes in each notebook and every notebook inside it, by notebook ID.
+    book_counts: HashMap<String, u32>,
     pub tags: Vec<Tag>,
     /// The tags nested by `/` (`kanso_core::tags::tag_tree`).
     pub tag_tree: Vec<TagNode>,
@@ -81,6 +84,7 @@ impl EventEmitter<LibraryEvent> for Library {}
 
 struct Loaded {
     books: Vec<Book>,
+    book_counts: HashMap<String, u32>,
     tags: Vec<Tag>,
     tag_tree: Vec<TagNode>,
     counts: StatusCounts,
@@ -114,6 +118,7 @@ impl Library {
         let mut library = Library {
             store,
             books: Vec::new(),
+            book_counts: HashMap::new(),
             tags: Vec::new(),
             tag_tree: Vec::new(),
             counts: StatusCounts::default(),
@@ -183,6 +188,7 @@ impl Library {
                 _ => store.count_recent(recent_since)?,
             };
             let tags = store.tags()?;
+            let books = store.books()?;
             let infos: Vec<TagInfo> = tags
                 .iter()
                 .map(|tag| TagInfo {
@@ -191,7 +197,8 @@ impl Library {
                 })
                 .collect();
             Ok::<_, StoreError>(Loaded {
-                books: store.books()?,
+                book_counts: book_total_counts(&books),
+                books,
                 tag_tree: tag_tree(&infos, &store.tag_links()?),
                 tags,
                 counts: store.status_counts()?,
@@ -210,6 +217,7 @@ impl Library {
                 match loaded {
                     Ok(loaded) => {
                         this.books = loaded.books;
+                        this.book_counts = loaded.book_counts;
                         this.tags = loaded.tags;
                         this.tag_tree = loaded.tag_tree;
                         this.counts = loaded.counts;
@@ -386,6 +394,11 @@ impl Library {
 
     pub fn book(&self, id: &str) -> Option<&Book> {
         self.books.iter().find(|b| b.id == id)
+    }
+
+    /// Notes in notebook `id` and every notebook inside it, at any depth.
+    pub fn book_total_count(&self, id: &str) -> u32 {
+        self.book_counts.get(id).copied().unwrap_or(0)
     }
 
     pub fn tag(&self, id: &str) -> Option<&Tag> {

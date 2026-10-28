@@ -258,7 +258,7 @@ impl Sidebar {
                     depth,
                     id: book.id.clone(),
                     name: book.name.clone(),
-                    count: book.count,
+                    count: library.book_total_count(&book.id),
                     icon: crate::book_icons::book_icon(book, cx),
                     color: crate::book_colors::book_color(book),
                     parent,

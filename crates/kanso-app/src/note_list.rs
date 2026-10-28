@@ -2149,6 +2149,7 @@ mod tests {
             assert!(cx.read(|cx| library.read(cx).notes.is_empty()));
             assert_eq!(place(cx), None);
             assert!(cx.read(|cx| library.read(cx).has_notes_inside(&clients)));
+            assert_eq!(cx.read(|cx| library.read(cx).book_total_count(&clients)), 1);
             // Only empty notebooks inside: still empty.
             let projects = book("Projects", None);
             book("Q3", Some(&projects));
