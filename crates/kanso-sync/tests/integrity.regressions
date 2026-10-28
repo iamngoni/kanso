@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 7790470784bb228dd66b03f77c12d609455bf1bf8ac864880f15ff9005221802 # shrinks to ops = [Write { m: 1, pick: 2, bump: false }, Write { m: 2, pick: 2, bump: false }, Snapshot, Sync { m: 1 }, Restore, Delete { m: 1, pick: 2, ui: false }, Sync { m: 2 }]
 cc ce726ccae16d05b4bb28bfc4722dc158fe73734cd9d19e244403279550ee99c9 # shrinks to ops = [Squeeze(0, -1), Delete(0), Sync, New(0), New(3), Delete(1), Sync, Sync]
+cc 11b469fc075373e7050ca41272a5204246068de96c7026daeced0bf06f313da7 # shrinks to ops = [Squeeze(0, 0), File(1, 0), Sync, New(3), File(0, 0), Squeeze(0, 2), Squeeze(2, 0), Delete(0), Sync, Sync]

@@ -1011,6 +1011,52 @@ impl Run<'_> {
         Ok(true)
     }
 
+    /// A pending file can outlive the document hold that kept it from the
+    /// push. Once that hold's room opens, its own quota may be the next
+    /// refusal. When this sync already knows the account's usage, record
+    /// that hold before spending an upload, so an unchanged follow-up sync
+    /// does not send a request the server will refuse. A later sync can
+    /// use the entry's room normally.
+    fn precheck_upload_quota(
+        &mut self,
+        doc: &SyncDoc,
+        class: Class,
+        count: u64,
+        bytes: u64,
+    ) -> Result<bool, SyncError> {
+        let i = Family::Files as usize;
+        if self.holds[i].entry.is_some() {
+            return Ok(false);
+        }
+        let Some(Some(usage)) = self.usage else {
+            return Ok(false);
+        };
+        let (kind, used, limit) =
+            if count > 0 && usage.files.saturating_add(count) > usage.quota.files {
+                (QuotaKind::Files, usage.files, usage.quota.files)
+            } else if usage.file_bytes.saturating_add(bytes) > usage.quota.file_bytes {
+                (
+                    QuotaKind::FileBytes,
+                    usage.file_bytes,
+                    usage.quota.file_bytes,
+                )
+            } else {
+                return Ok(false);
+            };
+        self.holds[i].entry = Some(QuotaEntry {
+            kind,
+            used,
+            limit,
+            at_ms: now_ms(),
+            level: class.level(),
+        });
+        let held = self.quota_holds(Family::Files, doc, class, count, bytes)?;
+        if held {
+            self.report.quota = Some(kind);
+        }
+        Ok(held)
+    }
+
     /// `doc` stays pending this sync for a quota or an upload hold. Neither
     /// family's entry can go while something it may concern waits: a held
     /// document, or a live file whose upload was never tried.
@@ -1295,14 +1341,16 @@ impl Run<'_> {
                 Class::Edit
             };
             let bytes = blob.data.len() as u64 + FILE_ROW_COST;
+            let count = u64::from(class != Class::Tombstone);
+            // A document hold can make room for this upload before its own
+            // family has seen a refusal. Use the usage already read for the
+            // document room to avoid spending a write on a known refusal.
+            if self.precheck_upload_quota(&doc, class, count, bytes)? {
+                continue;
+            }
             // As in `push`: a live file edit can revive a server tombstone.
-            if self.quota_holds(
-                Family::Files,
-                &doc,
-                class,
-                u64::from(class != Class::Tombstone),
-                bytes,
-            )? || !self.still_goes(Family::Files, &doc)
+            if self.quota_holds(Family::Files, &doc, class, count, bytes)?
+                || !self.still_goes(Family::Files, &doc)
             {
                 continue;
             }
