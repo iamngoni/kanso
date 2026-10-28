@@ -4091,6 +4091,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistKeptOut => 'This note is kept out of AI.';
 
   @override
+  String get assistSelectText => 'Select some text first.';
+
+  @override
+  String get assistContinueAfterText =>
+      'Put the cursor after some text to continue it.';
+
+  @override
+  String get assistReadOnly => 'This note can’t be edited.';
+
+  @override
   String get assistStopped => 'Stopped. A partial rewrite can’t be applied.';
 
   @override

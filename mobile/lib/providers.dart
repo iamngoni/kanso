@@ -24,6 +24,7 @@ import 'import/state/opened_documents/opened_documents_bloc.dart';
 import 'injection.dart';
 import 'lock/state/lock_status/lock_status_bloc.dart';
 import 'lock/state/privacy_cover/privacy_cover_bloc.dart';
+import 'note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'push/state/push_registration/push_registration_bloc.dart';
 import 'push/views/widgets/push_lifecycle_host.dart';
@@ -82,6 +83,9 @@ class AppProviders extends StatelessWidget {
         BlocProvider<LockStatusBloc>(
           create: (_) =>
               getIt<LockStatusBloc>()..add(const LockStatusEvent.started()),
+        ),
+        BlocProvider<NoteAssistIntentBloc>(
+          create: (_) => getIt<NoteAssistIntentBloc>(),
         ),
         BlocProvider<NoteModeIntentBloc>(
           create: (_) => getIt<NoteModeIntentBloc>(),

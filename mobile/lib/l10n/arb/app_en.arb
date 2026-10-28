@@ -5218,6 +5218,18 @@
   "@assistKeptOut": {
     "description": "Says that the note is locked, in the trash or tagged #ai-exclude, so nothing was sent."
   },
+  "assistSelectText": "Select some text first.",
+  "@assistSelectText": {
+    "description": "Says that an assistant rewrite needs text selected."
+  },
+  "assistContinueAfterText": "Put the cursor after some text to continue it.",
+  "@assistContinueAfterText": {
+    "description": "Says that Continue Writing needs a paragraph before the cursor."
+  },
+  "assistReadOnly": "This note can’t be edited.",
+  "@assistReadOnly": {
+    "description": "Says that the assistant cannot change a shared note that is read only."
+  },
   "assistStopped": "Stopped. A partial rewrite can’t be applied.",
   "@assistStopped": {
     "description": "Says that a stopped suggestion is not offered."

@@ -28,6 +28,7 @@ import 'package:kanso/lock/state/unlock/unlock_bloc.dart';
 import 'package:kanso/note/models/data/note_screen_status.dart';
 import 'package:kanso/note/models/repos/impl/memory_note_place_repository.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
+import 'package:kanso/note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'package:kanso/note/state/note_discovery/note_discovery_bloc.dart';
 import 'package:kanso/note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'package:kanso/note_list/models/data/note_list_status.dart';
@@ -351,6 +352,9 @@ class BrowseBlocs {
     return MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
         BlocProvider<LockStatusBloc>.value(value: lock),
+        BlocProvider<NoteAssistIntentBloc>(
+          create: (_) => NoteAssistIntentBloc(),
+        ),
         BlocProvider<NoteModeIntentBloc>(
           create: (_) => NoteModeIntentBloc(),
         ),

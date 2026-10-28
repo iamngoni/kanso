@@ -38,6 +38,7 @@ class AssistSheet extends StatelessWidget {
     this.canApply,
     this.onApply,
     this.summarizeNote = false,
+    this.startWith,
     super.key,
   });
 
@@ -52,6 +53,9 @@ class AssistSheet extends StatelessWidget {
   final bool Function()? canApply;
   final bool Function(AssistPlacement placement, String suggestion)? onApply;
   final bool summarizeNote;
+
+  /// The action the sheet starts on, if it was opened for one directly.
+  final AssistAction? startWith;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +76,9 @@ class AssistSheet extends StatelessWidget {
     final bloc = context.read<AssistBloc>();
     return BlocBuilder<AssistBloc, AssistState>(
       builder: (context, state) {
-        if (state.status == AssistStatus.idle && !summarizeNote) {
+        if (state.status == AssistStatus.idle &&
+            !summarizeNote &&
+            startWith == null) {
           return AssistActionList(
             actions: bloc.actions,
             hasSelection: hasSelection,
@@ -89,14 +95,15 @@ class AssistSheet extends StatelessWidget {
                 bloc.add(AssistEvent.summaryRequested(noteId)),
           );
         }
-        final info = infoFor(bloc.actions, state.action);
+        final info = infoFor(bloc.actions, state.action ?? startWith);
         final replaces = (info?.replaces ?? false) && !state.wholeNote;
         final title = state.wholeNote
             ? l10n.assistSummary
             : (info?.noun ?? l10n.assistTitle);
         final running =
             state.status == AssistStatus.running ||
-            (summarizeNote && state.status == AssistStatus.idle);
+            ((summarizeNote || startWith != null) &&
+                state.status == AssistStatus.idle);
         final failed = state.status == AssistStatus.failed;
         final applyCurrent = canApply?.call() ?? true;
         // The card says one thing at a time, beside its title.
@@ -244,7 +251,7 @@ class AssistSheet extends StatelessWidget {
   /// Back to the actions, or, for a summary or where there was nothing to
   /// choose, away.
   void discard(BuildContext context, AssistBloc bloc) {
-    if (summarizeNote) {
+    if (summarizeNote || startWith != null) {
       Navigator.of(context).maybePop();
     } else {
       bloc.add(const AssistEvent.discarded());

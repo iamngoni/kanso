@@ -10,8 +10,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../core/bridge/api/linking_types.dart';
 import '../../core/bridge/api/types.dart';
+import '../../core/models/data/assist_action.dart';
 import '../../core/models/data/browse_location.dart';
 import '../../core/models/repos/abs/journal_repository.dart';
 import '../../core/models/repos/abs/library_repository.dart';
@@ -34,6 +36,7 @@ import '../../lock/views/widgets/lock_item_sheet.dart';
 import '../../lock/views/widgets/remove_lock_sheet.dart';
 import '../../note/models/data/note_mode.dart';
 import '../../note/state/note/note_bloc.dart';
+import '../../note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../note/state/note_discovery/note_discovery_bloc.dart';
 import '../../note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import '../../note/views/widgets/note_html_export.dart';
@@ -92,12 +95,21 @@ abstract final class PaletteLauncher {
     'toggle-inspector',
     'show-outline',
     'show-backlinks',
+    'ask-your-notes',
+    'summarize-note',
+    'improve-writing',
+    'make-shorter',
+    'fix-spelling-and-grammar',
+    'continue-writing',
+    'summarize-selection',
     'focus-mode',
     'sync',
     'sign-in',
+    'join-shared-note',
     'settings',
     'settings-appearance',
     'settings-account',
+    'settings-ai',
     'show-task-board',
     'show-local-graph',
     'journal-calendar',
@@ -146,7 +158,7 @@ abstract final class PaletteLauncher {
         openNoteId: note?.id ?? noteId,
         signedIn: _maybeRead<SyncStatusBloc>(context)?.state.signedIn ?? false,
         sessionHeld: false,
-        aiOn: false,
+        aiOn: _maybeRead<AiStatusBloc>(context)?.state.enabled ?? false,
         settingsOpen: path.startsWith(KansoRoutes.settings),
         imageLine: false,
         audioLine: false,
@@ -326,9 +338,18 @@ abstract final class PaletteLauncher {
       case 'settings-account':
         _leaveFocus(context);
         router.go(KansoRoutes.settingsAccount);
+      case 'settings-ai':
+        _leaveFocus(context);
+        router.go(KansoRoutes.settingsAi);
       case 'sign-in':
         _leaveFocus(context);
         router.go(KansoRoutes.settingsSignIn);
+      case 'join-shared-note':
+        _leaveFocus(context);
+        unawaited(router.push(KansoRoutes.sharedJoin));
+      case 'ask-your-notes':
+        _leaveFocus(context);
+        router.go(KansoRoutes.ask);
       case 'sync':
         final sync = _maybeRead<SyncStatusBloc>(context);
         sync?.add(const SyncStatusEvent.syncRequested());
@@ -546,6 +567,37 @@ abstract final class PaletteLauncher {
       case 'show-related':
         if (open != null) {
           await RelatedNotesSheet.show(context, noteId: open);
+        }
+      case 'summarize-note':
+        final summaryNote = note?.id ?? noteId;
+        if (summaryNote != null) {
+          _maybeRead<NoteAssistIntentBloc>(context)?.add(
+            NoteAssistIntentEvent.requested(
+              noteId: summaryNote,
+              summarizeNote: true,
+            ),
+          );
+        }
+      case 'improve-writing' ||
+          'make-shorter' ||
+          'fix-spelling-and-grammar' ||
+          'continue-writing' ||
+          'summarize-selection':
+        final assistNote = note?.id ?? noteId;
+        final action = switch (id) {
+          'improve-writing' => AssistAction.improve,
+          'make-shorter' => AssistAction.shorten,
+          'fix-spelling-and-grammar' => AssistAction.fix,
+          'continue-writing' => AssistAction.continueWriting,
+          _ => AssistAction.summarize,
+        };
+        if (assistNote != null) {
+          _maybeRead<NoteAssistIntentBloc>(context)?.add(
+            NoteAssistIntentEvent.requested(
+              noteId: assistNote,
+              action: action,
+            ),
+          );
         }
       case 'edit-mode' || 'preview-mode':
         final noteToSwitch = note?.id ?? noteId;

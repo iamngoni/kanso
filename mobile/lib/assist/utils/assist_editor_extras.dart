@@ -2,14 +2,14 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/configs/kanso_icons.dart';
 import '../../core/models/repos/abs/ai_repository.dart';
 import '../../editor_extras/models/data/editor_extras.dart';
-import '../models/data/assist_snapshot.dart';
-import '../views/widgets/show_assist_sheet.dart';
-import 'apply_suggestion.dart';
+import 'open_assist_action.dart';
 
 /// The inline assistant in the editor: an "Ask AI…" item in the selection
 /// menu and a sparkles key above the keyboard. Both open the assistant
@@ -92,37 +92,7 @@ class AssistEditorExtras implements EditorExtras {
   /// Opens the assistant for the target's selection, or its caret.
   @visibleForTesting
   void open(BuildContext context, EditorTextTarget target) {
-    final value = target.value;
-    final text = value.text;
-    final range = value.selection.isValid
-        ? value.selection
-        : TextSelection.collapsed(offset: text.length);
-    final snapshot = AssistSnapshot(
-      noteId: target.noteId,
-      revision: target.revision,
-      windowOrigin: target.windowOrigin,
-      text: text,
-      selection: TextRange(start: range.start, end: range.end),
-    );
-    // With no selection, Continue Writing continues the end of the text
-    // before the caret.
-    final room = snapshot.before.length > continueRoom
-        ? snapshot.before.length - continueRoom
-        : 0;
-    final selection = range.isCollapsed
-        ? snapshot.before.substring(room)
-        : snapshot.selected;
-    showAssistSheet(
-      context,
-      noteId: target.noteId,
-      selection: selection,
-      hasSelection: !range.isCollapsed,
-      before: range.isCollapsed ? '' : snapshot.before,
-      applyChanges: target.changes,
-      canApply: () => assistSnapshotIsCurrent(target, snapshot),
-      onApply: (placement, suggestion) =>
-          applySuggestion(target, snapshot, placement, suggestion),
-    );
+    unawaited(openAssistAction(context, target));
   }
 
   @override
