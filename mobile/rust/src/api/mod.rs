@@ -21,6 +21,7 @@ pub mod library;
 pub mod linking;
 pub mod linking_types;
 pub mod locks;
+pub mod publish;
 pub mod reminders;
 pub mod renderer;
 pub mod shared;

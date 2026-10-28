@@ -25,6 +25,7 @@ use super::editor::KansoEditor;
 use super::gallery::KansoGallery;
 use super::linking::KansoLinking;
 use super::locks::KansoLocks;
+use super::publish::KansoPublisher;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
@@ -401,6 +402,11 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn renderer(&self) -> KansoRenderer {
         KansoRenderer::new(self.0.renderer())
+    }
+
+    /// Publishing uses the signed-in session held by this library.
+    pub fn publisher(&self) -> KansoPublisher {
+        KansoPublisher::new(self.0.clone())
     }
 
     #[frb(sync)]

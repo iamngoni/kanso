@@ -35,7 +35,7 @@ void main() {
   for (final file in apiFiles) {
     var currentClass = '';
     for (final line in file.readAsLinesSync()) {
-      final klass = RegExp(r'^abstract class (\w+)').firstMatch(line);
+      final klass = RegExp(r'^(?:abstract )?class (\w+)').firstMatch(line);
       if (klass != null) {
         currentClass = klass.group(1)!;
         continue;

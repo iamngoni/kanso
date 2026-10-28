@@ -4619,5 +4619,45 @@
     "placeholders": {
       "title": {"type": "String"}
     }
-  }
+  },
+  "publishNoteMenu": "Publish…",
+  "@publishNoteMenu": {"description": "Opens the publish sheet for a note."},
+  "publishNotebookMenu": "Publish notebook…",
+  "@publishNotebookMenu": {"description": "Opens the publish sheet for a notebook site."},
+  "publishNoteTitle": "Publish note",
+  "@publishNoteTitle": {"description": "Title of the note publish sheet."},
+  "publishNotebookTitle": "Publish notebook as a site",
+  "@publishNotebookTitle": {"description": "Title of the notebook publish sheet."},
+  "publishNoteContentSummary": "{count, plural, =0{No words} one{{count} word} other{{count} words}}",
+  "@publishNoteContentSummary": {
+    "description": "A count of the words in the note that will be published.",
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "publishExpiryHeading": "Link expiry",
+  "@publishExpiryHeading": {"description": "Heading above link expiry choices."},
+  "publishWorking": "Publishing…",
+  "@publishWorking": {"description": "Status shown while a note or notebook site is being published."},
+  "publishPublish": "Publish",
+  "@publishPublish": {"description": "Publishes a note."},
+  "publishUpdate": "Update published note",
+  "@publishUpdate": {"description": "Updates a note already published at its link."},
+  "publishPublishSite": "Publish site",
+  "@publishPublishSite": {"description": "Publishes a notebook as a site."},
+  "publishUpdateSite": "Update site",
+  "@publishUpdateSite": {"description": "Updates a published notebook site."},
+  "publishCopyLink": "Copy link",
+  "@publishCopyLink": {"description": "Copies the published link."},
+  "publishUnpublish": "Unpublish",
+  "@publishUnpublish": {"description": "Removes a published link."},
+  "publishCopied": "Publish link copied.",
+  "@publishCopied": {"description": "Confirms that a publish link was copied."},
+  "publishNeverExpires": "This link does not expire.",
+  "@publishNeverExpires": {"description": "Explains a link without an expiry."},
+  "publishExpiresOn": "Expires {date}",
+  "@publishExpiresOn": {
+    "description": "The date a published link expires.",
+    "placeholders": {"date": {"type": "String"}}
+  },
+  "publishExpired": "This link has expired. Update to create a new link.",
+  "@publishExpired": {"description": "Explains that update replaces an expired link."}
 }

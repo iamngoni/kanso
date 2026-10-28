@@ -15,6 +15,7 @@ import 'api/library.dart';
 import 'api/linking.dart';
 import 'api/linking_types.dart';
 import 'api/locks.dart';
+import 'api/publish.dart';
 import 'api/renderer.dart';
 import 'api/shared.dart';
 import 'api/shortcuts.dart';
@@ -69,6 +70,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoLocksPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocksPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoPublisherPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisherPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoRendererPtr => wire
@@ -136,6 +141,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoLocks
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPublisher
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     dynamic raw,
   );
 
@@ -208,6 +219,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoLocks
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPublisher
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     dynamic raw,
   );
 
@@ -286,6 +303,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoLocks
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPublisher
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     dynamic raw,
   );
 
@@ -529,6 +552,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PreviewOptions dco_decode_box_autoadd_preview_options(dynamic raw);
+
+  @protected
+  PublishLink dco_decode_box_autoadd_publish_link(dynamic raw);
 
   @protected
   QuotaLimit dco_decode_box_autoadd_quota_limit(dynamic raw);
@@ -924,6 +950,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<ProviderKind> dco_decode_list_provider_kind(dynamic raw);
 
   @protected
+  List<PublishExpiryOption> dco_decode_list_publish_expiry_option(dynamic raw);
+
+  @protected
   ListQuery dco_decode_list_query(dynamic raw);
 
   @protected
@@ -1145,6 +1174,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PersonRow? dco_decode_opt_box_autoadd_person_row(dynamic raw);
 
   @protected
+  PublishLink? dco_decode_opt_box_autoadd_publish_link(dynamic raw);
+
+  @protected
   QuotaLimit? dco_decode_opt_box_autoadd_quota_limit(dynamic raw);
 
   @protected
@@ -1247,6 +1279,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ProviderKind dco_decode_provider_kind(dynamic raw);
+
+  @protected
+  PublishExpiry dco_decode_publish_expiry(dynamic raw);
+
+  @protected
+  PublishExpiryOption dco_decode_publish_expiry_option(dynamic raw);
+
+  @protected
+  PublishLink dco_decode_publish_link(dynamic raw);
+
+  @protected
+  PublishNoteInfo dco_decode_publish_note_info(dynamic raw);
+
+  @protected
+  PublishNotebookInfo dco_decode_publish_notebook_info(dynamic raw);
 
   @protected
   PushEnvironmentKind dco_decode_push_environment_kind(dynamic raw);
@@ -1537,6 +1584,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoPublisher
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoRenderer
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     SseDeserializer deserializer,
@@ -1605,6 +1658,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoLocks
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPublisher
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     SseDeserializer deserializer,
   );
 
@@ -1683,6 +1742,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoLocks
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPublisher
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     SseDeserializer deserializer,
   );
 
@@ -1958,6 +2023,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PreviewOptions sse_decode_box_autoadd_preview_options(
     SseDeserializer deserializer,
   );
+
+  @protected
+  PublishLink sse_decode_box_autoadd_publish_link(SseDeserializer deserializer);
 
   @protected
   QuotaLimit sse_decode_box_autoadd_quota_limit(SseDeserializer deserializer);
@@ -2399,6 +2467,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<PublishExpiryOption> sse_decode_list_publish_expiry_option(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ListQuery sse_decode_list_query(SseDeserializer deserializer);
 
   @protected
@@ -2668,6 +2741,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  PublishLink? sse_decode_opt_box_autoadd_publish_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   QuotaLimit? sse_decode_opt_box_autoadd_quota_limit(
     SseDeserializer deserializer,
   );
@@ -2784,6 +2862,25 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ProviderKind sse_decode_provider_kind(SseDeserializer deserializer);
+
+  @protected
+  PublishExpiry sse_decode_publish_expiry(SseDeserializer deserializer);
+
+  @protected
+  PublishExpiryOption sse_decode_publish_expiry_option(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PublishLink sse_decode_publish_link(SseDeserializer deserializer);
+
+  @protected
+  PublishNoteInfo sse_decode_publish_note_info(SseDeserializer deserializer);
+
+  @protected
+  PublishNotebookInfo sse_decode_publish_notebook_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PushEnvironmentKind sse_decode_push_environment_kind(
@@ -3095,6 +3192,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    KansoPublisher self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     KansoRenderer self,
     SseSerializer serializer,
@@ -3174,6 +3278,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks(
     KansoLocks self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    KansoPublisher self,
     SseSerializer serializer,
   );
 
@@ -3264,6 +3375,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks(
     KansoLocks self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    KansoPublisher self,
     SseSerializer serializer,
   );
 
@@ -3636,6 +3754,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_preview_options(
     PreviewOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_publish_link(
+    PublishLink self,
     SseSerializer serializer,
   );
 
@@ -4210,6 +4334,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_publish_expiry_option(
+    List<PublishExpiryOption> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_query(ListQuery self, SseSerializer serializer);
 
   @protected
@@ -4543,6 +4673,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_publish_link(
+    PublishLink? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_quota_limit(
     QuotaLimit? self,
     SseSerializer serializer,
@@ -4691,6 +4827,30 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_provider_kind(ProviderKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_publish_expiry(PublishExpiry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_publish_expiry_option(
+    PublishExpiryOption self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_publish_link(PublishLink self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_publish_note_info(
+    PublishNoteInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_publish_notebook_info(
+    PublishNotebookInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_push_environment_kind(
@@ -5290,6 +5450,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocks =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLocksPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisherPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisherPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisherPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisherPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

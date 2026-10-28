@@ -25,6 +25,7 @@ import '../test/core/bridge/suites/journal_suite.dart';
 import '../test/core/bridge/suites/library_suite.dart';
 import '../test/core/bridge/suites/linking_suite.dart';
 import '../test/core/bridge/suites/locks_suite.dart';
+import '../test/core/bridge/suites/publish_suite.dart';
 import '../test/core/bridge/suites/reminders_suite.dart';
 import '../test/core/bridge/suites/renderer_suite.dart';
 import '../test/core/bridge/suites/shared_suite.dart';
@@ -78,6 +79,7 @@ void main() {
   templatesSuite(openDeviceLibrary);
   boardsSuite(openDeviceLibrary);
   remindersSuite(openDeviceLibrary);
+  publishSuite(openDeviceLibrary);
 
   group('the platform verifier', () {
     test(

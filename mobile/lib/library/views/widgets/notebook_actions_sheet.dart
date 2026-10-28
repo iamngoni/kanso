@@ -17,6 +17,7 @@ import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../injection.dart';
 import '../../../lock/state/lock_status/lock_status_bloc.dart';
+import '../../../publish/views/widgets/publish_sheet.dart';
 import 'library_actions.dart';
 import 'library_color_sheets.dart';
 import 'library_text_prompt_sheet.dart';
@@ -209,6 +210,18 @@ class NotebookActionsSheet extends StatelessWidget {
                 ),
             ],
           ),
+        KansoSheetGroup(
+          dividerIndent: KansoSettingsRow.iconInset,
+          children: <Widget>[
+            KansoSettingsRow(
+              icon: KansoIcons.externalLink,
+              label: l10n.publishNotebookMenu,
+              onTap: () => closeThen(
+                () => PublishSheet.showNotebook(host, notebook.id),
+              ),
+            ),
+          ],
+        ),
         KansoSheetGroup(
           dividerIndent: KansoSettingsRow.iconInset,
           children: <Widget>[

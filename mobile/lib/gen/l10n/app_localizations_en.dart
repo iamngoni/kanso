@@ -3638,4 +3638,67 @@ class AppLocalizationsEn extends AppLocalizations {
   String tabLocked(String title) {
     return '$title, locked';
   }
+
+  @override
+  String get publishNoteMenu => 'Publish…';
+
+  @override
+  String get publishNotebookMenu => 'Publish notebook…';
+
+  @override
+  String get publishNoteTitle => 'Publish note';
+
+  @override
+  String get publishNotebookTitle => 'Publish notebook as a site';
+
+  @override
+  String publishNoteContentSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count words',
+      one: '$count word',
+      zero: 'No words',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get publishExpiryHeading => 'Link expiry';
+
+  @override
+  String get publishWorking => 'Publishing…';
+
+  @override
+  String get publishPublish => 'Publish';
+
+  @override
+  String get publishUpdate => 'Update published note';
+
+  @override
+  String get publishPublishSite => 'Publish site';
+
+  @override
+  String get publishUpdateSite => 'Update site';
+
+  @override
+  String get publishCopyLink => 'Copy link';
+
+  @override
+  String get publishUnpublish => 'Unpublish';
+
+  @override
+  String get publishCopied => 'Publish link copied.';
+
+  @override
+  String get publishNeverExpires => 'This link does not expire.';
+
+  @override
+  String publishExpiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String get publishExpired =>
+      'This link has expired. Update to create a new link.';
 }

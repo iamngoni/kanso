@@ -13,6 +13,7 @@ import 'gallery.dart';
 import 'linking.dart';
 import 'locks.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'publish.dart';
 import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
@@ -212,6 +213,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
       KansoCore.instance.api.crateApiLibraryKansoLibraryParseColor(text: text);
 
   Future<List<Property>> properties({required String id});
+
+  /// Publishing uses the signed-in session held by this library.
+  Future<KansoPublisher> publisher();
 
   Future<Table> queryView({required String source, String? selfId});
 

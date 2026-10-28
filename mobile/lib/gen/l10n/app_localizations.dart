@@ -6213,6 +6213,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{title}, locked'**
   String tabLocked(String title);
+
+  /// Opens the publish sheet for a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish…'**
+  String get publishNoteMenu;
+
+  /// Opens the publish sheet for a notebook site.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish notebook…'**
+  String get publishNotebookMenu;
+
+  /// Title of the note publish sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish note'**
+  String get publishNoteTitle;
+
+  /// Title of the notebook publish sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish notebook as a site'**
+  String get publishNotebookTitle;
+
+  /// A count of the words in the note that will be published.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No words} one{{count} word} other{{count} words}}'**
+  String publishNoteContentSummary(int count);
+
+  /// Heading above link expiry choices.
+  ///
+  /// In en, this message translates to:
+  /// **'Link expiry'**
+  String get publishExpiryHeading;
+
+  /// Status shown while a note or notebook site is being published.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishing…'**
+  String get publishWorking;
+
+  /// Publishes a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish'**
+  String get publishPublish;
+
+  /// Updates a note already published at its link.
+  ///
+  /// In en, this message translates to:
+  /// **'Update published note'**
+  String get publishUpdate;
+
+  /// Publishes a notebook as a site.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish site'**
+  String get publishPublishSite;
+
+  /// Updates a published notebook site.
+  ///
+  /// In en, this message translates to:
+  /// **'Update site'**
+  String get publishUpdateSite;
+
+  /// Copies the published link.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get publishCopyLink;
+
+  /// Removes a published link.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpublish'**
+  String get publishUnpublish;
+
+  /// Confirms that a publish link was copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish link copied.'**
+  String get publishCopied;
+
+  /// Explains a link without an expiry.
+  ///
+  /// In en, this message translates to:
+  /// **'This link does not expire.'**
+  String get publishNeverExpires;
+
+  /// The date a published link expires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String publishExpiresOn(String date);
+
+  /// Explains that update replaces an expired link.
+  ///
+  /// In en, this message translates to:
+  /// **'This link has expired. Update to create a new link.'**
+  String get publishExpired;
 }
 
 class _AppLocalizationsDelegate
