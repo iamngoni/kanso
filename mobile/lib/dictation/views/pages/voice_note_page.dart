@@ -20,9 +20,16 @@ class VoiceNotePage extends StatefulWidget {
   State<VoiceNotePage> createState() => _VoiceNotePageState();
 }
 
-class _VoiceNotePageState extends State<VoiceNotePage> {
+class _VoiceNotePageState extends State<VoiceNotePage>
+    with WidgetsBindingObserver {
   bool checked = false;
   DictationBloc? dictation;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void didChangeDependencies() {
@@ -35,7 +42,15 @@ class _VoiceNotePageState extends State<VoiceNotePage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      dictation?.add(const DictationEvent.checked());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (dictation?.state.active ?? false) {
       dictation!.add(const DictationEvent.cancelled());
     }
