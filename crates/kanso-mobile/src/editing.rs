@@ -174,7 +174,10 @@ impl Editors {
         id: &str,
         setting: GoalSetting,
     ) -> Result<bool, KansoError> {
-        let session = self.live().into_iter().find(|session| session.id == id);
+        let session = self
+            .live()
+            .into_iter()
+            .find(|session| session.id == id && session.is_open());
         if let Some(shared) = session {
             EditorSession { shared }.set_word_goal(setting)?;
             Ok(true)
@@ -186,7 +189,10 @@ impl Editors {
     /// The current goal setting of an open note, including unsaved editor
     /// changes.
     pub(crate) fn goal_if_open(&self, id: &str) -> Result<Option<GoalSetting>, KansoError> {
-        let session = self.live().into_iter().find(|session| session.id == id);
+        let session = self
+            .live()
+            .into_iter()
+            .find(|session| session.id == id && session.is_open());
         session
             .map(|shared| {
                 EditorSession { shared }
@@ -1166,6 +1172,10 @@ fn split_front(body: &str) -> (String, String) {
 // MARK: Typing and commands
 
 impl Shared {
+    fn is_open(&self) -> bool {
+        held(&self.state).end.is_none()
+    }
+
     /// Runs `f` on the state, then tells the listeners what it said. Refused
     /// once the session is over or while its lock is closing.
     fn run<T>(
