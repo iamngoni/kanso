@@ -241,6 +241,7 @@ impl AskPanel {
         let cancel = Arc::new(AtomicBool::new(false));
         self.cancel = Some(cancel.clone());
         cx.notify();
+        crate::metrics::record(cx, crate::metrics::Feature::Ai);
 
         let store = self.store.clone();
         let asked = question;
@@ -531,6 +532,7 @@ impl AskPanel {
         cx.notify();
 
         let maker = ai_feature::maker(cx);
+        crate::metrics::record(cx, crate::metrics::Feature::Ai);
         let (tx, rx) = async_channel::unbounded::<Update>();
         let spawned = std::thread::Builder::new()
             .name("kanso-summary".into())

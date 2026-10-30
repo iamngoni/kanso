@@ -1,0 +1,21 @@
+[package]
+name = "kanso-metrics"
+description = "Kanso's anonymous usage count (docs/METRICS.md): the closed lists of what may be sent, the day's bookkeeping, and the one request that sends it."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+getrandom.workspace = true
+# The trusted certificates of the other clients; plain Rust, so the phones'
+# library (kanso-mobile) uses this crate as the desktop does.
+kanso-tls = { workspace = true, features = ["ureq"] }
+serde.workspace = true
+serde_json.workspace = true
+# The same blocking HTTP client as kanso-sync, with rustls.
+ureq = "3.4"
+
+[dev-dependencies]
+proptest.workspace = true
+tiny_http = "0.12"

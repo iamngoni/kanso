@@ -223,6 +223,7 @@ impl ShareSheet {
             move |result, cx| {
                 this.update(cx, |this, cx| match result {
                     Ok((share, view)) => {
+                        crate::metrics::record(cx, crate::metrics::Feature::SharedNote);
                         this.share_id = Some(share);
                         this.done = Some(
                             format!("Invited {invited}. The note shows for them once they accept.")

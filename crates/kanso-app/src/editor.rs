@@ -1061,6 +1061,7 @@ impl NoteEditor {
                 self.note = Some(note);
                 self.lock = LockView::Open;
                 self.inline = None;
+                crate::metrics::record(cx, crate::metrics::Feature::Lock);
                 cx.notify();
             }
             Err(err) => self.notice(format!("Couldn't lock the note: {err}"), cx),

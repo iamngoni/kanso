@@ -521,6 +521,7 @@ uses the default all-zero salt (RFC 5869).
 | `rev_key` | HKDF(`data_key`, info `"kanso/v1/wire-rev"`) | HMAC key for wire revisions |
 | `device_name_key` | HKDF(`data_key`, info `"kanso/v1/device-name"`) | Seals device names |
 | `key_id` (8) | HKDF(`data_key`, info `"kanso/v1/key-id"`, 8 bytes), as 16 hex digits | Told to the server; the client compares it on sign-in and on every changes page |
+| `metrics_id` (16) | `"a_"` + HKDF(`data_key`, info `"kanso/v1/metrics-id"`, 16 bytes), as 32 hex digits | The `id` of usage metrics ([METRICS.md](METRICS.md)); never told to the sync server's account routes |
 
 Every secret type wraps `Zeroizing` and has a redacted `Debug`.
 

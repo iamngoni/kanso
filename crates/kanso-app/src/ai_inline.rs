@@ -221,6 +221,7 @@ impl NoteEditor {
         let title = self.title.read(cx).value().to_string();
         let prompt = features::inline_prompt(action, &title, &text[..range.start], &original);
         let maker = ai_feature::maker(cx);
+        crate::metrics::record(cx, crate::metrics::Feature::Ai);
         let cancel = Arc::new(AtomicBool::new(false));
         let (tx, rx) = async_channel::unbounded::<Event>();
         let worker_cancel = cancel.clone();

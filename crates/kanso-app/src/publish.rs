@@ -201,6 +201,7 @@ impl PublishView {
                 }
                 if let Some(p) = &publish {
                     self.expiry = expiry_choice(p);
+                    crate::metrics::record(cx, crate::metrics::Feature::Publish);
                 }
                 self.source.publish = publish;
                 self.copied = false;

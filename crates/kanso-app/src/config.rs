@@ -590,6 +590,10 @@ pub struct AppConfig {
     pub locked: LockedSettings,
     pub ai: AiSettings,
     pub nudges: Nudges,
+    /// The anonymous daily count's bookkeeping (docs/METRICS.md): this
+    /// install's ID and what was counted today. A damaged entry reads as
+    /// empty, never as an unreadable file.
+    pub metrics: kanso_metrics::Ledger,
 }
 
 /// What Kanso has told someone about, so it says it once.
@@ -600,6 +604,9 @@ pub struct Nudges {
     pub first_seen_ms: Option<i64>,
     /// The note list's sync offer was put away.
     pub sync_offer_dismissed: bool,
+    /// The usage metrics notice was shown and OK pressed; nothing is sent
+    /// before (docs/METRICS.md › The notice).
+    pub metrics_notice_seen: bool,
 }
 
 impl Default for AppConfig {
@@ -622,6 +629,7 @@ impl Default for AppConfig {
             locked: LockedSettings::default(),
             ai: AiSettings::default(),
             nudges: Nudges::default(),
+            metrics: kanso_metrics::Ledger::default(),
         }
     }
 }
@@ -1013,6 +1021,18 @@ mod tests {
                     nudges: super::Nudges {
                         first_seen_ms: login.then_some(i64::from(version) * 1_000),
                         sync_offer_dismissed: version % 2 == 0,
+                        metrics_notice_seen: version % 3 == 0,
+                    },
+                    metrics: {
+                        let mut ledger = kanso_metrics::Ledger::default();
+                        if login {
+                            ledger.install_id();
+                            ledger.record(
+                                kanso_metrics::Day::from_unix_ms(i64::from(version) * 86_400_000),
+                                kanso_metrics::Feature::Import(kanso_metrics::ImportSource::Bear),
+                            );
+                        }
+                        ledger
                     },
                 },
             )
@@ -1274,6 +1294,33 @@ mod tests {
             let debug = format!("{settings:?}");
             prop_assert!(!debug.contains(&password));
         }
+    }
+
+    /// A file from before usage metrics hasn't seen the notice and has no
+    /// install ID; a damaged `metrics` entry costs the count, not the file.
+    #[test]
+    fn metrics_settings_default_and_survive_damage() {
+        let old: AppConfig =
+            serde_json::from_str(r#"{"version": 5, "nudges": {"syncOfferDismissed": true}}"#)
+                .unwrap();
+        assert!(!old.nudges.metrics_notice_seen);
+        assert_eq!(old.metrics, kanso_metrics::Ledger::default());
+        let damaged: AppConfig = serde_json::from_str(
+            r#"{"version": 5, "nudges": {"metricsNoticeSeen": true}, "metrics": {"installId": 7, "pending": ["ai", "nope"]}, "ai": {"enabled": true}}"#,
+        )
+        .unwrap();
+        assert!(damaged.nudges.metrics_notice_seen);
+        assert!(damaged.ai.enabled);
+        assert_eq!(damaged.metrics.existing_install_id(), None);
+        let mut ledger = kanso_metrics::Ledger::default();
+        let id = ledger.install_id();
+        let written = serde_json::to_value(AppConfig {
+            metrics: ledger,
+            ..AppConfig::default()
+        })
+        .unwrap();
+        assert_eq!(written["metrics"]["installId"], id.as_str());
+        assert_eq!(written["nudges"]["metricsNoticeSeen"], false);
     }
 
     /// Auto writes in the proportional face (Live too) and switches to

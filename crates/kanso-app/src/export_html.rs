@@ -59,7 +59,10 @@ pub fn export_html(
                 })
                 .await;
             cx.update(|window, cx| match written {
-                Ok(()) => cx.reveal_path(&path),
+                Ok(()) => {
+                    crate::metrics::record(cx, crate::metrics::Feature::Export);
+                    cx.reveal_path(&path);
+                }
                 Err(err) => tell(
                     window,
                     cx,
@@ -107,7 +110,10 @@ pub fn export_pdf(
                         .await;
                 let result = mac_pdf(&html, &path, cx).await;
                 cx.update(|window, cx| match result {
-                    Ok(()) => cx.reveal_path(&path),
+                    Ok(()) => {
+                        crate::metrics::record(cx, crate::metrics::Feature::Export);
+                        cx.reveal_path(&path);
+                    }
                     Err(err) => tell(
                         window,
                         cx,
@@ -137,6 +143,7 @@ pub fn export_pdf(
                     .await;
                 cx.update(|window, cx| match written {
                     Ok(path) => {
+                        crate::metrics::record(cx, crate::metrics::Feature::Export);
                         open_in_browser(&path, cx);
                         tell(
                             window,

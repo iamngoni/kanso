@@ -23,6 +23,7 @@ The flavour is chosen when Kanso is compiled: the `dev-flavour` feature of
 | Keychain service | `Kanso` | `Kanso Dev` |
 | Local API port (new config) | 19840 | 19841 |
 | Updates | from releases | off: Settings › Updates says "Development build — updates are off" |
+| Usage metrics ([METRICS.md](METRICS.md)) | sent once the notice is seen | never sent (nor by a debug build or a test) |
 
 So Kanso Dev never opens or writes the release's library, config or account,
 and never replaces itself or `/Applications/Kanso.app`. `--install` is only

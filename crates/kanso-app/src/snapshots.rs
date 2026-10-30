@@ -3947,6 +3947,20 @@ fn update_toast(
         .unwrap();
 }
 
+/// The usage metrics notice, shown once at launch until OK.
+fn metrics_notice(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::metrics::show_notice(window, cx)
+    })
+    .unwrap();
+}
+
 /// Settings › Updates with an update ready, up to date, and in Kanso Dev.
 fn settings_updates_ready(
     cx: &mut HeadlessAppContext,
@@ -5623,6 +5637,14 @@ fn snapshots() {
         },
         shot("dark-update-toast", Dark, Split, update_toast),
         shot("light-update-toast", Light, Split, update_toast),
+        Shot {
+            dialog_width: crate::dialogs::FORM_WIDTH,
+            ..shot("dark-metrics-notice", Dark, Edit, metrics_notice)
+        },
+        Shot {
+            dialog_width: crate::dialogs::FORM_WIDTH,
+            ..shot("light-metrics-notice", Light, Edit, metrics_notice)
+        },
         shot("dark-settings-updates", Dark, Edit, settings_updates_ready),
         shot(
             "light-settings-updates",

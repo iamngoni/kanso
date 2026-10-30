@@ -4459,6 +4459,7 @@ dependencies = [
  "kanso-fido",
  "kanso-gallery",
  "kanso-import",
+ "kanso-metrics",
  "kanso-plugins",
  "kanso-render",
  "kanso-server",
@@ -4664,6 +4665,19 @@ dependencies = [
  "tar",
  "tempfile",
  "zip",
+]
+
+[[package]]
+name = "kanso-metrics"
+version = "0.8.4"
+dependencies = [
+ "getrandom 0.4.3",
+ "kanso-tls",
+ "proptest",
+ "serde",
+ "serde_json",
+ "tiny_http",
+ "ureq",
 ]
 
 [[package]]

@@ -63,6 +63,7 @@ pub fn lock_notebook(
         Rc::new(
             move |key, window, cx| match seal_notebook(&store(cx), &book_id, &key) {
                 Ok(_) => {
+                    crate::metrics::record(cx, crate::metrics::Feature::Lock);
                     editor.update(cx, |editor, cx| editor.lock_keys_changed(window, cx));
                     cx.refresh_windows();
                 }

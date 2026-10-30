@@ -451,7 +451,9 @@ fn insert(text: &str, cx: &mut App) {
             .update(cx, |editor, cx| editor.insert_transcript(&text, window, cx))
             .unwrap_or(false)
     });
-    if !matches!(put, Ok(true)) {
+    if matches!(put, Ok(true)) {
+        crate::metrics::record(cx, crate::metrics::Feature::VoiceInput);
+    } else {
         cx.write_to_clipboard(ClipboardItem::new_string(text));
         notify(
             Notification::info("The note was closed, so what you said is on the clipboard."),

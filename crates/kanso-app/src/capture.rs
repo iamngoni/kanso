@@ -150,7 +150,10 @@ impl CaptureView {
     pub fn save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.text(cx);
         match save_capture(&self.store, &text, self.book.as_deref(), Origin::Ui) {
-            Ok(_) => window.remove_window(),
+            Ok(_) => {
+                crate::metrics::record(cx, crate::metrics::Feature::QuickCapture);
+                window.remove_window();
+            }
             Err(err) => {
                 self.error = Some(format!("Couldn't save the note: {err:#}"));
                 cx.notify();

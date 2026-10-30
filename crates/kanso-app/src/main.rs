@@ -81,6 +81,7 @@ mod markdown_edit;
 mod markdown_source;
 mod mcp_cli;
 mod mcp_setup;
+mod metrics;
 mod model_fetch;
 mod models;
 mod nav_history;
@@ -580,6 +581,8 @@ fn run_app(
         account_flow::restore(cx);
         updates::set_log_dir(&cx.global::<AppState>().data_dir.clone());
         updates::init(cx);
+        // The anonymous daily count: only a release, once the notice was seen.
+        metrics::init(cx);
         hotkey::init(cx);
         let store = cx.global::<AppState>().store.clone();
         // Plugins: none starts here. Safe mode is settled before any could.
@@ -656,6 +659,7 @@ fn open_main_window(cx: &mut App) {
                     });
                     offer_first_import(window, cx);
                     updates::announce(window, cx);
+                    metrics::show_notice(window, cx);
                 })
                 .ok();
         }

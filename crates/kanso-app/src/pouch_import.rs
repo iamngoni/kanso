@@ -115,7 +115,15 @@ impl ImportView {
                 let alive = this.update(cx, |this, cx| {
                     this.state = match message {
                         Message::Progress(progress) => ImportState::Running(progress),
-                        Message::Done(Ok(report)) => ImportState::Done(report),
+                        Message::Done(Ok(report)) => {
+                            crate::metrics::record(
+                                cx,
+                                crate::metrics::Feature::Import(
+                                    crate::metrics::ImportSource::Pouch,
+                                ),
+                            );
+                            ImportState::Done(report)
+                        }
                         Message::Done(Err(err)) => ImportState::Failed(err),
                     };
                     cx.notify();

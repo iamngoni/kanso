@@ -223,7 +223,7 @@ impl ImportView {
         job: impl FnOnce(&mut dyn FnMut(LibraryProgress)) -> anyhow::Result<LibraryReport>
         + Send
         + 'static,
-        done: impl Fn(&mut Self, Box<LibraryReport>) + 'static,
+        done: impl Fn(&mut Self, Box<LibraryReport>, &mut Context<Self>) + 'static,
         cx: &mut Context<Self>,
     ) {
         let (tx, rx) = async_channel::unbounded();
@@ -259,7 +259,7 @@ impl ImportView {
                             }
                             _ => {}
                         },
-                        Message::Done(Ok(report)) => done(this, report),
+                        Message::Done(Ok(report)) => done(this, report, cx),
                         Message::Done(Err(err)) => this.stage = Stage::Failed(err),
                     }
                     cx.notify();
@@ -281,7 +281,7 @@ impl ImportView {
         let source = path.clone();
         self.run(
             move |progress| preview(kind, &source, &store, progress),
-            move |this, report| {
+            move |this, report, _| {
                 this.stage = Stage::Preview {
                     kind,
                     path: path.clone(),
@@ -305,7 +305,13 @@ impl ImportView {
         let store = self.store.clone();
         self.run(
             move |progress| import_source(kind, &path, &store, progress),
-            |this, report| this.stage = Stage::Done(report),
+            move |this, report, cx| {
+                this.stage = Stage::Done(report);
+                crate::metrics::record(
+                    cx,
+                    crate::metrics::Feature::Import(crate::metrics::import_source(kind)),
+                );
+            },
             cx,
         );
         cx.notify();

@@ -657,6 +657,16 @@ pub fn key_id(data_key: &DataKey) -> String {
     hex(&id)
 }
 
+/// The ID usage metrics count this account under (docs/METRICS.md › Who is
+/// counted): `a_` + the first 16 bytes of HKDF(data_key, info
+/// "kanso/v1/metrics-id") as hex. Every device of the account gets the same
+/// one; without the data key nobody can tell which account it is.
+pub fn metrics_id(data_key: &DataKey) -> String {
+    let mut id = [0u8; 16];
+    hkdf(&data_key.0[..], None, b"kanso/v1/metrics-id", &mut id);
+    format!("a_{}", hex(&id))
+}
+
 /// This Mac's device ID in an account: `d_ + hex(HMAC-SHA256(device_secret,
 /// account_id)[0..16])` (L2).
 pub(crate) fn device_id(device_secret: &[u8; 32], account_id: &str) -> String {
@@ -997,6 +1007,22 @@ impl ContentKeys {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn metrics_id_is_its_own_derivation() {
+        let data_key = DataKey::from_bytes([7; 32]);
+        let id = metrics_id(&data_key);
+        assert_eq!(id, metrics_id(&DataKey::from_bytes([7; 32])));
+        assert_ne!(id, metrics_id(&DataKey::from_bytes([8; 32])));
+        assert_eq!(id.len(), 2 + 32);
+        assert!(id.starts_with("a_"));
+        assert!(
+            id[2..]
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        );
+        assert!(!id[2..].starts_with(&key_id(&data_key)));
+    }
 
     #[test]
     fn password_examples() {

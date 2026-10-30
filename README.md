@@ -75,6 +75,8 @@ A local-first Markdown notes app for macOS, with Windows and Linux builds, built
   right-click one › **Change Icon…** to search 144 icons and give it one of its own, or › **Change Color…**
   to wash its row in a color (a swatch, the picker, or hex like `#f8f8f8`) so it's easy to find; both sync with it.
 - Themes, light and dark, icon themes that draw every icon, and updates that install themselves.
+- **An anonymous daily count.** Once a day Kanso sends which kind of device, its version and which
+  features were used, never anything you wrote; [METRICS.md](docs/METRICS.md) lists every value.
 
 ## Download
 

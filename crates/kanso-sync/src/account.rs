@@ -158,6 +158,12 @@ impl Session {
         crate::crypto::key_id(&self.data_key)
     }
 
+    /// The ID usage metrics count this account under (docs/METRICS.md):
+    /// the same on every device of the account, and not traceable to it.
+    pub fn metrics_id(&self) -> String {
+        crate::crypto::metrics_id(&self.data_key)
+    }
+
     /// The keys shared notes start from, derived from this session's data
     /// key (docs/ACCOUNTS.md › Collaboration).
     pub fn collab_roots(&self) -> crate::crypto::CollabRoots {
