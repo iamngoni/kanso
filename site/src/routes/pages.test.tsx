@@ -1,7 +1,8 @@
 /**
- * Tests for the release notes and help pages: what each shows, the fallback
- * when GitHub can't be read, that release text is rendered as text and never
- * as HTML, and that the help topics are complete and linked.
+ * Tests for the release notes, help and privacy pages: what each shows, the
+ * fallback when GitHub can't be read, that release text is rendered as text
+ * and never as HTML, that the help topics are complete and linked, and that
+ * privacy links the usage-count note and documents.
  */
 import type { ReactNode } from "react";
 import { render, screen, within } from "@testing-library/react";
@@ -18,8 +19,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 }));
 vi.mock("../server/fns", () => ({ getSiteData: vi.fn(), getReleaseNotes: vi.fn() }));
 
-import { RELEASES_URL } from "../lib/release";
+import { RELEASES_URL, REPOSITORY_URL } from "../lib/release";
 import { Help, ISSUES_URL, TOPICS } from "./help";
+import { Privacy } from "./privacy";
 import { ReleaseNotes } from "./releases";
 
 const note = (version: string, body: string) => ({
@@ -79,5 +81,20 @@ describe("Help", () => {
     render(<Help />);
     expect(screen.getByRole("link", { name: /issues on GitHub/ })).toHaveAttribute("href", ISSUES_URL);
     expect(screen.getByText(/never holds note text, titles or file names/)).toBeInTheDocument();
+  });
+});
+
+describe("Privacy", () => {
+  it("says the website has no analytics and explains the apps' usage counts", () => {
+    const { container } = render(<Privacy />);
+    expect(screen.getByText(/No analytics, no cookies/)).toBeInTheDocument();
+    const section = container.querySelector("section#metrics") as HTMLElement;
+    expect(within(section).getByRole("heading", { level: 2, name: "Usage counts" })).toBeInTheDocument();
+    expect(within(section).getByText("Your IP address")).toBeInTheDocument();
+    expect(within(section).getByRole("link", { name: "What's sent, and what isn't" })).toHaveAttribute("href", "/metrics");
+    expect(within(section).getByRole("link", { name: "the usage counts document" })).toHaveAttribute(
+      "href",
+      `${REPOSITORY_URL}/blob/master/docs/METRICS.md`,
+    );
   });
 });

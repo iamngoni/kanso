@@ -104,17 +104,17 @@ export function validFrame(frame: string): boolean {
 
 // ---------------------------------------------------------------- validation
 
-type Checked<T> = { ok: true; value: T } | { ok: false; field: string };
+export type Checked<T> = { ok: true; value: T } | { ok: false; field: string };
 
-const fail = (field: string): { ok: false; field: string } => ({ ok: false, field });
+export const fail = (field: string): { ok: false; field: string } => ({ ok: false, field });
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-const isText = (value: unknown, pattern: RegExp): value is string => typeof value === "string" && pattern.test(value);
+export const isText = (value: unknown, pattern: RegExp): value is string => typeof value === "string" && pattern.test(value);
 
 /**
  * The object at `path` if it has exactly `keys`; else the failing path: a missing documented key
  * is named, an extra one is reported at the object itself (its name is the sender's).
  */
-function exactly(value: unknown, path: string, keys: readonly string[]): Checked<Record<string, unknown>> {
+export function exactly(value: unknown, path: string, keys: readonly string[]): Checked<Record<string, unknown>> {
 	if (!isObject(value)) return fail(path === "" ? "(body)" : path);
 	const join = (key: string) => (path === "" ? key : `${path}.${key}`);
 	for (const key of keys) if (!Object.hasOwn(value, key)) return fail(join(key));

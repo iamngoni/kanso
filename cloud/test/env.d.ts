@@ -9,6 +9,8 @@ declare namespace Cloudflare {
 		AUTH_LIMITER?: RateLimit;
 		SESSION_LIMITER?: RateLimit;
 		PUBLIC_LIMITER?: RateLimit;
+		POSTHOG_KEY?: string;
+		POSTHOG_HOST?: string;
 		TEST_MIGRATIONS: import("cloudflare:test").D1Migration[];
 		FAST_CHECK_SEED: string;
 		FAST_CHECK_RUNS: string;

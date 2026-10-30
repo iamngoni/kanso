@@ -60,4 +60,8 @@ export interface Env {
 	APNS_TOPIC?: string;
 	/** Push notifications, FCM (HTTP v1): the service account's JSON key; `wrangler secret put FCM_SERVICE_ACCOUNT`. Without it, Android tokens are stored and no FCM push is sent. */
 	FCM_SERVICE_ACCOUNT?: string;
+	/** Usage counts (docs/METRICS.md): the PostHog project's API key; `wrangler secret put POSTHOG_KEY`. Without it batches are checked and nothing is sent. */
+	POSTHOG_KEY?: string;
+	/** Where usage counts go (a plain var, `https://eu.i.posthog.com`); batches are posted to `<host>/batch/`. */
+	POSTHOG_HOST?: string;
 }

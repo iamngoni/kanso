@@ -75,6 +75,7 @@
 //   GET    /v2/account/events           live approval hints, a WebSocket (session + device proof)
 //
 //   POST   /v1/crash-reports            a crash report the person chose to send       (public, no session)
+//   POST   /v1/metrics                  an anonymous usage count, passed on to PostHog (public, no session)
 //
 // Every other /v1 path and every other path answer 404. Any request with an Origin header gets
 // 403 before anything else, except on the three public routes, which hold no
@@ -97,6 +98,7 @@ import * as identity from "./identity";
 import * as providers from "./providers";
 import { bindingFilter } from "./limits";
 import * as methods from "./methods";
+import * as metrics from "./metrics";
 import * as passkeys from "./passkeys";
 import * as proofs from "./proofs";
 import * as pushes from "./push";
@@ -140,6 +142,7 @@ const aasa: Handler = async (request, env) => signIn.appSiteAssociation(request,
 const ROUTES: Record<string, Route> = {
 	"/v2/health": { name: "health", binding: true, methods: { GET: { handler: auth.health, pepper: true } } },
 	"/v1/crash-reports": { name: "crash_reports", methods: { POST: json(crashReports.submit, true) } },
+	"/v1/metrics": { name: "metrics", methods: { POST: json(metrics.submit, true) } },
 	"/v2/auth/prelogin": { name: "prelogin", binding: true, methods: { POST: json(auth.prelogin, true) } },
 	"/v2/auth/signup": { name: "signup", binding: true, methods: { POST: json(auth.signup, true) } },
 	"/v2/auth/login": { name: "login", binding: true, methods: { POST: json(auth.login, true) } },

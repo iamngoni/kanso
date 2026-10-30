@@ -1,8 +1,9 @@
 /**
- * Privacy, in plain words: what this website collects (nothing), and what
- * Kanso's sync server can and can't see. It summarises docs/ACCOUNTS.md
- * ("What the server can and can't see") and docs/CRASH-REPORTS.md, and must
- * change when they do.
+ * Privacy, in plain words: what this website collects (nothing), what
+ * Kanso's sync server can and can't see, and what the apps send. It summarises
+ * docs/ACCOUNTS.md ("What the server can and can't see"), docs/CRASH-REPORTS.md
+ * and docs/METRICS.md (with its note, docs/METRICS-NOTE.md), and must change
+ * when they do.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { REPOSITORY_URL } from "../lib/release";
@@ -34,7 +35,23 @@ const CANNOT_SEE = [
   "Your password, your recovery key or the key your notes are encrypted with",
 ] as const;
 
-function Privacy() {
+const COUNTS_SEND = [
+  "The kind of device and its system version",
+  "Kanso's version",
+  "Whether sync is on, and whose server it uses",
+  "Whether AI is turned on",
+  "Roughly how many notes you have, as a range",
+  "Which features were used that day, never what with",
+] as const;
+
+const COUNTS_NEVER = [
+  "Notes, titles, notebooks, tags, files or links",
+  "Anything you type, search for or ask AI",
+  "Your name, username or email address",
+  "Your IP address",
+] as const;
+
+export function Privacy() {
   return (
     <article className="page pt-[clamp(3.5rem,9vw,7rem)] pb-[clamp(5rem,12vw,9rem)]">
       <p className="text-[0.875rem] font-medium text-fg-3">Privacy</p>
@@ -108,6 +125,57 @@ function Privacy() {
             Every field is in{" "}
             <a href={`${REPOSITORY_URL}/blob/master/docs/CRASH-REPORTS.md`} className="ink-link">
               the crash reports document
+            </a>
+            .
+          </p>
+        </section>
+
+        <section id="metrics" aria-labelledby="counts" className="lg:col-span-7 lg:col-start-6">
+          <h2 id="counts" className="text-[clamp(1.5rem,1.25rem+0.9vw,2rem)] font-semibold tracking-[-0.02em]">
+            Usage counts
+          </h2>
+          <p className="mt-4 text-fg-2">
+            So we know how many people use Kanso and on which devices, the apps send a small anonymous count once a day, after
+            showing you a notice the first time. It goes to the sync server, which checks every field against a fixed list,
+            refuses anything else, adds the country the connection comes from and passes the rest on to PostHog (EU). It can't
+            be turned off; debug and development builds send nothing.
+          </p>
+          <div className="mt-8 grid gap-8 sm:grid-cols-2">
+            <div>
+              <h3 className="text-[0.8125rem] font-semibold text-fg-3">It sends</h3>
+              <ul className="mt-4 grid gap-2.5">
+                {COUNTS_SEND.map((item) => (
+                  <li key={item} className="flex gap-3 text-fg">
+                    <span aria-hidden="true" className="mt-[0.6em] size-1.5 shrink-0 rounded-full bg-fg-3" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-[0.8125rem] font-semibold text-fg-3">It never sends</h3>
+              <ul className="mt-4 grid gap-2.5">
+                {COUNTS_NEVER.map((item) => (
+                  <li key={item} className="flex gap-3 text-fg">
+                    <span aria-hidden="true" className="mt-[0.6em] size-1.5 shrink-0 rounded-full bg-fg-3" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p className="mt-8 text-fg-2">
+            Devices signed in to the same account share one ID made from the account's encryption key, which the server never
+            has, so they count as one person and nobody can tell which account it is. Otherwise each device has a random ID of
+            its own.
+          </p>
+          <p className="mt-4 text-[0.9375rem] text-fg-3">
+            <a href="/metrics" className="ink-link">
+              What's sent, and what isn't
+            </a>
+            , and every field in{" "}
+            <a href={`${REPOSITORY_URL}/blob/master/docs/METRICS.md`} className="ink-link">
+              the usage counts document
             </a>
             .
           </p>

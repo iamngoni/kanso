@@ -93,7 +93,11 @@
     "APPLE_TEAM_ID": "4973Y692JU",
     "APPLE_KEY_ID": "MS6Y3S5ZL7",
     "APPLE_REDIRECT_URI": "https://sync.kansoapp.app/v2/auth/apple/callback",
-    "APNS_TOPIC": "app.kanso.Kanso"
+    "APNS_TOPIC": "app.kanso.Kanso",
+    // Usage counts (docs/METRICS.md, src/metrics.ts) go to PostHog's EU host. The project's API
+    // key is a secret, `wrangler secret put POSTHOG_KEY`; without it batches are checked and
+    // nothing is sent.
+    "POSTHOG_HOST": "https://eu.i.posthog.com"
   }
   // AUTH_PEPPER (required) is a secret: `wrangler secret put AUTH_PEPPER` (reads stdin; see README.md).
   // SYNC_TOKEN is no longer read; `admin purge-legacy` deletes it.

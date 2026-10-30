@@ -38,7 +38,8 @@ export type Rule =
 	| "approval-create"
 	| "approval-poll"
 	| "approval-respond"
-	| "crash-ip";
+	| "crash-ip"
+	| "metrics-ip";
 
 /**
  * Window and maximum of each rule. The two per-account daily rules read their
@@ -70,6 +71,10 @@ export type Rule =
  *
  * `crash-ip` counts every crash report posted (docs/CRASH-REPORTS.md), per IP
  * group: a person sends a report by tapping Send, so five an hour is plenty.
+ *
+ * `metrics-ip` counts every usage-count batch posted (docs/METRICS.md), per IP
+ * group: each device sends one or two a day, so 60 an hour leaves room for a
+ * household or an office behind one address.
  */
 export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"signup-ip": { window: HOUR, max: 10 },
@@ -92,6 +97,7 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"approval-poll": { window: HOUR, max: 900 },
 	"approval-respond": { window: HOUR, max: 30 },
 	"crash-ip": { window: HOUR, max: 5 },
+	"metrics-ip": { window: HOUR, max: 60 },
 };
 
 /**

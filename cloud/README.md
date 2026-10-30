@@ -27,6 +27,7 @@ and the counters behind quotas and rate limits; R2 holds sealed file bytes under
 | `/v2/collab/…` | yes | Shared notes: sharing, invitations, epochs, the log, snapshots, the live WebSocket, links, requests and notifications |
 | `GET /j/<link_id>` | | The page an invite link opens: "open Kanso and paste this link" |
 | `POST /v1/crash-reports` | | A crash report the person chose to send from the mobile apps ([docs/CRASH-REPORTS.md](../docs/CRASH-REPORTS.md)): no session, strictly validated, 204 stored, 5 an hour per address (`crash-ip`), kept 90 days, no IP or account stored |
+| `POST /v1/metrics` | | An anonymous usage count from the apps ([docs/METRICS.md](../docs/METRICS.md)): no session, strictly validated, 204 once valid (passed on to PostHog with the country, whether or not PostHog takes it; nothing without `POSTHOG_KEY`), 60 an hour per address (`metrics-ip`), nothing stored, no IP passed on |
 | `POST /v2/auth/passkey/start`, `/finish` | | Sign in with a passkey or security key |
 | `POST /v2/auth/passkey/signup/start`, `/finish` | | Create a passwordless account with a passkey |
 | `POST /v2/auth/{apple,google,github}/start` | | Start a provider sign-in or sign-up |
