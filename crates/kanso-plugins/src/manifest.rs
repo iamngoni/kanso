@@ -17,7 +17,7 @@ use std::collections::BTreeSet;
 use ed25519_dalek::VerifyingKey;
 use semver::Version;
 
-use crate::model::{self, EditorPermission, Manifest, Surface};
+use crate::model::{self, ClipboardPermission, EditorPermission, Manifest, Surface};
 
 /// The longest ID.
 pub const MAX_ID_LEN: usize = 128;
@@ -296,6 +296,16 @@ fn validate_permissions(p: &model::Permissions) -> Result<(), ManifestError> {
         if !ok {
             return Err(bad(format!("{secret:?} isn't a secret name")));
         }
+    }
+    if !p.clipboard.is_empty() && !p.commands {
+        return Err(bad("clipboard permissions need commands"));
+    }
+    // What was copied could be anything, a password included: it must
+    // never be able to leave the computer.
+    if p.clipboard.contains(&ClipboardPermission::HistoryRead) && !p.network.is_empty() {
+        return Err(bad(
+            "a plugin that reads the clipboard history can't use the network",
+        ));
     }
     if p.network.len() > MAX_HOSTS {
         return Err(bad(format!("more than {MAX_HOSTS} hosts")));
@@ -640,6 +650,35 @@ mod tests {
             language: "chart".into(),
         }];
         assert_eq!(validate(&m), Ok(()));
+    }
+
+    /// The clipboard needs commands, and a plugin that reads what was
+    /// copied can't reach the network, whatever else it asks for.
+    #[test]
+    fn clipboard_history_never_meets_the_network() {
+        let mut m = manifest();
+        m.permissions.clipboard.insert(ClipboardPermission::Write);
+        assert!(matches!(validate(&m), Err(ManifestError::BadPermission(_))));
+        m.permissions.commands = true;
+        m.permissions
+            .clipboard
+            .insert(ClipboardPermission::HistoryRead);
+        assert_eq!(validate(&m), Ok(()));
+        m.permissions.network.insert("api.example.com".into());
+        assert!(matches!(validate(&m), Err(ManifestError::BadPermission(_))));
+        // Writing alone may go with the network: it reads nothing.
+        m.permissions
+            .clipboard
+            .remove(&ClipboardPermission::HistoryRead);
+        assert_eq!(validate(&m), Ok(()));
+        let json = serde_json::to_value(&m.permissions.clipboard).unwrap();
+        assert_eq!(json, serde_json::json!(["write"]));
+        let read: Permissions =
+            serde_json::from_str(r#"{"clipboard": ["history.read", "write"]}"#).unwrap();
+        assert_eq!(read.clipboard.len(), 2);
+        assert!(
+            serde_json::from_str::<Permissions>(r#"{"clipboard": ["history.write"]}"#).is_err()
+        );
     }
 
     #[test]

@@ -32,7 +32,7 @@ pub const MAX_TO_HOST: usize = 6 << 20;
 
 /// Every call a plugin may make, by name. A `host` message with any other
 /// name is refused before it reaches the app's router.
-pub const CALLS: [&str; 15] = [
+pub const CALLS: [&str; 17] = [
     "notes.list",
     "notes.get",
     "notes.create",
@@ -47,6 +47,8 @@ pub const CALLS: [&str; 15] = [
     "settings.get",
     "settings.set",
     "secrets.get",
+    "clipboard.history",
+    "clipboard.write",
     "fetch",
 ];
 

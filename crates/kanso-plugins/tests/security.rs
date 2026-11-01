@@ -9,10 +9,10 @@ use std::collections::{BTreeSet, HashSet};
 
 use kanso_core::DocType;
 use kanso_plugins::model::{
-    EditorPermission, Grant, Installed, Manifest, NotesGrant, NotesRequest, Permissions, Publisher,
-    ReadRequest, Source,
+    ClipboardPermission, EditorPermission, Grant, Installed, Manifest, NotesGrant, NotesRequest,
+    Permissions, Publisher, ReadRequest, Source,
 };
-use kanso_plugins::router::{Editor, NoNetwork, Request, Router, Secrets, Selection};
+use kanso_plugins::router::{ClipEntry, Editor, NoNetwork, Request, Router, Secrets, Selection};
 use kanso_store::{Origin, PluginWriter, Put, Store};
 use proptest::prelude::*;
 use serde_json::{Value, json};
@@ -315,6 +315,7 @@ fn grant_for(
         panel: false,
         secrets: BTreeSet::new(),
         network: BTreeSet::new(),
+        clipboard: Default::default(),
         ask_before_changing: true,
     }
 }
@@ -377,6 +378,7 @@ proptest! {
             request: Request::Command,
             secrets: &NoSecrets,
             network: &mut network,
+            clipboard: &[],
             out: Default::default(),
         };
 
@@ -486,6 +488,7 @@ proptest! {
             request: Request::Command,
             secrets: &NoSecrets,
             network: &mut network,
+            clipboard: &[],
             out: Default::default(),
         };
         let readable = expected_readable(&built, &lib, &grant, None);
@@ -546,6 +549,7 @@ fn a_renderer_can_call_nothing() {
         request: Request::Render,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     for call in kanso_plugins::protocol::CALLS {
@@ -575,6 +579,7 @@ fn calls_without_a_permission_are_refused_and_counted() {
         panel: false,
         secrets: BTreeSet::new(),
         network: BTreeSet::new(),
+        clipboard: Default::default(),
         ask_before_changing: true,
     });
     let dir = tempfile::tempdir().unwrap();
@@ -591,6 +596,7 @@ fn calls_without_a_permission_are_refused_and_counted() {
         request: Request::Command,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     let id = &built.notes[0].0;
@@ -622,6 +628,88 @@ fn calls_without_a_permission_are_refused_and_counted() {
     assert_eq!(router.call("settings.get", json!({})).unwrap()["a"], 1);
 }
 
+/// The clipboard history reaches only a plugin granted it, newest first
+/// as the app kept it; writing is a separate permission and only staged.
+#[test]
+fn the_clipboard_is_held_to_its_two_permissions() {
+    let lib = Library {
+        books: vec![(None, false)],
+        notes: vec![(0, Kind::Plain)],
+    };
+    let built = build(&lib);
+    let dir = tempfile::tempdir().unwrap();
+    let editor = Editor::default();
+    let history = [
+        ClipEntry {
+            text: "docker ps -a".into(),
+            copied_ms: 2_000,
+        },
+        ClipEntry {
+            text: "git status".into(),
+            copied_ms: 1_000,
+        },
+    ];
+    let grant = |clipboard: BTreeSet<ClipboardPermission>| Grant {
+        commands: true,
+        editor: BTreeSet::new(),
+        notes: NotesGrant::default(),
+        fences: BTreeSet::new(),
+        panel: false,
+        secrets: BTreeSet::new(),
+        network: BTreeSet::new(),
+        clipboard,
+        ask_before_changing: true,
+    };
+    let run = |plugin: &Installed, call: &str, args: Value| {
+        let mut network = NoNetwork;
+        let mut router = Router {
+            store: &built.store,
+            plugin,
+            plugin_dir: dir.path(),
+            editor: &editor,
+            request: Request::Command,
+            secrets: &NoSecrets,
+            network: &mut network,
+            clipboard: &history,
+            out: Default::default(),
+        };
+        let answer = router.call(call, args);
+        (answer, router.out)
+    };
+
+    let none = installed(grant(BTreeSet::new()));
+    for (call, args) in [
+        ("clipboard.history", json!({})),
+        ("clipboard.write", json!({ "text": "x" })),
+    ] {
+        let (answer, out) = run(&none, call, args);
+        assert_eq!(answer.unwrap_err().code, "denied", "{call}");
+        assert_eq!(out.refused, 1);
+        assert_eq!(out.clipboard_write, None);
+    }
+
+    let reader = installed(grant([ClipboardPermission::HistoryRead].into()));
+    let (answer, _) = run(&reader, "clipboard.history", json!({}));
+    assert_eq!(
+        answer.unwrap(),
+        json!([
+            { "text": "docker ps -a", "copiedAt": 2_000 },
+            { "text": "git status", "copiedAt": 1_000 },
+        ])
+    );
+    let (answer, _) = run(&reader, "clipboard.write", json!({ "text": "x" }));
+    assert_eq!(answer.unwrap_err().code, "denied");
+
+    let writer = installed(grant([ClipboardPermission::Write].into()));
+    let (answer, out) = run(&writer, "clipboard.write", json!({ "text": "copied" }));
+    assert_eq!(answer.unwrap(), Value::Null);
+    assert_eq!(out.clipboard_write.as_deref(), Some("copied"));
+    let (answer, _) = run(&writer, "clipboard.history", json!({}));
+    assert_eq!(answer.unwrap_err().code, "denied");
+    let (answer, _) = run(&writer, "clipboard.write", json!({ "text": 5 }));
+    assert_eq!(answer.unwrap_err().code, "invalid");
+}
+
 #[test]
 fn an_update_can_name_only_its_four_fields() {
     let lib = Library {
@@ -648,6 +736,7 @@ fn an_update_can_name_only_its_four_fields() {
         request: Request::Command,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     let id = &built.notes[0].0;
