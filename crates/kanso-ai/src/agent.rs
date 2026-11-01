@@ -1229,7 +1229,11 @@ mod tests {
         };
         let report = super::report(&settings, "1.0.0", Some(&home), None);
         std::fs::remove_dir_all(&home).ok();
-        assert!(report.contains("found at ~/bin/my-agent"), "{report}");
+        let shown = format!(
+            "found at ~{sep}bin{sep}my-agent",
+            sep = std::path::MAIN_SEPARATOR
+        );
+        assert!(report.contains(&shown), "{report}");
         assert!(!report.contains(&*home.to_string_lossy()), "{report}");
     }
 
