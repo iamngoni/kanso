@@ -1,5 +1,6 @@
 //! Watching the clipboard for clipboard history (`clipboard_history.rs`),
-//! on a thread of its own, from turning it on until turning it off.
+//! on a thread of its own, while a plugin holding `clipboard.history.read`
+//! is on.
 //!
 //! - X11 (and Kanso run under XWayland): XFixes says when the clipboard
 //!   changes hands, and the new owner is asked for its text. A copy that
@@ -11,7 +12,7 @@
 //!   kept from monitors or the clipboard history (as password managers do)
 //!   is sensitive.
 //! - Wayland lets only the focused window read the clipboard: nothing is
-//!   watched there, and the sticky says to run Kanso under XWayland.
+//!   watched there; it needs Kanso run under XWayland.
 //!
 //! What was copied before turning it on isn't read, except what is on the
 //! clipboard at that moment.
@@ -63,6 +64,14 @@ pub struct Watcher {
 impl Drop for Watcher {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
+    }
+}
+
+/// A watcher with no thread, for tests that hand copies in themselves.
+#[cfg(test)]
+pub fn idle_for_test() -> Watcher {
+    Watcher {
+        stop: Arc::new(AtomicBool::new(false)),
     }
 }
 

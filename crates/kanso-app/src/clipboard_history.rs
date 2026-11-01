@@ -1,25 +1,24 @@
-//! Clipboard history: the last texts copied in any app, while Kanso runs,
-//! for the clipboard sticky (`clipboard_sticky.rs`) to copy again with a
-//! click. Off until turned on (Settings › General, or the sticky's own
-//! Turn on), and kept in memory only.
+//! Clipboard history: the last texts copied in any app while Kanso runs,
+//! for a plugin that holds the `clipboard.history.read` permission
+//! (docs/PLUGINS.md › Clipboard). Plugins only run when they're used, so
+//! the watching happens here, in Kanso, and only while such a plugin is
+//! installed and on ([`sync`]); with none, nothing watches, as before.
+//! The plugin reads what was collected with `kanso.clipboard.history()`.
 //!
 //! What was copied can be anything: a password, a key, a card number. So
 //! the history:
 //!
-//! - is never written anywhere: not the store, so not search, sync, the
-//!   local API or MCP; not the config, nor a log. Quitting forgets it, so
-//!   does turning it off. On purpose, no IPC message, API route, MCP tool
-//!   or command reads it.
+//! - is kept in memory only: not the store, so not search, sync, the local
+//!   API or MCP; not the config, nor a log. Quitting forgets it, and so does
+//!   turning the last such plugin off or removing it.
 //! - skips a copy the app it came from marked secret (a password manager's
 //!   concealed or KDE password hint, `clipboard_watch.rs`), one of Kanso's
 //!   own secrets (the recovery key), and text that looks like a key, a
 //!   token or a card number ([`screen`]).
-//! - forgets each copy after a while (an hour by default), and shows them
-//!   masked until hovered.
+//! - forgets each copy after [`MAX_AGE`].
 //!
 //! The copies come from a watcher on a thread of its own
-//! (`clipboard_watch.rs`); a sticky opened later shows what it already
-//! saw.
+//! (`clipboard_watch.rs`).
 
 use std::collections::VecDeque;
 
@@ -27,12 +26,13 @@ use gpui_kit::*;
 
 use crate::clipboard_watch::{self, Copied, Support, Watcher};
 use crate::clock::Clock;
-use crate::workspace::AppState;
 
 /// How many copies the history keeps: the newest.
 pub const CAPACITY: usize = 15;
 /// The longest copy kept, in bytes: a snippet, not a document.
 pub const MAX_CLIP: usize = 16 * 1024;
+/// How long a copy is kept.
+pub const MAX_AGE: std::time::Duration = std::time::Duration::from_secs(60 * 60);
 /// How often old copies are forgotten.
 const SWEEP: std::time::Duration = std::time::Duration::from_secs(60);
 
@@ -43,11 +43,10 @@ pub struct Clip {
     pub copied_ms: i64,
 }
 
-/// The copies kept, newest first, and whether collecting is paused.
+/// The copies kept, newest first.
 #[derive(Debug, Default)]
 pub struct History {
     pub items: VecDeque<Clip>,
-    pub paused: bool,
 }
 
 impl History {
@@ -92,7 +91,7 @@ pub enum Verdict {
 
 /// Whether `text` looks secret: a known kind of key or token, a card
 /// number, or a lone word random enough to be a generated password. A
-/// guess, so the history is masked and forgets too. Pure.
+/// guess, so the history forgets too. Pure.
 pub fn screen(text: &str) -> Verdict {
     let text = text.trim();
     let secret = text.contains("-----BEGIN ") && text.contains("KEY")
@@ -245,29 +244,8 @@ fn entropy(chars: &[char]) -> f64 {
         .sum()
 }
 
-/// How a copy shows in the sticky while masked: its first line, a long
-/// word's ends with dots between, a short one only dots.
-pub fn mask(text: &str) -> String {
-    let line = first_line(text);
-    let chars: Vec<char> = line.chars().collect();
-    if chars.len() <= 8 {
-        return "••••".to_owned();
-    }
-    let ends = if chars.len() >= 16 { 4 } else { 2 };
-    let head: String = chars[..ends].iter().collect();
-    let tail: String = chars[chars.len() - ends..].iter().collect();
-    format!("{head}••••{tail}")
-}
-
-/// The first line of `text` with something on it, for a row.
-pub fn first_line(text: &str) -> &str {
-    text.lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .unwrap_or("")
-}
-
-/// The history, the watcher filling it, and what this session allows.
+/// The history, the watcher filling it (while a plugin wants it), and
+/// what this session allows.
 pub struct ClipboardHistory {
     pub history: Entity<History>,
     pub support: Support,
@@ -277,7 +255,7 @@ pub struct ClipboardHistory {
 
 impl Global for ClipboardHistory {}
 
-/// Sets up the history, empty, and starts watching when it's turned on.
+/// Sets up the history, empty, and starts watching if a plugin wants it.
 pub fn init(cx: &mut App) {
     let (copies, received) = async_channel::unbounded();
     let history = cx.new(|_| History::default());
@@ -287,9 +265,7 @@ pub fn init(cx: &mut App) {
         watcher: None,
         copies,
     });
-    if enabled(cx) {
-        start(cx);
-    }
+    sync(cx);
     serve(received, cx);
     cx.spawn(async move |cx| {
         loop {
@@ -300,34 +276,46 @@ pub fn init(cx: &mut App) {
     .detach();
 }
 
-/// Whether the history is turned on.
-pub fn enabled(cx: &App) -> bool {
-    cx.global::<AppState>().config.clipboard.enabled
+/// Whether an installed plugin that may run now holds
+/// `clipboard.history.read`: the only time Kanso watches the clipboard.
+pub fn wanted(cx: &App) -> bool {
+    cx.try_global::<crate::plugins::Plugins>()
+        .is_some_and(|plugins| plugins.shared.wants_clipboard())
 }
 
-/// Turns the history on, watching from now, or off, forgetting it all.
-pub fn set_enabled(on: bool, cx: &mut App) {
-    AppState::update_config(cx, |config| config.clipboard.enabled = on);
-    if on {
-        start(cx);
-    } else {
+/// Whether the clipboard is being watched now.
+pub fn watching(cx: &App) -> bool {
+    cx.try_global::<ClipboardHistory>()
+        .is_some_and(|state| state.watcher.is_some())
+}
+
+/// Starts watching when a plugin wants the history, and stops, forgetting
+/// every copy, when none does any more. Called at launch, after a plugin
+/// changes, and on the plugins' tick.
+pub fn sync(cx: &mut App) {
+    if !cx.has_global::<ClipboardHistory>() {
+        return;
+    }
+    let wanted = wanted(cx);
+    let state = cx.global::<ClipboardHistory>();
+    if wanted && state.watcher.is_none() && state.support == Support::Watching {
+        let watcher = clipboard_watch::start(state.copies.clone());
+        cx.global_mut::<ClipboardHistory>().watcher = watcher;
+    } else if !wanted && state.watcher.is_some() {
         cx.global_mut::<ClipboardHistory>().watcher = None;
         let history = cx.global::<ClipboardHistory>().history.clone();
         history.update(cx, |history, cx| {
             history.clear();
-            history.paused = false;
             cx.notify();
         });
     }
 }
 
-fn start(cx: &mut App) {
-    let state = cx.global::<ClipboardHistory>();
-    if state.watcher.is_some() || state.support != Support::Watching {
-        return;
-    }
-    let watcher = clipboard_watch::start(state.copies.clone());
-    cx.global_mut::<ClipboardHistory>().watcher = watcher;
+/// The copies kept now, newest first, as a plugin reads them.
+pub fn recent(cx: &App) -> Vec<Clip> {
+    cx.try_global::<ClipboardHistory>()
+        .map(|state| state.history.read(cx).items.iter().cloned().collect())
+        .unwrap_or_default()
 }
 
 /// Keeps each copy the watcher sees that may be kept.
@@ -340,47 +328,189 @@ fn serve(received: async_channel::Receiver<Copied>, cx: &mut App) {
     .detach();
 }
 
-/// Keeps `copied` unless the history is off or paused, or the copy is
-/// secret.
+/// Keeps `copied` unless nothing is watching any more (a copy seen just
+/// before the watcher stopped), or the copy is secret.
 pub fn keep(copied: Copied, cx: &mut App) {
-    if !enabled(cx)
+    if !watching(cx)
         || copied.sensitive
         || screen(&copied.text) == Verdict::Secret
         || crate::clipboard::is_own_secret(&copied.text)
     {
         return;
     }
-    let Some(state) = cx.try_global::<ClipboardHistory>() else {
-        return;
-    };
-    let history = state.history.clone();
+    let history = cx.global::<ClipboardHistory>().history.clone();
     let now = Clock::now_ms(cx);
     history.update(cx, |history, cx| {
-        if !history.paused && history.push(copied.text, now) {
+        if history.push(copied.text, now) {
             cx.notify();
         }
     });
 }
 
-/// Forgets the copies older than the setting, and has the rows' ages
-/// redrawn.
+/// Forgets the copies older than [`MAX_AGE`].
 fn sweep(cx: &mut App) {
     let Some(state) = cx.try_global::<ClipboardHistory>() else {
         return;
     };
     let history = state.history.clone();
-    let max_age = i64::from(cx.global::<AppState>().config.clipboard.expire_minutes) * 60_000;
     let now = Clock::now_ms(cx);
     history.update(cx, |history, cx| {
-        history.expire(now, max_age);
-        // Redrawn either way: the rows say how long ago.
-        cx.notify();
+        if history.expire(now, MAX_AGE.as_millis() as i64) {
+            cx.notify();
+        }
     });
+}
+
+/// Starts the watcher's bookkeeping as if a real one ran, for tests that
+/// push copies by hand.
+#[cfg(test)]
+pub fn pretend_watching_for_test(cx: &mut App) {
+    let (copies, _) = async_channel::unbounded();
+    if !cx.has_global::<ClipboardHistory>() {
+        let history = cx.new(|_| History::default());
+        cx.set_global(ClipboardHistory {
+            history,
+            support: Support::Watching,
+            watcher: None,
+            copies,
+        });
+    }
+    cx.global_mut::<ClipboardHistory>().watcher = Some(clipboard_watch::idle_for_test());
+}
+
+/// The watcher's life follows the plugins: on while one that reads the
+/// history may run, off and forgetting when none does; a copy reaches only
+/// a plugin granted the history.
+#[cfg(test)]
+mod lifecycle {
+    use std::sync::Arc;
+
+    use gpui_kit::TestAppContext;
+    use kanso_plugins::model::{
+        ClipboardPermission, Grant, Installed, Manifest, NotesGrant, Permissions, Publisher, Source,
+    };
+    use kanso_store::Store;
+
+    use super::{ClipboardHistory, keep, recent, sync, watching};
+    use crate::clipboard_watch::Copied;
+
+    fn plugin(id: &str, clipboard: &[ClipboardPermission]) -> Installed {
+        let clipboard: std::collections::BTreeSet<_> = clipboard.iter().copied().collect();
+        Installed {
+            manifest: Manifest {
+                schema: 1,
+                api_version: 1,
+                id: id.into(),
+                name: id.into(),
+                version: "1.0.0".into(),
+                entry: "main.js".into(),
+                publisher: Publisher {
+                    name: "Test".into(),
+                    key: format!("ed25519:{}", "ab".repeat(32)),
+                },
+                min_app_version: "0.1.0".into(),
+                icon: None,
+                description: None,
+                permissions: Permissions {
+                    commands: true,
+                    clipboard: clipboard.clone(),
+                    ..Permissions::default()
+                },
+            },
+            source: Source::Developer { path: "/x".into() },
+            pinned_key: String::new(),
+            grant: Grant {
+                commands: true,
+                editor: Default::default(),
+                notes: NotesGrant::default(),
+                fences: Default::default(),
+                panel: false,
+                secrets: Default::default(),
+                network: Default::default(),
+                clipboard,
+                ask_before_changing: true,
+            },
+            disabled: None,
+            registered: Default::default(),
+            installed_at: 0,
+            last_error: None,
+        }
+    }
+
+    fn copy(text: &str) -> Copied {
+        Copied {
+            text: text.into(),
+            sensitive: false,
+        }
+    }
+
+    fn texts(cx: &mut TestAppContext) -> Vec<String> {
+        cx.read(|cx| recent(cx).into_iter().map(|clip| clip.text).collect())
+    }
+
+    #[gpui_kit::test]
+    fn the_watcher_follows_the_plugins(cx: &mut TestAppContext) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+        let data_dir = dir.path().to_path_buf();
+        cx.update(|cx| {
+            crate::plugins::init_for_test(
+                store,
+                &data_dir,
+                vec![
+                    plugin("com.example.writer", &[ClipboardPermission::Write]),
+                    plugin("com.example.clips", &[ClipboardPermission::HistoryRead]),
+                ],
+                cx,
+            );
+        });
+        let shared = cx.read(|cx| cx.global::<crate::plugins::Plugins>().shared.clone());
+        assert!(shared.wants_clipboard());
+
+        // Watching (as a real watcher would on X11, macOS or Windows): copies
+        // are kept, secrets aren't.
+        cx.update(|cx| {
+            super::pretend_watching_for_test(cx);
+            keep(copy("docker ps -a"), cx);
+            keep(copy("ghp_abcdefghijklmnopqrstuvwxyz0123456789"), cx);
+            keep(
+                Copied {
+                    text: "hunter2".into(),
+                    sensitive: true,
+                },
+                cx,
+            );
+            keep(copy("git status"), cx);
+        });
+        assert_eq!(texts(cx), ["git status", "docker ps -a"]);
+        // Only the plugin granted the history is handed it.
+        cx.read(|cx| {
+            assert_eq!(
+                crate::plugins::clipboard_for_test("com.example.clips", cx).len(),
+                2
+            );
+            assert!(crate::plugins::clipboard_for_test("com.example.writer", cx).is_empty());
+        });
+
+        // Its plugin turned off: nothing wants it, so it stops and forgets.
+        shared.set_enabled("com.example.clips", false);
+        assert!(!shared.wants_clipboard());
+        cx.update(sync);
+        assert!(!cx.read(watching));
+        assert!(texts(cx).is_empty());
+        // A copy that arrives after it stopped is dropped.
+        cx.update(|cx| keep(copy("late"), cx));
+        assert!(texts(cx).is_empty());
+        // On again: wanted again (the test platform has no real watcher).
+        shared.set_enabled("com.example.clips", true);
+        assert!(shared.wants_clipboard());
+        cx.read(|cx| assert!(cx.has_global::<ClipboardHistory>()));
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{CAPACITY, History, MAX_CLIP, Verdict, luhn, mask, screen};
+    use super::{CAPACITY, History, MAX_CLIP, Verdict, luhn, screen};
     use proptest::prelude::*;
 
     #[test]
@@ -464,14 +594,6 @@ mod tests {
         for text in ordinary {
             assert_eq!(screen(text), Verdict::Keep, "{text}");
         }
-    }
-
-    #[test]
-    fn masks_all_but_the_ends() {
-        assert_eq!(mask("hi"), "••••");
-        assert_eq!(mask("docker ps -a"), "do••••-a");
-        assert_eq!(mask("ssh deploy@example.com\nmore"), "ssh ••••.com");
-        assert_eq!(mask("\n\n  short"), "••••");
     }
 
     /// The Luhn check digit of `digits`.

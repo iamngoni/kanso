@@ -26,14 +26,16 @@ use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 use kanso_plugins::batch::{Batch, MAX_WRITTEN_PER_DAY, review};
 use kanso_plugins::consent::Signed;
-use kanso_plugins::model::{Disabled, Grant, Installed, Source};
+use kanso_plugins::model::{ClipboardPermission, Disabled, Grant, Installed, Source};
 use kanso_plugins::net::{
     EgressLog, Fetcher, HttpsTransport, NetPolicy, RateLimit, SystemResolver,
 };
 use kanso_plugins::panel_model::Panel;
 use kanso_plugins::protocol::{Budgets, Failure, PluginInfo, Theme};
 use kanso_plugins::registry_model::{Bundle, Entry, Index};
-use kanso_plugins::router::{self, Editor, Network, NoNetwork, Outcome, Request, Router};
+use kanso_plugins::router::{
+    self, ClipEntry, Editor, Network, NoNetwork, Outcome, Request, Router,
+};
 use kanso_plugins::state::State;
 use kanso_plugins::supervisor::{Health, Host, Log, RunError};
 use kanso_plugins::{bundle, grant, install, manifest, registry};
@@ -357,6 +359,7 @@ impl Shared {
             request: Request::Render,
             secrets: &no_secrets,
             network: &mut network,
+            clipboard: &[],
             out: Outcome::default(),
         };
         let Slot { host, log, .. } = &mut *slot;
@@ -473,7 +476,24 @@ impl Shared {
 
     /// Runs `run` for plugin `id` with `editor` as the editor stands.
     /// Blocks; call it off the UI thread.
-    pub fn run(&self, id: &str, run: Run, editor: Editor) -> Report {
+    /// Whether an installed plugin that may run now holds
+    /// `clipboard.history.read`: the only time Kanso watches the clipboard
+    /// (`clipboard_history.rs`).
+    pub fn wants_clipboard(&self) -> bool {
+        // A copy, so `may_run` doesn't take the lock a second time.
+        let plugins = self.state().plugins;
+        plugins.iter().any(|plugin| {
+            plugin
+                .grant
+                .clipboard
+                .contains(&ClipboardPermission::HistoryRead)
+                && self.may_run(plugin.id())
+        })
+    }
+
+    /// Runs `run` for plugin `id` with the editor as it is and, for a
+    /// plugin that may read it, the clipboard history the app kept.
+    pub fn run(&self, id: &str, run: Run, editor: Editor, clipboard: Vec<ClipEntry>) -> Report {
         let fail = |err: RunError| Report {
             result: Err(err),
             outcome: Outcome::default(),
@@ -524,6 +544,7 @@ impl Shared {
             request,
             secrets: &secrets,
             network: &mut network,
+            clipboard: &clipboard,
             out: Outcome::default(),
         };
         let host = host.as_mut().expect("the host was just started");
@@ -982,6 +1003,9 @@ impl Plugins {
             let mut next_check = Instant::now() + FIRST_CHECK;
             loop {
                 cx.background_executor().timer(TICK).await;
+                // The clipboard is watched only while a plugin wants it:
+                // installed, removed, turned off or on here or in a run.
+                cx.update(crate::clipboard_history::sync);
                 if Instant::now() >= next_check {
                     next_check = Instant::now() + CHECK_EVERY;
                     cx.update(|cx| {
@@ -1111,6 +1135,34 @@ pub fn editor_context(editor: &Entity<crate::editor::NoteEditor>, cx: &App) -> E
     Editor { note_id, selection }
 }
 
+/// The clipboard history for plugin `id`'s request: what Kanso kept, when
+/// the plugin may read it, and nothing otherwise.
+fn clipboard_for(id: &str, cx: &App) -> Vec<ClipEntry> {
+    let may_read = cx.try_global::<Plugins>().is_some_and(|plugins| {
+        plugins.shared.installed(id).is_some_and(|plugin| {
+            plugin
+                .grant
+                .clipboard
+                .contains(&ClipboardPermission::HistoryRead)
+        })
+    });
+    if !may_read {
+        return Vec::new();
+    }
+    crate::clipboard_history::recent(cx)
+        .into_iter()
+        .map(|clip| ClipEntry {
+            text: clip.text,
+            copied_ms: clip.copied_ms,
+        })
+        .collect()
+}
+
+#[cfg(test)]
+pub fn clipboard_for_test(id: &str, cx: &App) -> Vec<ClipEntry> {
+    clipboard_for(id, cx)
+}
+
 /// Runs plugin command `command` of `plugin_id` for the editor as it is.
 pub fn run_command(
     plugin_id: String,
@@ -1135,7 +1187,8 @@ pub fn run_command(
         args: Value::Null,
     };
     let id = plugin_id.clone();
-    let task = cx.background_spawn(async move { shared.run(&id, run, context) });
+    let clipboard = clipboard_for(&plugin_id, cx);
+    let task = cx.background_spawn(async move { shared.run(&id, run, context, clipboard) });
     crate::metrics::record(cx, crate::metrics::Feature::PluginCommand);
     cx.spawn(async move |cx| {
         let report = task.await;
@@ -1177,7 +1230,8 @@ pub fn press(button: String, cx: &mut App) {
         .unwrap_or_default();
     let seen = context.selection.clone();
     let plugin = id.clone();
-    let task = cx.background_spawn(async move { shared.run(&plugin, run, context) });
+    let clipboard = clipboard_for(&id, cx);
+    let task = cx.background_spawn(async move { shared.run(&plugin, run, context, clipboard) });
     cx.spawn(async move |cx| {
         let report = task.await;
         cx.update(|cx| {
@@ -1273,6 +1327,9 @@ fn finish(
                 notify_windows(move || Notification::warning(text.clone()), cx);
             }
         });
+    }
+    if let Some(text) = outcome.clipboard_write {
+        cx.write_to_clipboard(ClipboardItem::new_string(text));
     }
     if let Some(root) = outcome.panel {
         let plugins = cx.global_mut::<Plugins>();
@@ -1533,6 +1590,7 @@ pub fn add_developer_folder(path: PathBuf, window: &mut Window, cx: &mut App) {
 pub fn confirm_install(plan: InstallPlan, grant: Grant, cx: &mut App) -> Result<(), String> {
     let shared = cx.global::<Plugins>().shared.clone();
     shared.install(&plan, grant)?;
+    crate::clipboard_history::sync(cx);
     crate::metrics::record(cx, crate::metrics::Feature::PluginInstalled);
     let name = plan.bundle.manifest.name.clone();
     let id = plan.id().to_owned();
@@ -1578,6 +1636,7 @@ pub fn remove(id: &str, sweep: bool, cx: &mut App) {
         Err(err) => format!("Couldn't remove {name}: {err}"),
     };
     notify_windows(move || Notification::info(text.clone()), cx);
+    crate::clipboard_history::sync(cx);
     cx.refresh_windows();
 }
 
@@ -1804,7 +1863,7 @@ mod live {
             args: Value::Null,
         };
         shared
-            .run(WORD_COUNT, run, editor)
+            .run(WORD_COUNT, run, editor, Vec::new())
             .result
             .expect("the command runs")
     }
@@ -1866,7 +1925,7 @@ mod live {
                 };
                 assert!(
                     shared
-                        .run(WORD_COUNT, run, Editor::default())
+                        .run(WORD_COUNT, run, Editor::default(), Vec::new())
                         .result
                         .is_err()
                 );

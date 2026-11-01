@@ -31,6 +31,8 @@ mod calendar_view;
 mod capture;
 mod capture_cli;
 mod clipboard;
+mod clipboard_history;
+mod clipboard_watch;
 mod clock;
 mod code_lang;
 mod collab;
@@ -641,6 +643,9 @@ fn run_app(
             Arc::new(flavour::CURRENT.keychain()),
             cx,
         );
+        // Watches the clipboard only while a plugin that reads its history
+        // is installed and on.
+        clipboard_history::init(cx);
         reminders::init(store, open_main_window, cx);
         // Discovery, in the background: related notes and text in images.
         related::init(cx);
