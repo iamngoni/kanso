@@ -3,6 +3,45 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.9.1](https://github.com/iamngoni/kanso/compare/v0.9.0...v0.9.1) - 2026-11-01
+
+### New
+
+- Refresh the plugin directory from Settings › Plugins ([e500f42](https://github.com/iamngoni/kanso/commit/e500f424d157e0bdf7566ed9967482c5da5537aa))
+- **metrics:** Hourly batches with a ledger, new events, ranges and closed lists ([8890996](https://github.com/iamngoni/kanso/commit/8890996291314656c7ab9879598ab06d8940d547))
+- **cloud:** Validate the new metrics events, stamp receipt time, and send server_stats ([3087cd9](https://github.com/iamngoni/kanso/commit/3087cd96af837ef6324c77cf77210d40b20e0ced))
+- **app:** Send hourly and on quit, show the notice again, count 24 more features ([eb7d3a4](https://github.com/iamngoni/kanso/commit/eb7d3a402a8fed3f1494546296e1bb902d38d608))
+- **mobile:** Hourly and background batches, notice version and new counts ([3510596](https://github.com/iamngoni/kanso/commit/35105966caa97643a75903c0bcec9c7444d32d39))
+
+### Fixed
+
+- Preserve WorkManager database constructor and service type ([bf608bf](https://github.com/iamngoni/kanso/commit/bf608bfbb788f76adc8227586e6a375c78fce856))
+- **sticky:** Tint stickies from the active theme, and fit toasts to narrow windows ([9f22350](https://github.com/iamngoni/kanso/commit/9f223509657e7a661e14ea67f1c53da1626297eb))
+- Close a sticky from its close button directly ([bcdbc26](https://github.com/iamngoni/kanso/commit/bcdbc263033ae9517e66dffbec349136c770b050))
+- Keep the .deb version's tilde free of a backslash on older bash ([dbbe52b](https://github.com/iamngoni/kanso/commit/dbbe52b423ca5254aa0c4fc71d06bad588e076a7))
+- **metrics:** Check the PostHog key and log each forwarded batch ([f509f3f](https://github.com/iamngoni/kanso/commit/f509f3f669c94e16aa53266c980ad5752d6982c3))
+- **markdown:** A rule after a setext underline no longer crashes markdown-rs, and Live falls back to one block per line ([a7adeb9](https://github.com/iamngoni/kanso/commit/a7adeb9a3899633a75368238e2b1d015c497a33a))
+- Drop a stray proptest regression for the markdown crate ([cb2d38c](https://github.com/iamngoni/kanso/commit/cb2d38cdce0556d5d71316db4145b3fcbe2ebc1f))
+- **cloud:** Catch up missed server_stats windows, count devices_seen hourly, route once ([3a7dc03](https://github.com/iamngoni/kanso/commit/3a7dc03533ce5dc3f2b03ce4e2193a7fbc011952))
+- **app:** Buffer counts, note the launch at start, and don't resend on quit ([d90663f](https://github.com/iamngoni/kanso/commit/d90663f10c37dd9e3d17f60e900a6a48cab02fe7))
+- **mobile:** Buffer ledger writes, count batches per note, search on open, no note_deleted on delete forever ([d9c48d9](https://github.com/iamngoni/kanso/commit/d9c48d92b242950a623abe80c0ff262d82447eba))
+- **ci:** Pin the MCP contract to 1.6.0 and fix Windows and Android lints ([898697e](https://github.com/iamngoni/kanso/commit/898697e6ee773784f933096e784db9fde2f82b4b))
+
+### Under the hood
+
+- Update App Store name and review notes ([0c5028f](https://github.com/iamngoni/kanso/commit/0c5028fed48d3ada639d67b63c4e79fa591fa74f))
+- **changelog:** Credit the sticky notes feature to @Zawala ([55709a0](https://github.com/iamngoni/kanso/commit/55709a0f553c803a40abcdacf1347624072c5c0e))
+- **changelog:** Give Kelvin his full name in the sticky notes credit ([e371169](https://github.com/iamngoni/kanso/commit/e371169e37cca8055e4d6f33b71a5dd0c0003e4c))
+- Leave package-managed installs to apt ([31ab542](https://github.com/iamngoni/kanso/commit/31ab542b87a6a7ec1efc05ba0d30c35f9c2a277d)) by @Zawala
+- Publish the .debs and a signed apt index ([1b25076](https://github.com/iamngoni/kanso/commit/1b25076187b6be6fbbbf549221b5fae61a343408)) by @Zawala
+- Apt redirects at /apt ([629d427](https://github.com/iamngoni/kanso/commit/629d427443291c58a12277607ca33923841e8d63)) by @Zawala
+- Apt-setup for the maintainer's one-time key setup ([8aa6fff](https://github.com/iamngoni/kanso/commit/8aa6fffa6be6294a3eacf0587179db947f9fe316)) by @Zawala
+- Apt install, the repository's design and its setup ([d68302d](https://github.com/iamngoni/kanso/commit/d68302d0bfb9ef05720974a6f45686d68e7a772a)) by @Zawala
+- Use the setext shape markdown still panics on after the retry ([99f27b6](https://github.com/iamngoni/kanso/commit/99f27b62c36e53baa882a3cbbbc3b6580d92b7e5))
+- Define the expanded metrics in METRICS.md, the notice, the site and store disclosures ([f817f2a](https://github.com/iamngoni/kanso/commit/f817f2a641888317bd662f4d0fda9c2417b8a1a3))
+- Allow Kanso's template bookId in the MCP contract test ([3ce30f8](https://github.com/iamngoni/kanso/commit/3ce30f81c1b756f97da36d9f9a51e38da65c7b6d))
+- Expect the platform's path separator in the agent report ([0abfa8f](https://github.com/iamngoni/kanso/commit/0abfa8fb5d5572af60fa3a2829ee7f3f2bb6ac16))
+
 ## [0.9.0](https://github.com/iamngoni/kanso/compare/v0.8.4...v0.9.0) - 2026-10-31
 
 ### #44
