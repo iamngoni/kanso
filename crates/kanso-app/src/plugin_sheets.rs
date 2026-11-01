@@ -334,7 +334,31 @@ impl Render for InstallSheet {
                 el.child(
                     v_flex()
                         .gap(px(4.))
-                        .child(heading("Notebooks to give it", colors))
+                        .child(
+                            h_flex()
+                                .justify_between()
+                                .child(heading("Notebooks to give it", colors))
+                                .when(!all && self.sheet_books.len() > 1, |el| {
+                                    let every = self.sheet_books.iter().all(|b| self.ticked.contains(&b.id));
+                                    el.child(
+                                        div()
+                                            .id("plugin-books-select-all")
+                                            .cursor_pointer()
+                                            .text_size(px(11.5))
+                                            .text_color(colors.accent)
+                                            .hover(|s| s.underline())
+                                            .child(if every { "Clear" } else { "Select all" })
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                if every {
+                                                    this.ticked.clear();
+                                                } else {
+                                                    this.ticked = this.sheet_books.iter().map(|b| b.id.clone()).collect();
+                                                }
+                                                cx.notify();
+                                            })),
+                                    )
+                                }),
+                        )
                         .when(asks_all, |el| {
                             el.child(
                                 h_flex()
