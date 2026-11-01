@@ -439,6 +439,11 @@ pub fn import_source(kind: SourceKind) -> ImportSource {
 /// The system's version, as far as Kanso can read it without asking: the
 /// macOS product version, the Linux kernel's release, and `unknown` on
 /// Windows. Checked again by `kanso_metrics`.
+// On Windows `read` is always `None`.
+#[cfg_attr(
+    not(any(target_os = "macos", target_os = "linux")),
+    allow(clippy::unnecessary_literal_unwrap)
+)]
 fn os_version() -> &'static str {
     static VERSION: OnceLock<String> = OnceLock::new();
     VERSION.get_or_init(|| {

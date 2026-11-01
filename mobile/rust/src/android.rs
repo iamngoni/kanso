@@ -63,10 +63,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::ffi::CString;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use jni::objects::{JByteArray, JClass, JObject, JString};
+use jni::objects::{JClass, JObject, JString};
 use jni::sys::{jint, jlong};
 use jni::{Env, EnvUnowned};
-use zeroize::Zeroize;
 
 /// Set once the verifier and the Keystore bridge are set up.
 static DONE: AtomicBool = AtomicBool::new(false);
