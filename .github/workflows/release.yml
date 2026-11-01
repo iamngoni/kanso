@@ -428,11 +428,16 @@ jobs:
           merge-multiple: true
           pattern: Kanso-*
 
+      # A runner that can't get the tools skips the index, with a warning;
+      # the release goes on without it, as it does without the key.
       - name: apt tools
+        id: tools
+        continue-on-error: true
         run: scripts/apt-tools.sh
 
       - name: Signed index
         id: index
+        if: steps.tools.outcome == 'success'
         env:
           APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
           APT_SIGNING_PASSPHRASE: ${{ secrets.APT_SIGNING_PASSPHRASE }}
