@@ -538,7 +538,7 @@ fn finish_check(result: Option<Result<Check, CheckError>>, cx: &mut App) {
 
 enum Progress {
     Bytes(u64, u64),
-    Done(Result<Pending, StageError>),
+    Done(Box<Result<Pending, StageError>>),
 }
 
 /// Downloads, checks and stages `update` in the background. Without an
@@ -590,7 +590,7 @@ pub fn start_download(update: Update, cx: &mut App) {
                 &cancel,
                 &verify,
             );
-            tx.try_send(Progress::Done(result)).ok();
+            tx.try_send(Progress::Done(Box::new(result))).ok();
         });
     if spawned.is_err() {
         let updates = cx.global_mut::<Updates>();
@@ -623,7 +623,7 @@ fn progress(message: Progress, cx: &mut App) {
         }
         Progress::Done(result) => {
             updates.running = false;
-            match result {
+            match *result {
                 Ok(pending) => {
                     log_line(&format!(
                         "{} is staged at {}",

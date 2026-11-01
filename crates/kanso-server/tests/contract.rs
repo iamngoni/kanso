@@ -1,4 +1,4 @@
-//! Kanso's contract test: the real `@inkdropapp/mcp-server` 1.5.0 runs against
+//! Kanso's contract test: the real `@inkdropapp/mcp-server` 1.6.0 runs against
 //! Kanso's HTTP API over a real socket and calls every tool; the same tool
 //! sequence then runs against the native `/mcp` endpoint. Both must succeed
 //! (or fail) where expected, leave the store in the expected state, and
@@ -8,14 +8,14 @@
 //! Skipped, with a message, when `node` is not available. Set `KANSO_NODE`
 //! to pick a node binary and `KANSO_MCP_SERVER_JS` to point at the
 //! server's `dist/index.js`; otherwise the npx cache is tried, then
-//! `npx -y @inkdropapp/mcp-server@1.5.0`.
+//! `npx -y @inkdropapp/mcp-server@1.6.0`.
 
 mod common;
 
 /// The npm package of the reference MCP server, at the version Kanso's
 /// tools match.
 const MCP_PACKAGE: &str = "@inkdropapp/mcp-server";
-const MCP_PACKAGE_VERSION: &str = "1.5.0";
+const MCP_PACKAGE_VERSION: &str = "1.6.0";
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -52,8 +52,8 @@ const TOOL_NAMES: [&str; 18] = [
     "read-file",
 ];
 
-/// Tools in the list above that the pinned Node server (1.5.0) hasn't got;
-/// a newer one installed here has them.
+/// Tools in the list above that an older Node server (before 1.6.0) hasn't
+/// got, in case an older copy is the one installed here.
 const KANSO_ADDED: [&str; 1] = ["list-templates"];
 
 /// An MCP client: one JSON-RPC request in, its answer out.
@@ -542,10 +542,6 @@ impl Run {
                 // Inside JSON text the quotes are escaped.
                 let s = s.replace("\\\"", "\"");
                 let s = lone_surrogate.replace_all(&s, "\"");
-                // Known, deliberate difference: Kanso's bookId also takes
-                // `template` (its own template notebook, a Kanso tool), which
-                // the pinned Node server's validation message doesn't list.
-                let s = s.replace("trash$|template$)", "trash$)");
                 stamp
                     .replace_all(&s, |caps: &regex_lite::Captures| {
                         format!("\"{}\": <ts>", &caps[1])
