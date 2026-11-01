@@ -3,6 +3,12 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.9.2](https://github.com/iamngoni/kanso/compare/v0.9.1...v0.9.2) - 2026-11-01
+
+### New
+
+- Select all notebooks in the plugin install sheet ([cf56130](https://github.com/iamngoni/kanso/commit/cf56130aae4abe065a8ceeb531ff0a819e88c574))
+
 ## [0.9.1](https://github.com/iamngoni/kanso/compare/v0.9.0...v0.9.1) - 2026-11-01
 
 ### New
