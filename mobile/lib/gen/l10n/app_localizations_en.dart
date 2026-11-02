@@ -3711,6 +3711,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noteExportHtml => 'Export as web page';
 
   @override
+  String get notePresent => 'Present';
+
+  @override
+  String get presentationClose => 'End presentation';
+
+  @override
+  String get presentationEmpty => 'Nothing to present yet';
+
+  @override
+  String presentationPosition(int position, int count) {
+    return '$position / $count';
+  }
+
+  @override
   String get noteExportPreparingPage => 'Preparing the web page';
 
   @override

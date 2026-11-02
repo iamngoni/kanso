@@ -320,7 +320,7 @@ fn open_window(
 
 /// The main window's library, so both windows show the same notes, or one
 /// of the note window's own when the main window is closed.
-fn shared_library(store: Arc<Store>, cx: &mut App) -> Entity<Library> {
+pub(crate) fn shared_library(store: Arc<Store>, cx: &mut App) -> Entity<Library> {
     crate::workspace::main_workspace(cx)
         .map(|(_, workspace)| workspace.read(cx).library.clone())
         .unwrap_or_else(|| cx.new(|cx| Library::new(store, cx)))
@@ -673,6 +673,9 @@ impl NoteWindow {
                     self.reopen(sticky, window, cx);
                 }
             }
+            NoteCommand::Present => {
+                crate::presentation::present(self.note_id.clone(), window, cx);
+            }
             NoteCommand::OpenInNewTab => {
                 let id = self.note_id.clone();
                 in_main_window(cx, move |workspace, window, cx| {
@@ -935,6 +938,11 @@ impl Render for NoteWindow {
             .on_action(cx.listener(|this, _: &OpenInNewWindow, window, cx| {
                 this.run_command(NoteCommand::OpenInNewWindow, window, cx);
             }))
+            .on_action(cx.listener(
+                |this, _: &crate::presentation::PresentNote, window, cx| {
+                    this.run_command(NoteCommand::Present, window, cx);
+                },
+            ))
             .on_action(cx.listener(|this, _: &OpenAsSticky, window, cx| {
                 this.run_command(NoteCommand::OpenAsSticky, window, cx);
             }))

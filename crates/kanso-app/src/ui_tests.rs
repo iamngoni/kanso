@@ -638,6 +638,58 @@ fn reopen_window(cx: &mut TestAppContext) -> (AnyWindowHandle, Entity<Workspace>
     (window, workspace)
 }
 
+/// Presenting saves the typing waiting, walks the slides by key without going
+/// past the last, leaves the note as it was, and Esc ends it.
+// no-prop-test: drives one window through keystrokes.
+#[gpui_kit::test]
+fn presenting_walks_the_slides_and_esc_ends_it(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    f.select(cx, &id);
+    f.type_body(cx, "One\n\n---\n\nTwo");
+    let present = id.clone();
+    f.window
+        .update(cx, |_, window, cx| {
+            crate::presentation::present(present, window, cx)
+        })
+        .unwrap();
+    cx.run_until_parked();
+
+    let handle = cx
+        .update(|cx| cx.windows().into_iter().find(|w| *w != f.window))
+        .expect("the slides have a window");
+    let view = handle
+        .update(cx, |root, _, cx| {
+            let root = root.downcast::<gpui_kit::base::Root>().unwrap();
+            root.read(cx)
+                .view()
+                .clone()
+                .downcast::<crate::presentation::Presentation>()
+                .unwrap()
+        })
+        .unwrap();
+    let shown = |cx: &mut TestAppContext| cx.read(|cx| view.read(cx).shown_for_test(cx));
+    assert_eq!(shown(cx), (0, "One".into()));
+
+    handle
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    let mut vcx = gpui_kit::VisualTestContext::from_window(handle, cx);
+    vcx.simulate_keystrokes("right");
+    vcx.run_until_parked();
+    vcx.simulate_keystrokes("space");
+    vcx.run_until_parked();
+    assert_eq!(shown(&mut vcx), (1, "Two".into()), "the last slide stays");
+    vcx.simulate_keystrokes("left");
+    vcx.run_until_parked();
+    assert_eq!(shown(&mut vcx), (0, "One".into()));
+    assert_eq!(note_body(&f.store, &id), "One\n\n---\n\nTwo");
+
+    vcx.simulate_keystrokes("escape");
+    vcx.run_until_parked();
+    assert_eq!(cx.update(|cx| cx.windows().len()), 1, "Esc closes it");
+}
+
 /// ⌘⇧D leaves the note alone in the window, with the keyboard in its text,
 /// and the next launch starts the same way. The palette still opens.
 // no-prop-test: drives one window through keystrokes.

@@ -295,6 +295,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Pin / Unpin Note", TogglePinned),
             MenuItem::action("Open in New Window", crate::note_window::OpenInNewWindow),
             MenuItem::action("Open as Sticky", crate::note_window::OpenAsSticky),
+            MenuItem::action("Present", crate::presentation::PresentNote),
             MenuItem::action("Move to Trash", TrashNote),
             MenuItem::action("Show History…", ShowHistory),
             MenuItem::action("Voice Input", Dictate),
@@ -1167,6 +1168,7 @@ impl Workspace {
             | NoteCommand::CopyKansoLink
             | NoteCommand::OpenInNewWindow
             | NoteCommand::OpenAsSticky
+            | NoteCommand::Present
             | NoteCommand::OpenInNewTab => {
                 if let Some(id) = self.library.read(cx).selected.clone() {
                     self.run_note_command(&id, command, window, cx);
@@ -1275,6 +1277,7 @@ impl Workspace {
             NoteCommand::OpenInNewTab => self.open_note_in_new_tab(id, window, cx),
             NoteCommand::OpenInNewWindow => self.open_in_new_window(id, window, cx),
             NoteCommand::OpenAsSticky => self.open_as_sticky(id, window, cx),
+            NoteCommand::Present => crate::presentation::present(id.to_owned(), window, cx),
             // These work on the open note, so the note opens first.
             NoteCommand::ShowHistory => {
                 if self.open_note(id, window, cx) {
@@ -2524,6 +2527,15 @@ impl Render for Workspace {
                 this.close_settings(window, cx);
                 this.show_history(window, cx);
             }))
+            .on_action(cx.listener(
+                |this, _: &crate::presentation::PresentNote, window, cx| {
+                    this.close_settings(window, cx);
+                    let id = this.editor.read(cx).note_id().map(str::to_owned);
+                    if let Some(id) = id {
+                        crate::presentation::present(id, window, cx);
+                    }
+                },
+            ))
             .on_action(cx.listener(
                 |this, _: &crate::note_window::OpenAsSticky, window, cx| {
                     this.close_settings(window, cx);

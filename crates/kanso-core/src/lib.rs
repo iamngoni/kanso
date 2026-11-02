@@ -17,6 +17,7 @@ pub mod reminders;
 pub mod replace;
 pub mod rev;
 pub mod roles;
+pub mod slides;
 pub mod tags;
 pub mod tasks;
 pub mod template;

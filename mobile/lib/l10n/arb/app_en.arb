@@ -4742,6 +4742,30 @@
   "@noteExportHtml": {
     "description": "The note's menu row that writes it as one HTML file to share."
   },
+  "notePresent": "Present",
+  "@notePresent": {
+    "description": "The note's menu row that shows it full screen as slides."
+  },
+  "presentationClose": "End presentation",
+  "@presentationClose": {
+    "description": "The button that leaves a note's full-screen slides."
+  },
+  "presentationEmpty": "Nothing to present yet",
+  "@presentationEmpty": {
+    "description": "Shown full screen when the presented note has no text."
+  },
+  "presentationPosition": "{position} / {count}",
+  "@presentationPosition": {
+    "description": "Which slide is on show, out of how many.",
+    "placeholders": {
+      "position": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "noteExportPreparingPage": "Preparing the web page",
   "@noteExportPreparingPage": {
     "description": "What is shown while a note is being written as a web page."

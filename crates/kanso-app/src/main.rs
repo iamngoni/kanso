@@ -115,6 +115,7 @@ mod plugin_sheets_model;
 mod plugins;
 mod plugins_model;
 mod pouch_import;
+mod presentation;
 mod preview;
 mod preview_chunks;
 mod preview_rich;
