@@ -161,6 +161,9 @@ pub fn custom_settings(enabled: bool) -> AiSettingsInput {
         base_url: "http://127.0.0.1:9/v1".into(),
         model: "test-model".into(),
         region: String::new(),
+        ask_budget: String::new(),
+        check_sources: true,
+        use_links: true,
     }
 }
 

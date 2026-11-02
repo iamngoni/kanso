@@ -222,7 +222,7 @@ proptest! {
             let model = Scripted::with(&format!("They are {cites}"), calls, Ending::Complete);
             let ai = ai_on(&phone.library, &model);
             let (sink, rx) = listen();
-            ai.conversation().ask("Tell me about the quokka".into(), sink).unwrap();
+            ai.conversation().ask("Tell me about the quokka".into(), kanso_mobile::AskScopeInput { kind: "all".into(), value: String::new() }, false, 0, sink).unwrap();
             let heard = until(&rx, |e| {
                 matches!(
                     e,
@@ -235,7 +235,7 @@ proptest! {
             assert_clean(&sent, &hidden, !reads_hidden)?;
             prop_assert!(sent.contains("Plainbody0"), "the plain notes must be sent");
 
-            let Some(AskEvent::Done { markdown, notes }) = heard.last() else {
+            let Some(AskEvent::Done { markdown, notes, .. }) = heard.last() else {
                 return Err(TestCaseError::fail(format!("no answer: {heard:?}")));
             };
             for event in &heard {

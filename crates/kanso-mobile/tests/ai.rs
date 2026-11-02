@@ -47,7 +47,18 @@ fn ask(
 ) -> Vec<AskEvent> {
     let _ = ai;
     let (sink, rx) = listen();
-    conversation.ask(q.to_owned(), sink).unwrap();
+    conversation
+        .ask(
+            q.to_owned(),
+            kanso_mobile::AskScopeInput {
+                kind: "all".into(),
+                value: String::new(),
+            },
+            false,
+            0,
+            sink,
+        )
+        .unwrap();
     until(&rx, is_end)
 }
 
@@ -69,6 +80,9 @@ fn settings_round_trip_and_the_key_lives_only_in_the_secret_store() {
             base_url: String::new(),
             model: String::new(),
             region: "ignored".into(),
+            ask_budget: String::new(),
+            check_sources: true,
+            use_links: true,
         })
         .unwrap();
     assert!(saved.enabled);
@@ -154,7 +168,16 @@ fn nothing_is_asked_while_ai_is_off() {
     let ai = phone.library.ai_with_provider(maker_of(model.clone()));
     let (sink, _rx) = listen();
     assert_eq!(
-        ai.conversation().ask("pricing?".into(), sink),
+        ai.conversation().ask(
+            "pricing?".into(),
+            kanso_mobile::AskScopeInput {
+                kind: "all".into(),
+                value: String::new()
+            },
+            false,
+            0,
+            sink
+        ),
         Err(invalid(AI_OFF))
     );
     let (sink, _rx) = listen();
@@ -188,7 +211,8 @@ fn a_question_nothing_matches_calls_no_model() {
     assert_eq!(
         events.last(),
         Some(&AskEvent::NothingMatches {
-            message: NOTHING_MATCHES.into()
+            message: NOTHING_MATCHES.into(),
+            narrow: false
         })
     );
     assert_eq!(model.request_count(), 0);
@@ -213,7 +237,10 @@ fn a_citation_becomes_a_link_that_names_the_note() {
     );
     assert_eq!(events.first(), Some(&AskEvent::Searching));
     assert!(events.iter().any(|e| matches!(e, AskEvent::Answer { .. })));
-    let Some(AskEvent::Done { markdown, notes }) = events.last() else {
+    let Some(AskEvent::Done {
+        markdown, notes, ..
+    }) = events.last()
+    else {
         panic!("{events:?}");
     };
     assert!(
@@ -274,16 +301,20 @@ fn stop_cancels_the_answer_and_ends_the_stream() {
     let conversation = ai.conversation();
     let (sink, rx) = listen();
     conversation
-        .ask("yearly plan pricing".into(), sink)
+        .ask(
+            "yearly plan pricing".into(),
+            kanso_mobile::AskScopeInput {
+                kind: "all".into(),
+                value: String::new(),
+            },
+            false,
+            0,
+            sink,
+        )
         .unwrap();
     let mut heard = Vec::new();
-    // The tool ran (the second list of notes), and the answer then hangs.
-    while heard
-        .iter()
-        .filter(|e| matches!(e, AskEvent::Used { .. }))
-        .count()
-        < 2
-    {
+    // The notes were read, and the answer then hangs.
+    while !heard.iter().any(|e| matches!(e, AskEvent::Used { .. })) {
         heard.push(
             rx.recv_timeout(std::time::Duration::from_secs(20))
                 .unwrap_or_else(|_| panic!("heard only {heard:?}")),
