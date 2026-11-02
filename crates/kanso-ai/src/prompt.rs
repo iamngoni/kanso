@@ -27,6 +27,7 @@ NOT_IN_NOTES. If they answer part of it, answer that part and say plainly what t
 say, without a citation."
     };
 }
+#[allow(unused_imports)]
 pub(crate) use citing;
 
 /// The instructions, which name the excerpts as data, say how to cite the

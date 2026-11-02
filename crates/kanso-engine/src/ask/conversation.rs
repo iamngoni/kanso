@@ -9,6 +9,7 @@
 use kanso_ai::Excerpt;
 use kanso_store::Store;
 
+use super::model::{Previous, Receipt};
 use super::note_is_eligible;
 
 /// How many characters of earlier exchanges a follow-up may resend. The
@@ -23,6 +24,10 @@ pub struct AskedTurn {
     pub question: String,
     pub answer: String,
     pub notes: Vec<String>,
+    /// The receipts that survived checking, so a follow-up can cite the
+    /// same lines again. A turn is dropped when any of their notes stops
+    /// being eligible, exactly as for `notes`.
+    pub receipts: Vec<Receipt>,
 }
 
 impl AskedTurn {
@@ -50,7 +55,13 @@ pub fn record_turn_notes(turn_notes: &mut Vec<String>, used: &mut Vec<Excerpt>, 
 pub fn eligible_turns(turns: Vec<AskedTurn>, store: &Store) -> Vec<AskedTurn> {
     turns
         .into_iter()
-        .filter(|turn| turn.notes.iter().all(|id| note_is_eligible(store, id)))
+        .filter(|turn| {
+            turn.notes.iter().all(|id| note_is_eligible(store, id))
+                && turn
+                    .receipts
+                    .iter()
+                    .all(|receipt| note_is_eligible(store, &receipt.note_id))
+        })
         .collect()
 }
 
@@ -70,6 +81,27 @@ pub fn cap_history(mut turns: Vec<AskedTurn>, budget: usize) -> Vec<AskedTurn> {
     }
     kept.reverse();
     kept
+}
+
+/// What a follow-up needs from the last of `turns`: its question, the titles
+/// of the notes it cited and the lines it cited.
+pub fn previous_of(turns: &[AskedTurn]) -> Option<Previous> {
+    let last = turns.last()?;
+    let mut titles: Vec<String> = Vec::new();
+    for receipt in &last.receipts {
+        if !receipt.title.trim().is_empty() && !titles.contains(&receipt.title) {
+            titles.push(receipt.title.clone());
+        }
+    }
+    Some(Previous {
+        question: last.question.clone(),
+        titles,
+        cited: last
+            .receipts
+            .iter()
+            .map(|r| (r.note_id.clone(), r.start, r.end))
+            .collect(),
+    })
 }
 
 /// An Ask conversation: the exchanges so far, the notes they drew on, and
@@ -118,13 +150,30 @@ impl Conversation {
 
     /// Keeps a finished exchange. An empty answer is not kept.
     pub fn finish(&mut self, question: String, answer: String, notes: Vec<String>) {
+        self.finish_with(question, answer, notes, Vec::new());
+    }
+
+    /// [`Conversation::finish`] with the receipts the answer kept.
+    pub fn finish_with(
+        &mut self,
+        question: String,
+        answer: String,
+        notes: Vec<String>,
+        receipts: Vec<Receipt>,
+    ) {
         if !answer.trim().is_empty() {
             self.turns.push(AskedTurn {
                 question,
                 answer,
                 notes,
+                receipts,
             });
         }
+    }
+
+    /// What a follow-up needs to know about the exchange before it.
+    pub fn previous(&self) -> Option<Previous> {
+        previous_of(&self.turns)
     }
 
     /// Remembers the excerpts a turn drew on (one per note, for links) and
@@ -163,6 +212,7 @@ mod tests {
             question: question.to_owned(),
             answer: answer.to_owned(),
             notes,
+            receipts: Vec::new(),
         }
     }
 
@@ -226,6 +276,7 @@ mod tests {
             id: id.to_owned(),
             title: String::new(),
             text: String::new(),
+            ..Excerpt::default()
         };
         let mut used = Vec::new();
         let mut first = Vec::new();
@@ -285,6 +336,7 @@ mod tests {
                 id: note.clone(),
                 title: "Pricing".into(),
                 text: "t".into(),
+                ..Excerpt::default()
             }],
         );
         conversation.finish("q".into(), "a".into(), notes);
