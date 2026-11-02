@@ -224,6 +224,37 @@
     }
   },
   {
+    "name": "kanso-list-open-loops",
+    "description": "List open loops: things notes say the writer will do (\"I'll send the deck\", \"TODO: renew passport\"), is waiting on (\"waiting on Rudo\"), or has to check, that are not checkboxes. Kanso finds them with phrase rules and, when the person approved them, with AI (`source` is `rule` or `ai`). Each has its sentence, kind (`mine`, `waiting` or `question`), any due date, its 0-based line in the note's body, and the note's ID, title, notebook and link. Loops the person closed or dismissed are not listed. Locked notes and notes tagged #ai-exclude have none.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Only loops of this kind.",
+          "enum": [
+            "mine",
+            "waiting",
+            "question"
+          ]
+        },
+        "book": {
+          "type": "string",
+          "description": "Only loops in this notebook's notes. It can be found as `_id` in the book docs. It always starts with `book:`."
+        },
+        "limit": {
+          "default": 100,
+          "description": "Limit the number of loops returned",
+          "type": "number"
+        }
+      }
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-list-tags",
     "description": "List tags used by notes available to this caller. Counts include only notes the caller may see.",
     "inputSchema": {

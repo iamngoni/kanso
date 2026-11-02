@@ -75,6 +75,7 @@ pub(crate) fn call(
         ("list-notebooks", Some(vis)) => list_visible_books(store, vis),
         ("kanso-get-outline", vis) => get_outline(store, vis, &args),
         ("kanso-list-tasks", vis) => list_tasks(store, vis, &args),
+        ("kanso-list-open-loops", vis) => list_open_loops(store, vis, &args),
         ("kanso-related-notes", vis) => related_notes(store, vis, &args),
         ("kanso-resolve-wikilink", vis) => resolve_wikilink(store, vis, &args),
         ("kanso-search-by-meaning", vis) => search_by_meaning(store, vis, &args),
@@ -879,6 +880,56 @@ fn list_tasks(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
         return result(vec![text("No tasks match.")]);
     }
     result(vec![text(pretty(&Value::Array(tasks)))])
+}
+
+/// `kanso-list-open-loops`: things notes say they will do, wait for or
+/// check, that are not checkboxes.
+fn list_open_loops(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let limit = api::count_param(
+        "limit",
+        args.get("limit").and_then(Value::as_f64).unwrap_or(100.0),
+    )?;
+    let book_id = opt_str(args, "book").map(|id| with_prefix(DocType::Book, id));
+    if let (Some(vis), Some(book)) = (vis, &book_id)
+        && !vis.book_visible(book)
+    {
+        return result(vec![text("No open loops.")]);
+    }
+    let kind = match opt_str(args, "kind") {
+        None => None,
+        Some(raw) => Some(
+            kanso_core::loops::LoopKind::parse(raw)
+                .ok_or_else(|| ToolError("kind must be mine, waiting or question.".into()))?,
+        ),
+    };
+    let loops: Vec<Value> = store
+        .open_loops(&kanso_store::LoopQuery {
+            book_id,
+            kind,
+            ..kanso_store::LoopQuery::default()
+        })
+        .map_err(|err| ToolError(err.to_string()))?
+        .into_iter()
+        .filter(|l| {
+            native_note_is_visible(store, &l.note_id) && vis.is_none_or(|vis| vis.allows(&l.note_id))
+        })
+        .take(limit)
+        .inspect(|l| {
+            if let Some(vis) = vis {
+                vis.show(&l.note_id);
+            }
+        })
+        .map(|l| {
+            let uri = note_uri(&l.note_id);
+            let mut json = api::loop_json(l);
+            json["uri"] = Value::String(uri);
+            json
+        })
+        .collect();
+    if loops.is_empty() {
+        return result(vec![text("No open loops.")]);
+    }
+    result(vec![text(pretty(&Value::Array(loops)))])
 }
 
 /// `kanso-related-notes`: the notes nearest a note by the embeddings the

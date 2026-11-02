@@ -369,6 +369,7 @@ mod tests {
                 "kanso-list-attachments",
                 "kanso-list-backlinks",
                 "kanso-list-note-links",
+                "kanso-list-open-loops",
                 "kanso-list-tags",
                 "kanso-list-tasks",
                 "kanso-list-versions",
@@ -382,6 +383,8 @@ mod tests {
                 "kanso-set-task-done"
             ]
         );
+        assert!(validate("kanso-list-open-loops", json!({"kind": "waiting"})).is_ok());
+        assert!(validate("kanso-list-open-loops", json!({"kind": "later"})).is_err());
         assert!(validate("kanso-list-tasks", json!({})).is_ok());
         assert!(validate("kanso-list-tasks", json!({"status": "later"})).is_err());
         assert!(validate("kanso-list-tasks", json!({"dueBefore": "soon"})).is_err());

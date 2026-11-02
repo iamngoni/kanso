@@ -55,7 +55,7 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
     let answer = rpc(&app.router, "tools/list", json!({})).await;
     let tools = answer["result"]["tools"].as_array().unwrap();
     // The 17, then Kanso's own.
-    assert_eq!(tools.len(), 38);
+    assert_eq!(tools.len(), 39);
     assert!(
         tools[18..]
             .iter()
@@ -1006,6 +1006,86 @@ async fn tasks_through_kanso_list_tasks() {
     )
     .await;
     assert_eq!(bad["isError"], true);
+}
+
+#[tokio::test]
+async fn open_loops_through_kanso_list_open_loops_and_the_rest_api() {
+    let app = app();
+    let (book_id, _) = write(&app.router, "/books", json!({ "name": "B" })).await;
+    let (plan, _) = write(
+        &app.router,
+        "/notes",
+        json!({ "bookId": book_id, "title": "Plan",
+                "body": "I'll send Tendai the deck @2026-11-01.\n- [ ] a task\nWaiting on Rudo for the quote\n```\nI'll be code\n```\n" }),
+    )
+    .await;
+    write(
+        &app.router,
+        "/notes",
+        json!({ "bookId": "trash", "title": "Old", "body": "I'll never be listed.\n" }),
+    )
+    .await;
+    let all = tool_json(&tool(&app.router, "kanso-list-open-loops", json!({})).await);
+    let texts: Vec<&str> = all
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|l| l["text"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        texts,
+        ["I'll send Tendai the deck @2026-11-01.", "Waiting on Rudo for the quote"]
+    );
+    let bare = plan.strip_prefix("note:").unwrap();
+    assert_eq!(
+        all[0],
+        json!({
+            "text": "I'll send Tendai the deck @2026-11-01.",
+            "kind": "mine",
+            "source": "rule",
+            "due": "2026-11-01",
+            "line": 0,
+            "noteId": plan,
+            "noteTitle": "Plan",
+            "bookId": book_id,
+            "uri": format!("inkdrop://note/{bare}"),
+        })
+    );
+    let waiting = tool_json(
+        &tool(&app.router, "kanso-list-open-loops", json!({ "kind": "waiting" })).await,
+    );
+    assert_eq!(waiting.as_array().unwrap().len(), 1);
+    let bad = tool(&app.router, "kanso-list-open-loops", json!({ "kind": "later" })).await;
+    assert_eq!(bad["isError"], true);
+    let (status, rest) = get(&app.router, "/loops?kind=mine&limit=5").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(rest.as_array().unwrap().len(), 1);
+    let (status, _) = get(&app.router, "/loops?kind=later").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn locked_and_excluded_notes_have_no_open_loops_for_agents() {
+    let app = app();
+    let (book_id, _) = write(&app.router, "/books", json!({ "name": "B" })).await;
+    let (tag, _) = write(&app.router, "/tags", json!({ "name": "ai-exclude" })).await;
+    write(
+        &app.router,
+        "/notes",
+        json!({ "bookId": book_id, "title": "Plain", "body": "I'll call Rudo.\n" }),
+    )
+    .await;
+    write(
+        &app.router,
+        "/notes",
+        json!({ "bookId": book_id, "title": "Hidden", "tags": [tag], "body": "I'll call excludedcanary.\n" }),
+    )
+    .await;
+    let seen = tool_json(&tool(&app.router, "kanso-list-open-loops", json!({})).await);
+    assert_eq!(seen.as_array().unwrap().len(), 1);
+    assert!(!seen.to_string().contains("excludedcanary"));
+    let (_, rest) = get(&app.router, "/loops").await;
+    assert!(!rest.to_string().contains("sealed"));
 }
 
 #[tokio::test]

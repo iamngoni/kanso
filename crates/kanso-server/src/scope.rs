@@ -26,7 +26,7 @@ use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
 /// attachments. Everything else is denied.
-pub const READ_TOOLS: [&str; 17] = [
+pub const READ_TOOLS: [&str; 18] = [
     "search-notes",
     "read-note",
     "list-notes",
@@ -34,6 +34,7 @@ pub const READ_TOOLS: [&str; 17] = [
     "list-templates",
     "kanso-get-outline",
     "kanso-list-tasks",
+    "kanso-list-open-loops",
     "kanso-search-by-meaning",
     "kanso-related-notes",
     "kanso-resolve-wikilink",
