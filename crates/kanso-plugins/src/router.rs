@@ -6,7 +6,8 @@
 //! not read is `not_found`, never `denied`, so a locked or `#ai-exclude`
 //! note can't be told from a missing one. Changes to notes are staged in
 //! the command's [`Batch`], never written here; a renderer may call
-//! nothing at all.
+//! nothing at all. The clipboard history is a copy the app takes before
+//! the request, and text for the clipboard is put there by the app after.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -18,7 +19,7 @@ use kanso_store::{PluginCreate, PluginEdit, Store, plugin_data};
 use serde_json::{Map, Value, json};
 
 use crate::batch::{Batch, MAX_PLUGIN_DATA};
-use crate::model::{EditorPermission, Installed};
+use crate::model::{ClipboardPermission, EditorPermission, Installed};
 use crate::panel_model::Node;
 use crate::scope::{ListQuery, MAX_ATTACHMENT_BYTES, Scope};
 
@@ -26,6 +27,17 @@ use crate::scope::{ListQuery, MAX_ATTACHMENT_BYTES, Scope};
 pub const MAX_SETTINGS_BYTES: usize = 64 * 1024;
 /// The longest text `replaceSelection` may put in.
 pub const MAX_REPLACEMENT_BYTES: usize = 1024 * 1024;
+/// The longest text `clipboard.write` may put on the clipboard.
+pub const MAX_CLIPBOARD_BYTES: usize = 1024 * 1024;
+
+/// One copy in the clipboard history, as the app kept it: already
+/// screened, newest first.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ClipEntry {
+    pub text: String,
+    /// Milliseconds since the epoch.
+    pub copied_ms: i64,
+}
 
 /// Tokens a person saved for plugins, kept in the Keychain by the app.
 pub trait Secrets {
@@ -92,6 +104,8 @@ pub struct Outcome {
     pub selection_edit: Option<SelectionEdit>,
     /// A new panel tree, already checked.
     pub panel: Option<Node>,
+    /// Text to put on the clipboard.
+    pub clipboard_write: Option<String>,
     /// Calls refused for want of a permission.
     pub refused: u32,
 }
@@ -106,6 +120,8 @@ pub struct Router<'a> {
     pub request: Request,
     pub secrets: &'a dyn Secrets,
     pub network: &'a mut dyn Network,
+    /// The clipboard history, when the plugin may read it; empty otherwise.
+    pub clipboard: &'a [ClipEntry],
     pub out: Outcome,
 }
 
@@ -223,6 +239,8 @@ impl Router<'_> {
             "settings.get" => self.settings_get(),
             "settings.set" => self.settings_set(&args),
             "secrets.get" => self.secret(&args),
+            "clipboard.history" => self.clipboard_history(),
+            "clipboard.write" => self.clipboard_write(&args),
             "fetch" => self.fetch(&args),
             _ => Err(self.refuse(&format!("to call {call}"))),
         }
@@ -473,6 +491,34 @@ impl Router<'_> {
             .secrets
             .get(self.plugin.id(), &name)
             .map_or(Value::Null, Value::from))
+    }
+
+    fn clipboard_history(&mut self) -> Result<Value, Failure> {
+        if !self
+            .grant()
+            .clipboard
+            .contains(&ClipboardPermission::HistoryRead)
+        {
+            return Err(self.refuse("to read the clipboard history"));
+        }
+        Ok(Value::Array(
+            self.clipboard
+                .iter()
+                .map(|clip| json!({ "text": clip.text, "copiedAt": clip.copied_ms }))
+                .collect(),
+        ))
+    }
+
+    fn clipboard_write(&mut self, args: &Value) -> Result<Value, Failure> {
+        if !self.grant().clipboard.contains(&ClipboardPermission::Write) {
+            return Err(self.refuse("to put text on the clipboard"));
+        }
+        let text = text_arg(args, "text")?.to_owned();
+        if text.len() > MAX_CLIPBOARD_BYTES {
+            return Err(Failure::new(CODE_LIMIT, "the text is too long"));
+        }
+        self.out.clipboard_write = Some(text);
+        Ok(Value::Null)
     }
 
     fn fetch(&mut self, args: &Value) -> Result<Value, Failure> {

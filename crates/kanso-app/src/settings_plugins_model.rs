@@ -133,6 +133,20 @@ pub fn grant_lines(grant: &Grant, name_of: &dyn Fn(&str) -> Option<String>) -> V
     for secret in &grant.secrets {
         lines.push(format!("Use the token you save for it as {secret}"));
     }
+    if grant
+        .clipboard
+        .contains(&kanso_plugins::model::ClipboardPermission::HistoryRead)
+    {
+        lines.push(
+            "Read the text you copy in any app while Kanso is open; Kanso keeps the last 15 in memory".to_owned(),
+        );
+    }
+    if grant
+        .clipboard
+        .contains(&kanso_plugins::model::ClipboardPermission::Write)
+    {
+        lines.push("Put text on the clipboard".to_owned());
+    }
     for host in &grant.network {
         lines.push(format!("Connect to {host}"));
     }
@@ -233,6 +247,7 @@ mod tests {
             panel: false,
             secrets: BTreeSet::new(),
             network: BTreeSet::new(),
+            clipboard: Default::default(),
             ask_before_changing: true,
         }
     }

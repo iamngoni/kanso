@@ -9,10 +9,11 @@ use std::time::Duration;
 
 use kanso_core::DocType;
 use kanso_plugins::model::{
-    EditorPermission, Grant, Installed, Manifest, NotesGrant, Permissions, Publisher, Source,
+    ClipboardPermission, EditorPermission, Grant, Installed, Manifest, NotesGrant, Permissions,
+    Publisher, Source,
 };
 use kanso_plugins::protocol::{Budgets, PluginInfo, Theme, ToHost};
-use kanso_plugins::router::{Editor, NoNetwork, Request, Router, Secrets, Selection};
+use kanso_plugins::router::{ClipEntry, Editor, NoNetwork, Request, Router, Secrets, Selection};
 use kanso_plugins::supervisor::{Health, Host, Log, RunError};
 use kanso_store::{Origin, Put, Store};
 use serde_json::{Value, json};
@@ -103,6 +104,7 @@ fn editor_grant() -> Grant {
         panel: false,
         secrets: Default::default(),
         network: Default::default(),
+        clipboard: Default::default(),
         ask_before_changing: true,
     }
 }
@@ -190,6 +192,7 @@ fn a_sample_plugin_runs_through_the_router() {
         request: Request::Command,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     let value = host
@@ -239,6 +242,57 @@ fn a_sample_plugin_runs_through_the_router() {
     host.stop();
 }
 
+/// The clipboard calls cross the real host: the history the app handed
+/// the request reaches the script as JSON, and its write comes back as the
+/// request's outcome for the app to carry out.
+#[test]
+fn the_clipboard_crosses_the_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path().join("kanso.db")).unwrap();
+    let mut grant = editor_grant();
+    grant.clipboard = [ClipboardPermission::HistoryRead, ClipboardPermission::Write].into();
+    let plugin = installed(grant);
+    let code = r#"
+        kanso.commands.register({ id: 'newest', title: 'Newest', run() {
+            const list = kanso.clipboard.history();
+            kanso.clipboard.write(list[0].text.toUpperCase());
+            return { text: `${list.length}: ${list.map((c) => c.text).join(', ')} @${list[0].copiedAt}` };
+        } });
+    "#;
+    let (mut host, _) = start(code, Budgets::DEFAULT).unwrap();
+    let history = [
+        ClipEntry {
+            text: "docker ps".into(),
+            copied_ms: 20,
+        },
+        ClipEntry {
+            text: "git status".into(),
+            copied_ms: 10,
+        },
+    ];
+    let plugin_dir = tempfile::tempdir().unwrap();
+    let mut network = NoNetwork;
+    let mut log = Log::default();
+    let editor = Editor::default();
+    let mut router = Router {
+        store: &store,
+        plugin: &plugin,
+        plugin_dir: plugin_dir.path(),
+        editor: &editor,
+        request: Request::Command,
+        secrets: &NoSecrets,
+        network: &mut network,
+        clipboard: &history,
+        out: Default::default(),
+    };
+    let value = host
+        .invoke("newest", Value::Null, &mut router, &mut log)
+        .unwrap();
+    assert_eq!(value["text"], "2: docker ps, git status @20");
+    assert_eq!(router.out.clipboard_write.as_deref(), Some("DOCKER PS"));
+    assert_eq!(router.out.refused, 0);
+}
+
 #[test]
 fn runaway_code_is_stopped_and_the_host_carries_on() {
     let dir = tempfile::tempdir().unwrap();
@@ -262,6 +316,7 @@ fn runaway_code_is_stopped_and_the_host_carries_on() {
         request: Request::Command,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     let began = std::time::Instant::now();
@@ -309,6 +364,7 @@ fn a_hang_past_the_wall_deadline_is_killed() {
         request: Request::Command,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     let began = std::time::Instant::now();
@@ -387,6 +443,7 @@ kanso.commands.register({ id: "env", title: "Env", run() {
         request: Request::Command,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     let value = host
@@ -469,6 +526,7 @@ fn the_documented_samples_run() {
         request: Request::Command,
         secrets: &NoSecrets,
         network: &mut network,
+        clipboard: &[],
         out: Default::default(),
     };
     let counted = host
