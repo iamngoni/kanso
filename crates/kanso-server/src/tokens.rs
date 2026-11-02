@@ -19,6 +19,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest as _, Sha256};
 use subtle::ConstantTimeEq as _;
 
+use crate::changeset::ChangeSets;
 use crate::review::ReviewQueue;
 use crate::scope::{AgentScope, Caller};
 
@@ -67,8 +68,14 @@ struct Entry {
 
 impl Entry {
     fn live_at(&self, now: Instant) -> bool {
-        now.saturating_duration_since(self.minted) < LIFETIME
-            && now.saturating_duration_since(self.last_used) < IDLE
+        // A task's token lives for the task's time limit and is never idle:
+        // an agent may think a long while between calls.
+        let (lifetime, idle) = match &self.scope.task_limits {
+            Some(limits) => (limits.lifetime, limits.lifetime),
+            None => (LIFETIME, IDLE),
+        };
+        now.saturating_duration_since(self.minted) < lifetime
+            && now.saturating_duration_since(self.last_used) < idle
     }
 }
 
@@ -89,6 +96,9 @@ pub struct TokenStore {
     /// reaches both, but not tied to them: a token ending doesn't drop a
     /// suggestion.
     reviews: ReviewQueue,
+    /// The change sets of agent tasks, beside the tokens for the same
+    /// reason.
+    changesets: ChangeSets,
 }
 
 impl Default for TokenStore {
@@ -118,6 +128,7 @@ impl TokenStore {
     pub fn with_clock(clock: Arc<dyn Fn() -> Instant + Send + Sync>) -> TokenStore {
         TokenStore {
             reviews: ReviewQueue::with_clock(clock.clone()),
+            changesets: ChangeSets::default(),
             inner: Arc::new(Mutex::new(Inner {
                 entries: Vec::new(),
                 next_id: 1,
@@ -129,6 +140,11 @@ impl TokenStore {
     /// The review queue for the edits agents suggest.
     pub fn reviews(&self) -> &ReviewQueue {
         &self.reviews
+    }
+
+    /// The change sets of the agent tasks.
+    pub fn changesets(&self) -> &ChangeSets {
+        &self.changesets
     }
 
     fn lock(&self) -> MutexGuard<'_, Inner> {
@@ -239,7 +255,11 @@ impl TokenStore {
             return false;
         };
         entry.calls += 1;
-        entry.calls <= MAX_CALLS_PER_TURN
+        let max = entry
+            .scope
+            .task_limits
+            .map_or(MAX_CALLS_PER_TURN, |limits| limits.calls);
+        entry.calls <= max
     }
 
     /// Notes an answer on `id` showed, for the person to see.

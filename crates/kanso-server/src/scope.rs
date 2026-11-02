@@ -16,12 +16,14 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use kanso_core::model::{LOCK_FIELD, PUBLISH_FIELD, SHARE_FIELD, TRASH_BOOK_ID};
 use kanso_core::{DocType, Note};
 use kanso_store::Store;
 use serde_json::Value;
 
+use crate::changeset::TaskId;
 use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
@@ -58,6 +60,44 @@ pub const ASK_TOOLS: [&str; 2] = ["search-notes", "read-note"];
 /// touches attachments, notebooks' locks, or deletes.
 pub const SUGGEST_TOOLS: [&str; 3] = ["patch-note", "update-note", "create-note"];
 
+/// The tools only an agent task's token gets: they stage into the task's
+/// [`ChangeSet`](crate::changeset::ChangeSet) and write nothing.
+pub const TASK_TOOLS: [&str; 4] = [
+    "kanso-propose-move",
+    "kanso-propose-merge",
+    "kanso-list-proposed",
+    "kanso-task-done",
+];
+
+/// What an agent task may propose, set by the person on the New agent task
+/// sheet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TaskOps {
+    pub create: bool,
+    pub edit: bool,
+    pub moves: bool,
+    pub merge: bool,
+}
+
+impl Default for TaskOps {
+    fn default() -> Self {
+        TaskOps {
+            create: true,
+            edit: true,
+            moves: true,
+            merge: true,
+        }
+    }
+}
+
+impl TaskOps {
+    /// A merge needs new notes or edits, and moves (its sources go to the
+    /// trash).
+    pub fn merge_allowed(&self) -> bool {
+        self.merge && (self.create || self.edit) && self.moves
+    }
+}
+
 /// What one agent token may do.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AgentScope {
@@ -76,6 +116,76 @@ pub struct AgentScope {
     /// name its suggestions carry in the review queue and in the note's
     /// history. `None` is a scope that suggests nothing.
     pub suggests_as: Option<String>,
+    /// The agent task this token belongs to: its writes stage into the
+    /// task's change set instead of the review queue.
+    pub task: Option<TaskId>,
+    /// Only these notes (by ID), when the person chose notes and not a
+    /// notebook; `None` is no such limit.
+    pub notes: Option<HashSet<String>>,
+    /// What a task may propose.
+    pub task_ops: TaskOps,
+    /// A task token's own lifetime and tool-call budget.
+    pub task_limits: Option<TaskLimits>,
+}
+
+/// How long a task token lives and how many tool calls it may make.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TaskLimits {
+    pub lifetime: Duration,
+    pub calls: usize,
+}
+
+impl AgentScope {
+    /// The scope of an agent task named `agent`: reads like Ask, and its
+    /// proposals (new notes, edits, moves, merges) stage into the change set
+    /// of `task`. `notebooks` or `notes` is what the person chose to share.
+    pub fn task(
+        notebooks: Option<HashSet<String>>,
+        notes: Option<HashSet<String>>,
+        agent: &str,
+        task: TaskId,
+        ops: TaskOps,
+        limits: TaskLimits,
+    ) -> AgentScope {
+        let mut scope = AgentScope::with_tools(
+            notebooks,
+            &[
+                "search-notes",
+                "read-note",
+                "list-notes",
+                "list-notebooks",
+                "kanso-get-outline",
+                "kanso-search-by-meaning",
+                "kanso-related-notes",
+                "kanso-resolve-wikilink",
+                "kanso-list-note-links",
+                "kanso-list-backlinks",
+                "kanso-list-tags",
+                "kanso-get-properties",
+            ],
+        );
+        let mut write: Vec<&str> = vec!["kanso-list-proposed", "kanso-task-done"];
+        if ops.create {
+            write.push("create-note");
+        }
+        if ops.edit {
+            write.push("update-note");
+            write.push("patch-note");
+        }
+        if ops.moves {
+            write.push("kanso-propose-move");
+        }
+        if ops.merge_allowed() {
+            write.push("kanso-propose-merge");
+        }
+        scope.tools.extend(write.into_iter().map(str::to_owned));
+        scope.suggests_as = Some(agent.trim().to_owned());
+        scope.task = Some(task);
+        scope.notes = notes;
+        scope.task_ops = ops;
+        scope.task_limits = Some(limits);
+        scope
+    }
 }
 
 impl AgentScope {
@@ -97,6 +207,10 @@ impl AgentScope {
                 .map(|tool| (*tool).to_owned())
                 .collect(),
             suggests_as: None,
+            task: None,
+            notes: None,
+            task_ops: TaskOps::default(),
+            task_limits: None,
         }
     }
 
@@ -115,7 +229,8 @@ impl AgentScope {
     pub fn allows_tool(&self, name: &str) -> bool {
         self.tools.contains(name)
             && (READ_TOOLS.contains(&name)
-                || (SUGGEST_TOOLS.contains(&name) && self.suggests_as.is_some()))
+                || (SUGGEST_TOOLS.contains(&name) && self.suggests_as.is_some())
+                || (TASK_TOOLS.contains(&name) && self.task.is_some()))
     }
 }
 
@@ -151,6 +266,8 @@ pub(crate) struct Visibility<'a> {
     /// The notebooks in scope, without locked ones; `None` is every unlocked
     /// notebook.
     books: Option<HashSet<String>>,
+    /// The notes the person chose, when a task is limited to notes.
+    notes: Option<HashSet<String>>,
     locked_books: HashSet<String>,
     /// Tag names by ID, to find `#ai-exclude`.
     tag_names: HashMap<String, String>,
@@ -197,6 +314,7 @@ impl<'a> Visibility<'a> {
         Some(Visibility {
             store,
             books,
+            notes: scope.notes.clone(),
             locked_books,
             tag_names,
             shown: Default::default(),
@@ -218,6 +336,9 @@ impl<'a> Visibility<'a> {
         }
         // Fail closed: a lock that can't be checked is a lock.
         if self.store.note_is_locked(id).unwrap_or(true) {
+            return None;
+        }
+        if self.notes.as_ref().is_some_and(|notes| !notes.contains(id)) {
             return None;
         }
         let note = self.store.note(id).ok()??;

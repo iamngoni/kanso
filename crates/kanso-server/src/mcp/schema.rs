@@ -20,6 +20,9 @@ use serde_json::{Map, Value};
 const TOOLS_JSON: &str = include_str!("tools.json");
 /// Kanso's own tools, named `kanso-…`, listed after the 17.
 const KANSO_TOOLS_JSON: &str = include_str!("kanso_tools.json");
+/// The tools only an agent task's token is offered; never listed to the
+/// full-access API.
+const TASK_TOOLS_JSON: &str = include_str!("task_tools.json");
 
 pub(crate) struct Tool {
     pub name: String,
@@ -30,6 +33,9 @@ pub(crate) struct Tool {
 
 struct Catalog {
     definitions: Value,
+    /// `definitions` and the task tools: what an agent's `tools/list` is
+    /// filtered from.
+    agent_definitions: Value,
     tools: Vec<Tool>,
 }
 
@@ -43,11 +49,21 @@ fn catalog() -> &'static Catalog {
         if let (Some(all), Some(kanso)) = (definitions.as_array_mut(), kanso.as_array()) {
             all.extend(kanso.iter().cloned());
         }
+        let mut agent_definitions = definitions.clone();
+        let task: Value =
+            serde_json::from_str(TASK_TOOLS_JSON).expect("task_tools.json is valid JSON");
+        if let (Some(all), Some(task)) = (agent_definitions.as_array_mut(), task.as_array()) {
+            all.extend(task.iter().cloned());
+        }
         let mut raw: Vec<RawTool> =
             serde_json::from_str(TOOLS_JSON).expect("tools.json lists tools");
         raw.extend(
             serde_json::from_str::<Vec<RawTool>>(KANSO_TOOLS_JSON)
                 .expect("kanso_tools.json lists tools"),
+        );
+        raw.extend(
+            serde_json::from_str::<Vec<RawTool>>(TASK_TOOLS_JSON)
+                .expect("task_tools.json lists tools"),
         );
         let tools = raw
             .into_iter()
@@ -57,13 +73,23 @@ fn catalog() -> &'static Catalog {
                 required: tool.input_schema.required,
             })
             .collect();
-        Catalog { definitions, tools }
+        Catalog {
+            definitions,
+            agent_definitions,
+            tools,
+        }
     })
 }
 
 /// The `tools` array of a `tools/list` answer.
 pub(crate) fn definitions() -> &'static Value {
     &catalog().definitions
+}
+
+/// The tools an agent's `tools/list` may offer: [`definitions`] and the
+/// agent task tools.
+pub(crate) fn agent_definitions() -> &'static Value {
+    &catalog().agent_definitions
 }
 
 pub(crate) fn tool(name: &str) -> Option<&'static Tool> {

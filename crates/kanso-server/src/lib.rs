@@ -16,8 +16,10 @@
 //! [`kanso_store::Store`], which is synchronous and is called on tokio's
 //! blocking pool.
 
+pub mod agent_tools;
 mod api;
 mod auth;
+mod changeset;
 mod error;
 mod mcp;
 mod proposal;
@@ -41,9 +43,15 @@ use axum::routing::post;
 use kanso_store::Store;
 
 pub use auth::basic_header;
+pub use changeset::{
+    AppliedSet, ApplyFailure, ChangeSet, ChangeSets, Counts, MergeTarget, OpKind, OpState,
+    ProposedOp, Selection, TaskId, undo as undo_changes,
+};
 pub use proposal::{Applied, ApplyError, ChangeId, NewChange, ProposedChange};
 pub use review::{EXPIRY as REVIEW_EXPIRY, ReviewEvent, ReviewQueue};
-pub use scope::{ASK_TOOLS, AgentScope, Caller, READ_TOOLS, SUGGEST_TOOLS};
+pub use scope::{
+    ASK_TOOLS, AgentScope, Caller, READ_TOOLS, SUGGEST_TOOLS, TASK_TOOLS, TaskLimits, TaskOps,
+};
 pub use tokens::{Minted, TokenId, TokenStore};
 
 /// Largest request body accepted. A 10 MB image is about 13.4 MB in base64.
