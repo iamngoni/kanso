@@ -64,6 +64,8 @@ pub struct EditorFooter {
     #[cfg(test)]
     pub(crate) reveal: bool,
     count_task: Option<Task<()>>,
+    /// Redraws when an agent task's row changes, for the status line.
+    _agent_watch: Option<Task<()>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -101,6 +103,18 @@ impl EditorFooter {
             #[cfg(test)]
             reveal: false,
             count_task: None,
+            _agent_watch: cx
+                .try_global::<crate::services::Services>()
+                .map(|services| services.tasks.subscribe())
+                .map(|events| {
+                    cx.spawn(async move |this, cx| {
+                        while events.recv().await.is_ok() {
+                            if this.update(cx, |_, cx| cx.notify()).is_err() {
+                                break;
+                            }
+                        }
+                    })
+                }),
             _subscriptions: subscriptions,
         }
     }
@@ -378,6 +392,10 @@ impl Render for EditorFooter {
     // no-prop-test: layout only; the snapshots show it.
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
+        // "Agent: 14 notes read, 2 changes" while a task works.
+        let agent_line = cx
+            .try_global::<crate::services::Services>()
+            .and_then(|services| crate::agent_task_model::status_bar_line(&services.tasks.rows()));
         #[cfg(test)]
         let hidden = self.quiet && !self.reveal;
         #[cfg(not(test))]
@@ -453,6 +471,15 @@ impl Render for EditorFooter {
                 .when(!self.quiet, |el| {
                     el.child(item(div()).flex_none().child("Markdown"))
                 })
+            })
+            .when_some(agent_line, |el, line| {
+                el.child(
+                    div()
+                        .flex_none()
+                        .debug_selector(|| "agent-status".into())
+                        .text_color(colors.text_secondary)
+                        .child(line),
+                )
             })
             .children(goal)
     }

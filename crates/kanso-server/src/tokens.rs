@@ -262,6 +262,15 @@ impl TokenStore {
         entry.calls <= max
     }
 
+    /// How many tool calls token `id` has made this question or task.
+    pub fn calls(&self, id: TokenId) -> usize {
+        self.lock()
+            .entries
+            .iter()
+            .find(|entry| entry.id == id)
+            .map_or(0, |entry| entry.calls)
+    }
+
     /// Notes an answer on `id` showed, for the person to see.
     pub(crate) fn record(&self, id: TokenId, notes: &[String]) {
         let mut inner = self.lock();

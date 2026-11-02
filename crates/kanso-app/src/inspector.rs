@@ -26,6 +26,7 @@ use gpui_kit::*;
 use kanso_core::outline::{Heading, headings};
 use kanso_store::{Backlink, RelatedNote, Store};
 
+use crate::agent_task_panel::AgentTasksPanel;
 use crate::ask_panel::AskPanel;
 use crate::config::InspectorTab;
 use crate::editor::NoteEditor;
@@ -87,6 +88,8 @@ pub struct Inspector {
     pub(crate) graph: Entity<GraphView>,
     /// Ask Your Notes, while AI is on.
     ask: Entity<AskPanel>,
+    /// Agent tasks, while AI is on.
+    agents: Entity<AgentTasksPanel>,
     /// The open note's related notes (`None` while it isn't embedded), and
     /// the note and embeddings they were found for.
     related: Option<Vec<RelatedNote>>,
@@ -115,6 +118,7 @@ impl Inspector {
             cx.new(|cx| GraphView::new(store.clone(), library.clone(), Scope::Local, hops, cx));
         let ask =
             cx.new(|cx| AskPanel::new(store.clone(), library.clone(), editor.clone(), window, cx));
+        let agents = cx.new(|cx| AgentTasksPanel::new(window, cx));
         // The editor notifies on every keystroke; the pane draws again only
         // when what it shows changed: the note, the heading the caret is
         // under, or the backlinks. Typing schedules the outline instead.
@@ -169,6 +173,7 @@ impl Inspector {
             visible: false,
             graph,
             ask,
+            agents,
             related: None,
             related_for: None,
             related_task: None,
@@ -388,6 +393,13 @@ impl Inspector {
                 "Ask",
                 None,
                 InspectorTab::Ask,
+            ),
+            (
+                "tab-agents",
+                Lucide::Bot,
+                "Agents",
+                None,
+                InspectorTab::Agents,
             ),
             (
                 "tab-backlinks",
@@ -704,7 +716,7 @@ impl Inspector {
                 _ => String::new(),
             },
             InspectorTab::Comments => self.comments_band(cx),
-            InspectorTab::Ask => String::new(),
+            InspectorTab::Ask | InspectorTab::Agents => String::new(),
         };
         let graph_controls = (self.tab == InspectorTab::Graph).then(|| {
             let hops = self.graph.read(cx).hops;
@@ -1160,13 +1172,14 @@ fn visible_tabs(ai_enabled: bool) -> Vec<InspectorTab> {
     [
         InspectorTab::Outline,
         InspectorTab::Ask,
+        InspectorTab::Agents,
         InspectorTab::Backlinks,
         InspectorTab::Graph,
         InspectorTab::Related,
         InspectorTab::Comments,
     ]
     .into_iter()
-    .filter(|tab| ai_enabled || *tab != InspectorTab::Ask)
+    .filter(|tab| ai_enabled || !matches!(tab, InspectorTab::Ask | InspectorTab::Agents))
     .collect()
 }
 
@@ -1198,6 +1211,7 @@ impl Render for Inspector {
             InspectorTab::Related => self.render_related(cx),
             InspectorTab::Comments => self.render_comments(cx),
             InspectorTab::Ask => self.ask.clone().into_any_element(),
+            InspectorTab::Agents => self.agents.clone().into_any_element(),
         };
         if self.tab != InspectorTab::Graph {
             self.graph.update(cx, |graph, _| graph.visible = false);

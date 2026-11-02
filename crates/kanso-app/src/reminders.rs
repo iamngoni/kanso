@@ -167,6 +167,10 @@ pub fn check(cx: &mut App) -> Duration {
 fn respond(response: SystemNotificationResponse, cx: &mut App) {
     // The morning brief's and the weekly review's notifications share this
     // handler.
+    if crate::agent_task_panel::owns(&response.tag) {
+        crate::agent_task_panel::respond(cx);
+        return;
+    }
     if crate::briefs::owns(&response.tag) {
         crate::briefs::respond(response, cx);
         return;

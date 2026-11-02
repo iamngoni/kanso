@@ -16,6 +16,11 @@ mod agent_permission;
 mod agent_permission_tests;
 mod agent_registry;
 mod agent_scope;
+mod agent_task;
+mod agent_task_model;
+mod agent_task_panel;
+#[cfg(test)]
+mod agent_task_tests;
 mod ai_agent;
 mod ai_feature;
 mod ask;
@@ -771,10 +776,51 @@ fn watch_for_quit(cx: &mut App) {
     .detach();
 }
 
+/// Set once the person chose to quit with unreviewed agent changes.
+struct ConfirmedQuit;
+
+impl Global for ConfirmedQuit {}
+
+/// Asks whether to quit with unreviewed agent changes; Quit anyway quits.
+fn confirm_quit(prompt: String, cx: &mut App) {
+    let Some((handle, _)) = workspace::main_workspace(cx) else {
+        cx.set_global(ConfirmedQuit);
+        quit(cx);
+        return;
+    };
+    handle
+        .update(cx, |_, window, cx| {
+            use gpui_kit::component::WindowExt as _;
+            window.open_alert_dialog(cx, move |alert, _, _| {
+                alert
+                    .title("Quit Kanso?")
+                    .child(prompt.clone())
+                    .show_cancel(true)
+                    .ok_text("Quit Anyway")
+                    .on_ok(|_, _, cx| {
+                        cx.set_global(ConfirmedQuit);
+                        quit(cx);
+                        true
+                    })
+            });
+        })
+        .ok();
+}
+
 /// Saves open notes, then quits. The Quit action arrives while its window
 /// is being updated, and a window can't be reached from inside its own
 /// update, so the work waits until that update ends.
 fn quit(cx: &mut App) {
+    if let Some(prompt) = cx
+        .try_global::<services::Services>()
+        .and_then(|services| services.tasks.quit_prompt())
+        && !cx.has_global::<ConfirmedQuit>()
+    {
+        // "1 agent task has changes you haven't reviewed. Quit anyway?"
+        // The change sets live in memory only, so quitting loses them.
+        confirm_quit(prompt, cx);
+        return;
+    }
     cx.defer(|cx| {
         workspace::for_each_editor(cx, |editor, cx| editor.flush(cx));
         services::stop_server(cx);

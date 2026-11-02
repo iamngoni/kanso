@@ -24,11 +24,11 @@ use crate::tabs::{
 use crate::workspace::{
     AskYourNotes, ChangePassword, CopyKansoLink, CopyNoteLink, Dictate, ExportHtml, ExportLibrary,
     ExportNote, ExportPdf, FocusNoteList, FocusSearch, FormatTable, GoBack, GoForward,
-    ImportLibrary, NewNote, NewNotebook, NewRecoveryKey, NextNote, OpenFile, OpenNotePicker,
-    OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes, ShowBacklinks, ShowCreateAccount,
-    ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview, ShowSignIn, ShowSplit, SignOut,
-    SummarizeNote, SyncNow, ToggleFocusMode, ToggleInspector, TogglePinned, ToggleSidebar,
-    TrashNote,
+    ImportLibrary, NewAgentTask, NewNote, NewNotebook, NewRecoveryKey, NextNote, OpenFile,
+    OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes, ShowBacklinks,
+    ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview, ShowSignIn,
+    ShowSplit, SignOut, SummarizeNote, SyncNow, ToggleFocusMode, ToggleInspector, TogglePinned,
+    ToggleSidebar, TrashNote,
 };
 
 /// The palette's sections, in the order they appear with nothing typed.
@@ -818,6 +818,17 @@ static COMMANDS: &[Command] = &[
         keywords: &["ai", "question", "answer", "assistant", "search"],
         group: Group::View,
         run: action!(AskYourNotes),
+        needs: Needs::AiOn,
+    },
+    Command {
+        id: "agent-task",
+        label: "Agent Task…",
+        label_when_pinned: None,
+        description: "Gives an agent a goal and the notes it may read. It proposes new notes, edits, moves and merges, and nothing changes until you review and apply them, with one Undo. It works only while AI is on in Settings › AI.",
+        icon: IconName::Bot,
+        keywords: &["ai", "agent", "task", "merge", "assistant", "automate"],
+        group: Group::View,
+        run: action!(NewAgentTask),
         needs: Needs::AiOn,
     },
     Command {

@@ -85,6 +85,7 @@ actions!(
         ShowOutline,
         ShowBacklinks,
         AskYourNotes,
+        NewAgentTask,
         SummarizeNote,
     ]
 );
@@ -238,6 +239,7 @@ fn view_menu(cx: &App) -> Vec<MenuItem> {
     ];
     if ai {
         items.push(MenuItem::action("Ask Your Notes…", AskYourNotes));
+        items.push(MenuItem::action("Agent Task…", NewAgentTask));
     }
     items.extend([
         MenuItem::action("Graph", crate::graph_view::ShowGraph),
@@ -2574,6 +2576,15 @@ impl Render for Workspace {
                 this.show_inspector(Some(InspectorTab::Ask), cx);
                 this.inspector
                     .update(cx, |inspector, cx| inspector.focus_ask(window, cx));
+            }))
+            .on_action(cx.listener(|this, _: &NewAgentTask, window, cx| {
+                if !cx.global::<AppState>().config.ai.enabled {
+                    return;
+                }
+                this.close_settings(window, cx);
+                this.set_focus_mode(false, window, cx);
+                this.show_inspector(Some(InspectorTab::Agents), cx);
+                crate::agent_task_panel::open_new(Vec::new(), window, cx);
             }))
             // What acts on the open note brings it back from behind
             // Settings first, so the note it changes is in view.

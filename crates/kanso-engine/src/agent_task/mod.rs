@@ -14,6 +14,7 @@
 //! review page show.
 
 pub mod review;
+pub mod settings;
 
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
@@ -68,6 +69,22 @@ pub struct TaskSpec {
 }
 
 impl TaskSpec {
+    /// A spec with the limits and defaults `settings` give.
+    pub fn with_settings(
+        goal: &str,
+        read: ReadScope,
+        new_note_book: &str,
+        settings: &settings::AgentTaskSettings,
+    ) -> TaskSpec {
+        let settings = settings.normalised();
+        TaskSpec {
+            ops: settings.ops(),
+            time_limit: settings.time_limit(),
+            max_notes: settings.max_notes,
+            ..TaskSpec::new(goal, read, new_note_book)
+        }
+    }
+
     pub fn new(goal: &str, read: ReadScope, new_note_book: &str) -> TaskSpec {
         TaskSpec {
             goal: goal.trim().to_owned(),
@@ -112,6 +129,9 @@ pub struct OpenTask {
     pub agent: String,
     /// How many notes the agent may read, when it started.
     pub readable: usize,
+    /// The token's secret, for the notes server grant an ACP agent gets. Never
+    /// printed.
+    pub secret: Arc<String>,
 }
 
 /// The scope a task with `spec` has (without minting anything).
@@ -182,6 +202,7 @@ pub fn open(
         spec: spec.clone(),
         agent: agent.to_owned(),
         readable,
+        secret: Arc::new(minted.token),
     })
 }
 
@@ -326,8 +347,28 @@ pub fn run_api(
     on_tool_completed: Box<dyn FnMut() + Send>,
     cancel: Arc<AtomicBool>,
 ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
+    run_api_with_prompt(
+        provider,
+        store,
+        task,
+        api_prompt(task),
+        on_tool_completed,
+        cancel,
+    )
+}
+
+/// [`run_api`] with another prompt: a reply to the model's question
+/// continues the task with what was said.
+pub fn run_api_with_prompt(
+    provider: &dyn ChatProvider,
+    store: Arc<Store>,
+    task: &OpenTask,
+    prompt: Prompt,
+    on_tool_completed: Box<dyn FnMut() + Send>,
+    cancel: Arc<AtomicBool>,
+) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
     provider.run_task(
-        &api_prompt(task),
+        &prompt,
         registry(store, task),
         task.spec.max_calls,
         on_tool_completed,
