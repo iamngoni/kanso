@@ -352,6 +352,14 @@ impl Loopback {
 
     /// Waits for one valid callback without blocking cancellation or the
     /// server-provided absolute expiry deadline.
+    ///
+    /// A browser may open more than one connection before (or instead of)
+    /// sending the callback on one: a speculative connection that never
+    /// speaks, an HTTPS attempt before it falls back to `http`, a request
+    /// for `/favicon.ico`. Every connection is served side by side, and only
+    /// a request for `/` ends the wait; the others are refused or dropped.
+    /// Waiting on the first connection alone left the real callback unread
+    /// in the backlog until the flow expired.
     pub fn wait_until(
         &self,
         expected_state: &str,
@@ -361,86 +369,161 @@ impl Loopback {
         self.listener
             .set_nonblocking(true)
             .map_err(BrowserError::Bind)?;
-        let mut stream = loop {
+        let mut open: Vec<Connection> = Vec::new();
+        loop {
             if cancel.load(Ordering::Acquire) {
                 return Err(BrowserError::Cancelled);
             }
             if Instant::now() >= deadline {
                 return Err(BrowserError::Expired);
             }
-            match self.listener.accept() {
-                Ok((stream, _)) => break stream,
-                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                    std::thread::sleep(
-                        Duration::from_millis(25)
-                            .min(deadline.saturating_duration_since(Instant::now())),
-                    );
-                }
-                Err(err) => return Err(BrowserError::Bind(err)),
-            }
-        };
-        stream.set_nonblocking(true).map_err(BrowserError::Bind)?;
-        let request = read_request_until(&mut stream, deadline, cancel)?;
-        let answer = parse_loopback_callback(&request, expected_state);
-        match answer {
-            Ok(code) => {
-                let _ = respond(&mut stream, 200, "Signed in. Return to Kanso.");
-                Ok(code)
-            }
-            Err(BrowserError::ProviderDenied) => {
-                let _ = respond(&mut stream, 200, "Sign-in was cancelled. Return to Kanso.");
-                Err(BrowserError::ProviderDenied)
-            }
-            Err(_) => {
-                let _ = respond(
-                    &mut stream,
-                    400,
-                    "That sign-in didn't come from Kanso. Return to Kanso and try again.",
-                );
-                Err(BrowserError::WrongCallback)
-            }
-        }
-    }
-}
-
-fn read_request_until(
-    stream: &mut TcpStream,
-    deadline: Instant,
-    cancel: &AtomicBool,
-) -> Result<String, BrowserError> {
-    let mut bytes = Vec::with_capacity(1024);
-    let mut buffer = [0u8; 512];
-    loop {
-        if cancel.load(Ordering::Acquire) {
-            return Err(BrowserError::Cancelled);
-        }
-        if Instant::now() >= deadline {
-            return Err(BrowserError::Expired);
-        }
-        match stream.read(&mut buffer) {
-            Ok(0) => return Err(BrowserError::WrongCallback),
-            Ok(read) => {
-                bytes.extend_from_slice(&buffer[..read]);
-                if bytes.windows(4).any(|window| window == b"\r\n\r\n") {
-                    return String::from_utf8(bytes).map_err(|_| BrowserError::WrongCallback);
-                }
-                if bytes.len() > 16 * 1024 {
-                    return Err(BrowserError::WrongCallback);
+            let mut idle = true;
+            loop {
+                match self.listener.accept() {
+                    Ok((stream, _)) => {
+                        idle = false;
+                        // One that can't be read without blocking is dropped;
+                        // the browser tries again.
+                        if open.len() < MAX_CONNECTIONS && stream.set_nonblocking(true).is_ok() {
+                            open.push(Connection {
+                                stream,
+                                bytes: Vec::new(),
+                            });
+                        }
+                    }
+                    Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => break,
+                    Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {}
+                    Err(err) => return Err(BrowserError::Bind(err)),
                 }
             }
-            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+            let mut index = 0;
+            while index < open.len() {
+                match open[index].read() {
+                    Heard::Nothing { progressed } => {
+                        idle &= !progressed;
+                        index += 1;
+                    }
+                    Heard::Gone => {
+                        open.swap_remove(index);
+                    }
+                    Heard::Request(request) => {
+                        idle = false;
+                        let mut connection = open.swap_remove(index);
+                        if let Some(answer) =
+                            answer_request(&mut connection.stream, &request, expected_state)
+                        {
+                            return answer;
+                        }
+                    }
+                }
+            }
+            if idle {
                 std::thread::sleep(
                     Duration::from_millis(25)
                         .min(deadline.saturating_duration_since(Instant::now())),
                 );
             }
-            Err(err) => return Err(BrowserError::Bind(err)),
         }
     }
 }
 
+/// The most connections the loopback keeps open at once.
+const MAX_CONNECTIONS: usize = 16;
+
+/// A connection to the loopback and what it has sent so far.
+struct Connection {
+    stream: TcpStream,
+    bytes: Vec<u8>,
+}
+
+/// What reading a [`Connection`] found.
+enum Heard {
+    /// No whole request yet; `progressed` when bytes came in.
+    Nothing { progressed: bool },
+    /// Closed, broken, too long or not HTTP: dropped.
+    Gone,
+    /// A whole request head.
+    Request(String),
+}
+
+impl Connection {
+    fn read(&mut self) -> Heard {
+        let mut buffer = [0u8; 512];
+        let mut progressed = false;
+        loop {
+            match self.stream.read(&mut buffer) {
+                Ok(0) => return Heard::Gone,
+                Ok(read) => {
+                    progressed = true;
+                    self.bytes.extend_from_slice(&buffer[..read]);
+                    if self.bytes.windows(4).any(|window| window == b"\r\n\r\n") {
+                        return match String::from_utf8(std::mem::take(&mut self.bytes)) {
+                            Ok(request) => Heard::Request(request),
+                            Err(_) => Heard::Gone,
+                        };
+                    }
+                    // A TLS hello, or anything else that doesn't start like
+                    // a request line, never becomes one.
+                    if self.bytes.len() > 16 * 1024 || !self.bytes[0].is_ascii_uppercase() {
+                        return Heard::Gone;
+                    }
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                    return Heard::Nothing { progressed };
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(_) => return Heard::Gone,
+            }
+        }
+    }
+}
+
+/// Answers one request to the loopback. `Some` ends the wait: the callback
+/// at `/`, right or wrong. `None` is a request for something else (the
+/// browser's `/favicon.ico`), which is refused while the wait goes on.
+fn answer_request(
+    stream: &mut TcpStream,
+    request: &str,
+    expected_state: &str,
+) -> Option<Result<String, BrowserError>> {
+    // The answer is small: let it go out whole.
+    let _ = stream.set_nonblocking(false);
+    let _ = stream.set_write_timeout(Some(Duration::from_secs(2)));
+    let at_root = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .is_some_and(|target| target == "/" || target.starts_with("/?"));
+    if !at_root {
+        let _ = respond(stream, 404, "Not found.");
+        return None;
+    }
+    Some(match parse_loopback_callback(request, expected_state) {
+        Ok(code) => {
+            let _ = respond(stream, 200, "Signed in. Return to Kanso.");
+            Ok(code)
+        }
+        Err(BrowserError::ProviderDenied) => {
+            let _ = respond(stream, 200, "Sign-in was cancelled. Return to Kanso.");
+            Err(BrowserError::ProviderDenied)
+        }
+        Err(_) => {
+            let _ = respond(
+                stream,
+                400,
+                "That sign-in didn't come from Kanso. Return to Kanso and try again.",
+            );
+            Err(BrowserError::WrongCallback)
+        }
+    })
+}
+
 fn respond(stream: &mut TcpStream, status: u16, sentence: &str) -> std::io::Result<()> {
-    let reason = if status == 200 { "OK" } else { "Bad Request" };
+    let reason = match status {
+        200 => "OK",
+        404 => "Not Found",
+        _ => "Bad Request",
+    };
     let body = format!(
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Kanso</title></head><body><p>{sentence}</p></body></html>"
     );
@@ -742,6 +825,39 @@ mod tests {
         let answer = waiter.join().unwrap();
         assert!(answer.starts_with("HTTP/1.1 200"));
         assert!(answer.contains("Return to Kanso"));
+    }
+
+    /// The browser's other connections (one that never speaks, an HTTPS
+    /// attempt, a favicon) don't keep the callback from being read.
+    #[test]
+    fn a_loopback_listener_reads_the_callback_past_the_browsers_other_connections() {
+        let loopback = Loopback::bind().unwrap();
+        let port = loopback.port();
+        let waiter = std::thread::spawn(move || {
+            let silent = TcpStream::connect(("127.0.0.1", port)).unwrap();
+            let mut tls = TcpStream::connect(("127.0.0.1", port)).unwrap();
+            tls.write_all(&[0x16, 0x03, 0x01, 0x02, 0x00, 0x01])
+                .unwrap();
+            let mut icon = TcpStream::connect(("127.0.0.1", port)).unwrap();
+            icon.write_all(b"GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+                .unwrap();
+            let mut refused = String::new();
+            icon.read_to_string(&mut refused).unwrap();
+            assert!(refused.starts_with("HTTP/1.1 404"), "{refused}");
+            let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+            stream
+                .write_all(
+                    b"GET /?code=the-code&state=the-state HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
+                )
+                .unwrap();
+            let mut answer = String::new();
+            stream.read_to_string(&mut answer).unwrap();
+            drop(silent);
+            answer
+        });
+        let code = loopback.wait("the-state", Duration::from_secs(5)).unwrap();
+        assert_eq!(code, "the-code");
+        assert!(waiter.join().unwrap().contains("Return to Kanso"));
     }
 
     #[test]

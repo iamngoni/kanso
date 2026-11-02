@@ -44,6 +44,11 @@ class SignInMethods extends StatelessWidget {
   static bool shows(ServerMethods methods) =>
       methods.providers.isNotEmpty || methods.passkeys;
 
+  static bool _providerRunning(SignInAction? busy) =>
+      busy == SignInAction.apple ||
+      busy == SignInAction.google ||
+      busy == SignInAction.github;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -89,6 +94,14 @@ class SignInMethods extends StatelessWidget {
                         ),
                 )
               : null,
+        ),
+      // A provider's flow waits on the person and on the network: it can
+      // always be stopped.
+      if (!creating && _providerRunning(state.busy))
+        KansoButton(
+          label: l10n.accountCancel,
+          variant: KansoButtonVariant.quiet,
+          onPressed: () => bloc.add(const SignInEvent.providerCancelled()),
         ),
     ];
     return Column(

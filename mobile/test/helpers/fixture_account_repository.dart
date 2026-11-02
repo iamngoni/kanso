@@ -66,6 +66,9 @@ class FixtureAccountRepository implements AccountRepository {
   /// The steps of the provider flow a call starts.
   List<ProviderEvent> providerSteps = const <ProviderEvent>[];
 
+  /// When set, the provider flow a call starts is this stream instead.
+  Stream<ProviderEvent>? providerStream;
+
   /// The waits a request for approval goes through.
   List<ApprovalWait> approvalWaits = const <ApprovalWait>[];
 
@@ -145,7 +148,7 @@ class FixtureAccountRepository implements AccountRepository {
     required String deviceName,
   }) {
     calls.add('startProvider $provider');
-    return Stream<ProviderEvent>.fromIterable(providerSteps);
+    return providerStream ?? Stream<ProviderEvent>.fromIterable(providerSteps);
   }
 
   @override

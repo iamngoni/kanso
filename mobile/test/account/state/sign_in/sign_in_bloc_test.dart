@@ -900,6 +900,137 @@ void main() {
       await bloc.close();
     });
 
+    // The App Store report: Google's page closes (the library has the code)
+    // and the library never says how the flow ended. The screen used to
+    // spin until it was closed.
+    test(
+      'a flow that goes quiet after its page closed ends with a message',
+      () async {
+        final bloc = (await started())
+          ..afterPageTimeout = const Duration(milliseconds: 50)
+          ..add(
+            const SignInEvent.providerPressed(
+              provider: ProviderKind.apple,
+              deviceName: _device,
+            ),
+          );
+        steps
+          ..add(
+            const ProviderEvent.openPage(url: 'http://127.0.0.1:1234/start'),
+          )
+          ..add(const ProviderEvent.closePage());
+        final ended = await bloc.stream
+            .firstWhere((state) => state.busy == null)
+            .timeout(const Duration(seconds: 5));
+        expect(ended.error, isA<NetworkError>());
+        expect(ended.outcome, isNull);
+        verify(account.cancelProvider).called(1);
+        verify(session.close).called(greaterThanOrEqualTo(1));
+        await bloc.close();
+      },
+    );
+
+    test('no flow runs past its time, page or not', () async {
+      final bloc = (await started())
+        ..providerTimeout = const Duration(milliseconds: 50)
+        ..add(
+          const SignInEvent.providerPressed(
+            provider: ProviderKind.apple,
+            deviceName: _device,
+          ),
+        );
+      steps.add(
+        const ProviderEvent.openPage(url: 'http://127.0.0.1:1234/start'),
+      );
+      final ended = await bloc.stream
+          .firstWhere((state) => state.busy == null)
+          .timeout(const Duration(seconds: 5));
+      expect(ended.error, isA<NetworkError>());
+      verify(account.cancelProvider).called(1);
+      await bloc.close();
+    });
+
+    test('a broken stream ends the flow with a message', () async {
+      final bloc = await started();
+      bloc.add(
+        const SignInEvent.providerPressed(
+          provider: ProviderKind.apple,
+          deviceName: _device,
+        ),
+      );
+      await bloc.stream.firstWhere((state) => state.busy != null);
+      steps.addError(StateError('the bridge broke'));
+      final ended = await bloc.stream
+          .firstWhere((state) => state.busy == null)
+          .timeout(const Duration(seconds: 5));
+      expect(ended.error, isNotNull);
+      await bloc.close();
+    });
+
+    test(
+      'the last step ends the flow even when the stream stays open, so it '
+      'can be tried again',
+      () async {
+        final bloc = await started();
+        bloc.add(
+          const SignInEvent.providerPressed(
+            provider: ProviderKind.apple,
+            deviceName: _device,
+          ),
+        );
+        steps.add(const ProviderEvent.failed(message: 'Google said no.'));
+        await bloc.stream.firstWhere((state) => state.error != null);
+        await pumpEventQueue();
+        // The stream is still open; a second press is not dropped.
+        final again = StreamController<ProviderEvent>();
+        when(
+          () => account.startProvider(
+            server: _server,
+            provider: ProviderKind.apple,
+            deviceName: _device,
+          ),
+        ).thenAnswer((_) => again.stream);
+        bloc.add(
+          const SignInEvent.providerPressed(
+            provider: ProviderKind.apple,
+            deviceName: _device,
+          ),
+        );
+        await bloc.stream
+            .firstWhere((state) => state.busy == SignInAction.apple)
+            .timeout(const Duration(seconds: 5));
+        again.add(const ProviderEvent.finished(_signedIn));
+        final done = await bloc.stream
+            .firstWhere((state) => state.outcome != null)
+            .timeout(const Duration(seconds: 5));
+        expect(done.outcome, AccountOutcome.signedIn);
+        expect(done.busy, isNull);
+        unawaited(again.close());
+        await bloc.close();
+      },
+    );
+
+    test('Cancel while a page is up brings the buttons back', () async {
+      final bloc = await started();
+      bloc.add(
+        const SignInEvent.providerPressed(
+          provider: ProviderKind.apple,
+          deviceName: _device,
+        ),
+      );
+      steps.add(
+        const ProviderEvent.openPage(url: 'http://127.0.0.1:1234/start'),
+      );
+      await bloc.stream.firstWhere((state) => state.busy != null);
+      bloc.add(const SignInEvent.providerCancelled());
+      final ended = await bloc.stream
+          .firstWhere((state) => state.busy == null)
+          .timeout(const Duration(seconds: 5));
+      expect(ended.error, isNull);
+      verify(account.cancelProvider).called(1);
+      await bloc.close();
+    });
+
     test('Cancel stops the flow and closes the page', () async {
       final bloc = await started();
       bloc.add(
