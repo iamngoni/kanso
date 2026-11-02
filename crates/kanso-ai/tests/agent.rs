@@ -82,6 +82,7 @@ fn ask(provider: &kanso_ai::SharedProvider, question: &str) -> Vec<Event> {
             ToolRegistry::new(),
             Box::new(|| {}),
             Arc::new(AtomicBool::new(false)),
+            &kanso_ai::Budget::default(),
         )
         .unwrap()
         .collect()
@@ -141,6 +142,7 @@ fn stop_ends_the_answer_and_the_agent_answers_again() {
                 ToolRegistry::new(),
                 Box::new(|| {}),
                 cancel.clone(),
+                &kanso_ai::Budget::default(),
             )
             .unwrap();
         assert!(matches!(events.next(), Some(Event::Status(_))));
@@ -164,7 +166,14 @@ fn stop_ends_the_answer_and_the_agent_answers_again() {
             user: "again".into(),
         };
         provider
-            .ask(&prompt, &[], ToolRegistry::new(), Box::new(|| {}), cancel)
+            .ask(
+                &prompt,
+                &[],
+                ToolRegistry::new(),
+                Box::new(|| {}),
+                cancel,
+                &kanso_ai::Budget::default(),
+            )
             .unwrap()
             .collect()
     };
@@ -479,6 +488,7 @@ fn a_report_while_a_question_is_running_does_not_wait() {
             ToolRegistry::new(),
             Box::new(|| {}),
             cancel.clone(),
+            &kanso_ai::Budget::default(),
         )
         .unwrap();
     assert!(matches!(events.next(), Some(Event::Status(_))));

@@ -12,10 +12,12 @@
 
 #[cfg(feature = "acp")]
 pub mod agent;
+pub mod budget;
 pub mod client;
 pub mod draft;
 pub mod draft_model;
 pub mod features;
+pub mod prices;
 pub mod prompt;
 pub mod raw_tool;
 pub mod tidy;
@@ -24,12 +26,16 @@ pub mod triage;
 
 #[cfg(feature = "acp")]
 pub use agent::{AgentCheck, AgentKind, AgentSettings};
+pub use budget::{Budget, BudgetSize};
 pub use client::{
     AiError, CUT_OFF, ChatProvider, ClientSettings, Event, NO_TOOLS, SharedProvider, Turn, answer,
     cached_client, client, client_with, client_with_timeouts, probe, redact_provider_error,
 };
 pub use features::InlineAction;
-pub use prompt::{DEFAULT_BUDGET, Excerpt, Prompt, build as build_prompt};
+pub use prompt::{
+    DEFAULT_BUDGET, Excerpt, NOT_IN_NOTES, Numbered, Prompt, SentExcerpt, build as build_prompt,
+    build_numbered,
+};
 pub use raw_tool::{RawRun, RawTool};
 
 /// The tool types a question can use. Re-exported so the app does not depend
