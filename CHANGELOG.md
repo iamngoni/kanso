@@ -3,6 +3,25 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.9.3](https://github.com/iamngoni/kanso/compare/v0.9.2...v0.9.3) - 2026-11-02
+
+### New
+
+- **app:** Present a note full screen as slides ([b640a0c](https://github.com/iamngoni/kanso/commit/b640a0c9eccba54554d39f6b37bf3e4c2a678b09)) by @gtchakama
+- Present on phones and tablets, and fix the review's findings ([37dc2bd](https://github.com/iamngoni/kanso/commit/37dc2bdf1329178634386f9d48b5d17300b94725)) by @gtchakama
+
+### Fixed
+
+- Rebuild a damaged search index when the store opens ([629d30f](https://github.com/iamngoni/kanso/commit/629d30f61906e80a86487afeefdf448d7efd13d6))
+- Close the pre-push review's findings on presenting ([ad7ad79](https://github.com/iamngoni/kanso/commit/ad7ad7990118bb7709d0aef93bfc4cd9dc4741cb)) by @gtchakama
+
+### Under the hood
+
+- A clipboard permission, kanso.clipboard.history and write ([54291b4](https://github.com/iamngoni/kanso/commit/54291b4e2c789053bc99d77bb4ef5a7fff1a638d)) by @Zawala
+- Watch the clipboard only while a plugin reads its history ([9af515f](https://github.com/iamngoni/kanso/commit/9af515f05f22d1f4462100cb9499043ac60d2627)) by @Zawala
+- The clipboard permission and what Kanso keeps ([4ea1a8b](https://github.com/iamngoni/kanso/commit/4ea1a8b4fd8ccfec3e0aeae67830ffe179505b05)) by @Zawala
+- Provide the blocs above the app so the pushed slides see them ([71a8d8e](https://github.com/iamngoni/kanso/commit/71a8d8ee067a1ecd77018417ca1971cb30b6cf05))
+
 ## [0.9.2](https://github.com/iamngoni/kanso/compare/v0.9.1...v0.9.2) - 2026-11-01
 
 ### New
