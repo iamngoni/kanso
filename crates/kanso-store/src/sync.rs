@@ -790,6 +790,34 @@ impl Store {
                 return Ok(ApplyOutcome::Applied);
             }
             let local_dirty = local.synced_rev.as_deref() != Some(local.rev.as_str());
+            // A month of flashcard answers is a set that only grows: two
+            // versions made apart never conflict. Both sides' entries are
+            // kept, and the union is pushed when it holds more than the
+            // remote version.
+            if !rules.legacy() && local_dirty && doc_type == DocType::Review && !local.deleted && !remote.deleted {
+                let merged = kanso_core::review_doc::merge_fields(&local.fields, &fields);
+                let mut merged = merged;
+                if let Some(at) = [updated_at(&local.fields), updated_at(&fields)].into_iter().max() {
+                    merged.insert("updatedAt".into(), at.into());
+                }
+                let created = |f: &Map<String, Value>| f.get("createdAt").and_then(Value::as_i64);
+                if let Some(at) = [created(&local.fields), created(&fields)].into_iter().flatten().min() {
+                    merged.insert("createdAt".into(), at.into());
+                }
+                if merged == fields {
+                    store_row(tx, &remote.id, doc_type, &remote.rev, false, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                    learned(tx, &remote.id, &remote.rev)?;
+                    return Ok(ApplyOutcome::RemoteWon);
+                }
+                let above = kanso_core::Rev {
+                    generation: local_rev.generation.max(remote_rev.generation),
+                    hash: String::new(),
+                };
+                let new_rev = kanso_core::Rev::next(Some(&above), &Value::Object(merged.clone())).to_string();
+                store_row(tx, &remote.id, doc_type, &new_rev, false, &merged, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                learned(tx, &remote.id, &remote.rev)?;
+                return Ok(ApplyOutcome::LocalWon { new_rev });
+            }
             let remote_wins = !local_dirty
                 || match (local.deleted, remote.deleted) {
                     (true, false) => true,

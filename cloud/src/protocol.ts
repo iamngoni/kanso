@@ -37,7 +37,7 @@ export const KDF_FLOOR = { m_kib: 1_048_576, t: 3, p: 1 } as const;
 export const KDF_CEILING = { m_kib: 2_097_152, t: 8, p: 8 } as const;
 export const KDF_DEFAULT = { alg: "argon2id", version: 19, m_kib: 1_048_576, t: 3, p: 4 } as const;
 
-const WIRE_ID = /^(note|book|tag|file):[A-Za-z0-9_-]{22}$/;
+const WIRE_ID = /^(note|book|tag|file|review):[A-Za-z0-9_-]{22}$/;
 const WIRE_FILE_ID = /^file:[A-Za-z0-9_-]{22}$/;
 const WIRE_REV = /^[0-9a-f]{32}$/;
 const ACCOUNT_ID = /^a_[0-9a-f]{32}$/;

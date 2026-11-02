@@ -46,7 +46,7 @@ fn kind_of(id: &str) -> Kind {
         Kind::DesignOrConfig
     } else if id.starts_with("activity:") {
         Kind::Activity
-    } else if let Some(doc_type) = DocType::of_id(id) {
+    } else if let Some(doc_type) = DocType::of_id(id).filter(|t| *t != DocType::Review) {
         Kind::Doc(doc_type)
     } else {
         Kind::Unknown
@@ -111,6 +111,8 @@ pub fn import(
             Kind::Doc(DocType::Tag) => tags.push(doc),
             Kind::Doc(DocType::File) => files.push(doc),
             Kind::Doc(DocType::Note) => notes.push(doc),
+            // Review logs are Kanso's own; no source library has them.
+            Kind::Doc(DocType::Review) => report.skipped_unknown += 1,
         }
     }
 
@@ -261,6 +263,7 @@ fn import_one(
                 DocType::Book => report.books += 1,
                 DocType::Tag => report.tags += 1,
                 DocType::File => report.files += 1,
+                DocType::Review => {}
             }
             report.trashed_notes += usize::from(trashed);
             report.replaced += usize::from(previous.is_some());

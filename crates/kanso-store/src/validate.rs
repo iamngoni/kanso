@@ -52,8 +52,27 @@ pub fn normalize(
         DocType::Book => normalize_book(id, &mut fields, now, refs)?,
         DocType::Tag => normalize_tag(&mut fields, now)?,
         DocType::File => normalize_file(&mut fields, refs)?,
+        DocType::Review => normalize_review(&mut fields)?,
     }
     Ok(fields)
+}
+
+/// A review log keeps only its own fields, with sane entries.
+fn normalize_review(f: &mut Map<String, Value>) -> Result<()> {
+    let doc = kanso_core::review_doc::ReviewDoc::from_fields(f);
+    if doc.note_id.is_empty() || doc.month.is_empty() {
+        return invalid("A review log needs a noteId and a month.".into());
+    }
+    let created = f.get("createdAt").cloned();
+    let updated = f.get("updatedAt").cloned();
+    *f = doc.to_fields();
+    if let Some(created) = created {
+        f.insert("createdAt".into(), created);
+    }
+    if let Some(updated) = updated {
+        f.insert("updatedAt".into(), updated);
+    }
+    Ok(())
 }
 
 fn normalize_note(id: &str, f: &mut Map<String, Value>, now: i64, refs: Refs) -> Result<()> {

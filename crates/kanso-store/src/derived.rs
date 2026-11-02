@@ -28,15 +28,16 @@ use crate::{Origin, Result, Store, schema};
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
 /// Changes whenever a derived table's source or derivation changes.
-pub const DERIVED_VERSION: &str = "3";
+pub const DERIVED_VERSION: &str = "4";
 
 /// The tables, for emptying them.
-pub(crate) const TABLES: [&str; 5] = [
+pub(crate) const TABLES: [&str; 6] = [
     "note_links",
     "note_headings",
     "note_tasks",
     "note_files",
     "note_loops",
+    "note_cards",
 ];
 
 /// How long a finished item is remembered, in days.
@@ -242,6 +243,24 @@ fn insert_rows(conn: &Connection, id: &str, body: &str, loops: &Loops) -> Result
                 task.text,
                 task.due
             ])?;
+        }
+    }
+    {
+        let mut stmt = conn.prepare_cached(
+            "INSERT INTO note_cards (note_id, ord, card_key, line, question, answer)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )?;
+        // A second card with the same question shares its key and isn't
+        // scheduled twice.
+        let mut seen = HashSet::new();
+        let mut ord = 0i64;
+        for card in kanso_core::cards::card_lines(body) {
+            let key = kanso_core::cards::card_key(id, &card.question);
+            if !seen.insert(key.clone()) {
+                continue;
+            }
+            stmt.execute(params![id, ord, key, card.line, card.question, card.answer])?;
+            ord += 1;
         }
     }
     {

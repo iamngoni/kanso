@@ -9,10 +9,23 @@ pub enum DocType {
     Book,
     Tag,
     File,
+    /// A month of flashcard review answers for one note. Synced and sealed
+    /// like the rest, but never served by the local API or MCP, so it is
+    /// not in [`DocType::ALL`].
+    Review,
 }
 
 impl DocType {
+    /// The kinds the local API and MCP serve.
     pub const ALL: [DocType; 4] = [DocType::Note, DocType::Book, DocType::Tag, DocType::File];
+    /// Every kind that syncs.
+    pub const SYNCED: [DocType; 5] = [
+        DocType::Note,
+        DocType::Book,
+        DocType::Tag,
+        DocType::File,
+        DocType::Review,
+    ];
 
     /// The ID prefix without the colon, also used as the type name in storage.
     pub fn as_str(self) -> &'static str {
@@ -21,6 +34,7 @@ impl DocType {
             DocType::Book => "book",
             DocType::Tag => "tag",
             DocType::File => "file",
+            DocType::Review => "review",
         }
     }
 
@@ -31,11 +45,12 @@ impl DocType {
             DocType::Book => "books",
             DocType::Tag => "tags",
             DocType::File => "files",
+            DocType::Review => "reviews",
         }
     }
 
     pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|t| t.as_str() == name)
+        Self::SYNCED.into_iter().find(|t| t.as_str() == name)
     }
 
     pub fn from_collection(name: &str) -> Option<Self> {

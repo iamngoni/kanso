@@ -257,6 +257,47 @@ CREATE TABLE finished_items (
 ) WITHOUT ROWID;
 CREATE INDEX finished_items_at ON finished_items (at);
 "#,
+    // Flashcards (issue #198): the `question :: answer` lines in note
+    // bodies (derived, rebuilt like `note_tasks`); the schedule of each
+    // card and the log of answers, both local caches rebuilt from the
+    // synced `review` documents and never synced themselves.
+    r#"
+CREATE TABLE IF NOT EXISTS note_cards (
+    note_id TEXT NOT NULL,
+    ord INTEGER NOT NULL,
+    card_key TEXT NOT NULL,
+    line INTEGER NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    PRIMARY KEY (note_id, ord)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS note_cards_key ON note_cards (card_key);
+CREATE TABLE IF NOT EXISTS card_state (
+    card_key TEXT PRIMARY KEY NOT NULL,
+    note_id TEXT NOT NULL,
+    due_ms INTEGER NOT NULL,
+    stability REAL NOT NULL,
+    difficulty REAL NOT NULL,
+    reps INTEGER NOT NULL,
+    lapses INTEGER NOT NULL,
+    phase TEXT NOT NULL,
+    step INTEGER NOT NULL,
+    last_ms INTEGER NOT NULL,
+    suspended INTEGER NOT NULL DEFAULT 0
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS card_state_due ON card_state (due_ms) WHERE suspended = 0;
+CREATE INDEX IF NOT EXISTS card_state_note ON card_state (note_id);
+CREATE TABLE IF NOT EXISTS card_log (
+    id TEXT PRIMARY KEY NOT NULL,
+    card_key TEXT NOT NULL,
+    note_id TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    grade INTEGER NOT NULL
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS card_log_at ON card_log (at);
+CREATE INDEX IF NOT EXISTS card_log_card ON card_log (card_key);
+CREATE INDEX IF NOT EXISTS card_log_note ON card_log (note_id);
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -467,7 +508,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let conn = connect(&dir.path().join("k.db")).unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(MIGRATIONS.len(), 14);
+        assert_eq!(MIGRATIONS.len(), 15);
         assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "note_passages", "end_byte"));
         assert!(has_column(&conn, "resurface_dismissed", "other_id"));
@@ -477,7 +518,7 @@ mod tests {
         assert!(has_column(&conn, "file_text", "md5"));
         // Running it again changes nothing.
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 14);
+        assert_eq!(version(&conn), 15);
         assert!(has_column(&conn, "note_files", "file_id"));
         assert!(has_column(&conn, "revisions", "author"));
         assert!(has_column(&conn, "revisions", "agent"));
@@ -501,7 +542,7 @@ mod tests {
         assert!(!has_column(&conn, "note_embeddings", "vector"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 14);
+        assert_eq!(version(&conn), 15);
         assert!(has_column(&conn, "revisions", "batch"));
         assert!(has_column(&conn, "note_embeddings", "vector"));
         assert!(has_column(&conn, "file_text", "text"));
@@ -525,7 +566,7 @@ mod tests {
         assert!(!has_column(&conn, "triage_dismissed", "value"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 14);
+        assert_eq!(version(&conn), 15);
         assert!(has_column(&conn, "triage_dismissed", "value"));
         assert!(has_column(&conn, "note_loops", "key"));
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
@@ -548,8 +589,8 @@ mod tests {
         assert!(!has_column(&conn, "note_loops", "key"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(MIGRATIONS.len(), 14);
-        assert_eq!(version(&conn), 14);
+        assert_eq!(MIGRATIONS.len(), 15);
+        assert_eq!(version(&conn), 15);
         assert!(has_column(&conn, "note_loops", "key"));
         assert!(has_column(&conn, "finished_items", "at"));
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
@@ -558,5 +599,31 @@ mod tests {
             [],
         )
         .unwrap();
+    }
+
+    /// A database pinned at version 14 (open loops) moves to 15
+    /// (flashcards) keeping what it had, and the card tables work.
+    #[test]
+    fn version_fourteen_moves_to_fifteen() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db")).unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(14).enumerate() {
+            conn.execute_batch(&format!(
+                "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
+                index + 1
+            ))
+            .unwrap();
+        }
+        assert_eq!(version(&conn), 14);
+        assert!(!has_column(&conn, "note_cards", "card_key"));
+        set_meta(&conn, "kept", "yes").unwrap();
+        migrate(&conn).unwrap();
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
+        assert!(has_column(&conn, "note_cards", "card_key"));
+        assert!(has_column(&conn, "card_state", "due_ms"));
+        assert!(has_column(&conn, "card_log", "grade"));
+        assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+        // Running it again changes nothing.
+        migrate(&conn).unwrap();
     }
 }

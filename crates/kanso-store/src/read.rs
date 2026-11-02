@@ -364,6 +364,8 @@ impl Store {
                     let content_type = doc.str_field("contentType").unwrap_or_default().to_owned();
                     doc.file_to_api(&content_type, &blob, attachments)
                 }
+                // Review logs are never served: not by the API, not by MCP.
+                DocType::Review => return Err(StoreError::NotFound),
             })
         })
     }
@@ -398,8 +400,11 @@ impl Store {
             let order = match doc_type {
                 DocType::Book | DocType::Tag => "d.name COLLATE NOCASE, d.id",
                 DocType::Note => "d.updated_at DESC, d.id",
-                DocType::File => "d.created_at, d.id",
+                DocType::File | DocType::Review => "d.created_at, d.id",
             };
+            if doc_type == DocType::Review {
+                return Ok(Vec::new());
+            }
             let mut stmt = conn.prepare(&format!(
                 "SELECT {DOC_COLUMNS} FROM docs d WHERE d.type = ? AND d.deleted = 0 ORDER BY {order} LIMIT ? OFFSET ?"
             ))?;
@@ -426,6 +431,7 @@ impl Store {
                         Ok(doc.file_to_api(&content_type, &blob, false))
                     }
                     DocType::Note => Ok(shown(doc, Map::new())),
+                    DocType::Review => Err(StoreError::NotFound),
                 })
                 .collect()
         })

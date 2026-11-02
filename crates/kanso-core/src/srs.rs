@@ -404,7 +404,10 @@ mod tests {
             "c"
         ));
         let log = [rv(1, 5, Grade::Good), rv(2, 20, Grade::Good)];
-        assert_eq!(since_reset(&log, &[m("x", 10, MarkKind::Reset)], "c").len(), 1);
+        assert_eq!(
+            since_reset(&log, &[m("x", 10, MarkKind::Reset)], "c").len(),
+            1
+        );
     }
 
     fn grade() -> impl Strategy<Value = Grade> {

@@ -71,12 +71,14 @@ pub fn is_base64url(s: &str) -> bool {
     s.bytes().all(is_base64url_char)
 }
 
-/// A wire document ID: `^(note|book|tag|file):[A-Za-z0-9_-]{22}$`.
+/// A wire document ID: `^(note|book|tag|file|review):[A-Za-z0-9_-]{22}$`.
 pub fn is_wire_id(id: &str) -> bool {
     let Some((kind, rest)) = id.split_once(':') else {
         return false;
     };
-    matches!(kind, "note" | "book" | "tag" | "file") && rest.len() == 22 && is_base64url(rest)
+    matches!(kind, "note" | "book" | "tag" | "file" | "review")
+        && rest.len() == 22
+        && is_base64url(rest)
 }
 
 /// A wire file ID: a [`is_wire_id`] of kind `file`.
@@ -1081,7 +1083,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
         /// Oracle: the hand-written wire-ID check agrees with the spec's
-        /// pattern `^(note|book|tag|file):[A-Za-z0-9_-]{22}$`, spelled out
+        /// pattern `^(note|book|tag|file|review):[A-Za-z0-9_-]{22}$`, spelled out
         /// as a proptest regex.
         #[test]
         fn prop_wire_ids_match_the_pattern(id in "(note|book|tag|file|page|):[A-Za-z0-9_+/=-]{20,24}") {

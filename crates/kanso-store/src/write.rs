@@ -132,6 +132,7 @@ pub(crate) fn store_row(
     }
     if let Some(prev) = previous
         && !prev.deleted
+        && doc_type != DocType::Review
         && (!locked || (salt_now.is_some() && salt_now == lock_salt(&prev.fields)))
     {
         snapshot(tx, id, prev, origin)?;
@@ -193,6 +194,9 @@ pub(crate) fn store_row(
     }
     if is_note && deleted {
         crate::embed::forget_note(tx, id)?;
+    }
+    if doc_type == DocType::Review {
+        crate::cards::refresh_review(tx, id, previous, (!deleted).then_some(fields))?;
     }
     changes.push(Change {
         id: id.to_owned(),
@@ -1291,7 +1295,11 @@ impl Store {
                         })?;
                     }
                 }
-                DocType::Note | DocType::File => {}
+                DocType::Note => {
+                    // Its flashcard answers go with it.
+                    crate::cards::forget_note_reviews(tx, changes, id, origin)?;
+                }
+                DocType::File | DocType::Review => {}
             }
             let rev = delete_row(tx, id, &prev, origin, changes)?;
             Ok(WriteResult {
