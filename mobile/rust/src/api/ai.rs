@@ -373,7 +373,7 @@ impl KansoAskConversation {
 }
 
 #[frb(opaque)]
-pub struct KansoAiRun(AiRun);
+pub struct KansoAiRun(pub(super) AiRun);
 
 impl KansoAiRun {
     #[frb(sync)]

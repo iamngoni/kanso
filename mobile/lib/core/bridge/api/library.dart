@@ -8,7 +8,9 @@ import 'account.dart';
 import 'account_settings.dart';
 import 'ai.dart';
 import 'approvals.dart';
+import 'cards.dart';
 import 'discovery.dart';
+import 'draft.dart';
 import 'editor.dart';
 import 'gallery.dart';
 import 'linking.dart';
@@ -71,6 +73,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Saves something shared from inside the app as a note in the Inbox.
   Future<CaptureOutcome> capture({required Share share});
 
+  KansoCards cards();
+
   Future<Changed> change({
     required List<String> ids,
     required NoteChange change,
@@ -119,6 +123,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<void> deleteTag({required String id});
 
   KansoDiscovery discovery();
+
+  KansoDrafting drafting();
 
   static DueChipRow? dueChip({
     required String due,
