@@ -111,7 +111,26 @@ pub trait ChatProvider: Send {
     ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
         self.stream(prompt)
     }
+
+    /// Runs an agent task: the model works through `tools` (up to
+    /// `max_tool_calls` calls) and ends with a short message. Unlike
+    /// [`ChatProvider::ask`] it never falls back to answering without tools:
+    /// a model that can't use them is an error event ([`NO_TOOLS`]). The
+    /// default refuses, for providers that can't run tools.
+    fn run_task(
+        &self,
+        _prompt: &Prompt,
+        _tools: agent_runtime::ToolRegistry<()>,
+        _max_tool_calls: usize,
+        _on_tool_completed: Box<dyn FnMut() + Send>,
+        _cancel: Arc<AtomicBool>,
+    ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
+        Err(AiError::Agent(NO_TOOLS.to_owned()))
+    }
 }
+
+/// What a person is told when the chosen model can't use tools.
+pub const NO_TOOLS: &str = "This model can't use tools, so it can't read your notes for a task. Pick a model that supports tools.";
 
 /// What the app's settings decide a request uses.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -526,6 +545,66 @@ impl ChatProvider for AgentProviderClient {
                         llm.stream_message(&model, &system, &messages, &mut sink)
                             .await
                             .map(|_| ())
+                    }
+                    Err(err) => Err(err),
+                }
+            },
+        )
+    }
+
+    fn run_task(
+        &self,
+        prompt: &Prompt,
+        tools: ToolRegistry<()>,
+        max_tool_calls: usize,
+        on_tool_completed: Box<dyn FnMut() + Send>,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
+        self.run_task_impl(prompt, tools, max_tool_calls, on_tool_completed, cancel)
+    }
+}
+
+impl AgentProviderClient {
+    fn run_task_impl(
+        &self,
+        prompt: &Prompt,
+        tools: ToolRegistry<()>,
+        max_tool_calls: usize,
+        on_tool_completed: Box<dyn FnMut() + Send>,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
+        if !tools_are_supported(&self.tools_key) {
+            return Err(AiError::Agent(NO_TOOLS.to_owned()));
+        }
+        let llm = self.llm.clone();
+        let system = prompt.system.clone();
+        let messages = vec![ChatMessage::user(prompt.user.clone())];
+        let tools_key = self.tools_key.clone();
+        run_on_runtime(
+            self.model.clone(),
+            self.api_key.clone(),
+            cancel,
+            on_tool_completed,
+            move |model, mut sink| async move {
+                let outcome = llm
+                    .execute_tool_session(
+                        ToolSessionRequest {
+                            model: &model,
+                            decision_system_prompt: &system,
+                            followup_system_prompt: &system,
+                            history: &messages,
+                            tool_registry: &tools,
+                            tool_context: (),
+                            max_tool_calls,
+                        },
+                        &mut sink,
+                    )
+                    .await;
+                match outcome {
+                    Ok(_) => Ok(()),
+                    Err(err) if tool_calls_unsupported(&err) => {
+                        remember_tools_unsupported(&tools_key);
+                        Err(anyhow::anyhow!(NO_TOOLS))
                     }
                     Err(err) => Err(err),
                 }

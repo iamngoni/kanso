@@ -16,12 +16,14 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use kanso_core::model::{LOCK_FIELD, PUBLISH_FIELD, SHARE_FIELD, TRASH_BOOK_ID};
 use kanso_core::{DocType, Note};
 use kanso_store::Store;
 use serde_json::Value;
 
+use crate::changeset::TaskId;
 use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
@@ -58,6 +60,44 @@ pub const ASK_TOOLS: [&str; 2] = ["search-notes", "read-note"];
 /// touches attachments, notebooks' locks, or deletes.
 pub const SUGGEST_TOOLS: [&str; 3] = ["patch-note", "update-note", "create-note"];
 
+/// The tools only an agent task's token gets: they stage into the task's
+/// [`ChangeSet`](crate::changeset::ChangeSet) and write nothing.
+pub const TASK_TOOLS: [&str; 4] = [
+    "kanso-propose-move",
+    "kanso-propose-merge",
+    "kanso-list-proposed",
+    "kanso-task-done",
+];
+
+/// What an agent task may propose, set by the person on the New agent task
+/// sheet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TaskOps {
+    pub create: bool,
+    pub edit: bool,
+    pub moves: bool,
+    pub merge: bool,
+}
+
+impl Default for TaskOps {
+    fn default() -> Self {
+        TaskOps {
+            create: true,
+            edit: true,
+            moves: true,
+            merge: true,
+        }
+    }
+}
+
+impl TaskOps {
+    /// A merge needs new notes or edits, and moves (its sources go to the
+    /// trash).
+    pub fn merge_allowed(&self) -> bool {
+        self.merge && (self.create || self.edit) && self.moves
+    }
+}
+
 /// What one agent token may do.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AgentScope {
@@ -76,9 +116,141 @@ pub struct AgentScope {
     /// name its suggestions carry in the review queue and in the note's
     /// history. `None` is a scope that suggests nothing.
     pub suggests_as: Option<String>,
+    /// The agent task this token belongs to: its writes stage into the
+    /// task's change set instead of the review queue.
+    pub task: Option<TaskId>,
+    /// Only these notes (by ID), when the person chose notes and not a
+    /// notebook; `None` is no such limit.
+    pub notes: Option<HashSet<String>>,
+    /// What a task may propose.
+    pub task_ops: TaskOps,
+    /// A task token's own lifetime and tool-call budget.
+    pub task_limits: Option<TaskLimits>,
+    /// The only notebooks a task may write into (new notes, moves, merge
+    /// targets); `None` is any it can see. Reading a note never widens it:
+    /// text in a note can't send a write to another notebook.
+    pub write_books: Option<HashSet<String>>,
+    /// Where a task's new notes go.
+    pub new_note_book: Option<String>,
+}
+
+/// How long a task token lives and how many tool calls it may make.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TaskLimits {
+    pub lifetime: Duration,
+    pub calls: usize,
+    /// The most notes one task may be shown.
+    pub max_notes: usize,
+}
+
+/// The notes a task with `scope` may read now, in no particular order:
+/// the chosen notes, or the notes of the chosen notebooks, that
+/// [`Visibility`] lets through. Empty when the store can't say.
+pub fn readable_notes(store: &Store, scope: &AgentScope) -> Vec<String> {
+    let Some(vis) = Visibility::new(store, scope) else {
+        return Vec::new();
+    };
+    let ids: Vec<String> = match (&scope.notes, &vis.books) {
+        (Some(notes), _) => notes.iter().cloned().collect(),
+        (None, Some(books)) => {
+            let books: Vec<String> = books.iter().cloned().collect();
+            store
+                .notes_in_books(&books)
+                .map(|notes| notes.into_iter().map(|n| n.id).collect())
+                .unwrap_or_default()
+        }
+        (None, None) => {
+            let books: Vec<String> = store
+                .books()
+                .map(|all| all.into_iter().map(|b| b.id).collect())
+                .unwrap_or_default();
+            store
+                .notes_in_books(&books)
+                .map(|notes| notes.into_iter().map(|n| n.id).collect())
+                .unwrap_or_default()
+        }
+    };
+    ids.into_iter().filter(|id| vis.allows(id)).collect()
+}
+
+/// Whether a task with `scope` may read any note at all. Stops at the first
+/// one; meant for a worker thread, not a keystroke.
+pub fn has_readable_notes(store: &Store, scope: &AgentScope) -> bool {
+    if store
+        .counts()
+        .is_ok_and(|counts| counts.get(&DocType::Note).copied().unwrap_or(0) == 0)
+    {
+        return false;
+    }
+    !readable_notes(store, scope).is_empty()
 }
 
 impl AgentScope {
+    /// The scope of an agent task named `agent`: reads like Ask, and its
+    /// proposals (new notes, edits, moves, merges) stage into the change set
+    /// of `task`. `notebooks` or `notes` is what the person chose to share.
+    pub fn task(
+        notebooks: Option<HashSet<String>>,
+        notes: Option<HashSet<String>>,
+        agent: &str,
+        task: TaskId,
+        ops: TaskOps,
+        limits: TaskLimits,
+    ) -> AgentScope {
+        let mut scope = AgentScope::with_tools(
+            notebooks,
+            &[
+                "search-notes",
+                "read-note",
+                "list-notes",
+                "list-notebooks",
+                "kanso-get-outline",
+                "kanso-search-by-meaning",
+                "kanso-related-notes",
+                "kanso-resolve-wikilink",
+                "kanso-list-note-links",
+                "kanso-list-backlinks",
+                "kanso-list-tags",
+                "kanso-get-properties",
+            ],
+        );
+        let mut write: Vec<&str> = vec!["kanso-list-proposed", "kanso-task-done"];
+        if ops.create {
+            write.push("create-note");
+        }
+        if ops.edit {
+            write.push("update-note");
+            write.push("patch-note");
+        }
+        if ops.moves {
+            write.push("kanso-propose-move");
+        }
+        if ops.merge_allowed() {
+            write.push("kanso-propose-merge");
+        }
+        scope.tools.extend(write.into_iter().map(str::to_owned));
+        scope.suggests_as = Some(agent.trim().to_owned());
+        scope.task = Some(task);
+        scope.notes = notes;
+        scope.task_ops = ops;
+        scope.task_limits = Some(limits);
+        scope
+    }
+}
+
+impl AgentScope {
+    /// This task scope, limited to writing into `write_books` (when given),
+    /// with new notes going to `new_note_book` (when not empty).
+    pub fn with_writes(
+        mut self,
+        write_books: Option<HashSet<String>>,
+        new_note_book: &str,
+    ) -> AgentScope {
+        self.write_books = write_books;
+        self.new_note_book = Some(new_note_book.trim().to_owned()).filter(|b| !b.is_empty());
+        self
+    }
+
     /// The scope Ask your notes gives an agent, over `notebooks`.
     pub fn ask(notebooks: Option<HashSet<String>>) -> AgentScope {
         AgentScope::with_tools(notebooks, &ASK_TOOLS)
@@ -97,6 +269,12 @@ impl AgentScope {
                 .map(|tool| (*tool).to_owned())
                 .collect(),
             suggests_as: None,
+            task: None,
+            notes: None,
+            task_ops: TaskOps::default(),
+            task_limits: None,
+            write_books: None,
+            new_note_book: None,
         }
     }
 
@@ -115,7 +293,8 @@ impl AgentScope {
     pub fn allows_tool(&self, name: &str) -> bool {
         self.tools.contains(name)
             && (READ_TOOLS.contains(&name)
-                || (SUGGEST_TOOLS.contains(&name) && self.suggests_as.is_some()))
+                || (SUGGEST_TOOLS.contains(&name) && self.suggests_as.is_some())
+                || (TASK_TOOLS.contains(&name) && self.task.is_some()))
     }
 }
 
@@ -151,11 +330,21 @@ pub(crate) struct Visibility<'a> {
     /// The notebooks in scope, without locked ones; `None` is every unlocked
     /// notebook.
     books: Option<HashSet<String>>,
+    /// The notes the person chose, when a task is limited to notes.
+    notes: Option<HashSet<String>>,
+    /// Where a task may write; `None` is wherever it can see.
+    write_books: Option<HashSet<String>>,
+    /// Where a task's new notes go.
+    new_note_book: Option<String>,
     locked_books: HashSet<String>,
     /// Tag names by ID, to find `#ai-exclude`.
     tag_names: HashMap<String, String>,
     /// The notes shown so far, in order.
     shown: std::cell::RefCell<Vec<String>>,
+    /// A task's read budget: the notes it has read, and the most it may.
+    budget: Option<(HashSet<String>, usize)>,
+    /// The notes a budgeted request has let through, once each.
+    spent: std::cell::RefCell<HashSet<String>>,
 }
 
 impl<'a> Visibility<'a> {
@@ -197,9 +386,14 @@ impl<'a> Visibility<'a> {
         Some(Visibility {
             store,
             books,
+            notes: scope.notes.clone(),
+            write_books: scope.write_books.clone(),
+            new_note_book: scope.new_note_book.clone(),
             locked_books,
             tag_names,
             shown: Default::default(),
+            budget: None,
+            spent: Default::default(),
         })
     }
 
@@ -211,6 +405,26 @@ impl<'a> Visibility<'a> {
             && self.books.as_ref().is_none_or(|books| books.contains(id))
     }
 
+    /// The notebook a task's new notes go in, when the person chose one.
+    pub fn new_note_book(&self) -> Option<&str> {
+        self.new_note_book.as_deref()
+    }
+
+    /// Whether a task may write into notebook `id` (a new note, a move, a
+    /// merge target). Narrower than [`Visibility::book_visible`] for a task
+    /// with a write scope.
+    pub fn book_writable(&self, id: &str) -> bool {
+        match &self.write_books {
+            None => self.book_visible(id),
+            Some(allowed) => {
+                allowed.contains(id)
+                    && DocType::of_id(id) == Some(DocType::Book)
+                    && id != TRASH_BOOK_ID
+                    && !self.locked_books.contains(id)
+            }
+        }
+    }
+
     /// Note `id`, when the agent may see it.
     pub fn note(&self, id: &str) -> Option<Note> {
         if DocType::of_id(id) != Some(DocType::Note) {
@@ -218,6 +432,9 @@ impl<'a> Visibility<'a> {
         }
         // Fail closed: a lock that can't be checked is a lock.
         if self.store.note_is_locked(id).unwrap_or(true) {
+            return None;
+        }
+        if self.notes.as_ref().is_some_and(|notes| !notes.contains(id)) {
             return None;
         }
         let note = self.store.note(id).ok()??;
@@ -234,9 +451,31 @@ impl<'a> Visibility<'a> {
         (!excluded).then_some(note)
     }
 
-    /// Whether the agent may see note `id`.
+    /// Limits this request to the notes left of a read budget: `read` are
+    /// the notes already shown, `max` the most one task may be shown.
+    pub fn limit_reads(&mut self, read: Vec<String>, max: usize) {
+        self.budget = Some((read.into_iter().collect(), max));
+    }
+
+    /// Whether the agent may see note `id`. With a read budget, a note not
+    /// read yet is let through only while the budget has room, so a list or
+    /// a search can't show more than the task may read.
     pub fn allows(&self, id: &str) -> bool {
-        self.note(id).is_some()
+        if self.note(id).is_none() {
+            return false;
+        }
+        let Some((read, max)) = &self.budget else {
+            return true;
+        };
+        let mut spent = self.spent.borrow_mut();
+        if read.contains(id) || spent.contains(id) {
+            return true;
+        }
+        if read.len() + spent.len() >= *max {
+            return false;
+        }
+        spent.insert(id.to_owned());
+        true
     }
 
     /// Notes note `id` as shown to the agent, for the Used notes list.

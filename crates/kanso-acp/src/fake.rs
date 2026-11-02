@@ -56,6 +56,11 @@ pub enum Script {
     Notes,
     /// Answers HTTP MCP is not supported; otherwise as [`Script::Notes`].
     NotesStdio,
+    /// An agent task: searches the MCP server for the task's last word,
+    /// proposes merging the notes found into one new note in the first
+    /// one's notebook (`kanso-propose-merge`), calls `kanso-task-done` and
+    /// answers "Done. <what the server said>".
+    Task,
 }
 
 impl Script {
@@ -81,6 +86,7 @@ impl Script {
             "flood" => Script::Flood(arg(1).parse().unwrap_or(1000)),
             "notes" => Script::Notes,
             "notes-stdio" => Script::NotesStdio,
+            "task" => Script::Task,
             "sleep" => {
                 std::thread::sleep(Duration::from_secs(600));
                 Script::Hang
@@ -185,6 +191,50 @@ fn mcp_call(server: &Value, method: &str, params: Value) -> Result<Value, String
         .map_err(|err| err.to_string())?;
     child.wait().ok();
     serde_json::from_str(&line).map_err(|err| err.to_string())
+}
+
+/// What [`Script::Task`] does for `text`, using `server`.
+fn do_task(server: &Value, text: &str) -> String {
+    let keyword = text
+        .split_whitespace()
+        .last()
+        .unwrap_or_default()
+        .trim_matches(|c: char| !c.is_alphanumeric());
+    let found = match mcp_call(
+        server,
+        "tools/call",
+        json!({ "name": "search-notes", "arguments": { "keyword": keyword } }),
+    ) {
+        Ok(found) => found,
+        Err(why) => return format!("the notes server failed: {why}"),
+    };
+    let notes: Vec<Value> = serde_json::from_str(&tool_text(&found)).unwrap_or_default();
+    let sources: Vec<Value> = notes
+        .iter()
+        .filter_map(|note| Some(json!({ "_id": note.get("_id")?, "_rev": note.get("_rev")? })))
+        .collect();
+    let book = notes
+        .first()
+        .and_then(|note| note.get("bookId"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let merged = mcp_call(
+        server,
+        "tools/call",
+        json!({ "name": "kanso-propose-merge", "arguments": {
+            "sources": sources, "bookId": book, "title": "Merged", "body": "All of it.",
+        } }),
+    )
+    .unwrap_or_default();
+    let said = tool_text(&merged);
+    let done = mcp_call(
+        server,
+        "tools/call",
+        json!({ "name": "kanso-task-done", "arguments": { "summary": "Merged them." } }),
+    )
+    .unwrap_or_default();
+    let _ = tool_text(&done);
+    format!("Done. {said}")
 }
 
 /// The text of a tool result.
@@ -338,6 +388,18 @@ impl<W: Write> Fake<W> {
                 let answer = match server {
                     Some(server) => answer_from_notes(&server, &question, turn),
                     None => format!("no notes server (turn {turn})"),
+                };
+                self.answer(&id, &session, &answer);
+            }
+            Script::Task => {
+                let server = self
+                    .sessions
+                    .iter()
+                    .find(|(id, _, _)| *id == session)
+                    .and_then(|(_, servers, _)| servers.get(0).cloned());
+                let answer = match server {
+                    Some(server) => do_task(&server, &text),
+                    None => "no notes server".to_owned(),
                 };
                 self.answer(&id, &session, &answer);
             }

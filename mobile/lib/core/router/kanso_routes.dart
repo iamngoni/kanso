@@ -67,6 +67,9 @@ abstract final class KansoRoutes {
   /// Ask the notes a question, a page on a phone and sheet on a tablet.
   static const String ask = '/ask';
 
+  /// Agent tasks: the AI proposes changes to notes, the person approves them.
+  static const String agentTasks = '/agent-tasks';
+
   /// Inbox Triage: a card for each note waiting in the Inbox.
   static const String triage = '/triage';
 

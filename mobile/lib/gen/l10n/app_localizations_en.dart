@@ -3238,16 +3238,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(origin, {
-      'ui': 'Edited in Kanso',
-      'api': 'Replaced through the API',
-      'sync': 'Replaced by sync',
-      'import': 'Replaced by an import',
-      'collab': 'Edited in a shared note',
-      'agent': 'Suggested by an agent, applied by you',
-      'plugin': 'Changed by a plugin',
-      'other': 'Saved version',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      origin,
+      {
+        'ui': 'Edited in Kanso',
+        'api': 'Replaced through the API',
+        'sync': 'Replaced by sync',
+        'import': 'Replaced by an import',
+        'collab': 'Edited in a shared note',
+        'agent': 'Suggested by an agent, applied by you',
+        'plugin': 'Changed by a plugin',
+        'other': 'Saved version',
+      },
+    );
     return '$_temp0';
   }
 
@@ -5022,4 +5025,239 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTroubleSettings => 'AI settings';
+
+  @override
+  String get agentTasksTitle => 'Agent tasks';
+
+  @override
+  String get agentTasksEntry => 'Agent task';
+
+  @override
+  String get noteListAskAgent => 'Ask an agent';
+
+  @override
+  String get agentTasksGoalLabel => 'What should the AI do?';
+
+  @override
+  String get agentTasksGoalHint => 'Merge my Lisbon trip notes into one plan';
+
+  @override
+  String get agentTasksStart => 'Start';
+
+  @override
+  String agentTasksChosenNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chosen notes',
+      one: '1 chosen note',
+    );
+    return 'Working on $_temp0';
+  }
+
+  @override
+  String get agentTasksEmptyTitle => 'No agent tasks yet';
+
+  @override
+  String get agentTasksEmptyMessage =>
+      'Give the AI a goal. It reads your notes and proposes changes. Nothing is written until you review and apply them.';
+
+  @override
+  String get agentTaskWorking => 'Working…';
+
+  @override
+  String get agentTaskWaiting => 'Waiting its turn';
+
+  @override
+  String get agentTaskNothing => 'The AI found nothing to change.';
+
+  @override
+  String agentTaskReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count changes to review',
+      one: '1 change to review',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentTaskApplied(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Applied $count changes',
+      one: 'Applied 1 change',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get agentTaskUndone => 'Undone';
+
+  @override
+  String agentTaskNotesRead(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes read',
+      one: '1 note read',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get agentTaskStop => 'Stop';
+
+  @override
+  String get agentTaskReview => 'Review';
+
+  @override
+  String get agentTaskAnswer => 'Answer';
+
+  @override
+  String get agentTaskSend => 'Send';
+
+  @override
+  String get agentTaskDismiss => 'Dismiss';
+
+  @override
+  String get agentTroubleTitle => 'The AI couldn\'t do that';
+
+  @override
+  String get agentTroubleOff =>
+      'Agent tasks are turned off. You can turn them on in Settings.';
+
+  @override
+  String get agentTroubleAiOff =>
+      'AI is turned off. You can turn it on in Settings.';
+
+  @override
+  String get agentTroubleGeneric =>
+      'Something went wrong reaching the AI. Check your connection and the AI settings, then try again.';
+
+  @override
+  String get agentTroubleTryAgain => 'Try again';
+
+  @override
+  String get agentTroubleSettings => 'AI settings';
+
+  @override
+  String get agentReviewTitle => 'Review changes';
+
+  @override
+  String agentReviewApply(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Apply $count changes',
+      one: 'Apply 1 change',
+      zero: 'Apply',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String agentReviewPosition(int number, int total) {
+    return '$number of $total';
+  }
+
+  @override
+  String get agentReviewKeep => 'Keep the original notes';
+
+  @override
+  String get agentReviewTrashed => 'The original notes move to the Trash.';
+
+  @override
+  String get agentReviewKept => 'The original notes stay where they are.';
+
+  @override
+  String get agentReviewChangedSince =>
+      'This note changed since the AI read it. Ticking it applies the change over yours.';
+
+  @override
+  String get agentReviewOutside => 'Not one of the notes you chose';
+
+  @override
+  String get agentReviewPublished => 'This note is published';
+
+  @override
+  String get agentReviewKindCreate => 'New note';
+
+  @override
+  String get agentReviewKindEdit => 'Edit';
+
+  @override
+  String get agentReviewKindMove => 'Move';
+
+  @override
+  String get agentReviewKindMerge => 'Merge';
+
+  @override
+  String get agentReviewFromAgent => 'From the AI';
+
+  @override
+  String get agentReviewNothing => 'The AI didn\'t propose any changes.';
+
+  @override
+  String get agentReviewUndo => 'Undo';
+
+  @override
+  String get agentSettingsTitle => 'Agent tasks';
+
+  @override
+  String get agentSettingsEnabled => 'Allow agent tasks';
+
+  @override
+  String get agentSettingsMayPropose => 'The AI may propose';
+
+  @override
+  String get agentSettingsNewNotes => 'New notes';
+
+  @override
+  String get agentSettingsEdits => 'Edits to notes';
+
+  @override
+  String get agentSettingsMoves => 'Moves to another notebook';
+
+  @override
+  String get agentSettingsMerges => 'Merging notes';
+
+  @override
+  String get agentSettingsTimeLimit => 'Time limit';
+
+  @override
+  String agentSettingsMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get agentSettingsMaxNotes => 'Notes it may read';
+
+  @override
+  String get agentSettingsAskAll => 'Ask before reading all notebooks';
+
+  @override
+  String get agentTasksNewNotesIn => 'New notes go in';
+
+  @override
+  String get agentTasksInbox => 'Inbox';
+
+  @override
+  String get agentTasksReadAllTitle => 'Let the AI read all your notebooks?';
+
+  @override
+  String get agentTasksReadAllBody =>
+      'No notes were chosen, so this task may read every notebook that is not locked. Locked notes and notes tagged #ai-exclude stay out of reach.';
+
+  @override
+  String get agentTasksReadAllConfirm => 'Read all notebooks';
+
+  @override
+  String get agentTasksReadAllCancel => 'Cancel';
+
+  @override
+  String get agentSettingsFooter =>
+      'An agent reads only notes that are not locked, not in the Trash and not tagged #ai-exclude. It never writes; you approve every change.';
 }

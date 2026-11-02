@@ -276,6 +276,11 @@ impl KansoAi {
     }
 
     #[frb(sync)]
+    pub fn agent_tasks(&self) -> super::agent_tasks::KansoAgentTasks {
+        super::agent_tasks::KansoAgentTasks(self.0.agent_tasks())
+    }
+
+    #[frb(sync)]
     pub fn conversation(&self) -> KansoAskConversation {
         KansoAskConversation(self.0.conversation())
     }

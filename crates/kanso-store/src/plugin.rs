@@ -45,6 +45,9 @@ pub struct PluginEdit {
     pub status: Option<String>,
     /// The plugin's own data on the note: `Some(None)` removes it.
     pub data: Option<Option<Value>>,
+    /// Move the note to this notebook (an agent's move, or a merge's source
+    /// going to the trash). Never set by a plugin.
+    pub book_id: Option<String>,
 }
 
 /// A note a plugin makes.
@@ -62,6 +65,66 @@ pub struct PluginWriter<'a> {
     /// Shown in history as the version's author.
     pub plugin_name: &'a str,
     pub batch: &'a str,
+}
+
+/// Who writes a batch: a plugin, or an agent whose changes the person
+/// approved. Both are applied and undone by the same code.
+#[derive(Clone, Copy, Debug)]
+pub enum BatchWriter<'a> {
+    Plugin(PluginWriter<'a>),
+    Agent {
+        /// Shown in history as the version's author ("Claude Agent").
+        agent: &'a str,
+        /// The batch ID, see [`agent_batch_id`].
+        batch: &'a str,
+    },
+}
+
+impl<'a> BatchWriter<'a> {
+    fn batch(&self) -> &'a str {
+        match self {
+            Self::Plugin(w) => w.batch,
+            Self::Agent { batch, .. } => batch,
+        }
+    }
+    fn author(&self) -> &'a str {
+        match self {
+            Self::Plugin(w) => w.plugin_name,
+            Self::Agent { agent, .. } => agent,
+        }
+    }
+    fn plugin_id(&self) -> &'a str {
+        match self {
+            Self::Plugin(w) => w.plugin_id,
+            Self::Agent { .. } => "",
+        }
+    }
+    fn origin(&self) -> Origin {
+        match self {
+            Self::Plugin(_) => Origin::Plugin,
+            Self::Agent { .. } => Origin::Agent,
+        }
+    }
+    fn origin_name(&self) -> &'static str {
+        match self {
+            Self::Plugin(_) => "plugin",
+            Self::Agent { .. } => "agent",
+        }
+    }
+    fn who(&self) -> &'static str {
+        match self {
+            Self::Plugin(_) => "a plugin",
+            Self::Agent { .. } => "an agent",
+        }
+    }
+}
+
+/// A fresh batch ID for an agent task: `agent:` and 12 random bytes in hex.
+pub fn agent_batch_id() -> String {
+    let mut bytes = [0u8; 12];
+    getrandom::fill(&mut bytes).expect("the system's random source");
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!("agent:{hex}")
 }
 
 /// What [`Store::apply_plugin_batch`] did.
@@ -88,6 +151,9 @@ fn merged(fields: &Map<String, Value>, edit: &PluginEdit, plugin_id: &str) -> Ma
     }
     if let Some(data) = &edit.data {
         set_plugin_data(&mut fields, plugin_id, data.clone());
+    }
+    if let Some(book) = &edit.book_id {
+        fields.insert("bookId".into(), book.clone().into());
     }
     fields
 }
@@ -120,15 +186,15 @@ pub fn plugin_data<'a>(fields: &'a Map<String, Value>, plugin_id: &str) -> Optio
 
 /// Refuses any plugin write to a note that is locked or in a locked
 /// notebook, or that isn't live.
-fn guard(tx: &rusqlite::Transaction, row: &Row) -> Result<()> {
+fn guard(tx: &rusqlite::Transaction, row: &Row, who: &str) -> Result<()> {
     if row.deleted || row.doc_type != DocType::Note {
         return Err(StoreError::NotFound);
     }
     let book = row.fields.get("bookId").and_then(Value::as_str);
     if row.fields.contains_key(LOCK_FIELD) || in_locked_book(tx, book)? {
-        return Err(StoreError::Invalid(
-            "The note is locked: a plugin can't change it.".into(),
-        ));
+        return Err(StoreError::Invalid(format!(
+            "The note is locked: {who} can't change it."
+        )));
     }
     Ok(())
 }
@@ -141,7 +207,7 @@ fn keep(
     id: &str,
     before: Option<(&str, &Map<String, Value>)>,
     rev: &str,
-    writer: PluginWriter,
+    writer: BatchWriter,
 ) -> Result<()> {
     let (old_rev, json) = match before {
         Some((old_rev, fields)) => (old_rev.to_owned(), serde_json::to_string(fields)?),
@@ -149,14 +215,15 @@ fn keep(
     };
     tx.execute(
         "INSERT INTO revisions (doc_id, rev, json, saved_at, origin, author, batch, batch_rev)
-         VALUES (?1, ?2, ?3, ?4, 'plugin', ?5, ?6, ?7)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             id,
             old_rev,
             json,
             crate::history::version_time(tx, id)?,
-            writer.plugin_name,
-            writer.batch,
+            writer.origin_name(),
+            writer.author(),
+            writer.batch(),
             rev
         ],
     )?;
@@ -166,6 +233,13 @@ fn keep(
         params![id, SNAPSHOTS_PER_DOC],
     )?;
     Ok(())
+}
+
+fn capitalised(s: &str) -> String {
+    let mut c = s.chars();
+    c.next()
+        .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
+        .unwrap_or_default()
 }
 
 impl Store {
@@ -181,15 +255,28 @@ impl Store {
         creates: &[PluginCreate],
         now_ms: i64,
     ) -> Result<PluginReport> {
+        self.apply_batch(BatchWriter::Plugin(writer), edits, creates, now_ms)
+    }
+
+    /// [`Store::apply_plugin_batch`] for either kind of writer. An agent's
+    /// batch writes with `Origin::Agent` and names the agent in each
+    /// replaced version's history entry.
+    pub fn apply_batch(
+        &self,
+        writer: BatchWriter,
+        edits: &[PluginEdit],
+        creates: &[PluginCreate],
+        now_ms: i64,
+    ) -> Result<PluginReport> {
         self.write(|tx, changes| {
             let mut report = PluginReport::default();
             for edit in edits {
                 let row = load_row(tx, &edit.id)?.ok_or(StoreError::NotFound)?;
-                guard(tx, &row)?;
+                guard(tx, &row, writer.who())?;
                 if row.rev != edit.base_rev {
                     return Err(StoreError::Conflict);
                 }
-                let mut fields = merged(&row.fields, edit, writer.plugin_id);
+                let mut fields = merged(&row.fields, edit, writer.plugin_id());
                 if fields == row.fields {
                     continue;
                 }
@@ -213,7 +300,7 @@ impl Store {
                     &fields,
                     Some(&row),
                     Synced::Keep,
-                    Origin::Plugin,
+                    writer.origin(),
                     changes,
                 )?;
                 report.changed.push(WriteResult {
@@ -229,9 +316,10 @@ impl Store {
                     || book.fields.contains_key(LOCK_FIELD)
                     || in_locked_book(tx, Some(&create.book_id))?
                 {
-                    return Err(StoreError::Invalid(
-                        "A plugin can't make notes in that notebook.".into(),
-                    ));
+                    return Err(StoreError::Invalid(format!(
+                        "{} can't make notes in that notebook.",
+                        capitalised(writer.who())
+                    )));
                 }
                 let id = fresh_id(tx, DocType::Note)?;
                 let mut fields = Map::new();
@@ -258,11 +346,19 @@ impl Store {
                     &fields,
                     None,
                     Synced::Keep,
-                    Origin::Plugin,
+                    writer.origin(),
                     changes,
                 )?;
                 keep(tx, &id, None, &rev, writer)?;
                 report.created.push(WriteResult { id, rev });
+            }
+            if matches!(writer, BatchWriter::Agent { .. }) {
+                for done in &report.changed {
+                    tx.execute(
+                        "UPDATE revisions SET agent = ?1 WHERE doc_id = ?2 AND origin = 'agent' AND agent IS NULL",
+                        params![writer.author(), done.id],
+                    )?;
+                }
             }
             Ok(report)
         })
@@ -274,11 +370,33 @@ impl Store {
     /// gone): those are left as they are and reported. A batch is undone
     /// once.
     pub fn undo_plugin_batch(&self, batch: &str, now_ms: i64) -> Result<crate::UndoReport> {
+        self.undo_batch(batch, now_ms)
+    }
+
+    /// [`Store::undo_plugin_batch`] for a plugin's or an agent's batch. A
+    /// restored note is stamped `updatedAt = now_ms`, never its old time.
+    pub fn undo_batch(&self, batch: &str, now_ms: i64) -> Result<crate::UndoReport> {
+        self.undo_batch_inner(batch, now_ms, false)
+    }
+
+    /// [`Store::undo_batch`] for an agent task's batch: a note the batch made
+    /// goes to the Trash instead of being deleted, so Undo never destroys
+    /// text for good.
+    pub fn undo_agent_batch(&self, batch: &str, now_ms: i64) -> Result<crate::UndoReport> {
+        self.undo_batch_inner(batch, now_ms, true)
+    }
+
+    fn undo_batch_inner(
+        &self,
+        batch: &str,
+        now_ms: i64,
+        trash_created: bool,
+    ) -> Result<crate::UndoReport> {
         self.write(|tx, changes| {
             let kept: Vec<(String, String, Option<String>)> = tx
                 .prepare(
                     "SELECT doc_id, json, batch_rev FROM revisions
-                     WHERE batch = ? AND origin = 'plugin' ORDER BY id",
+                     WHERE batch = ? AND origin IN ('plugin', 'agent') ORDER BY id",
                 )?
                 .query_map([batch], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
                 .collect::<rusqlite::Result<_>>()?;
@@ -300,8 +418,42 @@ impl Store {
                     report.skipped.push(Skipped { id, title });
                     continue;
                 };
+                // A notebook locked since the batch was applied: the note is
+                // left alone, as for any write.
+                if guard(tx, &row, "Kanso").is_err() {
+                    let title = title_of(&row.fields);
+                    report.skipped.push(Skipped { id, title });
+                    continue;
+                }
                 if json == CREATED {
-                    crate::write::delete_row(tx, &id, &row, Origin::Ui, changes)?;
+                    if trash_created {
+                        let mut fields = row.fields.clone();
+                        fields.insert("bookId".into(), TRASH_BOOK_ID.into());
+                        fields.insert("updatedAt".into(), now_ms.into());
+                        let fields = crate::validate::normalize(
+                            DocType::Note,
+                            &id,
+                            fields,
+                            Some(&row.fields),
+                            now_ms,
+                            crate::validate::Refs::Skip,
+                        )?;
+                        let rev = next_rev(Some(&row), &Value::Object(fields.clone()))?;
+                        store_row(
+                            tx,
+                            &id,
+                            DocType::Note,
+                            &rev,
+                            false,
+                            &fields,
+                            Some(&row),
+                            Synced::Keep,
+                            Origin::Ui,
+                            changes,
+                        )?;
+                    } else {
+                        crate::write::delete_row(tx, &id, &row, Origin::Ui, changes)?;
+                    }
                     report.restored.push(id);
                     continue;
                 }
@@ -310,7 +462,7 @@ impl Store {
                     _ => Map::new(),
                 };
                 let mut fields = row.fields.clone();
-                for key in ["title", "body", "tags", "status", PLUGIN_DATA_FIELD] {
+                for key in ["title", "body", "tags", "status", "bookId", PLUGIN_DATA_FIELD] {
                     match before.get(key) {
                         Some(value) => fields.insert(key.into(), value.clone()),
                         None => fields.remove(key),
@@ -346,7 +498,7 @@ impl Store {
             )?;
             // The created markers stood for no version of their own.
             tx.execute(
-                "DELETE FROM revisions WHERE origin = 'plugin' AND json = ? AND batch IS NULL",
+                "DELETE FROM revisions WHERE origin IN ('plugin', 'agent') AND json = ? AND batch IS NULL",
                 [CREATED],
             )?;
             Ok(report)
@@ -401,7 +553,7 @@ impl Store {
             let ids = conn
                 .prepare(
                     "SELECT DISTINCT doc_id FROM revisions
-                     WHERE batch = ? AND origin = 'plugin' ORDER BY id",
+                     WHERE batch = ? AND origin IN ('plugin', 'agent') ORDER BY id",
                 )?
                 .query_map([batch], |row| row.get(0))?
                 .collect::<rusqlite::Result<_>>()?;

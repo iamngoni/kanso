@@ -90,7 +90,7 @@ kanso-store.workspace = true
 # Lock sessions, account flows and sync scheduling, without a window (issue #48).
 # `discovery`: the graph, the related-notes model and its download, which the
 # phones share (Model2Vec static embeddings, computed on this device, MIT).
-kanso-engine = { workspace = true, features = ["discovery"] }
+kanso-engine = { workspace = true, features = ["discovery", "agent-task"] }
 # The types `[[` autocomplete answers the text editor in. Pinned to the
 # version gpui-base uses.
 lsp-types = "=0.97.0"
@@ -117,6 +117,8 @@ zeroize.workspace = true
 
 [dev-dependencies]
 base64.workspace = true
+# Runs a scripted model's tool calls (agent_task_tests.rs).
+tokio = { version = "1", features = ["rt"] }
 # TestAuthenticator: a software passkey MemoryServer verifies.
 kanso-sync = { workspace = true, features = ["test-support"] }
 # The generators of the engine's view-state tests.

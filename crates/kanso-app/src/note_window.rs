@@ -660,6 +660,8 @@ impl NoteWindow {
                 self.editor.update(cx, |e, cx| e.set_status(status, cx))
             }
             NoteCommand::Trash => self.editor.update(cx, |e, cx| e.trash(cx)),
+            // Only the menu of several selected notes offers it.
+            NoteCommand::AskAgent => {}
             NoteCommand::ShowHistory => self.show_history(window, cx),
             NoteCommand::Publish => {
                 crate::publish::open_publish(self.editor.clone(), window, cx);

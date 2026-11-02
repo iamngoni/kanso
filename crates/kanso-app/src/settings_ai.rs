@@ -969,6 +969,95 @@ impl AiPage {
         rows
     }
 
+    /// Settings > AI > Agent tasks: what a task may propose by default, how
+    /// long it may run, how many notes it may read.
+    fn agent_task_rows(&self, ai: &AiSettings) -> Vec<Row> {
+        use kanso_engine::agent_task::{MAX_NOTES_CHOICES, TIME_LIMITS_MIN};
+        let tasks = ai.agent_tasks.normalised();
+        let switch = |id: &'static str, on: bool, set: fn(&mut kanso_engine::agent_task::settings::AgentTaskSettings, bool)| {
+            div().debug_selector(move || id.into()).child(
+                Switch::new(id).checked(on).on_click(move |on, _, cx| {
+                    AppState::update_config(cx, |config| set(&mut config.ai.agent_tasks, *on));
+                }),
+            )
+        };
+        let choice = |id: &'static str, label: String, options: Vec<ChoiceOption>| {
+            Button::new(id)
+                .debug_selector(move || id.into())
+                .outline()
+                .small()
+                .label(label)
+                .dropdown_menu(move |mut menu, _, _| {
+                    for (text, checked, pick) in options.clone() {
+                        menu = menu.item(
+                            PopupMenuItem::new(text)
+                                .checked(checked)
+                                .on_click(move |_, _, cx| pick(cx)),
+                        );
+                    }
+                    menu
+                })
+        };
+        let time_options = TIME_LIMITS_MIN
+            .iter()
+            .map(|minutes| {
+                let minutes = *minutes;
+                let pick: Arc<dyn Fn(&mut App) + Send + Sync> = Arc::new(move |cx| {
+                    AppState::update_config(cx, |config| {
+                        config.ai.agent_tasks.time_limit_minutes = minutes
+                    });
+                });
+                (
+                    format!("{minutes} minutes"),
+                    tasks.time_limit_minutes == minutes,
+                    pick,
+                )
+            })
+            .collect();
+        let note_options = MAX_NOTES_CHOICES
+            .iter()
+            .map(|notes| {
+                let notes = *notes;
+                let pick: Arc<dyn Fn(&mut App) + Send + Sync> = Arc::new(move |cx| {
+                    AppState::update_config(cx, |config| config.ai.agent_tasks.max_notes = notes);
+                });
+                (
+                    crate::text_stats::format_count(notes),
+                    tasks.max_notes == notes,
+                    pick,
+                )
+            })
+            .collect();
+        vec![
+            Row::new(gpui_kit::assets::IconName::FilePlus, "Agents may propose new notes")
+                .detail("The defaults for the New agent task sheet. A task never writes: you review every change and apply it, with one Undo.")
+                .trailing(switch("ai-task-new", tasks.new_notes, |t, on| t.new_notes = on)),
+            Row::new(gpui_kit::assets::IconName::Pencil, "Agents may propose edits")
+                .trailing(switch("ai-task-edits", tasks.edits, |t, on| t.edits = on)),
+            Row::new(gpui_kit::assets::IconName::Folder, "Agents may propose moves between notebooks")
+                .trailing(switch("ai-task-moves", tasks.moves, |t, on| t.moves = on)),
+            Row::new(gpui_kit::assets::IconName::Merge, "Agents may propose merges")
+                .detail("A merge combines notes into one; the notes it combined move to the Trash.")
+                .trailing(switch("ai-task-merges", tasks.merges, |t, on| t.merges = on)),
+            Row::new(gpui_kit::assets::IconName::Clock, "Time limit").trailing(choice(
+                "ai-task-time",
+                format!("{} minutes", tasks.time_limit_minutes),
+                time_options,
+            )),
+            Row::new(gpui_kit::assets::IconName::FileText, "Most notes one task may read").trailing(
+                choice(
+                    "ai-task-notes",
+                    crate::text_stats::format_count(tasks.max_notes),
+                    note_options,
+                ),
+            ),
+            Row::new(gpui_kit::assets::IconName::ShieldCheck, "Ask before starting a task that can read all notebooks")
+                .trailing(switch("ai-task-ask-all", tasks.ask_before_reading_all, |t, on| {
+                    t.ask_before_reading_all = on
+                })),
+        ]
+    }
+
     fn custom_rows(&self) -> Vec<Row> {
         vec![
             Row::new(gpui_kit::assets::IconName::Command, "Command")
@@ -1319,6 +1408,13 @@ impl Render for AiPage {
         }
         let mut page = v_flex().w_full().child(section("AI", rows, colors));
         if ai.enabled {
+            page = page.child(v_flex().mt(px(12.)).child(section(
+                "Agent tasks",
+                self.agent_task_rows(&ai),
+                colors,
+            )));
+        }
+        if ai.enabled {
             let lines = if ai.backend == AiBackend::Agent {
                 vec![
                     crate::ai_agent::requests_line(&ai.agent),
@@ -1341,6 +1437,9 @@ impl Render for AiPage {
         page
     }
 }
+
+/// One entry of an agent-task choice menu: label, checked, and what choosing does.
+type ChoiceOption = (String, bool, Arc<dyn Fn(&mut App) + Send + Sync>);
 
 #[cfg(test)]
 mod tests {

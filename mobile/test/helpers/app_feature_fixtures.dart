@@ -4,6 +4,7 @@
 
 import 'dart:async';
 
+import 'package:kanso/agent_tasks/state/agent_settings/agent_settings_cubit.dart';
 import 'package:kanso/ai_settings/state/ai_settings/ai_settings_bloc.dart';
 import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/ask/state/ask/ask_bloc.dart';
@@ -15,6 +16,7 @@ import 'package:kanso/injection.dart';
 
 import '../dictation/helpers/fake_dictation_text_rules.dart';
 import '../dictation/helpers/mock_dictation_repository.dart';
+import 'fixture_agent_tasks_repository.dart';
 import 'fixture_ai_repository.dart';
 
 /// The app-wide AI and dictation dependencies used when a test pumps App.
@@ -38,6 +40,7 @@ class AppFeatureFixtures {
   /// Registers the dependencies the app's editor scope resolves at startup.
   void register() {
     _unregister<AiSettingsBloc>();
+    _unregister<AgentSettingsCubit>();
     _unregister<AskBloc>();
     _unregister<AssistBloc>();
     if (getIt.isRegistered<AiRepository>()) {
@@ -50,6 +53,9 @@ class AppFeatureFixtures {
     getIt
       ..registerFactory<AiStatusBloc>(() => status)
       ..registerFactory<AiSettingsBloc>(() => AiSettingsBloc(ai))
+      ..registerFactory<AgentSettingsCubit>(
+        () => AgentSettingsCubit(FixtureAgentTasksRepository()),
+      )
       ..registerFactory<AskBloc>(() => AskBloc(ai))
       ..registerFactory<AssistBloc>(() => AssistBloc(ai));
     if (getIt.isRegistered<DictationBloc>()) {
@@ -73,6 +79,7 @@ class AppFeatureFixtures {
     await ai.close();
     dictation.close();
     _unregister<AiSettingsBloc>();
+    _unregister<AgentSettingsCubit>();
     _unregister<AskBloc>();
     _unregister<AssistBloc>();
     _unregister<AiRepository>();

@@ -125,6 +125,9 @@ pub fn notes_access(cx: &mut App) -> Option<NotesAccess> {
 /// agent or backend changed, or Kanso is quitting.
 pub fn stop_agents(cx: &mut App) {
     kanso_ai::agent::shutdown();
+    if let Some(services) = cx.try_global::<crate::services::Services>() {
+        services.tasks.shutdown();
+    }
     crate::services::end_agent_access(cx);
 }
 

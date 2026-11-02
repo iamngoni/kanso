@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../agent_tasks/views/widgets/agent_settings_section.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
@@ -169,6 +170,7 @@ class _AiSettingsFormState extends State<AiSettingsForm> {
             ),
           ),
         ],
+        const AgentSettingsSection(),
         if (settings.privacy.isNotEmpty) ...<Widget>[
           const SizedBox(height: KansoSpacing.lg),
           AiPrivacyNote(text: settings.privacy),

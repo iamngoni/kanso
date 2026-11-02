@@ -61,6 +61,11 @@ class AskPane extends StatelessWidget {
               ),
               title: l10n.askTitle,
               trailing: <Widget>[
+                KansoIconButton(
+                  icon: KansoIcons.listChecks,
+                  semanticLabel: l10n.agentTasksTitle,
+                  onPressed: () => context.push(KansoRoutes.agentTasks),
+                ),
                 if (state.turns.isNotEmpty)
                   KansoIconButton(
                     icon: KansoIcons.circleX,

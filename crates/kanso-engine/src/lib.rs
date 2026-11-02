@@ -62,6 +62,8 @@
 //! alone; tests use [`MemorySecrets`].
 
 pub mod account;
+#[cfg(feature = "agent-task")]
+pub mod agent_task;
 #[cfg(feature = "ai")]
 pub mod ask;
 #[cfg(feature = "ai")]

@@ -5,6 +5,7 @@
 
 import 'api/account.dart';
 import 'api/account_settings.dart';
+import 'api/agent_tasks.dart';
 import 'api/ai.dart';
 import 'api/approvals.dart';
 import 'api/diagnostics.dart';
@@ -49,6 +50,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoAccountSettingsPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettingsPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoAgentTasksPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasksPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoAiPtr => wire
@@ -130,6 +135,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAccountSettings
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAgentTasks
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
     dynamic raw,
   );
 
@@ -244,6 +255,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAccountSettings
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAgentTasks
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
     dynamic raw,
   );
 
@@ -364,6 +381,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAccountSettings
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
+    dynamic raw,
+  );
+
+  @protected
+  KansoAgentTasks
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
     dynamic raw,
   );
 
@@ -545,6 +568,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AccountStep dco_decode_account_step(dynamic raw);
 
   @protected
+  AgentTaskPrefs dco_decode_agent_task_prefs(dynamic raw);
+
+  @protected
   AiAction dco_decode_ai_action(dynamic raw);
 
   @protected
@@ -609,6 +635,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AccountState dco_decode_box_autoadd_account_state(dynamic raw);
+
+  @protected
+  AgentTaskPrefs dco_decode_box_autoadd_agent_task_prefs(dynamic raw);
 
   @protected
   AiSettingsInput dco_decode_box_autoadd_ai_settings_input(dynamic raw);
@@ -1243,6 +1272,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PreviewSourcedBlock> dco_decode_list_preview_sourced_block(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_u_32_loose(dynamic raw);
+
+  @protected
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
 
   @protected
@@ -1335,10 +1367,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<TagTreeRow> dco_decode_list_tag_tree_row(dynamic raw);
 
   @protected
+  List<TaskCard> dco_decode_list_task_card(dynamic raw);
+
+  @protected
   List<TaskItem> dco_decode_list_task_item(dynamic raw);
 
   @protected
   List<TaskSection> dco_decode_list_task_section(dynamic raw);
+
+  @protected
+  List<TaskView> dco_decode_list_task_view(dynamic raw);
 
   @protected
   List<TemplateRow> dco_decode_list_template_row(dynamic raw);
@@ -1940,6 +1978,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TaskBoard dco_decode_task_board(dynamic raw);
 
   @protected
+  TaskCard dco_decode_task_card(dynamic raw);
+
+  @protected
   TaskGroupKind dco_decode_task_group_kind(dynamic raw);
 
   @protected
@@ -1952,7 +1993,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TaskPlace dco_decode_task_place(dynamic raw);
 
   @protected
+  TaskReview dco_decode_task_review(dynamic raw);
+
+  @protected
   TaskSection dco_decode_task_section(dynamic raw);
+
+  @protected
+  TaskView dco_decode_task_view(dynamic raw);
 
   @protected
   TemplateRow dco_decode_template_row(dynamic raw);
@@ -2047,6 +2094,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAccountSettings
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAgentTasks
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
     SseDeserializer deserializer,
   );
 
@@ -2161,6 +2214,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAccountSettings
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAgentTasks
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
     SseDeserializer deserializer,
   );
 
@@ -2281,6 +2340,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAccountSettings
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoAgentTasks
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
     SseDeserializer deserializer,
   );
 
@@ -2468,6 +2533,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AccountStep sse_decode_account_step(SseDeserializer deserializer);
 
   @protected
+  AgentTaskPrefs sse_decode_agent_task_prefs(SseDeserializer deserializer);
+
+  @protected
   AiAction sse_decode_ai_action(SseDeserializer deserializer);
 
   @protected
@@ -2532,6 +2600,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AccountState sse_decode_box_autoadd_account_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AgentTaskPrefs sse_decode_box_autoadd_agent_task_prefs(
     SseDeserializer deserializer,
   );
 
@@ -3282,6 +3355,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<int> sse_decode_list_prim_u_32_loose(SseDeserializer deserializer);
+
+  @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
 
   @protected
@@ -3400,10 +3476,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<TagTreeRow> sse_decode_list_tag_tree_row(SseDeserializer deserializer);
 
   @protected
+  List<TaskCard> sse_decode_list_task_card(SseDeserializer deserializer);
+
+  @protected
   List<TaskItem> sse_decode_list_task_item(SseDeserializer deserializer);
 
   @protected
   List<TaskSection> sse_decode_list_task_section(SseDeserializer deserializer);
+
+  @protected
+  List<TaskView> sse_decode_list_task_view(SseDeserializer deserializer);
 
   @protected
   List<TemplateRow> sse_decode_list_template_row(SseDeserializer deserializer);
@@ -4077,6 +4159,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TaskBoard sse_decode_task_board(SseDeserializer deserializer);
 
   @protected
+  TaskCard sse_decode_task_card(SseDeserializer deserializer);
+
+  @protected
   TaskGroupKind sse_decode_task_group_kind(SseDeserializer deserializer);
 
   @protected
@@ -4089,7 +4174,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TaskPlace sse_decode_task_place(SseDeserializer deserializer);
 
   @protected
+  TaskReview sse_decode_task_review(SseDeserializer deserializer);
+
+  @protected
   TaskSection sse_decode_task_section(SseDeserializer deserializer);
+
+  @protected
+  TaskView sse_decode_task_view(SseDeserializer deserializer);
 
   @protected
   TemplateRow sse_decode_template_row(SseDeserializer deserializer);
@@ -4189,6 +4280,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
     KansoAccountSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
+    KansoAgentTasks self,
     SseSerializer serializer,
   );
 
@@ -4322,6 +4420,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
     KansoAccountSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
+    KansoAgentTasks self,
     SseSerializer serializer,
   );
 
@@ -4461,6 +4566,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings(
     KansoAccountSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
+    KansoAgentTasks self,
     SseSerializer serializer,
   );
 
@@ -4683,6 +4795,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_account_step(AccountStep self, SseSerializer serializer);
 
   @protected
+  void sse_encode_agent_task_prefs(
+    AgentTaskPrefs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_ai_action(AiAction self, SseSerializer serializer);
 
   @protected
@@ -4766,6 +4884,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_account_state(
     AccountState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_agent_task_prefs(
+    AgentTaskPrefs self,
     SseSerializer serializer,
   );
 
@@ -5766,6 +5890,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_prim_u_32_loose(
+    List<int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_32_strict(
     Uint32List self,
     SseSerializer serializer,
@@ -5925,6 +6055,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_task_card(List<TaskCard> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_task_item(List<TaskItem> self, SseSerializer serializer);
 
   @protected
@@ -5932,6 +6065,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     List<TaskSection> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_task_view(List<TaskView> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_template_row(
@@ -6765,6 +6901,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_task_board(TaskBoard self, SseSerializer serializer);
 
   @protected
+  void sse_encode_task_card(TaskCard self, SseSerializer serializer);
+
+  @protected
   void sse_encode_task_group_kind(TaskGroupKind self, SseSerializer serializer);
 
   @protected
@@ -6777,7 +6916,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_task_place(TaskPlace self, SseSerializer serializer);
 
   @protected
+  void sse_encode_task_review(TaskReview self, SseSerializer serializer);
+
+  @protected
   void sse_encode_task_section(TaskSection self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_task_view(TaskView self, SseSerializer serializer);
 
   @protected
   void sse_encode_template_row(TemplateRow self, SseSerializer serializer);
@@ -6947,6 +7092,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettings =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccountSettingsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasksPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasksPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasksPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasks =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAgentTasksPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

@@ -15,9 +15,10 @@
 //! `patch-note`, `update-note` and `create-note`, which stage a change in the
 //! review queue (`suggest.rs`) and write nothing.
 
-mod schema;
-mod suggest;
-mod tools;
+pub(crate) mod schema;
+pub(crate) mod suggest;
+pub(crate) mod task;
+pub(crate) mod tools;
 
 use axum::body::Bytes;
 use axum::extract::State;
@@ -236,7 +237,7 @@ fn call(
         "tools/list" => match caller {
             Caller::Full => Ok(json!({ "tools": schema::definitions() })),
             Caller::Agent { scope, .. } => {
-                let offered: Vec<&Value> = schema::definitions()
+                let offered: Vec<&Value> = schema::agent_definitions()
                     .as_array()
                     .into_iter()
                     .flatten()
@@ -255,27 +256,13 @@ fn call(
             })?;
             match caller {
                 Caller::Full => Ok(tools::call(state, None, name, param("arguments"))),
-                Caller::Agent { token, scope } => {
-                    if !scope.allows_tool(name) {
-                        return Ok(tools::error_result(READ_ONLY));
-                    }
-                    if !state.tokens.charge(*token) {
-                        return Ok(tools::error_result(
-                            "This question has used as many note lookups as it may. Answer from what you have read.",
-                        ));
-                    }
-                    let Some(visible) = crate::scope::Visibility::new(&state.store, scope) else {
-                        return Ok(tools::error_result("Couldn't read the notes."));
-                    };
-                    let answer = if crate::scope::SUGGEST_TOOLS.contains(&name) {
-                        // Staged for review; the store is only read.
-                        suggest::call(state, *token, scope, &visible, name, param("arguments"))
-                    } else {
-                        tools::call(state, Some(&visible), name, param("arguments"))
-                    };
-                    state.tokens.record(*token, &visible.shown());
-                    Ok(answer)
-                }
+                Caller::Agent { token, scope } => Ok(crate::agent_tools::call_with_state(
+                    state,
+                    *token,
+                    scope,
+                    name,
+                    param("arguments"),
+                )),
             }
         }
         "resources/list" => Ok(json!({ "resources": [] })),

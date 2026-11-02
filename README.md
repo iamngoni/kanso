@@ -328,6 +328,17 @@ Grammar**, **Continue Writing** and **Summarize Selection**: each suggests new t
 **Accept** or **Discard**. Locked notes, notes in the trash and notes tagged `#ai-exclude` are never
 sent, and a feature on such a note sends nothing.
 
+**Agent tasks.** **Agent Task…** (File menu and the command palette, or **Ask an Agent About N Notes…**
+on a selection) gives the AI a goal such as "merge my Lisbon trip notes into one plan". It reads
+the notes you allow and proposes new notes, edits, moves and merges, and writes nothing. When it
+finishes, the Agents tab lists the changes as cards you tick and **Apply** in one step; **Undo
+Agent Task** (also 30 seconds in the status line) takes them all back, and each note's history
+names the agent. Changes are kept in memory only, never synced, and a note that changed since the
+agent read it is flagged. A task stops after 20 minutes or 200 tool calls, and at most two run at
+once. Locked notes, the trash and `#ai-exclude` notes are never readable, and a task may only touch
+notes it was allowed to read. On the phone, tasks run with an API key (Ask page › Agent tasks).
+Settings › AI › Agent tasks turns them off or limits what an agent may propose.
+
 **Answers come from** one of two places, chosen in Settings › AI:
 
 - **A provider you have a key for**, or a model on this computer or your network (Ollama, LM Studio

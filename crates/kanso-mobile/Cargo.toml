@@ -23,7 +23,7 @@ kanso-core.workspace = true
 # The highlighter (`highlight`, with the grammars for fenced code) is the
 # phones' editor colours, and `discovery` their related notes, graph and the
 # words in images.
-kanso-engine = { workspace = true, features = ["discovery"] }
+kanso-engine = { workspace = true, features = ["discovery", "agent-task"] }
 # Importing: another app's export, or a folder of Markdown, and opening files.
 kanso-import.workspace = true
 # The shared anonymous usage count (docs/METRICS.md), as on the desktop.
@@ -33,6 +33,7 @@ kanso-metrics.workspace = true
 kanso-gallery.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true
+kanso-server.workspace = true
 # Without the desktop Keychain: secrets go through `Secrets`, and the phones'
 # stores are in `secrets`.
 kanso-sync = { path = "../kanso-sync", default-features = false }

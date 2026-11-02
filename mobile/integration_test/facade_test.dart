@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../test/core/bridge/suites/account_settings_suite.dart';
 import '../test/core/bridge/suites/account_suite.dart';
+import '../test/core/bridge/suites/agent_tasks_suite.dart';
 import '../test/core/bridge/suites/ai_suite.dart';
 import '../test/core/bridge/suites/approvals_suite.dart';
 import '../test/core/bridge/suites/boards_suite.dart';
@@ -82,6 +83,7 @@ void main() {
   diagnosticsSuite(openDeviceLibrary);
   accountSuite(openDeviceLibrary);
   accountSettingsSuite(openDeviceLibrary);
+  agentTasksSuite(openDeviceLibrary);
   aiSuite(openDeviceLibrary);
   approvalsSuite(openDeviceLibrary);
   sharedSuite(openDeviceLibrary);

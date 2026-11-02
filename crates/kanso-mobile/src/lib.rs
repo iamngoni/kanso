@@ -88,6 +88,8 @@ mod account_provider;
 mod account_runtime;
 mod account_settings;
 mod actions;
+mod agent_tasks;
+mod agent_tasks_model;
 mod ai;
 mod ai_model;
 mod approvals;
@@ -164,6 +166,8 @@ mod word_goals;
 pub use account::{AccountHandle, check_new_password};
 pub use account_model::*;
 pub use account_settings::AccountSettings;
+pub use agent_tasks::AgentTasks;
+pub use agent_tasks_model::*;
 pub use ai::{
     AI_OFF, AiHandle, AiRun, AskConversation, CITATION_PREFIX, KEPT_OUT, NOTHING_MATCHES,
     ProviderMaker,

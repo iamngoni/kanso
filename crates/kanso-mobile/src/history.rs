@@ -10,7 +10,7 @@
 use kanso_core::model::LOCK_FIELD;
 use kanso_core::{Note, now_ms};
 use kanso_engine::history::diff::{self, Hunk, LineKind};
-use kanso_engine::history::{authors_label, origin_label};
+use kanso_engine::history::{authors_label, version_label};
 use kanso_engine::lock::LockView;
 use kanso_engine::text::byte_to_utf16;
 use kanso_store::{Origin, Put, Revision};
@@ -170,7 +170,11 @@ impl Library {
         Some(NoteVersion {
             rev: revision.rev,
             saved_at: revision.saved_at,
-            origin_label: origin_label(&revision.origin).to_owned(),
+            origin_label: version_label(
+                &revision.origin,
+                revision.agent.as_deref(),
+                revision.batch.as_deref(),
+            ),
             origin: revision.origin,
             authors: authors_label(revision.author.as_deref()),
             agent: revision.agent,

@@ -20,7 +20,7 @@ use crate::grouping::as_title;
 use crate::history_diff::{Hunk, hunks};
 use crate::theme::Colors;
 use crate::zoom::px;
-use kanso_engine::history::{authors_label, origin_label};
+use kanso_engine::history::{authors_label, version_label};
 
 /// The dialog's width and its body's height, and the width of its list of
 /// versions.
@@ -254,7 +254,11 @@ impl Render for HistoryView {
                             .text_size(px(12.))
                             .line_height(px(16.))
                             .text_color(colors.quiet(selected))
-                            .child(origin_label(&revision.origin)),
+                            .child(version_label(
+                                &revision.origin,
+                                revision.agent.as_deref(),
+                                revision.batch.as_deref(),
+                            )),
                     )
                     .when_some(authors_label(revision.author.as_deref()), |el, authors| {
                         el.child(

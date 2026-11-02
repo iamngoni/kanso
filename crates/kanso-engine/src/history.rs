@@ -18,6 +18,17 @@ pub fn origin_label(origin: &str) -> &'static str {
     }
 }
 
+/// [`origin_label`], except that a version an agent task replaced says so:
+/// "Before Claude Agent's change (agent task)". Pure.
+pub fn version_label(origin: &str, agent: Option<&str>, batch: Option<&str>) -> String {
+    match (origin, agent.map(str::trim).filter(|a| !a.is_empty())) {
+        ("agent", Some(agent)) if batch.is_some_and(|b| b.starts_with("agent:")) => {
+            format!("Before {agent}'s change (agent task)")
+        }
+        _ => origin_label(origin).to_owned(),
+    }
+}
+
 /// "by user2, user3": who made a version of a shared note, from names
 /// listed with commas; each once, in the order first named. `None` when
 /// nobody is named. Pure.
@@ -33,8 +44,25 @@ pub fn authors_label<'a>(names: impl IntoIterator<Item = &'a str>) -> Option<Str
 
 #[cfg(test)]
 mod tests {
-    use super::{authors_label, origin_label};
+    use super::{authors_label, origin_label, version_label};
     use proptest::prelude::*;
+
+    #[test]
+    fn an_agent_task_version_is_labelled_for_the_task() {
+        assert_eq!(
+            version_label("agent", Some("Claude Agent"), Some("agent:ab12")),
+            "Before Claude Agent's change (agent task)"
+        );
+        // A suggestion from Ask keeps its own words.
+        assert_eq!(
+            version_label("agent", Some("Claude Agent"), None),
+            origin_label("agent")
+        );
+        assert_eq!(
+            version_label("plugin", None, Some("plugin:x")),
+            origin_label("plugin")
+        );
+    }
 
     #[test]
     fn versions_name_who_made_them() {

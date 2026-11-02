@@ -95,6 +95,9 @@ pub struct ReviewSheet {
     /// The last thing that happened, or why Apply refused.
     notice: Option<String>,
     diffs: HashMap<ChangeId, Diff>,
+    /// Shown inside the agent review sheet: no introduction and nothing at
+    /// all while no suggestion waits.
+    embedded: bool,
     _watch: Task<()>,
 }
 
@@ -115,8 +118,16 @@ impl ReviewSheet {
             settled: HashSet::new(),
             notice: None,
             diffs: HashMap::new(),
+            embedded: false,
             _watch: watch,
         }
+    }
+
+    /// The sheet as a section of the agent review sheet.
+    pub fn embedded(queue: ReviewQueue, store: Arc<Store>, cx: &mut Context<Self>) -> Self {
+        let mut sheet = ReviewSheet::new(queue, store, cx);
+        sheet.embedded = true;
+        sheet
     }
 
     /// Applies suggestion `id`: writes it as the agent's edit, once. A note
@@ -378,15 +389,31 @@ impl Render for ReviewSheet {
             .enumerate()
             .map(|(ix, change)| self.render_card(ix, change, colors, mono, cx))
             .collect();
+        if self.embedded && cards.is_empty() {
+            return div().into_any_element();
+        }
+        let embedded = self.embedded;
         v_flex()
             .gap(px(10.))
-            .child(
-                div()
-                    .text_size(px(12.5))
-                    .line_height(px(18.))
-                    .text_color(colors.text_secondary)
-                    .child("Nothing changes until you apply a suggestion. Suggestions are kept in memory for an hour and are gone when Kanso quits."),
-            )
+            .when(embedded, |el| {
+                el.child(
+                    div()
+                        .pt(px(4.))
+                        .text_size(px(13.))
+                        .font_semibold()
+                        .text_color(colors.text)
+                        .child("Suggested while you asked"),
+                )
+            })
+            .when(!embedded, |el| {
+                el.child(
+                    div()
+                        .text_size(px(12.5))
+                        .line_height(px(18.))
+                        .text_color(colors.text_secondary)
+                        .child("Nothing changes until you apply a suggestion. Suggestions are kept in memory for an hour and are gone when Kanso quits."),
+                )
+            })
             .when_some(self.notice.clone(), |el, notice| {
                 el.child(
                     div()
@@ -408,10 +435,10 @@ impl Render for ReviewSheet {
                 v_flex()
                     .id("review-cards")
                     .gap(px(10.))
-                    .max_h(px(480.))
-                    .overflow_y_scroll()
+                    .when(!embedded, |el| el.max_h(px(480.)).overflow_y_scroll())
                     .children(cards),
             )
+            .into_any_element()
     }
 }
 

@@ -280,6 +280,8 @@ pub enum InspectorTab {
     Comments,
     /// Ask Your Notes: a question answered from the notes (`ask.rs`).
     Ask,
+    /// Agent tasks and their change sets (`agent_task_panel.rs`).
+    Agents,
 }
 
 /// How the window's panes were left: focus mode, where the split divides,
@@ -653,6 +655,8 @@ pub struct AiSettings {
     /// until turned on: it sends the note and the names of likely notebooks
     /// and tags to the provider.
     pub inbox_suggestions: bool,
+    /// Settings > AI > Agent tasks (issue #196).
+    pub agent_tasks: kanso_engine::agent_task::settings::AgentTaskSettings,
 }
 
 impl Default for AiSettings {
@@ -672,6 +676,7 @@ impl AiSettings {
             model: provider.default_model().to_owned(),
             agent: AgentChoice::default(),
             inbox_suggestions: false,
+            agent_tasks: Default::default(),
         }
     }
 
@@ -1035,6 +1040,7 @@ mod tests {
                 InspectorTab::Related,
                 InspectorTab::Comments,
                 InspectorTab::Ask,
+                InspectorTab::Agents,
             ]),
             prop::collection::vec(
                 (
@@ -1137,6 +1143,7 @@ mod tests {
                     model,
                     agent,
                     inbox_suggestions: enabled,
+                    agent_tasks: Default::default(),
                 },
             )
     }

@@ -40,6 +40,7 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
 # Shared assistant providers and prompt rules, without the desktop agent.
 kanso-ai = { path = "../kanso-ai", optional = true, default-features = false }
+kanso-server = { workspace = true, optional = true }
 # Markdown filtering for the phone assistant, and the marks Live mode
 # hides (live.rs).
 markdown.workspace = true
@@ -98,6 +99,9 @@ serde_json.workspace = true
 
 [features]
 default = ["highlight", "code-grammars", "ai"]
+# `agent-task`: agent tasks (issue #196): scope, the API-key tool loop and the
+# review cards. Needs the notes server as a library, not as a listener.
+agent-task = ["ai", "dep:kanso-server"]
 # `highlight`: Markdown source and preview colors (a `Token` per span), with
 # the Markdown grammar alone.
 highlight = ["dep:tree-sitter", "dep:tree-sitter-md"]
@@ -136,6 +140,7 @@ discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
 ai = ["dep:kanso-ai", "dep:schemars"]
 
 [dev-dependencies]
+tokio = { version = "1", features = ["rt"] }
 # An export read back by the importer (export.rs).
 kanso-import.workspace = true
 proptest.workspace = true

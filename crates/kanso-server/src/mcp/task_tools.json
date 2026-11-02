@@ -1,0 +1,136 @@
+[
+  {
+    "name": "kanso-list-proposed",
+    "description": "List everything you have proposed so far in this task, so you can revise it.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-propose-merge",
+    "description": "Propose merging several notes into one note. Nothing is written: the person reviews it. When they apply it, the source notes move to the Trash. Give the merged note's title and full text, and either `into` (an existing note to replace) or `bookId` (a notebook for a new note).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "sources": {
+          "type": "array",
+          "description": "2 to 50 notes to combine, each with its _id and the _rev you read it at.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "_id": {
+                "type": "string",
+                "description": "The note ID."
+              },
+              "_rev": {
+                "type": "string",
+                "description": "The revision you read the note at."
+              }
+            },
+            "required": [
+              "_id",
+              "_rev"
+            ]
+          }
+        },
+        "into": {
+          "type": "object",
+          "description": "An existing note to replace with the merged text.",
+          "properties": {
+            "_id": {
+              "type": "string"
+            },
+            "_rev": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "_id",
+            "_rev"
+          ]
+        },
+        "bookId": {
+          "type": "string",
+          "description": "The notebook for the merged note, when it is a new note."
+        },
+        "title": {
+          "type": "string",
+          "description": "The merged note's title."
+        },
+        "body": {
+          "type": "string",
+          "description": "The merged note's full Markdown text. Cite each source as [[Title]]."
+        }
+      },
+      "required": [
+        "sources",
+        "title",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-propose-move",
+    "description": "Propose moving a note to another notebook. Nothing is written: the person reviews it.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "_id": {
+          "type": "string",
+          "description": "The note to move."
+        },
+        "_rev": {
+          "type": "string",
+          "description": "The revision you read the note at."
+        },
+        "bookId": {
+          "type": "string",
+          "description": "The notebook to move it to."
+        }
+      },
+      "required": [
+        "_id",
+        "_rev",
+        "bookId"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-task-done",
+    "description": "Say you are finished. Give a short summary of what you proposed and anything you were unsure about.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "A short summary for the person."
+        }
+      },
+      "required": [
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  }
+]

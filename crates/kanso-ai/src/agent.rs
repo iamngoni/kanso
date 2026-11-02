@@ -67,6 +67,18 @@ that it is waiting for their review. Only suggest edits the user asked for. Don'
 tools, read files or run commands. When you use a note, cite it exactly as [[Title]], using its \
 title. If the notes do not contain the answer, say \"That isn't in your notes.\" and stop.";
 
+/// The instructions for an agent task: the task is sent after "Task:". The
+/// agent only reads notes and proposes; the person reviews every change.
+pub const AGENT_SYSTEM_TASK: &str = crate::prompt::AGENT_TASK_SYSTEM;
+
+/// The prompt that starts an agent task for `goal`.
+pub fn task_prompt(goal: &str) -> Prompt {
+    Prompt {
+        system: AGENT_SYSTEM_TASK.to_owned(),
+        user: format!("Task: {}", goal.trim()),
+    }
+}
+
 /// What the notes server is called in a session.
 pub const NOTES_SERVER: &str = "kanso";
 
@@ -585,6 +597,9 @@ impl TurnEvents {
 pub struct Conversation {
     host: Arc<Host>,
     notes: Option<NotesAccess>,
+    /// The time one turn may take, when it is not [`Limits::answer`]: an
+    /// agent task's.
+    answer: Option<Duration>,
     state: Mutex<ConversationState>,
 }
 
@@ -613,6 +628,42 @@ pub fn conversation(settings: &AgentSettings, notes: Option<NotesAccess>) -> Arc
     Arc::new(Conversation {
         host,
         notes,
+        answer: None,
+        state: Mutex::default(),
+    })
+}
+
+/// A conversation for one agent task on the agent `settings` names: its
+/// turns may run for `time_limit` (and a minute more, so Kanso's own stop at
+/// the limit comes first). A reply to the agent's question is another
+/// [`Conversation::ask`] on it.
+pub fn task_conversation(
+    settings: &AgentSettings,
+    notes: NotesAccess,
+    time_limit: Duration,
+) -> Arc<Conversation> {
+    let (host, _) = host_for(settings, Limits::default(), None);
+    Arc::new(Conversation {
+        host,
+        notes: Some(notes),
+        answer: Some(time_limit + Duration::from_secs(60)),
+        state: Mutex::default(),
+    })
+}
+
+/// [`task_conversation`] on an agent started by `starter`, for tests.
+pub fn task_conversation_with(
+    settings: &AgentSettings,
+    limits: Limits,
+    starter: Starter,
+    notes: NotesAccess,
+    time_limit: Duration,
+) -> Arc<Conversation> {
+    let (host, _) = host_for(settings, limits, Some(starter));
+    Arc::new(Conversation {
+        host,
+        notes: Some(notes),
+        answer: Some(time_limit + Duration::from_secs(60)),
         state: Mutex::default(),
     })
 }
@@ -628,6 +679,7 @@ pub fn conversation_with(
     Arc::new(Conversation {
         host,
         notes,
+        answer: None,
         state: Mutex::default(),
     })
 }
@@ -746,7 +798,11 @@ impl Conversation {
         let Some(session) = state.session.as_ref() else {
             return;
         };
-        let turn = match session.prompt(&text, Some(stop.clone())) {
+        let sent = match self.answer {
+            Some(answer) => session.prompt_within(&text, Some(stop.clone()), answer),
+            None => session.prompt(&text, Some(stop.clone())),
+        };
+        let turn = match sent {
             Ok(turn) => turn,
             Err(err) => {
                 tx.send(Event::Error(turn_error(&host.settings, process, &err)))

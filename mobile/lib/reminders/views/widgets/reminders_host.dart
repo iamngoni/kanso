@@ -37,6 +37,7 @@ class _RemindersHostState extends State<RemindersHost>
     with WidgetsBindingObserver {
   StreamSubscription<TaskPlace>? _opened;
   StreamSubscription<bool>? _digestOpened;
+  StreamSubscription<void>? _agentOpened;
 
   @override
   void initState() {
@@ -44,6 +45,9 @@ class _RemindersHostState extends State<RemindersHost>
     WidgetsBinding.instance.addObserver(this);
     _opened = widget.coordinator.opened.listen(_open);
     _digestOpened = widget.coordinator.digestOpened.listen(_openDigest);
+    _agentOpened = widget.coordinator.agentOpened.listen(
+      (_) => unawaited(widget.router.push<void>(KansoRoutes.agentTasks)),
+    );
     unawaited(widget.coordinator.start());
   }
 
@@ -52,6 +56,7 @@ class _RemindersHostState extends State<RemindersHost>
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_opened?.cancel());
     unawaited(_digestOpened?.cancel());
+    unawaited(_agentOpened?.cancel());
     super.dispose();
   }
 

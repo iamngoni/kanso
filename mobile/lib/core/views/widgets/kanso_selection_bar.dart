@@ -25,6 +25,7 @@ class KansoSelectionBar extends StatelessWidget {
     this.onPin,
     this.onTrash,
     this.onMore,
+    this.onAskAgent,
     this.backgroundColor,
     super.key,
   });
@@ -41,6 +42,9 @@ class KansoSelectionBar extends StatelessWidget {
 
   /// What else can be done with the notes chosen, as a menu.
   final VoidCallback? onMore;
+
+  /// Gives the notes chosen to an agent; absent while AI is off.
+  final VoidCallback? onAskAgent;
   final Color? backgroundColor;
 
   @override
@@ -83,6 +87,12 @@ class KansoSelectionBar extends StatelessWidget {
             icon: KansoIcons.trash,
             semanticLabel: l10n.noteListTrash,
             onPressed: trash,
+          ),
+        if (onAskAgent != null)
+          KansoIconButton(
+            icon: KansoIcons.sparkles,
+            semanticLabel: l10n.noteListAskAgent,
+            onPressed: onAskAgent,
           ),
         if (onMore != null)
           KansoIconButton(

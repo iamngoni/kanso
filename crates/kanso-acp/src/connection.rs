@@ -1109,6 +1109,18 @@ impl Session {
     /// Sends `text` as one text block and returns the turn as it arrives.
     /// Setting `cancel` asks the agent to stop.
     pub fn prompt(&self, text: &str, cancel: Option<Arc<AtomicBool>>) -> Result<Turn, AcpError> {
+        self.prompt_within(text, cancel, self.shared.limits.answer)
+    }
+
+    /// [`Session::prompt`] with `answer` as the whole turn's time limit
+    /// instead of [`Limits::answer`]: an agent task runs longer than a
+    /// question.
+    pub fn prompt_within(
+        &self,
+        text: &str,
+        cancel: Option<Arc<AtomicBool>>,
+        answer: std::time::Duration,
+    ) -> Result<Turn, AcpError> {
         let (tx, rx) = mpsc::sync_channel(512);
         lock(&self.shared.cancelling).remove(&self.id);
         lock(&self.shared.sessions).insert(self.id.clone(), tx);
@@ -1136,7 +1148,7 @@ impl Session {
             rx,
             cancel,
             first_text_by: Some(now + self.shared.limits.first_text),
-            deadline: now + self.shared.limits.answer,
+            deadline: now + answer,
             cancelling: None,
             timed_out: false,
             finished: false,

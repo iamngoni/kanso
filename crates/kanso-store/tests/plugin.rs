@@ -333,6 +333,7 @@ proptest! {
                 tags: None,
                 status: change.status.map(str::to_owned),
                 data: change.data.map(|d| d.map(Value::from)),
+                book_id: None,
             });
         }
         store.apply_plugin_batch(WRITER, &edits, &[], 10).unwrap();

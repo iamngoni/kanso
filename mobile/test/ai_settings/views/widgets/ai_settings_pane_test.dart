@@ -5,14 +5,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/agent_tasks/state/agent_settings/agent_settings_cubit.dart';
 import 'package:kanso/ai_settings/state/ai_settings/ai_settings_bloc.dart';
 import 'package:kanso/ai_settings/views/widgets/ai_settings_pane.dart';
 import 'package:kanso/core/models/data/ai_test_result.dart';
 import 'package:kanso/core/models/data/load_status.dart';
 import 'package:kanso/core/views/widgets/kanso_switch.dart';
+import 'package:kanso/injection.dart';
 
 import '../../../helpers/ai_blocs.dart';
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_agent_tasks_repository.dart';
 import '../../../helpers/fixture_ai_repository.dart';
 import '../../../helpers/pump_routed.dart';
 
@@ -25,6 +28,13 @@ Future<FixtureAiRepository> _pump(
     settings: aiSettings(enabled: enabled, hasKey: hasKey),
   );
   addTearDown(ai.close);
+  if (getIt.isRegistered<AgentSettingsCubit>()) {
+    getIt.unregister<AgentSettingsCubit>();
+  }
+  getIt.registerFactory<AgentSettingsCubit>(
+    () => AgentSettingsCubit(FixtureAgentTasksRepository()),
+  );
+  addTearDown(() => getIt.unregister<AgentSettingsCubit>());
   final bloc = AiSettingsBloc(ai)..add(const AiSettingsEvent.started());
   closeBlocLater(bloc);
   await bloc.stream.firstWhere((s) => s.status == LoadStatus.ready);
@@ -65,7 +75,7 @@ void main() {
 
     testWidgets('the switch turns AI on and saves it', (tester) async {
       final ai = await _pump(tester, enabled: false);
-      await tester.tap(find.byType(KansoSwitch));
+      await tester.tap(find.byType(KansoSwitch).first);
       await tester.pumpAndSettle();
       expect(ai.saved.single.enabled, isTrue);
     });

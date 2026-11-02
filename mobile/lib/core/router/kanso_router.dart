@@ -11,6 +11,7 @@ import '../../account/views/pages/recover_page.dart';
 import '../../account/views/pages/recovery_key_page.dart';
 import '../../account/views/pages/sign_in_page.dart';
 import '../../account/views/pages/unlock_page.dart';
+import '../../agent_tasks/views/pages/agent_tasks_page.dart';
 import '../../ai_settings/views/pages/ai_settings_page.dart';
 import '../../ask/views/pages/ask_page.dart';
 import '../../backups/views/pages/backups_page.dart';
@@ -180,6 +181,17 @@ class KansoRouter {
           pageBuilder: (context, state) => kansoPage<void>(
             key: state.pageKey,
             child: const TriagePage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.agentTasks,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: AgentTasksPage(
+              noteIds: state.extra is List<String>
+                  ? state.extra! as List<String>
+                  : const <String>[],
+            ),
           ),
         ),
         GoRoute(
