@@ -219,7 +219,8 @@ proptest! {
                 .chain(seeded.plain.iter())
                 .map(|note| format!("[[{}]] ", note.title))
                 .collect();
-            let model = Scripted::with(&format!("They are {cites}"), calls, Ending::Complete);
+            let answer = format!("They are {cites}");
+            let model = Scripted::with(&answer, calls, Ending::Complete);
             let ai = ai_on(&phone.library, &model);
             let (sink, rx) = listen();
             ai.conversation().ask("Tell me about the quokka".into(), kanso_mobile::AskScopeInput { kind: "all".into(), value: String::new() }, false, 0, sink).unwrap();
@@ -230,8 +231,9 @@ proptest! {
                         | AskEvent::CutOff { .. } | AskEvent::Stopped
                 )
             });
-            let sent = model.everything_sent();
-            // The model's own echo of the IDs it asked for is not a leak.
+            // The model's own answer, handed back to it to add receipts, and
+            // its echo of the IDs it asked for, are not leaks.
+            let sent = model.everything_sent().replace(answer.trim_end(), "");
             assert_clean(&sent, &hidden, !reads_hidden)?;
             prop_assert!(sent.contains("Plainbody0"), "the plain notes must be sent");
 
