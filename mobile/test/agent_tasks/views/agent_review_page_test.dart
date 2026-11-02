@@ -1,7 +1,6 @@
 // Kanso — agent_review_page_test.dart
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/agent_tasks/state/agent_review/agent_review_bloc.dart';
