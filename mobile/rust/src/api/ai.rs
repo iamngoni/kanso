@@ -533,6 +533,12 @@ impl KansoAskConversation {
         self.0.turn_count()
     }
 
+    /// Forgets the newest exchange.
+    #[frb(sync)]
+    pub fn forget_last(&self) {
+        self.0.forget_last();
+    }
+
     /// Saves the newest answer as a note and returns its ID.
     pub fn save_last(&self) -> Result<String, KansoError> {
         self.0.save_last()

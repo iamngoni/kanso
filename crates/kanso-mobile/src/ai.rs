@@ -605,6 +605,14 @@ impl AskConversation {
         *held(&self.last) = None;
     }
 
+    /// Forgets the newest exchange, so the same question can be asked
+    /// another way (without its time range) as if it came first.
+    pub fn forget_last(&self) {
+        self.stop();
+        held(&self.turns).pop();
+        *held(&self.last) = None;
+    }
+
     /// Saves the newest answer as a note, titled "Q: <question>", with its
     /// Sources as note links to the lines cited, in the notebook the
     /// question was limited to or else the Inbox. The one write Ask makes,

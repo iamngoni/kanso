@@ -88,6 +88,9 @@ abstract class KansoAskConversation implements RustOpaqueInterface {
 
   void clear();
 
+  /// Forgets the newest exchange.
+  void forgetLast();
+
   /// Saves the newest answer as a note and returns its ID.
   Future<String> saveLast();
 
