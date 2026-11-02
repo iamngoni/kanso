@@ -16,6 +16,12 @@ sealed class AgentTasksEvent with _$AgentTasksEvent {
   const factory AgentTasksEvent.goalSent(
     String goal, {
     @Default(<String>[]) List<String> noteIds,
+
+    /// Where new notes go; the Inbox when empty.
+    @Default('') String newNoteBook,
+
+    /// The person agreed to the task reading every notebook.
+    @Default(false) bool confirmedAll,
   }) = AgentTasksGoalSentEvent;
 
   const factory AgentTasksEvent.stopped(int id) = AgentTasksStoppedEvent;

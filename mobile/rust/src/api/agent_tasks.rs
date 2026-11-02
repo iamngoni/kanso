@@ -15,6 +15,9 @@ pub struct AgentTaskPrefs {
     pub edits: bool,
     pub moves: bool,
     pub merges: bool,
+    pub time_limit_minutes: u32,
+    pub max_notes: u32,
+    pub ask_before_reading_all: bool,
 }
 
 impl From<CoreAgentTaskPrefs> for AgentTaskPrefs {
@@ -25,6 +28,9 @@ impl From<CoreAgentTaskPrefs> for AgentTaskPrefs {
             edits: p.edits,
             moves: p.moves,
             merges: p.merges,
+            time_limit_minutes: p.time_limit_minutes,
+            max_notes: p.max_notes,
+            ask_before_reading_all: p.ask_before_reading_all,
         }
     }
 }
@@ -112,14 +118,16 @@ impl From<CoreTaskReview> for TaskReview {
 pub struct KansoAgentTasks(pub(super) AgentTasks);
 
 impl KansoAgentTasks {
-    /// Starts a task; an empty `note_ids` lets it read every unlocked note.
+    /// Starts a task; an empty `note_ids` lets it read every unlocked note,
+    /// which needs `confirmed_all` when Settings ask first.
     pub fn start(
         &self,
         goal: String,
         note_ids: Vec<String>,
         new_note_book: String,
+        confirmed_all: bool,
     ) -> Result<u64, KansoError> {
-        self.0.start(&goal, note_ids, &new_note_book)
+        self.0.start(&goal, note_ids, &new_note_book, confirmed_all)
     }
 
     pub fn prefs(&self) -> AgentTaskPrefs {
@@ -134,6 +142,9 @@ impl KansoAgentTasks {
                 edits: prefs.edits,
                 moves: prefs.moves,
                 merges: prefs.merges,
+                time_limit_minutes: prefs.time_limit_minutes,
+                max_notes: prefs.max_notes,
+                ask_before_reading_all: prefs.ask_before_reading_all,
             })
             .map(AgentTaskPrefs::from)
     }

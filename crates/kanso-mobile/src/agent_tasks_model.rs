@@ -13,6 +13,12 @@ pub struct AgentTaskPrefs {
     pub edits: bool,
     pub moves: bool,
     pub merges: bool,
+    /// The most minutes one task may run: 5, 20 or 60.
+    pub time_limit_minutes: u32,
+    /// The most notes one task may read: 50, 200 or 1000.
+    pub max_notes: u32,
+    /// Ask before starting a task that can read every notebook.
+    pub ask_before_reading_all: bool,
 }
 
 /// One task, as the Ask page and the task list show it.

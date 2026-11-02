@@ -222,7 +222,7 @@ proptest! {
         let model = Scripted::with("Done.", calls, Ending::Complete);
         let ai = ai_on(&phone.library, &model);
         let tasks = ai.agent_tasks();
-        tasks.start("Tidy the quokka notes", Vec::new(), "").unwrap();
+        tasks.start("Tidy the quokka notes", Vec::new(), "", true).unwrap();
         let ended = wait_for_end(&tasks);
         let sent = model.everything_sent();
         assert_clean(&sent, &hidden, false)?;
@@ -236,7 +236,11 @@ fn a_task_does_not_start_while_ai_is_off() {
     let phone = lone_phone();
     let model = Scripted::new("never");
     let ai = phone.library.ai_with_provider(maker_of(model.clone()));
-    assert!(ai.agent_tasks().start("Tidy", Vec::new(), "").is_err());
+    assert!(
+        ai.agent_tasks()
+            .start("Tidy", Vec::new(), "", true)
+            .is_err()
+    );
     assert_eq!(model.request_count(), 0);
 }
 
@@ -247,7 +251,7 @@ fn a_task_with_no_changes_has_nothing_to_review() {
     let (phone, ai) = ai_phone(&model);
     note(&phone.library, "Pricing", "quokka");
     let tasks = ai.agent_tasks();
-    let id = tasks.start("Tidy", Vec::new(), "").unwrap();
+    let id = tasks.start("Tidy", Vec::new(), "", true).unwrap();
     wait_for_end(&tasks);
     assert!(tasks.review(id).is_err() || tasks.review(id).unwrap().cards.is_empty());
 }
@@ -278,6 +282,7 @@ fn a_task_started_on_note_ids_can_read_them_but_not_a_locked_one() {
             "Tidy",
             vec![plain.id.clone(), sealed.id.clone(), anchor.id.clone()],
             "",
+            false,
         )
         .unwrap();
     wait_for_end(&tasks);
@@ -287,4 +292,72 @@ fn a_task_started_on_note_ids_can_read_them_but_not_a_locked_one() {
         "the named note is readable: {sent}"
     );
     assert!(!sent.contains(&sealed.body) && !sent.contains(&anchor.body));
+}
+
+// no-prop-test: one gate, one answer.
+#[test]
+fn reading_every_notebook_needs_the_confirmation_settings_ask_for() {
+    let model = Scripted::new("Nothing to change.");
+    let (phone, ai) = ai_phone(&model);
+    note(&phone.library, "Pricing", "quokka");
+    let tasks = ai.agent_tasks();
+    let refused = tasks.start("Tidy", Vec::new(), "", false).unwrap_err();
+    assert!(refused.to_string().contains("Confirm"), "{refused}");
+    assert_eq!(model.request_count(), 0);
+    // Chosen notes need no such question; and Settings can turn it off.
+    let mut prefs = tasks.prefs();
+    prefs.ask_before_reading_all = false;
+    tasks.set_prefs(prefs).unwrap();
+    tasks.start("Tidy", Vec::new(), "", false).unwrap();
+    wait_for_end(&tasks);
+}
+
+// no-prop-test: the limits are a round trip through the file.
+#[test]
+fn the_time_limit_and_note_limit_are_kept() {
+    let model = Scripted::new("x");
+    let (_phone, ai) = ai_phone(&model);
+    let tasks = ai.agent_tasks();
+    let mut prefs = tasks.prefs();
+    assert_eq!((prefs.time_limit_minutes, prefs.max_notes), (20, 200));
+    prefs.time_limit_minutes = 5;
+    prefs.max_notes = 50;
+    tasks.set_prefs(prefs).unwrap();
+    let saved = tasks.prefs();
+    assert_eq!((saved.time_limit_minutes, saved.max_notes), (5, 50));
+}
+
+// no-prop-test: one scenario; the engine's property covers apply and undo.
+#[test]
+fn ticking_a_card_that_changed_since_applies_over_it() {
+    let (phone, _) = (lone_phone(), ());
+    let id = note(&phone.library, "Pricing", "quokka one");
+    let store = Store::open(phone.path()).unwrap();
+    let rev = store.get(&id).unwrap().unwrap().rev;
+    let calls = vec![(
+        "update_note",
+        json!({"_id": id, "_rev": rev, "body": "quokka two"}).to_string(),
+    )];
+    let model = Scripted::with("Done.", calls, Ending::Complete);
+    let ai = ai_on(&phone.library, &model);
+    let tasks = ai.agent_tasks();
+    let task = tasks.start("Edit", vec![id.clone()], "", false).unwrap();
+    wait_for_end(&tasks);
+    // The person edits the note meanwhile.
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "body": "mine"}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let review = tasks.review(task).unwrap();
+    assert_eq!(review.cards.len(), 1);
+    assert!(review.cards[0].changed_since);
+    let said = tasks.apply(task, vec![0], Vec::new(), 100).unwrap();
+    assert!(said.contains("Applied"), "{said}");
+    assert_eq!(store.note(&id).unwrap().unwrap().body, "quokka two");
+    // Undo reports from what it did.
+    assert!(tasks.undo(task, 200).is_ok());
 }

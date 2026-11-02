@@ -16,7 +16,10 @@ pub struct AcpDriver(pub Arc<Conversation>);
 
 impl TaskDriver for AcpDriver {
     fn first_prompt(&self, task: &OpenTask) -> Prompt {
-        kanso_ai::agent::task_prompt(&task.spec.goal)
+        Prompt {
+            user: kanso_engine::agent_task::user_text(task, false),
+            ..kanso_ai::agent::task_prompt(&task.spec.goal)
+        }
     }
 
     // The reply continues the same ACP session.

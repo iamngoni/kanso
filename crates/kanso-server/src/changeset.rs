@@ -557,6 +557,34 @@ impl ChangeSet {
         {
             return refused("The merged note can't also be one of the sources.");
         }
+        // A note is a source or a target of one merge, not both: the
+        // target's merged text would be built on notes that are leaving.
+        for op in &self.ops {
+            let ProposedOp::Merge {
+                into: other_into,
+                sources: other_sources,
+                ..
+            } = op
+            else {
+                continue;
+            };
+            // A merge over the same sources is replaced below.
+            if other_sources.iter().any(|(id, _)| unique.contains(id)) {
+                continue;
+            }
+            let into_is_other_source = into
+                .as_ref()
+                .is_some_and(|(id, _)| other_sources.iter().any(|(s, _)| s == id));
+            let source_is_other_target = matches!(
+                other_into,
+                MergeTarget::Existing { note_id, .. } if unique.contains(note_id)
+            );
+            if into_is_other_source || source_is_other_target {
+                return refused(
+                    "A note can't be the target of one merge and a source of another. Merge in one step.",
+                );
+            }
+        }
         self.room(title.len() + body.len())?;
         if self.ops.len() >= MAX_OPS {
             return refused("This task has proposed as many changes as it may. Finish up.");
@@ -705,7 +733,7 @@ impl ChangeSet {
 
     fn state_with(&self, vis: &Visibility, op: &ProposedOp) -> OpState {
         for book in op.target_books() {
-            if !vis.book_visible(book) {
+            if !vis.book_writable(book) {
                 return OpState::Blocked;
             }
         }
@@ -898,14 +926,15 @@ impl ChangeSet {
 }
 
 /// Takes back an applied set: every note it changed gets back what it had,
-/// every note it made is removed, unless the person changed it since (those
-/// are left and reported).
+/// every note it made goes to the Trash (never deleted outright), unless the
+/// person changed it since or its notebook was locked (those are left and
+/// reported).
 pub fn undo(
     store: &Store,
     batch: &str,
     now_ms: i64,
 ) -> Result<kanso_store::UndoReport, StoreError> {
-    store.undo_batch(batch, now_ms)
+    store.undo_agent_batch(batch, now_ms)
 }
 
 /// The change sets of the running tasks, shared with the server that

@@ -23,6 +23,8 @@ class FixtureAgentTasksRepository implements AgentTasksRepository {
   AgentReview proposed;
   String? startError;
   final List<String> calls = <String>[];
+  final List<({String book, bool confirmedAll})> started =
+      <({String book, bool confirmedAll})>[];
   List<int>? appliedTicked;
   List<int>? appliedKeep;
   AgentTaskPrefs saved = const AgentTaskPrefs();
@@ -71,8 +73,11 @@ class FixtureAgentTasksRepository implements AgentTasksRepository {
   Future<Either<ApplicationError, int>> start({
     required String goal,
     List<String> noteIds = const <String>[],
+    String newNoteBook = '',
+    bool confirmedAll = false,
   }) async {
     calls.add('start:$goal:${noteIds.join(',')}');
+    started.add((book: newNoteBook, confirmedAll: confirmedAll));
     final error = startError;
     if (error != null) {
       return Left<ApplicationError, int>(

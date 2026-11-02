@@ -14,7 +14,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AgentTaskPrefs {
 
- bool get enabled; bool get newNotes; bool get edits; bool get moves; bool get merges;
+ bool get enabled; bool get newNotes; bool get edits; bool get moves; bool get merges;/// The most minutes one task may run: 5, 20 or 60.
+ int get timeLimitMinutes;/// The most notes one task may read: 50, 200 or 1000.
+ int get maxNotes;/// Ask before a task that may read every notebook starts.
+ bool get askBeforeReadingAll;
 /// Create a copy of AgentTaskPrefs
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +28,16 @@ $AgentTaskPrefsCopyWith<AgentTaskPrefs> get copyWith => _$AgentTaskPrefsCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentTaskPrefs&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.newNotes, newNotes) || other.newNotes == newNotes)&&(identical(other.edits, edits) || other.edits == edits)&&(identical(other.moves, moves) || other.moves == moves)&&(identical(other.merges, merges) || other.merges == merges));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentTaskPrefs&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.newNotes, newNotes) || other.newNotes == newNotes)&&(identical(other.edits, edits) || other.edits == edits)&&(identical(other.moves, moves) || other.moves == moves)&&(identical(other.merges, merges) || other.merges == merges)&&(identical(other.timeLimitMinutes, timeLimitMinutes) || other.timeLimitMinutes == timeLimitMinutes)&&(identical(other.maxNotes, maxNotes) || other.maxNotes == maxNotes)&&(identical(other.askBeforeReadingAll, askBeforeReadingAll) || other.askBeforeReadingAll == askBeforeReadingAll));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,newNotes,edits,moves,merges);
+int get hashCode => Object.hash(runtimeType,enabled,newNotes,edits,moves,merges,timeLimitMinutes,maxNotes,askBeforeReadingAll);
 
 @override
 String toString() {
-  return 'AgentTaskPrefs(enabled: $enabled, newNotes: $newNotes, edits: $edits, moves: $moves, merges: $merges)';
+  return 'AgentTaskPrefs(enabled: $enabled, newNotes: $newNotes, edits: $edits, moves: $moves, merges: $merges, timeLimitMinutes: $timeLimitMinutes, maxNotes: $maxNotes, askBeforeReadingAll: $askBeforeReadingAll)';
 }
 
 
@@ -45,7 +48,7 @@ abstract mixin class $AgentTaskPrefsCopyWith<$Res>  {
   factory $AgentTaskPrefsCopyWith(AgentTaskPrefs value, $Res Function(AgentTaskPrefs) _then) = _$AgentTaskPrefsCopyWithImpl;
 @useResult
 $Res call({
- bool enabled, bool newNotes, bool edits, bool moves, bool merges
+ bool enabled, bool newNotes, bool edits, bool moves, bool merges, int timeLimitMinutes, int maxNotes, bool askBeforeReadingAll
 });
 
 
@@ -62,13 +65,16 @@ class _$AgentTaskPrefsCopyWithImpl<$Res>
 
 /// Create a copy of AgentTaskPrefs
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? newNotes = null,Object? edits = null,Object? moves = null,Object? merges = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? newNotes = null,Object? edits = null,Object? moves = null,Object? merges = null,Object? timeLimitMinutes = null,Object? maxNotes = null,Object? askBeforeReadingAll = null,}) {
   return _then(_self.copyWith(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,newNotes: null == newNotes ? _self.newNotes : newNotes // ignore: cast_nullable_to_non_nullable
 as bool,edits: null == edits ? _self.edits : edits // ignore: cast_nullable_to_non_nullable
 as bool,moves: null == moves ? _self.moves : moves // ignore: cast_nullable_to_non_nullable
 as bool,merges: null == merges ? _self.merges : merges // ignore: cast_nullable_to_non_nullable
+as bool,timeLimitMinutes: null == timeLimitMinutes ? _self.timeLimitMinutes : timeLimitMinutes // ignore: cast_nullable_to_non_nullable
+as int,maxNotes: null == maxNotes ? _self.maxNotes : maxNotes // ignore: cast_nullable_to_non_nullable
+as int,askBeforeReadingAll: null == askBeforeReadingAll ? _self.askBeforeReadingAll : askBeforeReadingAll // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -154,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  bool newNotes,  bool edits,  bool moves,  bool merges)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  bool newNotes,  bool edits,  bool moves,  bool merges,  int timeLimitMinutes,  int maxNotes,  bool askBeforeReadingAll)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AgentTaskPrefs() when $default != null:
-return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merges);case _:
+return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merges,_that.timeLimitMinutes,_that.maxNotes,_that.askBeforeReadingAll);case _:
   return orElse();
 
 }
@@ -175,10 +181,10 @@ return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merge
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  bool newNotes,  bool edits,  bool moves,  bool merges)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  bool newNotes,  bool edits,  bool moves,  bool merges,  int timeLimitMinutes,  int maxNotes,  bool askBeforeReadingAll)  $default,) {final _that = this;
 switch (_that) {
 case _AgentTaskPrefs():
-return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merges);case _:
+return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merges,_that.timeLimitMinutes,_that.maxNotes,_that.askBeforeReadingAll);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +201,10 @@ return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merge
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  bool newNotes,  bool edits,  bool moves,  bool merges)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  bool newNotes,  bool edits,  bool moves,  bool merges,  int timeLimitMinutes,  int maxNotes,  bool askBeforeReadingAll)?  $default,) {final _that = this;
 switch (_that) {
 case _AgentTaskPrefs() when $default != null:
-return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merges);case _:
+return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merges,_that.timeLimitMinutes,_that.maxNotes,_that.askBeforeReadingAll);case _:
   return null;
 
 }
@@ -210,7 +216,7 @@ return $default(_that.enabled,_that.newNotes,_that.edits,_that.moves,_that.merge
 
 
 class _AgentTaskPrefs implements AgentTaskPrefs {
-  const _AgentTaskPrefs({this.enabled = true, this.newNotes = true, this.edits = true, this.moves = true, this.merges = true});
+  const _AgentTaskPrefs({this.enabled = true, this.newNotes = true, this.edits = true, this.moves = true, this.merges = true, this.timeLimitMinutes = 20, this.maxNotes = 200, this.askBeforeReadingAll = true});
   
 
 @override@JsonKey() final  bool enabled;
@@ -218,6 +224,12 @@ class _AgentTaskPrefs implements AgentTaskPrefs {
 @override@JsonKey() final  bool edits;
 @override@JsonKey() final  bool moves;
 @override@JsonKey() final  bool merges;
+/// The most minutes one task may run: 5, 20 or 60.
+@override@JsonKey() final  int timeLimitMinutes;
+/// The most notes one task may read: 50, 200 or 1000.
+@override@JsonKey() final  int maxNotes;
+/// Ask before a task that may read every notebook starts.
+@override@JsonKey() final  bool askBeforeReadingAll;
 
 /// Create a copy of AgentTaskPrefs
 /// with the given fields replaced by the non-null parameter values.
@@ -229,16 +241,16 @@ _$AgentTaskPrefsCopyWith<_AgentTaskPrefs> get copyWith => __$AgentTaskPrefsCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AgentTaskPrefs&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.newNotes, newNotes) || other.newNotes == newNotes)&&(identical(other.edits, edits) || other.edits == edits)&&(identical(other.moves, moves) || other.moves == moves)&&(identical(other.merges, merges) || other.merges == merges));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AgentTaskPrefs&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.newNotes, newNotes) || other.newNotes == newNotes)&&(identical(other.edits, edits) || other.edits == edits)&&(identical(other.moves, moves) || other.moves == moves)&&(identical(other.merges, merges) || other.merges == merges)&&(identical(other.timeLimitMinutes, timeLimitMinutes) || other.timeLimitMinutes == timeLimitMinutes)&&(identical(other.maxNotes, maxNotes) || other.maxNotes == maxNotes)&&(identical(other.askBeforeReadingAll, askBeforeReadingAll) || other.askBeforeReadingAll == askBeforeReadingAll));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,newNotes,edits,moves,merges);
+int get hashCode => Object.hash(runtimeType,enabled,newNotes,edits,moves,merges,timeLimitMinutes,maxNotes,askBeforeReadingAll);
 
 @override
 String toString() {
-  return 'AgentTaskPrefs(enabled: $enabled, newNotes: $newNotes, edits: $edits, moves: $moves, merges: $merges)';
+  return 'AgentTaskPrefs(enabled: $enabled, newNotes: $newNotes, edits: $edits, moves: $moves, merges: $merges, timeLimitMinutes: $timeLimitMinutes, maxNotes: $maxNotes, askBeforeReadingAll: $askBeforeReadingAll)';
 }
 
 
@@ -249,7 +261,7 @@ abstract mixin class _$AgentTaskPrefsCopyWith<$Res> implements $AgentTaskPrefsCo
   factory _$AgentTaskPrefsCopyWith(_AgentTaskPrefs value, $Res Function(_AgentTaskPrefs) _then) = __$AgentTaskPrefsCopyWithImpl;
 @override @useResult
 $Res call({
- bool enabled, bool newNotes, bool edits, bool moves, bool merges
+ bool enabled, bool newNotes, bool edits, bool moves, bool merges, int timeLimitMinutes, int maxNotes, bool askBeforeReadingAll
 });
 
 
@@ -266,13 +278,16 @@ class __$AgentTaskPrefsCopyWithImpl<$Res>
 
 /// Create a copy of AgentTaskPrefs
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? newNotes = null,Object? edits = null,Object? moves = null,Object? merges = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? newNotes = null,Object? edits = null,Object? moves = null,Object? merges = null,Object? timeLimitMinutes = null,Object? maxNotes = null,Object? askBeforeReadingAll = null,}) {
   return _then(_AgentTaskPrefs(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,newNotes: null == newNotes ? _self.newNotes : newNotes // ignore: cast_nullable_to_non_nullable
 as bool,edits: null == edits ? _self.edits : edits // ignore: cast_nullable_to_non_nullable
 as bool,moves: null == moves ? _self.moves : moves // ignore: cast_nullable_to_non_nullable
 as bool,merges: null == merges ? _self.merges : merges // ignore: cast_nullable_to_non_nullable
+as bool,timeLimitMinutes: null == timeLimitMinutes ? _self.timeLimitMinutes : timeLimitMinutes // ignore: cast_nullable_to_non_nullable
+as int,maxNotes: null == maxNotes ? _self.maxNotes : maxNotes // ignore: cast_nullable_to_non_nullable
+as int,askBeforeReadingAll: null == askBeforeReadingAll ? _self.askBeforeReadingAll : askBeforeReadingAll // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

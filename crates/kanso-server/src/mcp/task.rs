@@ -44,6 +44,21 @@ pub(crate) fn call(
     let Some(tool) = schema::tool(name) else {
         return error_result(format!("MCP error -32602: Tool {name} not found"));
     };
+    // A new note with no notebook goes where the person said new notes go.
+    let defaulted = (name == "create-note")
+        .then(|| {
+            let sent = arguments?.as_object()?;
+            let blank = sent
+                .get("bookId")
+                .and_then(Value::as_str)
+                .is_none_or(|b| b.trim().is_empty());
+            let book = vis.new_note_book().filter(|_| blank)?;
+            let mut sent = sent.clone();
+            sent.insert("bookId".to_owned(), Value::String(book.to_owned()));
+            Some(Value::Object(sent))
+        })
+        .flatten();
+    let arguments = defaulted.as_ref().or(arguments);
     let args = match tool.validate(arguments) {
         Ok(args) => args,
         Err(issues) => {
@@ -86,11 +101,31 @@ pub(crate) fn call(
     }
 }
 
-fn create(set: &mut ChangeSet, vis: &Visibility, args: &Args) -> Result<String, String> {
-    let book = str_arg(args, "bookId");
-    if !vis.book_visible(book) {
+const ONLY_NEW_NOTE_BOOK: &str =
+    "New notes go in the notebook the person chose for them. Use that notebook.";
+
+/// The notebook a new note (or a merge's new note) goes in: `asked`, or the
+/// one the person chose. Refused when it is another, or not writable.
+fn new_note_book<'a>(vis: &'a Visibility, asked: &'a str) -> Result<&'a str, String> {
+    let book = if asked.trim().is_empty() {
+        vis.new_note_book()
+            .ok_or_else(|| "Give a `bookId` for the new note.".to_owned())?
+    } else {
+        asked
+    };
+    if let Some(chosen) = vis.new_note_book()
+        && book != chosen
+    {
+        return Err(ONLY_NEW_NOTE_BOOK.to_owned());
+    }
+    if !vis.book_writable(book) {
         return Err(missing());
     }
+    Ok(book)
+}
+
+fn create(set: &mut ChangeSet, vis: &Visibility, args: &Args) -> Result<String, String> {
+    let book = new_note_book(vis, str_arg(args, "bookId"))?;
     let temp = set
         .stage_create(
             book,
@@ -177,7 +212,7 @@ fn patch(set: &mut ChangeSet, vis: &Visibility, args: &Args) -> Result<String, S
 fn propose_move(set: &mut ChangeSet, vis: &Visibility, args: &Args) -> Result<String, String> {
     let id = str_arg(args, "_id");
     let to = str_arg(args, "bookId");
-    if !vis.book_visible(to) {
+    if !vis.book_writable(to) {
         return Err(missing());
     }
     if ChangeSet::is_temp(id) {
@@ -225,17 +260,16 @@ fn merge(set: &mut ChangeSet, vis: &Visibility, args: &Args) -> Result<String, S
         Some(target) => Some(visible_ref(vis, target)?),
         None => None,
     };
-    let book = args.get("bookId").and_then(Value::as_str);
-    if let Some(book) = book
-        && !vis.book_visible(book)
-    {
-        return Err(missing());
-    }
+    let book = if into.is_some() {
+        None
+    } else {
+        Some(new_note_book(vis, str_arg(args, "bookId"))?.to_owned())
+    };
     let temp = set
         .stage_merge(
             sources,
             into,
-            book.map(str::to_owned),
+            book,
             str_arg(args, "title"),
             str_arg(args, "body"),
         )

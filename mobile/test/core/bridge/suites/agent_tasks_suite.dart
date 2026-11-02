@@ -21,16 +21,25 @@ void agentTasksSuite(OpenLibrary open) {
           edits: false,
           moves: true,
           merges: false,
+          timeLimitMinutes: 5,
+          maxNotes: 50,
+          askBeforeReadingAll: false,
         ),
       );
       expect(saved.edits, isFalse);
+      expect((saved.timeLimitMinutes, saved.maxNotes), (5, 50));
       expect((await tasks.prefs()).merges, isFalse);
     });
 
     test('a task does not start while AI is off', () async {
       final tasks = (await open()).ai().agentTasks();
       await expectLater(
-        tasks.start(goal: 'Tidy', noteIds: <String>[], newNoteBook: ''),
+        tasks.start(
+          goal: 'Tidy',
+          noteIds: <String>[],
+          newNoteBook: '',
+          confirmedAll: true,
+        ),
         throwsA(anything),
       );
       expect(await tasks.tasks(), isEmpty);

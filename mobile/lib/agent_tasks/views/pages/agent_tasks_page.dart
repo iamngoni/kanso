@@ -1,18 +1,27 @@
 // Kanso — agent_tasks_page.dart
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/router/kanso_routes.dart';
+import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
+import '../../../core/views/widgets/kanso_check_row.dart';
+import '../../../core/views/widgets/kanso_dialog.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_page.dart';
+import '../../../core/views/widgets/kanso_settings_row.dart';
+import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../core/views/widgets/kanso_text_field.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
@@ -53,6 +62,11 @@ class _Body extends StatefulWidget {
 class _BodyState extends State<_Body> {
   final TextEditingController _goal = TextEditingController();
   String _lastGoal = '';
+  bool _lastConfirmed = false;
+
+  /// The notebook new notes go in; empty is the Inbox.
+  String _bookId = '';
+  String? _bookName;
 
   @override
   void dispose() {
@@ -60,15 +74,55 @@ class _BodyState extends State<_Body> {
     super.dispose();
   }
 
-  void _send(BuildContext context) {
+  Future<void> _send(BuildContext context) async {
     final goal = _goal.text.trim();
     if (goal.isEmpty) {
       return;
     }
+    final bloc = context.read<AgentTasksBloc>();
+    var confirmed = false;
+    // With no notes chosen the task may read every notebook: ask first,
+    // when Settings say so.
+    if (widget.noteIds.isEmpty && bloc.state.prefs.askBeforeReadingAll) {
+      final l10n = context.l10n;
+      confirmed = await showKansoConfirm(
+        context,
+        title: l10n.agentTasksReadAllTitle,
+        body: l10n.agentTasksReadAllBody,
+        cancelLabel: l10n.agentTasksReadAllCancel,
+        confirmLabel: l10n.agentTasksReadAllConfirm,
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
     _lastGoal = goal;
-    context.read<AgentTasksBloc>().add(
-      AgentTasksEvent.goalSent(goal, noteIds: widget.noteIds),
+    _lastConfirmed = confirmed;
+    bloc.add(
+      AgentTasksEvent.goalSent(
+        goal,
+        noteIds: widget.noteIds,
+        newNoteBook: _bookId,
+        confirmedAll: confirmed,
+      ),
     );
+  }
+
+  Future<void> _pickBook(BuildContext context) async {
+    final index = context.read<LibraryIndexBloc>();
+    final picked = await showKansoBottomSheet<(String, String?)>(
+      context,
+      builder: (_) => BlocProvider<LibraryIndexBloc>.value(
+        value: index,
+        child: _BookSheet(chosen: _bookId),
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _bookId = picked.$1;
+        _bookName = picked.$2;
+      });
+    }
   }
 
   @override
@@ -120,10 +174,19 @@ class _BodyState extends State<_Body> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: KansoSpacing.xs),
+                  KansoSettingsRow(
+                    label: l10n.agentTasksNewNotesIn,
+                    value: _bookName ?? l10n.agentTasksInbox,
+                    chevron: true,
+                    onTap: () => _pickBook(context),
+                  ),
                   const SizedBox(height: KansoSpacing.sm),
                   KansoButton(
                     label: l10n.agentTasksStart,
-                    onPressed: state.starting ? null : () => _send(context),
+                    onPressed: state.starting
+                        ? null
+                        : () => unawaited(_send(context)),
                   ),
                   const SizedBox(height: KansoSpacing.md),
                   if (trouble != null)
@@ -137,6 +200,8 @@ class _BodyState extends State<_Body> {
                               AgentTasksEvent.goalSent(
                                 _lastGoal,
                                 noteIds: widget.noteIds,
+                                newNoteBook: _bookId,
+                                confirmedAll: _lastConfirmed,
                               ),
                             );
                           }
@@ -170,6 +235,58 @@ class _BodyState extends State<_Body> {
           ],
         );
       },
+    );
+  }
+}
+
+/// The notebooks to put new notes in: the Inbox first, then the library's
+/// notebooks that are not locked.
+class _BookSheet extends StatelessWidget {
+  const _BookSheet({required this.chosen});
+
+  final String chosen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final notebooks = context.select<LibraryIndexBloc, List<NotebookRow>>(
+      (index) => index.state.notebooks,
+    );
+    return ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.only(bottom: KansoSpacing.sm),
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.all(KansoSpacing.md),
+          child: Text(
+            l10n.agentTasksNewNotesIn,
+            style: context.typography.barTitle,
+          ),
+        ),
+        KansoSheetGroup(
+          children: <Widget>[
+            KansoCheckRow(
+              label: l10n.agentTasksInbox,
+              icon: KansoIcons.notebook,
+              checked: chosen.isEmpty,
+              onTap: () => Navigator.of(context).pop(('', null)),
+            ),
+            for (final notebook in notebooks)
+              if (notebook.role != NotebookRole.inbox)
+                KansoCheckRow(
+                  label: notebook.name,
+                  icon: notebook.locked ? KansoIcons.lock : KansoIcons.notebook,
+                  indent: notebook.depth * KansoSpacing.md,
+                  checked: chosen == notebook.id,
+                  onTap: notebook.locked
+                      ? null
+                      : () => Navigator.of(
+                          context,
+                        ).pop((notebook.id, notebook.name)),
+                ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -136,8 +136,46 @@ pub struct OpenTask {
     pub secret: Arc<String>,
 }
 
+/// The notebooks a task may write into: the new-note notebook, the notebooks
+/// of the notes it was given, or the notebooks it may read (with the ones
+/// inside). `None` for a task that may read every notebook. A note's text
+/// can never widen it.
+fn write_books(store: &Store, spec: &TaskSpec) -> Option<HashSet<String>> {
+    let mut books: HashSet<String> = HashSet::new();
+    if !spec.new_note_book.trim().is_empty() {
+        books.insert(spec.new_note_book.trim().to_owned());
+    }
+    let roots: Vec<String> = match &spec.read {
+        ReadScope::Everything => return None,
+        ReadScope::Notes(ids) => {
+            books.extend(
+                ids.iter()
+                    .filter_map(|id| store.note(id).ok().flatten())
+                    .map(|note| note.book_id),
+            );
+            return Some(books);
+        }
+        ReadScope::Notebook(book) => vec![book.clone()],
+        ReadScope::Allowed(allowed) => allowed.clone(),
+    };
+    let all = store.books().unwrap_or_default();
+    let mut queue = roots;
+    let mut seen = HashSet::new();
+    while let Some(id) = queue.pop() {
+        if seen.insert(id.clone()) {
+            queue.extend(
+                all.iter()
+                    .filter(|b| b.parent_book_id.as_deref() == Some(id.as_str()))
+                    .map(|b| b.id.clone()),
+            );
+        }
+    }
+    books.extend(seen);
+    Some(books)
+}
+
 /// The scope a task with `spec` has (without minting anything).
-pub fn scope_for(spec: &TaskSpec, agent: &str, id: TaskId) -> AgentScope {
+pub fn scope_for(store: &Store, spec: &TaskSpec, agent: &str, id: TaskId) -> AgentScope {
     let limits = TaskLimits {
         lifetime: spec.time_limit + Duration::from_secs(60),
         calls: spec.max_calls,
@@ -150,6 +188,7 @@ pub fn scope_for(spec: &TaskSpec, agent: &str, id: TaskId) -> AgentScope {
         ReadScope::Everything => (None, None),
     };
     AgentScope::task(books, notes, agent, id, spec.ops, limits)
+        .with_writes(write_books(store, spec), &spec.new_note_book)
 }
 
 /// The notebooks the person named, for the "moved into a notebook you
@@ -182,7 +221,7 @@ pub fn open(
     }
     let sets = tokens.changesets();
     let id = sets.next_id();
-    let scope = scope_for(spec, agent, id);
+    let scope = scope_for(store, spec, agent, id);
     let readable = readable_notes(store, &scope).len();
     if readable == 0 {
         return Err(StartError::NothingReadable);
@@ -216,7 +255,7 @@ impl OpenTask {
 
     /// The notes the agent has been shown, in order.
     pub fn reads(&self) -> Vec<String> {
-        self.tokens.reads(self.token)
+        self.tokens.task_reads(self.id)
     }
 
     /// Ends the token. The change set stays for review.
@@ -228,6 +267,7 @@ impl OpenTask {
     pub fn discard(&self) {
         self.end();
         self.tokens.changesets().remove(self.id);
+        self.tokens.forget_task(self.id);
     }
 }
 
@@ -335,8 +375,25 @@ pub fn api_prompt(task: &OpenTask) -> Prompt {
     }
     Prompt {
         system,
-        user: format!("Task: {}", task.spec.goal.trim()),
+        user: user_text(task, true),
     }
+}
+
+/// What follows the system prompt: the goal, and where new notes go.
+pub fn user_text(task: &OpenTask, api_names: bool) -> String {
+    let mut text = format!("Task: {}", task.spec.goal.trim());
+    let book = task.spec.new_note_book.trim();
+    if !book.is_empty() {
+        let tool = if api_names {
+            "create_note"
+        } else {
+            "create-note"
+        };
+        text.push_str(&format!(
+            "\n\nNew notes go in the notebook with bookId \"{book}\" (leave `bookId` out of {tool} to use it). Notes can only be created and moved into the notebooks of the notes you were given and that one."
+        ));
+    }
+    text
 }
 
 /// Runs `task` on a model with an API key. The events are the model's words

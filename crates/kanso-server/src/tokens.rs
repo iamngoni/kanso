@@ -9,7 +9,7 @@
 //! immediate. Nothing here is written anywhere: the tokens live in memory
 //! and end with the app.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
@@ -19,7 +19,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest as _, Sha256};
 use subtle::ConstantTimeEq as _;
 
-use crate::changeset::ChangeSets;
+use crate::changeset::{ChangeSets, TaskId};
 use crate::review::ReviewQueue;
 use crate::scope::{AgentScope, Caller};
 
@@ -84,6 +84,11 @@ type Clock = Arc<dyn Fn() -> Instant + Send + Sync>;
 struct Inner {
     entries: Vec<Entry>,
     next_id: u64,
+    /// Tool calls and notes shown per task, over every token the task had
+    /// (an agent session that starts again gets a new token, not a new
+    /// budget).
+    task_calls: HashMap<TaskId, usize>,
+    task_reads: HashMap<TaskId, Vec<String>>,
 }
 
 /// The agents' tokens. Cloning shares the same store: the app keeps one and
@@ -132,6 +137,8 @@ impl TokenStore {
             inner: Arc::new(Mutex::new(Inner {
                 entries: Vec::new(),
                 next_id: 1,
+                task_calls: HashMap::new(),
+                task_reads: HashMap::new(),
             })),
             clock,
         }
@@ -259,7 +266,42 @@ impl TokenStore {
             .scope
             .task_limits
             .map_or(MAX_CALLS_PER_TURN, |limits| limits.calls);
-        entry.calls <= max
+        let (own, task) = (entry.calls, entry.scope.task);
+        match task {
+            Some(task) => {
+                let calls = inner.task_calls.entry(task).or_default();
+                *calls += 1;
+                *calls <= max
+            }
+            None => own <= max,
+        }
+    }
+
+    /// [`TokenStore::charge`], for tests in other crates.
+    #[doc(hidden)]
+    pub fn charge_for_test(&self, id: TokenId) -> bool {
+        self.charge(id)
+    }
+
+    /// How many tool calls task `task` has made, over all its tokens.
+    pub fn task_calls(&self, task: TaskId) -> usize {
+        self.lock().task_calls.get(&task).copied().unwrap_or(0)
+    }
+
+    /// The notes task `task` has been shown, over all its tokens, in order.
+    pub fn task_reads(&self, task: TaskId) -> Vec<String> {
+        self.lock()
+            .task_reads
+            .get(&task)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Forgets what task `task` counted.
+    pub fn forget_task(&self, task: TaskId) {
+        let mut inner = self.lock();
+        inner.task_calls.remove(&task);
+        inner.task_reads.remove(&task);
     }
 
     /// How many tool calls token `id` has made this question or task.
@@ -274,10 +316,19 @@ impl TokenStore {
     /// Notes an answer on `id` showed, for the person to see.
     pub(crate) fn record(&self, id: TokenId, notes: &[String]) {
         let mut inner = self.lock();
-        if let Some(entry) = inner.entries.iter_mut().find(|entry| entry.id == id) {
+        let Some(entry) = inner.entries.iter_mut().find(|entry| entry.id == id) else {
+            return;
+        };
+        for note in notes {
+            if !entry.reads.contains(note) {
+                entry.reads.push(note.clone());
+            }
+        }
+        if let Some(task) = entry.scope.task {
+            let all = inner.task_reads.entry(task).or_default();
             for note in notes {
-                if !entry.reads.contains(note) {
-                    entry.reads.push(note.clone());
+                if !all.contains(note) {
+                    all.push(note.clone());
                 }
             }
         }

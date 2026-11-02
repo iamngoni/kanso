@@ -12,8 +12,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use kanso_engine::agent_task::review::{self, CardDetail, CardState, LineKind};
 use kanso_engine::agent_task::runner::{ApiDriver, Tasks};
+use kanso_engine::agent_task::settings::AgentTaskSettings;
 use kanso_engine::agent_task::{ReadScope, TaskSpec};
-use kanso_server::{OpKind, Selection, TaskId, TaskOps, TokenStore};
+use kanso_server::{OpKind, Selection, TaskId, TokenStore};
 
 use crate::agent_tasks_model::{AgentTaskPrefs, TaskCard, TaskReview, TaskView};
 use crate::ai::AiHandle;
@@ -21,6 +22,10 @@ use crate::errors::KansoError;
 
 /// What starting a task says while Settings has agent tasks off.
 pub const TASKS_OFF: &str = "Agent tasks are turned off in Settings.";
+
+/// What starting a task says when it can read every notebook and Settings
+/// ask first, and the person hasn't confirmed.
+pub const CONFIRM_ALL: &str = "Confirm that this task may read all your notebooks.";
 
 /// The file the preferences are kept in, beside the library.
 const PREFS_FILE: &str = "agent-tasks.json";
@@ -33,6 +38,9 @@ struct PrefsFile {
     edits: bool,
     moves: bool,
     merges: bool,
+    time_limit_minutes: u32,
+    max_notes: u32,
+    ask_before_reading_all: bool,
 }
 
 impl Default for PrefsFile {
@@ -43,6 +51,9 @@ impl Default for PrefsFile {
             edits: true,
             moves: true,
             merges: true,
+            time_limit_minutes: 20,
+            max_notes: 200,
+            ask_before_reading_all: true,
         }
     }
 }
@@ -109,6 +120,9 @@ impl AgentTasks {
             edits: file.edits,
             moves: file.moves,
             merges: file.merges,
+            time_limit_minutes: file.time_limit_minutes,
+            max_notes: file.max_notes,
+            ask_before_reading_all: file.ask_before_reading_all,
         }
     }
 
@@ -120,6 +134,9 @@ impl AgentTasks {
             edits: prefs.edits,
             moves: prefs.moves,
             merges: prefs.merges,
+            time_limit_minutes: prefs.time_limit_minutes,
+            max_notes: prefs.max_notes,
+            ask_before_reading_all: prefs.ask_before_reading_all,
         };
         let bytes =
             serde_json::to_vec_pretty(&file).map_err(|err| KansoError::storage(err.to_string()))?;
@@ -132,31 +149,54 @@ impl AgentTasks {
     }
 
     /// Starts a task that may read `note_ids` (or every unlocked note when
-    /// empty) and put new notes in `new_note_book`. Returns its id.
+    /// empty, which the person must have confirmed when Settings ask first)
+    /// and put new notes in `new_note_book`. Returns its id.
     pub fn start(
         &self,
         goal: &str,
         note_ids: Vec<String>,
         new_note_book: &str,
+        confirmed_all: bool,
     ) -> Result<u64, KansoError> {
         let prefs = self.prefs();
         if !prefs.enabled {
             return Err(KansoError::invalid(TASKS_OFF));
         }
-        let settings = self.ai.enabled()?;
-        let provider = self.ai.provider_for(&settings)?;
         let read = if note_ids.is_empty() {
+            if prefs.ask_before_reading_all && !confirmed_all {
+                return Err(KansoError::invalid(CONFIRM_ALL));
+            }
             ReadScope::Everything
         } else {
             ReadScope::Notes(note_ids)
         };
-        let mut spec = TaskSpec::new(goal, read, new_note_book);
-        spec.ops = TaskOps {
-            create: prefs.new_notes,
-            edit: prefs.edits,
-            moves: prefs.moves,
-            merge: prefs.merges,
+        let settings = self.ai.enabled()?;
+        let provider = self.ai.provider_for(&settings)?;
+        // New notes go where the person said, and the Inbox when they
+        // didn't.
+        let new_note_book = match new_note_book.trim() {
+            "" => self
+                .ai
+                .inner
+                .store
+                .role_book(kanso_core::roles::Role::Inbox, kanso_store::Origin::Ui)
+                .map_err(|err| KansoError::storage(err.to_string()))?,
+            chosen => chosen.to_owned(),
         };
+        let spec = TaskSpec::with_settings(
+            goal,
+            read,
+            &new_note_book,
+            &AgentTaskSettings {
+                new_notes: prefs.new_notes,
+                edits: prefs.edits,
+                moves: prefs.moves,
+                merges: prefs.merges,
+                time_limit_minutes: u64::from(prefs.time_limit_minutes),
+                max_notes: prefs.max_notes as usize,
+                ask_before_reading_all: prefs.ask_before_reading_all,
+            },
+        );
         let runtime = self.runtime();
         runtime
             .tasks
@@ -242,9 +282,24 @@ impl AgentTasks {
         now_ms: i64,
     ) -> Result<String, KansoError> {
         let runtime = self.runtime();
+        let ticked: std::collections::BTreeSet<usize> =
+            ticked.iter().map(|i| *i as usize).collect();
+        // Ticking a card that changed since the agent read it is choosing to
+        // apply over the change, as on the desktop.
+        let apply_anyway = match runtime.tasks.changes(TaskId(id)) {
+            Some(set) => review::build(&self.ai.inner.store, &set, "")
+                .cards
+                .iter()
+                .filter(|card| {
+                    matches!(card.state, CardState::Changed { .. }) && ticked.contains(&card.index)
+                })
+                .map(|card| card.index)
+                .collect(),
+            None => Default::default(),
+        };
         let selection = Selection {
-            ticked: ticked.iter().map(|i| *i as usize).collect(),
-            apply_anyway: Default::default(),
+            ticked,
+            apply_anyway,
             keep_sources: keep.iter().map(|i| *i as usize).collect(),
         };
         runtime
@@ -261,7 +316,7 @@ impl AgentTasks {
     /// Takes back the last apply of task `id`, in one transaction.
     pub fn undo(&self, id: u64, now_ms: i64) -> Result<String, KansoError> {
         match self.runtime().tasks.undo(TaskId(id), now_ms) {
-            Some(Ok(_)) => Ok(review::undo_message(0)),
+            Some(Ok(report)) => Ok(review::undo_message(report.skipped.len())),
             Some(Err(message)) => Err(KansoError::storage(message)),
             None => Err(KansoError::invalid("There is nothing to undo.")),
         }

@@ -376,6 +376,22 @@ impl Store {
     /// [`Store::undo_plugin_batch`] for a plugin's or an agent's batch. A
     /// restored note is stamped `updatedAt = now_ms`, never its old time.
     pub fn undo_batch(&self, batch: &str, now_ms: i64) -> Result<crate::UndoReport> {
+        self.undo_batch_inner(batch, now_ms, false)
+    }
+
+    /// [`Store::undo_batch`] for an agent task's batch: a note the batch made
+    /// goes to the Trash instead of being deleted, so Undo never destroys
+    /// text for good.
+    pub fn undo_agent_batch(&self, batch: &str, now_ms: i64) -> Result<crate::UndoReport> {
+        self.undo_batch_inner(batch, now_ms, true)
+    }
+
+    fn undo_batch_inner(
+        &self,
+        batch: &str,
+        now_ms: i64,
+        trash_created: bool,
+    ) -> Result<crate::UndoReport> {
         self.write(|tx, changes| {
             let kept: Vec<(String, String, Option<String>)> = tx
                 .prepare(
@@ -402,8 +418,42 @@ impl Store {
                     report.skipped.push(Skipped { id, title });
                     continue;
                 };
+                // A notebook locked since the batch was applied: the note is
+                // left alone, as for any write.
+                if guard(tx, &row, "Kanso").is_err() {
+                    let title = title_of(&row.fields);
+                    report.skipped.push(Skipped { id, title });
+                    continue;
+                }
                 if json == CREATED {
-                    crate::write::delete_row(tx, &id, &row, Origin::Ui, changes)?;
+                    if trash_created {
+                        let mut fields = row.fields.clone();
+                        fields.insert("bookId".into(), TRASH_BOOK_ID.into());
+                        fields.insert("updatedAt".into(), now_ms.into());
+                        let fields = crate::validate::normalize(
+                            DocType::Note,
+                            &id,
+                            fields,
+                            Some(&row.fields),
+                            now_ms,
+                            crate::validate::Refs::Skip,
+                        )?;
+                        let rev = next_rev(Some(&row), &Value::Object(fields.clone()))?;
+                        store_row(
+                            tx,
+                            &id,
+                            DocType::Note,
+                            &rev,
+                            false,
+                            &fields,
+                            Some(&row),
+                            Synced::Keep,
+                            Origin::Ui,
+                            changes,
+                        )?;
+                    } else {
+                        crate::write::delete_row(tx, &id, &row, Origin::Ui, changes)?;
+                    }
                     report.restored.push(id);
                     continue;
                 }

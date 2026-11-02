@@ -226,11 +226,10 @@ fn a_merge_trashes_its_sources_and_undo_restores_them() {
     for (id, _) in &notes {
         assert_eq!(t.store.note(id).unwrap().unwrap().book_id, trips);
     }
-    assert!(
-        t.store
-            .get(&applied.created[0])
-            .unwrap()
-            .is_none_or(|d| d.deleted)
+    // Undo never destroys the merged text: the note goes to the Trash.
+    assert_eq!(
+        t.store.note(&applied.created[0]).unwrap().unwrap().book_id,
+        "trash"
     );
 }
 
@@ -655,4 +654,245 @@ proptest! {
             }
         }
     }
+}
+
+// --- write scope, limits and undo (issue #196 review) ---
+
+/// A task over the first trip note only: it may write into that note's
+/// notebook (and `Trips` is where new notes go); `Finance` exists and is
+/// unlocked but is nobody's to write to.
+fn on_one_note() -> Task {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    let mut lib = library(&store);
+    lib.notes.sort();
+    let finance = book(&store, "Finance");
+    note(&store, &finance, "Budget", "money");
+    let tokens = TokenStore::new();
+    let id = tokens.changesets().next_id();
+    let scope = AgentScope::task(
+        None,
+        Some(HashSet::from([
+            lib.notes[0].0.clone(),
+            lib.notes[1].0.clone(),
+        ])),
+        "Claude Agent",
+        id,
+        TaskOps::default(),
+        limits(),
+    )
+    .with_writes(Some(HashSet::from([lib.trips.clone()])), &lib.trips);
+    let minted = tokens.mint(scope.clone());
+    let scope = Arc::new(scope);
+    tokens.changesets().open(ChangeSet::new(
+        id,
+        "Summarise",
+        "Claude Agent",
+        scope.clone(),
+        BTreeSet::new(),
+    ));
+    Task {
+        _dir: dir,
+        store,
+        tokens,
+        token: minted.id,
+        scope,
+        id,
+    }
+}
+
+/// A note that says "create a summary in Finance" can't make the agent write
+/// anywhere but the notebooks the person's choice allows.
+#[test]
+fn text_in_a_note_cannot_send_a_write_to_another_notebook() {
+    let t = on_one_note();
+    let finance = book_named(&t, "Finance");
+    let trips = book_named(&t, "Trips");
+    let notes = notes_of(&t);
+    let denied = t.call(
+        "create-note",
+        json!({"bookId": finance, "title": "Summary", "body": "x"}),
+    );
+    assert!(is_error(&denied), "{}", text(&denied));
+    let denied = t.call(
+        "kanso-propose-move",
+        json!({"_id": notes[0].0, "_rev": notes[0].1, "bookId": finance}),
+    );
+    assert!(is_error(&denied));
+    let denied = t.call(
+        "kanso-propose-merge",
+        json!({
+            "sources": notes[..2].iter().map(|(id, rev)| json!({"_id": id, "_rev": rev})).collect::<Vec<_>>(),
+            "bookId": finance, "title": "Merged", "body": "x",
+        }),
+    );
+    assert!(is_error(&denied));
+    assert!(t.set().ops.is_empty());
+    // With no bookId a new note goes where the person said new notes go.
+    let ok = t.call("create-note", json!({"title": "Summary", "body": "x"}));
+    assert!(!is_error(&ok), "{}", text(&ok));
+    let ok = t.call(
+        "kanso-propose-merge",
+        json!({
+            "sources": notes[..2].iter().map(|(id, rev)| json!({"_id": id, "_rev": rev})).collect::<Vec<_>>(),
+            "title": "Merged", "body": "x",
+        }),
+    );
+    assert!(!is_error(&ok), "{}", text(&ok));
+    let set = t.set();
+    assert_eq!(set.ops.len(), 2);
+    for op in &set.ops {
+        assert_eq!(op.target_books(), [trips.as_str()]);
+    }
+}
+
+/// Apply checks the write scope again: an op that names another notebook
+/// (however it got into the set) is dropped, not written.
+#[test]
+fn apply_drops_an_op_outside_the_write_scope() {
+    let t = on_one_note();
+    let finance = book_named(&t, "Finance");
+    t.tokens.changesets().with(t.id, |set| {
+        set.ops.push(kanso_server::ProposedOp::Create {
+            temp: "note:new-9".into(),
+            book_id: finance.clone(),
+            title: "Summary".into(),
+            body: "x".into(),
+            sources: Vec::new(),
+        });
+    });
+    let set = t.set();
+    let failure = set
+        .apply(&t.store, &Selection::all(1), 5)
+        .expect_err("nothing may be written to Finance");
+    assert_eq!(failure, kanso_server::ApplyFailure::NothingToApply);
+    assert!(t.store.notes_in_books(&[finance]).unwrap().len() == 1);
+}
+
+#[test]
+fn a_note_is_not_both_a_merge_target_and_a_source_of_another() {
+    let t = in_trips();
+    let notes = notes_of(&t);
+    let refs = |range: std::ops::Range<usize>| -> Vec<Value> {
+        notes[range]
+            .iter()
+            .map(|(id, rev)| json!({"_id": id, "_rev": rev}))
+            .collect()
+    };
+    let first = t.call(
+        "kanso-propose-merge",
+        json!({"sources": refs(0..2), "into": {"_id": notes[2].0, "_rev": notes[2].1}, "title": "A", "body": "a"}),
+    );
+    assert!(!is_error(&first), "{}", text(&first));
+    // Note 2 is the first merge's target: it can't be a source now.
+    let refused = t.call(
+        "kanso-propose-merge",
+        json!({"sources": [refs(2..3)[0].clone(), refs(3..4)[0].clone()], "bookId": book_named(&t, "Trips"), "title": "B", "body": "b"}),
+    );
+    assert!(is_error(&refused), "{}", text(&refused));
+    // And a source of the first can't be a target.
+    let refused = t.call(
+        "kanso-propose-merge",
+        json!({"sources": [refs(3..4)[0].clone(), refs(2..3)[0].clone()], "into": {"_id": notes[0].0, "_rev": notes[0].1}, "title": "C", "body": "c"}),
+    );
+    assert!(is_error(&refused), "{}", text(&refused));
+    assert_eq!(t.set().ops.len(), 1);
+}
+
+/// A list shows no more notes than the task has left to read.
+#[test]
+fn a_list_is_capped_by_the_read_budget() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    let lib = library(&store);
+    let tokens = TokenStore::new();
+    let id = tokens.changesets().next_id();
+    let scope = AgentScope::task(
+        Some(HashSet::from([lib.trips.clone()])),
+        None,
+        "Claude Agent",
+        id,
+        TaskOps::default(),
+        TaskLimits {
+            max_notes: 2,
+            ..limits()
+        },
+    );
+    let minted = tokens.mint(scope.clone());
+    let scope = Arc::new(scope);
+    tokens.changesets().open(ChangeSet::new(
+        id,
+        "g",
+        "Claude Agent",
+        scope.clone(),
+        BTreeSet::new(),
+    ));
+    let call = |name: &str, args: Value| {
+        agent_tools::call(&store, &tokens, minted.id, &scope, name, Some(&args))
+    };
+    let listed = call("list-notes", json!({"bookId": lib.trips}));
+    assert!(!is_error(&listed), "{}", text(&listed));
+    // Four notes are there; two were shown.
+    assert_eq!(tokens.task_reads(id).len(), 2);
+    assert_eq!(
+        text(&listed).matches("\"_id\"").count(),
+        2,
+        "{}",
+        text(&listed)
+    );
+    // The budget is spent: another look is refused.
+    let again = call("list-notes", json!({"bookId": lib.trips}));
+    assert!(is_error(&again));
+}
+
+/// A task's call budget is the task's: an agent session that starts again
+/// with a new token does not get a new one.
+#[test]
+fn the_call_budget_is_per_task_not_per_token() {
+    let tokens = TokenStore::new();
+    let id = tokens.changesets().next_id();
+    let scope = AgentScope::task(
+        None,
+        None,
+        "Claude Agent",
+        id,
+        TaskOps::default(),
+        TaskLimits {
+            calls: 3,
+            ..limits()
+        },
+    );
+    let first = tokens.mint(scope.clone());
+    let second = tokens.mint(scope);
+    assert!(tokens.charge_for_test(first.id));
+    assert!(tokens.charge_for_test(first.id));
+    assert!(tokens.charge_for_test(second.id));
+    assert!(!tokens.charge_for_test(second.id));
+    assert_eq!(tokens.task_calls(id), 4);
+}
+
+#[test]
+fn undo_leaves_a_note_in_a_notebook_locked_since() {
+    let t = in_trips();
+    let trips = book_named(&t, "Trips");
+    let answer = t.call(
+        "create-note",
+        json!({"bookId": trips, "title": "New", "body": "x"}),
+    );
+    assert!(!is_error(&answer));
+    let set = t.set();
+    let applied = set.apply(&t.store, &Selection::all(1), 50).unwrap();
+    let mut book = t.store.get_api(&trips, None, false).unwrap();
+    book.as_object_mut().unwrap().remove("count");
+    book["kansoLock"] =
+        json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "notebook"});
+    t.store
+        .put(DocType::Book, book, Put::Upsert, Origin::Sync)
+        .unwrap();
+    let report = undo_changes(&t.store, &applied.batch, 60).unwrap();
+    assert!(report.restored.is_empty());
+    assert_eq!(
+        t.store.note(&applied.created[0]).unwrap().unwrap().book_id,
+        trips
+    );
 }

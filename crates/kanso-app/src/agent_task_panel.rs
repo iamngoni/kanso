@@ -38,6 +38,8 @@ pub const SHEET_WIDTH: f32 = 560.;
 pub const REVIEW_WIDTH: f32 = 760.;
 /// The notification tag prefix.
 const TAG: &str = "agent-task:";
+/// What the "ready to review" notification says. Never the task's goal.
+const NOTIFICATION_BODY: &str = "An agent task has changes ready for you to review.";
 
 /// The runner, when the app has one.
 pub fn tasks(cx: &App) -> Option<Tasks> {
@@ -84,6 +86,8 @@ pub struct AgentTasksPanel {
     replies: HashMap<TaskId, Entity<InputState>>,
     /// Tasks whose "Notes read" list is open.
     reads_open: HashSet<TaskId>,
+    /// Why Try Again couldn't start the task again.
+    retry_error: Option<String>,
     _watch: Task<()>,
     _tick: Task<()>,
 }
@@ -122,6 +126,7 @@ impl AgentTasksPanel {
             tasks,
             replies: HashMap::new(),
             reads_open: HashSet::new(),
+            retry_error: None,
             _watch: watch,
             _tick: tick,
         }
@@ -136,12 +141,9 @@ impl AgentTasksPanel {
         cx.show_system_notification(SystemNotification {
             tag: format!("{TAG}{}", id.0).into(),
             title: NOTIFICATION.into(),
-            body: self
-                .tasks
-                .row(id)
-                .map(|row| row.goal)
-                .unwrap_or_default()
-                .into(),
+            // Fixed words: the goal is the person's own text, and a
+            // notification can show on a locked screen.
+            body: NOTIFICATION_BODY.into(),
             actions: Vec::new(),
         });
     }
@@ -173,6 +175,39 @@ impl AgentTasksPanel {
         cx.notify();
     }
 
+    /// Try Again on a failed task: the same sheet, started anew. The failed
+    /// row goes unless it has changes to review.
+    fn retry(&mut self, id: TaskId, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(spec) = self.tasks.spec(id) else {
+            return;
+        };
+        self.retry_error = None;
+        let maker = StartMaker::capture(cx);
+        let tasks = self.tasks.clone();
+        let url = if maker.is_agent {
+            crate::services::agent_mcp_endpoint(cx)
+        } else {
+            None
+        };
+        if !self.tasks.row(id).is_some_and(|row| row.can_review()) {
+            self.tasks.dismiss(id);
+        }
+        let started = cx
+            .background_executor()
+            .spawn(async move { maker.start(&tasks, &spec, url) });
+        cx.spawn_in(window, async move |this, cx| {
+            if let Err(error) = started.await {
+                this.update(cx, |this, cx| {
+                    this.retry_error = Some(error.message());
+                    cx.notify();
+                })
+                .ok();
+            }
+        })
+        .detach();
+        cx.notify();
+    }
+
     fn undo(&mut self, id: TaskId, cx: &mut Context<Self>) {
         let now = crate::clock::Clock::now_ms(cx);
         self.tasks.undo(id, now);
@@ -190,6 +225,10 @@ impl AgentTasksPanel {
         let id = row.id;
         let asking = match &row.phase {
             Phase::Asking { question } => Some(question.clone()),
+            _ => None,
+        };
+        let failure = match &row.phase {
+            Phase::Failed { message } => Some(crate::page_chrome::ai_trouble(message)),
             _ => None,
         };
         let reply = asking.as_ref().map(|_| self.reply_box(id, window, cx));
@@ -222,36 +261,55 @@ impl AgentTasksPanel {
                     .text_color(colors.text_muted)
                     .child(format!("{} · {}", row.agent, elapsed_label(row.elapsed))),
             )
-            .child(
-                h_flex()
-                    .gap(px(6.))
-                    .items_start()
-                    .when(row.is_active(), |el| {
-                        el.child(
-                            div().flex_none().pt(px(2.)).child(
-                                Icon::new(Lucide::RefreshCcw)
-                                    .size(px(13.))
-                                    .text_color(colors.text_muted)
-                                    .with_animation(
-                                        ("agent-task-spin", ix),
-                                        Animation::new(Duration::from_millis(1100)).repeat(),
-                                        |icon, t| {
-                                            icon.transform(Transformation::rotate(percentage(t)))
-                                        },
-                                    ),
-                            ),
-                        )
-                    })
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .text_size(px(12.5))
-                            .line_height(px(18.))
-                            .text_color(colors.text_secondary)
-                            .child(row.status_line()),
-                    ),
-            )
+            .when_some(failure.clone(), |el, trouble| {
+                let retry = cx.entity().downgrade();
+                el.child(crate::page_chrome::ai_error_card(
+                    &trouble,
+                    move |window, cx| {
+                        retry.update(cx, |this, cx| this.retry(id, window, cx)).ok();
+                    },
+                    {
+                        let tasks = self.tasks.clone();
+                        move |_, _| tasks.dismiss(id)
+                    },
+                    window,
+                    cx,
+                ))
+            })
+            .when(failure.is_none(), |el| {
+                el.child(
+                    h_flex()
+                        .gap(px(6.))
+                        .items_start()
+                        .when(row.is_active(), |el| {
+                            el.child(
+                                div().flex_none().pt(px(2.)).child(
+                                    Icon::new(Lucide::RefreshCcw)
+                                        .size(px(13.))
+                                        .text_color(colors.text_muted)
+                                        .with_animation(
+                                            ("agent-task-spin", ix),
+                                            Animation::new(Duration::from_millis(1100)).repeat(),
+                                            |icon, t| {
+                                                icon.transform(Transformation::rotate(percentage(
+                                                    t,
+                                                )))
+                                            },
+                                        ),
+                                ),
+                            )
+                        })
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .text_size(px(12.5))
+                                .line_height(px(18.))
+                                .text_color(colors.text_secondary)
+                                .child(row.status_line()),
+                        ),
+                )
+            })
             .when(row.is_active() || row.notes_read > 0, |el| {
                 let open = self.reads_open.contains(&id);
                 let titles: Vec<String> = if open {
@@ -497,6 +555,14 @@ impl Render for AgentTasksPanel {
                         .child("Give an agent a goal, like “Merge these trip notes into one plan”. It reads the notes you choose and proposes changes. Nothing is written until you review and apply them."),
                 )
             })
+            .when_some(self.retry_error.clone(), |el, error| {
+                el.child(
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(colors.danger)
+                        .child(error),
+                )
+            })
             .children(cards)
     }
 }
@@ -524,6 +590,12 @@ pub struct NewTaskSheet {
     confirming: bool,
     error: Option<String>,
     starting: bool,
+    /// Whether any note in the chosen scope can be shown to an agent: worked
+    /// out off the UI thread when the scope changes, never on a keystroke.
+    /// `None` while it is being worked out.
+    readable: Option<bool>,
+    readable_key: String,
+    _readable_task: Option<Task<()>>,
     _typing: Subscription,
 }
 
@@ -566,8 +638,43 @@ impl NewTaskSheet {
             confirming: false,
             error: None,
             starting: false,
+            readable: None,
+            readable_key: String::new(),
+            _readable_task: None,
             _typing: typing,
         }
+    }
+
+    /// Works out, in the background, whether the chosen scope has a note an
+    /// agent may read. Does nothing when the scope is the one already worked
+    /// out (or being worked out).
+    fn ensure_readable(&mut self, cx: &mut Context<Self>) {
+        let allowed = cx.global::<AppState>().config.ai.agent.notebooks.clone();
+        let key = format!(
+            "{:?}|{:?}|{:?}|{:?}",
+            self.kind, self.notes, self.notebook, allowed
+        );
+        if key == self.readable_key {
+            return;
+        }
+        self.readable_key = key.clone();
+        self.readable = None;
+        let spec = self.spec(cx);
+        let store = cx.global::<AppState>().store.clone();
+        let counted = cx.background_executor().spawn(async move {
+            let scope = kanso_engine::agent_task::scope_for(&store, &spec, "", TaskId(0));
+            kanso_server::has_readable_notes(&store, &scope)
+        });
+        self._readable_task = Some(cx.spawn(async move |this, cx| {
+            let readable = counted.await;
+            this.update(cx, |this, cx| {
+                if this.readable_key == key {
+                    this.readable = Some(readable);
+                    cx.notify();
+                }
+            })
+            .ok();
+        }));
     }
 
     fn read_scope(&self, allowed: &[String]) -> ReadScope {
@@ -605,11 +712,12 @@ impl NewTaskSheet {
         if !(spec.ops.create || spec.ops.edit || spec.ops.moves || spec.ops.merge) {
             return Some("Choose at least one thing the agent may propose.".to_owned());
         }
-        let scope = kanso_engine::agent_task::scope_for(&spec, "", TaskId(0));
-        if kanso_server::readable_notes(&state.store, &scope).is_empty() {
-            return Some("None of these notes can be shown to an agent.".to_owned());
+        match self.readable {
+            Some(true) => None,
+            Some(false) => Some("None of these notes can be shown to an agent.".to_owned()),
+            // Still working it out: Start waits, with no message.
+            None => Some(String::new()),
         }
-        None
     }
 
     fn reads_everything(&self, cx: &App) -> bool {
@@ -813,6 +921,7 @@ pub(crate) fn task_access(
 // no-prop-test: drawing; what Start needs is `blocked`, covered by the tests below.
 impl Render for NewTaskSheet {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.ensure_readable(cx);
         let colors = Colors::get(cx);
         let kind = self.kind;
         let blocked = self.blocked(cx);
@@ -1573,4 +1682,16 @@ pub fn open_review(task: TaskId, window: &mut Window, cx: &mut App) {
                     ),
             )
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NOTIFICATION_BODY;
+
+    // no-prop-test: a constant; the point is that no goal text can reach it.
+    #[test]
+    fn the_notification_never_carries_the_goal() {
+        assert!(!NOTIFICATION_BODY.is_empty());
+        assert!(NOTIFICATION_BODY.len() < 80);
+    }
 }

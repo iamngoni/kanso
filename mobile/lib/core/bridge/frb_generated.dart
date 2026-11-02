@@ -326,6 +326,7 @@ abstract class KansoCoreApi extends BaseApi {
     required String goal,
     required List<String> noteIds,
     required String newNoteBook,
+    required bool confirmedAll,
   });
 
   Future<void> crateApiAgentTasksKansoAgentTasksStop({
@@ -3653,6 +3654,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     required String goal,
     required List<String> noteIds,
     required String newNoteBook,
+    required bool confirmedAll,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3665,6 +3667,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           sse_encode_String(goal, serializer);
           sse_encode_list_String(noteIds, serializer);
           sse_encode_String(newNoteBook, serializer);
+          sse_encode_bool(confirmedAll, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3677,7 +3680,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           decodeErrorData: sse_decode_kanso_error,
         ),
         constMeta: kCrateApiAgentTasksKansoAgentTasksStartConstMeta,
-        argValues: [that, goal, noteIds, newNoteBook],
+        argValues: [that, goal, noteIds, newNoteBook, confirmedAll],
         apiImpl: this,
       ),
     );
@@ -3686,7 +3689,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   TaskConstMeta get kCrateApiAgentTasksKansoAgentTasksStartConstMeta =>
       const TaskConstMeta(
         debugName: "KansoAgentTasks_start",
-        argNames: ["that", "goal", "noteIds", "newNoteBook"],
+        argNames: ["that", "goal", "noteIds", "newNoteBook", "confirmedAll"],
       );
 
   @override
@@ -17023,14 +17026,17 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   AgentTaskPrefs dco_decode_agent_task_prefs(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return AgentTaskPrefs(
       enabled: dco_decode_bool(arr[0]),
       newNotes: dco_decode_bool(arr[1]),
       edits: dco_decode_bool(arr[2]),
       moves: dco_decode_bool(arr[3]),
       merges: dco_decode_bool(arr[4]),
+      timeLimitMinutes: dco_decode_u_32(arr[5]),
+      maxNotes: dco_decode_u_32(arr[6]),
+      askBeforeReadingAll: dco_decode_bool(arr[7]),
     );
   }
 
@@ -23355,12 +23361,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var var_edits = sse_decode_bool(deserializer);
     var var_moves = sse_decode_bool(deserializer);
     var var_merges = sse_decode_bool(deserializer);
+    var var_timeLimitMinutes = sse_decode_u_32(deserializer);
+    var var_maxNotes = sse_decode_u_32(deserializer);
+    var var_askBeforeReadingAll = sse_decode_bool(deserializer);
     return AgentTaskPrefs(
       enabled: var_enabled,
       newNotes: var_newNotes,
       edits: var_edits,
       moves: var_moves,
       merges: var_merges,
+      timeLimitMinutes: var_timeLimitMinutes,
+      maxNotes: var_maxNotes,
+      askBeforeReadingAll: var_askBeforeReadingAll,
     );
   }
 
@@ -31089,6 +31101,9 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_bool(self.edits, serializer);
     sse_encode_bool(self.moves, serializer);
     sse_encode_bool(self.merges, serializer);
+    sse_encode_u_32(self.timeLimitMinutes, serializer);
+    sse_encode_u_32(self.maxNotes, serializer);
+    sse_encode_bool(self.askBeforeReadingAll, serializer);
   }
 
   @protected
@@ -36994,16 +37009,19 @@ class KansoAgentTasksImpl extends RustOpaque implements KansoAgentTasks {
       .api
       .crateApiAgentTasksKansoAgentTasksSetPrefs(that: this, prefs: prefs);
 
-  /// Starts a task; an empty `note_ids` lets it read every unlocked note.
+  /// Starts a task; an empty `note_ids` lets it read every unlocked note,
+  /// which needs `confirmed_all` when Settings ask first.
   Future<int> start({
     required String goal,
     required List<String> noteIds,
     required String newNoteBook,
+    required bool confirmedAll,
   }) => KansoCore.instance.api.crateApiAgentTasksKansoAgentTasksStart(
     that: this,
     goal: goal,
     noteIds: noteIds,
     newNoteBook: newNoteBook,
+    confirmedAll: confirmedAll,
   );
 
   Future<void> stop({required int id}) => KansoCore.instance.api

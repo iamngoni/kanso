@@ -36,6 +36,18 @@ void main() {
       expect(bloc.state.started, 1);
     });
 
+    test('where new notes go and the confirmation reach the core', () async {
+      bloc.add(
+        const AgentTasksEvent.goalSent(
+          'Merge',
+          newNoteBook: 'book:x',
+          confirmedAll: true,
+        ),
+      );
+      await bloc.stream.firstWhere((s) => s.tasks.length == 1);
+      expect(repo.started.single, (book: 'book:x', confirmedAll: true));
+    });
+
     test('a refused start keeps the sentence for the page to word', () async {
       repo.startError = 'Agent tasks are turned off in Settings.';
       bloc.add(const AgentTasksEvent.goalSent('Merge'));

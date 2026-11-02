@@ -51,7 +51,7 @@ pub use proposal::{Applied, ApplyError, ChangeId, NewChange, ProposedChange};
 pub use review::{EXPIRY as REVIEW_EXPIRY, ReviewEvent, ReviewQueue};
 pub use scope::{
     ASK_TOOLS, AgentScope, Caller, READ_TOOLS, SUGGEST_TOOLS, TASK_TOOLS, TaskLimits, TaskOps,
-    readable_notes,
+    has_readable_notes, readable_notes,
 };
 pub use tokens::{Minted, TokenId, TokenStore};
 

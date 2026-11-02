@@ -20,10 +20,13 @@ abstract interface class AgentTasksRepository {
   );
 
   /// Starts a task and gives its ID. With no [noteIds] it may read every
-  /// unlocked note.
+  /// unlocked note, which needs [confirmedAll] when Settings ask first. New
+  /// notes go in [newNoteBook], the Inbox when it is empty.
   Future<Either<ApplicationError, int>> start({
     required String goal,
     List<String> noteIds,
+    String newNoteBook,
+    bool confirmedAll,
   });
 
   /// Every task this session, oldest first.

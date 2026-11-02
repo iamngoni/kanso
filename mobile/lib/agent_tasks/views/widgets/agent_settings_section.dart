@@ -8,6 +8,8 @@ import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/agent_task_prefs.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
+import '../../../core/views/widgets/kanso_segment.dart';
+import '../../../core/views/widgets/kanso_segmented.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../injection.dart';
@@ -69,6 +71,48 @@ class AgentSettingsSection extends StatelessWidget {
                     l10n.agentSettingsMerges,
                     on: prefs.merges,
                     next: ({required on}) => prefs.copyWith(merges: on),
+                  ),
+                  row(
+                    l10n.agentSettingsAskAll,
+                    on: prefs.askBeforeReadingAll,
+                    next: ({required on}) =>
+                        prefs.copyWith(askBeforeReadingAll: on),
+                  ),
+                  KansoSettingsRow(
+                    label: l10n.agentSettingsTimeLimit,
+                    trailing: KansoSegmented<int>(
+                      semanticLabel: l10n.agentSettingsTimeLimit,
+                      selected: prefs.timeLimitMinutes,
+                      onChanged: (minutes) => prefs.enabled
+                          ? cubit.change(
+                              prefs.copyWith(timeLimitMinutes: minutes),
+                            )
+                          : null,
+                      segments: <KansoSegment<int>>[
+                        for (final minutes in agentTimeLimits)
+                          KansoSegment<int>(
+                            value: minutes,
+                            label: l10n.agentSettingsMinutes(minutes),
+                          ),
+                      ],
+                    ),
+                  ),
+                  KansoSettingsRow(
+                    label: l10n.agentSettingsMaxNotes,
+                    trailing: KansoSegmented<int>(
+                      semanticLabel: l10n.agentSettingsMaxNotes,
+                      selected: prefs.maxNotes,
+                      onChanged: (notes) => prefs.enabled
+                          ? cubit.change(prefs.copyWith(maxNotes: notes))
+                          : null,
+                      segments: <KansoSegment<int>>[
+                        for (final notes in agentMaxNotesChoices)
+                          KansoSegment<int>(
+                            value: notes,
+                            label: '$notes',
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),

@@ -69,15 +69,19 @@ pub(crate) fn call_with_state(
     if let Some(limits) = &scope.task_limits
         && !TASK_TOOLS.contains(&name)
         && !SUGGEST_TOOLS.contains(&name)
-        && state.tokens.reads(token).len() >= limits.max_notes
+        && task_reads(state, token, scope).len() >= limits.max_notes
     {
         return tools::error_result(
             "This task has read as many notes as it may. Propose changes from what you have read, then call kanso-task-done.",
         );
     }
-    let Some(visible) = Visibility::new(&state.store, scope) else {
+    let Some(mut visible) = Visibility::new(&state.store, scope) else {
         return tools::error_result("Couldn't read the notes.");
     };
+    // A list or a search shows no more notes than the task has left to read.
+    if let Some(limits) = &scope.task_limits {
+        visible.limit_reads(task_reads(state, token, scope), limits.max_notes);
+    }
     let answer = match scope.task {
         // A task's proposals stage in its change set.
         Some(task_id) if SUGGEST_TOOLS.contains(&name) || TASK_TOOLS.contains(&name) => task::call(
@@ -95,4 +99,12 @@ pub(crate) fn call_with_state(
     };
     state.tokens.record(token, &visible.shown());
     answer
+}
+
+/// The notes a task has been shown so far, over all its tokens.
+fn task_reads(state: &AppState, token: TokenId, scope: &AgentScope) -> Vec<String> {
+    match scope.task {
+        Some(task) => state.tokens.task_reads(task),
+        None => state.tokens.reads(token),
+    }
 }

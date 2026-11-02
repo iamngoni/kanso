@@ -134,12 +134,12 @@ return troubleCleared(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  polled,TResult Function( String goal,  List<String> noteIds)?  goalSent,TResult Function( int id)?  stopped,TResult Function( int id,  String text)?  replied,TResult Function( int id)?  dismissed,TResult Function()?  troubleCleared,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  polled,TResult Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)?  goalSent,TResult Function( int id)?  stopped,TResult Function( int id,  String text)?  replied,TResult Function( int id)?  dismissed,TResult Function()?  troubleCleared,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent() when started != null:
 return started();case AgentTasksPolledEvent() when polled != null:
 return polled();case AgentTasksGoalSentEvent() when goalSent != null:
-return goalSent(_that.goal,_that.noteIds);case AgentTasksStoppedEvent() when stopped != null:
+return goalSent(_that.goal,_that.noteIds,_that.newNoteBook,_that.confirmedAll);case AgentTasksStoppedEvent() when stopped != null:
 return stopped(_that.id);case AgentTasksRepliedEvent() when replied != null:
 return replied(_that.id,_that.text);case AgentTasksDismissedEvent() when dismissed != null:
 return dismissed(_that.id);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
@@ -161,12 +161,12 @@ return troubleCleared();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  polled,required TResult Function( String goal,  List<String> noteIds)  goalSent,required TResult Function( int id)  stopped,required TResult Function( int id,  String text)  replied,required TResult Function( int id)  dismissed,required TResult Function()  troubleCleared,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  polled,required TResult Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)  goalSent,required TResult Function( int id)  stopped,required TResult Function( int id,  String text)  replied,required TResult Function( int id)  dismissed,required TResult Function()  troubleCleared,}) {final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent():
 return started();case AgentTasksPolledEvent():
 return polled();case AgentTasksGoalSentEvent():
-return goalSent(_that.goal,_that.noteIds);case AgentTasksStoppedEvent():
+return goalSent(_that.goal,_that.noteIds,_that.newNoteBook,_that.confirmedAll);case AgentTasksStoppedEvent():
 return stopped(_that.id);case AgentTasksRepliedEvent():
 return replied(_that.id,_that.text);case AgentTasksDismissedEvent():
 return dismissed(_that.id);case AgentTasksTroubleClearedEvent():
@@ -184,12 +184,12 @@ return troubleCleared();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  polled,TResult? Function( String goal,  List<String> noteIds)?  goalSent,TResult? Function( int id)?  stopped,TResult? Function( int id,  String text)?  replied,TResult? Function( int id)?  dismissed,TResult? Function()?  troubleCleared,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  polled,TResult? Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)?  goalSent,TResult? Function( int id)?  stopped,TResult? Function( int id,  String text)?  replied,TResult? Function( int id)?  dismissed,TResult? Function()?  troubleCleared,}) {final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent() when started != null:
 return started();case AgentTasksPolledEvent() when polled != null:
 return polled();case AgentTasksGoalSentEvent() when goalSent != null:
-return goalSent(_that.goal,_that.noteIds);case AgentTasksStoppedEvent() when stopped != null:
+return goalSent(_that.goal,_that.noteIds,_that.newNoteBook,_that.confirmedAll);case AgentTasksStoppedEvent() when stopped != null:
 return stopped(_that.id);case AgentTasksRepliedEvent() when replied != null:
 return replied(_that.id,_that.text);case AgentTasksDismissedEvent() when dismissed != null:
 return dismissed(_that.id);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
@@ -269,7 +269,7 @@ String toString() {
 
 
 class AgentTasksGoalSentEvent implements AgentTasksEvent {
-  const AgentTasksGoalSentEvent(this.goal, {final  List<String> noteIds = const <String>[]}): _noteIds = noteIds;
+  const AgentTasksGoalSentEvent(this.goal, {final  List<String> noteIds = const <String>[], this.newNoteBook = '', this.confirmedAll = false}): _noteIds = noteIds;
   
 
  final  String goal;
@@ -280,6 +280,10 @@ class AgentTasksGoalSentEvent implements AgentTasksEvent {
   return EqualUnmodifiableListView(_noteIds);
 }
 
+/// Where new notes go; the Inbox when empty.
+@JsonKey() final  String newNoteBook;
+/// The person agreed to the task reading every notebook.
+@JsonKey() final  bool confirmedAll;
 
 /// Create a copy of AgentTasksEvent
 /// with the given fields replaced by the non-null parameter values.
@@ -291,16 +295,16 @@ $AgentTasksGoalSentEventCopyWith<AgentTasksGoalSentEvent> get copyWith => _$Agen
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentTasksGoalSentEvent&&(identical(other.goal, goal) || other.goal == goal)&&const DeepCollectionEquality().equals(other._noteIds, _noteIds));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentTasksGoalSentEvent&&(identical(other.goal, goal) || other.goal == goal)&&const DeepCollectionEquality().equals(other._noteIds, _noteIds)&&(identical(other.newNoteBook, newNoteBook) || other.newNoteBook == newNoteBook)&&(identical(other.confirmedAll, confirmedAll) || other.confirmedAll == confirmedAll));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,goal,const DeepCollectionEquality().hash(_noteIds));
+int get hashCode => Object.hash(runtimeType,goal,const DeepCollectionEquality().hash(_noteIds),newNoteBook,confirmedAll);
 
 @override
 String toString() {
-  return 'AgentTasksEvent.goalSent(goal: $goal, noteIds: $noteIds)';
+  return 'AgentTasksEvent.goalSent(goal: $goal, noteIds: $noteIds, newNoteBook: $newNoteBook, confirmedAll: $confirmedAll)';
 }
 
 
@@ -311,7 +315,7 @@ abstract mixin class $AgentTasksGoalSentEventCopyWith<$Res> implements $AgentTas
   factory $AgentTasksGoalSentEventCopyWith(AgentTasksGoalSentEvent value, $Res Function(AgentTasksGoalSentEvent) _then) = _$AgentTasksGoalSentEventCopyWithImpl;
 @useResult
 $Res call({
- String goal, List<String> noteIds
+ String goal, List<String> noteIds, String newNoteBook, bool confirmedAll
 });
 
 
@@ -328,11 +332,13 @@ class _$AgentTasksGoalSentEventCopyWithImpl<$Res>
 
 /// Create a copy of AgentTasksEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? goal = null,Object? noteIds = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? goal = null,Object? noteIds = null,Object? newNoteBook = null,Object? confirmedAll = null,}) {
   return _then(AgentTasksGoalSentEvent(
 null == goal ? _self.goal : goal // ignore: cast_nullable_to_non_nullable
 as String,noteIds: null == noteIds ? _self._noteIds : noteIds // ignore: cast_nullable_to_non_nullable
-as List<String>,
+as List<String>,newNoteBook: null == newNoteBook ? _self.newNoteBook : newNoteBook // ignore: cast_nullable_to_non_nullable
+as String,confirmedAll: null == confirmedAll ? _self.confirmedAll : confirmedAll // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

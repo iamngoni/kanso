@@ -276,7 +276,16 @@ fn the_token_is_revoked_when_the_task_ends_and_the_set_stays() {
 fn review_cards_are_ordered_and_flag_changed_and_blocked_notes() {
     let lib = lib();
     let tokens = TokenStore::new();
-    let task = agent_task::open(&lib.store, &tokens, &spec(&lib), "x").unwrap();
+    let task = agent_task::open(
+        &lib.store,
+        &tokens,
+        &TaskSpec {
+            new_note_book: lib.archive.clone(),
+            ..spec(&lib)
+        },
+        "x",
+    )
+    .unwrap();
     let call = |name: &str, args: Value| {
         agent_tools::call(
             &lib.store,
@@ -299,7 +308,7 @@ fn review_cards_are_ordered_and_flag_changed_and_blocked_notes() {
     );
     call(
         "create-note",
-        json!({"bookId": lib.trips, "title": "Plan", "body": "See [[Trip 0]]"}),
+        json!({"bookId": lib.archive, "title": "Plan", "body": "See [[Trip 0]]"}),
     );
     // The person edits note b meanwhile.
     lib.store
@@ -501,4 +510,99 @@ proptest! {
         }).collect();
         prop_assert_eq!(before, after);
     }
+}
+
+/// A task over chosen notes may write only into their notebooks and the
+/// notebook for new notes; the prompt names that notebook.
+#[test]
+fn a_task_over_chosen_notes_writes_only_where_the_person_said() {
+    let lib = lib();
+    let tokens = TokenStore::new();
+    let spec = TaskSpec::new(
+        "Summarise",
+        ReadScope::Notes(vec![lib.notes[0].0.clone()]),
+        &lib.archive,
+    );
+    let task = agent_task::open(&lib.store, &tokens, &spec, "x").unwrap();
+    let call = |name: &str, args: Value| {
+        agent_tools::call(
+            &lib.store,
+            &tokens,
+            task.token,
+            &task.scope,
+            name,
+            Some(&args),
+        )
+    };
+    // Only the notebook for new notes takes new notes, even though Trips is
+    // where the chosen note is.
+    let wrong = call(
+        "create-note",
+        json!({"bookId": lib.trips, "title": "S", "body": "x"}),
+    );
+    assert_eq!(wrong["isError"], json!(true));
+    let right = call("create-note", json!({"title": "S", "body": "x"}));
+    assert_ne!(right["isError"], json!(true), "{right}");
+    // The note may move to its own notebook's neighbours the person named.
+    let moved = call(
+        "kanso-propose-move",
+        json!({"_id": lib.notes[0].0, "_rev": lib.notes[0].1, "bookId": lib.archive}),
+    );
+    assert_ne!(moved["isError"], json!(true), "{moved}");
+    let prompt = agent_task::api_prompt(&task);
+    assert!(prompt.user.contains(&lib.archive), "{}", prompt.user);
+    assert!(agent_task::user_text(&task, false).contains("create-note"));
+}
+
+/// A driver whose task works until it is stopped.
+struct Idle;
+
+impl kanso_engine::agent_task::runner::TaskDriver for Idle {
+    fn first_prompt(&self, task: &agent_task::OpenTask) -> Prompt {
+        agent_task::api_prompt(task)
+    }
+    fn reply_prompt(&self, task: &agent_task::OpenTask, _: &str, _: &str) -> Prompt {
+        agent_task::api_prompt(task)
+    }
+    fn begin(
+        &self,
+        _: &Prompt,
+        _: &agent_task::OpenTask,
+        _: Arc<Store>,
+        _: Box<dyn FnMut() + Send>,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<Box<dyn Iterator<Item = Event> + Send>, String> {
+        while !cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        Ok(Box::new(vec![Event::Done].into_iter()))
+    }
+}
+
+/// Starts at the same moment can't get past the limit on working tasks.
+#[test]
+fn starts_at_once_cannot_pass_the_active_limit() {
+    use kanso_engine::agent_task::runner::{MAX_ACTIVE, Tasks};
+    let lib = lib();
+    let tokens = TokenStore::new();
+    let tasks = Tasks::default();
+    let started: usize = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                scope.spawn(|| {
+                    tasks
+                        .start(&lib.store, &tokens, &spec(&lib), "x", |_| {
+                            Ok(Arc::new(Idle) as _)
+                        })
+                        .is_ok()
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| usize::from(h.join().unwrap()))
+            .sum()
+    });
+    assert_eq!(started, MAX_ACTIVE);
+    tasks.shutdown();
 }

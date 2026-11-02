@@ -5225,6 +5225,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentSettingsMerges => 'Merging notes';
 
   @override
+  String get agentSettingsTimeLimit => 'Time limit';
+
+  @override
+  String agentSettingsMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get agentSettingsMaxNotes => 'Notes it may read';
+
+  @override
+  String get agentSettingsAskAll => 'Ask before reading all notebooks';
+
+  @override
+  String get agentTasksNewNotesIn => 'New notes go in';
+
+  @override
+  String get agentTasksInbox => 'Inbox';
+
+  @override
+  String get agentTasksReadAllTitle => 'Let the AI read all your notebooks?';
+
+  @override
+  String get agentTasksReadAllBody =>
+      'No notes were chosen, so this task may read every notebook that is not locked. Locked notes and notes tagged #ai-exclude stay out of reach.';
+
+  @override
+  String get agentTasksReadAllConfirm => 'Read all notebooks';
+
+  @override
+  String get agentTasksReadAllCancel => 'Cancel';
+
+  @override
   String get agentSettingsFooter =>
       'An agent reads only notes that are not locked, not in the Trash and not tagged #ai-exclude. It never writes; you approve every change.';
 }

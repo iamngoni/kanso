@@ -8866,6 +8866,66 @@ abstract class AppLocalizations {
   /// **'Merging notes'**
   String get agentSettingsMerges;
 
+  /// The heading over how long one agent task may run.
+  ///
+  /// In en, this message translates to:
+  /// **'Time limit'**
+  String get agentSettingsTimeLimit;
+
+  /// A time limit choice, in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String agentSettingsMinutes(int minutes);
+
+  /// The heading over how many notes one agent task may read.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes it may read'**
+  String get agentSettingsMaxNotes;
+
+  /// The switch that makes a task that reads every notebook ask first.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask before reading all notebooks'**
+  String get agentSettingsAskAll;
+
+  /// The label of the notebook the agent puts new notes in.
+  ///
+  /// In en, this message translates to:
+  /// **'New notes go in'**
+  String get agentTasksNewNotesIn;
+
+  /// The default notebook for the notes an agent makes.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get agentTasksInbox;
+
+  /// The title of the question before a task that can read every notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Let the AI read all your notebooks?'**
+  String get agentTasksReadAllTitle;
+
+  /// The question before a task that can read every notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes were chosen, so this task may read every notebook that is not locked. Locked notes and notes tagged #ai-exclude stay out of reach.'**
+  String get agentTasksReadAllBody;
+
+  /// The button that agrees to a task reading every notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Read all notebooks'**
+  String get agentTasksReadAllConfirm;
+
+  /// The button that does not start the task.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get agentTasksReadAllCancel;
+
   /// The note under the agent task settings.
   ///
   /// In en, this message translates to:

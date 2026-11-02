@@ -2227,6 +2227,7 @@ fn wire__crate__api__agent_tasks__KansoAgentTasks_start_impl(
             let api_goal = <String>::sse_decode(&mut deserializer);
             let api_note_ids = <Vec<String>>::sse_decode(&mut deserializer);
             let api_new_note_book = <String>::sse_decode(&mut deserializer);
+            let api_confirmed_all = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::types::KansoError>((move || {
@@ -2249,6 +2250,7 @@ fn wire__crate__api__agent_tasks__KansoAgentTasks_start_impl(
                         api_goal,
                         api_note_ids,
                         api_new_note_book,
+                        api_confirmed_all,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -21438,12 +21440,18 @@ impl SseDecode for crate::api::agent_tasks::AgentTaskPrefs {
         let mut var_edits = <bool>::sse_decode(deserializer);
         let mut var_moves = <bool>::sse_decode(deserializer);
         let mut var_merges = <bool>::sse_decode(deserializer);
+        let mut var_timeLimitMinutes = <u32>::sse_decode(deserializer);
+        let mut var_maxNotes = <u32>::sse_decode(deserializer);
+        let mut var_askBeforeReadingAll = <bool>::sse_decode(deserializer);
         return crate::api::agent_tasks::AgentTaskPrefs {
             enabled: var_enabled,
             new_notes: var_newNotes,
             edits: var_edits,
             moves: var_moves,
             merges: var_merges,
+            time_limit_minutes: var_timeLimitMinutes,
+            max_notes: var_maxNotes,
+            ask_before_reading_all: var_askBeforeReadingAll,
         };
     }
 }
@@ -30549,6 +30557,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::agent_tasks::AgentTaskPrefs {
             self.edits.into_into_dart().into_dart(),
             self.moves.into_into_dart().into_dart(),
             self.merges.into_into_dart().into_dart(),
+            self.time_limit_minutes.into_into_dart().into_dart(),
+            self.max_notes.into_into_dart().into_dart(),
+            self.ask_before_reading_all.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -37995,6 +38006,9 @@ impl SseEncode for crate::api::agent_tasks::AgentTaskPrefs {
         <bool>::sse_encode(self.edits, serializer);
         <bool>::sse_encode(self.moves, serializer);
         <bool>::sse_encode(self.merges, serializer);
+        <u32>::sse_encode(self.time_limit_minutes, serializer);
+        <u32>::sse_encode(self.max_notes, serializer);
+        <bool>::sse_encode(self.ask_before_reading_all, serializer);
     }
 }
 

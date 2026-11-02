@@ -27,6 +27,9 @@ class RustAgentTasksRepository implements AgentTasksRepository {
     edits: p.edits,
     moves: p.moves,
     merges: p.merges,
+    timeLimitMinutes: p.timeLimitMinutes,
+    maxNotes: p.maxNotes,
+    askBeforeReadingAll: p.askBeforeReadingAll,
   );
 
   @override
@@ -45,6 +48,9 @@ class RustAgentTasksRepository implements AgentTasksRepository {
           edits: prefs.edits,
           moves: prefs.moves,
           merges: prefs.merges,
+          timeLimitMinutes: prefs.timeLimitMinutes,
+          maxNotes: prefs.maxNotes,
+          askBeforeReadingAll: prefs.askBeforeReadingAll,
         ),
       ),
     ),
@@ -54,8 +60,15 @@ class RustAgentTasksRepository implements AgentTasksRepository {
   Future<Either<ApplicationError, int>> start({
     required String goal,
     List<String> noteIds = const <String>[],
+    String newNoteBook = '',
+    bool confirmedAll = false,
   }) => attempt(
-    () => _tasks.start(goal: goal, noteIds: noteIds, newNoteBook: ''),
+    () => _tasks.start(
+      goal: goal,
+      noteIds: noteIds,
+      newNoteBook: newNoteBook,
+      confirmedAll: confirmedAll,
+    ),
   );
 
   @override

@@ -7,7 +7,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/ai.dart';
-import 'package:kanso/core/bridge/api/types.dart';
 
 import 'open_library.dart';
 

@@ -31,11 +31,13 @@ abstract class KansoAgentTasks implements RustOpaqueInterface {
 
   Future<AgentTaskPrefs> setPrefs({required AgentTaskPrefs prefs});
 
-  /// Starts a task; an empty `note_ids` lets it read every unlocked note.
+  /// Starts a task; an empty `note_ids` lets it read every unlocked note,
+  /// which needs `confirmed_all` when Settings ask first.
   Future<int> start({
     required String goal,
     required List<String> noteIds,
     required String newNoteBook,
+    required bool confirmedAll,
   });
 
   Future<void> stop({required int id});
@@ -51,6 +53,9 @@ class AgentTaskPrefs {
   final bool edits;
   final bool moves;
   final bool merges;
+  final int timeLimitMinutes;
+  final int maxNotes;
+  final bool askBeforeReadingAll;
 
   const AgentTaskPrefs({
     required this.enabled,
@@ -58,6 +63,9 @@ class AgentTaskPrefs {
     required this.edits,
     required this.moves,
     required this.merges,
+    required this.timeLimitMinutes,
+    required this.maxNotes,
+    required this.askBeforeReadingAll,
   });
 
   @override
@@ -66,7 +74,10 @@ class AgentTaskPrefs {
       newNotes.hashCode ^
       edits.hashCode ^
       moves.hashCode ^
-      merges.hashCode;
+      merges.hashCode ^
+      timeLimitMinutes.hashCode ^
+      maxNotes.hashCode ^
+      askBeforeReadingAll.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -77,7 +88,10 @@ class AgentTaskPrefs {
           newNotes == other.newNotes &&
           edits == other.edits &&
           moves == other.moves &&
-          merges == other.merges;
+          merges == other.merges &&
+          timeLimitMinutes == other.timeLimitMinutes &&
+          maxNotes == other.maxNotes &&
+          askBeforeReadingAll == other.askBeforeReadingAll;
 }
 
 class TaskCard {

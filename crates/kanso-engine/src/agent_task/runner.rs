@@ -179,6 +179,9 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 #[derive(Clone, Default)]
 pub struct Tasks {
     entries: Arc<Mutex<Vec<Arc<Entry>>>>,
+    /// Held from the check of [`MAX_ACTIVE`] to the new task being listed, so
+    /// two starts at once can't both pass the check.
+    starting: Arc<Mutex<()>>,
     notice: Arc<Mutex<Option<Notice>>>,
     subscribers: Arc<Mutex<Vec<async_channel::Sender<TaskEvent>>>>,
 }
@@ -220,6 +223,11 @@ impl Tasks {
             .cloned()
     }
 
+    /// The sheet the task was started with.
+    pub fn spec(&self, id: TaskId) -> Option<TaskSpec> {
+        self.entry(id).map(|entry| entry.open.spec.clone())
+    }
+
     /// How many tasks are working.
     pub fn active(&self) -> usize {
         self.rows().iter().filter(|row| row.is_active()).count()
@@ -250,6 +258,7 @@ impl Tasks {
         agent: &str,
         backend: impl FnOnce(&OpenTask) -> Result<Backend, String>,
     ) -> Result<TaskId, CannotStart> {
+        let gate = lock(&self.starting);
         if self.active() >= MAX_ACTIVE {
             return Err(CannotStart::TooMany);
         }
@@ -280,6 +289,7 @@ impl Tasks {
             transcript: Mutex::new(String::new()),
         });
         lock(&self.entries).push(entry.clone());
+        drop(gate);
         self.tell(TaskEvent::Changed);
         self.watch(entry.clone(), spec.time_limit);
         let prompt = entry.backend.first_prompt(&entry.open);
@@ -310,7 +320,8 @@ impl Tasks {
                     }
                     let reason = if entry.started.elapsed() >= limit {
                         Some(EndedBy::TimeLimit)
-                    } else if entry.open.tokens.calls(entry.open.token) >= entry.open.spec.max_calls
+                    } else if entry.open.tokens.task_calls(entry.open.id)
+                        >= entry.open.spec.max_calls
                     {
                         Some(EndedBy::CallLimit)
                     } else {
@@ -525,9 +536,11 @@ impl Tasks {
     /// Takes back what Apply wrote, in one transaction.
     pub fn undo(&self, id: TaskId, now_ms: i64) -> Option<Result<UndoReport, String>> {
         let entry = self.entry(id)?;
-        let applied = lock(&entry.applied).take()?;
+        // Kept until the undo worked, so a failed one can be tried again.
+        let applied = lock(&entry.applied).clone()?;
         let report = undo_changes(&entry.store, &applied.batch, now_ms).map_err(|e| e.to_string());
         if let Ok(done) = &report {
+            *lock(&entry.applied) = None;
             lock(&entry.row).phase = Phase::Undone;
             self.say(id, super::review::undo_message(done.skipped.len()), false);
         }

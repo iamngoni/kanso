@@ -72,7 +72,12 @@ class AgentTasksBloc extends Bloc<AgentTasksEvent, AgentTasksState> {
     Emitter<AgentTasksState> emit,
   ) async {
     emit(state.copyWith(starting: true, trouble: null));
-    final result = await _tasks.start(goal: event.goal, noteIds: event.noteIds);
+    final result = await _tasks.start(
+      goal: event.goal,
+      noteIds: event.noteIds,
+      newNoteBook: event.newNoteBook,
+      confirmedAll: event.confirmedAll,
+    );
     result.fold(
       (error) => emit(state.copyWith(starting: false, trouble: error.message)),
       (_) => emit(state.copyWith(starting: false, started: state.started + 1)),
