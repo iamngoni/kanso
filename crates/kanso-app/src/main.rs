@@ -166,6 +166,8 @@ mod spellcheck;
 // Tests check with a word list instead.
 mod flashcards_model;
 mod flashcards_view;
+mod learn_model;
+mod learn_view;
 mod settings_flashcards;
 #[cfg(all(target_os = "macos", not(test)))]
 mod spellcheck_macos;

@@ -148,10 +148,57 @@ pub fn check(cx: &mut App) -> Duration {
         }
         crate::notify_support::refresh_permission();
     }
-    match brief::next_wake(&settings, now_local) {
+    let cards = flashcard_reminder(&store, now_ms, now_local, cx);
+    let wait = match brief::next_wake(&settings, now_local) {
         Some(at) => Duration::from_millis((at - now_local).max(0) as u64).clamp(MIN_WAIT, MAX_WAIT),
         None => MAX_WAIT,
+    };
+    wait.min(cards)
+}
+
+/// Tags of the flashcard reminder start with this (after `TAG_PREFIX`).
+const CARDS_TAG: &str = "kanso-digest-flashcards-";
+
+/// The daily flashcard reminder (Settings › Flashcards): once a day, at the
+/// time chosen, saying how many cards are waiting. A count, never a
+/// question or an answer. Nothing when none are due. Returns how long until
+/// the next look.
+// no-prop-test: the timing is `kanso_engine::flashcards::reminder_due` and
+// `reminder_wait` (property-tested there); this only shows it.
+fn flashcard_reminder(store: &Store, now_ms: i64, now_local: i64, cx: &mut App) -> Duration {
+    let Some(at) = store
+        .card_settings()
+        .ok()
+        .and_then(|s| s.reminder)
+        .and_then(|t| kanso_engine::flashcards::parse_reminder(&t))
+    else {
+        return MAX_WAIT;
+    };
+    let date = DateTime::from_local_ms(now_local);
+    let today = date.date;
+    let now_min = (now_local.rem_euclid(86_400_000) / 60_000) as u32;
+    let key = format!("cards.reminder.{}", today.iso());
+    let shown = store.meta(&key).ok().flatten().is_some();
+    if kanso_engine::flashcards::reminder_due(at, now_min, shown) {
+        let offset = ((now_local - now_ms) / 60_000) as i32;
+        let day = kanso_engine::flashcards::day_start_ms(now_ms, offset);
+        let waiting = store
+            .cards_waiting(&kanso_store::CardScope::All, now_ms, day)
+            .unwrap_or(0);
+        // Marked either way: with nothing due there is nothing to say today.
+        store.set_meta(&key, &now_ms.to_string()).ok();
+        if let Some(body) = kanso_engine::flashcards::reminder_text(waiting) {
+            cx.show_system_notification(SystemNotification {
+                tag: format!("{CARDS_TAG}{}", today.iso()).into(),
+                title: "Flashcards".into(),
+                body: body.into(),
+                actions: Vec::new(),
+            });
+            crate::notify_support::refresh_permission();
+        }
     }
+    let minutes = kanso_engine::flashcards::reminder_wait(at, now_min).max(1);
+    Duration::from_secs(u64::from(minutes) * 60).clamp(MIN_WAIT, MAX_WAIT)
 }
 
 /// A click on a brief or review notification: opens it.
@@ -161,6 +208,28 @@ pub fn respond(response: SystemNotificationResponse, cx: &mut App) {
         return;
     }
     let tag = response.tag.to_string();
+    if tag.starts_with(CARDS_TAG) {
+        let open_window = cx.global::<Briefs>().open_window;
+        if cx.windows().is_empty() {
+            open_window(cx);
+        }
+        cx.activate(true);
+        for handle in cx.windows() {
+            let opened = handle
+                .update(cx, |_, window, cx| {
+                    window.dispatch_action(Box::new(crate::flashcards_view::ShowFlashcards), cx)
+                })
+                .is_ok();
+            if opened {
+                handle
+                    .update(cx, |_, window, _| window.activate_window())
+                    .ok();
+                break;
+            }
+        }
+        cx.dismiss_system_notification(&tag);
+        return;
+    }
     let Some(kind) = cx.global_mut::<Briefs>().on_screen.remove(&tag) else {
         return;
     };
@@ -270,5 +339,40 @@ mod tests {
             cx.shown_system_notifications().is_empty(),
             "12:30 is more than three hours after 08:00"
         );
+    }
+
+    #[gpui_kit::test]
+    fn the_flashcard_reminder_says_a_count_once_a_day(cx: &mut TestAppContext) {
+        let (_dir, store) = setup(cx);
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": "note:cards", "title": "Deck", "bookId": "book:a",
+                       "body": "secretquestion :: secretanswer\n"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        let mut settings = store.card_settings().unwrap();
+        settings.reminder = Some("08:00".into());
+        store.set_card_settings(&settings).unwrap();
+        cx.update(check);
+        let shown = cx.shown_system_notifications();
+        let cards: Vec<_> = shown
+            .iter()
+            .filter(|n| n.title.as_ref() == "Flashcards")
+            .collect();
+        assert_eq!(cards.len(), 1);
+        assert_eq!(cards[0].body.as_ref(), "1 flashcard is due.");
+        for text in [cards[0].title.as_ref(), cards[0].body.as_ref()] {
+            assert!(!text.contains("secret"), "{text}");
+        }
+        cx.update(check);
+        let again = cx
+            .shown_system_notifications()
+            .iter()
+            .filter(|n| n.title.as_ref() == "Flashcards")
+            .count();
+        assert_eq!(again, 1, "once a day");
     }
 }

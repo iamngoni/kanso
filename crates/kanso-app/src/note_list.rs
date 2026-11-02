@@ -738,7 +738,8 @@ impl NoteList {
                             cx.emit(NoteListEvent::CommandSeveral(ids, command))
                         });
                     });
-                    crate::note_menu::several_items(menu, count, all_pinned, run, window, cx)
+                    let ai = cx.global::<crate::AppState>().config.ai.enabled;
+                    crate::note_menu::several_items(menu, count, all_pinned, ai, run, window, cx)
                 } else if in_trash {
                     menu.item(PopupMenuItem::new("Restore").on_click(emit(NoteListEvent::Restore)))
                         .separator()
@@ -754,7 +755,8 @@ impl NoteList {
                             cx.emit(NoteListEvent::Command(id.clone(), command))
                         });
                     });
-                    crate::note_menu::items(menu, pinned, locked, status, run, window, cx)
+                    let ai = cx.global::<crate::AppState>().config.ai.enabled && !locked;
+                    crate::note_menu::items(menu, pinned, locked, status, ai, run, window, cx)
                 }
             })
     }

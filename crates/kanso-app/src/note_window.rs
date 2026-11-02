@@ -686,6 +686,12 @@ impl NoteWindow {
             NoteCommand::Present => {
                 crate::presentation::present(self.note_id.clone(), window, cx);
             }
+            NoteCommand::DraftFrom | NoteCommand::MakeFlashcards | NoteCommand::QuizMe => {
+                let id = self.note_id.clone();
+                in_main_window(cx, move |workspace, window, cx| {
+                    workspace.run_note_command(&id, command, window, cx)
+                });
+            }
             NoteCommand::OpenInNewTab => {
                 let id = self.note_id.clone();
                 in_main_window(cx, move |workspace, window, cx| {

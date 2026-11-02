@@ -766,6 +766,7 @@ impl AskPanel {
         }
         let colors = Colors::get(cx);
         let view = cx.entity();
+        let ids: Vec<String> = self.used.iter().map(|e| e.id.clone()).collect();
         Some(
             v_flex()
                 .gap(px(2.))
@@ -798,6 +799,22 @@ impl AskPanel {
                             view.update(cx, |this, cx| this.open(id.clone(), cx));
                         })
                 }))
+                .child(
+                    div().mt(px(4.)).child(
+                        Button::new("ask-draft-from")
+                            .ghost()
+                            .small()
+                            .icon(gpui_kit::assets::IconName::PenTool)
+                            .label("Draft from These Sources…")
+                            .tooltip("Write a draft from the notes this answer used, with a source for each claim")
+                            .on_click(move |_, _, cx| {
+                                let ids = ids.clone();
+                                crate::note_window::in_main_window(cx, move |workspace, window, cx| {
+                                    workspace.show_learn(crate::learn_model::Mode::Draft, ids, window, cx)
+                                });
+                            }),
+                    ),
+                )
                 .into_any_element(),
         )
     }

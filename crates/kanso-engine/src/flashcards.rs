@@ -221,6 +221,29 @@ pub fn day_start_ms(now_ms: i64, offset_minutes: i32) -> i64 {
     (now_ms + offset).div_euclid(day) * day - offset
 }
 
+/// How late (minutes) a reminder may still be shown, as the briefs: a
+/// computer that was asleep at the hour shows it on waking, but not at night.
+pub const REMINDER_GRACE: u32 = 180;
+
+/// The minute of the day (0 to 1439) of an `HH:MM` reminder time.
+pub fn parse_reminder(text: &str) -> Option<u32> {
+    let (h, m) = text.trim().split_once(':')?;
+    let (h, m): (u32, u32) = (h.parse().ok()?, m.parse().ok()?);
+    (h < 24 && m < 60 && h.to_string().len() <= 2 && m.to_string().len() <= 2).then_some(h * 60 + m)
+}
+
+/// Whether the reminder at minute `at` is due at minute `now` of the same
+/// day, when it has not been `shown` yet today.
+pub fn reminder_due(at: u32, now: u32, shown: bool) -> bool {
+    !shown && now >= at && now - at <= REMINDER_GRACE
+}
+
+/// Minutes from `now` to the next time the reminder at `at` needs a look
+/// (today if it is still ahead, else tomorrow).
+pub fn reminder_wait(at: u32, now: u32) -> u32 {
+    if now <= at { at - now } else { 1440 - now + at }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
@@ -435,6 +458,29 @@ mod tests {
             let start = day_start_ms(now, zone);
             prop_assert!(start <= now && now - start < 86_400_000);
             prop_assert_eq!((start + i64::from(zone) * 60_000).rem_euclid(86_400_000), 0);
+        }
+    }
+
+    #[test]
+    fn a_reminder_time_is_read_and_due_within_its_grace() {
+        assert_eq!(parse_reminder("09:30"), Some(570));
+        assert_eq!(parse_reminder("24:00"), None);
+        assert_eq!(parse_reminder("9:5x"), None);
+        assert!(!reminder_due(570, 569, false));
+        assert!(reminder_due(570, 570, false));
+        assert!(reminder_due(570, 750, false));
+        assert!(!reminder_due(570, 751, false), "too late to show");
+        assert!(!reminder_due(570, 600, true), "once a day");
+    }
+
+    proptest! {
+        /// The wait is never more than a day, and waiting it lands on the
+        /// reminder's minute.
+        #[test]
+        fn prop_the_wait_lands_on_the_reminder(at in 0u32..1440, now in 0u32..1440) {
+            let wait = reminder_wait(at, now);
+            prop_assert!(wait <= 1440);
+            prop_assert_eq!((now + wait) % 1440, at);
         }
     }
 }

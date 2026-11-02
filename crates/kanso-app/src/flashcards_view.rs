@@ -19,7 +19,8 @@ use kanso_store::{CardScope, CardStats, Store};
 
 use crate::clock::Clock;
 use crate::flashcards_model::{Command, Session, button_labels, command_for};
-use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT, inset_after};
+use crate::layout::BOTTOM_BAND_HEIGHT;
+use crate::page_chrome::{self, HeaderAction};
 use crate::note_list::quiet_empty;
 use crate::theme::Colors;
 use crate::workspace::{AppState, Workspace};
@@ -52,6 +53,8 @@ pub struct FlashcardsView {
     error: Option<String>,
     device: String,
     focus: FocusHandle,
+    pane_width: Pixels,
+    leading_inset: Pixels,
 }
 
 impl EventEmitter<FlashcardsEvent> for FlashcardsView {}
@@ -95,6 +98,17 @@ impl FlashcardsView {
             error: None,
             device,
             focus: cx.focus_handle(),
+            pane_width: px(900.),
+            leading_inset: px(0.),
+        }
+    }
+
+    /// The page's width and leading inset, for fitting its header.
+    pub fn set_frame(&mut self, width: Pixels, inset: Pixels, cx: &mut Context<Self>) {
+        if self.pane_width != width || self.leading_inset != inset {
+            self.pane_width = width;
+            self.leading_inset = inset;
+            cx.notify();
         }
     }
 
@@ -206,47 +220,37 @@ impl FlashcardsView {
             Tab::Review => "Review".to_owned(),
             Tab::Stats => "Review · Stats".to_owned(),
         };
-        h_flex()
-            .h(px(TOP_BAND_HEIGHT))
-            .flex_none()
-            .pl(px(inset_after(0., window.is_fullscreen())))
-            .pr(px(12.))
-            .gap(px(10.))
-            .border_b_1()
-            .border_color(colors.divider)
-            .bg(colors.list)
-            .child(
-                div()
-                    .text_size(px(14.))
-                    .font_medium()
-                    .text_color(colors.text)
-                    .child(title),
-            )
-            .child(div().flex_1())
-            .child(
-                Button::new("review-stats")
-                    .ghost()
-                    .small()
-                    .label(if self.tab == Tab::Review {
-                        "Stats"
-                    } else {
-                        "Cards"
-                    })
-                    .tooltip("Switch between the cards and the stats (Tab)")
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.run(Command::ToggleStats, window, cx)
-                    })),
-            )
-            .child(
-                Button::new("review-close")
-                    .ghost()
-                    .small()
-                    .icon(Lucide::Close)
-                    .tooltip("Close (Esc)")
-                    .on_click(cx.listener(|_, _, window, cx| {
-                        window.dispatch_action(Box::new(CloseFlashcards), cx)
-                    })),
-            )
+        let view = cx.entity().downgrade();
+        let toggle = HeaderAction::new(
+            "review-stats",
+            if self.tab == Tab::Review {
+                Lucide::ChartBar
+            } else {
+                Lucide::Layers
+            },
+            if self.tab == Tab::Review { "Stats" } else { "Cards" },
+            move |window, cx| {
+                view.update(cx, |this, cx| this.run(Command::ToggleStats, window, cx))
+                    .ok();
+            },
+        )
+        .tooltip("Switch between the cards and the stats (Tab)");
+        let close = HeaderAction::new("review-close", Lucide::Close, "Close", |window, cx| {
+            window.dispatch_action(Box::new(CloseFlashcards), cx)
+        })
+        .tooltip("Close (Esc)");
+        page_chrome::page_header(
+            title,
+            self.leading_inset,
+            self.pane_width,
+            vec![toggle],
+            Some(close),
+            window,
+            cx,
+        )
+        .border_b_1()
+        .border_color(colors.divider)
+        .bg(colors.list)
     }
 
     fn render_card(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -581,8 +585,8 @@ pub fn on_actions(el: Div, cx: &mut Context<Workspace>) -> Div {
     )
 }
 
-/// Review over the window, while open.
-pub fn overlay(workspace: &Workspace) -> Option<impl IntoElement> {
+/// Review over the window, beside the sidebar, while open.
+pub fn overlay(workspace: &Workspace, leading: f32) -> Option<impl IntoElement> {
     let view = workspace
         .flashcards
         .clone()
@@ -591,8 +595,9 @@ pub fn overlay(workspace: &Workspace) -> Option<impl IntoElement> {
         div()
             .absolute()
             .top_0()
-            .left_0()
-            .size_full()
+            .left(px(leading))
+            .right_0()
+            .bottom_0()
             .debug_selector(|| "flashcards-overlay".into())
             .child(view),
     )

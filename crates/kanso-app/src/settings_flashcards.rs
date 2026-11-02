@@ -34,6 +34,7 @@ fn change(cx: &mut App, edit: impl FnOnce(&mut CardSettings)) {
     if let Err(err) = store.set_card_settings(&settings) {
         eprintln!("kanso: flashcard settings: {err}");
     }
+    crate::briefs::poke(cx);
     cx.refresh_windows();
 }
 

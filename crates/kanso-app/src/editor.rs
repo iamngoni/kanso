@@ -3414,7 +3414,8 @@ impl NoteEditor {
                         let run: crate::note_menu::Run = Rc::new(move |command, _, cx| {
                             view.update(cx, |_, cx| cx.emit(EditorEvent::Command(command)));
                         });
-                        crate::note_menu::items(menu, pinned, locked, status, run, window, cx)
+                        let ai = cx.global::<AppState>().config.ai.enabled && !locked;
+                        crate::note_menu::items(menu, pinned, locked, status, ai, run, window, cx)
                     }),
             )
             .when(!self.standalone, |el| {

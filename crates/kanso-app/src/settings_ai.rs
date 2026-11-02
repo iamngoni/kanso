@@ -70,11 +70,11 @@ pub fn requests_line(provider: Provider, base_url: &str) -> String {
     let host = provider.host(base_url);
     if provider.needs_key() {
         format!(
-            "Questions and the note excerpts they use go straight from this Mac to {host}. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent."
+            "Questions and the note excerpts they use go straight from this Mac to {host}. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent. Drafts and quizzes send only the notes you pick."
         )
     } else {
         format!(
-            "Questions and the note excerpts they use go straight from this Mac to the model at {host}. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent."
+            "Questions and the note excerpts they use go straight from this Mac to the model at {host}. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent. Drafts and quizzes send only the notes you pick."
         )
     }
 }
