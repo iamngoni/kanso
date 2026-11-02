@@ -395,7 +395,9 @@ impl Render for EditorFooter {
         // "Agent: 14 notes read, 2 changes" while a task works.
         let agent_line = cx
             .try_global::<crate::services::Services>()
-            .and_then(|services| crate::agent_task_model::status_bar_line(&services.tasks.rows()));
+            .and_then(|services| {
+                kanso_engine::agent_task::model::status_bar_line(&services.tasks.rows())
+            });
         #[cfg(test)]
         let hidden = self.quiet && !self.reveal;
         #[cfg(not(test))]

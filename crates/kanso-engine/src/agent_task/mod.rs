@@ -13,7 +13,9 @@
 //! [`review`] turns a finished set into the cards the review sheet and the
 //! review page show.
 
+pub mod model;
 pub mod review;
+pub mod runner;
 pub mod settings;
 
 use std::collections::{BTreeSet, HashSet};

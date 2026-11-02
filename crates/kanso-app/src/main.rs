@@ -16,8 +16,7 @@ mod agent_permission;
 mod agent_permission_tests;
 mod agent_registry;
 mod agent_scope;
-mod agent_task;
-mod agent_task_model;
+mod agent_task_acp;
 mod agent_task_panel;
 #[cfg(test)]
 mod agent_task_tests;

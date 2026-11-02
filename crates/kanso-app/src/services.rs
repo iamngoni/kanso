@@ -203,7 +203,7 @@ pub struct Services {
     /// the agents' private listener.
     pub(crate) agent_tokens: TokenStore,
     /// The agent tasks running or waiting for review (`agent_task.rs`).
-    pub tasks: crate::agent_task::Tasks,
+    pub tasks: kanso_engine::agent_task::runner::Tasks,
     /// The agents' private listener, started while the local API is off (or
     /// reachable from other computers) and an agent may read the notes.
     pub(crate) agent_mcp: Option<ServerHandle>,

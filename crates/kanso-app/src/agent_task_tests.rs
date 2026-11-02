@@ -16,8 +16,8 @@ use kanso_server::{Selection, TokenStore};
 use kanso_store::{Origin, Put, Store};
 use serde_json::{Value, json};
 
-use crate::agent_task::{Backend, Tasks};
-use crate::agent_task_model::{EndedBy, Phase};
+use kanso_engine::agent_task::model::{EndedBy, Phase};
+use kanso_engine::agent_task::runner::{ApiDriver, Tasks};
 
 /// The agent host is one per app, so tests that start it take turns.
 static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
@@ -78,7 +78,7 @@ fn wait_until(what: &str, mut done: impl FnMut() -> bool) {
     }
 }
 
-fn row(tasks: &Tasks, id: kanso_server::TaskId) -> crate::agent_task_model::TaskRow {
+fn row(tasks: &Tasks, id: kanso_server::TaskId) -> kanso_engine::agent_task::model::TaskRow {
     tasks.row(id).unwrap()
 }
 
@@ -134,12 +134,14 @@ fn an_acp_agent_proposes_a_merge_through_the_real_notes_server() {
                     tokens.clone(),
                     None::<PathBuf>,
                 );
-                Ok(Backend::Acp(kanso_ai::agent::task_conversation_with(
-                    &settings,
-                    Limits::default(),
-                    starter(Script::Task),
-                    access,
-                    Duration::from_secs(60),
+                Ok(Arc::new(crate::agent_task_acp::AcpDriver(
+                    kanso_ai::agent::task_conversation_with(
+                        &settings,
+                        Limits::default(),
+                        starter(Script::Task),
+                        access,
+                        Duration::from_secs(60),
+                    ),
                 )))
             },
         )
@@ -281,7 +283,7 @@ fn start_api(
     let provider = Scripted::provider(runs);
     tasks
         .start(&lib.store, tokens, spec, "Anthropic", move |_| {
-            Ok(Backend::Api(provider))
+            Ok(Arc::new(ApiDriver(provider)))
         })
         .unwrap()
 }
@@ -320,7 +322,7 @@ fn stop_keeps_the_change_set() {
 }
 
 fn stopped_token(tasks: &Tasks, id: kanso_server::TaskId) -> kanso_server::TokenId {
-    tasks.token_for_test(id)
+    tasks.token(id)
 }
 
 #[test]
@@ -414,7 +416,7 @@ fn a_model_that_proposes_nothing_says_so_and_a_failure_keeps_the_set() {
     let provider: SharedProvider = Arc::new(Mutex::new(Box::new(NoTools)));
     let id = tasks
         .start(&lib.store, &tokens, &spec(&lib, "x"), "Ollama", move |_| {
-            Ok(Backend::Api(provider))
+            Ok(Arc::new(ApiDriver(provider)))
         })
         .unwrap();
     wait_until("the refusal", || !row(&tasks, id).is_active());
@@ -439,9 +441,12 @@ fn at_most_two_tasks_work_at_once() {
     let b = start_api(&lib, &tasks, &tokens, &spec(&lib, "b"), vec![hang()]);
     let provider = Scripted::provider(vec![hang()]);
     let third = tasks.start(&lib.store, &tokens, &spec(&lib, "c"), "x", move |_| {
-        Ok(Backend::Api(provider))
+        Ok(Arc::new(ApiDriver(provider)))
     });
-    assert_eq!(third.err(), Some(crate::agent_task::CannotStart::TooMany));
+    assert_eq!(
+        third.err(),
+        Some(kanso_engine::agent_task::runner::CannotStart::TooMany)
+    );
     tasks.stop(a);
     tasks.stop(b);
     wait_until("both to end", || tasks.active() == 0);

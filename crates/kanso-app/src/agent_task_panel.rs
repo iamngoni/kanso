@@ -1,7 +1,7 @@
 //! The Agent Tasks panel (a tab beside Ask), the New agent task sheet and the
 //! Review agent changes sheet (issue #196).
 //!
-//! The runner is `agent_task.rs`; the words are `agent_task_model.rs`; what
+//! The runner and the words are `kanso_engine::agent_task::runner` and `model`; what
 //! the cards say comes from `kanso_engine::agent_task::review`. This file
 //! draws them and starts, stops, applies and undoes through the runner.
 
@@ -23,13 +23,13 @@ use kanso_engine::agent_task::{ReadScope, TaskSpec};
 use kanso_server::{ApplyFailure, OpKind, Selection, TaskId, TaskOps};
 
 use crate::agent_scope::{ScopeBook, scope_books};
-use crate::agent_task::{Backend, CannotStart, TaskEvent, Tasks};
-use crate::agent_task_model::{NOTIFICATION, Phase, TaskRow, elapsed_label};
 use crate::config::AiBackend;
 use crate::services::Services;
 use crate::theme::Colors;
 use crate::workspace::AppState;
 use crate::zoom::px;
+use kanso_engine::agent_task::model::{NOTIFICATION, Phase, TaskRow, elapsed_label};
+use kanso_engine::agent_task::runner::{ApiDriver, CannotStart, TaskEvent, Tasks};
 
 /// The width of the New agent task sheet and of the review sheet.
 pub const SHEET_WIDTH: f32 = 560.;
@@ -324,7 +324,7 @@ impl AgentTasksPanel {
     }
 }
 
-// no-prop-test: drawing; the rows' words are `agent_task_model`'s.
+// no-prop-test: drawing; the rows' words are `kanso_engine::agent_task::model`'s.
 impl Render for AgentTasksPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
@@ -637,9 +637,9 @@ impl StartMaker {
                     })?;
                     let settings = crate::ai_agent::agent_settings(&ai.agent, &data_dir);
                     let access = task_access(open, url, tokens, std::env::current_exe().ok());
-                    Ok(Backend::Acp(kanso_ai::agent::task_conversation(
-                        &settings, access, time_limit,
-                    )))
+                    Ok(Arc::new(crate::agent_task_acp::AcpDriver(
+                        kanso_ai::agent::task_conversation(&settings, access, time_limit),
+                    )) as _)
                 }
                 AiBackend::Api => {
                     let saved = secrets
@@ -653,7 +653,7 @@ impl StartMaker {
                         region: ai.provider.default_region().to_owned(),
                     };
                     kanso_ai::cached_client(&settings)
-                        .map(Backend::Api)
+                        .map(|provider| Arc::new(ApiDriver(provider)) as _)
                         .map_err(|err| err.to_string())
                 }
             },
