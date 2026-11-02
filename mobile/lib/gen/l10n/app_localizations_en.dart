@@ -5649,4 +5649,97 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get flashcardsDraftKeepUnsourced => 'Keep sentences without a source';
+
+  @override
+  String get askNeverWrote => 'You never wrote that down.';
+
+  @override
+  String get askClosestNotes => 'Closest notes';
+
+  @override
+  String get askSources => 'Sources';
+
+  @override
+  String get askAlsoRead => 'Also read';
+
+  @override
+  String get askNotFound => 'Not found in your notes';
+
+  @override
+  String get askNotFoundHint =>
+      'The answer said this, but the lines it pointed to aren\'t in the notes Kanso sent. Treat it as unverified.';
+
+  @override
+  String get askBannerMostly =>
+      'Most of this answer couldn\'t be checked against your notes.';
+
+  @override
+  String get askBannerNoSources =>
+      'This answer has no sources. Your model may not follow citation instructions; try a larger model.';
+
+  @override
+  String get askSearchAll => 'Search all notes';
+
+  @override
+  String get askSaveAsNote => 'Save as note';
+
+  @override
+  String get askSavedAsNote => 'Saved as a note.';
+
+  @override
+  String get askSaveFailed => 'Couldn\'t save the note.';
+
+  @override
+  String get askOpenNote => 'Open note';
+
+  @override
+  String get askScopeTitle => 'Search in';
+
+  @override
+  String get askAllNotes => 'All notes';
+
+  @override
+  String get askDropTime => 'Search without this time range';
+
+  @override
+  String get askReading => 'Reading your notes…';
+
+  @override
+  String get askWriting => 'Writing the answer…';
+
+  @override
+  String get askChecking => 'Checking the sources…';
+
+  @override
+  String get aiAskSection => 'Ask';
+
+  @override
+  String get aiAskBudget => 'Most each question may send';
+
+  @override
+  String get aiAskBudgetSmall => 'Small';
+
+  @override
+  String get aiAskBudgetStandard => 'Standard';
+
+  @override
+  String get aiAskBudgetLarge => 'Large';
+
+  @override
+  String get aiAskCheckSources => 'Check sources';
+
+  @override
+  String get aiAskCheckSourcesOff =>
+      'Without checking, an answer may cite lines that were never sent.';
+
+  @override
+  String get aiAskCheckSourcesOn =>
+      'Each cited line is checked against what was sent. A sentence that fails is marked as not found.';
+
+  @override
+  String get aiAskUseLinks => 'Look up related notes through links';
+
+  @override
+  String get aiAskUseLinksFooter =>
+      'Notes that link to the best matches, and notes they link to, are looked up too. Locked notes and notes tagged #ai-exclude are never followed.';
 }

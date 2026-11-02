@@ -16,6 +16,10 @@ import '../../data/ai_settings.dart';
 import '../../data/ai_settings_change.dart';
 import '../../data/ai_test_result.dart';
 import '../../data/application_error.dart';
+import '../../data/ask_closest.dart';
+import '../../data/ask_receipt.dart';
+import '../../data/ask_scope.dart';
+import '../../data/ask_time_note.dart';
 import '../../data/ask_update.dart';
 import '../../data/assist_action.dart';
 import '../../data/assist_action_info.dart';
@@ -70,6 +74,11 @@ class RustAiRepository implements AiRepository {
       host: view.host,
       isRemote: view.isRemote,
       privacy: line,
+      askBudget: view.askBudget,
+      budgetWordsLine: view.budgetWordsLine,
+      budgetCostLine: view.budgetCostLine,
+      checkSources: view.checkSources,
+      useLinks: view.useLinks,
     );
   }
 
@@ -117,6 +126,9 @@ class RustAiRepository implements AiRepository {
           baseUrl: change.baseUrl,
           model: change.model,
           region: change.region,
+          askBudget: change.askBudget,
+          checkSources: change.checkSources,
+          useLinks: change.useLinks,
         ),
       ),
     ),
@@ -143,8 +155,17 @@ class RustAiRepository implements AiRepository {
   }
 
   @override
-  Stream<AskUpdate> ask(String question) => _mapped<bridge.AskEvent, AskUpdate>(
-    _conversation.ask(question: question),
+  Stream<AskUpdate> ask(
+    String question, {
+    AskScope scope = AskScope.everything,
+    bool ignoreTime = false,
+  }) => _mapped<bridge.AskEvent, AskUpdate>(
+    _conversation.ask(
+      question: question,
+      scope: bridge.AskScopeInput(kind: scope.kind, value: scope.value),
+      ignoreTime: ignoreTime,
+      utcOffsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
+    ),
     (event, sink) {
       switch (event) {
         case bridge.AskEvent_Searching():
@@ -155,10 +176,53 @@ class RustAiRepository implements AiRepository {
           sink.add(AskUpdate.usedNotes(notes: _refs(notes)));
         case bridge.AskEvent_Answer(:final markdown):
           sink.add(AskUpdate.answer(text: markdown));
-        case bridge.AskEvent_Done(:final markdown, :final notes):
-          sink.add(AskUpdate.done(answer: markdown, used: _refs(notes)));
-        case bridge.AskEvent_NothingMatches():
-          sink.add(const AskUpdate.nothingMatches());
+        case bridge.AskEvent_Time(:final time):
+          sink.add(AskUpdate.time(time: _timeNote(time)));
+        case bridge.AskEvent_Done(
+          :final markdown,
+          :final notes,
+          :final receipts,
+          :final alsoRead,
+          :final banner,
+          :final unverified,
+          :final neverWrote,
+          :final closest,
+          :final time,
+        ):
+          sink.add(
+            AskUpdate.done(
+              answer: markdown,
+              used: _refs(notes),
+              receipts: <AskReceipt>[
+                for (final r in receipts)
+                  AskReceipt(
+                    n: r.n,
+                    noteId: r.noteId,
+                    title: r.title,
+                    label: r.label,
+                    start: r.start,
+                    end: r.end,
+                    quote: r.quote,
+                  ),
+              ],
+              alsoRead: _refs(alsoRead),
+              banner: banner,
+              unverified: unverified,
+              neverWrote: neverWrote,
+              closest: <AskClosest>[
+                for (final c in closest)
+                  AskClosest(
+                    noteId: c.noteId,
+                    title: c.title,
+                    start: c.start,
+                    end: c.end,
+                  ),
+              ],
+              time: time == null ? null : _timeNote(time),
+            ),
+          );
+        case bridge.AskEvent_NothingMatches(:final narrow):
+          sink.add(AskUpdate.nothingMatches(narrow: narrow));
         case bridge.AskEvent_CutOff():
           sink.add(const AskUpdate.cutOff());
         case bridge.AskEvent_Failed(:final message):
@@ -201,6 +265,32 @@ class RustAiRepository implements AiRepository {
     );
     return controller.stream;
   }
+
+  AskTimeNote _timeNote(bridge.AskTime time) =>
+      AskTimeNote(label: time.label, relaxedLine: time.relaxedLine);
+
+  @override
+  Future<Either<ApplicationError, List<AskScope>>> askScopes() =>
+      attempt(() async {
+        return <AskScope>[
+          for (final option in await _ai.askScopes())
+            AskScope(
+              kind: option.kind,
+              value: option.value,
+              label: option.label,
+            ),
+        ];
+      });
+
+  @override
+  Future<Either<ApplicationError, Unit>> forgetLast() => attempt(() async {
+    _conversation.forgetLast();
+    return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, String>> saveLastAnswer() =>
+      attempt(_conversation.saveLast);
 
   List<AiNoteRef> _refs(List<bridge.AskNote> notes) => <AiNoteRef>[
     for (final note in notes) AiNoteRef(id: note.id, title: note.title),

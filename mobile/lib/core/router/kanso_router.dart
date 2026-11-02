@@ -537,6 +537,9 @@ class KansoRouter {
         final line = _nonNegativeInt(
           state.uri.queryParameters[KansoRoutes.taskLineParameter],
         );
+        final lineEnd = _nonNegativeInt(
+          state.uri.queryParameters[KansoRoutes.lineEndParameter],
+        );
         final cursor16 = _nonNegativeInt(
           state.uri.queryParameters[KansoRoutes.madeCursorParameter],
         );
@@ -549,6 +552,7 @@ class KansoRouter {
                 child: NotePage(
                   noteId: noteId,
                   bodyLine: line,
+                  bodyLineEnd: lineEnd,
                   cursor16: cursor16,
                   titleFirst: titleFirst,
                 ),
@@ -559,6 +563,7 @@ class KansoRouter {
                   noteId: noteId,
                   inPane: true,
                   bodyLine: line,
+                  bodyLineEnd: lineEnd,
                   cursor16: cursor16,
                   titleFirst: titleFirst,
                 ),

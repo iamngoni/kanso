@@ -7129,5 +7129,121 @@
   "flashcardsDraftKeepUnsourced": "Keep sentences without a source",
   "@flashcardsDraftKeepUnsourced": {
     "description": "Drafting: the switch that saves unsourced sentences too."
+  },
+  "askNeverWrote": "You never wrote that down.",
+  "@askNeverWrote": {
+    "description": "What Ask says when the notes do not hold the answer."
+  },
+  "askClosestNotes": "Closest notes",
+  "@askClosestNotes": {
+    "description": "The heading of the notes nearest to a question the notes do not answer."
+  },
+  "askSources": "Sources",
+  "@askSources": {
+    "description": "The heading of the list of lines an answer rests on."
+  },
+  "askAlsoRead": "Also read",
+  "@askAlsoRead": {
+    "description": "The heading of the notes an answer read but did not cite."
+  },
+  "askNotFound": "Not found in your notes",
+  "@askNotFound": {
+    "description": "The label after a sentence whose cited lines were not sent."
+  },
+  "askNotFoundHint": "The answer said this, but the lines it pointed to aren't in the notes Kanso sent. Treat it as unverified.",
+  "@askNotFoundHint": {
+    "description": "What touching an unverified sentence explains."
+  },
+  "askBannerMostly": "Most of this answer couldn't be checked against your notes.",
+  "@askBannerMostly": {
+    "description": "The banner over an answer most of whose claims failed their check."
+  },
+  "askBannerNoSources": "This answer has no sources. Your model may not follow citation instructions; try a larger model.",
+  "@askBannerNoSources": {
+    "description": "The banner over an answer that cites nothing."
+  },
+  "askSearchAll": "Search all notes",
+  "@askSearchAll": {
+    "description": "The button that asks a question again over all notes."
+  },
+  "askSaveAsNote": "Save as note",
+  "@askSaveAsNote": {
+    "description": "The button that saves an answer as a note."
+  },
+  "askSavedAsNote": "Saved as a note.",
+  "@askSavedAsNote": {
+    "description": "What is said once an answer was saved."
+  },
+  "askSaveFailed": "Couldn't save the note.",
+  "@askSaveFailed": {
+    "description": "What is said when saving an answer failed."
+  },
+  "askOpenNote": "Open note",
+  "@askOpenNote": {
+    "description": "The button in a receipt's sheet that opens the note."
+  },
+  "askScopeTitle": "Search in",
+  "@askScopeTitle": {
+    "description": "The title of the sheet that limits what a question searches."
+  },
+  "askAllNotes": "All notes",
+  "@askAllNotes": {
+    "description": "The scope that searches every note."
+  },
+  "askDropTime": "Search without this time range",
+  "@askDropTime": {
+    "description": "The label of the cross on the time chip."
+  },
+  "askReading": "Reading your notes…",
+  "@askReading": {
+    "description": "While the model has the notes and has not yet written."
+  },
+  "askWriting": "Writing the answer…",
+  "@askWriting": {
+    "description": "While the answer is written."
+  },
+  "askChecking": "Checking the sources…",
+  "@askChecking": {
+    "description": "While the receipts are checked."
+  },
+  "aiAskSection": "Ask",
+  "@aiAskSection": {
+    "description": "The heading of the Ask settings."
+  },
+  "aiAskBudget": "Most each question may send",
+  "@aiAskBudget": {
+    "description": "The row that chooses how much of the notes a question may send."
+  },
+  "aiAskBudgetSmall": "Small",
+  "@aiAskBudgetSmall": {
+    "description": "The smallest size a question may be."
+  },
+  "aiAskBudgetStandard": "Standard",
+  "@aiAskBudgetStandard": {
+    "description": "The usual size a question may be."
+  },
+  "aiAskBudgetLarge": "Large",
+  "@aiAskBudgetLarge": {
+    "description": "The largest size a question may be."
+  },
+  "aiAskCheckSources": "Check sources",
+  "@aiAskCheckSources": {
+    "description": "The switch that checks an answer's receipts."
+  },
+  "aiAskCheckSourcesOff": "Without checking, an answer may cite lines that were never sent.",
+  "@aiAskCheckSourcesOff": {
+    "description": "The warning under Check sources while it is off."
+  },
+  "aiAskCheckSourcesOn": "Each cited line is checked against what was sent. A sentence that fails is marked as not found.",
+  "@aiAskCheckSourcesOn": {
+    "description": "What Check sources does while it is on."
+  },
+  "aiAskUseLinks": "Look up related notes through links",
+  "@aiAskUseLinks": {
+    "description": "The switch that follows links of the best notes."
+  },
+  "aiAskUseLinksFooter": "Notes that link to the best matches, and notes they link to, are looked up too. Locked notes and notes tagged #ai-exclude are never followed.",
+  "@aiAskUseLinksFooter": {
+    "description": "What following links does."
   }
 }

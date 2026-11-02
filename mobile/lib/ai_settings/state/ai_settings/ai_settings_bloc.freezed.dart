@@ -318,14 +318,15 @@ extension AiSettingsEventPatterns on AiSettingsEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AiSettingsStartedEvent value)?  started,TResult Function( AiSettingsEnabledChangedEvent value)?  enabledChanged,TResult Function( AiSettingsProviderChosenEvent value)?  providerChosen,TResult Function( AiSettingsFieldsChangedEvent value)?  fieldsChanged,TResult Function( AiSettingsKeySavedEvent value)?  keySaved,TResult Function( AiSettingsKeyRemovedEvent value)?  keyRemoved,TResult Function( AiSettingsTestRequestedEvent value)?  testRequested,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AiSettingsStartedEvent value)?  started,TResult Function( AiSettingsEnabledChangedEvent value)?  enabledChanged,TResult Function( AiSettingsProviderChosenEvent value)?  providerChosen,TResult Function( AiSettingsFieldsChangedEvent value)?  fieldsChanged,TResult Function( AiSettingsAskChangedEvent value)?  askChanged,TResult Function( AiSettingsKeySavedEvent value)?  keySaved,TResult Function( AiSettingsKeyRemovedEvent value)?  keyRemoved,TResult Function( AiSettingsTestRequestedEvent value)?  testRequested,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AiSettingsStartedEvent() when started != null:
 return started(_that);case AiSettingsEnabledChangedEvent() when enabledChanged != null:
 return enabledChanged(_that);case AiSettingsProviderChosenEvent() when providerChosen != null:
 return providerChosen(_that);case AiSettingsFieldsChangedEvent() when fieldsChanged != null:
-return fieldsChanged(_that);case AiSettingsKeySavedEvent() when keySaved != null:
+return fieldsChanged(_that);case AiSettingsAskChangedEvent() when askChanged != null:
+return askChanged(_that);case AiSettingsKeySavedEvent() when keySaved != null:
 return keySaved(_that);case AiSettingsKeyRemovedEvent() when keyRemoved != null:
 return keyRemoved(_that);case AiSettingsTestRequestedEvent() when testRequested != null:
 return testRequested(_that);case _:
@@ -346,14 +347,15 @@ return testRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AiSettingsStartedEvent value)  started,required TResult Function( AiSettingsEnabledChangedEvent value)  enabledChanged,required TResult Function( AiSettingsProviderChosenEvent value)  providerChosen,required TResult Function( AiSettingsFieldsChangedEvent value)  fieldsChanged,required TResult Function( AiSettingsKeySavedEvent value)  keySaved,required TResult Function( AiSettingsKeyRemovedEvent value)  keyRemoved,required TResult Function( AiSettingsTestRequestedEvent value)  testRequested,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AiSettingsStartedEvent value)  started,required TResult Function( AiSettingsEnabledChangedEvent value)  enabledChanged,required TResult Function( AiSettingsProviderChosenEvent value)  providerChosen,required TResult Function( AiSettingsFieldsChangedEvent value)  fieldsChanged,required TResult Function( AiSettingsAskChangedEvent value)  askChanged,required TResult Function( AiSettingsKeySavedEvent value)  keySaved,required TResult Function( AiSettingsKeyRemovedEvent value)  keyRemoved,required TResult Function( AiSettingsTestRequestedEvent value)  testRequested,}){
 final _that = this;
 switch (_that) {
 case AiSettingsStartedEvent():
 return started(_that);case AiSettingsEnabledChangedEvent():
 return enabledChanged(_that);case AiSettingsProviderChosenEvent():
 return providerChosen(_that);case AiSettingsFieldsChangedEvent():
-return fieldsChanged(_that);case AiSettingsKeySavedEvent():
+return fieldsChanged(_that);case AiSettingsAskChangedEvent():
+return askChanged(_that);case AiSettingsKeySavedEvent():
 return keySaved(_that);case AiSettingsKeyRemovedEvent():
 return keyRemoved(_that);case AiSettingsTestRequestedEvent():
 return testRequested(_that);}
@@ -370,14 +372,15 @@ return testRequested(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AiSettingsStartedEvent value)?  started,TResult? Function( AiSettingsEnabledChangedEvent value)?  enabledChanged,TResult? Function( AiSettingsProviderChosenEvent value)?  providerChosen,TResult? Function( AiSettingsFieldsChangedEvent value)?  fieldsChanged,TResult? Function( AiSettingsKeySavedEvent value)?  keySaved,TResult? Function( AiSettingsKeyRemovedEvent value)?  keyRemoved,TResult? Function( AiSettingsTestRequestedEvent value)?  testRequested,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AiSettingsStartedEvent value)?  started,TResult? Function( AiSettingsEnabledChangedEvent value)?  enabledChanged,TResult? Function( AiSettingsProviderChosenEvent value)?  providerChosen,TResult? Function( AiSettingsFieldsChangedEvent value)?  fieldsChanged,TResult? Function( AiSettingsAskChangedEvent value)?  askChanged,TResult? Function( AiSettingsKeySavedEvent value)?  keySaved,TResult? Function( AiSettingsKeyRemovedEvent value)?  keyRemoved,TResult? Function( AiSettingsTestRequestedEvent value)?  testRequested,}){
 final _that = this;
 switch (_that) {
 case AiSettingsStartedEvent() when started != null:
 return started(_that);case AiSettingsEnabledChangedEvent() when enabledChanged != null:
 return enabledChanged(_that);case AiSettingsProviderChosenEvent() when providerChosen != null:
 return providerChosen(_that);case AiSettingsFieldsChangedEvent() when fieldsChanged != null:
-return fieldsChanged(_that);case AiSettingsKeySavedEvent() when keySaved != null:
+return fieldsChanged(_that);case AiSettingsAskChangedEvent() when askChanged != null:
+return askChanged(_that);case AiSettingsKeySavedEvent() when keySaved != null:
 return keySaved(_that);case AiSettingsKeyRemovedEvent() when keyRemoved != null:
 return keyRemoved(_that);case AiSettingsTestRequestedEvent() when testRequested != null:
 return testRequested(_that);case _:
@@ -397,13 +400,14 @@ return testRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( bool enabled)?  enabledChanged,TResult Function( String provider)?  providerChosen,TResult Function( AiFields fields)?  fieldsChanged,TResult Function( AiKey key)?  keySaved,TResult Function()?  keyRemoved,TResult Function( AiFields fields)?  testRequested,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( bool enabled)?  enabledChanged,TResult Function( String provider)?  providerChosen,TResult Function( AiFields fields)?  fieldsChanged,TResult Function( String? budget,  bool? checkSources,  bool? useLinks)?  askChanged,TResult Function( AiKey key)?  keySaved,TResult Function()?  keyRemoved,TResult Function( AiFields fields)?  testRequested,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AiSettingsStartedEvent() when started != null:
 return started();case AiSettingsEnabledChangedEvent() when enabledChanged != null:
 return enabledChanged(_that.enabled);case AiSettingsProviderChosenEvent() when providerChosen != null:
 return providerChosen(_that.provider);case AiSettingsFieldsChangedEvent() when fieldsChanged != null:
-return fieldsChanged(_that.fields);case AiSettingsKeySavedEvent() when keySaved != null:
+return fieldsChanged(_that.fields);case AiSettingsAskChangedEvent() when askChanged != null:
+return askChanged(_that.budget,_that.checkSources,_that.useLinks);case AiSettingsKeySavedEvent() when keySaved != null:
 return keySaved(_that.key);case AiSettingsKeyRemovedEvent() when keyRemoved != null:
 return keyRemoved();case AiSettingsTestRequestedEvent() when testRequested != null:
 return testRequested(_that.fields);case _:
@@ -424,13 +428,14 @@ return testRequested(_that.fields);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( bool enabled)  enabledChanged,required TResult Function( String provider)  providerChosen,required TResult Function( AiFields fields)  fieldsChanged,required TResult Function( AiKey key)  keySaved,required TResult Function()  keyRemoved,required TResult Function( AiFields fields)  testRequested,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( bool enabled)  enabledChanged,required TResult Function( String provider)  providerChosen,required TResult Function( AiFields fields)  fieldsChanged,required TResult Function( String? budget,  bool? checkSources,  bool? useLinks)  askChanged,required TResult Function( AiKey key)  keySaved,required TResult Function()  keyRemoved,required TResult Function( AiFields fields)  testRequested,}) {final _that = this;
 switch (_that) {
 case AiSettingsStartedEvent():
 return started();case AiSettingsEnabledChangedEvent():
 return enabledChanged(_that.enabled);case AiSettingsProviderChosenEvent():
 return providerChosen(_that.provider);case AiSettingsFieldsChangedEvent():
-return fieldsChanged(_that.fields);case AiSettingsKeySavedEvent():
+return fieldsChanged(_that.fields);case AiSettingsAskChangedEvent():
+return askChanged(_that.budget,_that.checkSources,_that.useLinks);case AiSettingsKeySavedEvent():
 return keySaved(_that.key);case AiSettingsKeyRemovedEvent():
 return keyRemoved();case AiSettingsTestRequestedEvent():
 return testRequested(_that.fields);}
@@ -447,13 +452,14 @@ return testRequested(_that.fields);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( bool enabled)?  enabledChanged,TResult? Function( String provider)?  providerChosen,TResult? Function( AiFields fields)?  fieldsChanged,TResult? Function( AiKey key)?  keySaved,TResult? Function()?  keyRemoved,TResult? Function( AiFields fields)?  testRequested,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( bool enabled)?  enabledChanged,TResult? Function( String provider)?  providerChosen,TResult? Function( AiFields fields)?  fieldsChanged,TResult? Function( String? budget,  bool? checkSources,  bool? useLinks)?  askChanged,TResult? Function( AiKey key)?  keySaved,TResult? Function()?  keyRemoved,TResult? Function( AiFields fields)?  testRequested,}) {final _that = this;
 switch (_that) {
 case AiSettingsStartedEvent() when started != null:
 return started();case AiSettingsEnabledChangedEvent() when enabledChanged != null:
 return enabledChanged(_that.enabled);case AiSettingsProviderChosenEvent() when providerChosen != null:
 return providerChosen(_that.provider);case AiSettingsFieldsChangedEvent() when fieldsChanged != null:
-return fieldsChanged(_that.fields);case AiSettingsKeySavedEvent() when keySaved != null:
+return fieldsChanged(_that.fields);case AiSettingsAskChangedEvent() when askChanged != null:
+return askChanged(_that.budget,_that.checkSources,_that.useLinks);case AiSettingsKeySavedEvent() when keySaved != null:
 return keySaved(_that.key);case AiSettingsKeyRemovedEvent() when keyRemoved != null:
 return keyRemoved();case AiSettingsTestRequestedEvent() when testRequested != null:
 return testRequested(_that.fields);case _:
@@ -701,6 +707,76 @@ $AiFieldsCopyWith<$Res> get fields {
     return _then(_self.copyWith(fields: value));
   });
 }
+}
+
+/// @nodoc
+
+
+class AiSettingsAskChangedEvent implements AiSettingsEvent {
+  const AiSettingsAskChangedEvent({this.budget, this.checkSources, this.useLinks});
+  
+
+ final  String? budget;
+ final  bool? checkSources;
+ final  bool? useLinks;
+
+/// Create a copy of AiSettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AiSettingsAskChangedEventCopyWith<AiSettingsAskChangedEvent> get copyWith => _$AiSettingsAskChangedEventCopyWithImpl<AiSettingsAskChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AiSettingsAskChangedEvent&&(identical(other.budget, budget) || other.budget == budget)&&(identical(other.checkSources, checkSources) || other.checkSources == checkSources)&&(identical(other.useLinks, useLinks) || other.useLinks == useLinks));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,budget,checkSources,useLinks);
+
+@override
+String toString() {
+  return 'AiSettingsEvent.askChanged(budget: $budget, checkSources: $checkSources, useLinks: $useLinks)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AiSettingsAskChangedEventCopyWith<$Res> implements $AiSettingsEventCopyWith<$Res> {
+  factory $AiSettingsAskChangedEventCopyWith(AiSettingsAskChangedEvent value, $Res Function(AiSettingsAskChangedEvent) _then) = _$AiSettingsAskChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ String? budget, bool? checkSources, bool? useLinks
+});
+
+
+
+
+}
+/// @nodoc
+class _$AiSettingsAskChangedEventCopyWithImpl<$Res>
+    implements $AiSettingsAskChangedEventCopyWith<$Res> {
+  _$AiSettingsAskChangedEventCopyWithImpl(this._self, this._then);
+
+  final AiSettingsAskChangedEvent _self;
+  final $Res Function(AiSettingsAskChangedEvent) _then;
+
+/// Create a copy of AiSettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? budget = freezed,Object? checkSources = freezed,Object? useLinks = freezed,}) {
+  return _then(AiSettingsAskChangedEvent(
+budget: freezed == budget ? _self.budget : budget // ignore: cast_nullable_to_non_nullable
+as String?,checkSources: freezed == checkSources ? _self.checkSources : checkSources // ignore: cast_nullable_to_non_nullable
+as bool?,useLinks: freezed == useLinks ? _self.useLinks : useLinks // ignore: cast_nullable_to_non_nullable
+as bool?,
+  ));
+}
+
+
 }
 
 /// @nodoc

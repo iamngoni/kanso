@@ -86,12 +86,14 @@ extension AnswerSpanPatterns on AnswerSpan {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AnswerText value)?  text,TResult Function( AnswerNoteLink value)?  note,TResult Function( AnswerWebLink value)?  web,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AnswerText value)?  text,TResult Function( AnswerNoteLink value)?  note,TResult Function( AnswerReceiptMark value)?  receipt,TResult Function( AnswerUnverified value)?  unverified,TResult Function( AnswerWebLink value)?  web,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AnswerText() when text != null:
 return text(_that);case AnswerNoteLink() when note != null:
-return note(_that);case AnswerWebLink() when web != null:
+return note(_that);case AnswerReceiptMark() when receipt != null:
+return receipt(_that);case AnswerUnverified() when unverified != null:
+return unverified(_that);case AnswerWebLink() when web != null:
 return web(_that);case _:
   return orElse();
 
@@ -110,12 +112,14 @@ return web(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AnswerText value)  text,required TResult Function( AnswerNoteLink value)  note,required TResult Function( AnswerWebLink value)  web,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AnswerText value)  text,required TResult Function( AnswerNoteLink value)  note,required TResult Function( AnswerReceiptMark value)  receipt,required TResult Function( AnswerUnverified value)  unverified,required TResult Function( AnswerWebLink value)  web,}){
 final _that = this;
 switch (_that) {
 case AnswerText():
 return text(_that);case AnswerNoteLink():
-return note(_that);case AnswerWebLink():
+return note(_that);case AnswerReceiptMark():
+return receipt(_that);case AnswerUnverified():
+return unverified(_that);case AnswerWebLink():
 return web(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -130,12 +134,14 @@ return web(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AnswerText value)?  text,TResult? Function( AnswerNoteLink value)?  note,TResult? Function( AnswerWebLink value)?  web,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AnswerText value)?  text,TResult? Function( AnswerNoteLink value)?  note,TResult? Function( AnswerReceiptMark value)?  receipt,TResult? Function( AnswerUnverified value)?  unverified,TResult? Function( AnswerWebLink value)?  web,}){
 final _that = this;
 switch (_that) {
 case AnswerText() when text != null:
 return text(_that);case AnswerNoteLink() when note != null:
-return note(_that);case AnswerWebLink() when web != null:
+return note(_that);case AnswerReceiptMark() when receipt != null:
+return receipt(_that);case AnswerUnverified() when unverified != null:
+return unverified(_that);case AnswerWebLink() when web != null:
 return web(_that);case _:
   return null;
 
@@ -153,11 +159,13 @@ return web(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String text,  bool bold,  bool italic,  bool code)?  text,TResult Function( String text,  String noteId)?  note,TResult Function( String text,  String url)?  web,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String text,  bool bold,  bool italic,  bool code)?  text,TResult Function( String text,  String noteId)?  note,TResult Function( String text,  int n)?  receipt,TResult Function( String text)?  unverified,TResult Function( String text,  String url)?  web,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AnswerText() when text != null:
 return text(_that.text,_that.bold,_that.italic,_that.code);case AnswerNoteLink() when note != null:
-return note(_that.text,_that.noteId);case AnswerWebLink() when web != null:
+return note(_that.text,_that.noteId);case AnswerReceiptMark() when receipt != null:
+return receipt(_that.text,_that.n);case AnswerUnverified() when unverified != null:
+return unverified(_that.text);case AnswerWebLink() when web != null:
 return web(_that.text,_that.url);case _:
   return orElse();
 
@@ -176,11 +184,13 @@ return web(_that.text,_that.url);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String text,  bool bold,  bool italic,  bool code)  text,required TResult Function( String text,  String noteId)  note,required TResult Function( String text,  String url)  web,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String text,  bool bold,  bool italic,  bool code)  text,required TResult Function( String text,  String noteId)  note,required TResult Function( String text,  int n)  receipt,required TResult Function( String text)  unverified,required TResult Function( String text,  String url)  web,}) {final _that = this;
 switch (_that) {
 case AnswerText():
 return text(_that.text,_that.bold,_that.italic,_that.code);case AnswerNoteLink():
-return note(_that.text,_that.noteId);case AnswerWebLink():
+return note(_that.text,_that.noteId);case AnswerReceiptMark():
+return receipt(_that.text,_that.n);case AnswerUnverified():
+return unverified(_that.text);case AnswerWebLink():
 return web(_that.text,_that.url);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -195,11 +205,13 @@ return web(_that.text,_that.url);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String text,  bool bold,  bool italic,  bool code)?  text,TResult? Function( String text,  String noteId)?  note,TResult? Function( String text,  String url)?  web,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String text,  bool bold,  bool italic,  bool code)?  text,TResult? Function( String text,  String noteId)?  note,TResult? Function( String text,  int n)?  receipt,TResult? Function( String text)?  unverified,TResult? Function( String text,  String url)?  web,}) {final _that = this;
 switch (_that) {
 case AnswerText() when text != null:
 return text(_that.text,_that.bold,_that.italic,_that.code);case AnswerNoteLink() when note != null:
-return note(_that.text,_that.noteId);case AnswerWebLink() when web != null:
+return note(_that.text,_that.noteId);case AnswerReceiptMark() when receipt != null:
+return receipt(_that.text,_that.n);case AnswerUnverified() when unverified != null:
+return unverified(_that.text);case AnswerWebLink() when web != null:
 return web(_that.text,_that.url);case _:
   return null;
 
@@ -341,6 +353,140 @@ class _$AnswerNoteLinkCopyWithImpl<$Res>
   return _then(AnswerNoteLink(
 text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,noteId: null == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AnswerReceiptMark implements AnswerSpan {
+  const AnswerReceiptMark({required this.text, required this.n});
+  
+
+@override final  String text;
+ final  int n;
+
+/// Create a copy of AnswerSpan
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AnswerReceiptMarkCopyWith<AnswerReceiptMark> get copyWith => _$AnswerReceiptMarkCopyWithImpl<AnswerReceiptMark>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AnswerReceiptMark&&(identical(other.text, text) || other.text == text)&&(identical(other.n, n) || other.n == n));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,text,n);
+
+@override
+String toString() {
+  return 'AnswerSpan.receipt(text: $text, n: $n)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AnswerReceiptMarkCopyWith<$Res> implements $AnswerSpanCopyWith<$Res> {
+  factory $AnswerReceiptMarkCopyWith(AnswerReceiptMark value, $Res Function(AnswerReceiptMark) _then) = _$AnswerReceiptMarkCopyWithImpl;
+@override @useResult
+$Res call({
+ String text, int n
+});
+
+
+
+
+}
+/// @nodoc
+class _$AnswerReceiptMarkCopyWithImpl<$Res>
+    implements $AnswerReceiptMarkCopyWith<$Res> {
+  _$AnswerReceiptMarkCopyWithImpl(this._self, this._then);
+
+  final AnswerReceiptMark _self;
+  final $Res Function(AnswerReceiptMark) _then;
+
+/// Create a copy of AnswerSpan
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? text = null,Object? n = null,}) {
+  return _then(AnswerReceiptMark(
+text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,n: null == n ? _self.n : n // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AnswerUnverified implements AnswerSpan {
+  const AnswerUnverified({required this.text});
+  
+
+@override final  String text;
+
+/// Create a copy of AnswerSpan
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AnswerUnverifiedCopyWith<AnswerUnverified> get copyWith => _$AnswerUnverifiedCopyWithImpl<AnswerUnverified>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AnswerUnverified&&(identical(other.text, text) || other.text == text));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,text);
+
+@override
+String toString() {
+  return 'AnswerSpan.unverified(text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AnswerUnverifiedCopyWith<$Res> implements $AnswerSpanCopyWith<$Res> {
+  factory $AnswerUnverifiedCopyWith(AnswerUnverified value, $Res Function(AnswerUnverified) _then) = _$AnswerUnverifiedCopyWithImpl;
+@override @useResult
+$Res call({
+ String text
+});
+
+
+
+
+}
+/// @nodoc
+class _$AnswerUnverifiedCopyWithImpl<$Res>
+    implements $AnswerUnverifiedCopyWith<$Res> {
+  _$AnswerUnverifiedCopyWithImpl(this._self, this._then);
+
+  final AnswerUnverified _self;
+  final $Res Function(AnswerUnverified) _then;
+
+/// Create a copy of AnswerSpan
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? text = null,}) {
+  return _then(AnswerUnverified(
+text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

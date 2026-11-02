@@ -32,6 +32,15 @@ sealed class AiSettingsEvent with _$AiSettingsEvent {
   const factory AiSettingsEvent.fieldsChanged(AiFields fields) =
       AiSettingsFieldsChangedEvent;
 
+  /// The person changed how Ask reads the notes: how much a question may send,
+  /// whether sources are checked, whether links are followed. A field left
+  /// out stays as it is.
+  const factory AiSettingsEvent.askChanged({
+    String? budget,
+    bool? checkSources,
+    bool? useLinks,
+  }) = AiSettingsAskChangedEvent;
+
   /// The person saved a key for the chosen provider.
   const factory AiSettingsEvent.keySaved(AiKey key) = AiSettingsKeySavedEvent;
 

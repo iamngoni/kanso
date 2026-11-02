@@ -55,7 +55,7 @@ extension AskEventPatterns on AskEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AskStartedEvent value)?  started,TResult Function( AskSettingsChangedEvent value)?  settingsChanged,TResult Function( AskQuestionAskedEvent value)?  questionAsked,TResult Function( AskUpdateReceivedEvent value)?  updateReceived,TResult Function( AskStreamEndedEvent value)?  streamEnded,TResult Function( AskStoppedEvent value)?  stopped,TResult Function( AskClearedEvent value)?  cleared,TResult Function( AskRetriedEvent value)?  retried,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AskStartedEvent value)?  started,TResult Function( AskSettingsChangedEvent value)?  settingsChanged,TResult Function( AskQuestionAskedEvent value)?  questionAsked,TResult Function( AskUpdateReceivedEvent value)?  updateReceived,TResult Function( AskStreamEndedEvent value)?  streamEnded,TResult Function( AskStoppedEvent value)?  stopped,TResult Function( AskClearedEvent value)?  cleared,TResult Function( AskRetriedEvent value)?  retried,TResult Function( AskScopeChosenEvent value)?  scopeChosen,TResult Function( AskScopesRequestedEvent value)?  scopesRequested,TResult Function( AskTimeDroppedEvent value)?  timeDropped,TResult Function( AskSearchedAllEvent value)?  searchedAll,TResult Function( AskAnswerSavedEvent value)?  answerSaved,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AskStartedEvent() when started != null:
@@ -66,7 +66,12 @@ return updateReceived(_that);case AskStreamEndedEvent() when streamEnded != null
 return streamEnded(_that);case AskStoppedEvent() when stopped != null:
 return stopped(_that);case AskClearedEvent() when cleared != null:
 return cleared(_that);case AskRetriedEvent() when retried != null:
-return retried(_that);case _:
+return retried(_that);case AskScopeChosenEvent() when scopeChosen != null:
+return scopeChosen(_that);case AskScopesRequestedEvent() when scopesRequested != null:
+return scopesRequested(_that);case AskTimeDroppedEvent() when timeDropped != null:
+return timeDropped(_that);case AskSearchedAllEvent() when searchedAll != null:
+return searchedAll(_that);case AskAnswerSavedEvent() when answerSaved != null:
+return answerSaved(_that);case _:
   return orElse();
 
 }
@@ -84,7 +89,7 @@ return retried(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AskStartedEvent value)  started,required TResult Function( AskSettingsChangedEvent value)  settingsChanged,required TResult Function( AskQuestionAskedEvent value)  questionAsked,required TResult Function( AskUpdateReceivedEvent value)  updateReceived,required TResult Function( AskStreamEndedEvent value)  streamEnded,required TResult Function( AskStoppedEvent value)  stopped,required TResult Function( AskClearedEvent value)  cleared,required TResult Function( AskRetriedEvent value)  retried,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AskStartedEvent value)  started,required TResult Function( AskSettingsChangedEvent value)  settingsChanged,required TResult Function( AskQuestionAskedEvent value)  questionAsked,required TResult Function( AskUpdateReceivedEvent value)  updateReceived,required TResult Function( AskStreamEndedEvent value)  streamEnded,required TResult Function( AskStoppedEvent value)  stopped,required TResult Function( AskClearedEvent value)  cleared,required TResult Function( AskRetriedEvent value)  retried,required TResult Function( AskScopeChosenEvent value)  scopeChosen,required TResult Function( AskScopesRequestedEvent value)  scopesRequested,required TResult Function( AskTimeDroppedEvent value)  timeDropped,required TResult Function( AskSearchedAllEvent value)  searchedAll,required TResult Function( AskAnswerSavedEvent value)  answerSaved,}){
 final _that = this;
 switch (_that) {
 case AskStartedEvent():
@@ -95,7 +100,12 @@ return updateReceived(_that);case AskStreamEndedEvent():
 return streamEnded(_that);case AskStoppedEvent():
 return stopped(_that);case AskClearedEvent():
 return cleared(_that);case AskRetriedEvent():
-return retried(_that);}
+return retried(_that);case AskScopeChosenEvent():
+return scopeChosen(_that);case AskScopesRequestedEvent():
+return scopesRequested(_that);case AskTimeDroppedEvent():
+return timeDropped(_that);case AskSearchedAllEvent():
+return searchedAll(_that);case AskAnswerSavedEvent():
+return answerSaved(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -109,7 +119,7 @@ return retried(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AskStartedEvent value)?  started,TResult? Function( AskSettingsChangedEvent value)?  settingsChanged,TResult? Function( AskQuestionAskedEvent value)?  questionAsked,TResult? Function( AskUpdateReceivedEvent value)?  updateReceived,TResult? Function( AskStreamEndedEvent value)?  streamEnded,TResult? Function( AskStoppedEvent value)?  stopped,TResult? Function( AskClearedEvent value)?  cleared,TResult? Function( AskRetriedEvent value)?  retried,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AskStartedEvent value)?  started,TResult? Function( AskSettingsChangedEvent value)?  settingsChanged,TResult? Function( AskQuestionAskedEvent value)?  questionAsked,TResult? Function( AskUpdateReceivedEvent value)?  updateReceived,TResult? Function( AskStreamEndedEvent value)?  streamEnded,TResult? Function( AskStoppedEvent value)?  stopped,TResult? Function( AskClearedEvent value)?  cleared,TResult? Function( AskRetriedEvent value)?  retried,TResult? Function( AskScopeChosenEvent value)?  scopeChosen,TResult? Function( AskScopesRequestedEvent value)?  scopesRequested,TResult? Function( AskTimeDroppedEvent value)?  timeDropped,TResult? Function( AskSearchedAllEvent value)?  searchedAll,TResult? Function( AskAnswerSavedEvent value)?  answerSaved,}){
 final _that = this;
 switch (_that) {
 case AskStartedEvent() when started != null:
@@ -120,7 +130,12 @@ return updateReceived(_that);case AskStreamEndedEvent() when streamEnded != null
 return streamEnded(_that);case AskStoppedEvent() when stopped != null:
 return stopped(_that);case AskClearedEvent() when cleared != null:
 return cleared(_that);case AskRetriedEvent() when retried != null:
-return retried(_that);case _:
+return retried(_that);case AskScopeChosenEvent() when scopeChosen != null:
+return scopeChosen(_that);case AskScopesRequestedEvent() when scopesRequested != null:
+return scopesRequested(_that);case AskTimeDroppedEvent() when timeDropped != null:
+return timeDropped(_that);case AskSearchedAllEvent() when searchedAll != null:
+return searchedAll(_that);case AskAnswerSavedEvent() when answerSaved != null:
+return answerSaved(_that);case _:
   return null;
 
 }
@@ -137,7 +152,7 @@ return retried(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( AiSettings settings)?  settingsChanged,TResult Function( String question)?  questionAsked,TResult Function( AskUpdate update)?  updateReceived,TResult Function()?  streamEnded,TResult Function()?  stopped,TResult Function()?  cleared,TResult Function()?  retried,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( AiSettings settings)?  settingsChanged,TResult Function( String question)?  questionAsked,TResult Function( AskUpdate update)?  updateReceived,TResult Function()?  streamEnded,TResult Function()?  stopped,TResult Function()?  cleared,TResult Function()?  retried,TResult Function( AskScope scope)?  scopeChosen,TResult Function()?  scopesRequested,TResult Function()?  timeDropped,TResult Function()?  searchedAll,TResult Function()?  answerSaved,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AskStartedEvent() when started != null:
 return started();case AskSettingsChangedEvent() when settingsChanged != null:
@@ -147,7 +162,12 @@ return updateReceived(_that.update);case AskStreamEndedEvent() when streamEnded 
 return streamEnded();case AskStoppedEvent() when stopped != null:
 return stopped();case AskClearedEvent() when cleared != null:
 return cleared();case AskRetriedEvent() when retried != null:
-return retried();case _:
+return retried();case AskScopeChosenEvent() when scopeChosen != null:
+return scopeChosen(_that.scope);case AskScopesRequestedEvent() when scopesRequested != null:
+return scopesRequested();case AskTimeDroppedEvent() when timeDropped != null:
+return timeDropped();case AskSearchedAllEvent() when searchedAll != null:
+return searchedAll();case AskAnswerSavedEvent() when answerSaved != null:
+return answerSaved();case _:
   return orElse();
 
 }
@@ -165,7 +185,7 @@ return retried();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( AiSettings settings)  settingsChanged,required TResult Function( String question)  questionAsked,required TResult Function( AskUpdate update)  updateReceived,required TResult Function()  streamEnded,required TResult Function()  stopped,required TResult Function()  cleared,required TResult Function()  retried,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( AiSettings settings)  settingsChanged,required TResult Function( String question)  questionAsked,required TResult Function( AskUpdate update)  updateReceived,required TResult Function()  streamEnded,required TResult Function()  stopped,required TResult Function()  cleared,required TResult Function()  retried,required TResult Function( AskScope scope)  scopeChosen,required TResult Function()  scopesRequested,required TResult Function()  timeDropped,required TResult Function()  searchedAll,required TResult Function()  answerSaved,}) {final _that = this;
 switch (_that) {
 case AskStartedEvent():
 return started();case AskSettingsChangedEvent():
@@ -175,7 +195,12 @@ return updateReceived(_that.update);case AskStreamEndedEvent():
 return streamEnded();case AskStoppedEvent():
 return stopped();case AskClearedEvent():
 return cleared();case AskRetriedEvent():
-return retried();}
+return retried();case AskScopeChosenEvent():
+return scopeChosen(_that.scope);case AskScopesRequestedEvent():
+return scopesRequested();case AskTimeDroppedEvent():
+return timeDropped();case AskSearchedAllEvent():
+return searchedAll();case AskAnswerSavedEvent():
+return answerSaved();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -189,7 +214,7 @@ return retried();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( AiSettings settings)?  settingsChanged,TResult? Function( String question)?  questionAsked,TResult? Function( AskUpdate update)?  updateReceived,TResult? Function()?  streamEnded,TResult? Function()?  stopped,TResult? Function()?  cleared,TResult? Function()?  retried,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( AiSettings settings)?  settingsChanged,TResult? Function( String question)?  questionAsked,TResult? Function( AskUpdate update)?  updateReceived,TResult? Function()?  streamEnded,TResult? Function()?  stopped,TResult? Function()?  cleared,TResult? Function()?  retried,TResult? Function( AskScope scope)?  scopeChosen,TResult? Function()?  scopesRequested,TResult? Function()?  timeDropped,TResult? Function()?  searchedAll,TResult? Function()?  answerSaved,}) {final _that = this;
 switch (_that) {
 case AskStartedEvent() when started != null:
 return started();case AskSettingsChangedEvent() when settingsChanged != null:
@@ -199,7 +224,12 @@ return updateReceived(_that.update);case AskStreamEndedEvent() when streamEnded 
 return streamEnded();case AskStoppedEvent() when stopped != null:
 return stopped();case AskClearedEvent() when cleared != null:
 return cleared();case AskRetriedEvent() when retried != null:
-return retried();case _:
+return retried();case AskScopeChosenEvent() when scopeChosen != null:
+return scopeChosen(_that.scope);case AskScopesRequestedEvent() when scopesRequested != null:
+return scopesRequested();case AskTimeDroppedEvent() when timeDropped != null:
+return timeDropped();case AskSearchedAllEvent() when searchedAll != null:
+return searchedAll();case AskAnswerSavedEvent() when answerSaved != null:
+return answerSaved();case _:
   return null;
 
 }
@@ -584,6 +614,209 @@ String toString() {
 
 
 /// @nodoc
+
+
+class AskScopeChosenEvent implements AskEvent {
+  const AskScopeChosenEvent(this.scope);
+  
+
+ final  AskScope scope;
+
+/// Create a copy of AskEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AskScopeChosenEventCopyWith<AskScopeChosenEvent> get copyWith => _$AskScopeChosenEventCopyWithImpl<AskScopeChosenEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskScopeChosenEvent&&(identical(other.scope, scope) || other.scope == scope));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,scope);
+
+@override
+String toString() {
+  return 'AskEvent.scopeChosen(scope: $scope)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AskScopeChosenEventCopyWith<$Res> implements $AskEventCopyWith<$Res> {
+  factory $AskScopeChosenEventCopyWith(AskScopeChosenEvent value, $Res Function(AskScopeChosenEvent) _then) = _$AskScopeChosenEventCopyWithImpl;
+@useResult
+$Res call({
+ AskScope scope
+});
+
+
+$AskScopeCopyWith<$Res> get scope;
+
+}
+/// @nodoc
+class _$AskScopeChosenEventCopyWithImpl<$Res>
+    implements $AskScopeChosenEventCopyWith<$Res> {
+  _$AskScopeChosenEventCopyWithImpl(this._self, this._then);
+
+  final AskScopeChosenEvent _self;
+  final $Res Function(AskScopeChosenEvent) _then;
+
+/// Create a copy of AskEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? scope = null,}) {
+  return _then(AskScopeChosenEvent(
+null == scope ? _self.scope : scope // ignore: cast_nullable_to_non_nullable
+as AskScope,
+  ));
+}
+
+/// Create a copy of AskEvent
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AskScopeCopyWith<$Res> get scope {
+  
+  return $AskScopeCopyWith<$Res>(_self.scope, (value) {
+    return _then(_self.copyWith(scope: value));
+  });
+}
+}
+
+/// @nodoc
+
+
+class AskScopesRequestedEvent implements AskEvent {
+  const AskScopesRequestedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskScopesRequestedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AskEvent.scopesRequested()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AskTimeDroppedEvent implements AskEvent {
+  const AskTimeDroppedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskTimeDroppedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AskEvent.timeDropped()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AskSearchedAllEvent implements AskEvent {
+  const AskSearchedAllEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskSearchedAllEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AskEvent.searchedAll()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AskAnswerSavedEvent implements AskEvent {
+  const AskAnswerSavedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskAnswerSavedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AskEvent.answerSaved()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$AskState {
 
 /// Whether the settings have been read.
@@ -591,7 +824,10 @@ mixin _$AskState {
  bool get aiEnabled;/// The line about where a question goes, shown while the conversation is
 /// empty.
  String get privacy;/// The conversation, oldest question first.
- List<AskTurn> get turns; AskPhase get phase;
+ List<AskTurn> get turns; AskPhase get phase;/// What the next question searches.
+ AskScope get scope;/// What a question can be limited to, once the scope sheet asked.
+ List<AskScope> get scopes;/// Why the answer could not be saved, in plain words.
+ String? get saveFailure;
 /// Create a copy of AskState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -602,16 +838,16 @@ $AskStateCopyWith<AskState> get copyWith => _$AskStateCopyWithImpl<AskState>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskState&&(identical(other.status, status) || other.status == status)&&(identical(other.aiEnabled, aiEnabled) || other.aiEnabled == aiEnabled)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.turns, turns)&&(identical(other.phase, phase) || other.phase == phase));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskState&&(identical(other.status, status) || other.status == status)&&(identical(other.aiEnabled, aiEnabled) || other.aiEnabled == aiEnabled)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.turns, turns)&&(identical(other.phase, phase) || other.phase == phase)&&(identical(other.scope, scope) || other.scope == scope)&&const DeepCollectionEquality().equals(other.scopes, scopes)&&(identical(other.saveFailure, saveFailure) || other.saveFailure == saveFailure));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,aiEnabled,privacy,const DeepCollectionEquality().hash(turns),phase);
+int get hashCode => Object.hash(runtimeType,status,aiEnabled,privacy,const DeepCollectionEquality().hash(turns),phase,scope,const DeepCollectionEquality().hash(scopes),saveFailure);
 
 @override
 String toString() {
-  return 'AskState(status: $status, aiEnabled: $aiEnabled, privacy: $privacy, turns: $turns, phase: $phase)';
+  return 'AskState(status: $status, aiEnabled: $aiEnabled, privacy: $privacy, turns: $turns, phase: $phase, scope: $scope, scopes: $scopes, saveFailure: $saveFailure)';
 }
 
 
@@ -622,11 +858,11 @@ abstract mixin class $AskStateCopyWith<$Res>  {
   factory $AskStateCopyWith(AskState value, $Res Function(AskState) _then) = _$AskStateCopyWithImpl;
 @useResult
 $Res call({
- LoadStatus status, bool aiEnabled, String privacy, List<AskTurn> turns, AskPhase phase
+ LoadStatus status, bool aiEnabled, String privacy, List<AskTurn> turns, AskPhase phase, AskScope scope, List<AskScope> scopes, String? saveFailure
 });
 
 
-
+$AskScopeCopyWith<$Res> get scope;
 
 }
 /// @nodoc
@@ -639,17 +875,29 @@ class _$AskStateCopyWithImpl<$Res>
 
 /// Create a copy of AskState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? aiEnabled = null,Object? privacy = null,Object? turns = null,Object? phase = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? aiEnabled = null,Object? privacy = null,Object? turns = null,Object? phase = null,Object? scope = null,Object? scopes = null,Object? saveFailure = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,aiEnabled: null == aiEnabled ? _self.aiEnabled : aiEnabled // ignore: cast_nullable_to_non_nullable
 as bool,privacy: null == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
 as String,turns: null == turns ? _self.turns : turns // ignore: cast_nullable_to_non_nullable
 as List<AskTurn>,phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
-as AskPhase,
+as AskPhase,scope: null == scope ? _self.scope : scope // ignore: cast_nullable_to_non_nullable
+as AskScope,scopes: null == scopes ? _self.scopes : scopes // ignore: cast_nullable_to_non_nullable
+as List<AskScope>,saveFailure: freezed == saveFailure ? _self.saveFailure : saveFailure // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
-
+/// Create a copy of AskState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AskScopeCopyWith<$Res> get scope {
+  
+  return $AskScopeCopyWith<$Res>(_self.scope, (value) {
+    return _then(_self.copyWith(scope: value));
+  });
+}
 }
 
 
@@ -731,10 +979,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  bool aiEnabled,  String privacy,  List<AskTurn> turns,  AskPhase phase)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  bool aiEnabled,  String privacy,  List<AskTurn> turns,  AskPhase phase,  AskScope scope,  List<AskScope> scopes,  String? saveFailure)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AskState() when $default != null:
-return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.phase);case _:
+return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.phase,_that.scope,_that.scopes,_that.saveFailure);case _:
   return orElse();
 
 }
@@ -752,10 +1000,10 @@ return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.pha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  bool aiEnabled,  String privacy,  List<AskTurn> turns,  AskPhase phase)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  bool aiEnabled,  String privacy,  List<AskTurn> turns,  AskPhase phase,  AskScope scope,  List<AskScope> scopes,  String? saveFailure)  $default,) {final _that = this;
 switch (_that) {
 case _AskState():
-return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.phase);case _:
+return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.phase,_that.scope,_that.scopes,_that.saveFailure);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -772,10 +1020,10 @@ return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.pha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  bool aiEnabled,  String privacy,  List<AskTurn> turns,  AskPhase phase)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  bool aiEnabled,  String privacy,  List<AskTurn> turns,  AskPhase phase,  AskScope scope,  List<AskScope> scopes,  String? saveFailure)?  $default,) {final _that = this;
 switch (_that) {
 case _AskState() when $default != null:
-return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.phase);case _:
+return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.phase,_that.scope,_that.scopes,_that.saveFailure);case _:
   return null;
 
 }
@@ -787,7 +1035,7 @@ return $default(_that.status,_that.aiEnabled,_that.privacy,_that.turns,_that.pha
 
 
 class _AskState extends AskState {
-  const _AskState({this.status = LoadStatus.loading, this.aiEnabled = false, this.privacy = '', final  List<AskTurn> turns = const <AskTurn>[], this.phase = AskPhase.idle}): _turns = turns,super._();
+  const _AskState({this.status = LoadStatus.loading, this.aiEnabled = false, this.privacy = '', final  List<AskTurn> turns = const <AskTurn>[], this.phase = AskPhase.idle, this.scope = AskScope.everything, final  List<AskScope> scopes = const <AskScope>[], this.saveFailure}): _turns = turns,_scopes = scopes,super._();
   
 
 /// Whether the settings have been read.
@@ -807,6 +1055,19 @@ class _AskState extends AskState {
 }
 
 @override@JsonKey() final  AskPhase phase;
+/// What the next question searches.
+@override@JsonKey() final  AskScope scope;
+/// What a question can be limited to, once the scope sheet asked.
+ final  List<AskScope> _scopes;
+/// What a question can be limited to, once the scope sheet asked.
+@override@JsonKey() List<AskScope> get scopes {
+  if (_scopes is EqualUnmodifiableListView) return _scopes;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_scopes);
+}
+
+/// Why the answer could not be saved, in plain words.
+@override final  String? saveFailure;
 
 /// Create a copy of AskState
 /// with the given fields replaced by the non-null parameter values.
@@ -818,16 +1079,16 @@ _$AskStateCopyWith<_AskState> get copyWith => __$AskStateCopyWithImpl<_AskState>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AskState&&(identical(other.status, status) || other.status == status)&&(identical(other.aiEnabled, aiEnabled) || other.aiEnabled == aiEnabled)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other._turns, _turns)&&(identical(other.phase, phase) || other.phase == phase));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AskState&&(identical(other.status, status) || other.status == status)&&(identical(other.aiEnabled, aiEnabled) || other.aiEnabled == aiEnabled)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other._turns, _turns)&&(identical(other.phase, phase) || other.phase == phase)&&(identical(other.scope, scope) || other.scope == scope)&&const DeepCollectionEquality().equals(other._scopes, _scopes)&&(identical(other.saveFailure, saveFailure) || other.saveFailure == saveFailure));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,aiEnabled,privacy,const DeepCollectionEquality().hash(_turns),phase);
+int get hashCode => Object.hash(runtimeType,status,aiEnabled,privacy,const DeepCollectionEquality().hash(_turns),phase,scope,const DeepCollectionEquality().hash(_scopes),saveFailure);
 
 @override
 String toString() {
-  return 'AskState(status: $status, aiEnabled: $aiEnabled, privacy: $privacy, turns: $turns, phase: $phase)';
+  return 'AskState(status: $status, aiEnabled: $aiEnabled, privacy: $privacy, turns: $turns, phase: $phase, scope: $scope, scopes: $scopes, saveFailure: $saveFailure)';
 }
 
 
@@ -838,11 +1099,11 @@ abstract mixin class _$AskStateCopyWith<$Res> implements $AskStateCopyWith<$Res>
   factory _$AskStateCopyWith(_AskState value, $Res Function(_AskState) _then) = __$AskStateCopyWithImpl;
 @override @useResult
 $Res call({
- LoadStatus status, bool aiEnabled, String privacy, List<AskTurn> turns, AskPhase phase
+ LoadStatus status, bool aiEnabled, String privacy, List<AskTurn> turns, AskPhase phase, AskScope scope, List<AskScope> scopes, String? saveFailure
 });
 
 
-
+@override $AskScopeCopyWith<$Res> get scope;
 
 }
 /// @nodoc
@@ -855,18 +1116,30 @@ class __$AskStateCopyWithImpl<$Res>
 
 /// Create a copy of AskState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? aiEnabled = null,Object? privacy = null,Object? turns = null,Object? phase = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? aiEnabled = null,Object? privacy = null,Object? turns = null,Object? phase = null,Object? scope = null,Object? scopes = null,Object? saveFailure = freezed,}) {
   return _then(_AskState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,aiEnabled: null == aiEnabled ? _self.aiEnabled : aiEnabled // ignore: cast_nullable_to_non_nullable
 as bool,privacy: null == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
 as String,turns: null == turns ? _self._turns : turns // ignore: cast_nullable_to_non_nullable
 as List<AskTurn>,phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
-as AskPhase,
+as AskPhase,scope: null == scope ? _self.scope : scope // ignore: cast_nullable_to_non_nullable
+as AskScope,scopes: null == scopes ? _self._scopes : scopes // ignore: cast_nullable_to_non_nullable
+as List<AskScope>,saveFailure: freezed == saveFailure ? _self.saveFailure : saveFailure // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
-
+/// Create a copy of AskState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AskScopeCopyWith<$Res> get scope {
+  
+  return $AskScopeCopyWith<$Res>(_self.scope, (value) {
+    return _then(_self.copyWith(scope: value));
+  });
+}
 }
 
 // dart format on

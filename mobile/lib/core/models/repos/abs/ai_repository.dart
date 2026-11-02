@@ -9,6 +9,7 @@ import '../../data/ai_settings.dart';
 import '../../data/ai_settings_change.dart';
 import '../../data/ai_test_result.dart';
 import '../../data/application_error.dart';
+import '../../data/ask_scope.dart';
 import '../../data/ask_update.dart';
 import '../../data/assist_action.dart';
 import '../../data/assist_action_info.dart';
@@ -47,7 +48,25 @@ abstract interface class AiRepository {
   /// Asks [question] of the notes, as a follow-up to the conversation so
   /// far. The stream ends with one of `AskDone`, `AskNothingMatches`,
   /// `AskCutOff` or `AskFailed`; a failure is an update, not a stream error.
-  Stream<AskUpdate> ask(String question);
+  ///
+  /// [scope] limits what is searched. [ignoreTime] leaves out the time range
+  /// the question was understood to have.
+  Stream<AskUpdate> ask(
+    String question, {
+    AskScope scope = AskScope.everything,
+    bool ignoreTime = false,
+  });
+
+  /// What a question can be limited to: all notes, each notebook that is not
+  /// locked, and each tag.
+  Future<Either<ApplicationError, List<AskScope>>> askScopes();
+
+  /// Forgets the newest exchange, to ask its question again another way.
+  Future<Either<ApplicationError, Unit>> forgetLast();
+
+  /// Saves the newest answer as a note titled "Q: <question>", with its
+  /// sources as links to the lines cited. Gives the new note's ID.
+  Future<Either<ApplicationError, String>> saveLastAnswer();
 
   /// Stops the question being answered. What was written is kept in the
   /// conversation.

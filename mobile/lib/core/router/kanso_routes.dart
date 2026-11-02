@@ -37,6 +37,10 @@ abstract final class KansoRoutes {
   /// The zero-based source line to focus when opening a task reminder.
   static const String taskLineParameter = 'line';
 
+  /// The zero-based last source line of a range to mark beside
+  /// [taskLineParameter]: where a receipt in an Ask answer points.
+  static const String lineEndParameter = 'lineEnd';
+
   /// The UTF-16 body caret for a note opened from a template.
   static const String madeCursorParameter = 'cursor';
 

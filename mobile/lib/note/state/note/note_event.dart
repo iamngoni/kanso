@@ -12,6 +12,7 @@ sealed class NoteEvent with _$NoteEvent {
     String id,
     String themeId, {
     int? bodyLine,
+    int? bodyLineEnd,
     int? cursor16,
     @Default(false) bool titleFirst,
   }) = NoteStartedEvent;

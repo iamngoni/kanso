@@ -5,6 +5,10 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/models/data/ai_note_ref.dart';
+import '../../../core/models/data/ask_closest.dart';
+import '../../../core/models/data/ask_receipt.dart';
+import '../../../core/models/data/ask_scope.dart';
+import '../../../core/models/data/ask_time_note.dart';
 import 'ask_outcome.dart';
 
 part 'ask_turn.freezed.dart';
@@ -24,5 +28,36 @@ abstract class AskTurn with _$AskTurn {
 
     /// Why the question failed, in plain words, while [outcome] is failed.
     String? failure,
+
+    /// What the question searched.
+    @Default(AskScope.everything) AskScope scope,
+
+    /// The lines the answer's sentences rest on, checked against what was
+    /// sent; the Sources list.
+    @Default(<AskReceipt>[]) List<AskReceipt> receipts,
+
+    /// Notes it read but did not cite.
+    @Default(<AiNoteRef>[]) List<AiNoteRef> alsoRead,
+
+    /// The banner over the answer; empty when there is none.
+    @Default('') String banner,
+
+    /// How many sentences are marked as not found.
+    @Default(0) int unverified,
+
+    /// The notes do not hold the answer: "You never wrote that down."
+    @Default(false) bool neverWrote,
+
+    /// The closest notes, shown with [neverWrote].
+    @Default(<AskClosest>[]) List<AskClosest> closest,
+
+    /// The time the question was understood to be about.
+    AskTimeNote? time,
+
+    /// Nothing matched in a scope narrower than all notes.
+    @Default(false) bool narrow,
+
+    /// The note the answer was saved as, once it was.
+    String? savedNoteId,
   }) = _AskTurn;
 }

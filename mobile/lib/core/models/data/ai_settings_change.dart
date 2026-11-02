@@ -16,5 +16,10 @@ abstract class AiSettingsChange with _$AiSettingsChange {
     @Default('') String baseUrl,
     @Default('') String model,
     @Default('') String region,
+
+    /// `small`, `standard`, `large`; empty leaves the size the model suits.
+    @Default('') String askBudget,
+    @Default(true) bool checkSources,
+    @Default(true) bool useLinks,
   }) = _AiSettingsChange;
 }

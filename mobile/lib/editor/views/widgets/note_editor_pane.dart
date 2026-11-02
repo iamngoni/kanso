@@ -30,6 +30,7 @@ class NoteEditorPane extends StatelessWidget {
     required this.gutter,
     this.caret,
     this.caretInBody = false,
+    this.caretEnd,
     this.scroll = 0,
     this.focusTitle = false,
     super.key,
@@ -46,6 +47,9 @@ class NoteEditorPane extends StatelessWidget {
   /// Whether [caret] counts the note's front matter (an offset in the whole
   /// body), which the editor does not show.
   final bool caretInBody;
+
+  /// Where a range to mark for a few seconds ends, in the units of [caret].
+  final int? caretEnd;
 
   /// How far the page is scrolled to start with.
   final double scroll;
@@ -82,6 +86,7 @@ class NoteEditorPane extends StatelessWidget {
               gutter: gutter,
               caret: caret,
               caretInBody: caretInBody,
+              caretEnd: caretEnd,
               scroll: scroll,
               focusTitle: focusTitle,
             );

@@ -47,6 +47,7 @@ class NoteStage extends StatelessWidget {
         gutter: gutter,
         caret: shown.caret,
         caretInBody: shown.caretInBody,
+        caretEnd: shown.caretEnd,
         scroll: shown.scroll,
         // A note made with no title is titled first, unless it is to be
         // dictated into.

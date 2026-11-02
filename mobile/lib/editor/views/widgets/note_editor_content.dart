@@ -86,6 +86,7 @@ class NoteEditorContent extends StatefulWidget {
     required this.gutter,
     this.caret,
     this.caretInBody = false,
+    this.caretEnd,
     this.scroll = 0,
     this.focusTitle = false,
     super.key,
@@ -106,6 +107,10 @@ class NoteEditorContent extends StatefulWidget {
   /// Whether [caret] counts the front matter that the text does not have.
   final bool caretInBody;
 
+  /// Where a range to mark ends, in the units of [caret]. The range is
+  /// selected for three seconds, then let go.
+  final int? caretEnd;
+
   /// How far the page was scrolled when the editor was left before.
   final double scroll;
 
@@ -117,6 +122,41 @@ class NoteEditorContent extends StatefulWidget {
 }
 
 class _NoteEditorContentState extends State<NoteEditorContent> {
+  /// A range of the text to mark for [markFor], where a receipt points.
+  int? markStart;
+  int? markEnd;
+  Timer? markTimer;
+
+  /// How long a range an Ask receipt points at stays marked.
+  static const Duration markFor = Duration(seconds: 3);
+
+  /// Selects the range the note opened at, then lets go of it.
+  void markReceiptRange() {
+    final from = markStart;
+    final to = markEnd;
+    if (from == null || to == null || to <= from) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final length = controller.text.length;
+      final a = from.clamp(0, length);
+      final b = to.clamp(a, length);
+      controller.selection = TextSelection(baseOffset: a, extentOffset: b);
+      markTimer = Timer(markFor, () {
+        if (!mounted) {
+          return;
+        }
+        final now = controller.selection;
+        if (now.baseOffset == a && now.extentOffset == b) {
+          controller.selection = TextSelection.collapsed(offset: a);
+        }
+      });
+    });
+  }
+
   late final EditorBloc editor;
   late final NoteBloc note;
   late final KansoMarkdownController controller;
@@ -226,6 +266,11 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
           ? body.length - text.length
           : 0;
       start = (caret - hidden).clamp(0, text.length);
+      final end = widget.caretEnd;
+      if (end != null) {
+        markStart = start;
+        markEnd = (end - hidden).clamp(start, text.length);
+      }
     }
     live = note.state.mode == NoteMode.live;
     controller = KansoMarkdownController(
@@ -246,6 +291,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       noteId: note.state.noteId,
     );
     controller.addListener(keepPlace);
+    markReceiptRange();
     if (live) {
       startLive();
     }
@@ -510,6 +556,7 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
 
   @override
   void dispose() {
+    markTimer?.cancel();
     lifecycle.dispose();
     editorExtras?.release(textTarget);
     textTarget.dispose();

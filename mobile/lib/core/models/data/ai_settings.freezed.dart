@@ -27,7 +27,13 @@ mixin _$AiSettings {
 /// network (not a loopback address).
  bool get isRemote;/// The plain line about where a question goes and what is never sent,
 /// in the words of the device ("this phone", "this tablet").
- String get privacy;
+ String get privacy;/// Most each question may send: `small`, `standard` or `large`.
+ String get askBudget;/// "About 3,000 words of your notes per question."
+ String get budgetWordsLine;/// "At most about $0.01 per question with gpt-4o-mini."; empty when the
+/// price is not known.
+ String get budgetCostLine;/// Whether each cited line is checked against what was sent.
+ bool get checkSources;/// Whether notes linked from the best matches are looked up too.
+ bool get useLinks;
 /// Create a copy of AiSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -38,16 +44,16 @@ $AiSettingsCopyWith<AiSettings> get copyWith => _$AiSettingsCopyWithImpl<AiSetti
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AiSettings&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region)&&(identical(other.hasKey, hasKey) || other.hasKey == hasKey)&&(identical(other.host, host) || other.host == host)&&(identical(other.isRemote, isRemote) || other.isRemote == isRemote)&&(identical(other.privacy, privacy) || other.privacy == privacy));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AiSettings&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region)&&(identical(other.hasKey, hasKey) || other.hasKey == hasKey)&&(identical(other.host, host) || other.host == host)&&(identical(other.isRemote, isRemote) || other.isRemote == isRemote)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&(identical(other.askBudget, askBudget) || other.askBudget == askBudget)&&(identical(other.budgetWordsLine, budgetWordsLine) || other.budgetWordsLine == budgetWordsLine)&&(identical(other.budgetCostLine, budgetCostLine) || other.budgetCostLine == budgetCostLine)&&(identical(other.checkSources, checkSources) || other.checkSources == checkSources)&&(identical(other.useLinks, useLinks) || other.useLinks == useLinks));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region,hasKey,host,isRemote,privacy);
+int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region,hasKey,host,isRemote,privacy,askBudget,budgetWordsLine,budgetCostLine,checkSources,useLinks);
 
 @override
 String toString() {
-  return 'AiSettings(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region, hasKey: $hasKey, host: $host, isRemote: $isRemote, privacy: $privacy)';
+  return 'AiSettings(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region, hasKey: $hasKey, host: $host, isRemote: $isRemote, privacy: $privacy, askBudget: $askBudget, budgetWordsLine: $budgetWordsLine, budgetCostLine: $budgetCostLine, checkSources: $checkSources, useLinks: $useLinks)';
 }
 
 
@@ -58,7 +64,7 @@ abstract mixin class $AiSettingsCopyWith<$Res>  {
   factory $AiSettingsCopyWith(AiSettings value, $Res Function(AiSettings) _then) = _$AiSettingsCopyWithImpl;
 @useResult
 $Res call({
- bool enabled, String provider, String baseUrl, String model, String region, bool hasKey, String host, bool isRemote, String privacy
+ bool enabled, String provider, String baseUrl, String model, String region, bool hasKey, String host, bool isRemote, String privacy, String askBudget, String budgetWordsLine, String budgetCostLine, bool checkSources, bool useLinks
 });
 
 
@@ -75,7 +81,7 @@ class _$AiSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AiSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,Object? hasKey = null,Object? host = null,Object? isRemote = null,Object? privacy = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,Object? hasKey = null,Object? host = null,Object? isRemote = null,Object? privacy = null,Object? askBudget = null,Object? budgetWordsLine = null,Object? budgetCostLine = null,Object? checkSources = null,Object? useLinks = null,}) {
   return _then(_self.copyWith(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,provider: null == provider ? _self.provider : provider // ignore: cast_nullable_to_non_nullable
@@ -86,7 +92,12 @@ as String,hasKey: null == hasKey ? _self.hasKey : hasKey // ignore: cast_nullabl
 as bool,host: null == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
 as String,isRemote: null == isRemote ? _self.isRemote : isRemote // ignore: cast_nullable_to_non_nullable
 as bool,privacy: null == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
-as String,
+as String,askBudget: null == askBudget ? _self.askBudget : askBudget // ignore: cast_nullable_to_non_nullable
+as String,budgetWordsLine: null == budgetWordsLine ? _self.budgetWordsLine : budgetWordsLine // ignore: cast_nullable_to_non_nullable
+as String,budgetCostLine: null == budgetCostLine ? _self.budgetCostLine : budgetCostLine // ignore: cast_nullable_to_non_nullable
+as String,checkSources: null == checkSources ? _self.checkSources : checkSources // ignore: cast_nullable_to_non_nullable
+as bool,useLinks: null == useLinks ? _self.useLinks : useLinks // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -171,10 +182,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  bool hasKey,  String host,  bool isRemote,  String privacy)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  bool hasKey,  String host,  bool isRemote,  String privacy,  String askBudget,  String budgetWordsLine,  String budgetCostLine,  bool checkSources,  bool useLinks)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AiSettings() when $default != null:
-return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.hasKey,_that.host,_that.isRemote,_that.privacy);case _:
+return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.hasKey,_that.host,_that.isRemote,_that.privacy,_that.askBudget,_that.budgetWordsLine,_that.budgetCostLine,_that.checkSources,_that.useLinks);case _:
   return orElse();
 
 }
@@ -192,10 +203,10 @@ return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.reg
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  bool hasKey,  String host,  bool isRemote,  String privacy)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  bool hasKey,  String host,  bool isRemote,  String privacy,  String askBudget,  String budgetWordsLine,  String budgetCostLine,  bool checkSources,  bool useLinks)  $default,) {final _that = this;
 switch (_that) {
 case _AiSettings():
-return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.hasKey,_that.host,_that.isRemote,_that.privacy);case _:
+return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.hasKey,_that.host,_that.isRemote,_that.privacy,_that.askBudget,_that.budgetWordsLine,_that.budgetCostLine,_that.checkSources,_that.useLinks);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -212,10 +223,10 @@ return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.reg
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  bool hasKey,  String host,  bool isRemote,  String privacy)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  bool hasKey,  String host,  bool isRemote,  String privacy,  String askBudget,  String budgetWordsLine,  String budgetCostLine,  bool checkSources,  bool useLinks)?  $default,) {final _that = this;
 switch (_that) {
 case _AiSettings() when $default != null:
-return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.hasKey,_that.host,_that.isRemote,_that.privacy);case _:
+return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.hasKey,_that.host,_that.isRemote,_that.privacy,_that.askBudget,_that.budgetWordsLine,_that.budgetCostLine,_that.checkSources,_that.useLinks);case _:
   return null;
 
 }
@@ -227,7 +238,7 @@ return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.reg
 
 
 class _AiSettings implements AiSettings {
-  const _AiSettings({this.enabled = false, this.provider = '', this.baseUrl = '', this.model = '', this.region = '', this.hasKey = false, this.host = '', this.isRemote = false, this.privacy = ''});
+  const _AiSettings({this.enabled = false, this.provider = '', this.baseUrl = '', this.model = '', this.region = '', this.hasKey = false, this.host = '', this.isRemote = false, this.privacy = '', this.askBudget = 'standard', this.budgetWordsLine = '', this.budgetCostLine = '', this.checkSources = true, this.useLinks = true});
   
 
 /// Whether the AI features are on. They are off until the person turns
@@ -252,6 +263,17 @@ class _AiSettings implements AiSettings {
 /// The plain line about where a question goes and what is never sent,
 /// in the words of the device ("this phone", "this tablet").
 @override@JsonKey() final  String privacy;
+/// Most each question may send: `small`, `standard` or `large`.
+@override@JsonKey() final  String askBudget;
+/// "About 3,000 words of your notes per question."
+@override@JsonKey() final  String budgetWordsLine;
+/// "At most about $0.01 per question with gpt-4o-mini."; empty when the
+/// price is not known.
+@override@JsonKey() final  String budgetCostLine;
+/// Whether each cited line is checked against what was sent.
+@override@JsonKey() final  bool checkSources;
+/// Whether notes linked from the best matches are looked up too.
+@override@JsonKey() final  bool useLinks;
 
 /// Create a copy of AiSettings
 /// with the given fields replaced by the non-null parameter values.
@@ -263,16 +285,16 @@ _$AiSettingsCopyWith<_AiSettings> get copyWith => __$AiSettingsCopyWithImpl<_AiS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AiSettings&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region)&&(identical(other.hasKey, hasKey) || other.hasKey == hasKey)&&(identical(other.host, host) || other.host == host)&&(identical(other.isRemote, isRemote) || other.isRemote == isRemote)&&(identical(other.privacy, privacy) || other.privacy == privacy));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AiSettings&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region)&&(identical(other.hasKey, hasKey) || other.hasKey == hasKey)&&(identical(other.host, host) || other.host == host)&&(identical(other.isRemote, isRemote) || other.isRemote == isRemote)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&(identical(other.askBudget, askBudget) || other.askBudget == askBudget)&&(identical(other.budgetWordsLine, budgetWordsLine) || other.budgetWordsLine == budgetWordsLine)&&(identical(other.budgetCostLine, budgetCostLine) || other.budgetCostLine == budgetCostLine)&&(identical(other.checkSources, checkSources) || other.checkSources == checkSources)&&(identical(other.useLinks, useLinks) || other.useLinks == useLinks));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region,hasKey,host,isRemote,privacy);
+int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region,hasKey,host,isRemote,privacy,askBudget,budgetWordsLine,budgetCostLine,checkSources,useLinks);
 
 @override
 String toString() {
-  return 'AiSettings(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region, hasKey: $hasKey, host: $host, isRemote: $isRemote, privacy: $privacy)';
+  return 'AiSettings(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region, hasKey: $hasKey, host: $host, isRemote: $isRemote, privacy: $privacy, askBudget: $askBudget, budgetWordsLine: $budgetWordsLine, budgetCostLine: $budgetCostLine, checkSources: $checkSources, useLinks: $useLinks)';
 }
 
 
@@ -283,7 +305,7 @@ abstract mixin class _$AiSettingsCopyWith<$Res> implements $AiSettingsCopyWith<$
   factory _$AiSettingsCopyWith(_AiSettings value, $Res Function(_AiSettings) _then) = __$AiSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- bool enabled, String provider, String baseUrl, String model, String region, bool hasKey, String host, bool isRemote, String privacy
+ bool enabled, String provider, String baseUrl, String model, String region, bool hasKey, String host, bool isRemote, String privacy, String askBudget, String budgetWordsLine, String budgetCostLine, bool checkSources, bool useLinks
 });
 
 
@@ -300,7 +322,7 @@ class __$AiSettingsCopyWithImpl<$Res>
 
 /// Create a copy of AiSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,Object? hasKey = null,Object? host = null,Object? isRemote = null,Object? privacy = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,Object? hasKey = null,Object? host = null,Object? isRemote = null,Object? privacy = null,Object? askBudget = null,Object? budgetWordsLine = null,Object? budgetCostLine = null,Object? checkSources = null,Object? useLinks = null,}) {
   return _then(_AiSettings(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,provider: null == provider ? _self.provider : provider // ignore: cast_nullable_to_non_nullable
@@ -311,7 +333,12 @@ as String,hasKey: null == hasKey ? _self.hasKey : hasKey // ignore: cast_nullabl
 as bool,host: null == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
 as String,isRemote: null == isRemote ? _self.isRemote : isRemote // ignore: cast_nullable_to_non_nullable
 as bool,privacy: null == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
-as String,
+as String,askBudget: null == askBudget ? _self.askBudget : askBudget // ignore: cast_nullable_to_non_nullable
+as String,budgetWordsLine: null == budgetWordsLine ? _self.budgetWordsLine : budgetWordsLine // ignore: cast_nullable_to_non_nullable
+as String,budgetCostLine: null == budgetCostLine ? _self.budgetCostLine : budgetCostLine // ignore: cast_nullable_to_non_nullable
+as String,checkSources: null == checkSources ? _self.checkSources : checkSources // ignore: cast_nullable_to_non_nullable
+as bool,useLinks: null == useLinks ? _self.useLinks : useLinks // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

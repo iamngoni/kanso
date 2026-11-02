@@ -36,12 +36,33 @@ class AiSettingsBloc extends Bloc<AiSettingsEvent, AiSettingsState> {
     on<AiSettingsEnabledChangedEvent>(
       (event, emit) => _save(
         emit,
-        AiSettingsChange(
-          enabled: event.enabled,
-          provider: state.settings.provider,
-          baseUrl: state.settings.baseUrl,
-          model: state.settings.model,
-          region: state.settings.region,
+        _carryAsk(
+          AiSettingsChange(
+            enabled: event.enabled,
+            provider: state.settings.provider,
+            baseUrl: state.settings.baseUrl,
+            model: state.settings.model,
+            region: state.settings.region,
+          ),
+        ),
+      ),
+      transformer: sequential(),
+    );
+    on<AiSettingsAskChangedEvent>(
+      (event, emit) => _save(
+        emit,
+        _carryAsk(
+          AiSettingsChange(
+            enabled: state.settings.enabled,
+            provider: state.settings.provider,
+            baseUrl: state.settings.baseUrl,
+            model: state.settings.model,
+            region: state.settings.region,
+          ),
+        ).copyWith(
+          askBudget: event.budget ?? state.settings.askBudget,
+          checkSources: event.checkSources ?? state.settings.checkSources,
+          useLinks: event.useLinks ?? state.settings.useLinks,
         ),
       ),
       transformer: sequential(),
@@ -63,12 +84,22 @@ class AiSettingsBloc extends Bloc<AiSettingsEvent, AiSettingsState> {
   final AiRepository _ai;
   int _fieldGeneration = 0;
 
-  AiSettingsChange _changeFor(AiFields fields) => AiSettingsChange(
-    enabled: state.settings.enabled,
-    provider: state.settings.provider,
-    baseUrl: fields.address.trim(),
-    model: fields.model.trim(),
-    region: fields.region.trim(),
+  /// [change] with the Ask settings as they are now, so a change of
+  /// something else leaves them be.
+  AiSettingsChange _carryAsk(AiSettingsChange change) => change.copyWith(
+    askBudget: state.settings.askBudget,
+    checkSources: state.settings.checkSources,
+    useLinks: state.settings.useLinks,
+  );
+
+  AiSettingsChange _changeFor(AiFields fields) => _carryAsk(
+    AiSettingsChange(
+      enabled: state.settings.enabled,
+      provider: state.settings.provider,
+      baseUrl: fields.address.trim(),
+      model: fields.model.trim(),
+      region: fields.region.trim(),
+    ),
   );
 
   Future<void> _onProviderChosen(
@@ -78,9 +109,11 @@ class AiSettingsBloc extends Bloc<AiSettingsEvent, AiSettingsState> {
     _fieldGeneration++;
     await _save(
       emit,
-      AiSettingsChange(
-        enabled: state.settings.enabled,
-        provider: event.provider,
+      _carryAsk(
+        AiSettingsChange(
+          enabled: state.settings.enabled,
+          provider: event.provider,
+        ),
       ),
     );
   }

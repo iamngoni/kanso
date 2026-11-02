@@ -23,6 +23,14 @@ sealed class AnswerSpan with _$AnswerSpan {
     required String noteId,
   }) = AnswerNoteLink;
 
+  /// A receipt: a small raised number that opens the lines it points at.
+  const factory AnswerSpan.receipt({required String text, required int n}) =
+      AnswerReceiptMark;
+
+  /// A sentence whose receipts failed their check.
+  const factory AnswerSpan.unverified({required String text}) =
+      AnswerUnverified;
+
   /// A link to a page on the web; only `http` and `https` are links.
   const factory AnswerSpan.web({required String text, required String url}) =
       AnswerWebLink;

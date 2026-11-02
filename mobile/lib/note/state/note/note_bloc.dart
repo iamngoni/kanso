@@ -71,6 +71,7 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
   /// date in the state.
   bool _stale = false;
   int? _pendingBodyLine;
+  int? _pendingBodyLineEnd;
 
   Future<void> _onStarted(
     NoteStartedEvent event,
@@ -80,6 +81,7 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
     final fresh = _places.takeOpenedNew(event.id);
     final routedNew = event.cursor16 != null || event.titleFirst;
     _pendingBodyLine = event.bodyLine;
+    _pendingBodyLineEnd = event.bodyLineEnd;
     emit(
       NoteState(
         noteId: event.id,
@@ -210,11 +212,26 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
         if (bodyLine != null && lines.isNotEmpty) {
           _pendingBodyLine = null;
           final caret = lines[bodyLine.clamp(0, lines.length - 1)].start;
+          final lastLine = _pendingBodyLineEnd;
+          _pendingBodyLineEnd = null;
+          int? caretEnd;
+          if (lastLine != null && lastLine > bodyLine) {
+            final next = lastLine.clamp(0, lines.length - 1) + 1;
+            caretEnd = next < lines.length
+                ? lines[next].start - 1
+                : body.length;
+          } else if (lastLine != null) {
+            final next = bodyLine.clamp(0, lines.length - 1) + 1;
+            caretEnd = next < lines.length
+                ? lines[next].start - 1
+                : body.length;
+          }
           emit(
             state.copyWith(
               status: NoteScreenStatus.ready,
               mode: NoteMode.edit,
               caret: caret,
+              caretEnd: caretEnd,
               caretInBody: true,
               note: note,
               lines: lines,

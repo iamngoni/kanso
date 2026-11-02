@@ -5,6 +5,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'ai_note_ref.dart';
+import 'ask_closest.dart';
+import 'ask_receipt.dart';
+import 'ask_time_note.dart';
 
 part 'ask_update.freezed.dart';
 
@@ -28,14 +31,34 @@ sealed class AskUpdate with _$AskUpdate {
   /// The answer written so far: all of it, not only the new part.
   const factory AskUpdate.answer({required String text}) = AskAnswer;
 
-  /// The answer is complete.
+  /// The time the question was understood to be about.
+  const factory AskUpdate.time({required AskTimeNote time}) = AskTime;
+
+  /// The answer is complete and its receipts were checked.
   const factory AskUpdate.done({
     required String answer,
     required List<AiNoteRef> used,
+    @Default(<AskReceipt>[]) List<AskReceipt> receipts,
+
+    /// Notes it read but did not cite.
+    @Default(<AiNoteRef>[]) List<AiNoteRef> alsoRead,
+
+    /// The banner over the answer; empty when there is none.
+    @Default('') String banner,
+
+    /// How many sentences are marked as not found.
+    @Default(0) int unverified,
+
+    /// The notes do not hold the answer.
+    @Default(false) bool neverWrote,
+    @Default(<AskClosest>[]) List<AskClosest> closest,
+    AskTimeNote? time,
   }) = AskDone;
 
-  /// No note matches the question.
-  const factory AskUpdate.nothingMatches() = AskNothingMatches;
+  /// No note matches the question. [narrow] says the scope was narrower than
+  /// all notes, so searching all may help.
+  const factory AskUpdate.nothingMatches({@Default(false) bool narrow}) =
+      AskNothingMatches;
 
   /// The model stopped before it finished; the answer so far is kept.
   const factory AskUpdate.cutOff() = AskCutOff;

@@ -23,6 +23,8 @@ import '../../utils/open_cited_note.dart';
 import 'ask_composer.dart';
 import 'ask_conversation.dart';
 import 'ask_intro.dart';
+import 'ask_scope_chip.dart';
+import 'receipt_sheet.dart';
 
 /// Ask your notes: the conversation above, the question field below. It
 /// reads the `AskBloc` above it.
@@ -125,7 +127,40 @@ class AskPane extends StatelessWidget {
                               ),
                               onOpenLink: openAnswerLink,
                               onRetry: () => bloc.add(const AskEvent.retried()),
+                              onOpenReceipt: (receipt) => showReceiptSheet(
+                                context,
+                                receipt,
+                                onOpen: () => openCitedNote(
+                                  context,
+                                  receipt.noteId,
+                                  closeFirst: inSheet,
+                                  start: receipt.start,
+                                  end: receipt.end,
+                                ),
+                              ),
+                              onJumpToReceipt: (receipt) => openCitedNote(
+                                context,
+                                receipt.noteId,
+                                closeFirst: inSheet,
+                                start: receipt.start,
+                                end: receipt.end,
+                              ),
+                              onSearchAll: () =>
+                                  bloc.add(const AskEvent.searchedAll()),
+                              onDropTime: () =>
+                                  bloc.add(const AskEvent.timeDropped()),
+                              onSave: () =>
+                                  bloc.add(const AskEvent.answerSaved()),
                             ),
+                    ),
+                    // Always there, so the field does not jump when the
+                    // conversation starts.
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: AskScopeChip(
+                        scope: state.scope,
+                        enabled: !state.busy,
+                      ),
                     ),
                     AskComposer(
                       busy: state.busy,

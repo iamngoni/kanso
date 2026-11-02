@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/models/data/ask_receipt.dart';
 import '../../models/data/ask_phase.dart';
 import '../../state/ask/ask_bloc.dart';
 import 'ask_turn_view.dart';
@@ -17,9 +18,23 @@ class AskConversation extends StatefulWidget {
     required this.onOpenNote,
     required this.onOpenLink,
     required this.onRetry,
+    required this.onOpenReceipt,
+    required this.onJumpToReceipt,
+    required this.onSearchAll,
+    required this.onDropTime,
+    required this.onSave,
     this.usedExpanded = false,
     super.key,
   });
+
+  /// Shows the lines a receipt points at.
+  final ValueChanged<AskReceipt> onOpenReceipt;
+
+  /// Opens the note at the lines a receipt points at.
+  final ValueChanged<AskReceipt> onJumpToReceipt;
+  final VoidCallback onSearchAll;
+  final VoidCallback onDropTime;
+  final VoidCallback onSave;
 
   final AskState state;
   final ValueChanged<String> onOpenNote;
@@ -78,6 +93,12 @@ class _AskConversationState extends State<AskConversation> {
           onOpenNote: widget.onOpenNote,
           onOpenLink: widget.onOpenLink,
           onRetry: last ? widget.onRetry : null,
+          onOpenReceipt: widget.onOpenReceipt,
+          onJumpToReceipt: widget.onJumpToReceipt,
+          onSearchAll: last ? widget.onSearchAll : null,
+          onDropTime: last ? widget.onDropTime : null,
+          onSave: last ? widget.onSave : null,
+          saveFailure: last ? widget.state.saveFailure : null,
           usedExpanded: widget.usedExpanded,
         );
       },
