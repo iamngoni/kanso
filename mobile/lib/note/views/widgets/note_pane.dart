@@ -32,6 +32,7 @@ import '../../../sharing/views/widgets/share_note_button.dart';
 import '../../../sharing/views/widgets/share_note_sheet.dart';
 import '../../../sharing/views/widgets/shared_note_status_strip.dart';
 import '../../../shell/state/focus_mode/focus_mode_bloc.dart';
+import '../../../voice_capture/views/widgets/voice_tidy_strip.dart';
 import '../../../window/views/widgets/note_window_scope.dart';
 import '../../../window/views/widgets/window_actions.dart';
 import '../../models/data/note_mode.dart';
@@ -233,6 +234,11 @@ class NotePane extends StatelessWidget {
                         SharedNoteStatusStrip(gutter: gutter),
                       if (readable && !focusActive)
                         MorningBriefCard(noteId: shown.noteId),
+                      if (readable && !focusActive)
+                        VoiceTidyStrip(
+                          noteId: shown.noteId,
+                          revision: note.rev,
+                        ),
                       Expanded(
                         child: NoteStage(shown: shown, gutter: gutter),
                       ),

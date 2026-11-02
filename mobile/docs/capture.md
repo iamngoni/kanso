@@ -50,6 +50,76 @@ A share is written as a *drop*: a folder in `<library folder>/inbox/`.
 - At most 20 files per drop. Each file must fit the attachment limit
   (`MAX_ATTACHMENT_SIZE`, 10 MB).
 
+## Voice drops
+
+A recording started outside the app leaves a *voice drop*. It has the same
+folder rules as any drop (`<id>.partial` while it is written, `drop.json`
+last, then the rename), but `drop.json` says what it is:
+
+```json
+{"version": 1, "kind": "voice", "createdAt": 1700000013000,
+ "started_ms": 1700000000000, "duration_ms": 12345, "audio": "rec.m4a"}
+```
+
+- `audio` names the recording in the folder: AAC in an `.m4a`, mono, about
+  64 kbps. It is the only file. Times are milliseconds since 1970.
+- A recording under about a second is thrown away, and one runs at most 30
+  minutes.
+- The folder and the audio are `NSFileProtectionCompleteUntilFirstUserAuthentication`,
+  so a capture started on the lock screen is written without unlocking.
+- Whatever writes it never opens the library, reads keys or calls the core.
+  The app transcribes the drop (on the device) the next time it is open.
+- Readers other than the app's voice pass (the share drain, `captureInbox`)
+  leave a `kind: "voice"` drop alone: it has no text, URL or files for them.
+
+On iOS:
+
+- **Intent.** `CaptureVoiceIntent` (`openAppWhenRun = false`, an
+  `AudioRecordingIntent` from iOS 18) starts recording at once; running it
+  again, tapping Stop, or 30 minutes stops it. The "recording" state is kept in
+  the App Group's `UserDefaults`, so a second run finds it.
+- **Live Activity.** `VoiceCaptureAttributes` (in `Shared/`) is started with
+  the recording: a red dot, the time and Stop (`StopVoiceCaptureIntent`) on the
+  lock screen and in the Dynamic Island. On stop it shows "Saved to Inbox" for a
+  few seconds and the system dismisses it. `UIBackgroundModes` has `audio`.
+- **Control Center (iOS 18).** *Voice Note* runs the intent; *Quick Note* opens
+  `kanso://open/new`.
+- **Widgets.** The lock-screen circle is Voice Note. From iOS 18 the Voice note
+  button runs the intent in place; on iOS 17 it opens `kanso://open/new?voice=1`
+  (the intent would run in the widget extension, which can't hold the
+  microphone).
+- **Siri and Spotlight.** "Capture in Kanso", "Voice note in Kanso", "Record a
+  note in Kanso".
+
+On Android:
+
+- **Service.** `VoiceCaptureService` is a foreground service of type
+  `microphone`. It records with `MediaRecorder` (AAC in MPEG-4, mono, 64 kbps)
+  into `<filesDir>/kanso/inbox/<id>.partial/rec.m4a` and, on stop, writes
+  `drop.json` and renames the folder (`VoiceCapture.finish`). It stops on the
+  notification's Stop, on a second start request (a toggle) and at 30 minutes.
+  The ongoing notification reads "Kanso is recording · 00:14" and updates each
+  second; tapping it opens the app. It never opens the library or calls
+  `KansoNative.captureInbox`.
+- **Quick Settings tile.** *Voice note* (`VoiceTileService`) is active while
+  recording; a tap starts or stops the service, also from the lock screen.
+- **Widget.** The widget's Voice note button starts the same service in place
+  when the microphone permission is granted, and opens
+  `kanso://open/new?voice=1` otherwise. New note and Today are links, as before.
+- **Assistant.** The `voice_note` launcher shortcut carries the
+  `actions.intent.CREATE_NOTE` capability ("Hey Google, voice note in Kanso"),
+  which opens `kanso://open/new?voice=1`.
+- **Refusals.** Android 14 only lets a visible action (tile or widget tap)
+  start a microphone service. When Android refuses, or the permission is
+  missing, the tile opens `kanso://open/new?voice=1` so the app's permission
+  flow runs.
+- **Transcribing a file.** `kanso_dictation`'s `transcribeFile` decodes the
+  `.m4a` to 16 kHz mono PCM and gives it to `SpeechRecognizer`
+  (`EXTRA_AUDIO_SOURCE`, Android 13 and later), on the device's own recognizer.
+  A server-backed recognizer is used only when `allowServer` is true. Errors:
+  `unsupported`, `notOnDevice`, `denied`, `unreadable`, `failed`; empty text
+  with no error means nothing was heard.
+
 ## Saving drops
 
 The Rust core saves each finished drop, oldest first, as one note in the

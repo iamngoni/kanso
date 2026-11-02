@@ -10,7 +10,8 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/messages.g.dart',
-    kotlinOut: 'android/src/main/kotlin/app/kanso/kanso_dictation/Messages.g.kt',
+    kotlinOut:
+        'android/src/main/kotlin/app/kanso/kanso_dictation/Messages.g.kt',
     kotlinOptions: KotlinOptions(package: 'app.kanso.kanso_dictation'),
     swiftOut: 'ios/kanso_dictation/Sources/kanso_dictation/Messages.g.swift',
   ),
@@ -139,6 +140,29 @@ class DictationEvent {
   String? message;
 }
 
+/// What recognizing an audio file gave.
+class FileTranscription {
+  FileTranscription({
+    required this.text,
+    required this.onDevice,
+    this.error,
+  });
+
+  /// The words, empty when [error] is set or nothing was heard.
+  String text;
+
+  /// Whether the words were made on the device. False means the system's
+  /// server-backed recognizer was used (only when asked to allow it).
+  bool onDevice;
+
+  /// Null when the file was recognized (even if no words were heard).
+  /// Otherwise one of: `unsupported` (this system can't recognize a file),
+  /// `notOnDevice` (only a server could, and that wasn't allowed),
+  /// `denied` (speech recognition isn't allowed), `unreadable` (the file
+  /// couldn't be opened) or `failed`.
+  String? error;
+}
+
 @HostApi()
 abstract class DictationHostApi {
   /// What the recognizer for [localeTag] (a BCP 47 tag; the device's
@@ -167,6 +191,18 @@ abstract class DictationHostApi {
 
   /// Opens the app's page of the system's Settings.
   void openSettings();
+
+  /// Recognizes the audio file at [path] (issue #193: a recording the lock
+  /// screen, the Action Button or the Android tile made), in [localeTag]
+  /// (the device's language when null). The audio is sent to a server only
+  /// when [allowServer] is true and the device can't do it itself; the answer
+  /// says which happened.
+  @async
+  FileTranscription transcribeFile(
+    String path,
+    String? localeTag,
+    bool allowServer,
+  );
 }
 
 @FlutterApi()

@@ -14,6 +14,12 @@ sealed class VoiceSettingsEvent with _$VoiceSettingsEvent {
   const factory VoiceSettingsEvent.spokenCommandsChanged({required bool on}) =
       VoiceSettingsSpokenCommandsChangedEvent;
 
+  /// The person changed a voice capture choice: keep [settings] (the whole
+  /// value, with that one choice changed).
+  const factory VoiceSettingsEvent.changed({
+    required VoiceSettings settings,
+  }) = VoiceSettingsChangedEvent;
+
   /// The person asked for the phone's Settings, to allow the microphone.
   const factory VoiceSettingsEvent.systemSettingsRequested() =
       VoiceSettingsSystemSettingsRequestedEvent;

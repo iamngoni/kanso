@@ -5,6 +5,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../voice_capture/state/voice_drops/voice_drops_bloc.dart';
 import '../../state/capture_inbox/capture_inbox_bloc.dart';
 
 /// [child] with the app's coming back to the front watched: each time it
@@ -26,9 +27,19 @@ class CaptureInboxHostState extends State<CaptureInboxHost> {
   void initState() {
     super.initState();
     listener = AppLifecycleListener(
-      onResume: () => context.read<CaptureInboxBloc>().add(
-        const CaptureInboxEvent.saveRequested(),
-      ),
+      onResume: () {
+        context.read<CaptureInboxBloc>().add(
+          const CaptureInboxEvent.saveRequested(),
+        );
+        // Voice recordings the phone made while the app was away.
+        try {
+          context.read<VoiceDropsBloc>().add(
+            const VoiceDropsEvent.passRequested(),
+          );
+        } on ProviderNotFoundException {
+          // No voice captures wired here (a test host, say).
+        }
+      },
     );
   }
 

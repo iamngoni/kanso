@@ -8,6 +8,7 @@ import '../../../../core/models/data/application_error.dart';
 import '../../data/dictation_capability.dart';
 import '../../data/dictation_permission.dart';
 import '../../data/dictation_signal.dart';
+import '../../data/file_transcript.dart';
 
 /// The phone's speech recognizer. Speech is recognized on the phone; none of
 /// it is sent anywhere by Kanso.
@@ -34,6 +35,15 @@ abstract interface class DictationRepository {
 
   /// Opens the phone's Settings page for Kanso.
   Future<Either<ApplicationError, Unit>> openSettings();
+
+  /// Recognizes the recording at [path]. The audio goes to a server only if
+  /// [allowServer] is true and the phone can't do it itself; the answer says
+  /// which happened.
+  Future<Either<ApplicationError, FileTranscript>> transcribeFile(
+    String path, {
+    required bool allowServer,
+    String? localeTag,
+  });
 
   /// What a session reports; the last signal of one is `ended`.
   Stream<DictationSignal> signals();

@@ -35,6 +35,13 @@ abstract class KansoVoiceCapture implements RustOpaqueInterface {
     required bool onDevice,
   });
 
+  /// Saves recording `id` as a note with the audio attached and a line
+  /// saying it was not turned into text (a phone that cannot do it).
+  Future<VoiceCaptureSaved> saveDropAudioOnly({
+    required String inbox,
+    required String id,
+  });
+
   /// Tidies voice note `id`. Blocks until the model has answered; `run`
   /// (from `KansoAi::new_run`) stops it.
   Future<TidyOutcome> tidyNote({required String id, required KansoAiRun run});

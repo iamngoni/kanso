@@ -11,7 +11,6 @@ import 'package:kanso/dictation/state/voice_note/voice_note_bloc.dart';
 import 'package:kanso/dictation/views/widgets/voice_note_pane.dart';
 
 import '../../helpers/close_bloc_later.dart';
-import '../../helpers/fake_usage_metrics.dart';
 import '../../helpers/mock_repositories.dart';
 import 'mock_dictation_repository.dart';
 import 'seeded_dictation_bloc.dart';
@@ -44,7 +43,7 @@ abstract final class VoiceNoteSeeds {
 /// The voice note over a `DictationBloc` in [seed].
 Widget voiceNoteScene(DictationState seed) {
   final dictation = SeededDictationBloc(seed, SpokenRepository());
-  final voice = VoiceNoteBloc(MockLibraryRepository(), FakeUsageMetrics());
+  final voice = VoiceNoteBloc(MockVoiceCaptureRepository());
   closeBlocLater(dictation);
   closeBlocLater(voice);
   return MultiBlocProvider(

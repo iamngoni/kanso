@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/load_status.dart';
@@ -12,11 +13,15 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
+import '../../../core/views/widgets/kanso_segment.dart';
+import '../../../core/views/widgets/kanso_segmented.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../dictation/models/data/dictation_permission.dart';
 import '../../../shell/views/widgets/shell_back_button.dart';
+import '../../models/data/voice_settings.dart';
+import '../../models/data/voice_tidy_mode.dart';
 import '../../state/voice_settings/voice_settings_bloc.dart';
 import 'voice_recognition_row.dart';
 
@@ -154,6 +159,8 @@ class VoiceSettingsPane extends StatelessWidget {
                             ),
                         ],
                       ),
+                    const SizedBox(height: KansoSpacing.lg),
+                    _captureSection(context, state),
                   ],
                 );
               },
@@ -161,6 +168,115 @@ class VoiceSettingsPane extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// Voice notes: tidying, meetings, the audio, and the speech server.
+  Widget _captureSection(BuildContext context, VoiceSettingsState state) {
+    final colors = context.colors;
+    final l10n = context.l10n;
+    final ready = state.status == LoadStatus.ready;
+    final aiOn = context.watch<AiStatusBloc>().state.enabled;
+    final settings = state.settings;
+    void change(VoiceSettings next) => context.read<VoiceSettingsBloc>().add(
+      VoiceSettingsEvent.changed(settings: next),
+    );
+    Widget toggle(
+      KansoIcons icon,
+      String label,
+      // ignore: avoid_positional_boolean_parameters
+      bool value,
+      ValueChanged<bool> onChanged,
+    ) => KansoSettingsRow(
+      icon: icon,
+      label: label,
+      trailing: KansoSwitch(
+        value: value,
+        onChanged: ready ? onChanged : null,
+      ),
+      onTap: ready ? () => onChanged(!value) : null,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        KansoGroupedSection(
+          title: l10n.voiceSettingsCaptureSection,
+          dividerIndent: iconInset,
+          children: <Widget>[
+            KansoSettingsRow(
+              icon: KansoIcons.sparkles,
+              label: l10n.voiceSettingsTidy,
+            ),
+            if (aiOn)
+              Padding(
+                padding: const EdgeInsets.all(KansoSpacing.sm),
+                child: KansoSegmented<VoiceTidyMode>(
+                  expanded: true,
+                  semanticLabel: l10n.voiceSettingsTidy,
+                  selected: settings.tidy,
+                  onChanged: (mode) {
+                    if (ready) {
+                      change(settings.copyWith(tidy: mode));
+                    }
+                  },
+                  segments: <KansoSegment<VoiceTidyMode>>[
+                    KansoSegment<VoiceTidyMode>(
+                      value: VoiceTidyMode.off,
+                      label: l10n.voiceSettingsTidyOff,
+                    ),
+                    KansoSegment<VoiceTidyMode>(
+                      value: VoiceTidyMode.ask,
+                      label: l10n.voiceSettingsTidyAsk,
+                    ),
+                    KansoSegment<VoiceTidyMode>(
+                      value: VoiceTidyMode.always,
+                      label: l10n.voiceSettingsTidyAlways,
+                    ),
+                  ],
+                ),
+              ),
+            toggle(
+              KansoIcons.users,
+              l10n.voiceSettingsMeetings,
+              settings.meetings,
+              (on) => change(settings.copyWith(meetings: on)),
+            ),
+            toggle(
+              KansoIcons.sparkles,
+              l10n.voiceSettingsKeepAudio,
+              settings.keepAudio,
+              (on) => change(settings.copyWith(keepAudio: on)),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            KansoSpacing.md,
+            KansoSpacing.xs,
+            KansoSpacing.md,
+            0,
+          ),
+          child: Text(
+            aiOn ? l10n.voiceSettingsTidyHelp : l10n.voiceSettingsTidyNeedsAi,
+            style: context.typography.meta.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(height: KansoSpacing.lg),
+        KansoGroupedSection(
+          footer: l10n.voiceSettingsServerHelp,
+          dividerIndent: iconInset,
+          children: <Widget>[
+            toggle(
+              KansoIcons.cloud,
+              l10n.voiceSettingsServer,
+              settings.allowServerRecognition,
+              (on) => change(settings.copyWith(allowServerRecognition: on)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

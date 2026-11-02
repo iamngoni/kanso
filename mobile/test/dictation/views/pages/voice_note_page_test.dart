@@ -17,7 +17,6 @@ import 'package:kanso/injection.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/close_bloc_later.dart';
-import '../../../helpers/fake_usage_metrics.dart';
 import '../../../helpers/mock_repositories.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../helpers/fake_dictation_text_rules.dart';
@@ -45,9 +44,9 @@ void main() {
       ),
     );
     final dictation = DictationBloc(spoken.repository, PassThroughRules());
-    final library = MockLibraryRepository();
+    final voice = MockVoiceCaptureRepository();
     getIt.registerFactory<VoiceNoteBloc>(
-      () => VoiceNoteBloc(library, FakeUsageMetrics()),
+      () => VoiceNoteBloc(voice),
     );
     addTearDown(() async {
       await getIt.reset();

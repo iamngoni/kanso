@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/models/data/load_status.dart';
 import 'package:kanso/dictation/models/data/dictation_capability.dart';
 import 'package:kanso/dictation/models/data/dictation_permission.dart';
@@ -15,6 +16,7 @@ import 'package:kanso/voice_settings/views/widgets/voice_settings_pane.dart';
 
 import '../../../dictation/helpers/mock_dictation_repository.dart';
 import '../../../helpers/close_bloc_later.dart';
+import '../../../helpers/fixture_ai_repository.dart';
 import '../../../helpers/golden.dart';
 import '../../../helpers/kanso_viewport.dart';
 import '../../helpers/mock_voice_settings_repository.dart';
@@ -29,8 +31,14 @@ class SeededVoiceSettingsBloc extends VoiceSettingsBloc {
 Widget _scene(VoiceSettingsState seed) {
   final bloc = SeededVoiceSettingsBloc(seed);
   closeBlocLater(bloc);
-  return BlocProvider<VoiceSettingsBloc>.value(
-    value: bloc,
+  final status = AiStatusBloc(FixtureAiRepository())
+    ..add(const AiStatusEvent.started());
+  closeBlocLater(status);
+  return MultiBlocProvider(
+    providers: <BlocProvider<dynamic>>[
+      BlocProvider<VoiceSettingsBloc>.value(value: bloc),
+      BlocProvider<AiStatusBloc>.value(value: status),
+    ],
     child: const Scaffold(
       resizeToAvoidBottomInset: false,
       body: VoiceSettingsPane(),

@@ -25,6 +25,7 @@ import 'package:kanso/discovery/models/repos/abs/discovery_repository.dart';
 import 'package:kanso/editor/models/repos/abs/web_link_repository.dart';
 import 'package:kanso/lock/models/repos/abs/device_lock_repository.dart';
 import 'package:kanso/push/models/repos/abs/push_repository.dart';
+import 'package:kanso/voice_capture/models/repos/abs/voice_capture_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockLibraryRepository extends Mock implements LibraryRepository {}
@@ -73,3 +74,6 @@ class MockUndoNoticeBloc extends MockBloc<UndoNoticeEvent, UndoNoticeState>
     implements UndoNoticeBloc {}
 
 class MockPushRepository extends Mock implements PushRepository {}
+
+class MockVoiceCaptureRepository extends Mock
+    implements VoiceCaptureRepository {}

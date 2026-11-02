@@ -55,12 +55,13 @@ extension VoiceSettingsEventPatterns on VoiceSettingsEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( VoiceSettingsStartedEvent value)?  started,TResult Function( VoiceSettingsSpokenCommandsChangedEvent value)?  spokenCommandsChanged,TResult Function( VoiceSettingsSystemSettingsRequestedEvent value)?  systemSettingsRequested,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( VoiceSettingsStartedEvent value)?  started,TResult Function( VoiceSettingsSpokenCommandsChangedEvent value)?  spokenCommandsChanged,TResult Function( VoiceSettingsChangedEvent value)?  changed,TResult Function( VoiceSettingsSystemSettingsRequestedEvent value)?  systemSettingsRequested,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case VoiceSettingsStartedEvent() when started != null:
 return started(_that);case VoiceSettingsSpokenCommandsChangedEvent() when spokenCommandsChanged != null:
-return spokenCommandsChanged(_that);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
+return spokenCommandsChanged(_that);case VoiceSettingsChangedEvent() when changed != null:
+return changed(_that);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
 return systemSettingsRequested(_that);case _:
   return orElse();
 
@@ -79,12 +80,13 @@ return systemSettingsRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( VoiceSettingsStartedEvent value)  started,required TResult Function( VoiceSettingsSpokenCommandsChangedEvent value)  spokenCommandsChanged,required TResult Function( VoiceSettingsSystemSettingsRequestedEvent value)  systemSettingsRequested,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( VoiceSettingsStartedEvent value)  started,required TResult Function( VoiceSettingsSpokenCommandsChangedEvent value)  spokenCommandsChanged,required TResult Function( VoiceSettingsChangedEvent value)  changed,required TResult Function( VoiceSettingsSystemSettingsRequestedEvent value)  systemSettingsRequested,}){
 final _that = this;
 switch (_that) {
 case VoiceSettingsStartedEvent():
 return started(_that);case VoiceSettingsSpokenCommandsChangedEvent():
-return spokenCommandsChanged(_that);case VoiceSettingsSystemSettingsRequestedEvent():
+return spokenCommandsChanged(_that);case VoiceSettingsChangedEvent():
+return changed(_that);case VoiceSettingsSystemSettingsRequestedEvent():
 return systemSettingsRequested(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -99,12 +101,13 @@ return systemSettingsRequested(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( VoiceSettingsStartedEvent value)?  started,TResult? Function( VoiceSettingsSpokenCommandsChangedEvent value)?  spokenCommandsChanged,TResult? Function( VoiceSettingsSystemSettingsRequestedEvent value)?  systemSettingsRequested,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( VoiceSettingsStartedEvent value)?  started,TResult? Function( VoiceSettingsSpokenCommandsChangedEvent value)?  spokenCommandsChanged,TResult? Function( VoiceSettingsChangedEvent value)?  changed,TResult? Function( VoiceSettingsSystemSettingsRequestedEvent value)?  systemSettingsRequested,}){
 final _that = this;
 switch (_that) {
 case VoiceSettingsStartedEvent() when started != null:
 return started(_that);case VoiceSettingsSpokenCommandsChangedEvent() when spokenCommandsChanged != null:
-return spokenCommandsChanged(_that);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
+return spokenCommandsChanged(_that);case VoiceSettingsChangedEvent() when changed != null:
+return changed(_that);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
 return systemSettingsRequested(_that);case _:
   return null;
 
@@ -122,11 +125,12 @@ return systemSettingsRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( bool on)?  spokenCommandsChanged,TResult Function()?  systemSettingsRequested,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( bool on)?  spokenCommandsChanged,TResult Function( VoiceSettings settings)?  changed,TResult Function()?  systemSettingsRequested,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case VoiceSettingsStartedEvent() when started != null:
 return started();case VoiceSettingsSpokenCommandsChangedEvent() when spokenCommandsChanged != null:
-return spokenCommandsChanged(_that.on);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
+return spokenCommandsChanged(_that.on);case VoiceSettingsChangedEvent() when changed != null:
+return changed(_that.settings);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
 return systemSettingsRequested();case _:
   return orElse();
 
@@ -145,11 +149,12 @@ return systemSettingsRequested();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( bool on)  spokenCommandsChanged,required TResult Function()  systemSettingsRequested,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( bool on)  spokenCommandsChanged,required TResult Function( VoiceSettings settings)  changed,required TResult Function()  systemSettingsRequested,}) {final _that = this;
 switch (_that) {
 case VoiceSettingsStartedEvent():
 return started();case VoiceSettingsSpokenCommandsChangedEvent():
-return spokenCommandsChanged(_that.on);case VoiceSettingsSystemSettingsRequestedEvent():
+return spokenCommandsChanged(_that.on);case VoiceSettingsChangedEvent():
+return changed(_that.settings);case VoiceSettingsSystemSettingsRequestedEvent():
 return systemSettingsRequested();}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -164,11 +169,12 @@ return systemSettingsRequested();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( bool on)?  spokenCommandsChanged,TResult? Function()?  systemSettingsRequested,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( bool on)?  spokenCommandsChanged,TResult? Function( VoiceSettings settings)?  changed,TResult? Function()?  systemSettingsRequested,}) {final _that = this;
 switch (_that) {
 case VoiceSettingsStartedEvent() when started != null:
 return started();case VoiceSettingsSpokenCommandsChangedEvent() when spokenCommandsChanged != null:
-return spokenCommandsChanged(_that.on);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
+return spokenCommandsChanged(_that.on);case VoiceSettingsChangedEvent() when changed != null:
+return changed(_that.settings);case VoiceSettingsSystemSettingsRequestedEvent() when systemSettingsRequested != null:
 return systemSettingsRequested();case _:
   return null;
 
@@ -273,6 +279,81 @@ as bool,
 }
 
 
+}
+
+/// @nodoc
+
+
+class VoiceSettingsChangedEvent implements VoiceSettingsEvent {
+  const VoiceSettingsChangedEvent({required this.settings});
+  
+
+ final  VoiceSettings settings;
+
+/// Create a copy of VoiceSettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$VoiceSettingsChangedEventCopyWith<VoiceSettingsChangedEvent> get copyWith => _$VoiceSettingsChangedEventCopyWithImpl<VoiceSettingsChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VoiceSettingsChangedEvent&&(identical(other.settings, settings) || other.settings == settings));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,settings);
+
+@override
+String toString() {
+  return 'VoiceSettingsEvent.changed(settings: $settings)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $VoiceSettingsChangedEventCopyWith<$Res> implements $VoiceSettingsEventCopyWith<$Res> {
+  factory $VoiceSettingsChangedEventCopyWith(VoiceSettingsChangedEvent value, $Res Function(VoiceSettingsChangedEvent) _then) = _$VoiceSettingsChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ VoiceSettings settings
+});
+
+
+$VoiceSettingsCopyWith<$Res> get settings;
+
+}
+/// @nodoc
+class _$VoiceSettingsChangedEventCopyWithImpl<$Res>
+    implements $VoiceSettingsChangedEventCopyWith<$Res> {
+  _$VoiceSettingsChangedEventCopyWithImpl(this._self, this._then);
+
+  final VoiceSettingsChangedEvent _self;
+  final $Res Function(VoiceSettingsChangedEvent) _then;
+
+/// Create a copy of VoiceSettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? settings = null,}) {
+  return _then(VoiceSettingsChangedEvent(
+settings: null == settings ? _self.settings : settings // ignore: cast_nullable_to_non_nullable
+as VoiceSettings,
+  ));
+}
+
+/// Create a copy of VoiceSettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$VoiceSettingsCopyWith<$Res> get settings {
+  
+  return $VoiceSettingsCopyWith<$Res>(_self.settings, (value) {
+    return _then(_self.copyWith(settings: value));
+  });
+}
 }
 
 /// @nodoc

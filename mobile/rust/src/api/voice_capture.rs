@@ -41,6 +41,17 @@ impl KansoVoiceCapture {
             .save_voice_drop(std::path::Path::new(&inbox), &id, transcript, on_device)
     }
 
+    /// Saves recording `id` as a note with the audio attached and a line
+    /// saying it was not turned into text (a phone that cannot do it).
+    pub fn save_drop_audio_only(
+        &self,
+        inbox: String,
+        id: String,
+    ) -> Result<VoiceCaptureSaved, KansoError> {
+        self.0
+            .save_voice_drop_audio_only(std::path::Path::new(&inbox), &id)
+    }
+
     /// Removes recording `id` without saving it.
     pub fn discard_drop(&self, inbox: String, id: String) -> Result<(), KansoError> {
         self.0.discard_voice_drop(std::path::Path::new(&inbox), &id)

@@ -6648,5 +6648,91 @@
   "agentSettingsFooter": "An agent reads only notes that are not locked, not in the Trash and not tagged #ai-exclude. It never writes; you approve every change.",
   "@agentSettingsFooter": {
     "description": "The note under the agent task settings."
+  },
+  "voiceTidy": "Tidy",
+  "@voiceTidy": {
+    "description": "Button on a voice note that asks the person's own AI to tidy it."
+  },
+  "voiceTidyOffer": "Tidy this voice note: a title, short paragraphs and tasks. The transcript stays.",
+  "@voiceTidyOffer": {
+    "description": "The strip over a voice note that can be tidied."
+  },
+  "voiceTidyWorking": "Tidying…",
+  "@voiceTidyWorking": {
+    "description": "Shown while the AI tidies a voice note."
+  },
+  "voiceTidyFailed": "Couldn't tidy this note: {reason}.",
+  "@voiceTidyFailed": {
+    "description": "Why tidying a voice note failed; the note is unchanged.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceTidyTryAgain": "Try again",
+  "@voiceTidyTryAgain": {
+    "description": "Button that tries tidying a voice note again."
+  },
+  "voiceSettingsCaptureSection": "Voice notes",
+  "@voiceSettingsCaptureSection": {
+    "description": "Settings section for voice capture."
+  },
+  "voiceSettingsTidy": "Tidy voice notes",
+  "@voiceSettingsTidy": {
+    "description": "Settings row: whether voice notes are tidied by AI."
+  },
+  "voiceSettingsTidyOff": "Off",
+  "@voiceSettingsTidyOff": {
+    "description": "Tidy voice notes: never."
+  },
+  "voiceSettingsTidyAsk": "Ask each time",
+  "@voiceSettingsTidyAsk": {
+    "description": "Tidy voice notes: a Tidy button is offered each time."
+  },
+  "voiceSettingsTidyAlways": "Always",
+  "@voiceSettingsTidyAlways": {
+    "description": "Tidy voice notes: every capture is tidied."
+  },
+  "voiceSettingsTidyHelp": "Your own AI gives a voice note a title, short paragraphs and tasks for what was said you would do. Only the words are sent. The transcript stays in the note, folded under it.",
+  "@voiceSettingsTidyHelp": {
+    "description": "Explains tidying voice notes."
+  },
+  "voiceSettingsTidyNeedsAi": "Set up AI in Settings › AI to tidy notes.",
+  "@voiceSettingsTidyNeedsAi": {
+    "description": "Says tidying needs AI to be set up."
+  },
+  "voiceSettingsMeetings": "Meetings",
+  "@voiceSettingsMeetings": {
+    "description": "Settings row: recordings over three minutes are meetings."
+  },
+  "voiceSettingsMeetingsHelp": "Treat recordings longer than 3 minutes as meetings. Tidy gives them a Summary, Decisions, Action items and Notes, and their audio is kept.",
+  "@voiceSettingsMeetingsHelp": {
+    "description": "Explains the meetings switch."
+  },
+  "voiceSettingsKeepAudio": "Keep audio",
+  "@voiceSettingsKeepAudio": {
+    "description": "Settings row: keep the recording's audio with the note."
+  },
+  "voiceSettingsKeepAudioHelp": "Attach the recording to the voice note. Audio over 10 MB isn't kept; the transcript always is.",
+  "@voiceSettingsKeepAudioHelp": {
+    "description": "Explains the keep audio switch."
+  },
+  "voiceSettingsServer": "Use the speech server when needed",
+  "@voiceSettingsServer": {
+    "description": "Settings row: allow the system's server recognizer."
+  },
+  "voiceSettingsServerHelp": "When this phone can't turn a recording into text by itself, it can send the audio to the system's speech service to be transcribed. Off, such a recording waits here, untouched.",
+  "@voiceSettingsServerHelp": {
+    "description": "Explains the server recognizer switch and its privacy cost."
+  },
+  "voiceSettingsWaiting": "{count, plural, =1{1 recording is waiting to be transcribed} other{{count} recordings are waiting to be transcribed}}",
+  "@voiceSettingsWaiting": {
+    "description": "How many recordings wait.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
