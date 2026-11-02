@@ -141,6 +141,11 @@ pub fn embed_batch(store: &Store, embedder: &dyn Embedder) -> kanso_store::Resul
     let queue = store.embedding_queue(embedder.model())?;
     let total = queue.total;
     let waiting = queue.pending.len();
+    if waiting == 0 {
+        // Whole notes first, so related notes keep working; then the
+        // passages of long notes, which Ask searches by meaning.
+        return embed_passage_batch(store, embedder, total);
+    }
     // Passages are split only for the notes taken.
     let batch: Vec<_> = queue
         .pending
@@ -182,6 +187,36 @@ pub fn embed_batch(store: &Store, embedder: &dyn Embedder) -> kanso_store::Resul
     let kept = rows.len();
     store.put_embedded(embedder.model(), &rows)?;
     Ok((waiting - kept, total))
+}
+
+/// Embeds one batch of the passages of long notes (`Store::passage_queue`),
+/// returning how many notes still have passages waiting and how many notes
+/// there are.
+fn embed_passage_batch(
+    store: &Store,
+    embedder: &dyn Embedder,
+    total: usize,
+) -> kanso_store::Result<(usize, usize)> {
+    let queue = store.passage_queue(embedder.model(), BATCH)?;
+    if queue.pending.is_empty() {
+        return Ok((0, total));
+    }
+    let texts: Vec<String> = queue.pending.iter().map(|p| p.text.clone()).collect();
+    let vectors = embedder.embed(&texts);
+    let rows: Vec<kanso_store::EmbeddedLines> = queue
+        .pending
+        .into_iter()
+        .zip(vectors)
+        .map(|(p, vector)| kanso_store::EmbeddedLines {
+            note_id: p.note_id,
+            start: p.start,
+            end: p.end,
+            hash: p.hash,
+            vector,
+        })
+        .collect();
+    store.put_passage_embeddings(embedder.model(), &rows)?;
+    Ok((queue.notes_waiting.min(total), total))
 }
 
 /// Turns related notes off in `store`: the lent model is taken back and

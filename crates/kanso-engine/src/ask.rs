@@ -11,6 +11,7 @@ mod followup;
 mod model;
 pub mod receipts;
 mod retrieve;
+mod save;
 mod scope;
 mod tools;
 mod turn;
@@ -23,6 +24,7 @@ pub use receipts::{check, relocate};
 pub use retrieve::{
     AskError, MAX_PASSAGES, best_passages, best_text, retrieve, retrieve_with, select,
 };
+pub use save::{SavedAnswer, save_answer, saved_note};
 pub use scope::{ScopeFilter, book_paths};
 pub use tools::{READ_LINES, Shown, ToolNote, read_lines, search_notes, tool_registry};
 pub use turn::{Banner, Finished, Prepared, Turn, TurnEvent, finalize, plain, prepare, run};

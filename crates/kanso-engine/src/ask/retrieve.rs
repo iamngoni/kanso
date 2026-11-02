@@ -882,3 +882,6 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
         closest,
     })
 }
+
+#[cfg(test)]
+mod tests;

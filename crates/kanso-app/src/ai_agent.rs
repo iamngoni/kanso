@@ -167,9 +167,9 @@ pub fn requests_line(choice: &AgentChoice) -> String {
     let label = label(choice);
     let vendor = choice.kind.vendor();
     let what = if choice.mcp {
-        "Questions, the note excerpts they use, and the notes it searches or reads"
+        "Questions, the note excerpts they use (with their titles, dates and notebook names), and the notes it searches or reads"
     } else {
-        "Questions and the note excerpts they use"
+        "Questions and the note excerpts they use, with their titles, dates and notebook names,"
     };
     let suggest = if choice.mcp && choice.suggest_edits {
         format!(" {label} may also suggest edits to notes; nothing changes until you apply one.")
