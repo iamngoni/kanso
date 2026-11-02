@@ -405,5 +405,9 @@ fn filed_of(filed: &triage::Filed, undo: u64) -> TriageFiled {
         titles: filed.titles as u32,
         links: filed.links as u32,
         sentence: filed.sentence(),
+        message: format!(
+            "Filed {}",
+            kanso_engine::text_stats::plural(filed.edits.len(), "note", "notes")
+        ),
     }
 }

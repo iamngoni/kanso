@@ -18,7 +18,8 @@ mixin _$UndoNotice {
  int get ticket;/// What the notice says, as the library words it.
  String get message;/// Which notice this is: a later one has a larger number, so a timeout
 /// belongs to the notice it was started for.
- int get serial;
+ int get serial;/// How long it stays, when that is not the usual time.
+ Duration? get stays;
 /// Create a copy of UndoNotice
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +30,16 @@ $UndoNoticeCopyWith<UndoNotice> get copyWith => _$UndoNoticeCopyWithImpl<UndoNot
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UndoNotice&&(identical(other.ticket, ticket) || other.ticket == ticket)&&(identical(other.message, message) || other.message == message)&&(identical(other.serial, serial) || other.serial == serial));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UndoNotice&&(identical(other.ticket, ticket) || other.ticket == ticket)&&(identical(other.message, message) || other.message == message)&&(identical(other.serial, serial) || other.serial == serial)&&(identical(other.stays, stays) || other.stays == stays));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ticket,message,serial);
+int get hashCode => Object.hash(runtimeType,ticket,message,serial,stays);
 
 @override
 String toString() {
-  return 'UndoNotice(ticket: $ticket, message: $message, serial: $serial)';
+  return 'UndoNotice(ticket: $ticket, message: $message, serial: $serial, stays: $stays)';
 }
 
 
@@ -49,7 +50,7 @@ abstract mixin class $UndoNoticeCopyWith<$Res>  {
   factory $UndoNoticeCopyWith(UndoNotice value, $Res Function(UndoNotice) _then) = _$UndoNoticeCopyWithImpl;
 @useResult
 $Res call({
- int ticket, String message, int serial
+ int ticket, String message, int serial, Duration? stays
 });
 
 
@@ -66,12 +67,13 @@ class _$UndoNoticeCopyWithImpl<$Res>
 
 /// Create a copy of UndoNotice
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? ticket = null,Object? message = null,Object? serial = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? ticket = null,Object? message = null,Object? serial = null,Object? stays = freezed,}) {
   return _then(_self.copyWith(
 ticket: null == ticket ? _self.ticket : ticket // ignore: cast_nullable_to_non_nullable
 as int,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,serial: null == serial ? _self.serial : serial // ignore: cast_nullable_to_non_nullable
-as int,
+as int,stays: freezed == stays ? _self.stays : stays // ignore: cast_nullable_to_non_nullable
+as Duration?,
   ));
 }
 
@@ -156,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int ticket,  String message,  int serial)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int ticket,  String message,  int serial,  Duration? stays)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UndoNotice() when $default != null:
-return $default(_that.ticket,_that.message,_that.serial);case _:
+return $default(_that.ticket,_that.message,_that.serial,_that.stays);case _:
   return orElse();
 
 }
@@ -177,10 +179,10 @@ return $default(_that.ticket,_that.message,_that.serial);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int ticket,  String message,  int serial)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int ticket,  String message,  int serial,  Duration? stays)  $default,) {final _that = this;
 switch (_that) {
 case _UndoNotice():
-return $default(_that.ticket,_that.message,_that.serial);case _:
+return $default(_that.ticket,_that.message,_that.serial,_that.stays);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +199,10 @@ return $default(_that.ticket,_that.message,_that.serial);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int ticket,  String message,  int serial)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int ticket,  String message,  int serial,  Duration? stays)?  $default,) {final _that = this;
 switch (_that) {
 case _UndoNotice() when $default != null:
-return $default(_that.ticket,_that.message,_that.serial);case _:
+return $default(_that.ticket,_that.message,_that.serial,_that.stays);case _:
   return null;
 
 }
@@ -212,7 +214,7 @@ return $default(_that.ticket,_that.message,_that.serial);case _:
 
 
 class _UndoNotice implements UndoNotice {
-  const _UndoNotice({required this.ticket, required this.message, required this.serial});
+  const _UndoNotice({required this.ticket, required this.message, required this.serial, this.stays});
   
 
 /// The ticket the library keeps the change under (`Library::undo`).
@@ -222,6 +224,8 @@ class _UndoNotice implements UndoNotice {
 /// Which notice this is: a later one has a larger number, so a timeout
 /// belongs to the notice it was started for.
 @override final  int serial;
+/// How long it stays, when that is not the usual time.
+@override final  Duration? stays;
 
 /// Create a copy of UndoNotice
 /// with the given fields replaced by the non-null parameter values.
@@ -233,16 +237,16 @@ _$UndoNoticeCopyWith<_UndoNotice> get copyWith => __$UndoNoticeCopyWithImpl<_Und
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UndoNotice&&(identical(other.ticket, ticket) || other.ticket == ticket)&&(identical(other.message, message) || other.message == message)&&(identical(other.serial, serial) || other.serial == serial));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UndoNotice&&(identical(other.ticket, ticket) || other.ticket == ticket)&&(identical(other.message, message) || other.message == message)&&(identical(other.serial, serial) || other.serial == serial)&&(identical(other.stays, stays) || other.stays == stays));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ticket,message,serial);
+int get hashCode => Object.hash(runtimeType,ticket,message,serial,stays);
 
 @override
 String toString() {
-  return 'UndoNotice(ticket: $ticket, message: $message, serial: $serial)';
+  return 'UndoNotice(ticket: $ticket, message: $message, serial: $serial, stays: $stays)';
 }
 
 
@@ -253,7 +257,7 @@ abstract mixin class _$UndoNoticeCopyWith<$Res> implements $UndoNoticeCopyWith<$
   factory _$UndoNoticeCopyWith(_UndoNotice value, $Res Function(_UndoNotice) _then) = __$UndoNoticeCopyWithImpl;
 @override @useResult
 $Res call({
- int ticket, String message, int serial
+ int ticket, String message, int serial, Duration? stays
 });
 
 
@@ -270,12 +274,13 @@ class __$UndoNoticeCopyWithImpl<$Res>
 
 /// Create a copy of UndoNotice
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? ticket = null,Object? message = null,Object? serial = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? ticket = null,Object? message = null,Object? serial = null,Object? stays = freezed,}) {
   return _then(_UndoNotice(
 ticket: null == ticket ? _self.ticket : ticket // ignore: cast_nullable_to_non_nullable
 as int,message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,serial: null == serial ? _self.serial : serial // ignore: cast_nullable_to_non_nullable
-as int,
+as int,stays: freezed == stays ? _self.stays : stays // ignore: cast_nullable_to_non_nullable
+as Duration?,
   ));
 }
 

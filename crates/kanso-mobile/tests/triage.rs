@@ -150,7 +150,10 @@ fn chips_of(card: &kanso_mobile::TriageCard, field: TriageField) -> Vec<&TriageC
     card.chips.iter().filter(|c| c.field == field).collect()
 }
 
-fn filing(card: &kanso_mobile::TriageCard, mut accept: impl FnMut(&TriageChip) -> bool) -> TriageFiling {
+fn filing(
+    card: &kanso_mobile::TriageCard,
+    mut accept: impl FnMut(&TriageChip) -> bool,
+) -> TriageFiling {
     TriageFiling {
         note_id: card.note_id.clone(),
         rev: card.rev.clone(),

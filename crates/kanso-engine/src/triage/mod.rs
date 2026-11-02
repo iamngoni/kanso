@@ -33,10 +33,10 @@ use kanso_core::Note;
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_store::{Result, Store};
 
-pub use resolve::resolve;
 pub use model::{
     BECAUSE_MAX, Card, Field, Filed, Filing, Reason, Source, Suggestion, TriageOptions,
 };
+pub use resolve::resolve;
 
 use notebook::{NEIGHBOURS, Vote};
 

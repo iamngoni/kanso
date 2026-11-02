@@ -85,4 +85,5 @@ pub struct _TriageFiled {
     pub titles: u32,
     pub links: u32,
     pub sentence: String,
+    pub message: String,
 }

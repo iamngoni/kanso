@@ -19071,6 +19071,7 @@ const _: fn() = || {
         let _: u32 = TriageFiled.titles;
         let _: u32 = TriageFiled.links;
         let _: String = TriageFiled.sentence;
+        let _: String = TriageFiled.message;
     }
     {
         let TriageFiling = None::<crate::api::triage_types::TriageFiling>.unwrap();
@@ -26134,6 +26135,7 @@ impl SseDecode for crate::api::triage_types::TriageFiled {
         let mut var_titles = <u32>::sse_decode(deserializer);
         let mut var_links = <u32>::sse_decode(deserializer);
         let mut var_sentence = <String>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
         return crate::api::triage_types::TriageFiled {
             undo: var_undo,
             filed: var_filed,
@@ -26143,6 +26145,7 @@ impl SseDecode for crate::api::triage_types::TriageFiled {
             titles: var_titles,
             links: var_links,
             sentence: var_sentence,
+            message: var_message,
         };
     }
 }
@@ -34208,6 +34211,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::triage_types::Tria
             self.0.titles.into_into_dart().into_dart(),
             self.0.links.into_into_dart().into_dart(),
             self.0.sentence.into_into_dart().into_dart(),
+            self.0.message.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -39953,6 +39957,7 @@ impl SseEncode for crate::api::triage_types::TriageFiled {
         <u32>::sse_encode(self.titles, serializer);
         <u32>::sse_encode(self.links, serializer);
         <String>::sse_encode(self.sentence, serializer);
+        <String>::sse_encode(self.message, serializer);
     }
 }
 

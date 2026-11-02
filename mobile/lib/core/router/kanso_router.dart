@@ -39,6 +39,8 @@ import '../../shell/views/widgets/browse_shell.dart';
 import '../../tasks/views/pages/tasks_page.dart';
 import '../../themes/views/pages/icon_themes_page.dart' as icon_themes;
 import '../../themes/views/pages/theme_picker_page.dart';
+import '../../triage/views/pages/triage_page.dart';
+import '../../triage/views/pages/triage_settings_page.dart';
 import '../../voice_settings/views/pages/voice_settings_page.dart';
 import '../bridge/api/types.dart';
 import '../models/data/browse_location.dart';
@@ -147,6 +149,13 @@ class KansoRouter {
           pageBuilder: (context, state) => kansoPage<void>(
             key: state.pageKey,
             child: const VoiceNotePage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.triage,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const TriagePage(),
           ),
         ),
         GoRoute(
@@ -284,6 +293,13 @@ class KansoRouter {
                   pageBuilder: (context, state) => kansoPage<void>(
                     key: state.pageKey,
                     child: const AiSettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'inbox',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const TriageSettingsPage(),
                   ),
                 ),
                 GoRoute(

@@ -5698,5 +5698,226 @@
   "dictationSettingsMicDenied": "Kanso can't use the microphone",
   "@dictationSettingsMicDenied": {
     "description": "The label of the row shown when the microphone or speech recognition is refused."
+  },
+  "triageBarCount": "{count, plural, =1{1 note to file} other{{count} notes to file}}",
+  "@triageBarCount": {
+    "description": "The bar above the Inbox's notes: how many wait to be filed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "triageBarOpen": "Triage",
+  "@triageBarOpen": {
+    "description": "The button on that bar that opens the Triage pager."
+  },
+  "triageTitle": "Triage",
+  "@triageTitle": {
+    "description": "The title of the page that goes through the Inbox's notes."
+  },
+  "triageSubtitle": "{count, plural, =1{1 to file} other{{count} to file}}",
+  "@triageSubtitle": {
+    "description": "The line under the Triage title: how many notes are left.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "triageEmpty": "Inbox is clear.",
+  "@triageEmpty": {
+    "description": "Said when no note is left to file."
+  },
+  "triageClose": "Close",
+  "@triageClose": {
+    "description": "The button that leaves Triage."
+  },
+  "triageMenu": "Triage options",
+  "@triageMenu": {
+    "description": "The label of the menu on the Triage page."
+  },
+  "triageAcceptAllNotebooks": "Accept all suggested notebooks",
+  "@triageAcceptAllNotebooks": {
+    "description": "The menu item that ticks every suggested notebook on every card."
+  },
+  "triageAcceptAllTags": "Accept all suggested tags",
+  "@triageAcceptAllTags": {
+    "description": "The menu item that ticks every suggested tag on every card."
+  },
+  "triageFieldNotebook": "Notebook",
+  "@triageFieldNotebook": {
+    "description": "The label of a card's suggested notebook."
+  },
+  "triageFieldTags": "Tags",
+  "@triageFieldTags": {
+    "description": "The label of a card's suggested tags."
+  },
+  "triageFieldTitle": "Title",
+  "@triageFieldTitle": {
+    "description": "The label of a card's suggested title."
+  },
+  "triageFieldLinks": "Links",
+  "@triageFieldLinks": {
+    "description": "The label of a card's suggested links to other notes."
+  },
+  "triageAcceptAll": "Accept all",
+  "@triageAcceptAll": {
+    "description": "The button that accepts every suggestion on the card."
+  },
+  "triageFileAllAccepted": "File all accepted ({count})",
+  "@triageFileAllAccepted": {
+    "description": "The button that files every card with something accepted.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "triageFile": "File",
+  "@triageFile": {
+    "description": "The button that files a card with what is accepted on it."
+  },
+  "triageSkip": "Skip",
+  "@triageSkip": {
+    "description": "The button that hides a card for now."
+  },
+  "triageOpen": "Open",
+  "@triageOpen": {
+    "description": "The button that opens the card's note."
+  },
+  "triageAcceptChip": "Accept {label}",
+  "@triageAcceptChip": {
+    "description": "What a screen reader says for the tick on a suggestion.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "triageRejectChip": "Reject {label}",
+  "@triageRejectChip": {
+    "description": "What a screen reader says for the cross on a suggestion.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "triageEditChip": "Edit {label}",
+  "@triageEditChip": {
+    "description": "What a screen reader says for a suggestion that can be changed.",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "triageBecause": "because: near {titles}",
+  "@triageBecause": {
+    "description": "Names the notes that a suggestion came from.",
+    "placeholders": {
+      "titles": {
+        "type": "String"
+      }
+    }
+  },
+  "triageNewTag": "new",
+  "@triageNewTag": {
+    "description": "The mark on a tag suggestion that does not exist yet."
+  },
+  "triageNoSuggestions": "Nothing to suggest for this note.",
+  "@triageNoSuggestions": {
+    "description": "Said on a card with no suggestions."
+  },
+  "triageNotRead": "Notebook and tag suggestions come once this note is read.",
+  "@triageNotRead": {
+    "description": "Said on a card whose note has not been embedded yet."
+  },
+  "triageNoAi": "Suggestions come from your notes. Set up AI in Settings for better titles.",
+  "@triageNoAi": {
+    "description": "Said at the top of Triage while the person's AI is not used."
+  },
+  "triageRelatedOff": "Turn on Related notes to get notebook and tag suggestions",
+  "@triageRelatedOff": {
+    "description": "Said when Related notes are off, so there are no notebook and tag suggestions."
+  },
+  "triageTurnOn": "Turn on",
+  "@triageTurnOn": {
+    "description": "The button that turns Related notes on."
+  },
+  "triageAiUnavailable": "AI suggestions unavailable: {reason}",
+  "@triageAiUnavailable": {
+    "description": "Said on a card when the model could not be asked.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "triageChanged": "Changed on another device",
+  "@triageChanged": {
+    "description": "Said on a card whose note changed elsewhere; it is read again before it can be filed."
+  },
+  "triageConfirmTitle": "{count, plural, =1{File 1 note?} other{File {count} notes?}}",
+  "@triageConfirmTitle": {
+    "description": "The question before every accepted card is filed at once.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "triageEditHint": "Type a value",
+  "@triageEditHint": {
+    "description": "The hint of the field where a suggestion is changed."
+  },
+  "triageEditUse": "Use",
+  "@triageEditUse": {
+    "description": "The button that takes the changed suggestion."
+  },
+  "triageSettingsTitle": "Inbox",
+  "@triageSettingsTitle": {
+    "description": "The title of the Inbox settings."
+  },
+  "triageSettingsShowBar": "Show Triage bar",
+  "@triageSettingsShowBar": {
+    "description": "The setting that shows the bar above the Inbox's notes."
+  },
+  "triageSettingsShowBarHelp": "Above the Inbox's notes: how many wait to be filed, and a button to go through them.",
+  "@triageSettingsShowBarHelp": {
+    "description": "Explains the Show Triage bar setting."
+  },
+  "triageSettingsTitles": "Suggest titles",
+  "@triageSettingsTitles": {
+    "description": "The setting that suggests titles."
+  },
+  "triageSettingsTitlesHelp": "Offers the first sentence as the title when a note's own is empty, a date, “Untitled” or cut short.",
+  "@triageSettingsTitlesHelp": {
+    "description": "Explains the Suggest titles setting."
+  },
+  "triageSettingsLinks": "Suggest links",
+  "@triageSettingsLinks": {
+    "description": "The setting that suggests links to other notes."
+  },
+  "triageSettingsLinksHelp": "Offers links to notes the text names, and to near notes, as a Related line at the end of the note.",
+  "@triageSettingsLinksHelp": {
+    "description": "Explains the Suggest links setting."
+  },
+  "triageSettingsMaxTags": "Maximum tags per note",
+  "@triageSettingsMaxTags": {
+    "description": "The setting for how many tags a card suggests."
+  },
+  "triageSettingsUseAi": "Use AI for Inbox suggestions",
+  "@triageSettingsUseAi": {
+    "description": "The setting that lets the person's AI rank Inbox suggestions."
+  },
+  "triageSettingsUseAiHelp": "Sends the note and the names of likely notebooks and tags to your AI provider.",
+  "@triageSettingsUseAiHelp": {
+    "description": "Explains the Use AI for Inbox suggestions setting."
+  },
+  "triageSettingsOpen": "Inbox",
+  "@triageSettingsOpen": {
+    "description": "The settings row that opens the Inbox settings."
   }
 }

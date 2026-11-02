@@ -8,8 +8,14 @@ part of 'undo_notice_bloc.dart';
 sealed class UndoNoticeEvent with _$UndoNoticeEvent {
   /// A change was made that can be taken back: show [message] with Undo,
   /// in place of any notice showing, for as long as the notice stays.
-  const factory UndoNoticeEvent.shown(int ticket, String message) =
-      UndoNoticeShownEvent;
+  ///
+  /// [stays] is how long it stays when the change wants more than the usual
+  /// few seconds (Inbox triage keeps its Undo for eight).
+  const factory UndoNoticeEvent.shown(
+    int ticket,
+    String message, [
+    Duration? stays,
+  ]) = UndoNoticeShownEvent;
 
   /// The person pressed Undo.
   const factory UndoNoticeEvent.undoPressed() = UndoNoticePressedEvent;

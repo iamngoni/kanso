@@ -108,4 +108,6 @@ pub struct TriageFiled {
     pub links: u32,
     /// "Moves 4 to notebooks, adds 9 tags, 3 titles, 6 links."
     pub sentence: String,
+    /// What the Undo notice says once filed: "Filed 5 notes".
+    pub message: String,
 }

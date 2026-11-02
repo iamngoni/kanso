@@ -4497,4 +4497,179 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dictationSettingsMicDenied => 'Kanso can\'t use the microphone';
+
+  @override
+  String triageBarCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes to file',
+      one: '1 note to file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get triageBarOpen => 'Triage';
+
+  @override
+  String get triageTitle => 'Triage';
+
+  @override
+  String triageSubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count to file',
+      one: '1 to file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get triageEmpty => 'Inbox is clear.';
+
+  @override
+  String get triageClose => 'Close';
+
+  @override
+  String get triageMenu => 'Triage options';
+
+  @override
+  String get triageAcceptAllNotebooks => 'Accept all suggested notebooks';
+
+  @override
+  String get triageAcceptAllTags => 'Accept all suggested tags';
+
+  @override
+  String get triageFieldNotebook => 'Notebook';
+
+  @override
+  String get triageFieldTags => 'Tags';
+
+  @override
+  String get triageFieldTitle => 'Title';
+
+  @override
+  String get triageFieldLinks => 'Links';
+
+  @override
+  String get triageAcceptAll => 'Accept all';
+
+  @override
+  String triageFileAllAccepted(int count) {
+    return 'File all accepted ($count)';
+  }
+
+  @override
+  String get triageFile => 'File';
+
+  @override
+  String get triageSkip => 'Skip';
+
+  @override
+  String get triageOpen => 'Open';
+
+  @override
+  String triageAcceptChip(String label) {
+    return 'Accept $label';
+  }
+
+  @override
+  String triageRejectChip(String label) {
+    return 'Reject $label';
+  }
+
+  @override
+  String triageEditChip(String label) {
+    return 'Edit $label';
+  }
+
+  @override
+  String triageBecause(String titles) {
+    return 'because: near $titles';
+  }
+
+  @override
+  String get triageNewTag => 'new';
+
+  @override
+  String get triageNoSuggestions => 'Nothing to suggest for this note.';
+
+  @override
+  String get triageNotRead =>
+      'Notebook and tag suggestions come once this note is read.';
+
+  @override
+  String get triageNoAi =>
+      'Suggestions come from your notes. Set up AI in Settings for better titles.';
+
+  @override
+  String get triageRelatedOff =>
+      'Turn on Related notes to get notebook and tag suggestions';
+
+  @override
+  String get triageTurnOn => 'Turn on';
+
+  @override
+  String triageAiUnavailable(String reason) {
+    return 'AI suggestions unavailable: $reason';
+  }
+
+  @override
+  String get triageChanged => 'Changed on another device';
+
+  @override
+  String triageConfirmTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'File $count notes?',
+      one: 'File 1 note?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get triageEditHint => 'Type a value';
+
+  @override
+  String get triageEditUse => 'Use';
+
+  @override
+  String get triageSettingsTitle => 'Inbox';
+
+  @override
+  String get triageSettingsShowBar => 'Show Triage bar';
+
+  @override
+  String get triageSettingsShowBarHelp =>
+      'Above the Inbox\'s notes: how many wait to be filed, and a button to go through them.';
+
+  @override
+  String get triageSettingsTitles => 'Suggest titles';
+
+  @override
+  String get triageSettingsTitlesHelp =>
+      'Offers the first sentence as the title when a note\'s own is empty, a date, “Untitled” or cut short.';
+
+  @override
+  String get triageSettingsLinks => 'Suggest links';
+
+  @override
+  String get triageSettingsLinksHelp =>
+      'Offers links to notes the text names, and to near notes, as a Related line at the end of the note.';
+
+  @override
+  String get triageSettingsMaxTags => 'Maximum tags per note';
+
+  @override
+  String get triageSettingsUseAi => 'Use AI for Inbox suggestions';
+
+  @override
+  String get triageSettingsUseAiHelp =>
+      'Sends the note and the names of likely notebooks and tags to your AI provider.';
+
+  @override
+  String get triageSettingsOpen => 'Inbox';
 }

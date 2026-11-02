@@ -7737,6 +7737,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Kanso can\'t use the microphone'**
   String get dictationSettingsMicDenied;
+
+  /// The bar above the Inbox's notes: how many wait to be filed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 note to file} other{{count} notes to file}}'**
+  String triageBarCount(int count);
+
+  /// The button on that bar that opens the Triage pager.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage'**
+  String get triageBarOpen;
+
+  /// The title of the page that goes through the Inbox's notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage'**
+  String get triageTitle;
+
+  /// The line under the Triage title: how many notes are left.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 to file} other{{count} to file}}'**
+  String triageSubtitle(int count);
+
+  /// Said when no note is left to file.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox is clear.'**
+  String get triageEmpty;
+
+  /// The button that leaves Triage.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get triageClose;
+
+  /// The label of the menu on the Triage page.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage options'**
+  String get triageMenu;
+
+  /// The menu item that ticks every suggested notebook on every card.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept all suggested notebooks'**
+  String get triageAcceptAllNotebooks;
+
+  /// The menu item that ticks every suggested tag on every card.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept all suggested tags'**
+  String get triageAcceptAllTags;
+
+  /// The label of a card's suggested notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebook'**
+  String get triageFieldNotebook;
+
+  /// The label of a card's suggested tags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get triageFieldTags;
+
+  /// The label of a card's suggested title.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get triageFieldTitle;
+
+  /// The label of a card's suggested links to other notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Links'**
+  String get triageFieldLinks;
+
+  /// The button that accepts every suggestion on the card.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept all'**
+  String get triageAcceptAll;
+
+  /// The button that files every card with something accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'File all accepted ({count})'**
+  String triageFileAllAccepted(int count);
+
+  /// The button that files a card with what is accepted on it.
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get triageFile;
+
+  /// The button that hides a card for now.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get triageSkip;
+
+  /// The button that opens the card's note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get triageOpen;
+
+  /// What a screen reader says for the tick on a suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept {label}'**
+  String triageAcceptChip(String label);
+
+  /// What a screen reader says for the cross on a suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject {label}'**
+  String triageRejectChip(String label);
+
+  /// What a screen reader says for a suggestion that can be changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit {label}'**
+  String triageEditChip(String label);
+
+  /// Names the notes that a suggestion came from.
+  ///
+  /// In en, this message translates to:
+  /// **'because: near {titles}'**
+  String triageBecause(String titles);
+
+  /// The mark on a tag suggestion that does not exist yet.
+  ///
+  /// In en, this message translates to:
+  /// **'new'**
+  String get triageNewTag;
+
+  /// Said on a card with no suggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to suggest for this note.'**
+  String get triageNoSuggestions;
+
+  /// Said on a card whose note has not been embedded yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebook and tag suggestions come once this note is read.'**
+  String get triageNotRead;
+
+  /// Said at the top of Triage while the person's AI is not used.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions come from your notes. Set up AI in Settings for better titles.'**
+  String get triageNoAi;
+
+  /// Said when Related notes are off, so there are no notebook and tag suggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on Related notes to get notebook and tag suggestions'**
+  String get triageRelatedOff;
+
+  /// The button that turns Related notes on.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get triageTurnOn;
+
+  /// Said on a card when the model could not be asked.
+  ///
+  /// In en, this message translates to:
+  /// **'AI suggestions unavailable: {reason}'**
+  String triageAiUnavailable(String reason);
+
+  /// Said on a card whose note changed elsewhere; it is read again before it can be filed.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed on another device'**
+  String get triageChanged;
+
+  /// The question before every accepted card is filed at once.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{File 1 note?} other{File {count} notes?}}'**
+  String triageConfirmTitle(int count);
+
+  /// The hint of the field where a suggestion is changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a value'**
+  String get triageEditHint;
+
+  /// The button that takes the changed suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Use'**
+  String get triageEditUse;
+
+  /// The title of the Inbox settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get triageSettingsTitle;
+
+  /// The setting that shows the bar above the Inbox's notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Triage bar'**
+  String get triageSettingsShowBar;
+
+  /// Explains the Show Triage bar setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Above the Inbox\'s notes: how many wait to be filed, and a button to go through them.'**
+  String get triageSettingsShowBarHelp;
+
+  /// The setting that suggests titles.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest titles'**
+  String get triageSettingsTitles;
+
+  /// Explains the Suggest titles setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers the first sentence as the title when a note\'s own is empty, a date, “Untitled” or cut short.'**
+  String get triageSettingsTitlesHelp;
+
+  /// The setting that suggests links to other notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest links'**
+  String get triageSettingsLinks;
+
+  /// Explains the Suggest links setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers links to notes the text names, and to near notes, as a Related line at the end of the note.'**
+  String get triageSettingsLinksHelp;
+
+  /// The setting for how many tags a card suggests.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum tags per note'**
+  String get triageSettingsMaxTags;
+
+  /// The setting that lets the person's AI rank Inbox suggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Use AI for Inbox suggestions'**
+  String get triageSettingsUseAi;
+
+  /// Explains the Use AI for Inbox suggestions setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends the note and the names of likely notebooks and tags to your AI provider.'**
+  String get triageSettingsUseAiHelp;
+
+  /// The settings row that opens the Inbox settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get triageSettingsOpen;
 }
 
 class _AppLocalizationsDelegate

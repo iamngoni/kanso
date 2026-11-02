@@ -108,6 +108,7 @@ class TriageFiled {
   final int titles;
   final int links;
   final String sentence;
+  final String message;
 
   const TriageFiled({
     required this.undo,
@@ -118,6 +119,7 @@ class TriageFiled {
     required this.titles,
     required this.links,
     required this.sentence,
+    required this.message,
   });
 
   @override
@@ -129,7 +131,8 @@ class TriageFiled {
       tags.hashCode ^
       titles.hashCode ^
       links.hashCode ^
-      sentence.hashCode;
+      sentence.hashCode ^
+      message.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -143,7 +146,8 @@ class TriageFiled {
           tags == other.tags &&
           titles == other.titles &&
           links == other.links &&
-          sentence == other.sentence;
+          sentence == other.sentence &&
+          message == other.message;
 }
 
 class TriageFiling {

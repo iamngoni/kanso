@@ -20560,8 +20560,8 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   TriageFiled dco_decode_triage_filed(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return TriageFiled(
       undo: dco_decode_CastedPrimitive_u_64(arr[0]),
       filed: dco_decode_u_32(arr[1]),
@@ -20571,6 +20571,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       titles: dco_decode_u_32(arr[5]),
       links: dco_decode_u_32(arr[6]),
       sentence: dco_decode_String(arr[7]),
+      message: dco_decode_String(arr[8]),
     );
   }
 
@@ -27493,6 +27494,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var var_titles = sse_decode_u_32(deserializer);
     var var_links = sse_decode_u_32(deserializer);
     var var_sentence = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
     return TriageFiled(
       undo: var_undo,
       filed: var_filed,
@@ -27502,6 +27504,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       titles: var_titles,
       links: var_links,
       sentence: var_sentence,
+      message: var_message,
     );
   }
 
@@ -33682,6 +33685,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_u_32(self.titles, serializer);
     sse_encode_u_32(self.links, serializer);
     sse_encode_String(self.sentence, serializer);
+    sse_encode_String(self.message, serializer);
   }
 
   @protected

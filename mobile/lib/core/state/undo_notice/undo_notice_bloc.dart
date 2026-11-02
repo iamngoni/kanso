@@ -52,6 +52,7 @@ class UndoNoticeBloc extends Bloc<UndoNoticeEvent, UndoNoticeState> {
           ticket: event.ticket,
           message: event.message,
           serial: ++_serial,
+          stays: event.stays,
         ),
       ),
     );
