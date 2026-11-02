@@ -70,6 +70,7 @@ pub mod attach;
 pub mod backup;
 pub mod batch;
 pub mod board;
+pub mod brief;
 pub mod calendar;
 pub mod capture;
 pub mod catalogue;

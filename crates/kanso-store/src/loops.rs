@@ -15,7 +15,7 @@ use rusqlite::params;
 use rusqlite::types::Value as SqlValue;
 use serde_json::Value;
 
-use crate::schema::note_locked;
+use crate::schema::{discoverable, note_locked, readable_body};
 use crate::write::{load_row, rewrite_note};
 use crate::tasks::CheckOff;
 use crate::{Origin, Result, Store, StoreError};
@@ -101,6 +101,33 @@ pub struct ChangedNote {
     pub created_at: i64,
     pub updated_at: i64,
 }
+
+/// A note the brief may show: not locked, not `#ai-exclude`, not trashed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BriefNote {
+    pub id: String,
+    pub title: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    /// The start of its text, plain, a couple of lines.
+    pub excerpt: String,
+}
+
+/// A note whose words and tags the weekly review counts for themes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ThemeNote {
+    pub id: String,
+    pub title: String,
+    /// Its text; cut to [`THEME_BODY_CHARS`] when there were many notes.
+    pub body: String,
+    pub tags: Vec<String>,
+}
+
+/// With more notes than [`THEME_FULL_NOTES`], only this much of each
+/// body is read for themes.
+pub const THEME_BODY_CHARS: usize = 2000;
+/// How many notes are read in full for themes.
+pub const THEME_FULL_NOTES: usize = 2000;
 
 /// SQL for "`l` is a loop of a live note outside the trash that isn't
 /// locked, and isn't closed or dismissed".
@@ -358,4 +385,128 @@ impl Store {
             Ok(rows.collect::<rusqlite::Result<_>>()?)
         })
     }
+
+    /// The notes among `ids` the brief may show or suggest (not locked, not
+    /// `#ai-exclude`, not trashed), in the order of `ids`, each with the
+    /// start of its text. Anything else in `ids` is left out.
+    pub fn brief_notes(&self, ids: &[String]) -> Result<Vec<BriefNote>> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(concat!(
+                "SELECT d.id, d.title, IFNULL(d.created_at, 0), IFNULL(d.updated_at, 0), ",
+                readable_body!("d."),
+                " FROM docs d WHERE d.id = ? AND ",
+                discoverable!("d.")
+            ))?;
+            let mut out = Vec::new();
+            for id in ids {
+                let found = stmt
+                    .query_map([id], |row| {
+                        let body: Option<String> = row.get(4)?;
+                        Ok(BriefNote {
+                            id: row.get(0)?,
+                            title: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                            created_at: row.get(2)?,
+                            updated_at: row.get(3)?,
+                            excerpt: excerpt_of(body.as_deref().unwrap_or("")),
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                out.extend(found);
+            }
+            Ok(out)
+        })
+    }
+
+    /// The notes the brief may show that were created or changed between
+    /// `from_ms` (inclusive) and `to_ms` (exclusive), with their text and
+    /// tag names, for the review's themes: at most `limit` notes, newest
+    /// first. When there are more than [`THEME_FULL_NOTES`], each text is
+    /// cut to [`THEME_BODY_CHARS`].
+    pub fn theme_notes(&self, from_ms: i64, to_ms: i64, limit: usize) -> Result<Vec<ThemeNote>> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(concat!(
+                "SELECT d.id, d.title, ",
+                readable_body!("d."),
+                " FROM docs d WHERE ",
+                discoverable!("d."),
+                " AND ((d.updated_at >= ?1 AND d.updated_at < ?2)
+                     OR (d.created_at >= ?1 AND d.created_at < ?2))
+                 ORDER BY d.updated_at DESC, d.id LIMIT ?3"
+            ))?;
+            let mut notes = stmt
+                .query_map(params![from_ms, to_ms, limit as i64], |row| {
+                    Ok(ThemeNote {
+                        id: row.get(0)?,
+                        title: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                        body: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                        tags: Vec::new(),
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let cut = notes.len() > THEME_FULL_NOTES;
+            let mut tags = conn.prepare(
+                "SELECT json_extract(t.json, '$.name') FROM note_tags nt JOIN docs t ON t.id = nt.tag_id
+                 WHERE nt.note_id = ? AND t.deleted = 0 ORDER BY 1",
+            )?;
+            for note in &mut notes {
+                note.tags = tags
+                    .query_map([&note.id], |row| row.get::<_, Option<String>>(0))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
+                if cut && let Some((at, _)) = note.body.char_indices().nth(THEME_BODY_CHARS) {
+                    note.body.truncate(at);
+                }
+            }
+            Ok(notes)
+        })
+    }
+
+    /// The ids of the notes note `id` links to, by ID link or by a
+    /// wiki-link whose title names a note, in the order it links to them
+    /// (each once).
+    pub fn linked_note_ids(&self, id: &str) -> Result<Vec<String>> {
+        let links = self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT target_id, target_title FROM note_links WHERE note_id = ? ORDER BY ord",
+            )?;
+            let rows = stmt.query_map([id], |row| {
+                Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?))
+            })?;
+            Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+        })?;
+        let mut out: Vec<String> = Vec::new();
+        for (target_id, title) in links {
+            let found = match (target_id, title) {
+                (Some(found), _) => Some(found),
+                (None, Some(title)) => self.resolve_title(&title)?.map(|(found, _)| found),
+                _ => None,
+            };
+            if let Some(found) = found
+                && found != id
+                && !out.contains(&found)
+            {
+                out.push(found);
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// The first two lines of prose in `body`, plain and short.
+fn excerpt_of(body: &str) -> String {
+    let lines: Vec<String> = body
+        .lines()
+        .map(|l| kanso_core::links::plain_line(l.trim()))
+        .filter(|l| !l.is_empty() && !l.starts_with(['#', '`', '-']))
+        .take(2)
+        .collect();
+    let text = lines.join(" ");
+    if text.chars().count() <= 200 {
+        return text;
+    }
+    let mut short: String = text.chars().take(199).collect();
+    short.push('\u{2026}');
+    short
 }
