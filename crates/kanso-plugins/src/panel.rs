@@ -248,6 +248,13 @@ pub fn images(node: &Node) -> Vec<&str> {
     out
 }
 
+/// Whether the tree holds a web link. Pure.
+pub fn has_links(node: &Node) -> bool {
+    let mut found = false;
+    visit(node, &mut |n| found |= matches!(n, Node::Link { .. }));
+    found
+}
+
 /// The IDs of every input, toggle and select: the ones a press may carry
 /// a value for. Pure.
 pub fn inputs(node: &Node) -> Vec<&str> {

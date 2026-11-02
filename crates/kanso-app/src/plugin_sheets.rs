@@ -18,7 +18,8 @@ use kanso_plugins::model::Source;
 
 use crate::agent_scope::{ScopeBook, scope_books};
 use crate::plugin_sheets_model::{
-    chosen_grant, install_enabled, install_label, note_summary, starting_ticks,
+    SENSITIVE_STEPS, chosen_grant, install_enabled, install_label, newly_sensitive, note_summary,
+    sensitive_step_label, sensitive_step_ready, starting_ticks,
 };
 use crate::plugins_model::InstallPlan;
 use crate::theme::Colors;
@@ -82,6 +83,15 @@ pub struct InstallSheet {
     trusted: bool,
     error: Option<String>,
     _typing: Subscription,
+    /// Reading what is copied in other apps is new to this plugin, so
+    /// installing it warns three times.
+    sensitive: bool,
+    /// Which warning a sensitive install is on (0-based).
+    step: u8,
+    understood: bool,
+    name_typed: Entity<InputState>,
+    name_text: String,
+    _name_typing: Subscription,
 }
 
 impl InstallSheet {
@@ -99,7 +109,29 @@ impl InstallSheet {
                 cx.notify();
             }
         });
+        let name_typed =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Type the plugin's name"));
+        let name_typing = cx.subscribe_in(
+            &name_typed,
+            window,
+            |this, input, event: &InputEvent, _, cx| {
+                if let InputEvent::Change = event {
+                    this.name_text = input.read(cx).value().to_string();
+                    cx.notify();
+                }
+            },
+        );
+        let sensitive = newly_sensitive(
+            &plan.bundle.manifest,
+            plan.replacing.as_ref().map(|installed| &installed.grant),
+        );
         InstallSheet {
+            sensitive,
+            step: 0,
+            understood: false,
+            name_typed,
+            name_text: String::new(),
+            _name_typing: name_typing,
             all: plan.grant.notes.read_all,
             ask: plan.grant.ask_before_changing,
             sheet_books: books,
@@ -141,11 +173,43 @@ impl InstallSheet {
     }
 
     fn ready(&self) -> bool {
-        install_enabled(self.folder(), &self.typed_text, self.trusted)
+        let sheet = install_enabled(self.folder(), &self.typed_text, self.trusted);
+        if !self.sensitive {
+            return sheet;
+        }
+        sensitive_step_ready(
+            self.step,
+            sheet,
+            self.understood,
+            &self.name_text,
+            &self.plan.bundle.manifest.name,
+        )
     }
 
-    fn label(&self) -> &'static str {
-        install_label(self.plan.offer.is_some(), self.plan.key_changed())
+    fn label(&self) -> String {
+        if self.sensitive {
+            return sensitive_step_label(self.step);
+        }
+        install_label(self.plan.offer.is_some(), self.plan.key_changed()).to_owned()
+    }
+
+    /// Whether the button installs now, rather than moving to the next
+    /// warning.
+    fn last_step(&self) -> bool {
+        !self.sensitive || self.step + 1 >= SENSITIVE_STEPS
+    }
+
+    /// The button: the next warning, or the install itself.
+    fn advance(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.ready() {
+            return;
+        }
+        if self.last_step() {
+            self.install(window, cx);
+        } else {
+            self.step += 1;
+            cx.notify();
+        }
     }
 
     /// Installs with the choices, or shows why it couldn't.
@@ -183,6 +247,9 @@ impl InstallSheet {
 impl Render for InstallSheet {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
+        if self.sensitive && self.step > 0 {
+            return self.sensitive_warning(colors, cx).into_any_element();
+        }
         let grant = self.grant();
         let store = cx.global::<AppState>().store.clone();
         let name_of = move |id: &str| {
@@ -257,6 +324,12 @@ impl Render for InstallSheet {
             .max_h(px(560.))
             .overflow_y_scroll()
             .gap(px(12.))
+            .when(self.sensitive, |el| {
+                el.child(notice(
+                    "This plugin asks to read everything you copy, in every app, while Kanso is open. Two more warnings follow before it installs.".into(),
+                    Hsla::from(colors.danger),
+                ))
+            })
             .child(
                 v_flex()
                     .gap(px(2.))
@@ -462,6 +535,66 @@ impl Render for InstallSheet {
                         .child(error),
                 )
             })
+            .into_any_element()
+    }
+}
+
+impl InstallSheet {
+    /// The second and third warnings of a sensitive install: what reading
+    /// the clipboard means, then the plugin's name typed to go ahead.
+    fn sensitive_warning(&self, colors: &Colors, cx: &mut Context<Self>) -> impl IntoElement {
+        let name = self.plan.bundle.manifest.name.clone();
+        let line = |text: String, color: crate::theme::Rgb| {
+            div()
+                .text_size(px(13.))
+                .line_height(px(19.))
+                .text_color(color)
+                .child(text)
+        };
+        let body = v_flex().gap(px(10.)).child(
+            div()
+                .text_size(px(15.))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(colors.danger)
+                .child(format!("Warning {} of {SENSITIVE_STEPS}", self.step + 1)),
+        );
+        if self.step == 1 {
+            body.child(line(
+                format!("{name} will see the text you copy in any app, not just Kanso, for as long as Kanso is open. That can include messages, addresses, card numbers and passwords."),
+                colors.text,
+            ))
+            .child(line(
+                "Kanso leaves out what a password manager marks as secret and what looks like a key, keeps only the last 15 copies in memory, and never lets such a plugin use the network. It can't catch everything.".into(),
+                colors.text_secondary,
+            ))
+            .child(line(
+                "Install it only if you trust whoever made it. You can remove it in Settings › Plugins at any time.".into(),
+                colors.text_secondary,
+            ))
+            .child(
+                Checkbox::new("plugin-sensitive-understood")
+                    .checked(self.understood)
+                    .label("I understand it can read what I copy in other apps")
+                    .on_click(cx.listener(|this, on: &bool, _, cx| {
+                        this.understood = *on;
+                        cx.notify();
+                    })),
+            )
+            .into_any_element()
+        } else {
+            body.child(line(
+                format!(
+                    "Last chance. To let {name} read everything you copy, type its name below."
+                ),
+                colors.text,
+            ))
+            .child(line(name, colors.text_secondary))
+            .child(Input::new(&self.name_typed))
+            .when_some(self.error.clone(), |el, error| {
+                el.child(line(error, colors.danger))
+            })
+            .into_any_element()
+        }
     }
 }
 
@@ -478,14 +611,14 @@ impl Render for InstallFooter {
         let sheet = self.sheet.read(cx);
         let ready = sheet.ready();
         let label = sheet.label();
-        let danger = sheet.plan.key_changed();
+        let danger = sheet.plan.key_changed() || sheet.sensitive;
         let target = self.sheet.clone();
         let install = Button::new("plugin-install")
             .debug_selector(|| "plugin-install".into())
             .label(label)
             .disabled(!ready)
             .on_click(move |_, window, cx| {
-                target.update(cx, |sheet, cx| sheet.install(window, cx));
+                target.update(cx, |sheet, cx| sheet.advance(window, cx));
             });
         let install = if danger {
             install.danger()

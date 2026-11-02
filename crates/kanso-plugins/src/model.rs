@@ -71,6 +71,22 @@ pub struct Permissions {
     /// HTTPS hosts it may fetch from, exactly as written.
     #[serde(default)]
     pub network: BTreeSet<String>,
+    /// The clipboard. Reading the history makes Kanso watch the clipboard
+    /// while the plugin is on; a plugin that reads it can't use the network.
+    #[serde(default)]
+    pub clipboard: BTreeSet<ClipboardPermission>,
+}
+
+/// What a plugin may do with the clipboard.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum ClipboardPermission {
+    /// Read the texts copied in any app while Kanso runs: the last 15,
+    /// with passwords and what looks like a key left out.
+    #[serde(rename = "history.read")]
+    HistoryRead,
+    /// Put text on the clipboard.
+    #[serde(rename = "write")]
+    Write,
 }
 
 /// What a plugin may do with the open note.
@@ -145,6 +161,9 @@ pub struct Grant {
     pub panel: bool,
     pub secrets: BTreeSet<String>,
     pub network: BTreeSet<String>,
+    /// Grants made before the clipboard existed have none.
+    #[serde(default)]
+    pub clipboard: BTreeSet<ClipboardPermission>,
     /// Review every change to notes before it is applied, even to the open
     /// note. On by default.
     pub ask_before_changing: bool,
