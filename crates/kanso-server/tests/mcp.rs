@@ -55,7 +55,7 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
     let answer = rpc(&app.router, "tools/list", json!({})).await;
     let tools = answer["result"]["tools"].as_array().unwrap();
     // The 17, then Kanso's own.
-    assert_eq!(tools.len(), 39);
+    assert_eq!(tools.len(), 42);
     assert!(
         tools[18..]
             .iter()
