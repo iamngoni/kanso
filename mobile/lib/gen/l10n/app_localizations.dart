@@ -9561,6 +9561,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'There are no notes here that a draft can read. Locked notes and notes tagged #ai-exclude are never sent.'**
   String get flashcardsDraftNoNotes;
+
+  /// Drafting: the line under a draft that has sentences no note supports.
+  ///
+  /// In en, this message translates to:
+  /// **'Underlined: no source in your notes. These are left out when you save.'**
+  String get flashcardsDraftNoSourceNote;
+
+  /// Drafting: the switch that saves unsourced sentences too.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep sentences without a source'**
+  String get flashcardsDraftKeepUnsourced;
 }
 
 class _AppLocalizationsDelegate

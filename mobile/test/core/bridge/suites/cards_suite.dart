@@ -120,8 +120,19 @@ void cardsSuite(OpenLibrary open) {
         sources: <DraftSourceRef>[
           DraftSourceRef(number: 1, id: id, title: 'Source'),
         ],
+        leaveOut: const <(int, int)>[],
       );
       expect(preview.markdown, contains('Sources'));
+
+      // Leaving out the claim's stretch (UTF-16 units 0 to 12) drops it.
+      final trimmed = await drafting.preview(
+        text: 'A claim [1].',
+        sources: <DraftSourceRef>[
+          DraftSourceRef(number: 1, id: id, title: 'Source'),
+        ],
+        leaveOut: const <(int, int)>[(0, 12)],
+      );
+      expect(trimmed.markdown, isNot(contains('A claim')));
 
       final saved = await drafting.save(
         title: 'Draft',

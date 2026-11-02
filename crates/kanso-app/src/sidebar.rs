@@ -80,6 +80,9 @@ struct Entry {
 }
 /// How often relative times ("Synced 3 min ago") are brought up to date.
 const TICK: Duration = Duration::from_secs(30);
+/// How long the Review count waits after a change before it is read, so a
+/// burst of changes is one read.
+const REVIEW_PAUSE: Duration = Duration::from_millis(400);
 
 pub struct Sidebar {
     library: Entity<Library>,
@@ -111,6 +114,8 @@ pub struct Sidebar {
     pub(crate) reveal_tooltip: Option<&'static str>,
     /// Flashcards waiting today; `None` while the library has no cards.
     review: Option<usize>,
+    /// The read of the count in flight, or waiting out its pause.
+    review_task: Option<Task<()>>,
     _tick: Task<()>,
 }
 
@@ -172,12 +177,16 @@ impl Sidebar {
             #[cfg(test)]
             reveal_tooltip: None,
             review: None,
+            review_task: None,
             _tick: tick,
         }
     }
 
-    /// Reads how many flashcards wait today, for the Review row.
-    // no-prop-test: a read of the store's counts, which have their tests.
+    /// Reads how many flashcards wait today, for the Review row. The read
+    /// runs off the main thread after a short pause, so a burst of Library
+    /// changes (typing, a sync) makes one read, and a newer request drops
+    /// an older one.
+    // no-prop-test: scheduling of a read of the store's counts, which have their tests.
     fn refresh_review(&mut self, cx: &mut Context<Self>) {
         let Some(store) = cx.try_global::<AppState>().map(|state| state.store.clone()) else {
             return;
@@ -185,14 +194,20 @@ impl Sidebar {
         let now = crate::clock::Clock::now_ms(cx);
         let offset = crate::clock::Clock::utc_offset_secs(cx, now) / 60;
         let day = kanso_engine::flashcards::day_start_ms(now, offset);
-        self.review = match store.has_cards() {
-            Ok(true) => Some(
-                store
-                    .cards_waiting(&kanso_store::CardScope::All, now, day)
-                    .unwrap_or(0),
-            ),
-            _ => None,
-        };
+        self.review_task = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(REVIEW_PAUSE).await;
+            let count = cx
+                .background_executor()
+                .spawn(async move { store.review_badge(now, day).ok().flatten() })
+                .await;
+            this.update(cx, |this, cx| {
+                if this.review != count {
+                    this.review = count;
+                    cx.notify();
+                }
+            })
+            .ok();
+        }));
     }
 
     /// Review, with the cards waiting today in an accent pill. Shown only

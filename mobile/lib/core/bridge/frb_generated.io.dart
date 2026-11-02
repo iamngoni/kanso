@@ -1480,6 +1480,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<(int, int)> dco_decode_list_record_u_32_u_32(dynamic raw);
+
+  @protected
   List<RelatedRow> dco_decode_list_related_row(dynamic raw);
 
   @protected
@@ -1999,6 +2002,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   (String, ShareRole) dco_decode_record_string_share_role(dynamic raw);
+
+  @protected
+  (int, int) dco_decode_record_u_32_u_32(dynamic raw);
 
   @protected
   RecoveryKeyText dco_decode_recovery_key_text(dynamic raw);
@@ -3810,6 +3816,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<(int, int)> sse_decode_list_record_u_32_u_32(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RelatedRow> sse_decode_list_related_row(SseDeserializer deserializer);
 
   @protected
@@ -4423,6 +4434,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   (String, ShareRole) sse_decode_record_string_share_role(
     SseDeserializer deserializer,
   );
+
+  @protected
+  (int, int) sse_decode_record_u_32_u_32(SseDeserializer deserializer);
 
   @protected
   RecoveryKeyText sse_decode_recovery_key_text(SseDeserializer deserializer);
@@ -6647,6 +6661,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_record_u_32_u_32(
+    List<(int, int)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_related_row(
     List<RelatedRow> self,
     SseSerializer serializer,
@@ -7425,6 +7445,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     (String, ShareRole) self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_record_u_32_u_32((int, int) self, SseSerializer serializer);
 
   @protected
   void sse_encode_recovery_key_text(

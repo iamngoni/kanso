@@ -5640,6 +5640,92 @@ mod tests {
         assert_eq!(store.note(&id).unwrap().unwrap().body, "one, typed more");
     }
 
+    /// Cards added to the open note from Make Flashcards, while there is
+    /// typing the editor has not saved: the editor asks which to keep (the
+    /// banner) rather than losing the typing, and nothing of it is written
+    /// over the cards.
+    #[gpui_kit::test]
+    fn cards_added_to_the_open_note_ask_rather_than_overwrite(cx: &mut TestAppContext) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(Store::open(dir.path().join("k.db")).unwrap());
+        let book = store
+            .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+            .unwrap()
+            .id;
+        let id = store
+            .put(
+                DocType::Note,
+                json!({"title": "t", "body": "one", "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let editor_store = store.clone();
+        let (window, editor) = cx.update(|cx| {
+            gpui_kit::init(cx);
+            gpui_kit::open_window(Default::default(), cx, |window, cx| {
+                let library = cx.new(|cx| Library::new(editor_store.clone(), cx));
+                let (links, _) = async_channel::unbounded();
+                cx.new(|cx| {
+                    NoteEditor::new(
+                        editor_store,
+                        library,
+                        links,
+                        &Appearance::default(),
+                        window,
+                        cx,
+                    )
+                })
+            })
+            .unwrap()
+        });
+        window
+            .update(cx, |_, window, cx| {
+                editor.update(cx, |editor, cx| {
+                    editor.open(Some(&id), window, cx);
+                    editor.edit_for_test("one, typed", window, cx);
+                })
+            })
+            .unwrap();
+        let added = kanso_engine::flashcards::add_cards(
+            &store,
+            &id,
+            &[("Capital of France?".to_owned(), "Paris".to_owned())],
+        )
+        .unwrap();
+        assert_eq!(added, 1);
+        window
+            .update(cx, |_, window, cx| {
+                let change = kanso_store::Change {
+                    id: id.clone(),
+                    rev: store.note(&id).unwrap().unwrap().rev.unwrap(),
+                    seq: 0,
+                    deleted: false,
+                    origin: Origin::Ui,
+                };
+                editor.update(cx, |editor, cx| editor.on_store_change(&change, window, cx));
+            })
+            .unwrap();
+        // The banner is up, the typing is still the editor's, and the cards
+        // are in the store, not overwritten by anything.
+        assert!(editor.read_with(cx, |editor, _| editor.incoming.is_some()));
+        assert_eq!(
+            cx.read(|cx| editor.read(cx).save_state(cx)),
+            SaveState::NotSaved
+        );
+        cx.executor().advance_clock(Duration::from_secs(2));
+        cx.run_until_parked();
+        assert!(
+            store
+                .note(&id)
+                .unwrap()
+                .unwrap()
+                .body
+                .contains("Capital of France? :: Paris")
+        );
+    }
+
     /// A note with these fields, as the store returns one.
     fn note(title: &str, body: &str, rev: &str, tasks: u32) -> kanso_core::Note {
         serde_json::from_value(json!({

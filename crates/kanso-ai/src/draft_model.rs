@@ -137,6 +137,8 @@ pub struct CheckedDraft {
     pub spans: Vec<Span>,
     /// Citations removed because no such source was given.
     pub removed: usize,
+    /// Sentences whose cited notes do not support them, marked unsourced.
+    pub ungrounded: usize,
 }
 
 /// A card the model suggested for a note.

@@ -738,8 +738,7 @@ impl NoteList {
                             cx.emit(NoteListEvent::CommandSeveral(ids, command))
                         });
                     });
-                    let ai = cx.global::<crate::AppState>().config.ai.enabled;
-                    crate::note_menu::several_items(menu, count, all_pinned, ai, run, window, cx)
+                    crate::note_menu::several_items(menu, count, all_pinned, run, window, cx)
                 } else if in_trash {
                     menu.item(PopupMenuItem::new("Restore").on_click(emit(NoteListEvent::Restore)))
                         .separator()

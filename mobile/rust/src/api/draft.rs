@@ -59,13 +59,16 @@ impl KansoDrafting {
         }
     }
 
-    /// The note a finished draft would be saved as.
+    /// The note a finished draft would be saved as, without the stretches
+    /// (UTF-16 start and end) in `leave_out`, which are the sentences no
+    /// note supports unless the person keeps them.
     pub fn preview(
         &self,
         text: String,
         sources: Vec<DraftSourceRef>,
+        leave_out: Vec<(u32, u32)>,
     ) -> Result<DraftPreview, KansoError> {
-        self.0.preview(text, sources)
+        self.0.preview(text, sources, leave_out)
     }
 
     /// Saves the reviewed draft as a note; returns its ID.

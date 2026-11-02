@@ -5642,4 +5642,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get flashcardsDraftNoNotes =>
       'There are no notes here that a draft can read. Locked notes and notes tagged #ai-exclude are never sent.';
+
+  @override
+  String get flashcardsDraftNoSourceNote =>
+      'Underlined: no source in your notes. These are left out when you save.';
+
+  @override
+  String get flashcardsDraftKeepUnsourced => 'Keep sentences without a source';
 }

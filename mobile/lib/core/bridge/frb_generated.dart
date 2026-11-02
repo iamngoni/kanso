@@ -648,6 +648,7 @@ abstract class KansoCoreApi extends BaseApi {
     required KansoDrafting that,
     required String text,
     required List<DraftSourceRef> sources,
+    required List<(int, int)> leaveOut,
   });
 
   Future<String> crateApiDraftKansoDraftingSave({
@@ -6330,6 +6331,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     required KansoDrafting that,
     required String text,
     required List<DraftSourceRef> sources,
+    required List<(int, int)> leaveOut,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -6341,6 +6343,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           );
           sse_encode_String(text, serializer);
           sse_encode_list_draft_source_ref(sources, serializer);
+          sse_encode_list_record_u_32_u_32(leaveOut, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -6353,7 +6356,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           decodeErrorData: sse_decode_kanso_error,
         ),
         constMeta: kCrateApiDraftKansoDraftingPreviewConstMeta,
-        argValues: [that, text, sources],
+        argValues: [that, text, sources, leaveOut],
         apiImpl: this,
       ),
     );
@@ -6362,7 +6365,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   TaskConstMeta get kCrateApiDraftKansoDraftingPreviewConstMeta =>
       const TaskConstMeta(
         debugName: "KansoDrafting_preview",
-        argNames: ["that", "text", "sources"],
+        argNames: ["that", "text", "sources", "leaveOut"],
       );
 
   @override
@@ -21358,6 +21361,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<(int, int)> dco_decode_list_record_u_32_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_record_u_32_u_32).toList();
+  }
+
+  @protected
   List<RelatedRow> dco_decode_list_related_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_related_row).toList();
@@ -23256,6 +23265,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     return (
       dco_decode_String(arr[0]),
       dco_decode_share_role(arr[1]),
+    );
+  }
+
+  @protected
+  (int, int) dco_decode_record_u_32_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_u_32(arr[0]),
+      dco_decode_u_32(arr[1]),
     );
   }
 
@@ -29070,6 +29092,20 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<(int, int)> sse_decode_list_record_u_32_u_32(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(int, int)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_u_32_u_32(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<RelatedRow> sse_decode_list_related_row(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -31607,6 +31643,14 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field0 = sse_decode_String(deserializer);
     var var_field1 = sse_decode_share_role(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
+  (int, int) sse_decode_record_u_32_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_u_32(deserializer);
+    var var_field1 = sse_decode_u_32(deserializer);
     return (var_field0, var_field1);
   }
 
@@ -37254,6 +37298,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_record_u_32_u_32(
+    List<(int, int)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_u_32_u_32(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_related_row(
     List<RelatedRow> self,
     SseSerializer serializer,
@@ -39391,6 +39447,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_record_u_32_u_32((int, int) self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.$1, serializer);
+    sse_encode_u_32(self.$2, serializer);
+  }
+
+  @protected
   void sse_encode_recovery_key_text(
     RecoveryKeyText self,
     SseSerializer serializer,
@@ -41426,14 +41489,18 @@ class KansoDraftingImpl extends RustOpaque implements KansoDrafting {
       .api
       .crateApiDraftKansoDraftingNotesOfTag(that: this, tagId: tagId);
 
-  /// The note a finished draft would be saved as.
+  /// The note a finished draft would be saved as, without the stretches
+  /// (UTF-16 start and end) in `leave_out`, which are the sentences no
+  /// note supports unless the person keeps them.
   Future<DraftPreview> preview({
     required String text,
     required List<DraftSourceRef> sources,
+    required List<(int, int)> leaveOut,
   }) => KansoCore.instance.api.crateApiDraftKansoDraftingPreview(
     that: this,
     text: text,
     sources: sources,
+    leaveOut: leaveOut,
   );
 
   /// Saves the reviewed draft as a note; returns its ID.

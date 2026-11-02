@@ -102,6 +102,8 @@ pub struct LearnView {
     sources: Vec<Source>,
     raw: String,
     checked: CheckedDraft,
+    /// Whether sentences with no source are saved too. Off, they are left out.
+    keep_unsourced: bool,
     refs: Vec<SourceRef>,
     book: String,
     // Make Flashcards
@@ -173,6 +175,7 @@ impl LearnView {
             sources: Vec::new(),
             raw: String::new(),
             checked: CheckedDraft::default(),
+            keep_unsourced: false,
             refs: Vec::new(),
             book: "book:inbox".into(),
             picks: Vec::new(),
@@ -527,7 +530,12 @@ impl LearnView {
     }
 
     fn markdown(&self) -> String {
-        engine::final_markdown(&self.checked.text, &self.refs)
+        let leave_out = if self.keep_unsourced {
+            Vec::new()
+        } else {
+            kanso_ai::draft::unsourced_ranges(&self.checked)
+        };
+        engine::final_markdown(&self.checked.text, &self.refs, &leave_out)
     }
 
     fn save_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -891,15 +899,37 @@ impl LearnView {
             .pb(px(24.))
             .when(!ready, |el| el.child(self.render_working("Writing…", colors)))
             .when(ready && missing > 0, |el| {
+                let view = view.clone();
                 el.child(
-                    div()
-                        .text_size(px(12.5))
-                        .text_color(colors.text_muted)
-                        .child(format!(
-                            "{missing} {} underlined: no source in your notes. Check {} before you save.",
-                            if missing == 1 { "sentence is" } else { "sentences are" },
-                            if missing == 1 { "it" } else { "them" },
-                        )),
+                    v_flex()
+                        .gap(px(6.))
+                        .child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(colors.text_muted)
+                                .child(format!(
+                                    "{missing} {} underlined: no source in your notes. {} left out when you save.",
+                                    if missing == 1 { "sentence is" } else { "sentences are" },
+                                    if missing == 1 { "It is" } else { "They are" },
+                                )),
+                        )
+                        .child(
+                            Checkbox::new("learn-keep-unsourced")
+                                .checked(self.keep_unsourced)
+                                .label(if missing == 1 {
+                                    "Keep it anyway"
+                                } else {
+                                    "Keep them anyway"
+                                })
+                                .on_click(move |on: &bool, _, cx| {
+                                    let on = *on;
+                                    view.update(cx, |this, cx| {
+                                        this.keep_unsourced = on;
+                                        cx.notify();
+                                    })
+                                    .ok();
+                                }),
+                        ),
                 )
             })
             .when(ready && self.checked.removed > 0, |el| {

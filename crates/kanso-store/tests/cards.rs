@@ -321,8 +321,8 @@ fn deleting_a_note_and_resetting_remove_the_log() {
     assert_eq!(live(&store), 2);
     store.delete(&n, Origin::Ui).unwrap();
     assert_eq!(live(&store), 1);
-    assert_eq!(store.reset_review_history().unwrap(), 1);
-    assert_eq!(live(&store), 0);
+    assert_eq!(store.reset_review_history_at(T0 + 10).unwrap(), 1);
+    assert_eq!(live(&store), 1, "a reset adds marks, it deletes nothing");
     assert_eq!(store.card_counts(&CardScope::All, T0).unwrap().new, 1);
 }
 
@@ -481,4 +481,54 @@ fn twenty_thousand_cards_stay_within_budget() {
         "one answer took {:?}",
         started.elapsed()
     );
+}
+
+#[test]
+fn answering_one_card_leaves_the_others_as_a_full_replay_would() {
+    let (_d, a) = open();
+    let (_e, b) = open();
+    let bk = book(&a);
+    let n = note(&a, &bk, "Q :: A\nR :: B\nS :: C\n");
+    copy_all(&a, &b);
+    let keys: Vec<String> = ["Q", "R", "S"]
+        .iter()
+        .map(|q| cards::card_key(&n, q))
+        .collect();
+    let grades = [
+        Grade::Good,
+        Grade::Again,
+        Grade::Easy,
+        Grade::Hard,
+        Grade::Good,
+    ];
+    for (i, grade) in grades.iter().enumerate() {
+        let key = &keys[i % 2];
+        a.record_review(&n, key, *grade, "A", T0 + (i as i64) * DAY)
+            .unwrap();
+    }
+    // `b` builds the same state from the finished documents in one go.
+    copy_all(&a, &b);
+    for key in &keys {
+        assert_eq!(
+            a.card_intervals(key, T0 + DAY * 30).unwrap(),
+            b.card_intervals(key, T0 + DAY * 30).unwrap()
+        );
+    }
+    let counts = a.card_counts(&CardScope::All, T0 + DAY * 400).unwrap();
+    assert_eq!(counts.new, 1, "the card never answered is still new");
+}
+
+#[test]
+fn the_review_badge_is_none_without_cards_and_counts_waiting_ones_with_them() {
+    let (_d, store) = open();
+    let bk = book(&store);
+    assert_eq!(store.review_badge(T0, T0).unwrap(), None);
+    let n = note(&store, &bk, "Q :: A\nR :: B\n");
+    assert_eq!(store.review_badge(T0, T0).unwrap(), Some(2), "both are new");
+    store
+        .record_review(&n, &cards::card_key(&n, "Q"), Grade::Easy, "A", T0)
+        .unwrap();
+    assert_eq!(store.review_badge(T0, T0).unwrap(), Some(1));
+    store.delete(&n, Origin::Ui).unwrap();
+    assert_eq!(store.review_badge(T0, T0).unwrap(), None);
 }

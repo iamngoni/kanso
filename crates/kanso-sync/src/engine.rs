@@ -852,6 +852,11 @@ impl Run<'_> {
 
     /// A feed document that didn't open (M3, security re-check 10).
     fn undecryptable(&mut self, wire: &WireChange) -> Result<(), SyncError> {
+        // A kind from a newer Kanso (flashcard answers were one once): not
+        // ours to read, and no reason to say "Some items skipped".
+        if crate::wire::is_future_kind_id(&wire.id) {
+            return Ok(());
+        }
         if self.wire_ids.is_none() {
             let map = self
                 .store

@@ -126,8 +126,11 @@ pub fn retrievability(elapsed_days: f64, stability: f64) -> f64 {
 
 /// Days until recall falls to `retention`.
 fn interval_days(stability: f64, retention: f64) -> f64 {
-    stability / FACTOR * (retention.powf(1.0 / DECAY) - 1.0)
+    (stability / FACTOR * (retention.powf(1.0 / DECAY) - 1.0)).min(MAX_INTERVAL_DAYS)
 }
+
+/// The longest wait FSRS may set: a hundred years.
+pub const MAX_INTERVAL_DAYS: f64 = 36_500.0;
 
 fn next_difficulty(d: f64, g: Grade) -> f64 {
     let delta = -W[6] * (g as i32 as f64 - 3.0);
@@ -175,12 +178,26 @@ pub fn step(state: &CardState, at_ms: i64, grade: Grade, retention: f64) -> Card
         }
         Phase::Learning | Phase::Relearning => {
             let same_day = at_ms - state.last_ms < DAY_MS;
-            if same_day {
-                next.stability = short_term_stability(state.stability, grade);
-            }
             next.difficulty = next_difficulty(state.difficulty, grade);
             let phase = state.phase;
-            into_steps(&mut next, at_ms, grade, retention, phase);
+            if same_day {
+                next.stability = short_term_stability(state.stability, grade);
+                into_steps(&mut next, at_ms, grade, retention, phase);
+            } else {
+                // FSRS-5: an answer a day or more after the last one is a
+                // long-term review, whatever phase the card is in.
+                let elapsed = (at_ms - state.last_ms).max(0) as f64 / DAY_MS as f64;
+                let r = retrievability(elapsed, state.stability);
+                if grade == Grade::Again {
+                    next.stability = forget_stability(state.difficulty, state.stability, r);
+                    next.phase = phase;
+                    next.step = 0;
+                    next.due_ms = at_ms + LEARN_STEPS_MS[0];
+                } else {
+                    next.stability = recall_stability(state.difficulty, state.stability, r, grade);
+                    graduate(&mut next, at_ms, retention);
+                }
+            }
         }
         Phase::Review => {
             let elapsed = (at_ms - state.last_ms).max(0) as f64 / DAY_MS as f64;
@@ -315,11 +332,16 @@ pub fn is_suspended(marks: &[Mark], card: &str) -> bool {
         .is_some_and(|m| m.kind == MarkKind::Suspend)
 }
 
-/// The reviews of `card` that count: those after its latest reset mark.
+/// The `card` of a reset mark that covers every card of its note, those
+/// whose answers another device has not synced yet included.
+pub const ALL_CARDS: &str = "*";
+
+/// The reviews of `card` that count: those after its latest reset mark
+/// (its own, or one for all the note's cards).
 pub fn since_reset<'a>(reviews: &'a [Review], marks: &[Mark], card: &str) -> Vec<&'a Review> {
     let reset = marks
         .iter()
-        .filter(|m| m.card == card && m.kind == MarkKind::Reset)
+        .filter(|m| (m.card == card || m.card == ALL_CARDS) && m.kind == MarkKind::Reset)
         .map(|m| m.at_ms)
         .max();
     reviews
@@ -350,6 +372,66 @@ mod tests {
         assert!((init_difficulty(Grade::Good) - 5.2824).abs() < 1e-2);
         assert!((init_difficulty(Grade::Again) - 7.1949).abs() < 1e-3);
         assert!((init_difficulty(Grade::Easy) - 3.2245).abs() < 1e-2);
+    }
+
+    /// Reference values of py-fsrs with the default FSRS-5 weights for a
+    /// card's first answer: stability w[g-1], difficulty
+    /// w4 - exp(w5 (g-1)) + 1, and the day count when it graduates at once.
+    #[test]
+    fn first_answers_match_the_reference_implementation() {
+        let reference = [
+            (Grade::Again, 0.40255, 7.1949),
+            (Grade::Hard, 1.18385, 6.488305268471453),
+            (Grade::Good, 3.173, 5.282434422319005),
+            (Grade::Easy, 15.69105, 3.2245015893713678),
+        ];
+        for (grade, stability, difficulty) in reference {
+            let s = step(&CardState::new(), 0, grade, 0.9);
+            assert!((s.stability - stability).abs() < 1e-9, "{grade:?}");
+            assert!((s.difficulty - difficulty).abs() < 1e-9, "{grade:?}");
+            assert_eq!((s.reps, s.last_ms), (1, 0));
+        }
+        // Easy graduates to 16 days at 90% recall; the others learn first.
+        let easy = step(&CardState::new(), 0, Grade::Easy, 0.9);
+        assert_eq!(easy.due_ms, 16 * DAY_MS);
+        for grade in [Grade::Again, Grade::Hard, Grade::Good] {
+            assert_eq!(
+                step(&CardState::new(), 0, grade, 0.9).phase,
+                Phase::Learning
+            );
+        }
+    }
+
+    #[test]
+    fn a_learning_card_answered_days_later_gets_a_long_term_update() {
+        let learning = step(&CardState::new(), 0, Grade::Hard, 0.9);
+        assert_eq!(learning.phase, Phase::Learning);
+        // Answered a week later: not the short-term formula, the recall one.
+        let later = step(&learning, 7 * DAY_MS, Grade::Good, 0.9);
+        assert_eq!(later.phase, Phase::Review);
+        let r = retrievability(7.0, learning.stability);
+        let expected = recall_stability(learning.difficulty, learning.stability, r, Grade::Good);
+        assert!((later.stability - expected).abs() < 1e-9);
+        assert!(later.stability > learning.stability);
+        // Forgetting it then drops stability the long-term way.
+        let forgot = step(&learning, 7 * DAY_MS, Grade::Again, 0.9);
+        assert_eq!(forgot.phase, Phase::Learning);
+        assert_eq!(forgot.due_ms, 7 * DAY_MS + MINUTE_MS);
+        assert!(forgot.stability <= learning.stability);
+        // The same answer within the day stays a short-term step.
+        let same_day = step(&learning, DAY_MS / 2, Grade::Good, 0.9);
+        assert_eq!(same_day.phase, Phase::Learning);
+    }
+
+    #[test]
+    fn no_interval_is_longer_than_a_hundred_years() {
+        assert_eq!(interval_days(1.0e9, 0.9), MAX_INTERVAL_DAYS);
+        let mut s = step(&CardState::new(), 0, Grade::Easy, 0.8);
+        for _ in 0..200 {
+            let at = s.due_ms;
+            s = step(&s, at, Grade::Easy, 0.8);
+            assert!(s.due_ms - at <= 36_500 * DAY_MS);
+        }
     }
 
     #[test]
@@ -455,6 +537,15 @@ mod tests {
             prop_assert!(s.stability.is_finite() && s.difficulty.is_finite());
             prop_assert!(s.difficulty == 0.0 || (1.0..=10.0).contains(&s.difficulty));
             prop_assert_eq!(s.reps as usize, reviews.len());
+        }
+
+        /// A first Easy answer graduates at the interval FSRS-5 gives its
+        /// initial stability (15.69105 days at 90%), at any target recall.
+        #[test]
+        fn prop_first_easy_interval_matches_the_formula(r in 0.80f64..0.97) {
+            let s = step(&CardState::new(), 0, Grade::Easy, r);
+            let days = (15.69105 / FACTOR * (r.powf(-2.0) - 1.0)).round().max(1.0) as i64;
+            prop_assert_eq!(s.due_ms, days * DAY_MS);
         }
 
         /// A higher target recall never gives a longer interval.

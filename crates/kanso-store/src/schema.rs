@@ -287,6 +287,8 @@ CREATE TABLE IF NOT EXISTS card_state (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS card_state_due ON card_state (due_ms) WHERE suspended = 0;
 CREATE INDEX IF NOT EXISTS card_state_note ON card_state (note_id);
+-- A note's review documents are found by this, not by reading every one.
+CREATE INDEX IF NOT EXISTS docs_review_note ON docs (json_extract(json, '$.noteId')) WHERE type = 'review';
 CREATE TABLE IF NOT EXISTS card_log (
     id TEXT PRIMARY KEY NOT NULL,
     card_key TEXT NOT NULL,

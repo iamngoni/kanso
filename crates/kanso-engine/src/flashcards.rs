@@ -132,14 +132,28 @@ pub fn add_cards(store: &Store, id: &str, new: &[(String, String)]) -> Result<us
         return Ok(0);
     }
     let body = cards::append_cards(&old, &fresh);
+    // Written on top of the revision just read: a note that changed since
+    // (typing saved in an open editor, a sync) is refused rather than
+    // overwritten, and the open editor of the note asks which to keep.
+    let rev = store
+        .note(id)
+        .ok()
+        .flatten()
+        .and_then(|note| note.rev)
+        .ok_or("This note isn't there.")?;
     store
         .put(
             kanso_core::DocType::Note,
-            json!({"_id": id, "body": body}),
+            json!({"_id": id, "_rev": rev, "body": body}),
             Put::Merge,
             Origin::Ui,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| match e {
+            kanso_store::StoreError::Conflict => {
+                "The note changed while the cards were being added. Try again.".to_owned()
+            }
+            e => e.to_string(),
+        })?;
     Ok(fresh.len())
 }
 

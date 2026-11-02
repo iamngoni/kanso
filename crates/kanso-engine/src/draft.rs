@@ -339,10 +339,16 @@ pub fn not_covered(text: &str) -> bool {
 }
 
 /// The Markdown that is saved from a checked draft's text: citations as
-/// links to their notes, renumbered, and a `## Sources` section.
-pub fn final_markdown(checked_text: &str, refs: &[SourceRef]) -> String {
+/// links to their notes, renumbered, and a `## Sources` section. The byte
+/// ranges in `leave_out` (the sentences with no source, unless the person
+/// chose to keep them) are not saved.
+pub fn final_markdown(
+    checked_text: &str,
+    refs: &[SourceRef],
+    leave_out: &[(usize, usize)],
+) -> String {
     let checked = kanso_ai::draft_model::CheckedDraft {
-        text: checked_text.to_owned(),
+        text: kanso_ai::draft::without_ranges(checked_text, leave_out),
         ..Default::default()
     };
     kanso_ai::draft::saved_markdown(&checked, refs)
@@ -379,6 +385,20 @@ mod tests {
         sealed["kansoLock"] =
             json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "sealed"});
         store.lock_note(sealed).unwrap();
+    }
+
+    #[test]
+    fn the_saved_note_leaves_out_what_was_marked_unsourced() {
+        let refs = vec![SourceRef {
+            number: 1,
+            id: "note:n1".into(),
+            title: "Plan".into(),
+        }];
+        let text = "A yearly plan [1]. Made up claim.";
+        let left_out = final_markdown(text, &refs, &[(19, 33)]);
+        assert!(!left_out.contains("Made up") && left_out.contains("A yearly plan"));
+        let kept = final_markdown(text, &refs, &[]);
+        assert!(kept.contains("Made up claim."));
     }
 
     #[test]

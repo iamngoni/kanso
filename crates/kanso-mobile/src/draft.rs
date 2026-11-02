@@ -77,6 +77,18 @@ fn utf16(text: &str, at: usize) -> u32 {
         .sum()
 }
 
+/// The byte offset in `text` of `units` UTF-16 units from its start.
+fn byte_of(text: &str, units: u32) -> usize {
+    let mut seen = 0u32;
+    for (at, c) in text.char_indices() {
+        if seen >= units {
+            return at;
+        }
+        seen += c.len_utf16() as u32;
+    }
+    text.len()
+}
+
 fn view_of(checked: &CheckedDraft) -> DraftView {
     DraftView {
         spans: checked
@@ -253,12 +265,17 @@ impl Drafting {
         &self,
         text: String,
         sources: Vec<DraftSourceRef>,
+        leave_out: Vec<(u32, u32)>,
     ) -> Result<DraftPreview, KansoError> {
         guard(|| {
             let refs = refs_of(sources);
+            // The ranges come in UTF-16 units, as the page sees the text.
+            let at = |units: u32| byte_of(&text, units);
+            let leave_out: Vec<(usize, usize)> =
+                leave_out.iter().map(|(s, e)| (at(*s), at(*e))).collect();
             Ok(DraftPreview {
                 title: engine::title_of(&text),
-                markdown: engine::final_markdown(&text, &refs),
+                markdown: engine::final_markdown(&text, &refs, &leave_out),
                 default_book_id: engine::default_book(&self.ai.inner.store, &refs),
             })
         })

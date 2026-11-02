@@ -81,6 +81,20 @@ pub fn is_wire_id(id: &str) -> bool {
         && is_base64url(rest)
 }
 
+/// A document ID of the right shape (`kind:` and 22 base64url characters)
+/// whose kind this version does not know: a document of a newer Kanso. It
+/// is left alone, and is no problem to report.
+pub fn is_future_kind_id(id: &str) -> bool {
+    let Some((kind, rest)) = id.split_once(':') else {
+        return false;
+    };
+    (2..=16).contains(&kind.len())
+        && kind.bytes().all(|b| b.is_ascii_lowercase())
+        && !matches!(kind, "note" | "book" | "tag" | "file" | "review")
+        && rest.len() == 22
+        && is_base64url(rest)
+}
+
 /// A wire file ID: a [`is_wire_id`] of kind `file`.
 pub fn is_wire_file_id(id: &str) -> bool {
     id.starts_with("file:") && is_wire_id(id)
@@ -1041,6 +1055,10 @@ mod tests {
         assert!(!is_wire_id("note:Q2hhbmdlTWVQbGVhc2UxM"));
         assert!(!is_wire_id("note:Q2hhbmdlTWVQbGVhc2Ux+g"));
         assert!(!is_wire_id("page:Q2hhbmdlTWVQbGVhc2UxMg"));
+        assert!(is_future_kind_id("page:Q2hhbmdlTWVQbGVhc2UxMg"));
+        assert!(!is_future_kind_id("note:Q2hhbmdlTWVQbGVhc2UxMg"));
+        assert!(!is_future_kind_id("page:Q2hhbmdlTWVQbGVhc2Ux"));
+        assert!(!is_future_kind_id("Page:Q2hhbmdlTWVQbGVhc2UxMg"));
         assert!(!is_wire_id("note:07HmFZwo"));
         assert!(is_wire_file_id("file:Q2hhbmdlTWVQbGVhc2UxMg"));
         assert!(!is_wire_file_id("note:Q2hhbmdlTWVQbGVhc2UxMg"));

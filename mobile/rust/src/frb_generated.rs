@@ -5702,6 +5702,7 @@ fn wire__crate__api__draft__KansoDrafting_preview_impl(
             let api_text = <String>::sse_decode(&mut deserializer);
             let api_sources =
                 <Vec<crate::api::draft_types::DraftSourceRef>>::sse_decode(&mut deserializer);
+            let api_leave_out = <Vec<(u32, u32)>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::types::KansoError>((move || {
@@ -5723,6 +5724,7 @@ fn wire__crate__api__draft__KansoDrafting_preview_impl(
                         &*api_that_guard,
                         api_text,
                         api_sources,
+                        api_leave_out,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -26783,6 +26785,18 @@ impl SseDecode for Vec<(String, crate::api::types::ShareRole)> {
     }
 }
 
+impl SseDecode for Vec<(u32, u32)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<(u32, u32)>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::types::RelatedRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -29670,6 +29684,15 @@ impl SseDecode for (String, crate::api::types::ShareRole) {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <String>::sse_decode(deserializer);
         let mut var_field1 = <crate::api::types::ShareRole>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
+impl SseDecode for (u32, u32) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <u32>::sse_decode(deserializer);
+        let mut var_field1 = <u32>::sse_decode(deserializer);
         return (var_field0, var_field1);
     }
 }
@@ -44409,6 +44432,16 @@ impl SseEncode for Vec<(String, crate::api::types::ShareRole)> {
     }
 }
 
+impl SseEncode for Vec<(u32, u32)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(u32, u32)>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::types::RelatedRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -46740,6 +46773,14 @@ impl SseEncode for (String, crate::api::types::ShareRole) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
         <crate::api::types::ShareRole>::sse_encode(self.1, serializer);
+    }
+}
+
+impl SseEncode for (u32, u32) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.0, serializer);
+        <u32>::sse_encode(self.1, serializer);
     }
 }
 

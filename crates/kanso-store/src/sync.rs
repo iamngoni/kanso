@@ -761,7 +761,7 @@ impl Store {
                 // the tombstone would delete another Mac's edit, and the
                 // file's bytes, everywhere. A replay of content this Mac
                 // held stays stale below.
-                if conflict && local.deleted {
+                if conflict && local.deleted && doc_type != DocType::Review {
                     clear_stale_blob(tx)?;
                     store_blob(tx)?;
                     store_row(tx, &remote.id, doc_type, &remote.rev, false, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
@@ -820,8 +820,11 @@ impl Store {
             }
             let remote_wins = !local_dirty
                 || match (local.deleted, remote.deleted) {
-                    (true, false) => true,
-                    (false, true) => false,
+                    // A deleted note's answers stay deleted whichever side
+                    // deleted them: a device that reviewed offline must not
+                    // bring them back.
+                    (true, false) => doc_type != DocType::Review,
+                    (false, true) => doc_type == DocType::Review,
                     (true, true) => true,
                     (false, false) => updated_at(&remote.fields) >= updated_at(&local.fields),
                 };

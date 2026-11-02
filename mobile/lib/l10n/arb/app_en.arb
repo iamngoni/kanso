@@ -7121,5 +7121,13 @@
   "flashcardsDraftNoNotes": "There are no notes here that a draft can read. Locked notes and notes tagged #ai-exclude are never sent.",
   "@flashcardsDraftNoNotes": {
     "description": "Said when a notebook or tag has no notes a draft may read."
+  },
+  "flashcardsDraftNoSourceNote": "Underlined: no source in your notes. These are left out when you save.",
+  "@flashcardsDraftNoSourceNote": {
+    "description": "Drafting: the line under a draft that has sentences no note supports."
+  },
+  "flashcardsDraftKeepUnsourced": "Keep sentences without a source",
+  "@flashcardsDraftKeepUnsourced": {
+    "description": "Drafting: the switch that saves unsourced sentences too."
   }
 }

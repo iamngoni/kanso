@@ -121,7 +121,6 @@ pub fn several_items(
     menu: PopupMenu,
     count: usize,
     all_pinned: bool,
-    ai: bool,
     run: Run,
     window: &mut Window,
     cx: &mut Context<PopupMenu>,

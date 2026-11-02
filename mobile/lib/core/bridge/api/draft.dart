@@ -17,10 +17,13 @@ abstract class KansoDrafting implements RustOpaqueInterface {
 
   Future<List<String>> notesOfTag({required String tagId});
 
-  /// The note a finished draft would be saved as.
+  /// The note a finished draft would be saved as, without the stretches
+  /// (UTF-16 start and end) in `leave_out`, which are the sentences no
+  /// note supports unless the person keeps them.
   Future<DraftPreview> preview({
     required String text,
     required List<DraftSourceRef> sources,
+    required List<(int, int)> leaveOut,
   });
 
   /// Saves the reviewed draft as a note; returns its ID.

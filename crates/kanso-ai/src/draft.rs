@@ -460,6 +460,7 @@ pub fn check_citations(draft: &str, sources: &[Source]) -> CheckedDraft {
     text.push_str(&draft[cursor..]);
 
     let mut spans = Vec::new();
+    let mut ungrounded = 0;
     for (start, end) in units(&text) {
         let unit = &text[start..end];
         if unit.trim_start().starts_with("Your notes don't cover")
@@ -486,11 +487,23 @@ pub fn check_citations(draft: &str, sources: &[Source]) -> CheckedDraft {
                 .flat_map(|(_, _, c)| c.iter().cloned())
                 .collect();
             if !cites.is_empty() {
-                spans.push(Span {
-                    start: s,
-                    end: e,
-                    kind: SpanKind::Cited(cites),
-                });
+                // A citation is only as good as the note behind it: a
+                // sentence its cited notes do not support is as unsourced as
+                // one with no citation.
+                if grounded(&text[s..e], &cites, sources) {
+                    spans.push(Span {
+                        start: s,
+                        end: e,
+                        kind: SpanKind::Cited(cites),
+                    });
+                } else {
+                    ungrounded += 1;
+                    spans.push(Span {
+                        start: s,
+                        end: e,
+                        kind: SpanKind::Unsourced,
+                    });
+                }
             } else if removed_at.iter().any(|at| *at >= s && *at <= e) {
                 spans.push(Span {
                     start: s,
@@ -504,7 +517,175 @@ pub fn check_citations(draft: &str, sources: &[Source]) -> CheckedDraft {
         text,
         spans,
         removed,
+        ungrounded,
     }
+}
+
+// --- grounding ---------------------------------------------------------
+
+/// Words too common to show that a sentence comes from a note.
+const STOP_WORDS: &[&str] = &[
+    "about", "after", "also", "been", "before", "being", "between", "both", "but", "can", "could",
+    "does", "each", "even", "from", "have", "having", "into", "more", "most", "much", "must",
+    "only", "other", "over", "same", "should", "since", "some", "such", "than", "that", "their",
+    "them", "then", "there", "these", "they", "this", "those", "through", "under", "very", "was",
+    "were", "what", "when", "where", "which", "while", "will", "with", "within", "would", "your",
+    "and", "are", "for", "has", "its", "not", "the", "you",
+];
+
+/// The share of a sentence's content words its cited notes must hold.
+const GROUNDED_SHARE: f64 = 0.5;
+
+/// A word's stem, shortened so plural and tense endings still match.
+fn stem(word: &str) -> String {
+    word.chars().take(5).collect()
+}
+
+/// The lower-case content words of `text` as stems: words of four letters
+/// or more that are not stop words, and every number.
+fn content_stems(text: &str) -> Vec<String> {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .filter(|w| {
+            w.chars().any(char::is_numeric)
+                || (w.chars().count() >= 4 && !STOP_WORDS.contains(&w.as_str()))
+        })
+        .map(|w| stem(&w))
+        .collect()
+}
+
+fn squashed(text: &str) -> String {
+    text.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+/// The part of a note a citation points at: the whole note, or the lines
+/// from the cited heading to the next heading of the same or a higher level.
+fn cited_text(source: &Source, cite: &Cite) -> String {
+    let text = &source.excerpt.text;
+    let Some(wanted) = &cite.heading else {
+        return text.clone();
+    };
+    let all = headings(text);
+    let Some(at) = all.iter().position(|h| h.text == *wanted) else {
+        return text.clone();
+    };
+    let from = all[at].line as usize;
+    let to = all[at + 1..]
+        .iter()
+        .find(|h| h.level <= all[at].level)
+        .map(|h| h.line as usize);
+    text.lines()
+        .enumerate()
+        .filter(|(i, _)| *i >= from && to.is_none_or(|t| *i < t))
+        .map(|(_, l)| l)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Whether the notes a sentence cites support it: every quoted phrase in
+/// it is in them, and at least half its content words are.
+fn grounded(sentence: &str, cites: &[Cite], sources: &[Source]) -> bool {
+    // The sentence without its citations.
+    let mut plain = String::with_capacity(sentence.len());
+    let mut cursor = 0;
+    for token in tokens(sentence) {
+        plain.push_str(&sentence[cursor..token.start]);
+        cursor = token.end;
+    }
+    plain.push_str(&sentence[cursor..]);
+
+    let held: Vec<String> = cites
+        .iter()
+        .filter_map(|c| {
+            sources
+                .iter()
+                .find(|s| s.number == c.number)
+                .map(|s| cited_text(s, c))
+        })
+        .collect();
+    let held_squashed: Vec<String> = held.iter().map(|t| squashed(t)).collect();
+    // A quotation must be word for word in a cited note.
+    let mut rest = plain.as_str();
+    while let Some(open) = rest.find(['"', '“']) {
+        let after = &rest[open + rest[open..].chars().next().map_or(1, char::len_utf8)..];
+        let Some(close) = after.find(['"', '”']) else {
+            break;
+        };
+        let quote = squashed(&after[..close]);
+        let quote = quote.trim_matches(|c: char| !c.is_alphanumeric());
+        if quote.split(' ').count() >= 2 && !held_squashed.iter().any(|t| t.contains(quote)) {
+            return false;
+        }
+        rest = &after[close + after[close..].chars().next().map_or(1, char::len_utf8)..];
+    }
+    let words = content_stems(&plain);
+    if words.is_empty() {
+        return true;
+    }
+    let known: std::collections::HashSet<String> =
+        held.iter().flat_map(|t| content_stems(t)).collect();
+    let found = words.iter().filter(|w| known.contains(*w)).count();
+    found > 0 && found as f64 >= words.len() as f64 * GROUNDED_SHARE
+}
+
+/// The byte ranges of the sentences and paragraphs a check found no source
+/// for: what is left out of the saved note unless the person keeps it.
+pub fn unsourced_ranges(draft: &CheckedDraft) -> Vec<(usize, usize)> {
+    draft
+        .spans
+        .iter()
+        .filter(|s| s.kind == SpanKind::Unsourced)
+        .map(|s| (s.start, s.end))
+        .collect()
+}
+
+/// `text` without the given byte ranges, leaving no stray spaces or blank
+/// lines where they were.
+pub fn without_ranges(text: &str, ranges: &[(usize, usize)]) -> String {
+    let mut ranges: Vec<(usize, usize)> = ranges
+        .iter()
+        .map(|(s, e)| (*s.min(&text.len()), *e.min(&text.len())))
+        .filter(|(s, e)| s < e && text.is_char_boundary(*s) && text.is_char_boundary(*e))
+        .collect();
+    ranges.sort_unstable();
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0;
+    for (s, e) in ranges {
+        if s < cursor {
+            continue;
+        }
+        out.push_str(&text[cursor..s]);
+        cursor = e;
+        // One space of the gap goes with the sentence.
+        if out.ends_with(' ') && text[cursor..].starts_with([' ', '\n']) {
+            out.pop();
+        } else if text[cursor..].starts_with(' ') && (out.is_empty() || out.ends_with('\n')) {
+            cursor += 1;
+        }
+    }
+    out.push_str(&text[cursor..]);
+    let mut tidy = String::with_capacity(out.len());
+    let mut blanks = 0;
+    for line in out.split_inclusive('\n') {
+        if line.trim().is_empty() {
+            blanks += 1;
+            if blanks > 1 {
+                continue;
+            }
+            tidy.push('\n');
+        } else {
+            blanks = 0;
+            tidy.push_str(line);
+        }
+    }
+    while tidy.ends_with("\n\n") {
+        tidy.pop();
+    }
+    tidy.trim_start_matches('\n').to_owned()
 }
 
 /// The prose units of a draft: each paragraph and each list item, as byte
@@ -962,7 +1143,7 @@ mod tests {
 
     #[test]
     fn paragraphs_without_citations_are_marked_but_headings_and_code_are_not() {
-        let draft = "# Update\n\nShipped on time [2].\n\nNo source here at all.\n\n```\nfoo [99]\n```\n\n- an item [1]\n- an item with none\n\nYour notes don't cover the budget.\n";
+        let draft = "# Update\n\nIt starts in May [2].\n\nNo source here at all.\n\n```\nfoo [99]\n```\n\n- a yearly plan [1]\n- an item with none\n\nYour notes don't cover the budget.\n";
         let c = check_citations(draft, &two());
         let unsourced: Vec<&str> = c
             .spans
@@ -980,12 +1161,72 @@ mod tests {
 
     #[test]
     fn several_numbers_in_one_bracket_become_separate_citations() {
-        let c = check_citations("Both agree [1, 2].", &two());
-        assert_eq!(c.text, "Both agree [1][2].");
+        let c = check_citations("A yearly plan starts in May [1, 2].", &two());
+        assert_eq!(c.text, "A yearly plan starts in May [1][2].");
         let SpanKind::Cited(cites) = &cited(&c)[0].kind else {
             panic!()
         };
         assert_eq!(cites.len(), 2);
+    }
+
+    fn unsourced_text(c: &CheckedDraft) -> Vec<&str> {
+        c.spans
+            .iter()
+            .filter(|s| s.kind == SpanKind::Unsourced)
+            .map(|s| &c.text[s.start..s.end])
+            .collect()
+    }
+
+    #[test]
+    fn a_citation_of_the_wrong_note_does_not_ground_a_sentence() {
+        // The launch is in note 2; citing note 1 for it is a mistake.
+        let c = check_citations(
+            "The launch starts in May [1]. A yearly plan costs money [1].",
+            &two(),
+        );
+        assert_eq!(unsourced_text(&c), vec!["The launch starts in May [1]."]);
+        assert_eq!(c.ungrounded, 1);
+        assert_eq!(cited(&c).len(), 1, "the supported sentence stays cited");
+        // The right number grounds it.
+        let c = check_citations("The launch starts in May [2].", &two());
+        assert!(unsourced_text(&c).is_empty());
+        assert_eq!(c.ungrounded, 0);
+    }
+
+    #[test]
+    fn a_heading_citation_is_grounded_in_that_section_only() {
+        let sources = vec![src(
+            1,
+            "Pricing",
+            "# Plans\n\nA yearly plan.\n\n## Costs\n\nTen dollars each month.",
+        )];
+        let c = check_citations("Ten dollars each month [1#Costs].", &sources);
+        assert!(unsourced_text(&c).is_empty(), "{c:?}");
+        let c = check_citations("A yearly plan is sold [1#Costs].", &sources);
+        assert_eq!(unsourced_text(&c).len(), 1);
+    }
+
+    #[test]
+    fn a_quotation_must_be_in_the_cited_note() {
+        let c = check_citations("It says \"starts in May\" [2].", &two());
+        assert!(unsourced_text(&c).is_empty());
+        let c = check_citations("It says \"starts in June\" [2].", &two());
+        assert_eq!(unsourced_text(&c).len(), 1);
+    }
+
+    #[test]
+    fn unsourced_sentences_are_left_out_of_the_saved_text_on_request() {
+        let draft = "A yearly plan costs ten dollars [1]. Aliens built the moon [2].\n\n- It starts in May [2]\n- Nothing here supports this [1]\n";
+        let c = check_citations(draft, &two());
+        let left_out = unsourced_ranges(&c);
+        assert_eq!(left_out.len(), 2);
+        let kept = without_ranges(&c.text, &left_out);
+        assert_eq!(
+            kept,
+            "A yearly plan costs ten dollars [1].\n\n- It starts in May [2]\n"
+        );
+        // Kept when the person says so.
+        assert!(without_ranges(&c.text, &[]).contains("Aliens"));
     }
 
     #[test]
@@ -1247,6 +1488,14 @@ mod tests {
         }
 
         /// Text inside code is never touched.
+        #[test]
+        fn prop_without_ranges_never_panics_or_grows(
+            text in "\\PC{0,80}", ranges in prop::collection::vec((0usize..100, 0usize..100), 0..5),
+        ) {
+            let out = without_ranges(&text, &ranges);
+            prop_assert!(out.len() <= text.len());
+        }
+
         #[test]
         fn prop_code_is_left_alone(n in 1usize..500) {
             let draft = format!("Fine [1].\n\n```\nx [{n}] y\n```\n");

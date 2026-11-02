@@ -54,6 +54,7 @@ class _DraftPageState extends State<DraftPage> {
   String? _error;
   bool _working = false;
   bool _finished = false;
+  bool _keepUnsourced = false;
   DraftPreview? _preview;
   final TextEditingController _title = TextEditingController();
 
@@ -135,6 +136,13 @@ class _DraftPageState extends State<DraftPage> {
       final preview = await _drafting.preview(
         text: view.text,
         sources: _refs,
+        // What has no source is left out unless it was chosen to stay.
+        leaveOut: _keepUnsourced
+            ? const <(int, int)>[]
+            : <(int, int)>[
+                for (final span in view.spans)
+                  if (span.unsourced) (span.start, span.end),
+              ],
       );
       if (mounted) {
         setState(() {
@@ -370,6 +378,13 @@ class _DraftPageState extends State<DraftPage> {
           if (_view case final view?) ...<Widget>[
             Text.rich(_spans(context, view), style: type.body),
             if (_finished && !view.notCovered) ...<Widget>[
+              if (view.spans.any((s) => s.unsourced))
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(context.l10n.flashcardsDraftKeepUnsourced),
+                  value: _keepUnsourced,
+                  onChanged: (on) => setState(() => _keepUnsourced = on),
+                ),
               const SizedBox(height: KansoSpacing.md),
               KansoButton(
                 label: context.l10n.flashcardsDraftSave,
@@ -436,7 +451,7 @@ class _DraftPageState extends State<DraftPage> {
     if (view.removed > 0 || view.spans.any((s) => s.unsourced)) {
       children.add(
         TextSpan(
-          text: '\n\n${context.l10n.flashcardsDraftNoSource} (underlined)',
+          text: '\n\n${context.l10n.flashcardsDraftNoSourceNote}',
           style: TextStyle(color: colors.textMuted, fontSize: 12),
         ),
       );

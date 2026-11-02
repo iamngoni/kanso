@@ -79,24 +79,52 @@ fn bind(extra: &Option<String>) -> Vec<&dyn rusqlite::ToSql> {
 
 // --- the log of answers ------------------------------------------------
 
-/// Recomputes the schedule of every card of the note a review document is
-/// about, after that document was written (`fields`) or deleted.
+/// Recomputes the schedule of the cards a review document changed, after
+/// that document was written (`fields`) or deleted: those with an entry in
+/// one version of the document and not in the other. A new answer touches
+/// one card, so the others are neither read nor replayed.
 pub(crate) fn refresh_review(
     tx: &Transaction,
     _id: &str,
     previous: Option<&Row>,
     fields: Option<&Map<String, Value>>,
 ) -> Result<()> {
-    let note_of =
-        |f: &Map<String, Value>| f.get("noteId").and_then(Value::as_str).map(str::to_owned);
-    let mut notes = BTreeSet::new();
-    notes.extend(fields.and_then(note_of));
-    notes.extend(previous.and_then(|p| note_of(&p.fields)));
-    let retention = settings_in(tx)?.retention;
-    for note in notes {
-        recompute(tx, &note, retention)?;
+    let old = previous
+        .filter(|p| !p.deleted)
+        .map(|p| ReviewDoc::from_fields(&p.fields));
+    let new = fields.map(ReviewDoc::from_fields);
+    let note = new
+        .as_ref()
+        .map(|d| d.note_id.clone())
+        .or_else(|| previous.and_then(|p| p.fields.get("noteId")?.as_str().map(str::to_owned)))
+        .filter(|n| !n.is_empty());
+    let Some(note) = note else {
+        return Ok(());
+    };
+    let entries = |doc: &Option<ReviewDoc>| -> BTreeMap<String, String> {
+        doc.iter()
+            .flat_map(|d| {
+                d.log
+                    .iter()
+                    .map(|r| (r.id.clone(), r.card.clone()))
+                    .chain(d.marks.iter().map(|m| (m.id.clone(), m.card.clone())))
+            })
+            .collect()
+    };
+    let (before, after) = (entries(&old), entries(&new));
+    let mut touched: BTreeSet<String> = BTreeSet::new();
+    for (id, card) in before.iter().chain(after.iter()) {
+        if before.get(id) != after.get(id) {
+            touched.insert(card.clone());
+        }
     }
-    Ok(())
+    if touched.is_empty() {
+        return Ok(());
+    }
+    let retention = settings_in(tx)?.retention;
+    // A reset mark covers all of the note's cards.
+    let only = (!touched.contains(srs::ALL_CARDS)).then_some(touched);
+    recompute(tx, &note, retention, only.as_ref())
 }
 
 fn live_review_docs(conn: &Connection, note_id: &str) -> Result<Vec<ReviewDoc>> {
@@ -116,10 +144,26 @@ fn live_review_docs(conn: &Connection, note_id: &str) -> Result<Vec<ReviewDoc>> 
 }
 
 /// Rebuilds `card_state` and `card_log` for one note from its documents.
-fn recompute(tx: &Transaction, note_id: &str, retention: f64) -> Result<()> {
+/// With `only`, just those cards; otherwise every card of the note.
+fn recompute(
+    tx: &Transaction,
+    note_id: &str,
+    retention: f64,
+    only: Option<&BTreeSet<String>>,
+) -> Result<()> {
     let docs = live_review_docs(tx, note_id)?;
-    tx.execute("DELETE FROM card_state WHERE note_id = ?", [note_id])?;
-    tx.execute("DELETE FROM card_log WHERE note_id = ?", [note_id])?;
+    match only {
+        None => {
+            tx.execute("DELETE FROM card_state WHERE note_id = ?", [note_id])?;
+            tx.execute("DELETE FROM card_log WHERE note_id = ?", [note_id])?;
+        }
+        Some(cards) => {
+            for card in cards {
+                tx.execute("DELETE FROM card_state WHERE card_key = ?", [card])?;
+                tx.execute("DELETE FROM card_log WHERE card_key = ?", [card])?;
+            }
+        }
+    }
     let mut logs: BTreeMap<String, Review> = BTreeMap::new();
     let mut marks: BTreeMap<String, Mark> = BTreeMap::new();
     for doc in docs {
@@ -136,6 +180,8 @@ fn recompute(tx: &Transaction, note_id: &str, retention: f64) -> Result<()> {
         .iter()
         .map(|r| r.card.as_str())
         .chain(marks.iter().map(|m| m.card.as_str()))
+        .filter(|card| *card != srs::ALL_CARDS)
+        .filter(|card| only.is_none_or(|set| set.contains(*card)))
         .collect();
     let mut insert_state = tx.prepare_cached(
         "INSERT INTO card_state (card_key, note_id, due_ms, stability, difficulty, reps, \
@@ -313,7 +359,7 @@ impl Store {
                     .filter_map(|r| r.transpose())
                     .collect::<rusqlite::Result<_>>()?;
                 for note in notes {
-                    recompute(tx, &note, settings.retention)?;
+                    recompute(tx, &note, settings.retention, None)?;
                 }
             }
             Ok(())
@@ -449,6 +495,35 @@ impl Store {
         })
     }
 
+    /// What the sidebar's Review row shows: `None` while no note a card may
+    /// be shown from holds one, else the cards waiting today. One read; a
+    /// library without cards is answered from the (small) derived table
+    /// alone, without looking at any note.
+    pub fn review_badge(&self, now_ms: i64, day_start_ms: i64) -> Result<Option<usize>> {
+        self.read(|conn| {
+            let any: bool =
+                conn.query_row("SELECT EXISTS (SELECT 1 FROM note_cards)", [], |row| {
+                    row.get(0)
+                })?;
+            if !any {
+                return Ok(None);
+            }
+            let counts = counts_in(conn, &CardScope::All, now_ms)?;
+            if counts.total == 0 {
+                return Ok(None);
+            }
+            let settings = settings_in(conn)?;
+            let (used_reviews, used_new) = Self::used_today(conn, day_start_ms)?;
+            let reviews = counts
+                .due
+                .min(settings.reviews_per_day.saturating_sub(used_reviews) as usize);
+            let fresh = counts
+                .new
+                .min(settings.new_per_day.saturating_sub(used_new) as usize);
+            Ok(Some(reviews + fresh))
+        })
+    }
+
     pub fn card_counts(&self, scope: &CardScope, now_ms: i64) -> Result<CardCounts> {
         self.read(|conn| counts_in(conn, scope, now_ms))
     }
@@ -527,22 +602,41 @@ impl Store {
     }
 
     /// Forgets every answer and mark on this account (Settings > Flashcards
-    /// Reset Review History). The review documents become tombstones,
-    /// which sync.
+    /// Reset Review History). One reset mark is written for each note with
+    /// cards, covering all of them, so the answers before it stop counting on every device,
+    /// including one that was offline and syncs its own answers later (they
+    /// merge in by union and the mark still outranks the older ones). The
+    /// review documents themselves are never deleted: a tombstone would
+    /// lose to such a device's live document. Returns the notes reset.
     pub fn reset_review_history(&self) -> Result<usize> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or_default();
+        self.reset_review_history_at(now)
+    }
+
+    /// [`Self::reset_review_history`] at a given time.
+    pub fn reset_review_history_at(&self, now_ms: i64) -> Result<usize> {
         self.write(|tx, changes| {
-            let ids: Vec<String> = tx
-                .prepare("SELECT id FROM docs WHERE type = 'review' AND deleted = 0")?
+            let notes: Vec<String> = tx
+                .prepare(
+                    "SELECT DISTINCT note_id FROM note_cards \
+                     UNION SELECT DISTINCT note_id FROM card_state ORDER BY 1",
+                )?
                 .query_map([], |row| row.get(0))?
                 .collect::<rusqlite::Result<_>>()?;
-            for id in &ids {
-                if let Some(row) = load_row(tx, id)?.filter(|r| !r.deleted) {
-                    delete_row(tx, id, &row, Origin::Ui, changes)?;
-                }
+            for note in &notes {
+                write_entry(tx, changes, note, now_ms, |doc| {
+                    doc.marks.push(Mark {
+                        id: new_entry_id("m", now_ms),
+                        card: srs::ALL_CARDS.to_owned(),
+                        at_ms: now_ms,
+                        kind: MarkKind::Reset,
+                    });
+                })?;
             }
-            tx.execute("DELETE FROM card_state", [])?;
-            tx.execute("DELETE FROM card_log", [])?;
-            Ok(ids.len())
+            Ok(notes.len())
         })
     }
 

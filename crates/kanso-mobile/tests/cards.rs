@@ -342,7 +342,7 @@ fn a_draft_loses_a_citation_to_a_note_it_was_not_given_and_saves_with_sources() 
     };
     let before = count(&store);
     let preview = drafting
-        .preview(draft.text.clone(), sources.clone())
+        .preview(draft.text.clone(), sources.clone(), Vec::new())
         .unwrap();
     assert_eq!(preview.title, "Update");
     assert_eq!(preview.default_book_id, lib.book);
