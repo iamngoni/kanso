@@ -23,6 +23,7 @@ mod roles;
 mod schema;
 mod sync;
 mod tasks;
+mod triage;
 mod validate;
 mod write;
 
@@ -66,6 +67,7 @@ pub use replace::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
+pub use triage::{INBOX_TRIAGED_FIELD, InboxNote};
 pub use write::{Put, WriteResult};
 
 #[derive(Debug, thiserror::Error)]

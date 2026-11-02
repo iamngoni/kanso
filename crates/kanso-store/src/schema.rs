@@ -219,6 +219,18 @@ CREATE TABLE resurface_dismissed (
     PRIMARY KEY (note_id, other_id)
 ) WITHOUT ROWID;
 "#,
+    // Inbox triage (`triage.rs`): suggestions a person rejected, so they
+    // do not come back. Local to this device, never synced, and emptied
+    // with the library.
+    r#"
+CREATE TABLE triage_dismissed (
+    note_id TEXT NOT NULL,
+    field TEXT NOT NULL,
+    value TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (note_id, field, value)
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -443,6 +455,7 @@ mod tests {
         assert!(has_column(&conn, "note_files", "file_id"));
         assert!(has_column(&conn, "revisions", "author"));
         assert!(has_column(&conn, "revisions", "agent"));
+        assert!(has_column(&conn, "triage_dismissed", "value"));
     }
 
     /// A database on version 5 (find and replace) moves to 6 (discovery)

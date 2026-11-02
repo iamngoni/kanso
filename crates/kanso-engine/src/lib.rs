@@ -104,6 +104,7 @@ pub mod tasks;
 pub mod text;
 pub mod text_stats;
 pub mod theme;
+pub mod triage;
 pub mod voice_commands;
 pub mod word_goal;
 
