@@ -10,7 +10,8 @@ const Duration reviewMinimumAge = Duration(days: 7);
 /// On how many different days the app must have been opened.
 const int reviewMinimumActiveDays = 5;
 
-/// How many notes must have been written in.
+/// How many edit sessions must have been written in (a note opened,
+/// typed in and let go counts once each time, not once per note).
 const int reviewMinimumNotes = 10;
 
 /// How long after a crash or a sync or sign-in failure the app keeps quiet.
@@ -90,7 +91,7 @@ bool reviewEligible(
 ReviewPromptRecord reviewOpened(ReviewPromptRecord record, DateTime now) {
   final day = reviewDay(now);
   return record.copyWith(
-    firstOpenedAt: record.firstOpenedAt ?? now,
+    firstOpenedAt: record.firstOpenedAt ?? now.toUtc(),
     activeDays: record.lastActiveDay == day
         ? record.activeDays
         : record.activeDays + 1,
@@ -113,7 +114,7 @@ ReviewPromptRecord reviewAsked(
       ? versions.length - reviewAskedVersionsKept
       : 0;
   return record.copyWith(
-    lastAskedAt: now,
+    lastAskedAt: now.toUtc(),
     askedVersions: versions.sublist(start),
   );
 }

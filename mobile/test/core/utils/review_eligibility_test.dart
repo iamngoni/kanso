@@ -185,15 +185,35 @@ void main() {
     });
   });
 
+  group('stored times', () {
+    test('are kept in UTC, and a stored local time still parses', () {
+      final asked = reviewAsked(
+        const ReviewPromptRecord(),
+        now: DateTime(2026, 11, 2, 8),
+        version: '1.0.0',
+      );
+      expect(asked.lastAskedAt!.isUtc, isTrue);
+      final old = ReviewPromptRecord.fromJson(<String, dynamic>{
+        'firstOpenedAt': '2026-10-01T08:00:00.000',
+        'lastTroubleAt': '2026-10-02T08:00:00.000',
+        'lastAskedAt': '2026-10-03T08:00:00.000',
+      });
+      expect(old.firstOpenedAt, DateTime(2026, 10, 1, 8));
+      expect(old.lastTroubleAt, DateTime(2026, 10, 2, 8));
+      expect(old.lastAskedAt, DateTime(2026, 10, 3, 8));
+    });
+  });
+
   group('reviewOpened', () {
     test('keeps the first open and counts each day once', () {
       final morning = DateTime(2026, 11, 2, 8);
       var record = reviewOpened(const ReviewPromptRecord(), morning);
-      expect(record.firstOpenedAt, morning);
+      expect(record.firstOpenedAt, morning.toUtc());
+      expect(record.firstOpenedAt!.isUtc, isTrue);
       expect(record.activeDays, 1);
       record = reviewOpened(record, DateTime(2026, 11, 2, 21));
       expect(record.activeDays, 1);
-      expect(record.firstOpenedAt, morning);
+      expect(record.firstOpenedAt, morning.toUtc());
       record = reviewOpened(record, DateTime(2026, 11, 3, 7));
       expect(record.activeDays, 2);
       expect(record.lastActiveDay, '2026-11-03');

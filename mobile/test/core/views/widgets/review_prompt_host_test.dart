@@ -2,6 +2,8 @@
 // Created 2026-11-02.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -82,10 +84,7 @@ Future<_Host> _pump(
         path: '/notes',
         builder: (_, _) => const SizedBox.expand(),
         routes: <RouteBase>[
-          GoRoute(
-            path: 'note/:id',
-            builder: (_, _) => const SizedBox.expand(),
-          ),
+          GoRoute(path: 'note/:id', builder: (_, _) => const SizedBox.expand()),
         ],
       ),
     ],
@@ -141,6 +140,29 @@ void main() {
       expect(host.store.requests, 0, reason: 'never over a note');
       host.router.go('/notes');
       await tester.pumpAndSettle();
+      await tester.pump(reviewSettle);
+      await tester.pump();
+      expect(host.store.requests, 1);
+    });
+
+    testWidgets('never asks over a sheet or dialog on a list', (tester) async {
+      final host = await _pump(tester);
+      final context = host.router.routerDelegate.navigatorKey.currentContext!;
+      unawaited(
+        Navigator.of(context).push<void>(
+          PageRouteBuilder<void>(
+            opaque: false,
+            pageBuilder: (_, _, _) => const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      host.prompt.moment(ReviewMoment.taskDone);
+      await tester.pump(reviewSettle * 2);
+      expect(host.store.requests, 0, reason: 'a modal route is on top');
+      Navigator.of(context).pop();
+      await tester.pumpAndSettle();
+      host.prompt.moment(ReviewMoment.taskDone);
       await tester.pump(reviewSettle);
       await tester.pump();
       expect(host.store.requests, 1);

@@ -141,8 +141,9 @@ class _ReviewPromptHostState extends State<ReviewPromptHost>
     super.dispose();
   }
 
-  /// Whether the person is on a list, with the keyboard down, in front.
-  bool get _onList {
+  /// Whether the person is on a list screen, with the keyboard down, in
+  /// front, whatever is laid over it.
+  bool get _onListScreen {
     if (!_inFront || _keyboard > 0) {
       return false;
     }
@@ -150,18 +151,34 @@ class _ReviewPromptHostState extends State<ReviewPromptHost>
     return isReviewListLocation(path);
   }
 
+  /// Whether a sheet, dialog or other route is on top of the screen.
+  bool get _covered {
+    final navigator = widget.router.routerDelegate.navigatorKey.currentState;
+    return navigator != null && navigator.canPop();
+  }
+
+  /// Whether the person is on a list, uncovered, with the keyboard down,
+  /// in front.
+  bool get _onList => _onListScreen && !_covered;
+
   /// Waits [ReviewPromptHost.settle] from now, then asks if the person is
-  /// still where it may. Anything changing starts the wait again.
+  /// still where it may. Anything changing starts the wait again, and so
+  /// does finding a sheet or dialog on top (closing one tells nobody).
   void _schedule() {
     _timer?.cancel();
     _timer = null;
-    if (!widget.prompt.hasPendingMoment || !_onList) {
+    if (!widget.prompt.hasPendingMoment || !_onListScreen) {
       return;
     }
     _timer = Timer(widget.settle, () {
       _timer = null;
-      if (mounted && _onList) {
+      if (!mounted) {
+        return;
+      }
+      if (_onList) {
         unawaited(widget.prompt.askIfDue());
+      } else {
+        _schedule();
       }
     });
   }
