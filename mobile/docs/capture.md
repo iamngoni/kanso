@@ -58,11 +58,23 @@ last, then the rename), but `drop.json` says what it is:
 
 ```json
 {"version": 1, "kind": "voice", "createdAt": 1700000013000,
- "started_ms": 1700000000000, "duration_ms": 12345, "audio": "rec.m4a"}
+ "started_ms": 1700000000000, "duration_ms": 12345, "audio": "rec.caf"}
 ```
 
-- `audio` names the recording in the folder: AAC in an `.m4a`, mono, about
-  64 kbps. It is the only file. Times are milliseconds since 1970.
+- `audio` names the recording in the folder: AAC in a `.caf` (iOS), mono,
+  16 kHz, 24 kbps, so 30 minutes is about 5.4 MB, under the 10 MB attachment
+  limit. A CAF stays playable when the process is killed mid-recording, which
+  an m4a without its `moov` atom does not. It is the only file. Times are
+  milliseconds since 1970.
+- Recovery (iOS): a recording is never deleted because its process died. At
+  launch, and before the next capture starts, a `<id>.partial` that holds a
+  non-empty `rec.caf` and is not the recording in progress becomes a real drop:
+  `drop.json` is written (duration from `started_ms` to the file's last
+  write, at most 30 minutes) and the folder is renamed. Only an empty file or
+  one under the minimum length is removed. Share partials (no `rec.caf`) are
+  left alone.
+- iOS refuses to start a capture from the intent when Live Activities are
+  off, rather than record without the visible indicator.
 - A recording under about a second is thrown away, and one runs at most 30
   minutes.
 - The folder and the audio are `NSFileProtectionCompleteUntilFirstUserAuthentication`,
@@ -94,13 +106,26 @@ On iOS:
 On Android:
 
 - **Service.** `VoiceCaptureService` is a foreground service of type
-  `microphone`. It records with `MediaRecorder` (AAC in MPEG-4, mono, 64 kbps)
-  into `<filesDir>/kanso/inbox/<id>.partial/rec.m4a` and, on stop, writes
+  `microphone`. It records with `MediaRecorder` (AAC in an ADTS `.aac`
+  stream, mono, 16 kHz, 32 kbps: 30 minutes is about 7.2 MB, under the 10 MB
+  attachment cap, and ADTS stays playable if the process is killed)
+  into `<filesDir>/kanso/inbox/<id>.partial/rec.aac` (the drop's `audio`) and, on stop, writes
   `drop.json` and renames the folder (`VoiceCapture.finish`). It stops on the
   notification's Stop, on a second start request (a toggle) and at 30 minutes.
   The ongoing notification reads "Kanso is recording · 00:14" and updates each
   second; tapping it opens the app. It never opens the library or calls
   `KansoNative.captureInbox`.
+- **Recovery (Android).** A capture is never lost. The service notes the start
+  time in the partial; on app start (`KansoApplication`) and before each new
+  recording, `VoiceCaptureService.sweep` turns every `<id>.partial` that holds
+  non-empty audio and has no live recording into a real drop (duration from the
+  start time to the file's last write). Only empty or under-a-second recordings
+  are removed. At the 30-minute cap (`MEDIA_RECORDER_INFO_MAX_DURATION_REACHED`)
+  or when `stop()` throws, the duration is the elapsed time, never 0 for a
+  non-empty file. Stop paths depend on the recorder alone and fall back to the
+  in-memory start time. Without the microphone permission, or if Android 14
+  refuses `startForeground`, the service posts the "needs the microphone"
+  notification and stops instead of crashing.
 - **Quick Settings tile.** *Voice note* (`VoiceTileService`) is active while
   recording; a tap starts or stops the service, also from the lock screen.
 - **Widget.** The widget's Voice note button starts the same service in place

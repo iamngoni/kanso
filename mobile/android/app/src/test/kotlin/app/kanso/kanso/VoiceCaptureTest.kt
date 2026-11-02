@@ -79,7 +79,7 @@ class VoiceCaptureTest {
         assertEquals(15_000L, json.getLong("createdAt"))
         assertEquals(1_000L, json.getLong("started_ms"))
         assertEquals(14_000L, json.getLong("duration_ms"))
-        assertEquals("rec.m4a", json.getString("audio"))
+        assertEquals("rec.aac", json.getString("audio"))
         assertEquals(6, json.length())
     }
 
@@ -91,7 +91,7 @@ class VoiceCaptureTest {
         assertNotNull(done)
         assertEquals(File(inbox, id), done)
         assertFalse(File(inbox, "$id.partial").exists())
-        assertTrue(File(done, "rec.m4a").isFile)
+        assertTrue(File(done, "rec.aac").isFile)
         val json = JSONObject(File(done, "drop.json").readText(Charsets.UTF_8))
         assertEquals("voice", json.getString("kind"))
         assertEquals(5_000L, json.getLong("duration_ms"))
@@ -135,5 +135,43 @@ class VoiceCaptureTest {
             VoiceState.set(false)
         }
         assertEquals(listOf(true, false), seen)
+    }
+
+    @Test
+    fun staleTooShortIsRemovedButRealOnesBecomeDrops() {
+        val keep = "d".repeat(32)
+        val dir = partial(keep, bytes = 4000)
+        VoiceCapture.markStarted(dir, 1_000)
+        File(dir, VoiceCapture.AUDIO_NAME).setLastModified(11_000)
+        val short = "e".repeat(32)
+        val sd = partial(short)
+        VoiceCapture.markStarted(sd, 1_000)
+        File(sd, VoiceCapture.AUDIO_NAME).setLastModified(1_400)
+        val empty = "f".repeat(32)
+        partial(empty, bytes = 0)
+        assertEquals(0, VoiceCapture.recoverStale(inbox, true, 20_000))
+        assertTrue(File(inbox, "$keep.partial").exists())
+        assertEquals(1, VoiceCapture.recoverStale(inbox, false, 20_000))
+        val json = JSONObject(File(File(inbox, keep), "drop.json").readText())
+        assertEquals(10_000L, json.getLong("duration_ms"))
+        assertEquals(1_000L, json.getLong("started_ms"))
+        assertEquals("rec.aac", json.getString("audio"))
+        assertFalse(File(inbox, "$short.partial").exists())
+        assertFalse(File(inbox, short).exists())
+        assertFalse(File(inbox, "$empty.partial").exists())
+    }
+
+    @Test
+    fun staleWithoutMarkerEstimatesFromBitrate() {
+        val id = "9".repeat(32)
+        partial(id, bytes = 40_000) // 10 s at 32 kbps
+        assertEquals(1, VoiceCapture.recoverStale(inbox, false, 20_000))
+        assertEquals(10_000L, JSONObject(File(File(inbox, id), "drop.json").readText()).getLong("duration_ms"))
+    }
+
+    @Test
+    fun speechSettingsFitTheAttachmentCap() {
+        assertEquals(16_000, VoiceCapture.SAMPLE_RATE)
+        assertTrue(VoiceCapture.BIT_RATE / 8L * (VoiceCapture.MAX_MS / 1000) < 10L * 1024 * 1024)
     }
 }

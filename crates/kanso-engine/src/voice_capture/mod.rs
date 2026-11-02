@@ -151,9 +151,15 @@ pub fn save_voice_capture(
             Err(problem) => problems.push(problem),
         }
     }
-    if body.chars().count() > MAX_BODY_LEN {
-        body = body.chars().take(MAX_BODY_LEN).collect();
+    if body.chars().count() > MAX_BODY_LEN - PROBLEM_ROOM {
+        body = body.chars().take(MAX_BODY_LEN - PROBLEM_ROOM).collect();
         problems.push("The transcript was too long for a note and was cut.".to_owned());
+    }
+    // Whatever was left out is said in the note, where the person looks.
+    for problem in &problems {
+        body.push_str("\n\n*");
+        body.push_str(problem);
+        body.push('*');
     }
     let state = if tidy_pending {
         TidyState::Pending
@@ -188,6 +194,9 @@ pub fn save_voice_capture(
         Err(err) => Err(err.into()),
     }
 }
+
+/// Room kept in a note's body for the lines that say what was left out.
+const PROBLEM_ROOM: usize = 1024;
 
 /// What an audio-only note says where its words would be.
 pub const NOT_TRANSCRIBED: &str =

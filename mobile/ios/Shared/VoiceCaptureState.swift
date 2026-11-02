@@ -29,6 +29,11 @@ enum VoiceToggleAction: Equatable {
 enum VoiceCaptureRules {
   /// A recording stops by itself after this long.
   static let maxDurationMs: Int64 = 30 * 60 * 1000
+  /// Speech settings: mono 16 kHz AAC at 24 kbps is about 11 MB an hour, so
+  /// the 30-minute cap is about 5.4 MB, under the engine's 10 MB attachment
+  /// limit (`MAX_ATTACHMENT_SIZE`).
+  static let sampleRate = 16_000
+  static let bitRate = 24_000
   /// A recording shorter than this is thrown away.
   static let minDurationMs: Int64 = 1000
 

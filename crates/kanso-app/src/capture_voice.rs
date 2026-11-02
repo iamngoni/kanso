@@ -110,6 +110,17 @@ impl CaptureVoice {
     }
 }
 
+/// What to tell the person about model error `raw`: what happened and what
+/// to do, never the raw error.
+pub(crate) fn trouble_words(raw: &str) -> String {
+    let trouble = crate::page_chrome::ai_trouble(raw);
+    format!(
+        "{}. {}",
+        trouble.title.trim_end_matches('.'),
+        trouble.detail
+    )
+}
+
 /// "0:07".
 fn clock(elapsed: Duration) -> String {
     let secs = elapsed.as_secs();
@@ -347,6 +358,14 @@ impl CaptureView {
         }
     }
 
+    /// Any key pressed while ⌥ is waiting out its hold: ⌥ is part of a
+    /// shortcut or a typed character, not a request to talk.
+    pub fn key_pressed(&mut self) {
+        if self.voice.hold.is_some() && !self.voice.held {
+            self.voice.hold = None;
+        }
+    }
+
     /// ⌥ pressed or released over the window: held for a moment, it talks.
     pub fn modifiers_changed(
         &mut self,
@@ -463,7 +482,7 @@ impl CaptureView {
                         _ if !matches!(this.voice.tidy, TidyUi::Working(_)) => {}
                         Ok(Ok(tidy)) => this.tidied_text(&text, &tidy, kind, duration, window, cx),
                         Ok(Err(reason)) => {
-                            this.voice.tidy = TidyUi::Failed(reason);
+                            this.voice.tidy = TidyUi::Failed(trouble_words(&reason));
                             cx.notify();
                         }
                         Err(_) => {}
@@ -577,7 +596,7 @@ impl CaptureView {
         if let TidyUi::Failed(reason) = &self.voice.tidy {
             return Some(
                 bar.text_color(colors.danger)
-                    .child(format!("Couldn't tidy this note: {reason}"))
+                    .child(format!("Couldn't tidy this note. {reason}"))
                     .into_any_element(),
             );
         }

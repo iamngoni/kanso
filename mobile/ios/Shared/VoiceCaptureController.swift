@@ -63,13 +63,32 @@ final class VoiceCaptureController: NSObject, AVAudioRecorderDelegate {
     case .start:
       return startLocked()
     case .replaceStaleAndStart:
+      // The process that was recording died: keep what it got.
       if let stale = savedState, let location = KansoLibraryLocation.shared() {
-        VoiceDropWriter.removePartial(id: stale.id, in: location.inbox)
+        VoiceDropWriter.recoverPartial(
+          id: stale.id, startedMs: stale.startedMs, in: location.inbox)
       }
       savedState = nil
       endActivities(saved: false)
       return startLocked()
     }
+  }
+
+  /// Whether a run now would start a recording (not stop one).
+  var needsLiveActivity: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return recorder?.isRecording != true && savedState == nil
+  }
+
+  /// Turns recordings left by a killed process into drops. Call at launch.
+  /// The recording in progress (by the shared state) is left alone.
+  func sweepStalePartials() {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let location = KansoLibraryLocation.shared() else { return }
+    let active = recorder != nil ? writer?.id : savedState?.id
+    VoiceDropWriter.sweepStalePartials(in: location.inbox, activeId: active)
   }
 
   /// Stops and saves the recording in progress, if there is one.
@@ -99,9 +118,9 @@ final class VoiceCaptureController: NSObject, AVAudioRecorderDelegate {
       let writer = try VoiceDropWriter(inbox: location.inbox)
       let settings: [String: Any] = [
         AVFormatIDKey: kAudioFormatMPEG4AAC,
-        AVSampleRateKey: 44_100,
+        AVSampleRateKey: VoiceCaptureRules.sampleRate,
         AVNumberOfChannelsKey: 1,
-        AVEncoderBitRateKey: 64_000,
+        AVEncoderBitRateKey: VoiceCaptureRules.bitRate,
       ]
       let recorder = try AVAudioRecorder(url: writer.audioURL, settings: settings)
       recorder.delegate = self

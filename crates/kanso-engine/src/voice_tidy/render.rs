@@ -110,6 +110,10 @@ fn action_line(item: &kanso_ai::tidy::Action) -> String {
     line
 }
 
+/// The line that marks the model's own wording in a tidied note.
+pub const AI_LABEL: &str =
+    "*Tidied by AI from the transcript below. Check it against the transcript.*";
+
 /// Renders `tidy` for `transcript`.
 ///
 /// A short note is a heading, paragraphs (with `##` headings where the talk
@@ -152,6 +156,11 @@ pub fn render_tidy(tidy: &Tidy, transcript: &str, meta: &RenderMeta) -> Rendered
     };
 
     let mut blocks: Vec<String> = vec![format!("# {title}")];
+    // Decisions and tasks are backed by a quote; the summary and the
+    // paragraphs are the model's own words, so say so.
+    if !tidy.summary.is_empty() || !tidy.sections.is_empty() {
+        blocks.push(AI_LABEL.to_owned());
+    }
     let section = |blocks: &mut Vec<String>, heading: &str, body: String| {
         if !body.is_empty() {
             blocks.push(format!("## {heading}\n\n{body}"));
@@ -281,6 +290,10 @@ mod tests {
         let r = render_tidy(&tidy(), SAID, &meta(TidyKind::Note));
         assert_eq!(r.dropped, 2);
         assert!(r.above.starts_with("# Plumber\n"));
+        assert!(
+            r.above.contains(AI_LABEL),
+            "the model's own wording is labelled"
+        );
         assert!(
             r.above
                 .contains("- [ ] Call the plumber about the leak — Tuesday")

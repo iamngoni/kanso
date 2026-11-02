@@ -208,7 +208,7 @@ pub fn capture_detail(status: &Status, label: &str) -> String {
 
 /// What the Voice capture row says. Pure.
 pub fn voice_capture_detail(status: &Status, label: &str) -> String {
-    let opens = "A second shortcut that opens Quick note already listening: speak, and your words are written. Leave it unset if you only want the mic button.";
+    let opens = "A second shortcut that opens Quick note already listening: speak, and your words are written. It works while Quick capture is on. Leave it unset if you only want the mic button.";
     match status {
         Status::Unavailable(why) => hotkey::unavailable_note(why, label),
         Status::Off | Status::On(_) => opens.to_owned(),

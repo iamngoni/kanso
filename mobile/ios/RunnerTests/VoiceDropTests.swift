@@ -34,13 +34,13 @@ final class VoiceDropTests: XCTestCase {
   func testRecordingIsInAPartialFolderThenRenamed() throws {
     let writer = try VoiceDropWriter(inbox: inbox)
     XCTAssertEqual(try names(in: inbox), ["\(writer.id).partial"])
-    XCTAssertEqual(writer.audioURL.lastPathComponent, "rec.m4a")
+    XCTAssertEqual(writer.audioURL.lastPathComponent, "rec.caf")
     XCTAssertEqual(writer.audioURL.deletingLastPathComponent().lastPathComponent, "\(writer.id).partial")
     try Data("audio".utf8).write(to: writer.audioURL)
 
     let finished = try writer.finish(startedMs: 1_000, durationMs: 5_000)
     XCTAssertEqual(try names(in: inbox), [writer.id])
-    XCTAssertEqual(try names(in: finished), ["drop.json", "rec.m4a"])
+    XCTAssertEqual(try names(in: finished), ["drop.json", "rec.caf"])
   }
 
   func testManifestFields() throws {
@@ -56,7 +56,7 @@ final class VoiceDropTests: XCTestCase {
     XCTAssertEqual(json["createdAt"] as? Int64, 1_700_000_013_000)
     XCTAssertEqual(json["started_ms"] as? Int64, 1_700_000_000_000)
     XCTAssertEqual(json["duration_ms"] as? Int64, 12_345)
-    XCTAssertEqual(json["audio"] as? String, "rec.m4a")
+    XCTAssertEqual(json["audio"] as? String, "rec.caf")
   }
 
   func testDiscardRemovesThePartialFolder() throws {
@@ -91,5 +91,59 @@ final class VoiceDropTests: XCTestCase {
     let state = VoiceRecordingState(id: "abc", startedMs: 42)
     let data = try JSONEncoder().encode(state)
     XCTAssertEqual(try JSONDecoder().decode(VoiceRecordingState.self, from: data), state)
+  }
+
+  func testSpeechSettingsKeepThirtyMinutesUnderTheAttachmentLimit() {
+    let bytes = Int64(VoiceCaptureRules.bitRate) / 8 * (VoiceCaptureRules.maxDurationMs / 1000)
+    XCTAssertLessThan(bytes, 10 * 1024 * 1024)
+  }
+
+  private func makePartial(id: String, bytes: Int, endedMs: Int64) throws {
+    let folder = inbox.appendingPathComponent("\(id).partial", isDirectory: true)
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let audio = folder.appendingPathComponent("rec.caf")
+    try Data(count: bytes).write(to: audio)
+    try FileManager.default.setAttributes(
+      [.modificationDate: Date(timeIntervalSince1970: Double(endedMs) / 1000)],
+      ofItemAtPath: audio.path)
+  }
+
+  func testStalePartialBecomesADrop() throws {
+    let id = String(repeating: "b", count: 32)
+    try makePartial(id: id, bytes: 100, endedMs: 1_700_000_065_000)
+    let finished = VoiceDropWriter.recoverPartial(
+      id: id, startedMs: 1_700_000_000_000, in: inbox)
+    XCTAssertEqual(finished?.lastPathComponent, id)
+    XCTAssertEqual(try names(in: inbox), [id])
+    XCTAssertEqual(try names(in: inbox.appendingPathComponent(id)), ["drop.json", "rec.caf"])
+    let data = try Data(
+      contentsOf: inbox.appendingPathComponent(id).appendingPathComponent("drop.json"))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    XCTAssertEqual(json["kind"] as? String, "voice")
+    XCTAssertEqual(json["duration_ms"] as? Int64, 65_000)
+    XCTAssertEqual(json["audio"] as? String, "rec.caf")
+  }
+
+  func testStalePartialUnderTheMinimumOrEmptyIsDropped() throws {
+    let a = String(repeating: "c", count: 32)
+    let b = String(repeating: "d", count: 32)
+    try makePartial(id: a, bytes: 100, endedMs: 1_700_000_000_500)
+    try makePartial(id: b, bytes: 0, endedMs: 1_700_000_060_000)
+    XCTAssertNil(VoiceDropWriter.recoverPartial(id: a, startedMs: 1_700_000_000_000, in: inbox))
+    XCTAssertNil(VoiceDropWriter.recoverPartial(id: b, startedMs: 1_700_000_000_000, in: inbox))
+    XCTAssertEqual(try names(in: inbox), [])
+  }
+
+  func testSweepSkipsTheActiveRecordingAndShareDrops() throws {
+    let active = String(repeating: "e", count: 32)
+    let stale = String(repeating: "f", count: 32)
+    let share = String(repeating: "1", count: 32)
+    let later = Int64(Date().timeIntervalSince1970 * 1000) + 120_000
+    try makePartial(id: active, bytes: 100, endedMs: later)
+    try makePartial(id: stale, bytes: 100, endedMs: later)
+    try FileManager.default.createDirectory(
+      at: inbox.appendingPathComponent("\(share).partial"), withIntermediateDirectories: true)
+    XCTAssertEqual(VoiceDropWriter.sweepStalePartials(in: inbox, activeId: active), 1)
+    XCTAssertEqual(try names(in: inbox), ["\(active).partial", stale, "\(share).partial"].sorted())
   }
 }

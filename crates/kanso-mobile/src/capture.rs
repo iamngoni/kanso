@@ -232,7 +232,13 @@ fn save_drops_at(store: &Store, inbox: &Path, now: SystemTime) -> Result<DropsSa
                 .and_then(|made| now.duration_since(made).ok())
                 .is_some_and(|age| age > PARTIAL_LIFE);
             if is_drop_id(id) && old {
-                remove(&folder);
+                if has_recording(&folder) {
+                    // A voice recording cut short: never deleted, kept
+                    // aside for the person to find.
+                    crate::voice_capture::quarantine_partial(&dir_of_inbox(&folder), &name);
+                } else {
+                    remove(&folder);
+                }
             }
             continue;
         }
@@ -450,4 +456,18 @@ fn remove(folder: &Path) {
 fn millis(time: SystemTime) -> i64 {
     time.duration_since(SystemTime::UNIX_EPOCH)
         .map_or(0, |since| since.as_millis() as i64)
+}
+
+/// Whether `folder` holds a recording (`rec.*`) that is not empty.
+fn has_recording(folder: &Path) -> bool {
+    fs::read_dir(folder).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            entry.file_name().to_string_lossy().starts_with("rec.")
+                && entry.metadata().is_ok_and(|m| m.len() > 0)
+        })
+    })
+}
+
+fn dir_of_inbox(folder: &Path) -> std::path::PathBuf {
+    folder.parent().map(Path::to_path_buf).unwrap_or_default()
 }

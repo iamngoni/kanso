@@ -23,7 +23,14 @@ object VoiceCapture {
     const val MIN_MS = 1_000L
 
     /** The audio file's name in the drop. */
-    const val AUDIO_NAME = "rec.m4a"
+    const val AUDIO_NAME = "rec.aac"
+
+    /** Speech: mono, 16 kHz, 32 kbps. 30 minutes is about 7.2 MB, under the 10 MB attachment cap. */
+    const val SAMPLE_RATE = 16_000
+    const val BIT_RATE = 32_000
+
+    /** The file in a partial that holds the wall-clock start (ms), for recovery after a kill. */
+    const val STARTED_NAME = "started"
 
     /** A tap or a second start request: stop when recording, start otherwise. */
     fun toggle(recording: Boolean): VoiceAction = if (recording) VoiceAction.STOP else VoiceAction.START
@@ -67,6 +74,51 @@ object VoiceCapture {
     /** The tile's look: active exactly while recording. */
     fun tileMode(recording: Boolean): VoiceTileMode =
         if (recording) VoiceTileMode.ACTIVE else VoiceTileMode.INACTIVE
+
+    /** Notes the start time in the partial so a killed recording can be recovered. */
+    fun markStarted(partial: File, startedMs: Long) {
+        File(partial, STARTED_NAME).writeText(startedMs.toString(), Charsets.UTF_8)
+    }
+
+    /**
+     * Turns every stale `<id>.partial` in [inbox] (a recording no live service
+     * owns) into a real drop, so a killed recording is never lost. The duration
+     * is the start time to the audio file's last write. Only recordings under
+     * the minimum length, or with no audio, are removed. Does nothing while
+     * [live] (a recording is in progress).
+     *
+     * @return the number of drops recovered.
+     */
+    fun recoverStale(inbox: File, live: Boolean, nowMs: Long): Int {
+        if (live) {
+            return 0
+        }
+        var recovered = 0
+        for (partial in inbox.listFiles { f -> f.isDirectory && f.name.endsWith(".partial") } ?: return 0) {
+            val id = partial.name.removeSuffix(".partial")
+            val audio = File(partial, AUDIO_NAME)
+            val started = try {
+                File(partial, STARTED_NAME).readText(Charsets.UTF_8).trim().toLong()
+            } catch (_: Exception) {
+                null
+            }
+            val modified = audio.lastModified()
+            val duration = when {
+                !audio.isFile || audio.length() == 0L -> 0L
+                started != null && modified > started -> modified - started
+                else -> audio.length() * 8 * 1000 / BIT_RATE // no marker: estimate from the bitrate
+            }
+            try {
+                File(partial, STARTED_NAME).delete()
+                if (finish(inbox, id, started ?: (modified - duration), duration, nowMs) != null) {
+                    recovered++
+                }
+            } catch (_: IOException) {
+                // finish removed the partial
+            }
+        }
+        return recovered
+    }
 
     /**
      * Finishes a voice drop the way [DropWriter] finishes a share: `drop.json`

@@ -61,4 +61,7 @@ pub struct TidyOutcome {
     pub inserted_above: bool,
     /// Decisions and tasks left out for want of a quote from the recording.
     pub dropped: u32,
+    /// The ticket for [`crate::Library::undo`], which puts the note back
+    /// exactly as it was before the tidy.
+    pub undo: Option<u64>,
 }

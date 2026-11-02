@@ -7,8 +7,10 @@ import Foundation
 /// The `drop.json` of a voice drop (see "Voice drops" in
 /// `mobile/docs/capture.md`).
 struct VoiceDropManifest: Equatable {
-  /// The audio file's name inside the drop.
-  static let audioName = "rec.m4a"
+  /// The audio file's name inside the drop: AAC in a CAF, which stays
+  /// playable if the process is killed mid-recording (an m4a without its
+  /// `moov` atom is not).
+  static let audioName = "rec.caf"
 
   /// When the recording began, in milliseconds since 1970.
   let startedMs: Int64

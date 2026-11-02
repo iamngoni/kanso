@@ -45,4 +45,5 @@ pub struct _VoiceNoteInfo {
 pub struct _TidyOutcome {
     pub inserted_above: bool,
     pub dropped: u32,
+    pub undo: Option<u64>,
 }

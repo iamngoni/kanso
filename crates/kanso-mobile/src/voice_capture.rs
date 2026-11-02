@@ -139,8 +139,11 @@ impl Library {
 
     /// Saves the voice drop `id` in `inbox` with the `transcript` the shell's
     /// recogniser made, and removes its folder. A transcript with no words
-    /// removes the folder and saves nothing. A locked Inbox refuses and
-    /// removes nothing: the recording waits.
+    /// keeps the audio as an audio-only note (only a recording under
+    /// [`MIN_KEEP_MS`] is dropped). A save that had to leave something out
+    /// (audio too large, a cut transcript) moves the folder to
+    /// `inbox-kept/` instead of removing it, and says so in `problems`. A
+    /// locked Inbox refuses and removes nothing: the recording waits.
     pub fn save_voice_drop(
         &self,
         inbox: &Path,
@@ -161,14 +164,27 @@ impl Library {
                 },
                 Some(&audio),
             )?;
-            remove_drop(inbox, id);
+            if saved.note_id.is_none() {
+                // Nothing was heard. A real recording is kept as audio.
+                if drop.info.duration_ms < MIN_KEEP_MS {
+                    remove_drop(inbox, id);
+                    return Ok(saved);
+                }
+                return self.audio_only_of(inbox, id, &drop);
+            }
+            if saved.problems.is_empty() {
+                remove_drop(inbox, id);
+            } else {
+                quarantine_drop(inbox, id);
+            }
             Ok(saved)
         })
     }
 
     /// Saves voice drop `id` as an audio note, for a recording the phone
     /// could not turn into text: the audio is attached to a note in the
-    /// Inbox that says so, and the folder removed. Nothing is lost.
+    /// Inbox that says so, and the folder removed. A file that is not audio
+    /// is moved to `inbox-kept/` and named in `problems`: nothing is lost.
     pub fn save_voice_drop_audio_only(
         &self,
         inbox: &Path,
@@ -176,28 +192,58 @@ impl Library {
     ) -> Result<VoiceCaptureSaved, KansoError> {
         guard(|| {
             let drop = find_drop(inbox, id)?;
-            let audio = inbox.join(id).join(&drop.file);
-            let saved = save_audio_only(
-                &self.inner.store,
-                id,
-                "Voice note",
-                drop.info.duration_ms,
-                Engine::SystemOnDevice,
-                &audio,
-                Origin::Ui,
-            )
-            .map_err(|err| match err {
-                CaptureError::Empty(why) => KansoError::invalid(why.join(" ")),
-                other => map_capture(other),
-            })?;
-            remove_drop(inbox, id);
-            Ok(VoiceCaptureSaved {
-                note_id: Some(saved.id),
-                problems: saved.problems,
-                existed: saved.existed,
-                meeting: false,
-                tidy_now: false,
-            })
+            self.audio_only_of(inbox, id, &drop)
+        })
+    }
+
+    fn audio_only_of(
+        &self,
+        inbox: &Path,
+        id: &str,
+        drop: &FoundDrop,
+    ) -> Result<VoiceCaptureSaved, KansoError> {
+        let audio = inbox.join(id).join(&drop.file);
+        match save_audio_only(
+            &self.inner.store,
+            id,
+            "Voice note",
+            drop.info.duration_ms,
+            Engine::SystemOnDevice,
+            &audio,
+            Origin::Ui,
+        ) {
+            Ok(saved) => {
+                remove_drop(inbox, id);
+                Ok(VoiceCaptureSaved {
+                    note_id: Some(saved.id),
+                    problems: saved.problems,
+                    existed: saved.existed,
+                    meeting: false,
+                    tidy_now: false,
+                })
+            }
+            Err(CaptureError::Empty(why)) => {
+                quarantine_drop(inbox, id);
+                Ok(VoiceCaptureSaved {
+                    note_id: None,
+                    problems: why,
+                    existed: false,
+                    meeting: false,
+                    tidy_now: false,
+                })
+            }
+            Err(other) => Err(map_capture(other)),
+        }
+    }
+
+    /// Moves voice drop `id` to `inbox-kept/` beside the inbox, never
+    /// deleting it, for a recording nothing could be made of.
+    pub fn quarantine_voice_drop(&self, inbox: &Path, id: &str) -> Result<(), KansoError> {
+        guard(|| {
+            if is_drop_id(id) {
+                quarantine_drop(inbox, id);
+            }
+            Ok(())
         })
     }
 
@@ -321,6 +367,36 @@ fn voice_drops_in(inbox: &Path) -> Vec<VoiceDrop> {
     found.into_iter().map(|(_, drop)| drop).collect()
 }
 
+/// A recording shorter than this is a slip of the button, not a capture.
+pub const MIN_KEEP_MS: u64 = 1_000;
+
+/// Moves the drop folder to `inbox-kept/<id>` beside the inbox; if that
+/// can't be done the folder stays where it is.
+pub(crate) fn quarantine_drop(inbox: &Path, id: &str) {
+    let Some(parent) = inbox.parent() else {
+        return;
+    };
+    let kept = parent.join("inbox-kept");
+    if fs::create_dir_all(&kept).is_err() {
+        return;
+    }
+    let mut target = kept.join(id);
+    let mut n = 1;
+    while target.exists() {
+        target = kept.join(format!("{id}-{n}"));
+        n += 1;
+    }
+    if let Err(err) = fs::rename(inbox.join(id), &target) {
+        eprintln!("kanso: couldn't keep the voice drop {id}: {err}");
+    }
+}
+
+/// Moves a `<id>.partial` folder (named `name`) out of `inbox` to
+/// `inbox-kept/`, whole.
+pub(crate) fn quarantine_partial(inbox: &Path, name: &str) {
+    quarantine_drop(inbox, name);
+}
+
 fn remove_drop(inbox: &Path, id: &str) {
     if let Err(err) = fs::remove_dir_all(inbox.join(id)) {
         eprintln!("kanso: couldn't remove the voice drop {id}: {err}");
@@ -363,9 +439,12 @@ impl AiHandle {
             let tidy = result.map_err(KansoError::invalid)?;
             let applied =
                 apply_tidy(&self.inner.store, &source, &tidy, Origin::Ui).map_err(map_tidy)?;
+            let undo =
+                held(&self.inner.undo).keep(crate::undo::Undoable::Fields(vec![applied.edit]));
             Ok(TidyOutcome {
                 inserted_above: applied.inserted_above,
                 dropped: applied.dropped as u32,
+                undo: Some(undo),
             })
         })
     }

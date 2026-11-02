@@ -4,7 +4,7 @@
 
 import Foundation
 
-/// Writes one *voice drop*: `inbox/<id>.partial/` holds `rec.m4a` while it is
+/// Writes one *voice drop*: `inbox/<id>.partial/` holds `rec.caf` while it is
 /// recorded, then `drop.json` is written last and the folder is renamed to
 /// `inbox/<id>/` (the layout `mobile/docs/capture.md` describes).
 ///
@@ -62,5 +62,63 @@ final class VoiceDropWriter {
   static func removePartial(id: String, in inbox: URL) {
     try? FileManager.default.removeItem(
       at: inbox.appendingPathComponent("\(id).partial", isDirectory: true))
+  }
+
+  /// Turns the `<id>.partial` of a recording whose process died into a real
+  /// drop, so a capture is never lost. Returns the finished folder, or nil
+  /// when the folder has no recording worth keeping (no audio file, an empty
+  /// one, or under the minimum length) and it was removed.
+  ///
+  /// The duration is `startedMs` to the audio file's last write; without
+  /// `startedMs` the partial folder's creation time stands in for it.
+  @discardableResult
+  static func recoverPartial(
+    id: String, startedMs: Int64? = nil, in inbox: URL, now: Date = Date()
+  ) -> URL? {
+    let fm = FileManager.default
+    let partial = inbox.appendingPathComponent("\(id).partial", isDirectory: true)
+    let audio = partial.appendingPathComponent(VoiceDropManifest.audioName)
+    guard let audioAttrs = try? fm.attributesOfItem(atPath: audio.path) else {
+      return nil  // Not a voice partial (a share's, maybe): leave it alone.
+    }
+    let size = (audioAttrs[.size] as? NSNumber)?.int64Value ?? 0
+    let endMs = Int64(
+      ((audioAttrs[.modificationDate] as? Date) ?? now).timeIntervalSince1970 * 1000)
+    let folderAttrs = try? fm.attributesOfItem(atPath: partial.path)
+    let started =
+      startedMs
+      ?? Int64(((folderAttrs?[.creationDate] as? Date) ?? now).timeIntervalSince1970 * 1000)
+    let duration = min(max(endMs - started, 0), VoiceCaptureRules.maxDurationMs)
+    guard size > 0, VoiceCaptureRules.shouldKeep(durationMs: duration) else {
+      removePartial(id: id, in: inbox)
+      return nil
+    }
+    let manifest = VoiceDropManifest(
+      startedMs: started, durationMs: duration,
+      createdMs: Int64((now.timeIntervalSince1970 * 1000).rounded()))
+    let finished = inbox.appendingPathComponent(id, isDirectory: true)
+    do {
+      try manifest.json().write(
+        to: partial.appendingPathComponent("drop.json"),
+        options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+      try fm.moveItem(at: partial, to: finished)
+      return finished
+    } catch {
+      return nil  // Kept as a partial; the next sweep tries again.
+    }
+  }
+
+  /// Recovers every voice partial in `inbox` except `activeId` (the recording
+  /// in progress). Returns how many became drops.
+  @discardableResult
+  static func sweepStalePartials(in inbox: URL, activeId: String?, now: Date = Date()) -> Int {
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: inbox.path)) ?? []
+    var recovered = 0
+    for name in names where name.hasSuffix(".partial") {
+      let id = String(name.dropLast(".partial".count))
+      if id == activeId { continue }
+      if recoverPartial(id: id, in: inbox, now: now) != nil { recovered += 1 }
+    }
+    return recovered
   }
 }

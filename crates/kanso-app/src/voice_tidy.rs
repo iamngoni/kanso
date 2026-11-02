@@ -176,9 +176,10 @@ fn finish(
             window.push_notification(Notification::info(words), cx);
         }
         Err(reason) => {
-            runs.failed.insert(id.to_owned(), reason.clone());
+            let words = crate::capture_voice::trouble_words(&reason);
+            runs.failed.insert(id.to_owned(), words.clone());
             window.push_notification(
-                Notification::error(format!("Couldn't tidy this note: {reason}")),
+                Notification::error(format!("Couldn't tidy this note. {words}")),
                 cx,
             );
         }

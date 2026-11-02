@@ -380,6 +380,7 @@ impl Render for CaptureView {
             .text_color(colors.text)
             .on_action(cx.listener(|this, _: &SaveCapture, window, cx| this.save(window, cx)))
             .on_action(cx.listener(|this, _: &CancelCapture, window, cx| this.cancel(window, cx)))
+            .on_key_down(cx.listener(|this, _: &KeyDownEvent, _, _| this.key_pressed()))
             .on_modifiers_changed(
                 cx.listener(|this, event: &ModifiersChangedEvent, window, cx| {
                     this.modifiers_changed(event.modifiers, window, cx)

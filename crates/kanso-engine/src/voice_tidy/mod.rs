@@ -154,7 +154,7 @@ pub fn meta_for(source: &TidySource) -> RenderMeta {
 }
 
 /// What [`apply_tidy`] did.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Applied {
     pub id: String,
     /// The note had been edited since it was read, so the tidy part was
@@ -162,6 +162,10 @@ pub struct Applied {
     pub inserted_above: bool,
     /// Decisions and tasks left out for want of a quote.
     pub dropped: usize,
+    /// The write that put the note back exactly as it was (title, body and
+    /// capture mark): `change` is what the tidy wrote and `undo` what it
+    /// replaced, for the shell's Undo.
+    pub edit: crate::batch::Edit,
 }
 
 /// Writes `tidy` into the note `source` was read from, in one `put`
@@ -211,18 +215,29 @@ pub fn apply_tidy(
         json!({
             "_id": source.id,
             "_rev": note.rev,
-            "title": title,
-            "body": body,
-            CAPTURE_FIELD: mark,
+            "title": title.clone(),
+            "body": body.clone(),
+            CAPTURE_FIELD: mark.clone(),
         }),
         Put::Merge,
         origin,
     );
+    let mut change = json!({"_id": source.id, "title": title, "body": body});
+    let mut undo = json!({"_id": source.id, "title": note.title, "body": note.body});
+    change[CAPTURE_FIELD] = mark;
+    if let Some(before) = note.extra.get(CAPTURE_FIELD) {
+        undo[CAPTURE_FIELD] = before.clone();
+    }
     match result {
         Ok(_) => Ok(Applied {
             id: source.id.clone(),
             inserted_above: !unchanged,
             dropped: rendered.dropped,
+            edit: crate::batch::Edit {
+                id: source.id.clone(),
+                change,
+                undo,
+            },
         }),
         Err(StoreError::Conflict) => Err(TidyError::Changed),
         Err(err) => Err(err.into()),

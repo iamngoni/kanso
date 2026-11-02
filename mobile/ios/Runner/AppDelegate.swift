@@ -23,6 +23,10 @@ import kanso_push
       }
     }
     CrashDiagnostics.shared.start()
+    // Keep any voice note a killed process left behind.
+    DispatchQueue.global(qos: .utility).async {
+      VoiceCaptureController.shared.sweepStalePartials()
+    }
     let launched = super.application(application, didFinishLaunchingWithOptions: launchOptions)
     UNUserNotificationCenter.current().delegate = self
     return launched

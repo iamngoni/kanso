@@ -2,6 +2,7 @@
 // Created 2026-11-02.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import ActivityKit
 import AppIntents
 
 /// Starts a voice note without opening Kanso, or stops the one in progress
@@ -20,6 +21,16 @@ struct CaptureVoiceIntent: AppIntent {
   static let openAppWhenRun = false
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
+    // The Live Activity is what shows the system is recording; without it a
+    // press would record invisibly, so refuse (to start only, never to stop).
+    if VoiceCaptureController.shared.needsLiveActivity,
+      !ActivityAuthorizationInfo().areActivitiesEnabled
+    {
+      return .result(
+        dialog:
+          "Turn on Live Activities for Kanso in Settings, then try again. Kanso won't record without showing it."
+      )
+    }
     switch VoiceCaptureController.shared.toggle() {
     case .started:
       return .result(dialog: "Recording.")

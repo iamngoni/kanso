@@ -27,8 +27,8 @@ import java.security.SecureRandom
  * Records a voice note in the background, from the Quick Settings tile, the
  * widget or the notification (`mobile/docs/capture.md`).
  *
- * It records AAC in an MP4 container, mono, 64 kbps, into
- * `<filesDir>/kanso/inbox/<id>.partial/rec.m4a`, and on stop finishes the
+ * It records AAC in an ADTS stream (readable even if killed), mono, 16 kHz, 32 kbps, into
+ * `<filesDir>/kanso/inbox/<id>.partial/rec.aac`, and on stop finishes the
  * drop like a share ([VoiceCapture.finish]). It never opens the library or
  * calls the Rust core: the app transcribes the drop the next time it opens.
  *
@@ -63,7 +63,14 @@ class VoiceCaptureService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // A service started with startForegroundService must call
         // startForeground soon, even when it has nothing to do.
-        enterForeground(if (recorder != null) SystemClock.elapsedRealtime() - startedTick else 0)
+        if (recorder == null && !canRecord(this)) {
+            giveUp("Kanso needs the microphone. Tap to allow it.")
+            return START_NOT_STICKY
+        }
+        if (!enterForeground(if (recorder != null) SystemClock.elapsedRealtime() - startedTick else 0)) {
+            giveUp("Kanso needs the microphone. Tap to allow it.")
+            return START_NOT_STICKY
+        }
         val action = if (intent?.action == ACTION_STOP) {
             VoiceAction.STOP
         } else {
@@ -84,17 +91,23 @@ class VoiceCaptureService : Service() {
         super.onDestroy()
     }
 
-    private fun enterForeground(elapsed: Long) {
+    /** False when Android refuses the microphone foreground service (Android 14 and later). */
+    private fun enterForeground(elapsed: Long): Boolean {
         if (foreground) {
-            return
+            return true
         }
         ensureChannel()
-        startForeground(
-            NOTIFICATION_ID,
-            notification(elapsed),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-        )
-        foreground = true
+        return try {
+            startForeground(
+                NOTIFICATION_ID,
+                notification(elapsed),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+            )
+            foreground = true
+            true
+        } catch (_: RuntimeException) {
+            false
+        }
     }
 
     private fun startRecording() {
@@ -102,7 +115,8 @@ class VoiceCaptureService : Service() {
             giveUp("Kanso needs the microphone. Tap to allow it.")
             return
         }
-        val inbox = File(File(filesDir, "kanso"), "inbox")
+        val inbox = inboxDir(this)
+        sweep(this)
         val id = VoiceCapture.newId(SecureRandom())
         val partial = File(inbox, "$id.partial")
         if (!(inbox.isDirectory || inbox.mkdirs()) || !partial.mkdir()) {
@@ -112,12 +126,18 @@ class VoiceCaptureService : Service() {
         val media = newRecorder()
         try {
             media.setAudioSource(MediaRecorder.AudioSource.MIC)
-            media.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            media.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
             media.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             media.setAudioChannels(1)
-            media.setAudioSamplingRate(SAMPLE_RATE)
-            media.setAudioEncodingBitRate(BIT_RATE)
+            media.setAudioSamplingRate(VoiceCapture.SAMPLE_RATE)
+            media.setAudioEncodingBitRate(VoiceCapture.BIT_RATE)
             media.setMaxDuration(VoiceCapture.MAX_MS.toInt())
+            media.setOnInfoListener { _, what, _ ->
+                if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
+                    stopRecording()
+                }
+            }
+            VoiceCapture.markStarted(partial, System.currentTimeMillis())
             media.setOutputFile(File(partial, VoiceCapture.AUDIO_NAME).path)
             media.prepare()
             media.start()
@@ -127,9 +147,9 @@ class VoiceCaptureService : Service() {
             giveUp("Kanso couldn't start recording.")
             return
         }
-        this.recorder = media
         this.inbox = inbox
         this.id = id
+        this.recorder = media
         startedWall = System.currentTimeMillis()
         startedTick = SystemClock.elapsedRealtime()
         VoiceState.set(true)
@@ -148,22 +168,23 @@ class VoiceCaptureService : Service() {
         this.id = null
         VoiceState.set(false)
         refreshTile(this)
-        if (media != null && inbox != null && id != null) {
-            val duration = SystemClock.elapsedRealtime() - startedTick
-            val stopped = try {
+        if (media != null) {
+            // Elapsed time never depends on stop() succeeding: ADTS keeps what was written.
+            val duration = if (startedTick > 0) SystemClock.elapsedRealtime() - startedTick else System.currentTimeMillis() - startedWall
+            try {
+                media.setOnInfoListener(null)
                 media.stop()
-                true
             } catch (_: RuntimeException) {
-                false // stopped before any audio was written
+                // stop() throws when little audio was written; the file is still judged below.
             } finally {
                 media.release()
             }
             try {
-                VoiceCapture.finish(
-                    inbox, id, startedWall,
-                    if (stopped) duration else 0,
-                    System.currentTimeMillis(),
-                )
+                if (id != null) {
+                    VoiceCapture.finish(
+                        inbox ?: inboxDir(this), id, startedWall, duration, System.currentTimeMillis(),
+                    )
+                }
             } catch (_: IOException) {
                 // The partial is removed; nothing more to do.
             }
@@ -229,14 +250,26 @@ class VoiceCaptureService : Service() {
         private const val CHANNEL_ID = "voice_capture"
         private const val NOTIFICATION_ID = 0x564f
         private const val FAILURE_ID = 0x5646
-        private const val SAMPLE_RATE = 44_100
-        private const val BIT_RATE = 64_000
 
         /** The intent that opens the app's voice note page, where the permission flow runs. */
         fun voiceLink(context: Context): Intent =
             Intent(Intent.ACTION_VIEW, Uri.parse(VOICE_LINK))
                 .setClassName(context, MainActivity::class.java.name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        fun inboxDir(context: Context): File = File(File(context.filesDir, "kanso"), "inbox")
+
+        /**
+         * Turns stale partials (a killed recording) into real drops. Call it
+         * when the app or the service starts.
+         */
+        fun sweep(context: Context) {
+            try {
+                VoiceCapture.recoverStale(inboxDir(context), VoiceState.recording, System.currentTimeMillis())
+            } catch (_: Exception) {
+                // Never block start-up.
+            }
+        }
 
         /** Whether the microphone permission is granted. */
         fun canRecord(context: Context): Boolean =

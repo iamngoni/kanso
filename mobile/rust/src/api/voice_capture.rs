@@ -52,6 +52,12 @@ impl KansoVoiceCapture {
             .save_voice_drop_audio_only(std::path::Path::new(&inbox), &id)
     }
 
+    /// Moves recording `id` to `inbox-kept/` beside the inbox. Never deletes.
+    pub fn quarantine_drop(&self, inbox: String, id: String) -> Result<(), KansoError> {
+        self.0
+            .quarantine_voice_drop(std::path::Path::new(&inbox), &id)
+    }
+
     /// Removes recording `id` without saving it.
     pub fn discard_drop(&self, inbox: String, id: String) -> Result<(), KansoError> {
         self.0.discard_voice_drop(std::path::Path::new(&inbox), &id)

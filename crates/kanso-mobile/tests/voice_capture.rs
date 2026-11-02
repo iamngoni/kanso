@@ -196,7 +196,7 @@ fn audio_is_kept_for_meetings_and_when_asked_within_the_limit() {
 
 // no-prop-test: an empty transcript and a missing drop, once each.
 #[test]
-fn a_recording_with_no_words_is_removed_and_a_missing_one_is_not_found() {
+fn a_recording_with_no_words_is_kept_as_audio_and_a_slip_is_removed() {
     let phone = lone_phone();
     let inbox = inbox_of(&phone);
     let folder = write_voice_drop(&inbox, ID, 3_000);
@@ -204,15 +204,114 @@ fn a_recording_with_no_words_is_removed_and_a_missing_one_is_not_found() {
         .library
         .save_voice_drop(&inbox, ID, " ".into(), true)
         .unwrap();
-    assert_eq!(saved.note_id, None);
+    // A real recording is never thrown away: it becomes an audio note.
+    assert!(saved.note_id.is_some());
     assert!(!folder.exists());
     assert_eq!(
         phone.library.save_voice_drop(&inbox, ID, "x".into(), true),
         Err(KansoError::NotFound)
     );
+    // Under the minimum length it is a slip of the button.
+    let slip = "fedcba9876543210fedcba9876543210";
+    let folder = write_voice_drop(&inbox, slip, 300);
+    let saved = phone
+        .library
+        .save_voice_drop(&inbox, slip, " ".into(), true)
+        .unwrap();
+    assert_eq!(saved.note_id, None);
+    assert!(!folder.exists());
     write_voice_drop(&inbox, ID, 3_000);
     phone.library.discard_voice_drop(&inbox, ID).unwrap();
     assert!(phone.library.voice_drops(&inbox).unwrap().is_empty());
+}
+
+// no-prop-test: one fixed file that is not audio.
+#[test]
+fn a_file_that_is_not_audio_is_moved_aside_never_deleted() {
+    let phone = lone_phone();
+    let inbox = inbox_of(&phone);
+    let folder = write_voice_drop(&inbox, ID, 3_000);
+    fs::rename(folder.join("rec.m4a"), folder.join("rec.xyz")).unwrap();
+    let manifest = json!({"version": 1, "kind": "voice", "createdAt": 1,
+        "started_ms": 1, "duration_ms": 3_000, "audio": "rec.xyz"});
+    fs::write(folder.join("drop.json"), manifest.to_string()).unwrap();
+    let saved = phone
+        .library
+        .save_voice_drop_audio_only(&inbox, ID)
+        .unwrap();
+    assert_eq!(saved.note_id, None);
+    assert!(!saved.problems.is_empty());
+    assert!(!folder.exists());
+    assert!(
+        phone
+            .dir
+            .path()
+            .join("inbox-kept")
+            .join(ID)
+            .join("rec.xyz")
+            .exists()
+    );
+    // Explicit quarantine moves, too.
+    write_voice_drop(&inbox, ID, 3_000);
+    phone.library.quarantine_voice_drop(&inbox, ID).unwrap();
+    assert!(
+        phone
+            .dir
+            .path()
+            .join("inbox-kept")
+            .join(format!("{ID}-1"))
+            .exists()
+    );
+}
+
+// no-prop-test: one recording cut short and left a day behind.
+#[test]
+fn an_old_unfinished_recording_is_kept_aside_not_deleted() {
+    let phone = lone_phone();
+    let inbox = inbox_of(&phone);
+    let partial = inbox.join(format!("{ID}.partial"));
+    fs::create_dir_all(&partial).unwrap();
+    fs::write(partial.join("rec.caf"), b"half a recording").unwrap();
+    let two_days = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 24 * 3600);
+    fs::File::open(&partial)
+        .unwrap()
+        .set_modified(two_days)
+        .unwrap();
+    phone.library.save_drops(&inbox).unwrap();
+    assert!(!partial.exists());
+    assert!(
+        phone
+            .dir
+            .path()
+            .join("inbox-kept")
+            .join(format!("{ID}.partial"))
+            .join("rec.caf")
+            .exists()
+    );
+}
+
+// no-prop-test: one fixed over-long transcript.
+#[test]
+fn a_save_that_left_something_out_keeps_the_drop() {
+    let phone = lone_phone();
+    let inbox = inbox_of(&phone);
+    let folder = write_voice_drop(&inbox, ID, 3_000);
+    let long = "word ".repeat(300_000);
+    let saved = phone
+        .library
+        .save_voice_drop(&inbox, ID, long, true)
+        .unwrap();
+    assert!(saved.note_id.is_some());
+    assert!(!saved.problems.is_empty());
+    assert!(!folder.exists());
+    assert!(phone.dir.path().join("inbox-kept").join(ID).exists());
+    let store = Store::open(phone.path()).unwrap();
+    let note = store.note(&saved.note_id.unwrap()).unwrap().unwrap();
+    assert!(
+        note.body.contains("was cut"),
+        "the note says what was left out"
+    );
+    assert!(note.body.chars().count() <= 1_048_576);
 }
 
 // no-prop-test: one fixed recording a phone could not transcribe.
@@ -313,6 +412,26 @@ fn tidy_writes_what_the_recording_backs_and_info_follows() {
     assert_eq!((info.tidy.as_str(), info.can_tidy), ("done", false));
     // Only the transcript and a title went to the model.
     assert!(model.everything_sent().contains("plumber"));
+}
+
+// no-prop-test: one tidy, taken back.
+#[test]
+fn undoing_a_tidy_puts_the_note_back_exactly() {
+    let model = Scripted::new(REPLY);
+    let (phone, ai) = ai_phone(&model);
+    let id = voice_note(&phone, &ai);
+    let store = Store::open(phone.path()).unwrap();
+    let before = store.note(&id).unwrap().unwrap();
+    let outcome = ai.tidy_note(&id, &AiRun::new()).unwrap();
+    let ticket = outcome.undo.expect("a tidy can be undone");
+    assert_eq!(phone.library.undo(ticket).unwrap(), 1);
+    let after = store.note(&id).unwrap().unwrap();
+    assert_eq!((after.title, after.body), (before.title, before.body));
+    assert!(after.updated_at >= before.updated_at);
+    let info = phone.library.voice_note_info(&id).unwrap().unwrap();
+    assert_eq!(info.tidy, "none");
+    // A ticket is used once.
+    assert_eq!(phone.library.undo(ticket).unwrap(), 0);
 }
 
 // no-prop-test: three fixed refusals, each before anything is sent.
