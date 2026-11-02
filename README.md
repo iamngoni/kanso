@@ -29,6 +29,9 @@ A local-first Markdown notes app for macOS, with Windows and Linux builds, built
   you're on.
 - Mermaid diagrams, math, and Excalidraw drawings, drawn in the note's theme.
 - Images resize from the preview or with `![alt|300](image.png)`.
+- **Present** a note full screen as slides (Note › Present, or the palette). A `---` line after a blank
+  line starts a slide, or each `#` and `##` heading does if the note has none. Arrow keys, Space,
+  Page Up and Page Down move, F leaves full screen and Esc ends it.
 
 **Tasks**
 - Due dates (`- [ ] Send the draft @2026-10-25`), a Tasks view of what's overdue, due today and

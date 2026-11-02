@@ -155,6 +155,7 @@ mod smart_paste;
 mod snapshots;
 mod spellcheck;
 // Tests check with a word list instead.
+mod presentation;
 #[cfg(all(target_os = "macos", not(test)))]
 mod spellcheck_macos;
 mod split;

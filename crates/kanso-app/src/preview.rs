@@ -116,6 +116,8 @@ pub struct Preview {
     /// Whether text keeps to the readable measure (the setting), or fills
     /// the pane.
     readable: bool,
+    /// How much larger than the setting text is drawn: 1, except on a slide.
+    text_scale: f32,
     /// Draws quotes in their own color (see [`quote_extensions`]).
     extensions: MarkdownExtensions,
     /// The text size and face the chunks were last measured at.
@@ -179,6 +181,7 @@ impl Preview {
             links,
             edits,
             readable: false,
+            text_scale: 1.,
             extensions,
             shown_type: None,
             _rich: rich_task,
@@ -403,6 +406,14 @@ impl Preview {
     pub fn set_readable(&mut self, readable: bool, cx: &mut Context<Self>) {
         if self.readable != readable {
             self.readable = readable;
+            cx.notify();
+        }
+    }
+
+    /// Draws text `scale` times the size the settings ask for.
+    pub fn set_text_scale(&mut self, scale: f32, cx: &mut Context<Self>) {
+        if self.text_scale != scale {
+            self.text_scale = scale;
             cx.notify();
         }
     }
@@ -1183,7 +1194,8 @@ const CODE_TOP: f32 = typography::CODE_TOP;
 
 impl Render for Preview {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let ty = preview_type(cx);
+        let mut ty = preview_type(cx);
+        ty.size *= self.text_scale;
         if self.shown_type.as_ref() != Some(&ty) {
             // Another size or face: every chunk's height changes.
             if self.shown_type.is_some() && !self.chunks.is_empty() {

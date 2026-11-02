@@ -673,6 +673,13 @@ impl NoteWindow {
                     self.reopen(sticky, window, cx);
                 }
             }
+            NoteCommand::Present => {
+                self.editor.update(cx, |editor, cx| editor.flush(cx));
+                let id = self.note_id.clone();
+                in_main_window(cx, move |workspace, window, cx| {
+                    workspace.present_note(&id, window, cx)
+                });
+            }
             NoteCommand::OpenInNewTab => {
                 let id = self.note_id.clone();
                 in_main_window(cx, move |workspace, window, cx| {
@@ -935,6 +942,11 @@ impl Render for NoteWindow {
             .on_action(cx.listener(|this, _: &OpenInNewWindow, window, cx| {
                 this.run_command(NoteCommand::OpenInNewWindow, window, cx);
             }))
+            .on_action(cx.listener(
+                |this, _: &crate::presentation::PresentNote, window, cx| {
+                    this.run_command(NoteCommand::Present, window, cx);
+                },
+            ))
             .on_action(cx.listener(|this, _: &OpenAsSticky, window, cx| {
                 this.run_command(NoteCommand::OpenAsSticky, window, cx);
             }))
