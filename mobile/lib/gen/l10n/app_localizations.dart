@@ -7765,7 +7765,7 @@ abstract class AppLocalizations {
   /// Said when no note is left to file.
   ///
   /// In en, this message translates to:
-  /// **'Inbox is clear.'**
+  /// **'Your Inbox is clear'**
   String get triageEmpty;
 
   /// The button that leaves Triage.
@@ -7909,7 +7909,7 @@ abstract class AppLocalizations {
   /// Said on a card when the model could not be asked.
   ///
   /// In en, this message translates to:
-  /// **'AI suggestions unavailable: {reason}'**
+  /// **'{reason} Showing suggestions from your notes.'**
   String triageAiUnavailable(String reason);
 
   /// Said on a card whose note changed elsewhere; it is read again before it can be filed.
@@ -8023,7 +8023,7 @@ abstract class AppLocalizations {
   /// What the empty list of open loops says will appear in it.
   ///
   /// In en, this message translates to:
-  /// **'Sentences like “I\'ll send the deck” or “waiting on Rudo” show up here until you close them.'**
+  /// **'When you write things like “I\'ll send the deck”, “waiting on Rudo” or “need to check the lease”, Kanso notices and lists them here, so nothing slips.'**
   String get digestLoopsEmptyMessage;
 
   /// The title shown when the open loops detector is turned off.
@@ -8107,13 +8107,13 @@ abstract class AppLocalizations {
   /// The title shown when the morning brief has nothing in it.
   ///
   /// In en, this message translates to:
-  /// **'Nothing due, nothing open'**
+  /// **'You\'re all clear'**
   String get digestBriefEmptyTitle;
 
   /// What the empty morning brief says will appear in it.
   ///
   /// In en, this message translates to:
-  /// **'Tasks due today and open loops show up here.'**
+  /// **'Each morning this page gathers what\'s due, the open loops in your notes, today\'s reminders and notes worth another look. Nothing needs you right now.'**
   String get digestBriefEmptyMessage;
 
   /// The heading of tasks due today or earlier in the morning brief.
@@ -8487,6 +8487,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{due, plural, =0{Nothing due} =1{1 due} other{{due} due}}, {loops, plural, =0{no open loops} =1{1 open loop} other{{loops} open loops}}'**
   String digestMorningBriefCounts(int due, int loops);
+
+  /// Under the title when no note waits in the Inbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage files the notes that land in your Inbox. For each one it suggests a notebook, tags, a title and links, and nothing changes until you accept. New captures will wait here.'**
+  String get triageEmptyMessage;
+
+  /// Title when the weekly review has nothing to show.
+  ///
+  /// In en, this message translates to:
+  /// **'A quiet week'**
+  String get digestReviewEmptyTitle;
+
+  /// Under the title when the weekly review has nothing to show.
+  ///
+  /// In en, this message translates to:
+  /// **'The weekly review gathers the notes you wrote, the tasks you finished, the loops still open and what\'s due next. Nothing happened this week yet: write something or tick a task off and it shows up here.'**
+  String get digestReviewEmptyMessage;
+
+  /// An AI request was refused for its key.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model turned the key down. Check the API key in AI settings.'**
+  String get aiTroubleKey;
+
+  /// An AI request was rate limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model is busy right now. Wait a moment, then try again.'**
+  String get aiTroubleBusy;
+
+  /// An AI request timed out.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model took too long to answer. Try again, or pick a smaller model.'**
+  String get aiTroubleSlow;
+
+  /// The configured model was not found.
+  ///
+  /// In en, this message translates to:
+  /// **'The model in AI settings isn\'t available. Choose another, then try again.'**
+  String get aiTroubleMissing;
+
+  /// A local model server could not be reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach your model. Is {app} running? Start it, then try again.'**
+  String aiTroubleReachLocal(String app);
+
+  /// A model could not be reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach your model. Check your connection and the address in AI settings.'**
+  String get aiTroubleReach;
+
+  /// AI is not configured.
+  ///
+  /// In en, this message translates to:
+  /// **'AI isn\'t set up yet. Choose a model in AI settings to use this.'**
+  String get aiTroubleSetup;
+
+  /// Any other AI failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model ran into a problem. Try again, or check AI settings.'**
+  String get aiTroubleOther;
+
+  /// Retries the AI action that failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get aiTroubleRetry;
+
+  /// Opens the AI settings from a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'AI settings'**
+  String get aiTroubleSettings;
 }
 
 class _AppLocalizationsDelegate

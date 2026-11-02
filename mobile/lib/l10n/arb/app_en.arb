@@ -5735,7 +5735,7 @@
       }
     }
   },
-  "triageEmpty": "Inbox is clear.",
+  "triageEmpty": "Your Inbox is clear",
   "@triageEmpty": {
     "description": "Said when no note is left to file."
   },
@@ -5856,7 +5856,7 @@
   "@triageTurnOn": {
     "description": "The button that turns Related notes on."
   },
-  "triageAiUnavailable": "AI suggestions unavailable: {reason}",
+  "triageAiUnavailable": "{reason} Showing suggestions from your notes.",
   "@triageAiUnavailable": {
     "description": "Said on a card when the model could not be asked.",
     "placeholders": {
@@ -5947,7 +5947,7 @@
   "@digestLoopsEmptyTitle": {
     "description": "The title of the empty list of open loops."
   },
-  "digestLoopsEmptyMessage": "Sentences like “I'll send the deck” or “waiting on Rudo” show up here until you close them.",
+  "digestLoopsEmptyMessage": "When you write things like “I'll send the deck”, “waiting on Rudo” or “need to check the lease”, Kanso notices and lists them here, so nothing slips.",
   "@digestLoopsEmptyMessage": {
     "description": "What the empty list of open loops says will appear in it."
   },
@@ -6003,11 +6003,11 @@
   "@digestBriefTitle": {
     "description": "The title of the page that shows what is due today and what is open."
   },
-  "digestBriefEmptyTitle": "Nothing due, nothing open",
+  "digestBriefEmptyTitle": "You're all clear",
   "@digestBriefEmptyTitle": {
     "description": "The title shown when the morning brief has nothing in it."
   },
-  "digestBriefEmptyMessage": "Tasks due today and open loops show up here.",
+  "digestBriefEmptyMessage": "Each morning this page gathers what's due, the open loops in your notes, today's reminders and notes worth another look. Nothing needs you right now.",
   "@digestBriefEmptyMessage": {
     "description": "What the empty morning brief says will appear in it."
   },
@@ -6305,5 +6305,62 @@
         "type": "int"
       }
     }
+  },
+  "triageEmptyMessage": "Triage files the notes that land in your Inbox. For each one it suggests a notebook, tags, a title and links, and nothing changes until you accept. New captures will wait here.",
+  "@triageEmptyMessage": {
+    "description": "Under the title when no note waits in the Inbox."
+  },
+  "digestReviewEmptyTitle": "A quiet week",
+  "@digestReviewEmptyTitle": {
+    "description": "Title when the weekly review has nothing to show."
+  },
+  "digestReviewEmptyMessage": "The weekly review gathers the notes you wrote, the tasks you finished, the loops still open and what's due next. Nothing happened this week yet: write something or tick a task off and it shows up here.",
+  "@digestReviewEmptyMessage": {
+    "description": "Under the title when the weekly review has nothing to show."
+  },
+  "aiTroubleKey": "Your model turned the key down. Check the API key in AI settings.",
+  "@aiTroubleKey": {
+    "description": "An AI request was refused for its key."
+  },
+  "aiTroubleBusy": "Your model is busy right now. Wait a moment, then try again.",
+  "@aiTroubleBusy": {
+    "description": "An AI request was rate limited."
+  },
+  "aiTroubleSlow": "Your model took too long to answer. Try again, or pick a smaller model.",
+  "@aiTroubleSlow": {
+    "description": "An AI request timed out."
+  },
+  "aiTroubleMissing": "The model in AI settings isn't available. Choose another, then try again.",
+  "@aiTroubleMissing": {
+    "description": "The configured model was not found."
+  },
+  "aiTroubleReachLocal": "Couldn't reach your model. Is {app} running? Start it, then try again.",
+  "@aiTroubleReachLocal": {
+    "description": "A local model server could not be reached.",
+    "placeholders": {
+      "app": {
+        "type": "String"
+      }
+    }
+  },
+  "aiTroubleReach": "Couldn't reach your model. Check your connection and the address in AI settings.",
+  "@aiTroubleReach": {
+    "description": "A model could not be reached."
+  },
+  "aiTroubleSetup": "AI isn't set up yet. Choose a model in AI settings to use this.",
+  "@aiTroubleSetup": {
+    "description": "AI is not configured."
+  },
+  "aiTroubleOther": "Your model ran into a problem. Try again, or check AI settings.",
+  "@aiTroubleOther": {
+    "description": "Any other AI failure."
+  },
+  "aiTroubleRetry": "Try again",
+  "@aiTroubleRetry": {
+    "description": "Retries the AI action that failed."
+  },
+  "aiTroubleSettings": "AI settings",
+  "@aiTroubleSettings": {
+    "description": "Opens the AI settings from a failure."
   }
 }

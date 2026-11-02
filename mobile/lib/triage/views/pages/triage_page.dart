@@ -11,6 +11,7 @@ import '../../../core/models/data/load_status.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
+import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
@@ -128,13 +129,9 @@ class _TriagePane extends StatelessWidget {
                 child: state.status == LoadStatus.loading
                     ? const Center(child: CircularProgressIndicator())
                     : shown.isEmpty
-                    ? Center(
-                        child: Text(
-                          l10n.triageEmpty,
-                          style: context.typography.body.copyWith(
-                            color: colors.textSecondary,
-                          ),
-                        ),
+                    ? KansoEmptyState(
+                        title: l10n.triageEmpty,
+                        message: l10n.triageEmptyMessage,
                       )
                     : TriagePager(cards: shown),
               ),

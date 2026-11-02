@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/bridge/api/triage_types.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/utils/ai_trouble_text.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../models/data/triage_card_state.dart';
@@ -157,7 +158,10 @@ class TriageCardView extends StatelessWidget {
           ],
           if (card.aiError != null) ...<Widget>[
             const SizedBox(height: KansoSpacing.sm),
-            Text(l10n.triageAiUnavailable(card.aiError!), style: meta),
+            Text(
+              l10n.triageAiUnavailable(aiTroubleText(card.aiError!, l10n)),
+              style: meta,
+            ),
           ],
           const SizedBox(height: KansoSpacing.md),
           Row(

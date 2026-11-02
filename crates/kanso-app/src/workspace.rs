@@ -1078,9 +1078,34 @@ impl Workspace {
                 note_id,
                 line,
                 focus,
-            } => self.open_note_at(note_id, *line, *focus, window, cx),
-            DigestEvent::OpenToday => self.open_today(window, cx),
+            } => {
+                self.leave_page_for(Some(note_id), cx);
+                self.open_note_at(note_id, *line, *focus, window, cx);
+            }
+            DigestEvent::OpenToday => {
+                self.open_today(window, cx);
+                self.leave_page_for(None, cx);
+            }
         }
+    }
+
+    /// A note opened from the brief, the review or open loops opens as any
+    /// other: the page gives way to the note's notebook, with the note in
+    /// the list beside the editor. `note_id` `None` is whatever opened.
+    fn leave_page_for(&mut self, note_id: Option<&str>, cx: &mut Context<Self>) {
+        if !matches!(
+            self.library.read(cx).filter,
+            Filter::OpenLoops | Filter::Brief | Filter::Review
+        ) {
+            return;
+        }
+        let store = self.library.read(cx).store.clone();
+        let book = note_id
+            .and_then(|id| store.note(id).ok().flatten())
+            .map(|note| note.book_id);
+        let filter = book.map_or(Filter::All, Filter::Book);
+        self.library
+            .update(cx, |library, cx| library.set_filter(filter, cx));
     }
 
     /// Opens a task's note at its line, from the Tasks view.
@@ -2322,6 +2347,15 @@ impl Render for Workspace {
             self.library.read(cx).filter,
             Filter::OpenLoops | Filter::Brief | Filter::Review
         );
+        if let Some(triage) = self.triage.clone().filter(|_| self.triage_open) {
+            let width = window.viewport_size().width - px(leading);
+            triage.update(cx, |triage, cx| triage.set_frame(width, list_inset, cx));
+        }
+        if digest_shown {
+            let page_width = window.viewport_size().width - px(leading);
+            self.digest
+                .update(cx, |digest, cx| digest.set_pane_width(page_width, cx));
+        }
         self.settings.update(cx, |settings, cx| {
             settings.set_leading_inset(list_inset, cx)
         });
@@ -2863,7 +2897,23 @@ impl Render for Workspace {
                                 }),
                         )
                     })
-                    .when(!settings_open, |el| {
+                    // The brief, the review and open loops are pages of
+                    // their own, in the list's and the editor's place.
+                    .when(!settings_open && digest_shown && !focus_mode, |el| {
+                        el.child(
+                            div()
+                                .relative()
+                                .h_full()
+                                .flex_1()
+                                .min_w_0()
+                                .debug_selector(|| "page-pane".into())
+                                .child(self.digest.clone())
+                                .when(self.show_sidebar, |el| {
+                                    el.child(pane_handle(PaneEdge::Sidebar))
+                                }),
+                        )
+                    })
+                    .when(!settings_open && !(digest_shown && !focus_mode), |el| {
                         el.when(!focus_mode, |el| {
                             el.child(
                                 div()
@@ -2875,8 +2925,6 @@ impl Render for Workspace {
                                     .map(|el| {
                                         if tasks_shown {
                                             el.child(self.tasks.clone())
-                                        } else if digest_shown {
-                                            el.child(self.digest.clone())
                                         } else {
                                             el.child(self.note_list.clone())
                                         }
@@ -2927,7 +2975,10 @@ impl Render for Workspace {
             )
             .children(crate::graph_view::overlay(self))
             .children(crate::board_view::overlay(self))
-            .children(crate::triage_view::overlay(self))
+            .children(crate::triage_view::overlay(
+                self,
+                if focus_mode { 0. } else { leading },
+            ))
             // Over everything else when open.
             .child(self.palette.clone())
             // The system draws the real traffic lights above the palette too.

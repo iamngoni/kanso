@@ -14,6 +14,7 @@ import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
+import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
@@ -188,7 +189,11 @@ class _ReviewPageState extends State<ReviewPage> {
                       ),
                     ),
                   ),
-                if (empty) meta(l10n.digestReviewNothing),
+                if (empty)
+                  KansoEmptyState(
+                    title: l10n.digestReviewEmptyTitle,
+                    message: l10n.digestReviewEmptyMessage,
+                  ),
                 if (review.written.isNotEmpty) ...<Widget>[
                   KansoSectionHeader(label: l10n.digestReviewWritten),
                   for (final note in review.written)

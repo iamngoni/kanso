@@ -36,9 +36,9 @@ use kanso_store::Store;
 
 use crate::clock::Clock;
 use crate::config::{AppConfig, MAX_TAGS_LIMIT};
-use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT, inset_after};
+use crate::layout::BOTTOM_BAND_HEIGHT;
 use crate::library::{Library, LibraryEvent};
-use crate::note_list::quiet_empty;
+use crate::page_chrome::{self, ActionStyle, HeaderAction};
 use crate::theme::Colors;
 use crate::workspace::{AppState, Workspace};
 use crate::zoom::px;
@@ -136,6 +136,9 @@ pub struct TriageView {
     /// Notes that changed since their card was made: only these are made
     /// again on the next read.
     dirty: HashSet<String>,
+    /// The page's width and the room the traffic lights need at its left.
+    pane_width: Pixels,
+    leading_inset: Pixels,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -252,8 +255,29 @@ impl TriageView {
             ai_cancel: Arc::new(AtomicBool::new(false)),
             ai_done: Default::default(),
             dirty: HashSet::new(),
+            pane_width: px(1000.),
+            leading_inset: px(0.),
             _subscriptions: subscriptions,
         }
+    }
+
+    /// The page's width and leading inset, for fitting its header.
+    pub fn set_frame(&mut self, width: Pixels, inset: Pixels, cx: &mut Context<Self>) {
+        if self.pane_width != width || self.leading_inset != inset {
+            self.pane_width = width;
+            self.leading_inset = inset;
+            cx.notify();
+        }
+    }
+
+    /// Whether the model is still going over cards.
+    fn refining(&self) -> bool {
+        self.ai_task.is_some()
+            && self
+                .session
+                .cards
+                .iter()
+                .any(|c| !self.ai_done.contains(&c.note_id))
     }
 
     /// Opens the view: the cards are made again.
@@ -795,68 +819,70 @@ impl TriageView {
     // MARK: Drawing
 
     fn render_toolbar(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let colors = Colors::get(cx);
         let shown = self.session.shown().len();
         let accepted = self.session.filings().len();
         let title = if shown == 0 {
-            "Inbox".to_owned()
+            "Triage".to_owned()
         } else {
-            format!("Inbox · {shown} to file")
+            format!("Triage · {shown} to file")
         };
-        h_flex()
-            .h(px(TOP_BAND_HEIGHT))
-            .flex_none()
-            .pl(px(inset_after(0., window.is_fullscreen())))
-            .pr(px(12.))
-            .gap(px(10.))
-            .border_b_1()
-            .border_color(colors.divider)
-            .bg(colors.list)
-            .child(
-                div()
-                    .text_size(px(14.))
-                    .font_medium()
-                    .text_color(colors.text)
-                    .child(title),
+        let view = cx.entity().downgrade();
+        let books = view.clone();
+        let tags = view.clone();
+        let file = view.clone();
+        let actions = vec![
+            HeaderAction::new(
+                "triage-all-notebooks",
+                Lucide::Notebook,
+                "Accept all notebooks",
+                move |_, cx| {
+                    books
+                        .update(cx, |this, cx| this.accept_everywhere(Field::Notebook, cx))
+                        .ok();
+                },
             )
-            .child(div().flex_1())
-            .child(
-                Button::new("triage-all-notebooks")
-                    .ghost()
-                    .small()
-                    .label("Accept all notebooks")
-                    .tooltip("Tick every suggested notebook (nothing moves until File)")
-                    .on_click(
-                        cx.listener(|this, _, _, cx| this.accept_everywhere(Field::Notebook, cx)),
-                    ),
+            .tooltip("Tick every suggested notebook (nothing moves until File)")
+            .disabled(shown == 0),
+            HeaderAction::new(
+                "triage-all-tags",
+                Lucide::Tag,
+                "Accept all tags",
+                move |_, cx| {
+                    tags.update(cx, |this, cx| this.accept_everywhere(Field::Tag, cx))
+                        .ok();
+                },
             )
-            .child(
-                Button::new("triage-all-tags")
-                    .ghost()
-                    .small()
-                    .label("Accept all tags")
-                    .tooltip("Tick every suggested tag (nothing is added until File)")
-                    .on_click(cx.listener(|this, _, _, cx| this.accept_everywhere(Field::Tag, cx))),
+            .tooltip("Tick every suggested tag (nothing is added until File)")
+            .disabled(shown == 0),
+            HeaderAction::new(
+                "triage-file-all",
+                Lucide::Inbox,
+                format!("File all accepted ({accepted})"),
+                move |window, cx| {
+                    file.update(cx, |this, cx| this.file_all(window, cx)).ok();
+                },
             )
-            .child(
-                Button::new("triage-file-all")
-                    .primary()
-                    .small()
-                    .label(format!("File all accepted ({accepted})"))
-                    .disabled(accepted == 0)
-                    .debug_selector(|| "triage-file-all".into())
-                    .on_click(cx.listener(|this, _, window, cx| this.file_all(window, cx))),
-            )
-            .child(
-                Button::new("triage-close")
-                    .ghost()
-                    .small()
-                    .icon(Lucide::Close)
-                    .tooltip("Close (Esc)")
-                    .on_click(cx.listener(|_, _, window, cx| {
-                        window.dispatch_action(Box::new(CloseTriageView), cx)
-                    })),
-            )
+            .tooltip("File every accepted suggestion, with one Undo")
+            .style(ActionStyle::Primary)
+            .disabled(accepted == 0),
+        ];
+        let close = HeaderAction::new("triage-close", Lucide::Close, "Close", |window, cx| {
+            window.dispatch_action(Box::new(CloseTriageView), cx)
+        })
+        .tooltip("Close (Esc)");
+        let colors = Colors::get(cx);
+        page_chrome::page_header(
+            title,
+            self.leading_inset,
+            self.pane_width,
+            actions,
+            Some(close),
+            window,
+            cx,
+        )
+        .border_b_1()
+        .border_color(colors.divider)
+        .bg(colors.list)
     }
 
     /// The lines above the cards: why notebooks and tags are missing, and
@@ -1233,11 +1259,33 @@ impl TriageView {
                 )
             })
             .when_some(card.ai_error.clone(), |el, reason| {
+                let trouble = page_chrome::ai_trouble(&reason);
                 el.child(
-                    div()
-                        .text_size(px(11.5))
-                        .text_color(colors.text_muted)
-                        .child(format!("AI suggestions unavailable: {reason}")),
+                    h_flex()
+                        .gap(px(6.))
+                        .flex_wrap()
+                        .text_size(px(12.))
+                        .child(
+                            Icon::new(Lucide::TriangleAlert)
+                                .size(px(13.))
+                                .text_color(colors.warning),
+                        )
+                        .child(div().text_color(colors.text_secondary).child(format!(
+                            "{}. Showing suggestions from your notes. {}",
+                            trouble.title, trouble.detail
+                        )))
+                        .child(
+                            Button::new(SharedString::from(format!("triage-ai-settings-{ix}")))
+                                .ghost()
+                                .xsmall()
+                                .label("AI Settings")
+                                .on_click(|_, window, cx| {
+                                    window.dispatch_action(
+                                        Box::new(crate::settings::OpenAiSettings),
+                                        cx,
+                                    )
+                                }),
+                        ),
                 )
             })
             .child(
@@ -1298,22 +1346,55 @@ impl Render for TriageView {
         let colors = Colors::get(cx);
         let shown = self.session.shown();
         let body = if shown.is_empty() && !self.loading {
-            quiet_empty(
-                Icon::new(Lucide::Check),
-                "Inbox is clear.".to_owned(),
-                None,
-                colors,
-            )
-            .into_any_element()
-        } else {
-            v_flex()
+            div()
                 .id("triage-cards")
                 .size_full()
-                .p(px(16.))
-                .gap(px(12.))
+                .overflow_y_scroll()
+                .child(page_chrome::centred(page_chrome::column().child(
+                    page_chrome::page_empty(
+                        Lucide::Inbox,
+                        "Your Inbox is clear",
+                        "Triage files the notes that land in your Inbox. For each one it suggests a notebook, tags, a title and links, and nothing changes until you accept. New captures will wait here.",
+                        vec![
+                            Button::new("triage-empty-close")
+                                .primary()
+                                .label("Back to Notes")
+                                .on_click(|_, window, cx| {
+                                    window.dispatch_action(Box::new(CloseTriageView), cx)
+                                })
+                                .into_any_element(),
+                        ],
+                        cx,
+                    ),
+                )))
+                .into_any_element()
+        } else {
+            let refining = self.refining();
+            div()
+                .id("triage-cards")
+                .size_full()
                 .overflow_y_scroll()
                 .track_scroll(&self.scroll)
-                .children(shown.iter().map(|ix| self.render_card(*ix, cx)))
+                .child(page_chrome::centred(
+                    page_chrome::column()
+                        .gap(px(12.))
+                        .pt(px(16.))
+                        .when(refining, |el| {
+                            el.child(
+                                h_flex()
+                                    .gap(px(6.))
+                                    .text_size(px(12.5))
+                                    .text_color(colors.text_muted)
+                                    .child(
+                                        Icon::new(Lucide::Sparkles)
+                                            .size(px(13.))
+                                            .text_color(colors.accent),
+                                    )
+                                    .child("Your model is improving the suggestions…"),
+                            )
+                        })
+                        .children(shown.iter().map(|ix| self.render_card(*ix, cx))),
+                ))
                 .into_any_element()
         };
         v_flex()
@@ -1427,14 +1508,16 @@ pub fn on_actions(el: Div, cx: &mut Context<Workspace>) -> Div {
 }
 
 /// Triage over the window, while open.
-pub fn overlay(workspace: &Workspace) -> Option<impl IntoElement> {
+pub fn overlay(workspace: &Workspace, leading: f32) -> Option<impl IntoElement> {
     let triage = workspace.triage.clone().filter(|_| workspace.triage_open)?;
+    // Over the list and the editor, beside the sidebar, as the other pages.
     Some(
         div()
             .absolute()
             .top_0()
-            .left_0()
-            .size_full()
+            .left(px(leading))
+            .right_0()
+            .bottom_0()
             .debug_selector(|| "triage-overlay".into())
             .child(triage),
     )
@@ -1462,6 +1545,8 @@ pub fn bar(count: usize, colors: &Colors) -> impl IntoElement {
         .child(
             div()
                 .flex_1()
+                .min_w_0()
+                .truncate()
                 .text_size(px(12.5))
                 .text_color(colors.text_secondary)
                 .child(format!(

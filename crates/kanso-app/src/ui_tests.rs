@@ -2912,3 +2912,65 @@ fn the_inbox_settings_default_as_specified() {
     assert_eq!(opts.max_tags, 3);
     assert_eq!(opts.inbox_id, "book:inbox");
 }
+
+/// The weekly review takes the list's and the editor's place, and its
+/// header never clips: through every width, each action is on screen
+/// inside the page or in the More menu.
+// no-prop-test: drives one window through widths; the fitting rule is a
+// property in page_chrome.rs.
+#[gpui_kit::test]
+fn page_headers_fit_every_width(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    cx.update(|cx| AppState::update_config(cx, |config| config.ai.enabled = true));
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Review, cx)
+    });
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    for width in [1600., 1100., 820., 700., 600., 520.] {
+        vcx.simulate_resize(gpui_kit::size(gpui_kit::px(width), gpui_kit::px(800.)));
+        vcx.executor().advance_clock(Duration::from_millis(600));
+        for _ in 0..3 {
+            f.draw(&mut vcx);
+        }
+        let pane = vcx
+            .debug_bounds("page-pane")
+            .expect("the review fills the content area");
+        assert_eq!(vcx.debug_bounds("list-pane"), None, "{width}");
+        assert_eq!(vcx.debug_bounds("editor-pane"), None, "{width}");
+        let header = vcx.debug_bounds("page-header").unwrap();
+        assert!(header.right() <= pane.right(), "{width}");
+        let more = vcx.debug_bounds("page-more");
+        if let Some(more) = more {
+            assert!(more.right() <= pane.right(), "{width}");
+        }
+        for id in ["review-themes", "review-save"] {
+            match vcx.debug_bounds(id) {
+                Some(b) => assert!(
+                    b.right() <= pane.right() && b.left() >= pane.left(),
+                    "{id} clipped at {width}"
+                ),
+                None => assert!(more.is_some(), "{id} unreachable at {width}"),
+            }
+        }
+    }
+}
+
+/// Open Loops with nothing in it says what the page is for and what to
+/// do, in place of a grey line.
+// no-prop-test: one render of the empty state.
+#[gpui_kit::test]
+fn an_empty_page_explains_itself(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::OpenLoops, cx)
+    });
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.executor().advance_clock(Duration::from_millis(600));
+    for _ in 0..3 {
+        f.draw(&mut vcx);
+    }
+    assert!(vcx.debug_bounds("page-empty").is_some());
+}
