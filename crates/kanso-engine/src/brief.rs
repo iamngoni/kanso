@@ -8,9 +8,14 @@
 //! not in the trash).
 
 mod markdown;
+mod schedule;
 mod themes;
 
-pub use markdown::{review_markdown, review_title};
+pub use markdown::{iso_week_label, review_markdown, review_title};
+pub use schedule::{
+    BriefSettings, GRACE_MS, NoticeKind, PLAN_DAYS, Planned, due_now, fire_at, next_wake, plan,
+    shown_key,
+};
 pub use themes::{MAX_TAGS, MAX_TERMS, MIN_NOTES, Theme, ThemeKind, themes};
 
 use kanso_core::dates::{Date, DateTime};
