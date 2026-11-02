@@ -277,3 +277,52 @@ fn spoken_text_saves_where_asked_with_the_record() {
         Err(CaptureError::Locked)
     ));
 }
+
+#[test]
+fn a_recording_that_cannot_be_transcribed_is_kept_as_an_audio_note() {
+    let (dir, store) = store();
+    let audio = dir.path().join("rec.m4a");
+    std::fs::write(&audio, b"audio bytes").unwrap();
+    let saved = save_audio_only(
+        &store,
+        ID,
+        "Voice note",
+        9_000,
+        Engine::SystemOnDevice,
+        &audio,
+        Origin::Ui,
+    )
+    .unwrap();
+    let note = store.note(&saved.id).unwrap().unwrap();
+    assert_eq!(note.book_id, "book:inbox");
+    assert!(note.body.starts_with(NOT_TRANSCRIBED));
+    assert!(note.body.contains(&audio_file_id(ID)));
+    let again = save_audio_only(
+        &store,
+        ID,
+        "Other",
+        1,
+        Engine::SystemOnDevice,
+        &audio,
+        Origin::Ui,
+    )
+    .unwrap();
+    assert!(again.existed);
+    // Not audio: nothing is saved.
+    let junk = dir.path().join("rec.txt");
+    std::fs::write(&junk, b"x").unwrap();
+    let other = "e".repeat(32);
+    assert!(
+        save_audio_only(
+            &store,
+            &other,
+            "t",
+            1,
+            Engine::SystemOnDevice,
+            &junk,
+            Origin::Ui
+        )
+        .is_err()
+    );
+    assert!(store.get(&note_id(&other)).unwrap().is_none());
+}

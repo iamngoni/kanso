@@ -189,6 +189,59 @@ pub fn save_voice_capture(
     }
 }
 
+/// What an audio-only note says where its words would be.
+pub const NOT_TRANSCRIBED: &str =
+    "This recording hasn't been turned into text: this phone can't do it on the device.";
+
+/// Saves a recording that could not be transcribed as a note in the Inbox
+/// with the audio attached and a line saying so: the recording is not lost.
+/// The note is `note:cap-<id>` like any capture, so a retry makes one. An
+/// audio file that can't be attached (too large, not audio) is an error
+/// string, and nothing is saved.
+pub fn save_audio_only(
+    store: &Store,
+    id: &str,
+    title: &str,
+    duration_ms: u64,
+    engine: Engine,
+    audio: &std::path::Path,
+    origin: Origin,
+) -> Result<SavedCapture, CaptureError> {
+    if !is_drop_id(id) {
+        return Err(CaptureError::BadId);
+    }
+    let note = note_id(id);
+    if store.get(&note)?.is_some() {
+        return Ok(SavedCapture {
+            id: note,
+            problems: Vec::new(),
+            existed: true,
+        });
+    }
+    let inbox = store.role_book(Role::Inbox, origin)?;
+    if store.locked_books()?.contains(&inbox) {
+        return Err(CaptureError::Locked);
+    }
+    let link = attach_audio(store, id, audio).map_err(|why| CaptureError::Empty(vec![why]))?;
+    let written = store.put(
+        DocType::Note,
+        json!({
+            "_id": note,
+            "title": title,
+            "body": format!("{NOT_TRANSCRIBED}\n\n{link}"),
+            "bookId": inbox,
+            "kansoCapture": capture_value(duration_ms, engine, TidyState::None),
+        }),
+        Put::Upsert,
+        origin,
+    )?;
+    Ok(SavedCapture {
+        id: written.id,
+        problems: Vec::new(),
+        existed: false,
+    })
+}
+
 /// Saves text that was spoken into a window, as `save_capture` saves typed
 /// text, with the capture's record added. For the desktop's Quick Capture,
 /// where the person may have edited the words or tidied them before saving.

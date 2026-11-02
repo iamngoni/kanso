@@ -27,7 +27,7 @@ use kanso_ai::tidy::tidy as run_tidy;
 use kanso_core::capture_mark::{TidyState, read_tidy};
 use kanso_engine::capture::{CaptureError, is_drop_id};
 use kanso_engine::voice_capture::{
-    Engine, VoiceCapture, is_meeting, new_capture_id, save_voice_capture,
+    Engine, VoiceCapture, is_meeting, new_capture_id, save_audio_only, save_voice_capture,
 };
 use kanso_engine::voice_tidy::{TidyError, apply_tidy, tidy_source};
 use kanso_store::Origin;
@@ -163,6 +163,41 @@ impl Library {
             )?;
             remove_drop(inbox, id);
             Ok(saved)
+        })
+    }
+
+    /// Saves voice drop `id` as an audio note, for a recording the phone
+    /// could not turn into text: the audio is attached to a note in the
+    /// Inbox that says so, and the folder removed. Nothing is lost.
+    pub fn save_voice_drop_audio_only(
+        &self,
+        inbox: &Path,
+        id: &str,
+    ) -> Result<VoiceCaptureSaved, KansoError> {
+        guard(|| {
+            let drop = find_drop(inbox, id)?;
+            let audio = inbox.join(id).join(&drop.file);
+            let saved = save_audio_only(
+                &self.inner.store,
+                id,
+                "Voice note",
+                drop.info.duration_ms,
+                Engine::SystemOnDevice,
+                &audio,
+                Origin::Ui,
+            )
+            .map_err(|err| match err {
+                CaptureError::Empty(why) => KansoError::invalid(why.join(" ")),
+                other => map_capture(other),
+            })?;
+            remove_drop(inbox, id);
+            Ok(VoiceCaptureSaved {
+                note_id: Some(saved.id),
+                problems: saved.problems,
+                existed: saved.existed,
+                meeting: false,
+                tidy_now: false,
+            })
         })
     }
 

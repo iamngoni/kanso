@@ -215,15 +215,16 @@ mod tests {
     #[test]
     fn the_strip_follows_the_note_and_the_settings() {
         let plain = plain_note();
-        let cases: Vec<(
+        type Case<'a> = (
             Note,
             bool,
             TidyMode,
             bool,
             bool,
-            Option<&str>,
+            Option<&'a str>,
             Option<Strip>,
-        )> = vec![
+        );
+        let cases: Vec<Case> = vec![
             (
                 note("pending", false),
                 true,

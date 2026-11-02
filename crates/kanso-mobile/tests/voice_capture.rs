@@ -215,6 +215,23 @@ fn a_recording_with_no_words_is_removed_and_a_missing_one_is_not_found() {
     assert!(phone.library.voice_drops(&inbox).unwrap().is_empty());
 }
 
+// no-prop-test: one fixed recording a phone could not transcribe.
+#[test]
+fn a_recording_the_phone_cannot_transcribe_is_kept_as_an_audio_note() {
+    let phone = lone_phone();
+    let inbox = inbox_of(&phone);
+    let folder = write_voice_drop(&inbox, ID, 8_000);
+    let saved = phone
+        .library
+        .save_voice_drop_audio_only(&inbox, ID)
+        .unwrap();
+    assert!(!folder.exists());
+    let store = Store::open(phone.path()).unwrap();
+    let note = store.note(&saved.note_id.unwrap()).unwrap().unwrap();
+    assert_eq!(note.book_id, "book:inbox");
+    assert!(note.body.contains("inkdrop://file:cap-"), "{}", note.body);
+}
+
 proptest! {
     #![proptest_config(Config {
         cases: 12,

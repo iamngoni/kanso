@@ -332,7 +332,7 @@ mod tests {
     proptest! {
         #![proptest_config(Config {
             cases: 128,
-            rng_seed: RngSeed::Fixed(0x0074_6964_79),
+            rng_seed: RngSeed::Fixed(0x7469_6479),
             rng_algorithm: RngAlgorithm::ChaCha,
             failure_persistence: None,
             ..Config::default()

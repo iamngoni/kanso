@@ -323,10 +323,10 @@ fn voice_status(hotkeys: &mut Hotkeys, settings: &crate::config::CaptureSettings
         ));
     }
     let status = register_with(hotkeys, shortcut, true);
-    if matches!(status, Status::On(_)) {
-        if let Some(hotkey) = hotkeys.voice_registered {
-            VOICE_HOTKEY_ID.store(hotkey.id(), Ordering::Relaxed);
-        }
+    if matches!(status, Status::On(_))
+        && let Some(hotkey) = hotkeys.voice_registered
+    {
+        VOICE_HOTKEY_ID.store(hotkey.id(), Ordering::Relaxed);
     }
     status
 }
