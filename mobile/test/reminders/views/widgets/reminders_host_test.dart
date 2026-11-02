@@ -22,6 +22,9 @@ void main() {
     when(
       () => coordinator.digestOpened,
     ).thenAnswer((_) => const Stream<bool>.empty());
+    when(
+      () => coordinator.agentOpened,
+    ).thenAnswer((_) => const Stream<void>.empty());
     when(coordinator.start).thenAnswer((_) async {});
 
     final router = GoRouter(

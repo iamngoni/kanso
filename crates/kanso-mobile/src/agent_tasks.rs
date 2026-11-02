@@ -13,11 +13,39 @@ use std::sync::{Arc, Mutex, OnceLock};
 use kanso_engine::agent_task::review::{self, CardDetail, CardState, LineKind};
 use kanso_engine::agent_task::runner::{ApiDriver, Tasks};
 use kanso_engine::agent_task::{ReadScope, TaskSpec};
-use kanso_server::{OpKind, Selection, TaskId, TokenStore};
+use kanso_server::{OpKind, Selection, TaskId, TaskOps, TokenStore};
 
-use crate::agent_tasks_model::{TaskCard, TaskReview, TaskView};
+use crate::agent_tasks_model::{AgentTaskPrefs, TaskCard, TaskReview, TaskView};
 use crate::ai::AiHandle;
 use crate::errors::KansoError;
+
+/// What starting a task says while Settings has agent tasks off.
+pub const TASKS_OFF: &str = "Agent tasks are turned off in Settings.";
+
+/// The file the preferences are kept in, beside the library.
+const PREFS_FILE: &str = "agent-tasks.json";
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+struct PrefsFile {
+    enabled: bool,
+    new_notes: bool,
+    edits: bool,
+    moves: bool,
+    merges: bool,
+}
+
+impl Default for PrefsFile {
+    fn default() -> Self {
+        PrefsFile {
+            enabled: true,
+            new_notes: true,
+            edits: true,
+            moves: true,
+            merges: true,
+        }
+    }
+}
 
 /// The agent's name on the phone.
 const AGENT: &str = "Kanso AI";
@@ -59,6 +87,50 @@ impl AgentTasks {
             .clone()
     }
 
+    fn prefs_path(&self) -> std::path::PathBuf {
+        self.ai
+            .inner
+            .path
+            .parent()
+            .filter(|dir| !dir.as_os_str().is_empty())
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join(PREFS_FILE)
+    }
+
+    /// Settings > AI > Agent tasks.
+    pub fn prefs(&self) -> AgentTaskPrefs {
+        let file: PrefsFile = std::fs::read(self.prefs_path())
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or_default();
+        AgentTaskPrefs {
+            enabled: file.enabled,
+            new_notes: file.new_notes,
+            edits: file.edits,
+            moves: file.moves,
+            merges: file.merges,
+        }
+    }
+
+    /// Saves the preferences.
+    pub fn set_prefs(&self, prefs: AgentTaskPrefs) -> Result<AgentTaskPrefs, KansoError> {
+        let file = PrefsFile {
+            enabled: prefs.enabled,
+            new_notes: prefs.new_notes,
+            edits: prefs.edits,
+            moves: prefs.moves,
+            merges: prefs.merges,
+        };
+        let bytes =
+            serde_json::to_vec_pretty(&file).map_err(|err| KansoError::storage(err.to_string()))?;
+        let path = self.prefs_path();
+        let part = path.with_extension("json.part");
+        std::fs::write(&part, bytes)
+            .and_then(|()| std::fs::rename(&part, &path))
+            .map_err(|err| KansoError::storage(err.to_string()))?;
+        Ok(prefs)
+    }
+
     /// Starts a task that may read `note_ids` (or every unlocked note when
     /// empty) and put new notes in `new_note_book`. Returns its id.
     pub fn start(
@@ -67,6 +139,10 @@ impl AgentTasks {
         note_ids: Vec<String>,
         new_note_book: &str,
     ) -> Result<u64, KansoError> {
+        let prefs = self.prefs();
+        if !prefs.enabled {
+            return Err(KansoError::invalid(TASKS_OFF));
+        }
         let settings = self.ai.enabled()?;
         let provider = self.ai.provider_for(&settings)?;
         let read = if note_ids.is_empty() {
@@ -74,7 +150,13 @@ impl AgentTasks {
         } else {
             ReadScope::Notes(note_ids)
         };
-        let spec = TaskSpec::new(goal, read, new_note_book);
+        let mut spec = TaskSpec::new(goal, read, new_note_book);
+        spec.ops = TaskOps {
+            create: prefs.new_notes,
+            edit: prefs.edits,
+            moves: prefs.moves,
+            merge: prefs.merges,
+        };
         let runtime = self.runtime();
         runtime
             .tasks

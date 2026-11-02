@@ -3,6 +3,18 @@
 
 use kanso_engine::agent_task::model::{Phase, TaskRow};
 
+/// Settings > AI > Agent tasks on the phone.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AgentTaskPrefs {
+    /// Agent tasks are on (when AI is on).
+    pub enabled: bool,
+    /// "Agents may propose".
+    pub new_notes: bool,
+    pub edits: bool,
+    pub moves: bool,
+    pub merges: bool,
+}
+
 /// One task, as the Ask page and the task list show it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskView {

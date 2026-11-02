@@ -16,6 +16,8 @@ import '../../core/models/repos/abs/library_repository.dart';
 import '../../core/models/repos/abs/preferences_repository.dart';
 import '../../core/models/repos/abs/reminder_notifier.dart';
 import '../../core/models/repos/abs/reminders_repository.dart';
+import '../../core/models/repos/impl/system_agent_task_notifier.dart'
+    show agentTaskKeyPrefix;
 import '../../core/utils/debounce.dart';
 
 /// What the keys of the brief and review notifications start with.
@@ -84,6 +86,12 @@ class RemindersCoordinator {
   // one opens the page; it is not a task to answer.
   final StreamController<bool> _digestOpened = StreamController<bool>();
 
+  // A tap on an agent task's notification opens Agent tasks.
+  final StreamController<void> _agentOpened = StreamController<void>();
+
+  /// Fires when the person taps the notification of a paused agent task.
+  Stream<void> get agentOpened => _agentOpened.stream;
+
   /// The brief (false) or the review (true) the person asked to open from
   /// a notification.
   Stream<bool> get digestOpened => _digestOpened.stream;
@@ -145,6 +153,7 @@ class RemindersCoordinator {
     // so closing is not awaited: it would never return.
     unawaited(_opened.close());
     unawaited(_digestOpened.close());
+    unawaited(_agentOpened.close());
   }
 
   Future<void> _serialised(Future<void> Function() action) {
@@ -288,6 +297,12 @@ class RemindersCoordinator {
   }
 
   Future<void> _apply(ReminderResponse response) async {
+    if (response.key.startsWith(agentTaskKeyPrefix)) {
+      if (response.action == ReminderAnswer.open && !_agentOpened.isClosed) {
+        _agentOpened.add(null);
+      }
+      return;
+    }
     if (response.key.startsWith(digestKeyPrefix)) {
       // A tap opens the brief or the review; the buttons do nothing.
       if (response.action == ReminderAnswer.open && !_digestOpened.isClosed) {

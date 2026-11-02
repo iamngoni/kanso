@@ -39,14 +39,22 @@ abstract class KansoPublisher implements RustOpaqueInterface {
 }
 
 /// Expiry offered by the shared publishing engine.
-enum PublishExpiry { never, day, week, month }
+enum PublishExpiry {
+  never,
+  day,
+  week,
+  month,
+}
 
 /// The engine's expiry choice and its localized-ready source label.
 class PublishExpiryOption {
   final PublishExpiry expiry;
   final String label;
 
-  const PublishExpiryOption({required this.expiry, required this.label});
+  const PublishExpiryOption({
+    required this.expiry,
+    required this.label,
+  });
 
   @override
   int get hashCode => expiry.hashCode ^ label.hashCode;

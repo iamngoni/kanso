@@ -4,9 +4,30 @@
 
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    AgentTasks, KansoError, TaskCard as CoreTaskCard, TaskReview as CoreTaskReview,
-    TaskView as CoreTaskView,
+    AgentTaskPrefs as CoreAgentTaskPrefs, AgentTasks, KansoError, TaskCard as CoreTaskCard,
+    TaskReview as CoreTaskReview, TaskView as CoreTaskView,
 };
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AgentTaskPrefs {
+    pub enabled: bool,
+    pub new_notes: bool,
+    pub edits: bool,
+    pub moves: bool,
+    pub merges: bool,
+}
+
+impl From<CoreAgentTaskPrefs> for AgentTaskPrefs {
+    fn from(p: CoreAgentTaskPrefs) -> Self {
+        AgentTaskPrefs {
+            enabled: p.enabled,
+            new_notes: p.new_notes,
+            edits: p.edits,
+            moves: p.moves,
+            merges: p.merges,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskView {
@@ -99,6 +120,22 @@ impl KansoAgentTasks {
         new_note_book: String,
     ) -> Result<u64, KansoError> {
         self.0.start(&goal, note_ids, &new_note_book)
+    }
+
+    pub fn prefs(&self) -> AgentTaskPrefs {
+        self.0.prefs().into()
+    }
+
+    pub fn set_prefs(&self, prefs: AgentTaskPrefs) -> Result<AgentTaskPrefs, KansoError> {
+        self.0
+            .set_prefs(CoreAgentTaskPrefs {
+                enabled: prefs.enabled,
+                new_notes: prefs.new_notes,
+                edits: prefs.edits,
+                moves: prefs.moves,
+                merges: prefs.merges,
+            })
+            .map(AgentTaskPrefs::from)
     }
 
     pub fn tasks(&self) -> Vec<TaskView> {

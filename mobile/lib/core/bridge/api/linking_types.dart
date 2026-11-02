@@ -185,10 +185,12 @@ sealed class PalettePlace with _$PalettePlace {
   const factory PalettePlace.pinned() = PalettePlace_Pinned;
   const factory PalettePlace.recent() = PalettePlace_Recent;
   const factory PalettePlace.tasks() = PalettePlace_Tasks;
-  const factory PalettePlace.notebook({required String id}) =
-      PalettePlace_Notebook;
-  const factory PalettePlace.status({required String name}) =
-      PalettePlace_Status;
+  const factory PalettePlace.notebook({
+    required String id,
+  }) = PalettePlace_Notebook;
+  const factory PalettePlace.status({
+    required String name,
+  }) = PalettePlace_Status;
   const factory PalettePlace.shared() = PalettePlace_Shared;
   const factory PalettePlace.trash() = PalettePlace_Trash;
 }
@@ -197,7 +199,10 @@ class PaletteSection {
   final String label;
   final List<PaletteEntry> entries;
 
-  const PaletteSection({required this.label, required this.entries});
+  const PaletteSection({
+    required this.label,
+    required this.entries,
+  });
 
   @override
   int get hashCode => label.hashCode ^ entries.hashCode;
@@ -219,9 +224,12 @@ sealed class PaletteTarget with _$PaletteTarget {
     required String id,
     PalettePicker? picker,
   }) = PaletteTarget_Command;
-  const factory PaletteTarget.place({required PalettePlace place}) =
-      PaletteTarget_Place;
-  const factory PaletteTarget.note({required String id}) = PaletteTarget_Note;
+  const factory PaletteTarget.place({
+    required PalettePlace place,
+  }) = PaletteTarget_Place;
+  const factory PaletteTarget.note({
+    required String id,
+  }) = PaletteTarget_Note;
   const factory PaletteTarget.heading({
     required String noteId,
     required int line,

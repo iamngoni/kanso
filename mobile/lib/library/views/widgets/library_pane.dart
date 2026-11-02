@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../agent_tasks/views/widgets/agent_tasks_library_row.dart';
 import '../../../ask/views/widgets/ask_library_row.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
@@ -221,6 +222,7 @@ class _LibraryPaneState extends State<LibraryPane> {
                         selected: current == const ListPlace.recent(),
                       ),
                       const AskLibraryRow(),
+                      const AgentTasksLibraryRow(),
                       SharedWithYouRow(
                         onOpen: () =>
                             leave(() => context.push(KansoRoutes.shared)),

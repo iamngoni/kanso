@@ -1430,6 +1430,9 @@ impl Render for ReviewChanges {
                     .gap(px(2.))
                     .child(
                         div()
+                            .min_w_0()
+                            .max_h(px(40.))
+                            .overflow_hidden()
                             .text_size(px(14.))
                             .font_semibold()
                             .text_color(colors.text)
@@ -1437,6 +1440,8 @@ impl Render for ReviewChanges {
                     )
                     .child(
                         div()
+                            .min_w_0()
+                            .truncate()
                             .text_size(px(12.5))
                             .text_color(colors.text_secondary)
                             .child(format!("{} · {}", self.cards.agent, self.cards.header())),

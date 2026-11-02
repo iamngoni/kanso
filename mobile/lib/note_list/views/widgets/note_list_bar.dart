@@ -7,9 +7,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/search_scope_kind.dart';
+import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/place_labels.dart';
@@ -72,6 +74,10 @@ class NoteListBar extends StatelessWidget {
             : () => bloc.add(
                 NoteListEvent.changeRequested(const NoteChange.trash(), chosen),
               ),
+        onAskAgent:
+            state.inTrash || !context.watch<AiStatusBloc>().state.enabled
+            ? null
+            : () => context.push(KansoRoutes.agentTasks, extra: chosen),
         onMore: () => NoteActionsSheet.show(context, bloc: bloc, ids: chosen),
       );
     }

@@ -568,6 +568,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AccountStep dco_decode_account_step(dynamic raw);
 
   @protected
+  AgentTaskPrefs dco_decode_agent_task_prefs(dynamic raw);
+
+  @protected
   AiAction dco_decode_ai_action(dynamic raw);
 
   @protected
@@ -632,6 +635,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AccountState dco_decode_box_autoadd_account_state(dynamic raw);
+
+  @protected
+  AgentTaskPrefs dco_decode_box_autoadd_agent_task_prefs(dynamic raw);
 
   @protected
   AiSettingsInput dco_decode_box_autoadd_ai_settings_input(dynamic raw);
@@ -2527,6 +2533,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AccountStep sse_decode_account_step(SseDeserializer deserializer);
 
   @protected
+  AgentTaskPrefs sse_decode_agent_task_prefs(SseDeserializer deserializer);
+
+  @protected
   AiAction sse_decode_ai_action(SseDeserializer deserializer);
 
   @protected
@@ -2591,6 +2600,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AccountState sse_decode_box_autoadd_account_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AgentTaskPrefs sse_decode_box_autoadd_agent_task_prefs(
     SseDeserializer deserializer,
   );
 
@@ -4781,6 +4795,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_account_step(AccountStep self, SseSerializer serializer);
 
   @protected
+  void sse_encode_agent_task_prefs(
+    AgentTaskPrefs self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_ai_action(AiAction self, SseSerializer serializer);
 
   @protected
@@ -4864,6 +4884,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_account_state(
     AccountState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_agent_task_prefs(
+    AgentTaskPrefs self,
     SseSerializer serializer,
   );
 

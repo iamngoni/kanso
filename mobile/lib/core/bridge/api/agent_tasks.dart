@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAgentTasks>>
 abstract class KansoAgentTasks implements RustOpaqueInterface {
@@ -15,6 +15,7 @@ abstract class KansoAgentTasks implements RustOpaqueInterface {
   Future<String> apply({
     required int id,
     required List<int> ticked,
+    required List<int> keep,
     required int nowMs,
   });
 
@@ -22,9 +23,13 @@ abstract class KansoAgentTasks implements RustOpaqueInterface {
 
   Future<void> discard({required int id});
 
+  Future<AgentTaskPrefs> prefs();
+
   Future<void> reply({required int id, required String text});
 
   Future<TaskReview> review({required int id});
+
+  Future<AgentTaskPrefs> setPrefs({required AgentTaskPrefs prefs});
 
   /// Starts a task; an empty `note_ids` lets it read every unlocked note.
   Future<int> start({
@@ -38,6 +43,41 @@ abstract class KansoAgentTasks implements RustOpaqueInterface {
   Future<List<TaskView>> tasks();
 
   Future<String> undo({required int id, required int nowMs});
+}
+
+class AgentTaskPrefs {
+  final bool enabled;
+  final bool newNotes;
+  final bool edits;
+  final bool moves;
+  final bool merges;
+
+  const AgentTaskPrefs({
+    required this.enabled,
+    required this.newNotes,
+    required this.edits,
+    required this.moves,
+    required this.merges,
+  });
+
+  @override
+  int get hashCode =>
+      enabled.hashCode ^
+      newNotes.hashCode ^
+      edits.hashCode ^
+      moves.hashCode ^
+      merges.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AgentTaskPrefs &&
+          runtimeType == other.runtimeType &&
+          enabled == other.enabled &&
+          newNotes == other.newNotes &&
+          edits == other.edits &&
+          moves == other.moves &&
+          merges == other.merges;
 }
 
 class TaskCard {

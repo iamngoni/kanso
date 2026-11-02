@@ -6362,5 +6362,242 @@
   "aiTroubleSettings": "AI settings",
   "@aiTroubleSettings": {
     "description": "Opens the AI settings from a failure."
+  },
+  "agentTasksTitle": "Agent tasks",
+  "@agentTasksTitle": {
+    "description": "The title of the Agent tasks page."
+  },
+  "agentTasksEntry": "Agent task",
+  "@agentTasksEntry": {
+    "description": "The row in the AI sheet that opens Agent tasks."
+  },
+  "noteListAskAgent": "Ask an agent",
+  "@noteListAskAgent": {
+    "description": "The action that gives an agent the chosen notes to work on."
+  },
+  "agentTasksGoalLabel": "What should the AI do?",
+  "@agentTasksGoalLabel": {
+    "description": "The label of the goal field."
+  },
+  "agentTasksGoalHint": "Merge my Lisbon trip notes into one plan",
+  "@agentTasksGoalHint": {
+    "description": "An example goal in the goal field."
+  },
+  "agentTasksStart": "Start",
+  "@agentTasksStart": {
+    "description": "The button that starts an agent task."
+  },
+  "agentTasksChosenNotes": "Working on {count, plural, =1{1 chosen note} other{{count} chosen notes}}",
+  "@agentTasksChosenNotes": {
+    "description": "Says how many notes the task is limited to.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentTasksEmptyTitle": "No agent tasks yet",
+  "@agentTasksEmptyTitle": {
+    "description": "The title shown with no agent tasks."
+  },
+  "agentTasksEmptyMessage": "Give the AI a goal. It reads your notes and proposes changes. Nothing is written until you review and apply them.",
+  "@agentTasksEmptyMessage": {
+    "description": "The text shown with no agent tasks."
+  },
+  "agentTaskWorking": "Working…",
+  "@agentTaskWorking": {
+    "description": "Said of a task the AI is working on."
+  },
+  "agentTaskWaiting": "Waiting its turn",
+  "@agentTaskWaiting": {
+    "description": "Said of a task waiting for another to finish."
+  },
+  "agentTaskNothing": "The AI found nothing to change.",
+  "@agentTaskNothing": {
+    "description": "Said of a task that proposed no changes."
+  },
+  "agentTaskReady": "{count, plural, =1{1 change to review} other{{count} changes to review}}",
+  "@agentTaskReady": {
+    "description": "Said of a task with changes waiting.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentTaskApplied": "{count, plural, =1{Applied 1 change} other{Applied {count} changes}}",
+  "@agentTaskApplied": {
+    "description": "Said of a task whose changes were applied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentTaskUndone": "Undone",
+  "@agentTaskUndone": {
+    "description": "Said of a task whose changes were taken back."
+  },
+  "agentTaskNotesRead": "{count, plural, =1{1 note read} other{{count} notes read}}",
+  "@agentTaskNotesRead": {
+    "description": "How many notes the AI has read.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentTaskStop": "Stop",
+  "@agentTaskStop": {
+    "description": "The button that stops a task."
+  },
+  "agentTaskReview": "Review",
+  "@agentTaskReview": {
+    "description": "The button that opens the changes of a task."
+  },
+  "agentTaskAnswer": "Answer",
+  "@agentTaskAnswer": {
+    "description": "The button that answers the AI's question."
+  },
+  "agentTaskSend": "Send",
+  "@agentTaskSend": {
+    "description": "The button that sends the answer."
+  },
+  "agentTaskDismiss": "Dismiss",
+  "@agentTaskDismiss": {
+    "description": "The button that removes a task from the list."
+  },
+  "agentTroubleTitle": "The AI couldn't do that",
+  "@agentTroubleTitle": {
+    "description": "The title shown when an agent task failed to start."
+  },
+  "agentTroubleOff": "Agent tasks are turned off. You can turn them on in Settings.",
+  "@agentTroubleOff": {
+    "description": "Shown when agent tasks are turned off."
+  },
+  "agentTroubleAiOff": "AI is turned off. You can turn it on in Settings.",
+  "@agentTroubleAiOff": {
+    "description": "Shown when AI is turned off."
+  },
+  "agentTroubleGeneric": "Something went wrong reaching the AI. Check your connection and the AI settings, then try again.",
+  "@agentTroubleGeneric": {
+    "description": "Shown when an agent task could not run."
+  },
+  "agentTroubleTryAgain": "Try again",
+  "@agentTroubleTryAgain": {
+    "description": "The button that retries."
+  },
+  "agentTroubleSettings": "AI settings",
+  "@agentTroubleSettings": {
+    "description": "The button that opens the AI settings."
+  },
+  "agentReviewTitle": "Review changes",
+  "@agentReviewTitle": {
+    "description": "The title of the page that reviews an agent's changes."
+  },
+  "agentReviewApply": "{count, plural, =0{Apply} =1{Apply 1 change} other{Apply {count} changes}}",
+  "@agentReviewApply": {
+    "description": "The button that applies the chosen changes.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentReviewPosition": "{number} of {total}",
+  "@agentReviewPosition": {
+    "description": "Which change of how many is shown.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "agentReviewKeep": "Keep the original notes",
+  "@agentReviewKeep": {
+    "description": "The switch that stops a merge from trashing the notes it combined."
+  },
+  "agentReviewTrashed": "The original notes move to the Trash.",
+  "@agentReviewTrashed": {
+    "description": "Said of a merge that trashes its sources."
+  },
+  "agentReviewKept": "The original notes stay where they are.",
+  "@agentReviewKept": {
+    "description": "Said of a merge that keeps its sources."
+  },
+  "agentReviewChangedSince": "This note changed since the AI read it. Ticking it applies the change over yours.",
+  "@agentReviewChangedSince": {
+    "description": "Warning on a change to a note that changed."
+  },
+  "agentReviewOutside": "Not one of the notes you chose",
+  "@agentReviewOutside": {
+    "description": "Warning on a change to a note outside the chosen ones."
+  },
+  "agentReviewPublished": "This note is published",
+  "@agentReviewPublished": {
+    "description": "Warning on a change to a published note."
+  },
+  "agentReviewKindCreate": "New note",
+  "@agentReviewKindCreate": {
+    "description": "The kind of a change that makes a note."
+  },
+  "agentReviewKindEdit": "Edit",
+  "@agentReviewKindEdit": {
+    "description": "The kind of a change that edits a note."
+  },
+  "agentReviewKindMove": "Move",
+  "@agentReviewKindMove": {
+    "description": "The kind of a change that moves a note."
+  },
+  "agentReviewKindMerge": "Merge",
+  "@agentReviewKindMerge": {
+    "description": "The kind of a change that merges notes."
+  },
+  "agentReviewFromAgent": "From the AI",
+  "@agentReviewFromAgent": {
+    "description": "The heading over the AI's last message."
+  },
+  "agentReviewNothing": "The AI didn't propose any changes.",
+  "@agentReviewNothing": {
+    "description": "Shown when a review has no changes."
+  },
+  "agentReviewUndo": "Undo",
+  "@agentReviewUndo": {
+    "description": "The button that takes back the applied changes."
+  },
+  "agentSettingsTitle": "Agent tasks",
+  "@agentSettingsTitle": {
+    "description": "The heading of the agent tasks settings."
+  },
+  "agentSettingsEnabled": "Allow agent tasks",
+  "@agentSettingsEnabled": {
+    "description": "The switch that turns agent tasks on."
+  },
+  "agentSettingsMayPropose": "The AI may propose",
+  "@agentSettingsMayPropose": {
+    "description": "The heading over what an agent may propose."
+  },
+  "agentSettingsNewNotes": "New notes",
+  "@agentSettingsNewNotes": {
+    "description": "A thing an agent may propose."
+  },
+  "agentSettingsEdits": "Edits to notes",
+  "@agentSettingsEdits": {
+    "description": "A thing an agent may propose."
+  },
+  "agentSettingsMoves": "Moves to another notebook",
+  "@agentSettingsMoves": {
+    "description": "A thing an agent may propose."
+  },
+  "agentSettingsMerges": "Merging notes",
+  "@agentSettingsMerges": {
+    "description": "A thing an agent may propose."
+  },
+  "agentSettingsFooter": "An agent reads only notes that are not locked, not in the Trash and not tagged #ai-exclude. It never writes; you approve every change.",
+  "@agentSettingsFooter": {
+    "description": "The note under the agent task settings."
   }
 }

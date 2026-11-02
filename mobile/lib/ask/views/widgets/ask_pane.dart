@@ -6,8 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../agent_tasks/views/pages/agent_tasks_page.dart';
-import '../../../core/bridge/api/ai.dart' as bridge_ai;
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/load_status.dart';
@@ -19,7 +17,6 @@ import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_skeleton.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
-import '../../../injection.dart';
 import '../../state/ask/ask_bloc.dart';
 import '../../utils/open_answer_link.dart';
 import '../../utils/open_cited_note.dart';
@@ -66,14 +63,8 @@ class AskPane extends StatelessWidget {
               trailing: <Widget>[
                 KansoIconButton(
                   icon: KansoIcons.listChecks,
-                  semanticLabel: 'Agent tasks',
-                  onPressed: () => Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => AgentTasksPage(
-                        tasks: getIt<bridge_ai.KansoAi>().agentTasks(),
-                      ),
-                    ),
-                  ),
+                  semanticLabel: l10n.agentTasksTitle,
+                  onPressed: () => context.push(KansoRoutes.agentTasks),
                 ),
                 if (state.turns.isNotEmpty)
                   KansoIconButton(

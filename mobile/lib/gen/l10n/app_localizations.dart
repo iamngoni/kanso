@@ -8565,6 +8565,312 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI settings'**
   String get aiTroubleSettings;
+
+  /// The title of the Agent tasks page.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent tasks'**
+  String get agentTasksTitle;
+
+  /// The row in the AI sheet that opens Agent tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent task'**
+  String get agentTasksEntry;
+
+  /// The action that gives an agent the chosen notes to work on.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask an agent'**
+  String get noteListAskAgent;
+
+  /// The label of the goal field.
+  ///
+  /// In en, this message translates to:
+  /// **'What should the AI do?'**
+  String get agentTasksGoalLabel;
+
+  /// An example goal in the goal field.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge my Lisbon trip notes into one plan'**
+  String get agentTasksGoalHint;
+
+  /// The button that starts an agent task.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get agentTasksStart;
+
+  /// Says how many notes the task is limited to.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on {count, plural, =1{1 chosen note} other{{count} chosen notes}}'**
+  String agentTasksChosenNotes(int count);
+
+  /// The title shown with no agent tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent tasks yet'**
+  String get agentTasksEmptyTitle;
+
+  /// The text shown with no agent tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Give the AI a goal. It reads your notes and proposes changes. Nothing is written until you review and apply them.'**
+  String get agentTasksEmptyMessage;
+
+  /// Said of a task the AI is working on.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get agentTaskWorking;
+
+  /// Said of a task waiting for another to finish.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting its turn'**
+  String get agentTaskWaiting;
+
+  /// Said of a task that proposed no changes.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI found nothing to change.'**
+  String get agentTaskNothing;
+
+  /// Said of a task with changes waiting.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 change to review} other{{count} changes to review}}'**
+  String agentTaskReady(int count);
+
+  /// Said of a task whose changes were applied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Applied 1 change} other{Applied {count} changes}}'**
+  String agentTaskApplied(int count);
+
+  /// Said of a task whose changes were taken back.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone'**
+  String get agentTaskUndone;
+
+  /// How many notes the AI has read.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 note read} other{{count} notes read}}'**
+  String agentTaskNotesRead(int count);
+
+  /// The button that stops a task.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get agentTaskStop;
+
+  /// The button that opens the changes of a task.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get agentTaskReview;
+
+  /// The button that answers the AI's question.
+  ///
+  /// In en, this message translates to:
+  /// **'Answer'**
+  String get agentTaskAnswer;
+
+  /// The button that sends the answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get agentTaskSend;
+
+  /// The button that removes a task from the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get agentTaskDismiss;
+
+  /// The title shown when an agent task failed to start.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI couldn\'t do that'**
+  String get agentTroubleTitle;
+
+  /// Shown when agent tasks are turned off.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent tasks are turned off. You can turn them on in Settings.'**
+  String get agentTroubleOff;
+
+  /// Shown when AI is turned off.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is turned off. You can turn it on in Settings.'**
+  String get agentTroubleAiOff;
+
+  /// Shown when an agent task could not run.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong reaching the AI. Check your connection and the AI settings, then try again.'**
+  String get agentTroubleGeneric;
+
+  /// The button that retries.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get agentTroubleTryAgain;
+
+  /// The button that opens the AI settings.
+  ///
+  /// In en, this message translates to:
+  /// **'AI settings'**
+  String get agentTroubleSettings;
+
+  /// The title of the page that reviews an agent's changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Review changes'**
+  String get agentReviewTitle;
+
+  /// The button that applies the chosen changes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Apply} =1{Apply 1 change} other{Apply {count} changes}}'**
+  String agentReviewApply(int count);
+
+  /// Which change of how many is shown.
+  ///
+  /// In en, this message translates to:
+  /// **'{number} of {total}'**
+  String agentReviewPosition(int number, int total);
+
+  /// The switch that stops a merge from trashing the notes it combined.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the original notes'**
+  String get agentReviewKeep;
+
+  /// Said of a merge that trashes its sources.
+  ///
+  /// In en, this message translates to:
+  /// **'The original notes move to the Trash.'**
+  String get agentReviewTrashed;
+
+  /// Said of a merge that keeps its sources.
+  ///
+  /// In en, this message translates to:
+  /// **'The original notes stay where they are.'**
+  String get agentReviewKept;
+
+  /// Warning on a change to a note that changed.
+  ///
+  /// In en, this message translates to:
+  /// **'This note changed since the AI read it. Ticking it applies the change over yours.'**
+  String get agentReviewChangedSince;
+
+  /// Warning on a change to a note outside the chosen ones.
+  ///
+  /// In en, this message translates to:
+  /// **'Not one of the notes you chose'**
+  String get agentReviewOutside;
+
+  /// Warning on a change to a published note.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is published'**
+  String get agentReviewPublished;
+
+  /// The kind of a change that makes a note.
+  ///
+  /// In en, this message translates to:
+  /// **'New note'**
+  String get agentReviewKindCreate;
+
+  /// The kind of a change that edits a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get agentReviewKindEdit;
+
+  /// The kind of a change that moves a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get agentReviewKindMove;
+
+  /// The kind of a change that merges notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get agentReviewKindMerge;
+
+  /// The heading over the AI's last message.
+  ///
+  /// In en, this message translates to:
+  /// **'From the AI'**
+  String get agentReviewFromAgent;
+
+  /// Shown when a review has no changes.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI didn\'t propose any changes.'**
+  String get agentReviewNothing;
+
+  /// The button that takes back the applied changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get agentReviewUndo;
+
+  /// The heading of the agent tasks settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent tasks'**
+  String get agentSettingsTitle;
+
+  /// The switch that turns agent tasks on.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow agent tasks'**
+  String get agentSettingsEnabled;
+
+  /// The heading over what an agent may propose.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI may propose'**
+  String get agentSettingsMayPropose;
+
+  /// A thing an agent may propose.
+  ///
+  /// In en, this message translates to:
+  /// **'New notes'**
+  String get agentSettingsNewNotes;
+
+  /// A thing an agent may propose.
+  ///
+  /// In en, this message translates to:
+  /// **'Edits to notes'**
+  String get agentSettingsEdits;
+
+  /// A thing an agent may propose.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves to another notebook'**
+  String get agentSettingsMoves;
+
+  /// A thing an agent may propose.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging notes'**
+  String get agentSettingsMerges;
+
+  /// The note under the agent task settings.
+  ///
+  /// In en, this message translates to:
+  /// **'An agent reads only notes that are not locked, not in the Trash and not tagged #ai-exclude. It never writes; you approve every change.'**
+  String get agentSettingsFooter;
 }
 
 class _AppLocalizationsDelegate

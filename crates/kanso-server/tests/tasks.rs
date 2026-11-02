@@ -234,6 +234,32 @@ fn a_merge_trashes_its_sources_and_undo_restores_them() {
     );
 }
 
+// no-prop-test: one flag on one op; the apply/undo property is above.
+#[test]
+fn a_merge_that_keeps_its_originals_leaves_them_in_place() {
+    let t = in_trips();
+    let notes = notes_of(&t);
+    let trips = book_named(&t, "Trips");
+    let answer = t.call(
+        "kanso-propose-merge",
+        json!({
+            "sources": notes[..2].iter().map(|(id, rev)| json!({"_id": id, "_rev": rev})).collect::<Vec<_>>(),
+            "bookId": trips,
+            "title": "Lisbon plan",
+            "body": "All of it.",
+        }),
+    );
+    assert!(!is_error(&answer), "{}", text(&answer));
+    let set = t.set();
+    let mut selection = Selection::all(set.ops.len());
+    selection.keep_sources = selection.ticked.clone();
+    let applied = set.apply(&t.store, &selection, 50).unwrap();
+    assert_eq!(applied.created.len(), 1);
+    for (id, _) in &notes {
+        assert_eq!(t.store.note(id).unwrap().unwrap().book_id, trips);
+    }
+}
+
 #[test]
 fn an_op_outside_the_scope_is_not_found() {
     let t = task(
