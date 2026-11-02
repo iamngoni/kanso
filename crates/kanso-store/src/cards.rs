@@ -269,6 +269,29 @@ fn state_from_row(row: &rusqlite::Row<'_>, from: usize) -> rusqlite::Result<Card
 }
 
 impl Store {
+    /// Puts the note's current version in its history with `author` as
+    /// who made it ("Drafted by AI from 12 notes"). Used once, right after
+    /// a draft is saved as a new note.
+    pub fn label_first_version(&self, id: &str, author: &str) -> Result<()> {
+        self.write(|tx, _| {
+            let Some(row) = load_row(tx, id)?.filter(|r| !r.deleted) else {
+                return Err(StoreError::NotFound);
+            };
+            tx.execute(
+                "INSERT INTO revisions (doc_id, rev, json, saved_at, origin, author) \
+                 VALUES (?1, ?2, ?3, ?4, 'ui', ?5)",
+                params![
+                    id,
+                    row.rev,
+                    serde_json::to_string(&row.fields)?,
+                    kanso_core::now_ms(),
+                    author
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
     pub fn card_settings(&self) -> Result<CardSettings> {
         self.read(|conn| settings_in(conn))
     }
