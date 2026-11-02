@@ -423,7 +423,16 @@ fn the_task_tools_are_not_listed_to_the_full_api() {
         .iter()
         .map(|d| d["name"].as_str().unwrap().to_owned())
         .collect();
-    assert_eq!(names, ["read-note", "search-notes"]);
+    assert_eq!(
+        names,
+        [
+            "read-note",
+            "search-notes",
+            "kanso-ask-read-lines",
+            "kanso-ask-search",
+            "kanso-ask-when"
+        ]
+    );
 }
 
 #[test]
