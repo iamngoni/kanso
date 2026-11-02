@@ -98,6 +98,7 @@ pub fn search_params(filter: &Filter, search: &str, sort: Sort, descending: bool
         skip: 0,
         // The app finds notes by the words in their pictures too.
         ocr: true,
+        ..SearchParams::default()
     }
 }
 

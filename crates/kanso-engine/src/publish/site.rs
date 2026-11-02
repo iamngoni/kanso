@@ -70,6 +70,7 @@ pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
             limit: None,
             skip: 0,
             ocr: false,
+            ..SearchParams::default()
         };
         for summary in store.search_summaries(&params)? {
             if summary.book_id != book {

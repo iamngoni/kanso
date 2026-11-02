@@ -66,6 +66,28 @@ pub struct SearchParams {
     /// shows (`ocr.rs`). The app's searches ask for it; the local API's
     /// search keeps to titles and bodies.
     pub ocr: bool,
+    /// Only notes changed after / before these times (milliseconds since the
+    /// epoch, both ends inclusive), by the `updated_at` column.
+    pub updated_after: Option<i64>,
+    pub updated_before: Option<i64>,
+    /// The same for when the note was made (`created_at`).
+    pub created_after: Option<i64>,
+    pub created_before: Option<i64>,
+}
+
+impl SearchParams {
+    /// The SQL conditions the date bounds add, and their values.
+    fn date_conditions(&self) -> Vec<(&'static str, i64)> {
+        [
+            ("d.updated_at >= ?", self.updated_after),
+            ("d.updated_at <= ?", self.updated_before),
+            ("d.created_at >= ?", self.created_after),
+            ("d.created_at <= ?", self.created_before),
+        ]
+        .into_iter()
+        .filter_map(|(sql, value)| value.map(|value| (sql, value)))
+        .collect()
+    }
 }
 
 impl Default for SearchParams {
@@ -77,6 +99,10 @@ impl Default for SearchParams {
             limit: None,
             skip: 0,
             ocr: false,
+            updated_after: None,
+            updated_before: None,
+            created_after: None,
+            created_before: None,
         }
     }
 }
@@ -288,7 +314,11 @@ fn search_sql(
     columns: &str,
     params: &SearchParams,
 ) -> Result<(String, Vec<SqlValue>)> {
-    let (where_sql, mut values) = search_where(conn, &params.query, params.ocr)?;
+    let (mut where_sql, mut values) = search_where(conn, &params.query, params.ocr)?;
+    for (sql, value) in params.date_conditions() {
+        where_sql = format!("({where_sql}) AND {sql}");
+        values.push(SqlValue::Integer(value));
+    }
     let direction = if params.descending { "DESC" } else { "ASC" };
     // Notes without a title read "Untitled"; they go after the named ones
     // in either direction rather than first.
