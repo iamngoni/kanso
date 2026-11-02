@@ -4319,8 +4319,9 @@ sealed class ResurfaceResult with _$ResurfaceResult {
 
   const factory ResurfaceResult.off() = ResurfaceResult_Off;
   const factory ResurfaceResult.noModel() = ResurfaceResult_NoModel;
-  const factory ResurfaceResult.found({required List<ResurfaceRow> rows}) =
-      ResurfaceResult_Found;
+  const factory ResurfaceResult.found({
+    required List<ResurfaceRow> rows,
+  }) = ResurfaceResult_Found;
 }
 
 class ResurfaceRow {

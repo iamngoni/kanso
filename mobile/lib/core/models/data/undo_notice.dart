@@ -20,5 +20,8 @@ abstract class UndoNotice with _$UndoNotice {
     /// Which notice this is: a later one has a larger number, so a timeout
     /// belongs to the notice it was started for.
     required int serial,
+
+    /// How long it stays, when that is not the usual time.
+    Duration? stays,
   }) = _UndoNotice;
 }

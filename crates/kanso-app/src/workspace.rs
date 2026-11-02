@@ -243,6 +243,7 @@ fn view_menu(cx: &App) -> Vec<MenuItem> {
         MenuItem::action("Graph", crate::graph_view::ShowGraph),
         MenuItem::action("Board", crate::board_view::ShowBoard),
         MenuItem::action("Tasks Board", crate::board_view::ShowTaskBoard),
+        MenuItem::action("Triage Inbox", crate::triage_view::ShowTriage),
         MenuItem::action("Focus Mode", ToggleFocusMode),
         MenuItem::action("Search All Notes", SearchAllNotes),
         MenuItem::action("Replace in All Notes…", crate::replace::ReplaceInNotes),
@@ -426,6 +427,11 @@ pub struct Workspace {
     pub(crate) board: Option<Entity<crate::board_view::BoardView>>,
     pub(crate) board_open: bool,
     pub(crate) _board_events: Option<Subscription>,
+    /// Inbox triage over the window while open (`triage_view.rs`); made the
+    /// first time it opens.
+    pub(crate) triage: Option<Entity<crate::triage_view::TriageView>>,
+    pub(crate) triage_open: bool,
+    pub(crate) _triage_events: Option<Subscription>,
     /// The open calendar sheet's picks.
     pub(crate) _calendar_events: Option<Subscription>,
     /// Settings, drawn in place of the list and the editor while open.
@@ -770,6 +776,9 @@ impl Workspace {
             board: None,
             board_open: false,
             _board_events: None,
+            triage: None,
+            triage_open: false,
+            _triage_events: None,
             _calendar_events: None,
             settings,
             settings_return: None,
@@ -2767,6 +2776,7 @@ impl Render for Workspace {
             .map(|el| crate::updates::on_actions(el, cx))
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
+            .map(|el| crate::triage_view::on_actions(el, cx))
             // Off macOS, Kanso's own title bar with the menus.
             .when_some(self.title_bar.clone(), |el, menus| {
                 el.child(crate::title_bar::render(&menus, colors))
@@ -2875,6 +2885,7 @@ impl Render for Workspace {
             )
             .children(crate::graph_view::overlay(self))
             .children(crate::board_view::overlay(self))
+            .children(crate::triage_view::overlay(self))
             // Over everything else when open.
             .child(self.palette.clone())
             // The system draws the real traffic lights above the palette too.

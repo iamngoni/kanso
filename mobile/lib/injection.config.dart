@@ -224,6 +224,9 @@ import 'templates/state/template_picker/template_picker_bloc.dart' as _i828;
 import 'themes/state/icon_themes/icon_themes_bloc.dart' as _i778;
 import 'themes/state/theme_gallery/theme_gallery_bloc.dart' as _i569;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
+import 'triage/models/repos/abs/triage_repository.dart' as _i731;
+import 'triage/models/repos/impl/rust_triage_repository.dart' as _i975;
+import 'triage/state/triage/triage_bloc.dart' as _i1007;
 import 'voice_settings/models/repos/abs/voice_settings_repository.dart'
     as _i1027;
 import 'voice_settings/models/repos/impl/rust_voice_settings_repository.dart'
@@ -423,6 +426,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i815.CrashReportsBloc>(
       () => _i815.CrashReportsBloc(gh<_i288.CrashReportRepository>()),
     );
+    gh.lazySingleton<_i731.TriageRepository>(
+      () => _i975.RustTriageRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.lazySingleton<_i983.KansoLocks>(
       () => coreModule.locks(gh<_i455.KansoLibrary>()),
     );
@@ -553,6 +559,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i553.BoardBloc(
         gh<_i235.BoardRepository>(),
         gh<_i38.LibraryRepository>(),
+      ),
+    );
+    gh.factory<_i1007.TriageBloc>(
+      () => _i1007.TriageBloc(
+        gh<_i731.TriageRepository>(),
+        gh<_i985.UndoNoticeBloc>(),
+        gh<_i1056.HapticsRepository>(),
       ),
     );
     gh.factory<_i182.AiSettingsBloc>(

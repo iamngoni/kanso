@@ -82,7 +82,7 @@ pub fn plan(notes: &[NoteSummary], change: &Change) -> Vec<Edit> {
 pub fn undo_now(change: &Value, undo: &Value, current: &Value) -> Option<Value> {
     let mut back = serde_json::Map::new();
     for (key, value) in undo.as_object()? {
-        if key != "_id" && current.get(key) == change.get(key) {
+        if key != "_id" && key != "updatedAt" && current.get(key) == change.get(key) {
             back.insert(key.clone(), value.clone());
         }
     }
@@ -91,6 +91,16 @@ pub fn undo_now(change: &Value, undo: &Value, current: &Value) -> Option<Value> 
     }
     back.insert("_id".into(), undo.get("_id")?.clone());
     Some(Value::Object(back))
+}
+
+/// [`undo_now`], with `updatedAt` stamped `now_ms`. An undo is a new edit:
+/// putting the old time back would lose to the filing in last-writer-wins
+/// sync on another device. Pure.
+pub fn undo_stamped(change: &Value, undo: &Value, current: &Value, now_ms: i64) -> Option<Value> {
+    let mut back = undo_now(change, undo, current)?;
+    back.as_object_mut()?
+        .insert("updatedAt".into(), now_ms.into());
+    Some(back)
 }
 
 /// What the notice says once `count` notes changed. `place` names the

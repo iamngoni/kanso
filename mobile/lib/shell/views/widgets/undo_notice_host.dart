@@ -58,6 +58,7 @@ class UndoNoticeHost extends StatelessWidget {
                     shown = UndoNoticeTimeout(
                       key: ValueKey<int>(notice.serial),
                       serial: notice.serial,
+                      stays: notice.stays,
                       child: KansoUndoNotice(
                         message: notice.message,
                         busy: state.undoing,

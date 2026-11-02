@@ -20,6 +20,7 @@ import '../../../journal/views/widgets/journal_opener.dart';
 import '../../../journal/views/widgets/journal_strip.dart';
 import '../../../shell/models/data/note_creation_failure.dart';
 import '../../../shell/state/note_creation/note_creation_bloc.dart';
+import '../../../triage/views/widgets/triage_bar.dart';
 import '../../state/note_list/note_list_bloc.dart';
 import 'new_note_button.dart';
 import 'note_list_bar.dart';
@@ -158,6 +159,8 @@ class NoteListPane extends StatelessWidget {
                                   ),
                                   if (_isJournal(state.place, index))
                                     const JournalStrip(),
+                                  if (_isInbox(state.place, index))
+                                    const TriageBar(),
                                   Expanded(
                                     child: NoteListBody(
                                       largeTitle: floating,
@@ -237,6 +240,10 @@ class NoteListPane extends StatelessWidget {
       ),
     );
   }
+
+  static bool _isInbox(ListPlace place, LibraryIndexState index) =>
+      place is ListPlace_Notebook &&
+      index.notebook(place.id)?.role == NotebookRole.inbox;
 
   static bool _isJournal(ListPlace place, LibraryIndexState index) =>
       place is ListPlace_Notebook &&

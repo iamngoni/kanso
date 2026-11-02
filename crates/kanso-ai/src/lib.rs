@@ -15,6 +15,7 @@ pub mod agent;
 pub mod client;
 pub mod features;
 pub mod prompt;
+pub mod triage;
 
 #[cfg(feature = "acp")]
 pub use agent::{AgentCheck, AgentKind, AgentSettings};

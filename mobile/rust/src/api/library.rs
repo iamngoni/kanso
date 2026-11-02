@@ -32,6 +32,7 @@ use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
 use super::themes::KansoThemes;
+use super::triage::KansoTriage;
 
 /// An open library. Cheap to clone on the Rust side; Dart holds one.
 #[frb(opaque)]
@@ -452,6 +453,11 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn discovery(&self) -> KansoDiscovery {
         KansoDiscovery::new(self.0.discovery())
+    }
+
+    #[frb(sync)]
+    pub fn triage(&self) -> KansoTriage {
+        KansoTriage::new(self.0.triage())
     }
 
     #[frb(sync)]

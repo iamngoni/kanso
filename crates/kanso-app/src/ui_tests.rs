@@ -2716,3 +2716,199 @@ fn live_mode_is_chosen_with_its_key_and_kept(cx: &mut TestAppContext) {
     let (shown, live) = f.editor(&mut vcx, |e, cx| e.live_for_test(cx));
     assert!(!live && shown.is_empty());
 }
+
+/// The Inbox note list shows the Triage bar; Triage opens on it, the keys
+/// accept, reject and file a card, filing changes only what was accepted,
+/// and a rejection is remembered.
+// no-prop-test: drives one window through keystrokes; the chips' rules are
+// properties in `kanso_engine::triage`.
+#[gpui_kit::test]
+fn triage_files_only_what_was_accepted(cx: &mut TestAppContext) {
+    use kanso_core::roles::Role;
+
+    let f = setup(cx);
+    let inbox = f.store.role_book(Role::Inbox, Origin::Ui).unwrap();
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    let target = f
+        .store
+        .put(
+            DocType::Note,
+            json!({"title": "Boiler service", "body": "x", "bookId": book}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let waiting = f
+        .store
+        .put(
+            DocType::Note,
+            json!({"title": "Untitled", "bookId": inbox,
+                   "body": "Buy milk and eggs. Ask about the boiler service soon."}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    cx.update(crate::workspace::bind_keys);
+    f.window
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Book(inbox.clone()), cx)
+    });
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("triage-bar").is_some(), "the bar shows");
+
+    vcx.dispatch_action(crate::triage_view::ShowTriage);
+    f.draw(&mut vcx);
+    assert!(f.workspace(&mut vcx, |w, _| w.triage_open));
+    let triage = f.workspace(&mut vcx, |w, _| w.triage.clone().unwrap());
+    vcx.update(|_, cx| triage.update(cx, |t, cx| t.reload_now(cx)));
+    f.draw(&mut vcx);
+    let chips = |vcx: &mut gpui_kit::VisualTestContext| {
+        vcx.read(|cx| {
+            triage.read(cx).session().cards[0]
+                .chips
+                .iter()
+                .map(|c| (c.suggestion.field, c.mark))
+                .collect::<Vec<_>>()
+        })
+    };
+    use kanso_engine::triage::Field;
+    use kanso_engine::triage::session::Mark;
+    assert_eq!(
+        chips(&mut vcx),
+        [
+            (Field::Title, Mark::Untouched),
+            (Field::Link, Mark::Untouched)
+        ]
+    );
+
+    // Accept the title, reject the link, file.
+    vcx.simulate_keystrokes("y l n");
+    f.draw(&mut vcx);
+    assert_eq!(
+        chips(&mut vcx),
+        [
+            (Field::Title, Mark::Accepted),
+            (Field::Link, Mark::Rejected)
+        ]
+    );
+    assert_eq!(
+        f.store.note(&waiting).unwrap().unwrap().title,
+        "Untitled",
+        "nothing changes before File"
+    );
+    assert_eq!(f.store.triage_dismissed(&waiting).unwrap().len(), 1);
+    vcx.simulate_keystrokes("f");
+    f.draw(&mut vcx);
+    let note = f.store.note(&waiting).unwrap().unwrap();
+    assert_eq!(note.title, "Buy milk and eggs");
+    assert!(
+        !note.body.contains("Related:"),
+        "the rejected link isn't added"
+    );
+    assert_eq!(note.book_id, inbox, "no notebook was accepted");
+    assert!(note.extra.contains_key("kansoTriaged"));
+    assert!(f.store.inbox_waiting(&inbox).unwrap().is_empty());
+    let _ = target;
+
+    vcx.simulate_keystrokes("escape");
+    f.draw(&mut vcx);
+    assert!(!f.workspace(&mut vcx, |w, _| w.triage_open));
+}
+
+/// Filing a card and then pressing Undo brings the card back into
+/// Triage, and the note is stamped as edited by the undo.
+// no-prop-test: drives one window through a keystroke and a click; the
+// undo's rules are properties in `kanso_engine::triage::file`.
+#[gpui_kit::test]
+fn triage_undo_brings_the_card_back(cx: &mut TestAppContext) {
+    use kanso_core::roles::Role;
+
+    let f = setup(cx);
+    let inbox = f.store.role_book(Role::Inbox, Origin::Ui).unwrap();
+    let waiting = f
+        .store
+        .put(
+            DocType::Note,
+            json!({"title": "Untitled", "bookId": inbox,
+                   "body": "Buy milk and eggs. Then call someone."}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let before = f.store.note(&waiting).unwrap().unwrap().updated_at;
+    cx.update(crate::workspace::bind_keys);
+    f.window
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Book(inbox.clone()), cx)
+    });
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    f.draw(&mut vcx);
+    vcx.dispatch_action(crate::triage_view::ShowTriage);
+    f.draw(&mut vcx);
+    let triage = f.workspace(&mut vcx, |w, _| w.triage.clone().unwrap());
+    vcx.update(|_, cx| triage.update(cx, |t, cx| t.reload_now(cx)));
+    f.draw(&mut vcx);
+    let shown = |vcx: &mut gpui_kit::VisualTestContext| {
+        vcx.read(|cx| {
+            triage
+                .read(cx)
+                .session()
+                .cards
+                .iter()
+                .any(|c| c.note_id == waiting)
+        })
+    };
+    assert!(shown(&mut vcx));
+
+    // Accept the title and file: the card leaves.
+    vcx.simulate_keystrokes("y f");
+    f.draw(&mut vcx);
+    assert!(!shown(&mut vcx));
+    assert_eq!(
+        f.store.note(&waiting).unwrap().unwrap().title,
+        "Buy milk and eggs"
+    );
+
+    // Undo: the note is back as it was, and its card shows again. Once
+    // the notice has slid in, which takes real time.
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    f.draw(&mut vcx);
+    let bounds = vcx
+        .debug_bounds("undo-triage")
+        .expect("the notice has Undo");
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    vcx.update(|_, cx| triage.update(cx, |t, cx| t.reload_now(cx)));
+    f.draw(&mut vcx);
+    let note = f.store.note(&waiting).unwrap().unwrap();
+    assert_eq!(note.title, "Untitled");
+    assert!(note.updated_at >= before, "stamped, not restored");
+    assert!(shown(&mut vcx), "the card is back");
+}
+
+/// "File all accepted" is disabled with nothing accepted, and the
+/// Inbox settings are the defaults the spec names.
+#[test]
+fn the_inbox_settings_default_as_specified() {
+    let config = AppConfig::default();
+    assert!(config.inbox.show_triage_bar);
+    assert!(config.inbox.suggest_titles && config.inbox.suggest_links);
+    assert_eq!(config.inbox.max_tags, 3);
+    assert!(!config.ai.inbox_suggestions);
+    let opts = crate::triage_view::options(&config);
+    assert_eq!(opts.max_tags, 3);
+    assert_eq!(opts.inbox_id, "book:inbox");
+}

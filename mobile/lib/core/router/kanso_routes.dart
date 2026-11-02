@@ -67,10 +67,14 @@ abstract final class KansoRoutes {
   /// Ask the notes a question, a page on a phone and sheet on a tablet.
   static const String ask = '/ask';
 
+  /// Inbox Triage: a card for each note waiting in the Inbox.
+  static const String triage = '/triage';
+
   /// Settings, a sheet on a tablet and a page on a phone.
   static const String settings = '/settings';
   static const String settingsAi = '/settings/ai';
   static const String settingsVoice = '/settings/voice';
+  static const String settingsInbox = '/settings/inbox';
   static const String settingsNotebook = '/settings/notebook';
   static const String settingsTheme = '/settings/theme';
   static const String settingsIcons = '/settings/icons';

@@ -214,7 +214,8 @@ pub fn decode_vector(bytes: &[u8], dim: usize) -> Option<Vec<f32>> {
     )
 }
 
-/// Removes note `id`'s embeddings, when it is deleted.
+/// Removes note `id`'s embeddings (and what Triage remembers of it), when
+/// it is deleted or locked.
 pub(crate) fn forget_note(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("DELETE FROM note_embeddings WHERE note_id = ?", [id])?;
     conn.execute("DELETE FROM note_passages WHERE note_id = ?", [id])?;
@@ -222,6 +223,7 @@ pub(crate) fn forget_note(conn: &Connection, id: &str) -> Result<()> {
         "DELETE FROM resurface_dismissed WHERE note_id = ?1 OR other_id = ?1",
         [id],
     )?;
+    conn.execute("DELETE FROM triage_dismissed WHERE note_id = ?", [id])?;
     Ok(())
 }
 
@@ -526,10 +528,21 @@ pub(crate) fn embedded_notes(
 
 /// The `k` of `candidates` nearest `query`, most similar first.
 pub(crate) fn nearest(query: &[f32], candidates: &[Embedded], k: usize) -> Vec<RelatedNote> {
+    nearest_skipping(query, candidates, None, k)
+}
+
+/// [`nearest`], leaving out the candidate `skip`.
+pub(crate) fn nearest_skipping(
+    query: &[f32],
+    candidates: &[Embedded],
+    skip: Option<&str>,
+    k: usize,
+) -> Vec<RelatedNote> {
     let best = top_k(
         query,
         candidates
             .iter()
+            .filter(|(id, _, _)| Some(id.as_str()) != skip)
             .map(|(id, _, v)| (id.as_str(), v.as_slice())),
         k,
     );

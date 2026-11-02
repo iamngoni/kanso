@@ -432,6 +432,7 @@ impl Store {
             .chain(crate::derived::TABLES)
             .chain(crate::embed::TABLES)
             .chain(crate::ocr::TABLES)
+            .chain(crate::triage::TABLES)
             {
                 tx.execute(&format!("DELETE FROM {table}"), [])?;
             }

@@ -988,6 +988,17 @@ static COMMANDS: &[Command] = &[
         needs: Needs::Nothing,
     },
     Command {
+        id: "triage-inbox",
+        label: "Triage Inbox",
+        label_when_pinned: None,
+        description: "Goes through the notes in the Inbox one card at a time, with a suggested notebook, tags, title and links to accept or reject. Nothing changes until you file a card.",
+        icon: IconName::Inbox,
+        keywords: &["inbox", "triage", "file", "capture", "sort", "organize"],
+        group: Group::GoTo,
+        run: action!(crate::triage_view::ShowTriage),
+        needs: Needs::Nothing,
+    },
+    Command {
         id: "journal-calendar",
         label: "Journal calendar…",
         label_when_pinned: None,

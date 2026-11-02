@@ -425,6 +425,12 @@ impl AiHandle {
         (self.maker)(settings).map_err(|err| ai_error(err, settings.api_key.as_deref()))
     }
 
+    /// The provider Inbox triage asks, while AI is on.
+    pub(crate) fn triage_provider(&self) -> Result<SharedProvider, KansoError> {
+        let settings = self.enabled()?;
+        self.provider_for(&settings)
+    }
+
     /// Note `id`, when it may be sent to AI; otherwise [`KEPT_OUT`].
     fn allowed_note(&self, id: &str) -> Result<ask::Candidate, KansoError> {
         assist::note_for_ai(&self.inner.store, id).ok_or_else(|| KansoError::invalid(KEPT_OUT))

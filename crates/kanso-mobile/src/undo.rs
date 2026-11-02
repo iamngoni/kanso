@@ -30,6 +30,12 @@ const KEPT: usize = 16;
 pub(crate) enum Undoable {
     /// Notes' fields, each with the write that undoes it.
     Fields(Vec<batch::Edit>),
+    /// A Triage filing: the notes' fields, and the tags it made, which go
+    /// again when nothing else uses them.
+    Filing {
+        edits: Vec<batch::Edit>,
+        new_tags: Vec<String>,
+    },
     /// A task's box, put back to `checked`.
     Task {
         note_id: String,
@@ -121,7 +127,12 @@ impl Library {
                         };
                         let current = serde_json::to_value(&note)
                             .map_err(|err| KansoError::storage(err.to_string()))?;
-                        if let Some(undo) = batch::undo_now(&edit.change, &edit.undo, &current) {
+                        if let Some(undo) = batch::undo_stamped(
+                            &edit.change,
+                            &edit.undo,
+                            &current,
+                            kanso_core::now_ms(),
+                        ) {
                             back.push(undo);
                         }
                     }
@@ -133,6 +144,12 @@ impl Library {
                     }
                     Ok(count)
                 }
+                Undoable::Filing { edits, new_tags } => Ok(kanso_engine::triage::file::undo(
+                    &self.inner.store,
+                    &edits,
+                    &new_tags,
+                    kanso_core::now_ms(),
+                )? as u32),
                 Undoable::Task {
                     note_id,
                     line,

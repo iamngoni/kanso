@@ -16,10 +16,14 @@ class UndoNoticeTimeout extends StatefulWidget {
   const UndoNoticeTimeout({
     required this.serial,
     required this.child,
+    this.stays,
     super.key,
   });
 
   final int serial;
+
+  /// How long the notice stays, when that is not [undoNoticeDuration].
+  final Duration? stays;
   final Widget child;
 
   @override
@@ -38,7 +42,7 @@ class UndoNoticeTimeoutState extends State<UndoNoticeTimeout> {
     final bloc = context.read<UndoNoticeBloc>();
     final serial = widget.serial;
     timer = Timer(
-      slow ? undoNoticeDuration * 2 : undoNoticeDuration,
+      (widget.stays ?? undoNoticeDuration) * (slow ? 2 : 1),
       () => bloc.add(UndoNoticeEvent.timedOut(serial)),
     );
   }

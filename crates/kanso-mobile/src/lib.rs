@@ -152,6 +152,8 @@ mod themes;
 mod themes_icons;
 mod themes_icons_model;
 mod themes_model;
+mod triage;
+mod triage_model;
 mod undo;
 mod voice;
 mod voice_model;
@@ -198,6 +200,8 @@ pub use syncing::SyncHandle;
 pub use themes::Themes;
 pub use themes_icons_model::{IconThemeImport, InstalledIconThemeRow};
 pub use themes_model::*;
+pub use triage::{MAX_TAGS_LIMIT, Triage};
+pub use triage_model::*;
 pub use voice::dictated;
 pub use voice_model::{Dictated, VoiceSettings};
 

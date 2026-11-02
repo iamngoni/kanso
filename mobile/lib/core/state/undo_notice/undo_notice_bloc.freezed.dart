@@ -128,10 +128,10 @@ return errorDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int ticket,  String message)?  shown,TResult Function()?  undoPressed,TResult Function()?  dismissed,TResult Function( int serial)?  timedOut,TResult Function()?  errorDismissed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int ticket,  String message,  Duration? stays)?  shown,TResult Function()?  undoPressed,TResult Function()?  dismissed,TResult Function( int serial)?  timedOut,TResult Function()?  errorDismissed,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case UndoNoticeShownEvent() when shown != null:
-return shown(_that.ticket,_that.message);case UndoNoticePressedEvent() when undoPressed != null:
+return shown(_that.ticket,_that.message,_that.stays);case UndoNoticePressedEvent() when undoPressed != null:
 return undoPressed();case UndoNoticeDismissedEvent() when dismissed != null:
 return dismissed();case UndoNoticeTimedOutEvent() when timedOut != null:
 return timedOut(_that.serial);case UndoNoticeErrorDismissedEvent() when errorDismissed != null:
@@ -153,10 +153,10 @@ return errorDismissed();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int ticket,  String message)  shown,required TResult Function()  undoPressed,required TResult Function()  dismissed,required TResult Function( int serial)  timedOut,required TResult Function()  errorDismissed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int ticket,  String message,  Duration? stays)  shown,required TResult Function()  undoPressed,required TResult Function()  dismissed,required TResult Function( int serial)  timedOut,required TResult Function()  errorDismissed,}) {final _that = this;
 switch (_that) {
 case UndoNoticeShownEvent():
-return shown(_that.ticket,_that.message);case UndoNoticePressedEvent():
+return shown(_that.ticket,_that.message,_that.stays);case UndoNoticePressedEvent():
 return undoPressed();case UndoNoticeDismissedEvent():
 return dismissed();case UndoNoticeTimedOutEvent():
 return timedOut(_that.serial);case UndoNoticeErrorDismissedEvent():
@@ -174,10 +174,10 @@ return errorDismissed();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int ticket,  String message)?  shown,TResult? Function()?  undoPressed,TResult? Function()?  dismissed,TResult? Function( int serial)?  timedOut,TResult? Function()?  errorDismissed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int ticket,  String message,  Duration? stays)?  shown,TResult? Function()?  undoPressed,TResult? Function()?  dismissed,TResult? Function( int serial)?  timedOut,TResult? Function()?  errorDismissed,}) {final _that = this;
 switch (_that) {
 case UndoNoticeShownEvent() when shown != null:
-return shown(_that.ticket,_that.message);case UndoNoticePressedEvent() when undoPressed != null:
+return shown(_that.ticket,_that.message,_that.stays);case UndoNoticePressedEvent() when undoPressed != null:
 return undoPressed();case UndoNoticeDismissedEvent() when dismissed != null:
 return dismissed();case UndoNoticeTimedOutEvent() when timedOut != null:
 return timedOut(_that.serial);case UndoNoticeErrorDismissedEvent() when errorDismissed != null:
@@ -193,11 +193,12 @@ return errorDismissed();case _:
 
 
 class UndoNoticeShownEvent implements UndoNoticeEvent {
-  const UndoNoticeShownEvent(this.ticket, this.message);
+  const UndoNoticeShownEvent(this.ticket, this.message, [this.stays]);
   
 
  final  int ticket;
  final  String message;
+ final  Duration? stays;
 
 /// Create a copy of UndoNoticeEvent
 /// with the given fields replaced by the non-null parameter values.
@@ -209,16 +210,16 @@ $UndoNoticeShownEventCopyWith<UndoNoticeShownEvent> get copyWith => _$UndoNotice
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UndoNoticeShownEvent&&(identical(other.ticket, ticket) || other.ticket == ticket)&&(identical(other.message, message) || other.message == message));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UndoNoticeShownEvent&&(identical(other.ticket, ticket) || other.ticket == ticket)&&(identical(other.message, message) || other.message == message)&&(identical(other.stays, stays) || other.stays == stays));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ticket,message);
+int get hashCode => Object.hash(runtimeType,ticket,message,stays);
 
 @override
 String toString() {
-  return 'UndoNoticeEvent.shown(ticket: $ticket, message: $message)';
+  return 'UndoNoticeEvent.shown(ticket: $ticket, message: $message, stays: $stays)';
 }
 
 
@@ -229,7 +230,7 @@ abstract mixin class $UndoNoticeShownEventCopyWith<$Res> implements $UndoNoticeE
   factory $UndoNoticeShownEventCopyWith(UndoNoticeShownEvent value, $Res Function(UndoNoticeShownEvent) _then) = _$UndoNoticeShownEventCopyWithImpl;
 @useResult
 $Res call({
- int ticket, String message
+ int ticket, String message, Duration? stays
 });
 
 
@@ -246,11 +247,12 @@ class _$UndoNoticeShownEventCopyWithImpl<$Res>
 
 /// Create a copy of UndoNoticeEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? ticket = null,Object? message = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? ticket = null,Object? message = null,Object? stays = freezed,}) {
   return _then(UndoNoticeShownEvent(
 null == ticket ? _self.ticket : ticket // ignore: cast_nullable_to_non_nullable
 as int,null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
-as String,
+as String,freezed == stays ? _self.stays : stays // ignore: cast_nullable_to_non_nullable
+as Duration?,
   ));
 }
 
