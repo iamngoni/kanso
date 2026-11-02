@@ -45,18 +45,14 @@ pub use embed::{
     PendingEmbedding, RelatedNote, content_hash, cosine, embed_text, top_k,
 };
 pub use graph::{GraphLink, GraphNote};
-<<<<<<< HEAD
+pub use loops::{
+    BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
+};
 pub use meaning::index::Index as VectorIndex;
 pub use meaning::model::{
     BEFORE_AGE_MS, BEFORE_SIMILARITY, DayNote, MeaningSearch, Merged, ResurfaceOpts, Resurfaced,
     Resurfacing, SIMILARITY_CLOSER, SIMILARITY_DEFAULT, SIMILARITY_LOOSER, TagSuggestion,
 };
-=======
-pub use loops::{
-    BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
-};
-pub use meaning::model::{MeaningSearch, Merged, TagSuggestion};
->>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
 pub use meaning::rank::{
     DUPLICATE_SIMILARITY, MEANING_SIMILARITY, TAG_NEIGHBOUR_SIMILARITY, blend_meaning, merged_body,
     merged_tags, suggest_tags,

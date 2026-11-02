@@ -491,7 +491,10 @@ proptest! {
                         .iter()
                         .map(|l| loop_key("note:one", &l.text))
                         .collect();
-                    hidden.retain(|k| live.contains(k));
+                    // (Make Task rewrites the line and leaves the field be.)
+                    if !matches!(op, Op::Task(_)) {
+                        hidden.retain(|k| live.contains(k));
+                    }
                     store.close_loop("note:one", &row.key, row.line, how, 10, Origin::Ui).unwrap();
                     if !matches!(op, Op::Task(_)) {
                         hidden.insert(row.key.clone());

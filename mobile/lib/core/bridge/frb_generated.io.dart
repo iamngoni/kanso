@@ -557,6 +557,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AiSettingsView dco_decode_ai_settings_view(dynamic raw);
 
   @protected
+  AiSummary dco_decode_ai_summary(dynamic raw);
+
+  @protected
   ApprovalPhase dco_decode_approval_phase(dynamic raw);
 
   @protected
@@ -624,6 +627,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
+  BriefPrefs dco_decode_box_autoadd_brief_prefs(dynamic raw);
 
   @protected
   CardKey dco_decode_box_autoadd_card_key(dynamic raw);
@@ -807,6 +813,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   VoiceSettings dco_decode_box_autoadd_voice_settings(dynamic raw);
+
+  @protected
+  BriefNote dco_decode_brief_note(dynamic raw);
+
+  @protected
+  BriefPrefs dco_decode_brief_prefs(dynamic raw);
+
+  @protected
+  BriefReminder dco_decode_brief_reminder(dynamic raw);
+
+  @protected
+  BriefView dco_decode_brief_view(dynamic raw);
 
   @protected
   BuiltinTheme dco_decode_builtin_theme(dynamic raw);
@@ -1046,6 +1064,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<BoardColumn> dco_decode_list_board_column(dynamic raw);
 
   @protected
+  List<BriefNote> dco_decode_list_brief_note(dynamic raw);
+
+  @protected
+  List<BriefReminder> dco_decode_list_brief_reminder(dynamic raw);
+
+  @protected
   List<BuiltinTheme> dco_decode_list_builtin_theme(dynamic raw);
 
   @protected
@@ -1141,6 +1165,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<LiveRun> dco_decode_list_live_run(dynamic raw);
 
   @protected
+  List<LoopProposal> dco_decode_list_loop_proposal(dynamic raw);
+
+  @protected
   List<MemberRow> dco_decode_list_member_row(dynamic raw);
 
   @protected
@@ -1157,6 +1184,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<OnThisDayRow> dco_decode_list_on_this_day_row(dynamic raw);
+
+  @protected
+  List<OpenLoopItem> dco_decode_list_open_loop_item(dynamic raw);
 
   @protected
   List<OpenedFile> dco_decode_list_opened_file(dynamic raw);
@@ -1181,6 +1211,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<PlannedNote> dco_decode_list_planned_note(dynamic raw);
+
+  @protected
+  List<PlannedNotice> dco_decode_list_planned_notice(dynamic raw);
 
   @protected
   List<PreviewAlign> dco_decode_list_preview_align(dynamic raw);
@@ -1249,6 +1282,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ResurfaceRow> dco_decode_list_resurface_row(dynamic raw);
+
+  @protected
+  List<ReviewFinished> dco_decode_list_review_finished(dynamic raw);
+
+  @protected
+  List<ReviewTheme> dco_decode_list_review_theme(dynamic raw);
+
+  @protected
+  List<ReviewWritten> dco_decode_list_review_written(dynamic raw);
 
   @protected
   ListShape dco_decode_list_shape(dynamic raw);
@@ -1389,6 +1431,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LockedInfo dco_decode_locked_info(dynamic raw);
 
   @protected
+  LoopAction dco_decode_loop_action(dynamic raw);
+
+  @protected
+  LoopProposal dco_decode_loop_proposal(dynamic raw);
+
+  @protected
+  LoopScan dco_decode_loop_scan(dynamic raw);
+
+  @protected
   MadeNote dco_decode_made_note(dynamic raw);
 
   @protected
@@ -1435,6 +1486,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   OnThisDayRow dco_decode_on_this_day_row(dynamic raw);
+
+  @protected
+  OpenLoopItem dco_decode_open_loop_item(dynamic raw);
+
+  @protected
+  OpenLoopKind dco_decode_open_loop_kind(dynamic raw);
+
+  @protected
+  OpenLoopsBoard dco_decode_open_loops_board(dynamic raw);
 
   @protected
   OpenedDocuments dco_decode_opened_documents(dynamic raw);
@@ -1607,6 +1667,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PlannedNote dco_decode_planned_note(dynamic raw);
 
   @protected
+  PlannedNotice dco_decode_planned_notice(dynamic raw);
+
+  @protected
   PreviewAlign dco_decode_preview_align(dynamic raw);
 
   @protected
@@ -1740,6 +1803,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ResurfaceRow dco_decode_resurface_row(dynamic raw);
+
+  @protected
+  ReviewFinished dco_decode_review_finished(dynamic raw);
+
+  @protected
+  ReviewSaved dco_decode_review_saved(dynamic raw);
+
+  @protected
+  ReviewTheme dco_decode_review_theme(dynamic raw);
+
+  @protected
+  ReviewView dco_decode_review_view(dynamic raw);
+
+  @protected
+  ReviewWritten dco_decode_review_written(dynamic raw);
 
   @protected
   RunBatch dco_decode_run_batch(dynamic raw);
@@ -2402,6 +2480,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AiSettingsView sse_decode_ai_settings_view(SseDeserializer deserializer);
 
   @protected
+  AiSummary sse_decode_ai_summary(SseDeserializer deserializer);
+
+  @protected
   ApprovalPhase sse_decode_approval_phase(SseDeserializer deserializer);
 
   @protected
@@ -2477,6 +2558,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  BriefPrefs sse_decode_box_autoadd_brief_prefs(SseDeserializer deserializer);
 
   @protected
   CardKey sse_decode_box_autoadd_card_key(SseDeserializer deserializer);
@@ -2700,6 +2784,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   VoiceSettings sse_decode_box_autoadd_voice_settings(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BriefNote sse_decode_brief_note(SseDeserializer deserializer);
+
+  @protected
+  BriefPrefs sse_decode_brief_prefs(SseDeserializer deserializer);
+
+  @protected
+  BriefReminder sse_decode_brief_reminder(SseDeserializer deserializer);
+
+  @protected
+  BriefView sse_decode_brief_view(SseDeserializer deserializer);
 
   @protected
   BuiltinTheme sse_decode_builtin_theme(SseDeserializer deserializer);
@@ -2949,6 +3045,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<BoardColumn> sse_decode_list_board_column(SseDeserializer deserializer);
 
   @protected
+  List<BriefNote> sse_decode_list_brief_note(SseDeserializer deserializer);
+
+  @protected
+  List<BriefReminder> sse_decode_list_brief_reminder(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<BuiltinTheme> sse_decode_list_builtin_theme(
     SseDeserializer deserializer,
   );
@@ -3072,6 +3176,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<LiveRun> sse_decode_list_live_run(SseDeserializer deserializer);
 
   @protected
+  List<LoopProposal> sse_decode_list_loop_proposal(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<MemberRow> sse_decode_list_member_row(SseDeserializer deserializer);
 
   @protected
@@ -3088,6 +3197,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<OnThisDayRow> sse_decode_list_on_this_day_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OpenLoopItem> sse_decode_list_open_loop_item(
     SseDeserializer deserializer,
   );
 
@@ -3120,6 +3234,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<PlannedNote> sse_decode_list_planned_note(SseDeserializer deserializer);
+
+  @protected
+  List<PlannedNotice> sse_decode_list_planned_notice(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<PreviewAlign> sse_decode_list_preview_align(
@@ -3210,6 +3329,19 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ResurfaceRow> sse_decode_list_resurface_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ReviewFinished> sse_decode_list_review_finished(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ReviewTheme> sse_decode_list_review_theme(SseDeserializer deserializer);
+
+  @protected
+  List<ReviewWritten> sse_decode_list_review_written(
     SseDeserializer deserializer,
   );
 
@@ -3370,6 +3502,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LockedInfo sse_decode_locked_info(SseDeserializer deserializer);
 
   @protected
+  LoopAction sse_decode_loop_action(SseDeserializer deserializer);
+
+  @protected
+  LoopProposal sse_decode_loop_proposal(SseDeserializer deserializer);
+
+  @protected
+  LoopScan sse_decode_loop_scan(SseDeserializer deserializer);
+
+  @protected
   MadeNote sse_decode_made_note(SseDeserializer deserializer);
 
   @protected
@@ -3416,6 +3557,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   OnThisDayRow sse_decode_on_this_day_row(SseDeserializer deserializer);
+
+  @protected
+  OpenLoopItem sse_decode_open_loop_item(SseDeserializer deserializer);
+
+  @protected
+  OpenLoopKind sse_decode_open_loop_kind(SseDeserializer deserializer);
+
+  @protected
+  OpenLoopsBoard sse_decode_open_loops_board(SseDeserializer deserializer);
 
   @protected
   OpenedDocuments sse_decode_opened_documents(SseDeserializer deserializer);
@@ -3638,6 +3788,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PlannedNote sse_decode_planned_note(SseDeserializer deserializer);
 
   @protected
+  PlannedNotice sse_decode_planned_notice(SseDeserializer deserializer);
+
+  @protected
   PreviewAlign sse_decode_preview_align(SseDeserializer deserializer);
 
   @protected
@@ -3783,6 +3936,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ResurfaceRow sse_decode_resurface_row(SseDeserializer deserializer);
+
+  @protected
+  ReviewFinished sse_decode_review_finished(SseDeserializer deserializer);
+
+  @protected
+  ReviewSaved sse_decode_review_saved(SseDeserializer deserializer);
+
+  @protected
+  ReviewTheme sse_decode_review_theme(SseDeserializer deserializer);
+
+  @protected
+  ReviewView sse_decode_review_view(SseDeserializer deserializer);
+
+  @protected
+  ReviewWritten sse_decode_review_written(SseDeserializer deserializer);
 
   @protected
   RunBatch sse_decode_run_batch(SseDeserializer deserializer);
@@ -4536,6 +4704,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_ai_summary(AiSummary self, SseSerializer serializer);
+
+  @protected
   void sse_encode_approval_phase(ApprovalPhase self, SseSerializer serializer);
 
   @protected
@@ -4630,6 +4801,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_brief_prefs(
+    BriefPrefs self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_card_key(CardKey self, SseSerializer serializer);
@@ -4962,6 +5139,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_brief_note(BriefNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_brief_prefs(BriefPrefs self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_brief_reminder(BriefReminder self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_brief_view(BriefView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_builtin_theme(BuiltinTheme self, SseSerializer serializer);
 
   @protected
@@ -5253,6 +5442,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_brief_note(
+    List<BriefNote> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_brief_reminder(
+    List<BriefReminder> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_builtin_theme(
     List<BuiltinTheme> self,
     SseSerializer serializer,
@@ -5418,6 +5619,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_list_live_run(List<LiveRun> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_loop_proposal(
+    List<LoopProposal> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_member_row(
     List<MemberRow> self,
     SseSerializer serializer,
@@ -5447,6 +5654,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_on_this_day_row(
     List<OnThisDayRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_open_loop_item(
+    List<OpenLoopItem> self,
     SseSerializer serializer,
   );
 
@@ -5489,6 +5702,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_planned_note(
     List<PlannedNote> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_planned_notice(
+    List<PlannedNotice> self,
     SseSerializer serializer,
   );
 
@@ -5612,6 +5831,24 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_resurface_row(
     List<ResurfaceRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_review_finished(
+    List<ReviewFinished> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_review_theme(
+    List<ReviewTheme> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_review_written(
+    List<ReviewWritten> self,
     SseSerializer serializer,
   );
 
@@ -5823,6 +6060,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_locked_info(LockedInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_loop_action(LoopAction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_loop_proposal(LoopProposal self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_loop_scan(LoopScan self, SseSerializer serializer);
+
+  @protected
   void sse_encode_made_note(MadeNote self, SseSerializer serializer);
 
   @protected
@@ -5869,6 +6115,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_on_this_day_row(OnThisDayRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_open_loop_item(OpenLoopItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_open_loop_kind(OpenLoopKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_open_loops_board(
+    OpenLoopsBoard self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opened_documents(
@@ -6153,6 +6411,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_planned_note(PlannedNote self, SseSerializer serializer);
 
   @protected
+  void sse_encode_planned_notice(PlannedNotice self, SseSerializer serializer);
+
+  @protected
   void sse_encode_preview_align(PreviewAlign self, SseSerializer serializer);
 
   @protected
@@ -6343,6 +6604,24 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_resurface_row(ResurfaceRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_review_finished(
+    ReviewFinished self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_review_saved(ReviewSaved self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_review_theme(ReviewTheme self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_review_view(ReviewView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_review_written(ReviewWritten self, SseSerializer serializer);
 
   @protected
   void sse_encode_run_batch(RunBatch self, SseSerializer serializer);

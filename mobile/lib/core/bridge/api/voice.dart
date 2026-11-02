@@ -28,7 +28,10 @@ class Dictated {
   final String text;
   final int caretUtf16;
 
-  const Dictated({required this.text, required this.caretUtf16});
+  const Dictated({
+    required this.text,
+    required this.caretUtf16,
+  });
 
   @override
   int get hashCode => text.hashCode ^ caretUtf16.hashCode;
@@ -46,7 +49,9 @@ class Dictated {
 class VoiceSettings {
   final bool spokenCommands;
 
-  const VoiceSettings({required this.spokenCommands});
+  const VoiceSettings({
+    required this.spokenCommands,
+  });
 
   @override
   int get hashCode => spokenCommands.hashCode;

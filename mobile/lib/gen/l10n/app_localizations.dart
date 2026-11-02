@@ -7738,7 +7738,6 @@ abstract class AppLocalizations {
   /// **'Kanso can\'t use the microphone'**
   String get dictationSettingsMicDenied;
 
-<<<<<<< HEAD
   /// The bar above the Inbox's notes: how many wait to be filed.
   ///
   /// In en, this message translates to:
@@ -8002,7 +8001,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Inbox'**
   String get triageSettingsOpen;
-=======
+
   /// The title of the page that lists open loops: promises found in the notes.
   ///
   /// In en, this message translates to:
@@ -8398,7 +8397,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sunday'**
   String get weekdaySunday;
->>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
+
+  /// The button that asks the AI to read recent notes for promises the rules missed.
+  ///
+  /// In en, this message translates to:
+  /// **'Find more open loops…'**
+  String get digestFindLoops;
+
+  /// The question before the AI reads recent notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Find more open loops?'**
+  String get digestFindTitle;
+
+  /// What reading the notes means.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your notes from the last {days} days with the model at {host} to find promises the rules missed? Locked notes and notes tagged #ai-exclude are left out.'**
+  String digestFindMessage(int days, String host);
+
+  /// The button that starts reading the notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Find loops'**
+  String get digestFindConfirm;
+
+  /// Shown while the AI reads the notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your notes…'**
+  String get digestFinding;
+
+  /// The title of the sheet that lists what the AI found.
+  ///
+  /// In en, this message translates to:
+  /// **'Open loops found'**
+  String get digestFoundTitle;
+
+  /// Said when the AI found nothing new.
+  ///
+  /// In en, this message translates to:
+  /// **'No more open loops found.'**
+  String get digestFoundNone;
+
+  /// The button that keeps the ticked proposals.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep selected'**
+  String get digestFoundKeep;
+
+  /// Said after keeping proposals.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Kept 1 open loop.} other{Kept {count} open loops.}}'**
+  String digestFoundKept(int count);
+
+  /// The button that asks the AI for a short paragraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise'**
+  String get digestSummarise;
+
+  /// Shown while the AI writes a summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing…'**
+  String get digestSummarising;
+
+  /// The label over a summary the AI wrote.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary by AI'**
+  String get digestSummaryLabel;
+
+  /// The button that stops the AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get digestStop;
+
+  /// The title of the card over today's note.
+  ///
+  /// In en, this message translates to:
+  /// **'Your morning brief'**
+  String get digestMorningBrief;
+
+  /// The line on the card over today's note.
+  ///
+  /// In en, this message translates to:
+  /// **'{due, plural, =0{Nothing due} =1{1 due} other{{due} due}}, {loops, plural, =0{no open loops} =1{1 open loop} other{{loops} open loops}}'**
+  String digestMorningBriefCounts(int due, int loops);
 }
 
 class _AppLocalizationsDelegate

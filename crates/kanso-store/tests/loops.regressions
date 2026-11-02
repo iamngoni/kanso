@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 1340b18cf703a43c318161755a121bfc506149de42ec442ca08c6686716b7131 # shrinks to ops = [Edit([2, 0, 0]), Done(0), Edit([]), Edit([0]), Done(0), Edit([2])]
+cc 7c6126a57606f723e6525bf1446cc72fd77734e110463d95cbf69821ac7b984b # shrinks to ops = [Edit([0]), Done(0), Edit([1]), Task(0), Edit([0])]

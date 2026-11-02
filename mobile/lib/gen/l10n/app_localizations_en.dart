@@ -3238,16 +3238,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(origin, {
-      'ui': 'Edited in Kanso',
-      'api': 'Replaced through the API',
-      'sync': 'Replaced by sync',
-      'import': 'Replaced by an import',
-      'collab': 'Edited in a shared note',
-      'agent': 'Suggested by an agent, applied by you',
-      'plugin': 'Changed by a plugin',
-      'other': 'Saved version',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      origin,
+      {
+        'ui': 'Edited in Kanso',
+        'api': 'Replaced through the API',
+        'sync': 'Replaced by sync',
+        'import': 'Replaced by an import',
+        'collab': 'Edited in a shared note',
+        'agent': 'Suggested by an agent, applied by you',
+        'plugin': 'Changed by a plugin',
+        'other': 'Saved version',
+      },
+    );
     return '$_temp0';
   }
 
@@ -4496,30 +4499,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictationSettingsMicDenied => 'Kanso can\'t use the microphone';
 
   @override
-<<<<<<< HEAD
   String triageBarCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count notes to file',
       one: '1 note to file',
-=======
-  String get digestLoopsTitle => 'Open loops';
-
-  @override
-  String digestLoopsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count open loops',
-      one: '1 open loop',
->>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
     );
     return '$_temp0';
   }
 
   @override
-<<<<<<< HEAD
   String get triageBarOpen => 'Triage';
 
   @override
@@ -4682,7 +4672,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get triageSettingsOpen => 'Inbox';
-=======
+
+  @override
+  String get digestLoopsTitle => 'Open loops';
+
+  @override
+  String digestLoopsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count open loops',
+      one: '1 open loop',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get digestLoopsEmptyTitle => 'No open loops';
 
   @override
@@ -4899,5 +4904,75 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get weekdaySunday => 'Sunday';
->>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
+
+  @override
+  String get digestFindLoops => 'Find more open loops…';
+
+  @override
+  String get digestFindTitle => 'Find more open loops?';
+
+  @override
+  String digestFindMessage(int days, String host) {
+    return 'Read your notes from the last $days days with the model at $host to find promises the rules missed? Locked notes and notes tagged #ai-exclude are left out.';
+  }
+
+  @override
+  String get digestFindConfirm => 'Find loops';
+
+  @override
+  String get digestFinding => 'Reading your notes…';
+
+  @override
+  String get digestFoundTitle => 'Open loops found';
+
+  @override
+  String get digestFoundNone => 'No more open loops found.';
+
+  @override
+  String get digestFoundKeep => 'Keep selected';
+
+  @override
+  String digestFoundKept(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Kept $count open loops.',
+      one: 'Kept 1 open loop.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get digestSummarise => 'Summarise';
+
+  @override
+  String get digestSummarising => 'Writing…';
+
+  @override
+  String get digestSummaryLabel => 'Summary by AI';
+
+  @override
+  String get digestStop => 'Stop';
+
+  @override
+  String get digestMorningBrief => 'Your morning brief';
+
+  @override
+  String digestMorningBriefCounts(int due, int loops) {
+    String _temp0 = intl.Intl.pluralLogic(
+      due,
+      locale: localeName,
+      other: '$due due',
+      one: '1 due',
+      zero: 'Nothing due',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      loops,
+      locale: localeName,
+      other: '$loops open loops',
+      one: '1 open loop',
+      zero: 'no open loops',
+    );
+    return '$_temp0, $_temp1';
+  }
 }
