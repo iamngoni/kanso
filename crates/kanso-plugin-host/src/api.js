@@ -183,10 +183,6 @@
     secrets: freeze({
       get: (name) => call('secrets.get', { name: needString(name, 'the secret name') }),
     }),
-    clipboard: freeze({
-      history: () => call('clipboard.history', {}),
-      write: (text) => call('clipboard.write', { text: needString(text, 'the text') }),
-    }),
     fetch: (url, opts) => {
       const o = opts === undefined || opts === null ? {} : needObject(opts, 'the options');
       return call('fetch', {
