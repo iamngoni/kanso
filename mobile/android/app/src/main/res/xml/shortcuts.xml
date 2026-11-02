@@ -18,6 +18,8 @@
         android:icon="@drawable/ic_mic_shortcut"
         android:shortcutShortLabel="@string/shortcut_voice_short"
         android:shortcutLongLabel="@string/shortcut_voice_long">
+        <!-- "Hey Google, voice note in Kanso": the Notes built-in intent. -->
+        <capability-binding android:key="actions.intent.CREATE_NOTE" />
         <intent
             android:action="android.intent.action.VIEW"
             android:data="kanso://open/new?voice=1"
@@ -36,4 +38,12 @@
             android:targetPackage="app.kanso.kanso"
             android:targetClass="app.kanso.kanso.MainActivity" />
     </shortcut>
+    <capability android:name="actions.intent.CREATE_NOTE">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="app.kanso.kanso"
+            android:targetClass="app.kanso.kanso.MainActivity">
+            <url-template android:value="kanso://open/new?voice=1" />
+        </intent>
+    </capability>
 </shortcuts>

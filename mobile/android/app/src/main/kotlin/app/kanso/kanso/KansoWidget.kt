@@ -18,6 +18,7 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.action.actionStartService
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -104,6 +105,8 @@ class WidgetColors(
  * The smallest size has one button, New note. Wider sizes add Voice note and
  * Today. Each button opens `MainActivity` with one of Kanso's links
  * (`kanso://open/new`, `kanso://open/new?voice=1`, `kanso://open/daily`).
+ * Voice note instead starts [VoiceCaptureService] (a tap again stops it) when
+ * the microphone permission is granted.
  * The colors come from `<filesDir>/kanso/widget.json`, which the app writes
  * when the theme changes; the system's night mode picks light or dark.
  */
@@ -150,12 +153,20 @@ class KansoWidget : GlanceAppWidget() {
         val open = Intent(Intent.ACTION_VIEW, Uri.parse(link))
             .setClassName(context, MainActivity::class.java.name)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Voice note records right here when the microphone is allowed; the
+        // service shows its notification. Without the permission it opens
+        // the app, whose own flow asks for it.
+        val click = if (link == VOICE && VoiceCaptureService.canRecord(context)) {
+            actionStartService(VoiceCaptureService.toggleIntent(context), isForegroundService = true)
+        } else {
+            actionStartActivity(open)
+        }
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .background(ColorProvider(colors.surface))
                 .cornerRadius(16.dp)
-                .clickable(actionStartActivity(open)),
+                .clickable(click),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = Alignment.CenterVertically,
         ) {

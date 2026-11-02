@@ -5,6 +5,10 @@
     <!-- Dictation listens only while the person has the microphone on. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Voice notes recorded from the Quick Settings tile or the widget run in
+         a foreground service of the microphone type. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- The notes stay on this phone: no cloud backup, no device transfer.
          allowBackup covers the older versions, fullBackupContent Android
@@ -125,6 +129,29 @@
               android:resource="@style/NormalTheme"
               />
         </activity>
+        <!-- Records a voice note into the Inbox as a drop (VoiceCaptureService.kt). -->
+        <service
+            android:name=".VoiceCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+        <!-- The Quick Settings tile "Voice note". It is active while recording
+             (the service asks it to refresh) and records from the lock screen. -->
+        <service
+            android:name=".VoiceTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mic"
+            android:label="@string/tile_voice_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
         <receiver
             android:name=".KansoReminderReceiver"
             android:enabled="true"

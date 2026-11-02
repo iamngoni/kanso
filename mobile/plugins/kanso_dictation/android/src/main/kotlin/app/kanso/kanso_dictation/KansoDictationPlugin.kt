@@ -147,6 +147,16 @@ class KansoDictationPlugin :
         }
     }
 
+    override suspend fun transcribeFile(
+        path: String,
+        localeTag: String?,
+        allowServer: Boolean,
+    ): FileTranscription {
+        val context =
+            context ?: return FileTranscription(text = "", onDevice = false, error = FileTranscriber.FAILED)
+        return FileTranscriber.transcribe(context, path, localeTag, allowServer)
+    }
+
     override fun stop() {
         session?.stop()
     }
