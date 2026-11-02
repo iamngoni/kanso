@@ -28,6 +28,7 @@ fn limits() -> TaskLimits {
     TaskLimits {
         lifetime: Duration::from_secs(1200),
         calls: 200,
+        max_notes: 200,
     }
 }
 

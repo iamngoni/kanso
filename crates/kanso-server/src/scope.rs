@@ -133,6 +133,38 @@ pub struct AgentScope {
 pub struct TaskLimits {
     pub lifetime: Duration,
     pub calls: usize,
+    /// The most notes one task may be shown.
+    pub max_notes: usize,
+}
+
+/// The notes a task with `scope` may read now, in no particular order:
+/// the chosen notes, or the notes of the chosen notebooks, that
+/// [`Visibility`] lets through. Empty when the store can't say.
+pub fn readable_notes(store: &Store, scope: &AgentScope) -> Vec<String> {
+    let Some(vis) = Visibility::new(store, scope) else {
+        return Vec::new();
+    };
+    let ids: Vec<String> = match (&scope.notes, &vis.books) {
+        (Some(notes), _) => notes.iter().cloned().collect(),
+        (None, Some(books)) => {
+            let books: Vec<String> = books.iter().cloned().collect();
+            store
+                .notes_in_books(&books)
+                .map(|notes| notes.into_iter().map(|n| n.id).collect())
+                .unwrap_or_default()
+        }
+        (None, None) => {
+            let books: Vec<String> = store
+                .books()
+                .map(|all| all.into_iter().map(|b| b.id).collect())
+                .unwrap_or_default();
+            store
+                .notes_in_books(&books)
+                .map(|notes| notes.into_iter().map(|n| n.id).collect())
+                .unwrap_or_default()
+        }
+    };
+    ids.into_iter().filter(|id| vis.allows(id)).collect()
 }
 
 impl AgentScope {

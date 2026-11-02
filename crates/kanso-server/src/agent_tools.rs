@@ -66,6 +66,15 @@ pub(crate) fn call_with_state(
             "This question has used as many note lookups as it may. Answer from what you have read.",
         );
     }
+    if let Some(limits) = &scope.task_limits
+        && !TASK_TOOLS.contains(&name)
+        && !SUGGEST_TOOLS.contains(&name)
+        && state.tokens.reads(token).len() >= limits.max_notes
+    {
+        return tools::error_result(
+            "This task has read as many notes as it may. Propose changes from what you have read, then call kanso-task-done.",
+        );
+    }
     let Some(visible) = Visibility::new(&state.store, scope) else {
         return tools::error_result("Couldn't read the notes.");
     };
