@@ -626,10 +626,21 @@ async fn an_agent_tool_never_returns_a_locked_or_out_of_scope_note() {
     let home = book(store, "Home", None, false);
     let vault = book(store, "Vault", Some(&work), true);
     let tag = store
-        .put(DocType::Tag, json!({ "name": "ai-exclude" }), Put::Upsert, Origin::Ui)
+        .put(
+            DocType::Tag,
+            json!({ "name": "ai-exclude" }),
+            Put::Upsert,
+            Origin::Ui,
+        )
         .unwrap()
         .id;
-    let pricing = note(store, "Pricing", "intro\nzebra yearly plan\nthird line", &work, vec![]);
+    let pricing = note(
+        store,
+        "Pricing",
+        "intro\nzebra yearly plan\nthird line",
+        &work,
+        vec![],
+    );
     let groceries = note(store, "Groceries", "zebra milk", &home, vec![]);
     let hidden = note(store, "Hidden plan", "zebra secret", &work, vec![tag]);
     let in_vault = note(store, "Vault plan", "zebra vault", &vault, vec![]);
@@ -641,7 +652,13 @@ async fn an_agent_tool_never_returns_a_locked_or_out_of_scope_note() {
     let token = &minted.token;
 
     let found = text_of(
-        &agent_tool(&agents.api, token, "kanso-ask-search", json!({ "query": "zebra" })).await,
+        &agent_tool(
+            &agents.api,
+            token,
+            "kanso-ask-search",
+            json!({ "query": "zebra" }),
+        )
+        .await,
     );
     assert!(found.contains("L2| zebra yearly plan"), "{found}");
     assert!(found.starts_with("[1] Pricing"), "{found}");

@@ -683,6 +683,9 @@ pub struct AiSettings {
     pub inbox_suggestions: bool,
     /// Settings > AI > Agent tasks (issue #196).
     pub agent_tasks: kanso_engine::agent_task::settings::AgentTaskSettings,
+    /// Settings > AI > Ask: how much a question may send, and whether
+    /// answers are checked against the notes.
+    pub ask: kanso_engine::ask::settings::AskSettings,
 }
 
 impl Default for AiSettings {
@@ -703,6 +706,7 @@ impl AiSettings {
             agent: AgentChoice::default(),
             inbox_suggestions: false,
             agent_tasks: Default::default(),
+            ask: Default::default(),
         }
     }
 
@@ -1175,6 +1179,7 @@ mod tests {
                     agent,
                     inbox_suggestions: enabled,
                     agent_tasks: Default::default(),
+                    ask: Default::default(),
                 },
             )
     }

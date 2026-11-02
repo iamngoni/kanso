@@ -13,6 +13,7 @@ pub mod receipts;
 mod retrieve;
 mod save;
 mod scope;
+pub mod settings;
 mod tools;
 mod turn;
 
@@ -27,7 +28,9 @@ pub use retrieve::{
 pub use save::{SavedAnswer, save_answer, saved_note};
 pub use scope::{ScopeFilter, book_paths};
 pub use tools::{READ_LINES, Shown, ToolNote, read_lines, search_notes, tool_registry};
-pub use turn::{Banner, Finished, Prepared, Turn, TurnEvent, finalize, plain, prepare, run};
+pub use turn::{
+    Banner, Finished, Prepared, Turn, TurnEvent, finalize, plain, prepare, run, streaming_markdown,
+};
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

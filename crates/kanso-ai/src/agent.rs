@@ -28,7 +28,7 @@ pub use kanso_acp::AgentKind;
 
 use crate::budget::Budget;
 use crate::client::{AiError, ChatProvider, Event, SharedProvider, Turn};
-use crate::prompt::{self, Prompt, citing as prompt_citing};
+use crate::prompt::{self, Prompt, SentExcerpt, citing as prompt_citing};
 
 /// How long a warm agent may sit without a question before it is stopped.
 const IDLE: Duration = Duration::from_secs(10 * 60);
@@ -115,6 +115,16 @@ pub trait NotesLease: Send + Sync {
     fn begin_turn(&self);
     /// The notes the agent has searched or read this question, in order.
     fn reads(&self) -> Vec<String>;
+    /// Starts this question's numbering from the excerpts its prompt
+    /// already numbered, so the lines the agent reads through the notes
+    /// server carry the numbers after them. Called after `begin_turn`.
+    fn seed(&self, _sent: &[SentExcerpt]) {}
+    /// The lines shown this question, numbered: the seeded excerpts and
+    /// what the agent read through the notes server. Empty if the lease
+    /// doesn't number.
+    fn shown(&self) -> Vec<SentExcerpt> {
+        Vec::new()
+    }
 }
 
 /// How a conversation gets a [`NotesGrant`] for a new session: `None` when
@@ -620,6 +630,9 @@ struct ConversationState {
     lease: Option<Box<dyn NotesLease>>,
     /// The session's token may suggest edits.
     suggest: bool,
+    /// The excerpts the next question's prompt numbered, handed to the
+    /// lease once its turn begins.
+    seed: Vec<SentExcerpt>,
 }
 
 impl ConversationState {
@@ -731,6 +744,24 @@ impl Conversation {
         }))
     }
 
+    /// Tells the conversation which excerpts the next question's prompt
+    /// numbered, so lines the agent reads continue the numbering. Call it
+    /// before [`Conversation::ask`].
+    pub fn number_from(&self, sent: Vec<SentExcerpt>) {
+        lock(&self.state).seed = sent;
+    }
+
+    /// The lines the agent was shown for the question just asked, numbered:
+    /// the excerpts sent and what it read through the notes server. Empty
+    /// when it had no notes access.
+    pub fn shown(&self) -> Vec<SentExcerpt> {
+        lock(&self.state)
+            .lease
+            .as_ref()
+            .map(|lease| lease.shown())
+            .unwrap_or_default()
+    }
+
     /// Whether the conversation has a session open now, for tests.
     pub fn has_session(&self) -> bool {
         lock(&self.state).session.is_some()
@@ -800,6 +831,7 @@ impl Conversation {
         }
         if let Some(lease) = &state.lease {
             lease.begin_turn();
+            lease.seed(&state.seed);
         }
         let notes = state.lease.is_some();
         let earlier: &[Turn] = if fresh { history } else { &[] };

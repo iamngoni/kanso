@@ -187,6 +187,11 @@ impl Conversation {
         &self.used
     }
 
+    /// Forgets the newest exchange, to ask it again another way.
+    pub fn pop(&mut self) -> Option<AskedTurn> {
+        self.turns.pop()
+    }
+
     /// The exchanges kept.
     pub fn turns(&self) -> &[AskedTurn] {
         &self.turns

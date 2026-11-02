@@ -960,6 +960,72 @@ impl AiPage {
         rows
     }
 
+    /// Settings > AI > Ask: how much one question may send, whether answers
+    /// are checked against the notes, and whether links are followed.
+    fn ask_rows(&self, ai: &AiSettings) -> Vec<Row> {
+        use kanso_ai::BudgetSize;
+        use kanso_engine::ask::settings::AskSettings;
+        let size = ai.ask.size(ai.provider, &ai.base_url);
+        let budget = kanso_ai::Budget::of(size);
+        let mut detail = budget.words_line();
+        if let Some(cost) = kanso_ai::prices::cost_line(ai.provider, &ai.model, &budget) {
+            detail.push(' ');
+            detail.push_str(&cost);
+        }
+        let options: Vec<ChoiceOption> = BudgetSize::ALL
+            .into_iter()
+            .map(|choice| {
+                let pick: Arc<dyn Fn(&mut App) + Send + Sync> = Arc::new(move |cx| {
+                    AppState::update_config(cx, |config| config.ai.ask.choose(choice));
+                });
+                (choice.label().to_owned(), choice == size, pick)
+            })
+            .collect();
+        let switch = |id: &'static str, on: bool, set: fn(&mut AskSettings, bool)| {
+            div()
+                .debug_selector(move || id.into())
+                .child(Switch::new(id).checked(on).on_click(move |on, _, cx| {
+                    AppState::update_config(cx, |config| set(&mut config.ai.ask, *on));
+                }))
+        };
+        let check_detail = if ai.ask.check_sources {
+            "Each cited line is checked against what was sent. A sentence that fails is marked \"Not found in your notes\".".to_owned()
+        } else {
+            AskSettings::CHECK_WARNING.to_owned()
+        };
+        vec![
+            Row::new(gpui_kit::assets::IconName::FileText, "Most each question may send")
+                .detail(detail)
+                .trailing(
+                    Button::new("ai-ask-budget")
+                        .debug_selector(|| "ai-ask-budget".into())
+                        .outline()
+                        .small()
+                        .label(size.label())
+                        .dropdown_menu(move |mut menu, _, _| {
+                            for (text, checked, pick) in options.clone() {
+                                menu = menu.item(
+                                    PopupMenuItem::new(text)
+                                        .checked(checked)
+                                        .on_click(move |_, _, cx| pick(cx)),
+                                );
+                            }
+                            menu
+                        }),
+                ),
+            Row::new(gpui_kit::assets::IconName::ShieldCheck, "Check sources")
+                .detail(check_detail)
+                .trailing(switch("ai-ask-check", ai.ask.check_sources, |a, on| {
+                    a.check_sources = on
+                })),
+            Row::new(gpui_kit::assets::IconName::Link, "Look up related notes through links")
+                .detail("Notes that link to the best matches, and notes they link to, are looked up too. Locked notes and notes tagged #ai-exclude are never followed.")
+                .trailing(switch("ai-ask-links", ai.ask.use_links, |a, on| {
+                    a.use_links = on
+                })),
+        ]
+    }
+
     /// Settings > AI > Agent tasks: what a task may propose by default, how
     /// long it may run, how many notes it may read.
     fn agent_task_rows(&self, ai: &AiSettings) -> Vec<Row> {
@@ -1399,6 +1465,11 @@ impl Render for AiPage {
         }
         let mut page = v_flex().w_full().child(section("AI", rows, colors));
         if ai.enabled {
+            page = page.child(v_flex().mt(px(12.)).child(section(
+                "Ask",
+                self.ask_rows(&ai),
+                colors,
+            )));
             page = page.child(v_flex().mt(px(12.)).child(section(
                 "Agent tasks",
                 self.agent_task_rows(&ai),

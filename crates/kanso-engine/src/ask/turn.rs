@@ -176,6 +176,93 @@ pub fn finalize(raw: &str, shown: &Shown, check_sources: bool, retrieval: &Retri
     }
 }
 
+/// The answer so far as it is shown while it streams: receipts are checked
+/// only when it ends, so their markers (`[2:L12]`, `[2:L12-14]`) are left
+/// out, including one still being written, and the rest is made safe to
+/// render.
+pub fn streaming_markdown(raw: &str, used: &[Excerpt]) -> String {
+    sanitize_answer(&strip_markers(raw), used)
+}
+
+/// Whether `rest` (which starts with `[`) begins a receipt marker: its
+/// length when it is a whole one, or `Err(())` when it could still become
+/// one at the end of the text.
+fn marker_at(rest: &str) -> Result<usize, bool> {
+    // States: digits, ':', 'L', digits, optional '-' digits, ']'.
+    let bytes = rest.as_bytes();
+    let mut i = 1;
+    let digits = |i: &mut usize| {
+        let start = *i;
+        while *i < bytes.len() && bytes[*i].is_ascii_digit() {
+            *i += 1;
+        }
+        *i > start
+    };
+    let at_end = |i: usize| i >= bytes.len();
+    if !digits(&mut i) {
+        return Err(at_end(i));
+    }
+    if at_end(i) || bytes[i] != b':' {
+        return Err(at_end(i));
+    }
+    i += 1;
+    if at_end(i) || bytes[i] != b'L' {
+        return Err(at_end(i));
+    }
+    i += 1;
+    if !digits(&mut i) {
+        return Err(at_end(i));
+    }
+    if !at_end(i) && bytes[i] == b'-' {
+        i += 1;
+        if !digits(&mut i) {
+            return Err(at_end(i));
+        }
+    }
+    if at_end(i) {
+        return Err(true);
+    }
+    if bytes[i] == b']' {
+        Ok(i + 1)
+    } else {
+        Err(false)
+    }
+}
+
+/// `text` without receipt markers and the space before each.
+fn strip_markers(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut at = 0;
+    while at < text.len() {
+        let rest = &text[at..];
+        let Some(open) = rest.find('[') else {
+            out.push_str(rest);
+            break;
+        };
+        out.push_str(&rest[..open]);
+        match marker_at(&rest[open..]) {
+            Ok(len) => {
+                if out.ends_with(' ') {
+                    out.pop();
+                }
+                at += open + len;
+            }
+            // A marker still being written at the end of the text.
+            Err(true) => {
+                if out.ends_with(' ') {
+                    out.pop();
+                }
+                break;
+            }
+            Err(false) => {
+                out.push('[');
+                at += open + 1;
+            }
+        }
+    }
+    out
+}
+
 /// Markers shown as the model wrote them, kept from reading as links.
 fn escape_markers(text: &str) -> String {
     text.replace('[', "\\[")
@@ -451,4 +538,47 @@ fn model_rewrite(
         .trim_matches(|c: char| c == '"' || c == '\'' || c == '`')
         .trim();
     (!line.is_empty()).then(|| kanso_ai::prompt::truncate(line, REWRITE_MAX))
+}
+
+#[cfg(test)]
+mod streaming_tests {
+    use super::strip_markers;
+    use proptest::prelude::*;
+
+    #[test]
+    fn markers_whole_and_half_written_are_left_out() {
+        assert_eq!(
+            strip_markers("We chose yearly [1:L12]. And monthly [2:L3-5] too."),
+            "We chose yearly. And monthly too."
+        );
+        assert_eq!(strip_markers("We chose yearly [1:L1"), "We chose yearly");
+        assert_eq!(strip_markers("We chose yearly [1:"), "We chose yearly");
+        assert_eq!(strip_markers("a [link](x) and [b]"), "a [link](x) and [b]");
+        assert_eq!(strip_markers("[x] [12:L3-]"), "[x] [12:L3-]");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, ..ProptestConfig::default() })]
+
+        /// Whatever streams in, no whole marker survives and nothing grows.
+        #[test]
+        fn prop_no_marker_survives(
+            parts in proptest::collection::vec(
+                prop_oneof![
+                    "[a-z .,]{0,10}",
+                    (1u32..30, 1u32..99, proptest::option::of(1u32..99))
+                        .prop_map(|(n, a, b)| match b {
+                            Some(b) => format!("[{n}:L{a}-{b}]"),
+                            None => format!("[{n}:L{a}]"),
+                        }),
+                ],
+                0..8,
+            )
+        ) {
+            let text = parts.concat();
+            let out = strip_markers(&text);
+            prop_assert!(out.len() <= text.len());
+            prop_assert!(!out.contains(":L"), "{out}");
+        }
+    }
 }

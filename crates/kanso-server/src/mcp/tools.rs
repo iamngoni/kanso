@@ -1593,7 +1593,11 @@ fn ask_read_lines(vis: &Visibility, args: &Args) -> ToolResult {
     let Some(note) = vis.note(&id).filter(|note| vis.allows(&note.id)) else {
         return Err(ApiError::not_found().into());
     };
-    let number = |key: &str| args.get(key).and_then(Value::as_f64).map(|n| n.max(1.0) as u32);
+    let number = |key: &str| {
+        args.get(key)
+            .and_then(Value::as_f64)
+            .map(|n| n.max(1.0) as u32)
+    };
     let start = number("start").unwrap_or(1);
     let end = number("end")
         .unwrap_or(start + 49)
@@ -1619,7 +1623,9 @@ fn ask_day(args: &Args, key: &str) -> Option<chrono::NaiveDate> {
 
 fn ask_when(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
     let Some(from) = ask_day(args, "from") else {
-        return Err(ToolError("`from` must be a day like 2026-10-14.".to_owned()));
+        return Err(ToolError(
+            "`from` must be a day like 2026-10-14.".to_owned(),
+        ));
     };
     let to = ask_day(args, "to").unwrap_or(from).max(from);
     let limit = ask_limit(args, 8, 15);
@@ -1648,7 +1654,10 @@ fn ask_when(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
                 continue;
             };
             let line = task.line;
-            let rows = vec![(line, ask_cut(kanso_core::links::line_text(&note.body, line)))];
+            let rows = vec![(
+                line,
+                ask_cut(kanso_core::links::line_text(&note.body, line)),
+            )];
             let number = vis.show_lines(&note, rows.clone());
             out.push_str(&ask_block(number, &note, &rows));
             out.push('\n');
@@ -1747,4 +1756,3 @@ mod tests {
         assert_eq!(infer_image_type("x.bmp"), None);
     }
 }
-

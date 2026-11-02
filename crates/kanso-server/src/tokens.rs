@@ -314,7 +314,13 @@ impl TokenStore {
             }
             return seen.number;
         }
-        let number = entry.shown.iter().map(|seen| seen.number).max().unwrap_or(0) + 1;
+        let number = entry
+            .shown
+            .iter()
+            .map(|seen| seen.number)
+            .max()
+            .unwrap_or(0)
+            + 1;
         let mut lines = lines;
         lines.sort_by_key(|(n, _)| *n);
         lines.dedup_by_key(|(n, _)| *n);

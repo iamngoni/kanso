@@ -195,6 +195,20 @@ impl Inspector {
             .update(cx, |ask, cx| ask.focus_question(window, cx));
     }
 
+    /// Limits the Ask panel to `scope` and puts the keyboard in its question
+    /// box: "Ask About This Notebook…".
+    pub fn ask_within(
+        &mut self,
+        scope: kanso_engine::ask::AskScope,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.ask.update(cx, |ask, cx| {
+            ask.set_scope(scope, cx);
+            ask.focus_question(window, cx);
+        });
+    }
+
     /// Summarises the open note in the Ask panel.
     pub fn summarize_note(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.ask

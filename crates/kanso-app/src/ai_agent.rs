@@ -37,6 +37,35 @@ impl NotesLease for Lease {
     fn reads(&self) -> Vec<String> {
         self.tokens.reads(self.id)
     }
+
+    fn seed(&self, sent: &[kanso_ai::SentExcerpt]) {
+        self.tokens.seed_shown(
+            self.id,
+            sent.iter()
+                .map(|excerpt| kanso_server::ShownNote {
+                    number: excerpt.number,
+                    id: excerpt.id.clone(),
+                    title: excerpt.title.clone(),
+                    updated: excerpt.updated.clone(),
+                    lines: excerpt.lines.clone(),
+                })
+                .collect(),
+        );
+    }
+
+    fn shown(&self) -> Vec<kanso_ai::SentExcerpt> {
+        self.tokens
+            .shown_notes(self.id)
+            .into_iter()
+            .map(|note| kanso_ai::SentExcerpt {
+                number: note.number,
+                id: note.id,
+                title: note.title,
+                updated: note.updated,
+                lines: note.lines,
+            })
+            .collect()
+    }
 }
 
 impl Drop for Lease {
@@ -67,7 +96,7 @@ pub fn scope_for(
 }
 
 /// How each new session of `choice` gets access to the notes at `url`: a
-/// token of its own over the notebooks `choice` allows, with Ask's two
+/// token of its own over the notebooks `choice` allows, with Ask's five
 /// tools (and the suggesting ones when allowed), and `relay` for an agent
 /// without HTTP MCP.
 pub fn notes_access_at(

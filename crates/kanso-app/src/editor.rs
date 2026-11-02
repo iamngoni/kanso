@@ -103,6 +103,8 @@ mod vim_tests;
 
 /// While typing goes on, the preview beside the source catches up at most
 /// this often: the first change shows at once, later ones on the next tick.
+/// How long the lines an Ask receipt points at stay marked.
+pub const HIGHLIGHT_HOLD: Duration = Duration::from_secs(3);
 const PREVIEW_INTERVAL: Duration = Duration::from_millis(60);
 /// Line height of the Markdown source, relative to its size. Every face and
 /// view mode sets the source at the chosen size with this line height:
@@ -278,6 +280,11 @@ pub struct NoteEditor {
     wiki_task: Option<Task<()>>,
     /// A line to show once note `.0` opens, as a backlink or heading asks.
     pending_reveal: Option<(String, u32)>,
+    /// Lines (first, last, 0-based) of note `.0` to mark for a few seconds
+    /// once it opens: where a receipt in an Ask answer points.
+    pending_highlight: Option<(String, u32, u32)>,
+    /// The timer that lets go of a marked range.
+    highlight_task: Option<Task<()>>,
     /// A byte offset of note `.0`'s text to put the caret at once it
     /// opens: where a template's `{{cursor}}` was.
     pending_caret: Option<(String, usize)>,
@@ -595,6 +602,8 @@ impl NoteEditor {
             wiki,
             wiki_task: None,
             pending_reveal: None,
+            pending_highlight: None,
+            highlight_task: None,
             pending_caret: None,
             pending_place: None,
             left_place: None,
@@ -1180,6 +1189,11 @@ impl NoteEditor {
         {
             self.reveal_line(line, window, cx);
         }
+        if let Some((id, first, last)) = self.pending_highlight.take()
+            && self.note_id() == Some(id.as_str())
+        {
+            self.highlight_lines(first, last, HIGHLIGHT_HOLD, window, cx);
+        }
         if let Some((id, offset)) = self.pending_caret.take()
             && self.note_id() == Some(id.as_str())
         {
@@ -1461,6 +1475,50 @@ impl NoteEditor {
         self.body.update(cx, |state, cx| {
             state.set_cursor_position(Position::new(line, 0), window, cx);
         });
+    }
+
+    /// Brings lines `first` to `last` (0-based, inclusive) into view and
+    /// marks them by selecting them for `hold`, then lets go. The mark is
+    /// dropped early if the reader selects or moves anywhere else.
+    pub fn highlight_lines(
+        &mut self,
+        first: u32,
+        last: u32,
+        hold: Duration,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.note.is_none() {
+            return;
+        }
+        self.reveal_line(first, window, cx);
+        if self.view_mode == ViewMode::Preview {
+            return;
+        }
+        let range = {
+            let value = self.body.read(cx).value();
+            line_bytes(&value, first, last)
+        };
+        let Some(range) = range else { return };
+        self.body
+            .update(cx, |state, cx| state.set_selected_range(range.clone(), cx));
+        self.highlight_task = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(hold).await;
+            this.update(cx, |this, cx| {
+                this.body.update(cx, |state, cx| {
+                    if state.selected_range() == range {
+                        state.set_selected_range(range.start..range.start, cx);
+                    }
+                });
+            })
+            .ok();
+        }));
+    }
+
+    /// Shows lines `first` to `last` of note `id` marked, once it opens.
+    pub fn highlight_after_open(&mut self, id: String, first: u32, last: u32) {
+        self.pending_reveal = Some((id.clone(), first));
+        self.pending_highlight = Some((id, first, last));
     }
 
     /// The text selected in the note's body, if any.
@@ -6585,5 +6643,62 @@ mod writing_tests {
         assert_eq!(footer_goal(cx), Some(1000));
         let note = open.store.note(&open.id).unwrap().unwrap();
         assert!(!note.extra.contains_key(GOAL_KEY));
+    }
+}
+
+/// The bytes of lines `first` to `last` (0-based, inclusive) of `text`,
+/// without the last line's break. `None` when `first` is past the end;
+/// `last` is cut to the last line.
+pub(crate) fn line_bytes(text: &str, first: u32, last: u32) -> Option<std::ops::Range<usize>> {
+    let mut start = None;
+    let mut offset = 0;
+    let mut end = text.len();
+    for (index, line) in text.split('\n').enumerate() {
+        let index = index as u32;
+        if index == first {
+            start = Some(offset);
+        }
+        if index == last {
+            end = offset + line.trim_end_matches('\r').len();
+            break;
+        }
+        offset += line.len() + 1;
+    }
+    start.map(|start| start..end.max(start))
+}
+
+#[cfg(test)]
+mod line_bytes_tests {
+    use super::line_bytes;
+    use proptest::prelude::*;
+
+    #[test]
+    fn it_selects_whole_lines_without_the_final_break() {
+        let text = "one\ntwo\nthree\nfour";
+        assert_eq!(line_bytes(text, 1, 2), Some(4..13));
+        assert_eq!(line_bytes(text, 0, 0), Some(0..3));
+        assert_eq!(line_bytes(text, 3, 9), Some(14..18));
+        assert_eq!(line_bytes(text, 9, 9), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, ..ProptestConfig::default() })]
+        #[test]
+        fn prop_the_range_holds_exactly_those_lines(
+            lines in proptest::collection::vec("[a-z ]{0,8}", 1..10),
+            first in 0u32..12,
+            span in 0u32..6,
+        ) {
+            let text = lines.join("\n");
+            let last = first + span;
+            match line_bytes(&text, first, last) {
+                None => prop_assert!(first as usize >= lines.len()),
+                Some(range) => {
+                    let end = (last as usize).min(lines.len() - 1);
+                    let want = lines[first as usize..=end].join("\n");
+                    prop_assert_eq!(&text[range], want.as_str());
+                }
+            }
+        }
     }
 }

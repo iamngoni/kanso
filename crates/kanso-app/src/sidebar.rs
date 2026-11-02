@@ -52,6 +52,8 @@ pub enum SidebarEvent {
     LockBook(String),
     RemoveBookLock(String),
     PublishBook(String),
+    /// "Ask About This Notebook…": the Ask panel, limited to the notebook.
+    AskBook(String),
     RenameTag(String),
     RecolorTag(String, kanso_core::TagColor),
     DeleteTag(String),
@@ -1719,7 +1721,9 @@ impl Render for Sidebar {
             let row = self
                 .drop_notes(row, NoteChange::Move(id.clone()), cx)
                 .debug_selector(move || selector)
-                .context_menu(move |menu, _, _| {
+                .context_menu(move |menu, _, cx| {
+                    let ai_on = cx.global::<crate::workspace::AppState>().config.ai.enabled;
+                    let (ask, h) = (view.clone(), book_id.clone());
                     let (new, rename, delete) = (view.clone(), view.clone(), view.clone());
                     let (a, b, c) = (book_id.clone(), book_id.clone(), book_id.clone());
                     let (reicon, f) = (view.clone(), book_id.clone());
@@ -1749,6 +1753,17 @@ impl Render for Sidebar {
                         None => menu,
                     };
                     let (publish, e) = (view.clone(), book_id.clone());
+                    // A locked notebook is never read by Ask, so it isn't offered.
+                    let menu = if ai_on && !locked {
+                        menu.item(PopupMenuItem::new("Ask About This Notebook…").on_click(
+                            move |_, _, cx| {
+                                ask.update(cx, |_, cx| cx.emit(SidebarEvent::AskBook(h.clone())));
+                            },
+                        ))
+                        .separator()
+                    } else {
+                        menu
+                    };
                     menu.item(
                         PopupMenuItem::new("New Sub-notebook").on_click(move |_, _, cx| {
                             new.update(cx, |_, cx| {
