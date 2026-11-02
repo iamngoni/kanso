@@ -204,6 +204,43 @@ pub(crate) fn store_row(
     Ok(())
 }
 
+/// Checks the search index and, when it is damaged (an entry pointing at a
+/// row it no longer holds: "fts5: missing row N from content table"),
+/// rebuilds it from the notes themselves. Returns whether it rebuilt.
+pub(crate) fn repair_search_if_corrupt(conn: &mut rusqlite::Connection) -> Result<bool> {
+    if conn
+        .execute(
+            "INSERT INTO notes_fts (notes_fts) VALUES ('integrity-check')",
+            [],
+        )
+        .is_ok()
+    {
+        return Ok(false);
+    }
+    let tx = Transaction::new(conn, rusqlite::TransactionBehavior::Immediate)?;
+    // Deleting from a damaged index can fail on the damage itself: start the
+    // table over, as the schema makes it.
+    tx.execute_batch(
+        "DROP TABLE notes_fts;
+         CREATE VIRTUAL TABLE notes_fts USING fts5(note_id UNINDEXED, title, body, tokenize = 'trigram');
+         INSERT INTO notes_fts (notes_fts, rank) VALUES ('secure-delete', 1);",
+    )?;
+    let ids: Vec<String> = tx
+        .prepare("SELECT id FROM docs WHERE type = 'note' AND deleted = 0")?
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    for id in ids {
+        let Some(row) = load_row(&tx, &id)? else {
+            continue;
+        };
+        let locked = lock_salt(&row.fields).is_some();
+        let in_locked = in_locked_book(&tx, book_of(&row.fields))?;
+        index_note(&tx, &id, Some(&row.fields), locked || in_locked, in_locked)?;
+    }
+    tx.commit()?;
+    Ok(true)
+}
+
 /// Puts a note's words in the search index and its derived tables (links,
 /// headings, tasks), or takes them out when `fields` is `None`. A locked
 /// note's text is only ever the sealed one: whatever an older Kanso put
