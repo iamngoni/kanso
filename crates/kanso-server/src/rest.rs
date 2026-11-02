@@ -25,6 +25,7 @@ pub(crate) fn routes() -> Router<AppState> {
     let mut router = Router::new()
         .route("/", get(meta))
         .route("/_changes", get(changes))
+        .route("/loops", get(list_loops))
         .route(
             "/notes",
             get(list_notes).post(|state: State<AppState>, body: Body| {
@@ -146,6 +147,26 @@ async fn list_notes(State(state): State<AppState>, params: Params) -> JsonResult
     };
     let notes = blocking(&state, move |store| api::list_notes(store, &query)).await?;
     Ok(Json(Value::Array(notes)))
+}
+
+/// `GET /loops?bookId=&kind=&limit=`: open loops (things said in notes that
+/// were not checkboxes). Locked notes and the trash have none.
+async fn list_loops(State(state): State<AppState>, params: Params) -> JsonResult {
+    let params = QueryParams::parse(params)?;
+    let limit = params.count("limit")?;
+    let book_id = params.get("bookId").map(str::to_owned);
+    let kind =
+        match params.get("kind") {
+            None => None,
+            Some(raw) => Some(kanso_core::loops::LoopKind::parse(raw).ok_or_else(|| {
+                ApiError::bad_request("'kind' must be mine, waiting or question.")
+            })?),
+        };
+    let loops = blocking(&state, move |store| {
+        api::list_loops(store, book_id, kind, limit)
+    })
+    .await?;
+    Ok(Json(Value::Array(loops)))
 }
 
 async fn list_collection(

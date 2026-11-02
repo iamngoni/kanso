@@ -411,7 +411,7 @@ impl AiHandle {
     }
 
     /// The settings a request is asked under, or [`AI_OFF`].
-    fn enabled(&self) -> Result<ClientSettings, KansoError> {
+    pub(crate) fn enabled(&self) -> Result<ClientSettings, KansoError> {
         let file = self.load();
         if !file.enabled {
             return Err(KansoError::invalid(AI_OFF));
@@ -421,7 +421,10 @@ impl AiHandle {
 
     /// The provider to ask under `settings`, or why one can't be made (no
     /// key, no model).
-    fn provider_for(&self, settings: &ClientSettings) -> Result<SharedProvider, KansoError> {
+    pub(crate) fn provider_for(
+        &self,
+        settings: &ClientSettings,
+    ) -> Result<SharedProvider, KansoError> {
         (self.maker)(settings).map_err(|err| ai_error(err, settings.api_key.as_deref()))
     }
 
@@ -529,6 +532,11 @@ impl AiRun {
     /// already ended.
     pub fn stop(&self) {
         self.cancel.store(true, Ordering::Relaxed);
+    }
+
+    /// Whether the request was asked to stop.
+    pub(crate) fn stopped(&self) -> bool {
+        self.cancel.load(Ordering::Relaxed)
     }
 }
 
@@ -795,7 +803,7 @@ fn spawn(name: &str, work: impl FnOnce() + Send + 'static) -> Result<(), KansoEr
         .map_err(|err| KansoError::storage(format!("Couldn't start the request: {err}")))
 }
 
-fn ai_error(err: AiError, api_key: Option<&str>) -> KansoError {
+pub(crate) fn ai_error(err: AiError, api_key: Option<&str>) -> KansoError {
     let message = kanso_ai::redact_provider_error(&err.to_string(), api_key);
     match err {
         AiError::Transport(_) | AiError::Timeout(_) => KansoError::network(message),

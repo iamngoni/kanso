@@ -47,6 +47,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   KansoApprovals approvals();
 
+  /// Keeps the proposals the person ticked; how many were added.
+  Future<int> approveAiLoops({required List<LoopProposal> picks});
+
   Future<AttachmentFile> attachment({required String id});
 
   Future<BackupFile> backUpNow();
@@ -59,6 +62,12 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<BoardView> board({required BoardKind kind, required ListQuery query});
 
+  Future<BriefView> brief();
+
+  Future<List<PlannedNotice>> briefPlan({required bool canNotify});
+
+  Future<BriefPrefs> briefPrefs();
+
   /// Saves something shared from inside the app as a note in the Inbox.
   Future<CaptureOutcome> capture({required Share share});
 
@@ -69,6 +78,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// The IDs of what changed, in batches, until Dart stops listening.
   Stream<List<String>> changes();
+
+  Future<bool> closeLoop({
+    required String noteId,
+    required String key,
+    required int line,
+    required LoopAction action,
+  });
 
   Future<Saved> create({required NewNote note});
 
@@ -221,6 +237,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required String staging,
   });
 
+  Future<OpenLoopsBoard> openLoops();
+
   /// How many open tasks are overdue (the Tasks place's badge).
   Future<int> overdueTasks();
 
@@ -282,6 +300,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required String baseRev,
   });
 
+  Future<ReviewView> review({String? from});
+
   Future<Saved> save({
     required String id,
     required String baseRev,
@@ -293,11 +313,15 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// `mobile/docs/capture.md`).
   Future<DropsSaved> saveDrops({required String inbox});
 
+  Future<ReviewSaved> saveReview({required String from, required bool replace});
+
   Future<List<Hit>> search({
     required String text,
     required SearchScope scope,
     required int limit,
   });
+
+  Future<BriefPrefs> setBriefPrefs({required BriefPrefs prefs});
 
   Future<void> setDailyTemplate({String? templateId});
 

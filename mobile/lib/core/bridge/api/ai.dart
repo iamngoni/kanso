@@ -29,6 +29,11 @@ abstract class KansoAi implements RustOpaqueInterface {
 
   KansoAskConversation conversation();
 
+  /// Reads the recent notes with the model for open loops the rules
+  /// missed. Blocks until it is done, on a worker thread; `run` (from
+  /// `new_run`) stops it. Saves nothing.
+  Future<LoopScan> findOpenLoops({required KansoAiRun run});
+
   /// A request to stop, for one `assist` or `summarize`.
   KansoAiRun newRun();
 
@@ -46,6 +51,13 @@ abstract class KansoAi implements RustOpaqueInterface {
   Future<AiSettingsView> setSettings({required AiSettingsInput input});
 
   Future<AiSettingsView> settings();
+
+  /// A short paragraph over today's brief.
+  Future<AiSummary> summariseBrief({required KansoAiRun run});
+
+  /// A short paragraph over the week from `from` (`YYYY-MM-DD`), or this
+  /// week.
+  Future<AiSummary> summariseReview({String? from, required KansoAiRun run});
 
   Stream<AssistEvent> summarize({required String id, required KansoAiRun run});
 
@@ -239,28 +251,17 @@ sealed class AskEvent with _$AskEvent {
   const AskEvent._();
 
   const factory AskEvent.searching() = AskEvent_Searching;
-  const factory AskEvent.used({
-    required List<AskNote> notes,
-  }) = AskEvent_Used;
-  const factory AskEvent.status({
-    required String line,
-  }) = AskEvent_Status;
-  const factory AskEvent.answer({
-    required String markdown,
-  }) = AskEvent_Answer;
+  const factory AskEvent.used({required List<AskNote> notes}) = AskEvent_Used;
+  const factory AskEvent.status({required String line}) = AskEvent_Status;
+  const factory AskEvent.answer({required String markdown}) = AskEvent_Answer;
   const factory AskEvent.done({
     required String markdown,
     required List<AskNote> notes,
   }) = AskEvent_Done;
-  const factory AskEvent.nothingMatches({
-    required String message,
-  }) = AskEvent_NothingMatches;
-  const factory AskEvent.cutOff({
-    required String message,
-  }) = AskEvent_CutOff;
-  const factory AskEvent.failed({
-    required String message,
-  }) = AskEvent_Failed;
+  const factory AskEvent.nothingMatches({required String message}) =
+      AskEvent_NothingMatches;
+  const factory AskEvent.cutOff({required String message}) = AskEvent_CutOff;
+  const factory AskEvent.failed({required String message}) = AskEvent_Failed;
   const factory AskEvent.stopped() = AskEvent_Stopped;
 }
 
@@ -270,10 +271,7 @@ class AskNote {
   final String id;
   final String title;
 
-  const AskNote({
-    required this.id,
-    required this.title,
-  });
+  const AskNote({required this.id, required this.title});
 
   @override
   int get hashCode => id.hashCode ^ title.hashCode;
@@ -291,20 +289,12 @@ class AskNote {
 sealed class AssistEvent with _$AssistEvent {
   const AssistEvent._();
 
-  const factory AssistEvent.status({
-    required String line,
-  }) = AssistEvent_Status;
-  const factory AssistEvent.text({
-    required String text,
-  }) = AssistEvent_Text;
-  const factory AssistEvent.done({
-    required String text,
-  }) = AssistEvent_Done;
-  const factory AssistEvent.cutOff({
-    required String message,
-  }) = AssistEvent_CutOff;
-  const factory AssistEvent.failed({
-    required String message,
-  }) = AssistEvent_Failed;
+  const factory AssistEvent.status({required String line}) = AssistEvent_Status;
+  const factory AssistEvent.text({required String text}) = AssistEvent_Text;
+  const factory AssistEvent.done({required String text}) = AssistEvent_Done;
+  const factory AssistEvent.cutOff({required String message}) =
+      AssistEvent_CutOff;
+  const factory AssistEvent.failed({required String message}) =
+      AssistEvent_Failed;
   const factory AssistEvent.stopped() = AssistEvent_Stopped;
 }

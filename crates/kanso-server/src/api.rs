@@ -64,6 +64,37 @@ pub(crate) fn list_notes(store: &Store, query: &NoteQuery) -> ApiResult<Vec<Valu
     Ok(store.search_api(&params)?)
 }
 
+/// `GET /loops`: open loops across notes (see `Store::open_loops`), as JSON.
+pub(crate) fn list_loops(
+    store: &Store,
+    book_id: Option<String>,
+    kind: Option<kanso_core::loops::LoopKind>,
+    limit: Option<usize>,
+) -> ApiResult<Vec<Value>> {
+    let rows = store.open_loops(&kanso_store::LoopQuery {
+        book_id,
+        kind,
+        limit,
+        ai_visible: true,
+        ..kanso_store::LoopQuery::default()
+    })?;
+    Ok(rows.into_iter().map(loop_json).collect())
+}
+
+/// An open loop as the API and MCP serve it.
+pub(crate) fn loop_json(row: kanso_store::LoopRow) -> Value {
+    json!({
+        "text": row.text,
+        "kind": row.kind.as_str(),
+        "source": row.source.as_str(),
+        "due": row.due,
+        "line": row.line,
+        "noteId": row.note_id,
+        "noteTitle": row.note_title,
+        "bookId": row.book_id,
+    })
+}
+
 /// `GET /books`, `/tags`, `/files`.
 pub(crate) fn list_docs(
     store: &Store,
@@ -95,6 +126,7 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
         DocType::Note => &[
             kanso_core::model::PUBLISH_FIELD,
             kanso_core::reminders::ACK_FIELD,
+            kanso_core::loops::LOOPS_FIELD,
             kanso_core::model::LOCK_FIELD,
             kanso_core::model::SHARE_FIELD,
             kanso_core::model::KANSO_FILES_FIELD,

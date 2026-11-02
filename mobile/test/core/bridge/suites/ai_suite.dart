@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/ai.dart';
+import 'package:kanso/core/bridge/api/types.dart';
 
 import 'open_library.dart';
 
@@ -121,6 +122,30 @@ void aiSuite(OpenLibrary open) {
       expect((await ai.settings()).hasKey, isTrue);
       await ai.setKey(provider: 'custom', key: '');
       expect((await ai.settings()).hasKey, isFalse);
+    });
+
+    test('open loops are found and the brief and review summarised', () async {
+      const sentence = 'Sam will bring the keys on Friday';
+      final model = await LoopbackModel.start(
+        answer:
+            '[{"note": 1, "line": 0, "text": "$sentence", "kind": "waiting"}]',
+      );
+      addTearDown(model.close);
+      final library = await open();
+      final ai = library.ai();
+      await ai.setSettings(input: _settings(model.baseUrl));
+      await makeNote(library, 'Keys', '$sentence.\n');
+
+      final scan = await ai.findOpenLoops(run: ai.newRun());
+      expect(scan.proposals.single.text, sentence);
+      expect((await library.openLoops()).total, 0, reason: 'nothing kept');
+      expect(await library.approveAiLoops(picks: scan.proposals), 1);
+      expect((await library.openLoops()).total, 1);
+
+      final brief = await ai.summariseBrief(run: ai.newRun());
+      expect(brief.text, isNotEmpty);
+      final review = await ai.summariseReview(run: ai.newRun());
+      expect(review.text, isNotEmpty);
     });
 
     test('nothing is asked while AI is off', () async {

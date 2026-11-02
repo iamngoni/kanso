@@ -36,12 +36,14 @@ class RemindersHost extends StatefulWidget {
 class _RemindersHostState extends State<RemindersHost>
     with WidgetsBindingObserver {
   StreamSubscription<TaskPlace>? _opened;
+  StreamSubscription<bool>? _digestOpened;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _opened = widget.coordinator.opened.listen(_open);
+    _digestOpened = widget.coordinator.digestOpened.listen(_openDigest);
     unawaited(widget.coordinator.start());
   }
 
@@ -49,6 +51,7 @@ class _RemindersHostState extends State<RemindersHost>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_opened?.cancel());
+    unawaited(_digestOpened?.cancel());
     super.dispose();
   }
 
@@ -57,6 +60,15 @@ class _RemindersHostState extends State<RemindersHost>
     if (state == AppLifecycleState.resumed) {
       unawaited(widget.coordinator.resumed());
     }
+  }
+
+  /// Shows the morning brief, or the weekly review when [review].
+  void _openDigest(bool review) {
+    unawaited(
+      widget.router.push<void>(
+        review ? KansoRoutes.review : KansoRoutes.brief,
+      ),
+    );
   }
 
   /// Shows the note of the task; the editor puts the cursor at its line.

@@ -58,6 +58,7 @@ import 'core/models/repos/abs/auth_session_repository.dart' as _i227;
 import 'core/models/repos/abs/board_repository.dart' as _i235;
 import 'core/models/repos/abs/capture_repository.dart' as _i23;
 import 'core/models/repos/abs/diagnostics_repository.dart' as _i984;
+import 'core/models/repos/abs/digest_repository.dart' as _i622;
 import 'core/models/repos/abs/file_picker_repository.dart' as _i205;
 import 'core/models/repos/abs/gallery_repository.dart' as _i550;
 import 'core/models/repos/abs/google_font_repository.dart' as _i1009;
@@ -94,6 +95,7 @@ import 'core/models/repos/impl/rust_approvals_repository.dart' as _i99;
 import 'core/models/repos/impl/rust_board_repository.dart' as _i418;
 import 'core/models/repos/impl/rust_capture_repository.dart' as _i824;
 import 'core/models/repos/impl/rust_diagnostics_repository.dart' as _i1062;
+import 'core/models/repos/impl/rust_digest_repository.dart' as _i472;
 import 'core/models/repos/impl/rust_gallery_repository.dart' as _i692;
 import 'core/models/repos/impl/rust_journal_repository.dart' as _i212;
 import 'core/models/repos/impl/rust_library_repository.dart' as _i152;
@@ -555,6 +557,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i930.NotePlaceRepository>(),
       ),
     );
+    gh.lazySingleton<_i622.DigestRepository>(
+      () => _i472.RustDigestRepository(
+        gh<_i455.KansoLibrary>(),
+        gh<_i35.KansoAi>(),
+      ),
+    );
     gh.factory<_i553.BoardBloc>(
       () => _i553.BoardBloc(
         gh<_i235.BoardRepository>(),
@@ -678,6 +686,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1027.VoiceSettingsRepository>(
       () => _i759.RustVoiceSettingsRepository(gh<_i455.KansoLibrary>()),
     );
+    gh.lazySingleton<_i303.RemindersCoordinator>(
+      () => _i303.RemindersCoordinator(
+        gh<_i384.PreferencesRepository>(),
+        gh<_i58.RemindersRepository>(),
+        gh<_i874.ReminderNotifier>(),
+        gh<_i38.LibraryRepository>(),
+        gh<_i622.DigestRepository>(),
+      ),
+    );
     gh.factory<_i390.CalendarBloc>(
       () => _i390.CalendarBloc(gh<_i169.JournalRepository>()),
     );
@@ -696,6 +713,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i828.TemplatePickerBloc>(
       () => _i828.TemplatePickerBloc(gh<_i460.TemplatesRepository>()),
+    );
+    gh.factory<_i420.RemindersSettingsBloc>(
+      () => _i420.RemindersSettingsBloc(
+        gh<_i384.PreferencesRepository>(),
+        gh<_i874.ReminderNotifier>(),
+        gh<_i303.RemindersCoordinator>(),
+      ),
     );
     gh.lazySingleton<_i314.UsageMetricsRepository>(
       () => _i931.RustUsageMetricsRepository(gh<_i575.KansoMetrics>()),
@@ -731,14 +755,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i274.DeviceApprovalBloc>(
       () => _i274.DeviceApprovalBloc(gh<_i465.ApprovalsRepository>()),
-    );
-    gh.lazySingleton<_i303.RemindersCoordinator>(
-      () => _i303.RemindersCoordinator(
-        gh<_i384.PreferencesRepository>(),
-        gh<_i58.RemindersRepository>(),
-        gh<_i874.ReminderNotifier>(),
-        gh<_i38.LibraryRepository>(),
-      ),
     );
     gh.factory<_i185.SyncStatusBloc>(
       () => _i185.SyncStatusBloc(gh<_i601.SyncRepository>()),
@@ -872,13 +888,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i57.LockStatusBloc(
         gh<_i333.SessionRepository>(),
         gh<_i279.DeviceLockRepository>(),
-      ),
-    );
-    gh.factory<_i420.RemindersSettingsBloc>(
-      () => _i420.RemindersSettingsBloc(
-        gh<_i384.PreferencesRepository>(),
-        gh<_i874.ReminderNotifier>(),
-        gh<_i303.RemindersCoordinator>(),
       ),
     );
     gh.factory<_i657.DictationBloc>(

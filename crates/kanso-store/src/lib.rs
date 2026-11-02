@@ -12,6 +12,7 @@ mod doc;
 mod embed;
 mod graph;
 mod history;
+mod loops;
 mod meaning;
 mod ocr;
 mod passages;
@@ -44,6 +45,9 @@ pub use embed::{
     PendingEmbedding, RelatedNote, content_hash, cosine, embed_text, top_k,
 };
 pub use graph::{GraphLink, GraphNote};
+pub use loops::{
+    BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
+};
 pub use meaning::index::Index as VectorIndex;
 pub use meaning::model::{
     BEFORE_AGE_MS, BEFORE_SIMILARITY, DayNote, MeaningSearch, Merged, ResurfaceOpts, Resurfaced,
@@ -170,6 +174,7 @@ impl Store {
         schema::migrate(&writer)?;
         derived::rebuild_if_stale(&mut writer)?;
         ocr::rebuild_if_stale(&mut writer)?;
+        derived::prune_finished(&writer)?;
         write::repair_search_if_corrupt(&mut writer)?;
         Ok(Store {
             path,

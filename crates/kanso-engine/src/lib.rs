@@ -70,6 +70,7 @@ pub mod attach;
 pub mod backup;
 pub mod batch;
 pub mod board;
+pub mod brief;
 pub mod calendar;
 pub mod capture;
 pub mod catalogue;
@@ -88,6 +89,8 @@ pub mod links;
 pub mod list;
 pub mod live;
 pub mod lock;
+#[cfg(feature = "ai")]
+pub mod loops_ai;
 pub mod navigate;
 pub mod notes;
 pub mod outline;

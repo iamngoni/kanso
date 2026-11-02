@@ -1061,6 +1061,9 @@ pub struct ReminderNote {
     pub body: String,
     /// When it falls due, in local time.
     pub fire_at: LocalTime,
+    /// Whether it shows Mark Done and Dismiss. A task's does; the brief's
+    /// and the review's (a tap opens the page) does not.
+    pub actions: bool,
 }
 
 /// The reminders to hand the system.

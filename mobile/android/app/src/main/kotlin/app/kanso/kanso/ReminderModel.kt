@@ -22,6 +22,8 @@ data class Reminder(
     val day: Int,
     val hour: Int,
     val minute: Int,
+    /** Whether it shows Mark Done and Dismiss (the brief and review do not). */
+    val actions: Boolean = true,
 ) {
     /** When it fires, in epoch milliseconds, for the time zone [zone]. */
     fun triggerAtMillis(zone: ZoneId = ZoneId.systemDefault()): Long =
@@ -42,6 +44,7 @@ data class Reminder(
             .put("day", day)
             .put("hour", hour)
             .put("minute", minute)
+            .put("actions", actions)
 
     companion object {
         /** From a channel map or a stored object; null when it is malformed. */
@@ -59,6 +62,7 @@ data class Reminder(
                     day = int("day") ?: return null,
                     hour = int("hour") ?: return null,
                     minute = int("minute") ?: return null,
+                    actions = map["actions"] as? Boolean ?: true,
                 )
                 // A date that doesn't exist (month 13) is a malformed one.
                 reminder.triggerAtMillis()

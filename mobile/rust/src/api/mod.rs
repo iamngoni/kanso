@@ -12,6 +12,7 @@ pub mod account_settings;
 pub mod ai;
 pub mod approvals;
 pub mod board;
+pub mod brief;
 pub mod diagnostics;
 pub mod discovery;
 pub mod editor;

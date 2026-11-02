@@ -797,6 +797,30 @@ impl Store {
                     (true, true) => true,
                     (false, false) => updated_at(&remote.fields) >= updated_at(&local.fields),
                 };
+            // `kansoLoops` and `kansoReminderAck` are last-writer-wins like
+            // the rest of a note, but each is a set of facts that only grow
+            // (a loop closed on one device stays closed). Whichever side
+            // wins, the other side's entries are folded in, and the result
+            // is pushed if it holds more than the remote version.
+            if !rules.legacy() && local_dirty && doc_type == DocType::Note && !local.deleted && !remote.deleted {
+                let (base, other) = if remote_wins {
+                    (&fields, &local.fields)
+                } else {
+                    (&local.fields, &fields)
+                };
+                if let Some(merged) = union_loops_and_acks(base, other) {
+                    let above = kanso_core::Rev {
+                        generation: local_rev.generation.max(remote_rev.generation),
+                        hash: String::new(),
+                    };
+                    let new_rev =
+                        kanso_core::Rev::next(Some(&above), &Value::Object(merged.clone())).to_string();
+                    keep_remote(tx, &remote.id, &remote.rev, &fields)?;
+                    store_row(tx, &remote.id, doc_type, &new_rev, false, &merged, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                    learned(tx, &remote.id, &remote.rev)?;
+                    return Ok(ApplyOutcome::LocalWon { new_rev });
+                }
+            }
             if remote_wins {
                 clear_stale_blob(tx)?;
                 store_blob(tx)?;
@@ -819,6 +843,34 @@ impl Store {
             Ok(ApplyOutcome::LocalWon { new_rev })
         })
     }
+}
+
+/// `base` with the loops and reminder acks of `other` folded in
+/// ([`kanso_core::loops::merge_loops`], [`kanso_core::reminders::merge_acks`]),
+/// when that changes it. `None` when it doesn't, or when either side is a
+/// locked note (its fields are sealed and aren't merged).
+fn union_loops_and_acks(
+    base: &Map<String, Value>,
+    other: &Map<String, Value>,
+) -> Option<Map<String, Value>> {
+    use kanso_core::loops::{LOOPS_FIELD, loops_value, merge_loops, read_loops};
+    use kanso_core::reminders::{ACK_FIELD, acks_value, merge_acks, read_acks};
+    let lock = kanso_core::model::LOCK_FIELD;
+    if base.contains_key(lock) || other.contains_key(lock) {
+        return None;
+    }
+    let mut merged = base.clone();
+    let (mine, theirs) = (read_loops(base), read_loops(other));
+    let loops = merge_loops(&mine, &theirs);
+    if loops != mine {
+        merged.insert(LOOPS_FIELD.into(), loops_value(&loops));
+    }
+    let (mine, theirs) = (read_acks(base), read_acks(other));
+    let acks = merge_acks(&mine, &theirs);
+    if acks != mine {
+        merged.insert(ACK_FIELD.into(), acks_value(&acks));
+    }
+    (merged != *base).then_some(merged)
 }
 
 /// Whether `local` and `remote` are a role notebook (`book:journal`, …)

@@ -140,7 +140,7 @@ fn key(row: &TaskRow) -> String {
 }
 
 /// A row as the place shows it at local time `now`.
-fn item(row: &TaskRow, notebook_name: Option<&String>, now: DateTime) -> TaskItem {
+pub(crate) fn item(row: &TaskRow, notebook_name: Option<&String>, now: DateTime) -> TaskItem {
     let due = row.due.as_deref().and_then(Due::parse);
     TaskItem {
         key: key(row),

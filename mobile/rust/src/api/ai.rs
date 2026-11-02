@@ -5,8 +5,9 @@ use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
     AiAction as CoreAiAction, AiHandle, AiProviderInfo as CoreAiProviderInfo, AiRun,
-    AiSettingsInput as CoreAiSettingsInput, AiSettingsView as CoreAiSettingsView, AskConversation,
-    AskEvent as CoreAskEvent, AskNote as CoreAskNote, AssistEvent as CoreAssistEvent, KansoError,
+    AiSettingsInput as CoreAiSettingsInput, AiSettingsView as CoreAiSettingsView, AiSummary,
+    AskConversation, AskEvent as CoreAskEvent, AskNote as CoreAskNote,
+    AssistEvent as CoreAssistEvent, KansoError, LoopScan,
 };
 
 /// A provider the AI settings page can offer. This bridge view contains no
@@ -250,6 +251,28 @@ impl KansoAi {
 
     pub fn note_allowed(&self, id: String) -> Result<bool, KansoError> {
         self.0.note_allowed(&id)
+    }
+
+    /// Reads the recent notes with the model for open loops the rules
+    /// missed. Blocks until it is done, on a worker thread; `run` (from
+    /// `new_run`) stops it. Saves nothing.
+    pub fn find_open_loops(&self, run: &KansoAiRun) -> Result<LoopScan, KansoError> {
+        self.0.find_open_loops(&run.0)
+    }
+
+    /// A short paragraph over today's brief.
+    pub fn summarise_brief(&self, run: &KansoAiRun) -> Result<AiSummary, KansoError> {
+        self.0.summarise_brief(&run.0)
+    }
+
+    /// A short paragraph over the week from `from` (`YYYY-MM-DD`), or this
+    /// week.
+    pub fn summarise_review(
+        &self,
+        from: Option<String>,
+        run: &KansoAiRun,
+    ) -> Result<AiSummary, KansoError> {
+        self.0.summarise_review(from, &run.0)
     }
 
     #[frb(sync)]

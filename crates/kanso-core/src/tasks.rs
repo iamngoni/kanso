@@ -431,7 +431,7 @@ fn lines_outside_fences(body: &str) -> impl Iterator<Item = &str> {
 }
 
 /// `(fence char, run length)` when the line opens or closes a code fence.
-fn fence_marker(trimmed: &str) -> Option<(u8, usize)> {
+pub(crate) fn fence_marker(trimmed: &str) -> Option<(u8, usize)> {
     let first = *trimmed.as_bytes().first()?;
     if first != b'`' && first != b'~' {
         return None;
@@ -441,7 +441,7 @@ fn fence_marker(trimmed: &str) -> Option<(u8, usize)> {
 }
 
 /// `Some(checked)` when the line is a task-list item.
-fn task_marker(line: &str) -> Option<bool> {
+pub(crate) fn task_marker(line: &str) -> Option<bool> {
     let mut rest = line.trim_start();
     while let Some(after) = rest.strip_prefix('>') {
         rest = after.trim_start();

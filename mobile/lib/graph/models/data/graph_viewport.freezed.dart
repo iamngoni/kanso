@@ -208,7 +208,7 @@ return $default(_that.center,_that.zoom);case _:
 
 class _GraphViewport extends GraphViewport {
   const _GraphViewport({this.center = Offset.zero, this.zoom = 1.0}): super._();
-
+  
 
 @override@JsonKey() final  Offset center;
 @override@JsonKey() final  double zoom;

@@ -8,6 +8,7 @@ pub mod dates;
 pub mod excerpt;
 pub mod id;
 pub mod links;
+pub mod loops;
 pub mod model;
 pub mod outline;
 pub mod properties;

@@ -4672,4 +4672,307 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get triageSettingsOpen => 'Inbox';
+
+  @override
+  String get digestLoopsTitle => 'Open loops';
+
+  @override
+  String digestLoopsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count open loops',
+      one: '1 open loop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get digestLoopsEmptyTitle => 'No open loops';
+
+  @override
+  String get digestLoopsEmptyMessage =>
+      'Sentences like “I\'ll send the deck” or “waiting on Rudo” show up here until you close them.';
+
+  @override
+  String get digestLoopsOffTitle => 'Open loops are off';
+
+  @override
+  String get digestLoopsOffMessage =>
+      'Turn them on in Settings, under Brief and review.';
+
+  @override
+  String get digestKindMine => 'I will';
+
+  @override
+  String get digestKindWaiting => 'Waiting on';
+
+  @override
+  String get digestKindQuestion => 'To find out';
+
+  @override
+  String get digestLoopDone => 'Done';
+
+  @override
+  String get digestLoopNotALoop => 'Not a loop';
+
+  @override
+  String get digestLoopMakeTask => 'Make task';
+
+  @override
+  String get digestLoopOpenNote => 'Open note';
+
+  @override
+  String get digestLoopFromAi => 'Found by AI';
+
+  @override
+  String get digestLoopGone => 'That sentence is not in the note any more.';
+
+  @override
+  String get digestLoopsRefresh => 'Refresh';
+
+  @override
+  String get digestBriefTitle => 'Morning brief';
+
+  @override
+  String get digestBriefEmptyTitle => 'Nothing due, nothing open';
+
+  @override
+  String get digestBriefEmptyMessage =>
+      'Tasks due today and open loops show up here.';
+
+  @override
+  String get digestBriefDue => 'Due';
+
+  @override
+  String get digestBriefLater => 'Later today';
+
+  @override
+  String get digestBriefLoops => 'Open loops';
+
+  @override
+  String digestBriefMoreLoops(int count) {
+    return 'See all $count open loops';
+  }
+
+  @override
+  String get digestBriefRelevant => 'From your notes';
+
+  @override
+  String digestBriefYesterday(int wrote, int finished) {
+    String _temp0 = intl.Intl.pluralLogic(
+      wrote,
+      locale: localeName,
+      other: '$wrote notes written',
+      one: '1 note written',
+    );
+    return 'Yesterday: $_temp0, $finished finished';
+  }
+
+  @override
+  String get digestReviewTitle => 'Weekly review';
+
+  @override
+  String digestReviewWeek(String week) {
+    return 'Week $week';
+  }
+
+  @override
+  String get digestReviewPrevious => 'Previous week';
+
+  @override
+  String get digestReviewNext => 'Next week';
+
+  @override
+  String get digestReviewWritten => 'Written';
+
+  @override
+  String get digestReviewFinished => 'Finished';
+
+  @override
+  String get digestReviewStillOpen => 'Still open';
+
+  @override
+  String get digestReviewOverdue => 'Overdue';
+
+  @override
+  String get digestReviewThemes => 'Themes';
+
+  @override
+  String digestReviewThemeNotes(String term, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes',
+      one: '1 note',
+    );
+    return '$term · $_temp0';
+  }
+
+  @override
+  String get digestReviewNextWeek => 'Next up';
+
+  @override
+  String get digestReviewNothing => 'Nothing to show for this week.';
+
+  @override
+  String get digestReviewSave => 'Save as note';
+
+  @override
+  String get digestReviewSaved => 'Saved to the Journal';
+
+  @override
+  String get digestReviewOpenSaved => 'Open saved note';
+
+  @override
+  String get digestReviewReplaceTitle => 'Replace the saved review?';
+
+  @override
+  String get digestReviewReplaceMessage =>
+      'This week\'s review is already saved in the Journal. Replacing it writes the current review over that note.';
+
+  @override
+  String get digestReviewReplace => 'Replace';
+
+  @override
+  String get digestReviewError => 'Couldn\'t read the review. Try again.';
+
+  @override
+  String get digestError => 'Couldn\'t read this. Try again.';
+
+  @override
+  String get digestRetry => 'Try again';
+
+  @override
+  String get settingsBrief => 'Brief and review';
+
+  @override
+  String get settingsBriefLoops => 'Find open loops';
+
+  @override
+  String get settingsBriefMorning => 'Morning brief';
+
+  @override
+  String get settingsBriefMorningWeekdays => 'Weekdays only';
+
+  @override
+  String get settingsBriefReview => 'Weekly review';
+
+  @override
+  String get settingsBriefDay => 'Review day';
+
+  @override
+  String get settingsBriefTime => 'Time';
+
+  @override
+  String get settingsBriefMarkDone => 'Mark done loops in the note';
+
+  @override
+  String get settingsBriefDetail =>
+      'Finds things your notes say you will do, wait for or check, like “I\'ll send the deck”. Nothing leaves this phone. The notifications say only how much is due and open.';
+
+  @override
+  String get settingsBriefMarkDoneDetail =>
+      'Adds a tick after a sentence when you mark its loop done. Off, Kanso remembers it without touching your text.';
+
+  @override
+  String get settingsBriefEarlier => '15 minutes earlier';
+
+  @override
+  String get settingsBriefLater => '15 minutes later';
+
+  @override
+  String get briefNotificationOpen => 'Open';
+
+  @override
+  String get weekdayMonday => 'Monday';
+
+  @override
+  String get weekdayTuesday => 'Tuesday';
+
+  @override
+  String get weekdayWednesday => 'Wednesday';
+
+  @override
+  String get weekdayThursday => 'Thursday';
+
+  @override
+  String get weekdayFriday => 'Friday';
+
+  @override
+  String get weekdaySaturday => 'Saturday';
+
+  @override
+  String get weekdaySunday => 'Sunday';
+
+  @override
+  String get digestFindLoops => 'Find more open loops…';
+
+  @override
+  String get digestFindTitle => 'Find more open loops?';
+
+  @override
+  String digestFindMessage(int days, String host) {
+    return 'Read your notes from the last $days days with the model at $host to find promises the rules missed? Locked notes and notes tagged #ai-exclude are left out.';
+  }
+
+  @override
+  String get digestFindConfirm => 'Find loops';
+
+  @override
+  String get digestFinding => 'Reading your notes…';
+
+  @override
+  String get digestFoundTitle => 'Open loops found';
+
+  @override
+  String get digestFoundNone => 'No more open loops found.';
+
+  @override
+  String get digestFoundKeep => 'Keep selected';
+
+  @override
+  String digestFoundKept(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Kept $count open loops.',
+      one: 'Kept 1 open loop.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get digestSummarise => 'Summarise';
+
+  @override
+  String get digestSummarising => 'Writing…';
+
+  @override
+  String get digestSummaryLabel => 'Summary by AI';
+
+  @override
+  String get digestStop => 'Stop';
+
+  @override
+  String get digestMorningBrief => 'Your morning brief';
+
+  @override
+  String digestMorningBriefCounts(int due, int loops) {
+    String _temp0 = intl.Intl.pluralLogic(
+      due,
+      locale: localeName,
+      other: '$due due',
+      one: '1 due',
+      zero: 'Nothing due',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      loops,
+      locale: localeName,
+      other: '$loops open loops',
+      one: '1 open loop',
+      zero: 'no open loops',
+    );
+    return '$_temp0, $_temp1';
+  }
 }

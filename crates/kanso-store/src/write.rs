@@ -631,12 +631,15 @@ impl Store {
     /// there is no moment with the note locked and its old text still in
     /// history. Refused unless `body` is locked.
     pub fn lock_note(&self, body: Value) -> Result<WriteResult> {
-        let Value::Object(fields) = body else {
+        let Value::Object(mut fields) = body else {
             return Err(StoreError::Invalid("Expected a JSON object.".into()));
         };
         if !fields.contains_key(LOCK_FIELD) {
             return Err(StoreError::Invalid("The note isn't locked.".into()));
         }
+        // Its open loops' sentences would sit in plain text beside the
+        // sealed body.
+        fields.remove(kanso_core::loops::LOOPS_FIELD);
         let result = self.write(|tx, changes| {
             validate_note_files(tx, &fields)?;
             let result = put_in(
@@ -815,7 +818,10 @@ impl Store {
         let mut sealed = Vec::with_capacity(notes.len());
         for note in notes {
             match note {
-                Value::Object(note) if note.contains_key(LOCK_FIELD) => sealed.push(note),
+                Value::Object(mut note) if note.contains_key(LOCK_FIELD) => {
+                    note.remove(kanso_core::loops::LOOPS_FIELD);
+                    sealed.push(note);
+                }
                 _ => return Err(StoreError::Invalid("A note isn't locked.".into())),
             }
         }

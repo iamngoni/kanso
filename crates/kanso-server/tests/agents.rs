@@ -553,7 +553,7 @@ proptest! {
                 "kanso-read-version" => json!({ "noteId": id, "rev": "missing" }),
                 "list-notes" => json!({ "bookId": book_id }),
                 "kanso-list-tags" => json!({}),
-                "kanso-list-tasks" => json!({}),
+                "kanso-list-tasks" | "kanso-list-open-loops" => json!({}),
                 "kanso-search-by-meaning" => json!({ "query": "zebra" }),
                 "kanso-resolve-wikilink" => {
                     let title = store.note(&id).ok().flatten().map(|n| n.title).unwrap_or_default();

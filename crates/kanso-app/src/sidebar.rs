@@ -355,6 +355,8 @@ impl Sidebar {
             color,
         } = entry;
         let selected = !self.settings_open && self.library.read(cx).filter == filter;
+        // The brief and the review have nothing to count.
+        let counted = !matches!(filter, Filter::Brief | Filter::Review);
         let colors = Colors::get(cx);
         let library = self.library.clone();
         div()
@@ -383,12 +385,14 @@ impl Sidebar {
             })
             .children(icon)
             .child(div().flex_1().min_w_0().truncate().child(label))
-            .child(
-                div()
-                    .text_size(px(12.))
-                    .text_color(colors.quiet(selected))
-                    .child(count.to_string()),
-            )
+            .when(counted, |el| {
+                el.child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(colors.quiet(selected))
+                        .child(count.to_string()),
+                )
+            })
             .on_click(move |_, _, cx| {
                 library.update(cx, |library, cx| library.set_filter(filter.clone(), cx));
             })
@@ -1511,6 +1515,49 @@ impl Render for Sidebar {
             cx,
         ));
         list = list.child(self.tasks_row(cx));
+        let briefs = cx.global::<AppState>().config.briefs.clone();
+        if briefs.loops {
+            let icon = self.icon(Icon::new(Lucide::CircleDot), cx);
+            let open = self.library.read(cx).open_loops;
+            list = list.child(self.row(
+                "open-loops",
+                Filter::OpenLoops,
+                Entry {
+                    icon: Some(icon),
+                    label: "Open Loops".into(),
+                    count: open,
+                    depth: 0,
+                    color: None,
+                },
+                cx,
+            ));
+        }
+        let icon = self.icon(Icon::new(Lucide::Clock), cx);
+        list = list.child(self.row(
+            "morning-brief",
+            Filter::Brief,
+            Entry {
+                icon: Some(icon),
+                label: "Morning Brief".into(),
+                count: 0,
+                depth: 0,
+                color: None,
+            },
+            cx,
+        ));
+        let icon = self.icon(Icon::new(Lucide::CalendarDays), cx);
+        list = list.child(self.row(
+            "weekly-review",
+            Filter::Review,
+            Entry {
+                icon: Some(icon),
+                label: "Weekly Review".into(),
+                count: 0,
+                depth: 0,
+                color: None,
+            },
+            cx,
+        ));
         list = list.children(self.shared_row(cx));
 
         let add_book = self.add_button(

@@ -20,6 +20,9 @@ import '../../capture/views/pages/new_note_page.dart';
 import '../../crash/views/pages/crash_reports_page.dart';
 import '../../design/views/pages/design_gallery_page.dart';
 import '../../dictation/views/pages/voice_note_page.dart';
+import '../../digest/views/pages/brief_page.dart';
+import '../../digest/views/pages/open_loops_page.dart';
+import '../../digest/views/pages/review_page.dart';
 import '../../graph/views/pages/graph_page.dart';
 import '../../history/views/pages/history_page.dart';
 import '../../import/views/pages/import_page.dart';
@@ -135,6 +138,27 @@ class KansoRouter {
               centerId: state.uri.queryParameters['center'],
               hops: int.tryParse(state.uri.queryParameters['hops'] ?? '') ?? 2,
             ),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.loops,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const OpenLoopsPage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.brief,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const BriefPage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.review,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const ReviewPage(),
           ),
         ),
         GoRoute(

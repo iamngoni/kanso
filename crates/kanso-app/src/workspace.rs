@@ -409,6 +409,9 @@ pub struct Workspace {
     pub(crate) note_list: Entity<NoteList>,
     /// The tasks across the notes, in the list's place while Tasks shows.
     pub(crate) tasks: Entity<crate::tasks_view::TasksView>,
+    /// Open loops, the morning brief and the weekly review, in the list's
+    /// place.
+    pub(crate) digest: Entity<crate::digest_view::DigestView>,
     pub editor: Entity<NoteEditor>,
     /// The command palette, drawn over the rest when open.
     pub(crate) palette: Entity<Palette>,
@@ -552,6 +555,8 @@ impl Workspace {
 
         let tasks =
             cx.new(|cx| crate::tasks_view::TasksView::new(library.clone(), editor.clone(), cx));
+        let digest =
+            cx.new(|cx| crate::digest_view::DigestView::new(library.clone(), editor.clone(), cx));
         let focus = cx.focus_handle();
         let list_focus = note_list.read(cx).focus_handle(cx);
         let palette = cx.new(|cx| {
@@ -633,6 +638,9 @@ impl Workspace {
             }),
             cx.subscribe_in(&tasks, window, |this, _, event, window, cx| {
                 this.on_tasks_event(event, window, cx);
+            }),
+            cx.subscribe_in(&digest, window, |this, _, event, window, cx| {
+                this.on_digest_event(event, window, cx);
             }),
             cx.subscribe_in(&editor, window, |this, _, event, window, cx| match event {
                 EditorEvent::Notice(message) => {
@@ -766,6 +774,7 @@ impl Workspace {
             sidebar,
             note_list,
             tasks,
+            digest,
             editor,
             palette,
             inspector,
@@ -1051,6 +1060,27 @@ impl Workspace {
             self.editor.update(cx, f);
         }
         open
+    }
+
+    /// Opens a note from the loops, the brief or the review.
+    fn on_digest_event(
+        &mut self,
+        event: &crate::digest_view::DigestEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::digest_view::DigestEvent;
+        match event {
+            DigestEvent::Notice(message) => {
+                window.push_notification(Notification::info(message.clone()), cx);
+            }
+            DigestEvent::Open {
+                note_id,
+                line,
+                focus,
+            } => self.open_note_at(note_id, *line, *focus, window, cx),
+            DigestEvent::OpenToday => self.open_today(window, cx),
+        }
     }
 
     /// Opens a task's note at its line, from the Tasks view.
@@ -2285,7 +2315,13 @@ impl Render for Workspace {
             .update(cx, |list, cx| list.set_leading_inset(list_inset, cx));
         self.tasks
             .update(cx, |tasks, cx| tasks.set_leading_inset(list_inset, cx));
+        self.digest
+            .update(cx, |digest, cx| digest.set_leading_inset(list_inset, cx));
         let tasks_shown = self.library.read(cx).filter == Filter::Tasks;
+        let digest_shown = matches!(
+            self.library.read(cx).filter,
+            Filter::OpenLoops | Filter::Brief | Filter::Review
+        );
         self.settings.update(cx, |settings, cx| {
             settings.set_leading_inset(list_inset, cx)
         });
@@ -2397,6 +2433,9 @@ impl Render for Workspace {
                 if this.library.read(cx).filter == Filter::Tasks {
                     this.tasks
                         .update(cx, |tasks, cx| tasks.focus_list(window, cx));
+                } else if this.library.read(cx).filter.is_place() {
+                    this.digest
+                        .update(cx, |digest, cx| digest.focus_list(window, cx));
                 } else {
                     this.note_list
                         .update(cx, |list, cx| list.focus_list(window, cx));
@@ -2777,6 +2816,7 @@ impl Render for Workspace {
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
             .map(|el| crate::triage_view::on_actions(el, cx))
+            .map(|el| crate::digest_view::on_actions(el, cx))
             // Off macOS, Kanso's own title bar with the menus.
             .when_some(self.title_bar.clone(), |el, menus| {
                 el.child(crate::title_bar::render(&menus, colors))
@@ -2835,6 +2875,8 @@ impl Render for Workspace {
                                     .map(|el| {
                                         if tasks_shown {
                                             el.child(self.tasks.clone())
+                                        } else if digest_shown {
+                                            el.child(self.digest.clone())
                                         } else {
                                             el.child(self.note_list.clone())
                                         }

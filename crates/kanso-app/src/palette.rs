@@ -1034,7 +1034,34 @@ impl Palette {
                 library.overdue,
                 &["todo", "to do", "due", "overdue", "checklist"],
             ),
+            place(
+                Filter::OpenLoops,
+                "Open Loops".into(),
+                NotebookIcon::Choice(IconName::CircleDot),
+                library.open_loops,
+                &["promises", "waiting", "follow up", "commitments", "loops"],
+            ),
+            place(
+                Filter::Brief,
+                "Morning Brief".into(),
+                NotebookIcon::Choice(IconName::Clock),
+                0,
+                &["today", "digest", "agenda", "open morning brief"],
+            ),
+            place(
+                Filter::Review,
+                "Weekly Review".into(),
+                NotebookIcon::Choice(IconName::CalendarDays),
+                0,
+                &["week", "retrospective", "open weekly review"],
+            ),
         ];
+        // The brief and the review have nothing to count.
+        for (item, _) in &mut places {
+            if matches!(&item.target, Target::Show(Filter::Brief | Filter::Review)) {
+                item.hint = None;
+            }
+        }
         for (depth, book) in library.book_tree() {
             let (item, score) = place(
                 Filter::Book(book.id.clone()),
@@ -1654,6 +1681,9 @@ impl Palette {
                             format!("Shows the notes tagged #{path} or a tag inside it.")
                         }
                         Filter::Tasks => "Shows the open tasks in every note, overdue first, then today's, the upcoming ones and those without a date.".to_owned(),
+                        Filter::OpenLoops => "Shows what your notes say you will do, are waiting on or have to check, that are not checkboxes.".to_owned(),
+                        Filter::Brief => "Shows what is due today, the open loops and notes from the past that matter today.".to_owned(),
+                        Filter::Review => "Shows the last seven days: what you wrote, what you finished, what is still open and the themes that came up.".to_owned(),
                         Filter::Shared => "Shows the notes other people shared with you, with invitations waiting above them.".to_owned(),
                     }
                     .into(),
@@ -1665,6 +1695,14 @@ impl Palette {
                             format!("{count} overdue").into(),
                         ));
                     }
+                } else if *filter == Filter::OpenLoops {
+                    if let Some(count) = &item.hint {
+                        detail.meta.push((
+                            Icon::new(IconName::CircleDot),
+                            format!("{count} open").into(),
+                        ));
+                    }
+                } else if matches!(filter, Filter::Brief | Filter::Review) {
                 } else if let Some(count) = &item.hint {
                     detail
                         .meta

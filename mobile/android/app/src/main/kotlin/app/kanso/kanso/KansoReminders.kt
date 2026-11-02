@@ -361,7 +361,7 @@ object KansoReminders {
             .setAction(ACTION_OPEN)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         carry(open, reminder)
-        val notification = Notification.Builder(context, NOTIFICATION_CHANNEL)
+        val builder = Notification.Builder(context, NOTIFICATION_CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_reminder)
             .setContentTitle(reminder.title)
             .setContentText(reminder.body)
@@ -375,9 +375,13 @@ object KansoReminders {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
             )
-            .addAction(button(context, reminder, ACTION_MARK_DONE, "Mark Done"))
-            .addAction(button(context, reminder, ACTION_DISMISS, "Dismiss"))
-            .build()
+        // The brief and the review have nothing to mark done or dismiss.
+        if (reminder.actions) {
+            builder
+                .addAction(button(context, reminder, ACTION_MARK_DONE, "Mark Done"))
+                .addAction(button(context, reminder, ACTION_DISMISS, "Dismiss"))
+        }
+        val notification = builder.build()
         manager.notify(NOTIFICATION_TAG, ReminderRules.notificationId(reminder.key), notification)
     }
 
