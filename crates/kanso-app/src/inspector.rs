@@ -195,6 +195,19 @@ impl Inspector {
             .update(cx, |ask, cx| ask.focus_question(window, cx));
     }
 
+    /// Shows `exchanges` (question, the model's words, whether the closest
+    /// notes were found) in the Ask panel, for snapshots.
+    #[cfg(test)]
+    pub(crate) fn snapshot_ask(
+        &mut self,
+        exchanges: Vec<(&'static str, String, bool)>,
+        scope: kanso_engine::ask::AskScope,
+        cx: &mut Context<Self>,
+    ) {
+        self.ask
+            .update(cx, |ask, cx| ask.snapshot_exchanges(exchanges, scope, cx));
+    }
+
     /// Limits the Ask panel to `scope` and puts the keyboard in its question
     /// box: "Ask About This Notebook…".
     pub fn ask_within(

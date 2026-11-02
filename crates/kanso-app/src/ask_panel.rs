@@ -642,6 +642,27 @@ impl AskPanel {
         true
     }
 
+    /// Fills the panel with finished exchanges, for snapshots.
+    #[cfg(test)]
+    pub(crate) fn snapshot_exchanges(
+        &mut self,
+        exchanges: Vec<(&'static str, String, bool)>,
+        scope: AskScope,
+        cx: &mut Context<Self>,
+    ) {
+        self.asked = true;
+        self.scope = scope.clone();
+        for (question, raw, closest) in exchanges {
+            self.exchanges.push(Exchange {
+                question: question.to_owned(),
+                finished: crate::snapshots::ask::finished_for(&raw, closest),
+                scope: scope.clone(),
+                saved: None,
+            });
+        }
+        cx.notify();
+    }
+
     /// How many suggested edits the panel says are waiting.
     #[cfg(test)]
     pub(crate) fn suggested_for_test(&self) -> usize {
