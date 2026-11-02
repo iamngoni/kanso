@@ -154,24 +154,37 @@ impl Library {
         library
     }
 
-    /// Reads the overdue count again: tasks fall overdue as time passes.
+    /// Reads the overdue and open-loop counts again on a background
+    /// thread: tasks fall overdue as time passes. A reload in flight reads
+    /// both itself and wins.
     pub fn refresh_overdue(&mut self, cx: &mut Context<Self>) {
         let now =
             kanso_core::dates::DateTime::from_local_ms(Clock::local_ms(cx, Clock::now_ms(cx)));
-        if let Ok(overdue) = self.store.overdue_count(now)
-            && overdue != self.overdue
-        {
-            self.overdue = overdue;
-            cx.notify();
-        }
-        if let Ok(open) = self
-            .store
-            .open_loop_count(&kanso_store::LoopQuery::default())
-            && open != self.open_loops
-        {
-            self.open_loops = open;
-            cx.notify();
-        }
+        let store = self.store.clone();
+        let generation = self.generation;
+        let task = cx.background_executor().spawn(async move {
+            let overdue = store.overdue_count(now).ok()?;
+            let open = store
+                .open_loop_count(&kanso_store::LoopQuery::default())
+                .ok()?;
+            Some((overdue, open))
+        });
+        cx.spawn(async move |this, cx| {
+            let Some((overdue, open)) = task.await else {
+                return;
+            };
+            this.update(cx, |this, cx| {
+                if this.generation == generation
+                    && (overdue != this.overdue || open != this.open_loops)
+                {
+                    this.overdue = overdue;
+                    this.open_loops = open;
+                    cx.notify();
+                }
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Reloads everything on a background thread; a newer reload wins.
