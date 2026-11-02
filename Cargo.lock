@@ -4831,6 +4831,7 @@ version = "0.9.3"
 dependencies = [
  "async-channel",
  "base64 0.22.1",
+ "getrandom 0.4.3",
  "kanso-core",
  "md-5",
  "proptest",

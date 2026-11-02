@@ -60,8 +60,8 @@ pub use meaning::rank::{
 pub use ocr::{OCR_TYPES, UnreadImage};
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
 pub use plugin::{
-    PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter, plugin_data,
-    set_plugin_data,
+    BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,
+    agent_batch_id, plugin_data, set_plugin_data,
 };
 pub use query_view::QueryNoteRow;
 pub use read::{AttachmentState, NoteSummary, Revision, SearchParams, Sort, StatusCounts};
