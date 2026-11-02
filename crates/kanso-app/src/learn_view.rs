@@ -502,7 +502,7 @@ impl LearnView {
     }
 
     /// Writes the ticked cards into the note, then says so.
-    fn add_cards(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn add_cards(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(id) = self.ids.first().cloned() else {
             return;
         };

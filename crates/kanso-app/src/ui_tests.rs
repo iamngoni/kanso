@@ -3111,3 +3111,124 @@ fn the_error_card_has_details(cx: &mut TestAppContext) {
     settle(&f, &mut vcx);
     assert!(vcx.debug_bounds("ai-details-text").is_some());
 }
+
+/// Waits for a worker thread's answer to reach the page: lets the clock and
+/// the threads run until `ready` or a few seconds have passed.
+fn wait_until(
+    f: &Fixture,
+    vcx: &mut gpui_kit::VisualTestContext,
+    ready: impl Fn(&mut gpui_kit::VisualTestContext) -> bool,
+) {
+    vcx.executor().allow_parking();
+    for _ in 0..200 {
+        settle(f, vcx);
+        if ready(vcx) {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(15));
+    }
+}
+
+/// Draft from This Note refuses while AI is off and, once on, names exactly
+/// the notes it will send, counting what it leaves out.
+// no-prop-test: drives one window; the counts are `engine::resolve`'s.
+#[gpui_kit::test]
+fn the_draft_page_names_its_sources(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.dispatch_action(crate::learn_view::DraftFromNote);
+    settle(&f, &mut vcx);
+    assert!(
+        !f.workspace(&mut vcx, |w, _| w.learn_open),
+        "nothing opens while AI is off"
+    );
+
+    vcx.update(|_, cx| AppState::update_config(cx, |config| config.ai.enabled = true));
+    vcx.dispatch_action(crate::learn_view::DraftFromNote);
+    settle(&f, &mut vcx);
+    assert!(f.workspace(&mut vcx, |w, _| w.learn_open));
+    assert!(vcx.debug_bounds("learn-overlay").is_some());
+    assert!(vcx.debug_bounds("learn-sources").is_some());
+    assert!(
+        vcx.debug_bounds("learn-draft").is_none(),
+        "nothing written yet"
+    );
+}
+
+/// Make Flashcards asks the model about the one note, shows what came back
+/// with its source line, and writes only the ticked cards, once.
+// no-prop-test: drives one window with a model that says one fixed reply.
+#[gpui_kit::test]
+fn make_flashcards_adds_the_ticked_cards(cx: &mut TestAppContext) {
+    use crate::ai_feature::testing::{Injected, Recorder};
+
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "body": "Capital of France is Paris.\nCats sleep a lot.\n"}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let model = Recorder::new(
+        r#"{"q":"Capital of France?","a":"Paris","source":"Capital of France is Paris."}
+{"q":"What do cats do?","a":"Sleep","source":"a line the note never had"}"#,
+    );
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| config.ai.enabled = true);
+        cx.set_global(Injected(model.maker()));
+    });
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.dispatch_action(crate::learn_view::MakeFlashcardsFromNote);
+    wait_until(&f, &mut vcx, |vcx| {
+        vcx.debug_bounds("learn-card-1").is_some()
+    });
+    assert!(vcx.debug_bounds("learn-card-0").is_some());
+    assert!(vcx.debug_bounds("learn-card-1").is_some());
+    // Only the note's own text was sent.
+    let sent = model.sent();
+    assert_eq!(sent.len(), 1);
+
+    let learn = f.workspace(&mut vcx, |w, _| w.learn.clone().unwrap());
+    f.window
+        .update(&mut vcx, |_, window, cx| {
+            learn.update(cx, |learn, cx| learn.add_cards(window, cx))
+        })
+        .unwrap();
+    settle(&f, &mut vcx);
+    let body = f.store.note(&id).unwrap().unwrap().body;
+    assert!(body.contains("## Flashcards"), "{body}");
+    assert!(body.contains("Capital of France? :: Paris"), "{body}");
+    assert!(
+        !body.contains("What do cats do?"),
+        "a card whose source is not in the note starts unticked"
+    );
+}
+
+/// A model that fails is told in words, with Try Again, never raw.
+// no-prop-test: drives one window; the wording is page_chrome's rule.
+#[gpui_kit::test]
+fn quiz_me_tells_a_failed_model_in_words(cx: &mut TestAppContext) {
+    use crate::ai_feature::testing::Injected;
+
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| config.ai.enabled = true);
+        cx.set_global(Injected(std::sync::Arc::new(|| {
+            Err("HTTP 401 unauthorized: bad key".to_owned())
+        })));
+    });
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.dispatch_action(crate::learn_view::QuizMeOnNote);
+    wait_until(&f, &mut vcx, |vcx| vcx.debug_bounds("ai-error").is_some());
+    assert!(vcx.debug_bounds("ai-error").is_some());
+    // The card keeps the raw error behind Details, and says the key was refused.
+    assert!(vcx.debug_bounds("ai-details").is_some());
+    assert_eq!(vcx.debug_bounds("ai-details-text"), None);
+}

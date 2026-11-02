@@ -36,6 +36,7 @@ icon_assets!(
         Camera,
         Car,
         Cat,
+        ChartBar,
         ChartLine,
         ChefHat,
         Church,
@@ -109,6 +110,7 @@ icon_assets!(
         Landmark,
         Languages,
         Laptop,
+        Layers,
         LayoutTemplate,
         Leaf,
         Library,
@@ -297,5 +299,33 @@ mod tests {
         assert!(KansoAssets.list("icons/").unwrap().len() > extra.len());
         // A path neither set has stays an error, as with the default bundle.
         assert!(KansoAssets.load("icons/not-an-icon.svg").is_err());
+    }
+
+    /// The icons of the flashcard and drafting pages (`learn_view`,
+    /// `flashcards_view`, the sidebar's Review row) are all in the bundle.
+    #[test]
+    fn the_learning_pages_icons_are_bundled() {
+        for icon in [
+            IconName::Layers,
+            IconName::ChartBar,
+            IconName::PenTool,
+            IconName::FilePlus,
+            IconName::Notebook,
+            IconName::Copy,
+            IconName::Sparkles,
+            IconName::Bell,
+            IconName::Target,
+            IconName::Clock,
+            IconName::Trash,
+            IconName::Plus,
+            IconName::FileText,
+            IconName::RefreshCw,
+            IconName::TriangleAlert,
+            IconName::ChevronDown,
+            IconName::ChevronRight,
+        ] {
+            let path = icon.path();
+            assert!(matches!(KansoAssets.load(&path), Ok(Some(_))), "{path}");
+        }
     }
 }
