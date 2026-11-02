@@ -10,10 +10,7 @@ class TidyOutcome {
   final bool insertedAbove;
   final int dropped;
 
-  const TidyOutcome({
-    required this.insertedAbove,
-    required this.dropped,
-  });
+  const TidyOutcome({required this.insertedAbove, required this.dropped});
 
   @override
   int get hashCode => insertedAbove.hashCode ^ dropped.hashCode;
