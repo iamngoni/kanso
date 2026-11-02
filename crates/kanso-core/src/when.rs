@@ -584,7 +584,8 @@ mod tests {
 
     #[test]
     fn a_table_of_phrases_against_a_fixed_today() {
-        let cases: &[(&str, Option<(Option<Date>, Option<Date>)>)] = &[
+        type Bounds = Option<(Option<Date>, Option<Date>)>;
+        let cases: &[(&str, Bounds)] = &[
             (
                 "what did I decide about pricing in October",
                 Some((Some(d(2026, 10, 1)), Some(d(2026, 10, 31)))),

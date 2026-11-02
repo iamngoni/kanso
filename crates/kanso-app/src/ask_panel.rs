@@ -918,7 +918,7 @@ impl AskPanel {
                     .into_iter()
                     .filter(|(id, _)| !locked.contains(id))
                     .collect();
-                books.sort_by(|a, b| a.1.to_lowercase().cmp(&b.1.to_lowercase()));
+                books.sort_by_key(|book| book.1.to_lowercase());
                 if !books.is_empty() {
                     menu = menu.separator();
                 }

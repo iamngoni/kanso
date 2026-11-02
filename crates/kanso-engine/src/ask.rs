@@ -482,6 +482,7 @@ fn term_hits(title: &str, body: &str, terms: &[String]) -> (usize, usize) {
 /// conversation so far and `tools` are the notes tools the model may call;
 /// `on_tool_completed` fires after each call. The iterator is dropped on
 /// cancel, which closes the request.
+#[allow(clippy::too_many_arguments)]
 pub fn stream_answer(
     provider: &dyn ChatProvider,
     prompt: &Prompt,

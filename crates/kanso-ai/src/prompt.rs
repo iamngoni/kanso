@@ -527,10 +527,8 @@ L2| We chose the yearly plan.\nL3| 40 dollars.\n\u{2026}\nL10| Later.\n";
                 .collect();
             let made = build_numbered(&question, &excerpts, budget);
             prop_assert!(made.prompt.chars() <= budget, "{} > {budget}", made.prompt.chars());
-            let mut at = 0;
-            for sent in &made.sent {
+            for (at, sent) in made.sent.iter().enumerate() {
                 prop_assert_eq!(sent.number, at + 1, "numbers are contiguous");
-                at += 1;
                 let body_lines: Vec<&str> = bodies[sent.number - 1].split('\n').collect();
                 let mut last = None;
                 for (n, text) in &sent.lines {

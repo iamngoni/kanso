@@ -72,8 +72,8 @@ pub fn passages(body: &str) -> Vec<Passage> {
     let mut sections: Vec<(usize, usize, Option<String>)> = Vec::new();
     let mut current: Option<String> = None;
     let mut start = first;
-    for ix in first..lines.len() {
-        if let Some(heading) = &heading_of[ix] {
+    for (ix, heading) in heading_of.iter().enumerate().take(lines.len()).skip(first) {
+        if let Some(heading) = heading {
             if ix > start {
                 sections.push((start, ix - 1, current.clone()));
             }
@@ -135,8 +135,8 @@ fn split_section(
             }
             let mut s = begin;
             let mut chars = 0;
-            for l in begin..=end {
-                let n = lines[l].chars().count() + 1;
+            for (l, line) in lines.iter().enumerate().take(end + 1).skip(begin) {
+                let n = line.chars().count() + 1;
                 if chars > 0 && chars + n > PASSAGE_MAX {
                     push(s, l - 1, out);
                     s = l;

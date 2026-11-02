@@ -506,7 +506,7 @@ fn a_passage_vector_finds_the_tail_of_a_long_note_by_meaning_alone() {
         .pending
         .into_iter()
         .map(|p| {
-            let v = Letters.embed(&[p.text.clone()]).remove(0);
+            let v = Letters.embed(std::slice::from_ref(&p.text)).remove(0);
             (p.id, p.hash, v)
         })
         .collect();
@@ -516,7 +516,7 @@ fn a_passage_vector_finds_the_tail_of_a_long_note_by_meaning_alone() {
         .pending
         .into_iter()
         .map(|p| kanso_store::EmbeddedLines {
-            vector: Letters.embed(&[p.text.clone()]).remove(0),
+            vector: Letters.embed(std::slice::from_ref(&p.text)).remove(0),
             note_id: p.note_id,
             start: p.start,
             end: p.end,
