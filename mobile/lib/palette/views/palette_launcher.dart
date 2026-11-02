@@ -41,6 +41,7 @@ import '../../note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../note/state/note_discovery/note_discovery_bloc.dart';
 import '../../note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import '../../note/state/word_goal_intent/word_goal_intent_bloc.dart';
+import '../../note/views/pages/presentation_page.dart';
 import '../../note/views/widgets/note_html_export.dart';
 import '../../note/views/widgets/note_info_sheet.dart';
 import '../../note/views/widgets/note_pdf_export.dart';
@@ -86,6 +87,7 @@ abstract final class PaletteLauncher {
     'publish',
     'export-pdf',
     'export-html',
+    'present-note',
     'copy-note-link',
     'copy-kanso-link',
     'trash',
@@ -274,6 +276,7 @@ abstract final class PaletteLauncher {
       'history' ||
       'export-pdf' ||
       'export-html' ||
+      'present-note' ||
       'copy-note-link' ||
       'copy-kanso-link' ||
       'duplicate' ||
@@ -372,6 +375,17 @@ abstract final class PaletteLauncher {
         if (open != null) {
           await exportNoteHtml(context, noteId: open);
         }
+      case 'present-note':
+        final view = commandNote;
+        final status = _maybeRead<LockStatusBloc>(context);
+        if (view != null &&
+            status != null &&
+            noteMenuActions(
+              lock: view.lock,
+              unlocked: status.state.unlocked,
+            ).contains(NoteMenuAction.present)) {
+          await PresentationPage.show(context, noteId: view.id);
+        }
       case 'copy-note-link':
         if (open != null) {
           await _copyLink(context, open, kanso: false);
@@ -466,10 +480,7 @@ abstract final class PaletteLauncher {
           router.go(KansoRoutes.graphLocal(openNoteId));
         }
       case 'journal-calendar':
-        final day = await CalendarSheet.show(
-          context,
-          openNote: openNoteId,
-        );
+        final day = await CalendarSheet.show(context, openNote: openNoteId);
         if (day != null && context.mounted) {
           final result = await getIt<JournalRepository>().openDay(
             day,
@@ -564,9 +575,7 @@ abstract final class PaletteLauncher {
         router.go(
           Uri(
             path: KansoRoutes.newNote,
-            queryParameters: <String, String>{
-              KansoRoutes.voiceParameter: '1',
-            },
+            queryParameters: <String, String>{KansoRoutes.voiceParameter: '1'},
           ).toString(),
         );
       case 'show-related':
@@ -598,10 +607,7 @@ abstract final class PaletteLauncher {
         };
         if (assistNote != null) {
           _maybeRead<NoteAssistIntentBloc>(context)?.add(
-            NoteAssistIntentEvent.requested(
-              noteId: assistNote,
-              action: action,
-            ),
+            NoteAssistIntentEvent.requested(noteId: assistNote, action: action),
           );
         }
       case 'edit-mode' || 'preview-mode' || 'live-mode':
@@ -630,9 +636,9 @@ abstract final class PaletteLauncher {
               ),
             );
           }
-          _maybeRead<WordGoalIntentBloc>(context)?.add(
-            WordGoalIntentEvent.requested(noteId: goalNote),
-          );
+          _maybeRead<WordGoalIntentBloc>(
+            context,
+          )?.add(WordGoalIntentEvent.requested(noteId: goalNote));
         }
       default:
         // The core only lists handlers this app declares; anything else is a
@@ -672,13 +678,12 @@ abstract final class PaletteLauncher {
   }) async {
     final library = getIt<LibraryRepository>();
     final result = await library.noteLink(id, kanso: kanso);
-    await result.fold(
-      (error) async => _say(context, error.message),
-      (link) async {
-        await Clipboard.setData(ClipboardData(text: link.text));
-        _say(context, link.message);
-      },
-    );
+    await result.fold((error) async => _say(context, error.message), (
+      link,
+    ) async {
+      await Clipboard.setData(ClipboardData(text: link.text));
+      _say(context, link.message);
+    });
   }
 
   static Future<void> _pickStatus(
@@ -688,13 +693,10 @@ abstract final class PaletteLauncher {
     String? current,
   ) async {
     final result = await library.statuses();
-    final statuses = result.fold(
-      (error) {
-        _say(context, error.message);
-        return const <StatusChoice>[];
-      },
-      (choices) => choices,
-    );
+    final statuses = result.fold((error) {
+      _say(context, error.message);
+      return const <StatusChoice>[];
+    }, (choices) => choices);
     if (statuses.isEmpty || !context.mounted) {
       return;
     }
@@ -721,13 +723,10 @@ abstract final class PaletteLauncher {
     String id,
   ) async {
     final result = await library.notebooks();
-    final books = result.fold(
-      (error) {
-        _say(context, error.message);
-        return const <NotebookRow>[];
-      },
-      (rows) => rows,
-    );
+    final books = result.fold((error) {
+      _say(context, error.message);
+      return const <NotebookRow>[];
+    }, (rows) => rows);
     if (books.isEmpty || !context.mounted) {
       return;
     }
@@ -751,13 +750,10 @@ abstract final class PaletteLauncher {
     List<String> current,
   ) async {
     final result = await library.tags();
-    final tags = result.fold(
-      (error) {
-        _say(context, error.message);
-        return const <TagRow>[];
-      },
-      (rows) => rows,
-    );
+    final tags = result.fold((error) {
+      _say(context, error.message);
+      return const <TagRow>[];
+    }, (rows) => rows);
     if (tags.isEmpty || !context.mounted) {
       return;
     }

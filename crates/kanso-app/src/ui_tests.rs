@@ -647,11 +647,10 @@ fn presenting_walks_the_slides_and_esc_ends_it(cx: &mut TestAppContext) {
     let id = f.notes[0].clone();
     f.select(cx, &id);
     f.type_body(cx, "One\n\n---\n\nTwo");
-    let workspace = f.workspace.clone();
     let present = id.clone();
     f.window
         .update(cx, |_, window, cx| {
-            workspace.update(cx, |w, cx| w.present_note(&present, window, cx))
+            crate::presentation::present(present, window, cx)
         })
         .unwrap();
     cx.run_until_parked();

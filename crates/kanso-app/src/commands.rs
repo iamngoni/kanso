@@ -299,7 +299,7 @@ static COMMANDS: &[Command] = &[
         id: "present-note",
         label: "Present note",
         label_when_pinned: None,
-        description: "Shows the note full screen as slides: a --- line after a blank line starts a slide, or each main heading does if it has none. Arrow keys move, F leaves full screen and Esc ends it.",
+        description: "Shows the note full screen as slides: a --- line after a blank line starts a slide, or each main heading does if it has none.",
         icon: IconName::Presentation,
         keywords: &[
             "present",

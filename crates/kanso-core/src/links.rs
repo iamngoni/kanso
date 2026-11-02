@@ -129,7 +129,7 @@ pub fn code_ranges(body: &str) -> Vec<Range<usize>> {
 }
 
 /// `(fence char, run length)` when the line opens or closes a code fence.
-fn fence_marker(trimmed: &str) -> Option<(u8, usize)> {
+pub(crate) fn fence_marker(trimmed: &str) -> Option<(u8, usize)> {
     let first = *trimmed.as_bytes().first()?;
     if first != b'`' && first != b'~' {
         return None;

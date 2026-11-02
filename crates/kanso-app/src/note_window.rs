@@ -674,11 +674,7 @@ impl NoteWindow {
                 }
             }
             NoteCommand::Present => {
-                self.editor.update(cx, |editor, cx| editor.flush(cx));
-                let id = self.note_id.clone();
-                in_main_window(cx, move |workspace, window, cx| {
-                    workspace.present_note(&id, window, cx)
-                });
+                crate::presentation::present(self.note_id.clone(), window, cx);
             }
             NoteCommand::OpenInNewTab => {
                 let id = self.note_id.clone();

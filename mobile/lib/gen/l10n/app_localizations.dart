@@ -6340,6 +6340,30 @@ abstract class AppLocalizations {
   /// **'Export as web page'**
   String get noteExportHtml;
 
+  /// The note's menu row that shows it full screen as slides.
+  ///
+  /// In en, this message translates to:
+  /// **'Present'**
+  String get notePresent;
+
+  /// The button that leaves a note's full-screen slides.
+  ///
+  /// In en, this message translates to:
+  /// **'End presentation'**
+  String get presentationClose;
+
+  /// Shown full screen when the presented note has no text.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to present yet'**
+  String get presentationEmpty;
+
+  /// Which slide is on show, out of how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{position} / {count}'**
+  String presentationPosition(int position, int count);
+
   /// What is shown while a note is being written as a web page.
   ///
   /// In en, this message translates to:

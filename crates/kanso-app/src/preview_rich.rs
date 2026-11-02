@@ -40,9 +40,16 @@ pub struct Rich {
     pub edits: ResizeSender,
     /// The note the preview shows, which a query view leaves out of its rows.
     pub note: Arc<Mutex<Option<String>>>,
+    /// How much larger than the setting text is drawn: 1, except on a slide.
+    pub text_scale: Mutex<f32>,
 }
 
 impl Rich {
+    /// How much larger than the setting text is drawn.
+    pub fn text_scale(&self) -> f32 {
+        self.text_scale.lock().map_or(1., |scale| *scale)
+    }
+
     fn waker(&self) -> impl FnOnce() + Send + 'static {
         let wake = self.wake.clone();
         move || {
@@ -359,6 +366,7 @@ fn render_block(
                     block,
                     &Failure::Invalid("The drawing's file is missing.".into()),
                     at,
+                    rich.text_scale(),
                     window,
                     cx,
                 );
@@ -388,7 +396,7 @@ fn render_block(
     };
     let svg = match outcome.as_ref() {
         Ok(svg) => svg,
-        Err(failure) => return fallback(block, failure, at, window, cx),
+        Err(failure) => return fallback(block, failure, at, rich.text_scale(), window, cx),
     };
     let picture = img(image(&job, svg))
         .object_fit(ObjectFit::Contain)
@@ -484,6 +492,7 @@ fn fallback(
     block: &Block,
     failure: &Failure,
     at: u64,
+    scale: f32,
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
@@ -512,6 +521,7 @@ fn fallback(
         .child(crate::preview::code_view(
             ElementId::NamedInteger("kanso-rich-code".into(), at),
             block.markdown.clone(),
+            scale,
             window,
             cx,
         ))

@@ -1277,7 +1277,7 @@ impl Workspace {
             NoteCommand::OpenInNewTab => self.open_note_in_new_tab(id, window, cx),
             NoteCommand::OpenInNewWindow => self.open_in_new_window(id, window, cx),
             NoteCommand::OpenAsSticky => self.open_as_sticky(id, window, cx),
-            NoteCommand::Present => self.present_note(id, window, cx),
+            NoteCommand::Present => crate::presentation::present(id.to_owned(), window, cx),
             // These work on the open note, so the note opens first.
             NoteCommand::ShowHistory => {
                 if self.open_note(id, window, cx) {
@@ -1321,21 +1321,6 @@ impl Workspace {
     /// Opens note `id` as a sticky note, near this window's top right.
     pub(crate) fn open_as_sticky(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.open_beside(id, true, window, cx);
-    }
-
-    /// Presents note `id` as slides on this window's display. Its typing
-    /// waiting here is saved first, so the slides have it.
-    pub(crate) fn present_note(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.flush(cx);
-        let Ok(Some(mut note)) = self.store.note(id) else {
-            return;
-        };
-        if crate::locked::reveal(&mut note, cx).is_closed() {
-            self.notify_error("Unlock the note to present it.", window, cx);
-            return;
-        }
-        let display = window.display(cx).map(|display| display.id());
-        cx.defer(move |cx| crate::presentation::open(note, display, cx));
     }
 
     /// Opens note `id` in a window of its own (a sticky when `sticky`),
@@ -2547,7 +2532,7 @@ impl Render for Workspace {
                     this.close_settings(window, cx);
                     let id = this.editor.read(cx).note_id().map(str::to_owned);
                     if let Some(id) = id {
-                        this.present_note(&id, window, cx);
+                        crate::presentation::present(id, window, cx);
                     }
                 },
             ))

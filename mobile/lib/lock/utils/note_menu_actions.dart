@@ -7,10 +7,10 @@ import '../models/data/note_menu_action.dart';
 
 /// What a note's menu offers, in order.
 ///
-/// Any note that is read can be exported. A note that was never locked can
-/// be locked. A locked note that is open can have its lock removed. Lock
-/// notes now is there whenever they are open. A locked note that is closed
-/// offers nothing: its card unlocks it.
+/// Any note that is read can be exported and presented. A note that was never
+/// locked can be locked. A locked note that is open can have its lock removed.
+/// Lock notes now is there whenever they are open. A locked note that is
+/// closed offers nothing: its card unlocks it.
 List<NoteMenuAction> noteMenuActions({
   required LockState lock,
   required bool unlocked,
@@ -19,12 +19,14 @@ List<NoteMenuAction> noteMenuActions({
     LockState_Plain() => <NoteMenuAction>[
       NoteMenuAction.exportPdf,
       NoteMenuAction.exportHtml,
+      NoteMenuAction.present,
       NoteMenuAction.lockNote,
       if (unlocked) NoteMenuAction.lockNow,
     ],
     LockState_Open() => <NoteMenuAction>[
       NoteMenuAction.exportPdf,
       NoteMenuAction.exportHtml,
+      NoteMenuAction.present,
       NoteMenuAction.removeLock,
       NoteMenuAction.lockNow,
     ],

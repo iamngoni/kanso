@@ -9,6 +9,9 @@ enum NoteMenuAction {
 
   /// Writes the note as one web page file and offers it to share.
   exportHtml,
+
+  /// Shows the note full screen, as slides.
+  present,
   lockNote,
   removeLock,
   lockNow,

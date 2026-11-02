@@ -115,6 +115,7 @@ mod plugin_sheets_model;
 mod plugins;
 mod plugins_model;
 mod pouch_import;
+mod presentation;
 mod preview;
 mod preview_chunks;
 mod preview_rich;
@@ -155,7 +156,6 @@ mod smart_paste;
 mod snapshots;
 mod spellcheck;
 // Tests check with a word list instead.
-mod presentation;
 #[cfg(all(target_os = "macos", not(test)))]
 mod spellcheck_macos;
 mod split;

@@ -308,7 +308,7 @@ fn render(
     let at = node.source_range().map_or(0, |r| r.start) as u64;
     let spec = match query_view::parse(&block.source) {
         Ok(spec) => spec,
-        Err(err) => return bad_syntax(block, &err, at, window, cx),
+        Err(err) => return bad_syntax(block, &err, at, rich.text_scale(), window, cx),
     };
     let self_id = rich.note.lock().ok().and_then(|note| note.clone());
     let Some(rows) = rows_for(&spec, &block.source, rich, self_id, cx) else {
@@ -322,6 +322,7 @@ fn bad_syntax(
     block: &QueryBlock,
     err: &query_view::ParseError,
     at: u64,
+    scale: f32,
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
@@ -350,6 +351,7 @@ fn bad_syntax(
         .child(crate::preview::code_view(
             ElementId::NamedInteger("kanso-query-code".into(), at),
             block.markdown.clone(),
+            scale,
             window,
             cx,
         ))

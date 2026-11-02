@@ -116,8 +116,6 @@ pub struct Preview {
     /// Whether text keeps to the readable measure (the setting), or fills
     /// the pane.
     readable: bool,
-    /// How much larger than the setting text is drawn: 1, except on a slide.
-    text_scale: f32,
     /// Draws quotes in their own color (see [`quote_extensions`]).
     extensions: MarkdownExtensions,
     /// The text size and face the chunks were last measured at.
@@ -151,6 +149,7 @@ impl Preview {
             store: store.clone(),
             edits: resizes.clone(),
             note: note.clone(),
+            text_scale: Mutex::new(1.),
         });
         let edits = resizes.clone();
         let extensions = quote_extensions(
@@ -181,7 +180,6 @@ impl Preview {
             links,
             edits,
             readable: false,
-            text_scale: 1.,
             extensions,
             shown_type: None,
             _rich: rich_task,
@@ -410,12 +408,35 @@ impl Preview {
         }
     }
 
-    /// Draws text `scale` times the size the settings ask for.
+    /// Draws text, and pictures of a set width, `scale` times the size the
+    /// note and the settings ask for.
     pub fn set_text_scale(&mut self, scale: f32, cx: &mut Context<Self>) {
-        if self.text_scale != scale {
-            self.text_scale = scale;
-            cx.notify();
+        if self.rich.text_scale() == scale {
+            return;
         }
+        if let Ok(mut current) = self.rich.text_scale.lock() {
+            *current = scale;
+        }
+        if !self.chunks.is_empty() {
+            for chunk in &self.chunks {
+                chunk
+                    .state
+                    .update(cx, |state, cx| state.invalidate_inline_layout(cx));
+            }
+            self.list.remeasure_items(0..self.chunks.len());
+        }
+        cx.notify();
+    }
+
+    /// Shows `text` from its start, before this returns however long it is:
+    /// a slide must never lag behind the counter beside it.
+    pub fn show_at_once(&mut self, text: SharedString, cx: &mut Context<Self>) {
+        self.splitting = None;
+        self.text = text;
+        let prepared = preview_chunks::prepare(&self.text);
+        self.apply(self.text.clone(), prepared, cx);
+        self.list.scroll_to(ListOffset::default());
+        cx.notify();
     }
 
     /// How far the preview can scroll, as of its last layout.
@@ -666,6 +687,7 @@ fn render_picture(
     node: &MarkdownNode,
     resolver: &ImageResolver,
     resizes: &ResizeSender,
+    scale: f32,
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
@@ -693,7 +715,7 @@ fn render_picture(
     let image = img(resolver(&SharedUri::from(picture.src.clone())))
         .object_fit(ObjectFit::Contain)
         .max_w(relative(1.))
-        .when_some(shown, |el, width| el.w(px(width)));
+        .when_some(shown, |el, width| el.w(px(width * scale)));
     let resize = |width: Option<u32>| ImageResize {
         source: picture.source.clone(),
         src: picture.src.clone(),
@@ -921,6 +943,7 @@ fn quote_extensions(
     };
     let picture_images = images.clone();
     let picture_resizes = resizes.clone();
+    let picture_rich = rich.clone();
     let quote_rich = rich.clone();
     let query_links = links.0.clone();
     let extensions = MarkdownExtensions::default()
@@ -932,7 +955,8 @@ fn quote_extensions(
         .plugin(crate::due::DueChip)
         .block_parser(parse)
         .block_renderer(PICTURE, move |node, window, cx| {
-            render_picture(node, &picture_images, &picture_resizes, window, cx)
+            let scale = picture_rich.text_scale();
+            render_picture(node, &picture_images, &picture_resizes, scale, window, cx)
         })
         .block_renderer(FRONT_MATTER, |_, _, _| div().into_any_element())
         .block_renderer(QUOTE, move |node, _window, cx| {
@@ -944,7 +968,8 @@ fn quote_extensions(
             let dark = cx.theme().is_dark();
             let style = text_style(colors, &preview, dark).with_foreground(preview.quote.into());
             let bar = Hsla::from(preview.quote).opacity(0.45);
-            let ty = preview_type(cx);
+            let mut ty = preview_type(cx);
+            ty.size *= quote_rich.text_scale();
             let id = ElementId::NamedInteger(
                 QUOTE.into(),
                 node.source_range().map_or(0, |r| r.start) as u64,
@@ -989,6 +1014,7 @@ fn quote_extensions(
 pub(crate) fn code_view(
     id: ElementId,
     markdown: SharedString,
+    scale: f32,
     _window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
@@ -1002,7 +1028,7 @@ pub(crate) fn code_view(
     TextView::markdown(id, markdown)
         .style(style)
         .font_family(ty.family)
-        .text_size(px(ty.size))
+        .text_size(px(ty.size * scale))
         .line_height(relative(typography::LINE_HEIGHT))
         .text_color(preview.text)
         .selectable(true)
@@ -1195,7 +1221,7 @@ const CODE_TOP: f32 = typography::CODE_TOP;
 impl Render for Preview {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let mut ty = preview_type(cx);
-        ty.size *= self.text_scale;
+        ty.size *= self.rich.text_scale();
         if self.shown_type.as_ref() != Some(&ty) {
             // Another size or face: every chunk's height changes.
             if self.shown_type.is_some() && !self.chunks.is_empty() {
