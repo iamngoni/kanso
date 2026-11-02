@@ -249,7 +249,7 @@ fn an_op_outside_the_scope_is_not_found() {
     let private = book_named(&t, "Private");
     let secret = t
         .store
-        .notes_in_books(&[private.clone()])
+        .notes_in_books(std::slice::from_ref(&private))
         .unwrap()
         .remove(0);
     let answer = t.call(

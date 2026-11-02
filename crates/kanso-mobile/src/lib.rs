@@ -166,12 +166,12 @@ mod word_goals;
 pub use account::{AccountHandle, check_new_password};
 pub use account_model::*;
 pub use account_settings::AccountSettings;
+pub use agent_tasks::AgentTasks;
+pub use agent_tasks_model::*;
 pub use ai::{
     AI_OFF, AiHandle, AiRun, AskConversation, CITATION_PREFIX, KEPT_OUT, NOTHING_MATCHES,
     ProviderMaker,
 };
-pub use agent_tasks::AgentTasks;
-pub use agent_tasks_model::*;
 pub use ai_model::*;
 pub use approvals::Approvals;
 pub use backups::BACKUPS_SUMMARY;

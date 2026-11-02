@@ -181,16 +181,21 @@ fn assert_clean(sent: &str, hidden: &[Hidden], ids_too: bool) -> Result<(), Test
     Ok(())
 }
 
-
-
 fn wait_for_end(tasks: &kanso_mobile::AgentTasks) -> Vec<kanso_mobile::TaskView> {
     let start = Instant::now();
     loop {
         let all = tasks.tasks();
-        if !all.is_empty() && all.iter().all(|t| !matches!(t.phase.as_str(), "running" | "waiting")) {
+        if !all.is_empty()
+            && all
+                .iter()
+                .all(|t| !matches!(t.phase.as_str(), "running" | "waiting"))
+        {
             return all;
         }
-        assert!(start.elapsed() < Duration::from_secs(60), "the task never ended: {all:?}");
+        assert!(
+            start.elapsed() < Duration::from_secs(60),
+            "the task never ended: {all:?}"
+        );
         std::thread::sleep(Duration::from_millis(20));
     }
 }

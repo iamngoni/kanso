@@ -278,7 +278,7 @@ mod tests {
         let nothing = row(Phase::Nothing, counts(0, 0, 0, 0));
         assert_eq!(quit_prompt(&[applied, nothing]), None);
         assert_eq!(
-            quit_prompt(&[ready.clone()]).as_deref(),
+            quit_prompt(std::slice::from_ref(&ready)).as_deref(),
             Some("1 agent task has changes you haven't reviewed. Quit anyway?")
         );
         assert!(

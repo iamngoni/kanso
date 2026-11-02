@@ -91,7 +91,12 @@ impl AgentTasks {
 
     /// Every task this session, newest last.
     pub fn tasks(&self) -> Vec<TaskView> {
-        self.runtime().tasks.rows().iter().map(TaskView::from_row).collect()
+        self.runtime()
+            .tasks
+            .rows()
+            .iter()
+            .map(TaskView::from_row)
+            .collect()
     }
 
     /// Stops a task; what it proposed stays for review.

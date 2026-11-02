@@ -981,26 +981,23 @@ impl AiPage {
                 }),
             )
         };
-        let choice =
-            |id: &'static str,
-             label: String,
-             options: Vec<(String, bool, Arc<dyn Fn(&mut App) + Send + Sync>)>| {
-                Button::new(id)
-                    .debug_selector(move || id.into())
-                    .outline()
-                    .small()
-                    .label(label)
-                    .dropdown_menu(move |mut menu, _, _| {
-                        for (text, checked, pick) in options.clone() {
-                            menu = menu.item(
-                                PopupMenuItem::new(text)
-                                    .checked(checked)
-                                    .on_click(move |_, _, cx| pick(cx)),
-                            );
-                        }
-                        menu
-                    })
-            };
+        let choice = |id: &'static str, label: String, options: Vec<ChoiceOption>| {
+            Button::new(id)
+                .debug_selector(move || id.into())
+                .outline()
+                .small()
+                .label(label)
+                .dropdown_menu(move |mut menu, _, _| {
+                    for (text, checked, pick) in options.clone() {
+                        menu = menu.item(
+                            PopupMenuItem::new(text)
+                                .checked(checked)
+                                .on_click(move |_, _, cx| pick(cx)),
+                        );
+                    }
+                    menu
+                })
+        };
         let time_options = TIME_LIMITS_MIN
             .iter()
             .map(|minutes| {
@@ -1440,6 +1437,9 @@ impl Render for AiPage {
         page
     }
 }
+
+/// One entry of an agent-task choice menu: label, checked, and what choosing does.
+type ChoiceOption = (String, bool, Arc<dyn Fn(&mut App) + Send + Sync>);
 
 #[cfg(test)]
 mod tests {
