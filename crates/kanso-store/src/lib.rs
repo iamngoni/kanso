@@ -12,6 +12,7 @@ mod doc;
 mod embed;
 mod graph;
 mod history;
+mod loops;
 mod meaning;
 mod ocr;
 mod passages;
@@ -66,6 +67,7 @@ pub use replace::{
 };
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
+pub use loops::{ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use write::{Put, WriteResult};
@@ -170,6 +172,7 @@ impl Store {
         schema::migrate(&writer)?;
         derived::rebuild_if_stale(&mut writer)?;
         ocr::rebuild_if_stale(&mut writer)?;
+        derived::prune_finished(&writer)?;
         write::repair_search_if_corrupt(&mut writer)?;
         Ok(Store {
             path,

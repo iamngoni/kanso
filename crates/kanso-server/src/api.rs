@@ -95,6 +95,7 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
         DocType::Note => &[
             kanso_core::model::PUBLISH_FIELD,
             kanso_core::reminders::ACK_FIELD,
+            kanso_core::loops::LOOPS_FIELD,
             kanso_core::model::LOCK_FIELD,
             kanso_core::model::SHARE_FIELD,
             kanso_core::model::KANSO_FILES_FIELD,

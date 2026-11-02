@@ -635,6 +635,77 @@ pub fn locate(body: &str, text: &str, near: Option<u32>) -> Option<u32> {
     best
 }
 
+/// The line (0-based) of `body` to edit for the loop with sentence `text`
+/// that was seen on `line`: that line when it still holds the sentence,
+/// else the nearest line that does.
+fn line_holding(lines: &[&str], line: u32, text: &str) -> Option<usize> {
+    if lines.get(line as usize).is_some_and(|l| l.contains(text)) {
+        return Some(line as usize);
+    }
+    lines
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| l.contains(text))
+        .map(|(ix, _)| ix)
+        .min_by_key(|ix| ix.abs_diff(line as usize))
+}
+
+/// `body` with its lines replaced by `lines`, in the body's line ending
+/// and with its final newline kept.
+fn rebuilt(body: &str, lines: &[String]) -> String {
+    let eol = if body.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut out = lines.join(eol);
+    if body.ends_with('\n') {
+        out.push_str(eol);
+    }
+    out
+}
+
+/// `body` with the sentence `text` (seen on `line`) made a task:
+/// `- [ ] <sentence>` on a line of its own, with what else was on its line
+/// kept beside it. `None` when the sentence isn't in the body any more.
+pub fn make_task(body: &str, line: u32, text: &str) -> Option<String> {
+    let lines: Vec<&str> = body.lines().collect();
+    let at = line_holding(&lines, line, text)?;
+    let original = lines[at];
+    let content_start = original.len() - list_content(original.trim_start()).len();
+    let indent = &original[..original.len() - original.trim_start().len()];
+    let lead = &original[..content_start];
+    let content = &original[content_start..];
+    let pos = content.find(text)?;
+    let before = content[..pos].trim();
+    let after = content[pos + text.len()..].trim();
+    let mut replaced: Vec<String> = Vec::new();
+    if !before.is_empty() {
+        replaced.push(format!("{lead}{before}"));
+    }
+    replaced.push(format!("{indent}- [ ] {text}"));
+    if !after.is_empty() {
+        replaced.push(format!("{indent}{after}"));
+    }
+    let mut out: Vec<String> = lines.iter().map(|l| (*l).to_owned()).collect();
+    out.splice(at..=at, replaced);
+    Some(rebuilt(body, &out))
+}
+
+/// The mark "Mark done loops in the note" adds after a closed sentence.
+pub const DONE_MARK: &str = " \u{2713}";
+
+/// `body` with the sentence `text` (seen on `line`) followed by
+/// [`DONE_MARK`]. `None` when it isn't in the body, or is marked already.
+pub fn mark_done(body: &str, line: u32, text: &str) -> Option<String> {
+    let lines: Vec<&str> = body.lines().collect();
+    let at = line_holding(&lines, line, text)?;
+    let original = lines[at];
+    let pos = original.find(text)? + text.len();
+    if original[pos..].starts_with(DONE_MARK) {
+        return None;
+    }
+    let mut out: Vec<String> = lines.iter().map(|l| (*l).to_owned()).collect();
+    out[at] = format!("{}{DONE_MARK}{}", &original[..pos], &original[pos..]);
+    Some(rebuilt(body, &out))
+}
+
 /// A line folded and whitespace-collapsed, without trimming its end (so a
 /// sentence in the middle of it is still found).
 fn fold_line(line: &str) -> String {

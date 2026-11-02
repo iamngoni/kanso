@@ -448,3 +448,33 @@ proptest! {
         prop_assert_eq!(keys(base), keys(&moved));
     }
 }
+
+#[test]
+fn make_task_rewrites_one_line() {
+    let body = "intro\n- I'll call Rudo.\nend\n";
+    assert_eq!(
+        make_task(body, 1, "I'll call Rudo.").unwrap(),
+        "intro\n- [ ] I'll call Rudo.\nend\n"
+    );
+    // The line moved.
+    assert!(make_task(body, 7, "I'll call Rudo.").is_some());
+    // Other words on the line stay beside it.
+    let body = "  Fine day. I'll call Rudo. Bye.";
+    assert_eq!(
+        make_task(body, 0, "I'll call Rudo.").unwrap(),
+        "  Fine day.\n  - [ ] I'll call Rudo.\n  Bye."
+    );
+    assert_eq!(make_task(body, 0, "not there"), None);
+    // The result has a task and no loop for it.
+    let made = make_task("I'll call Rudo.\r\nnext\r\n", 0, "I'll call Rudo.").unwrap();
+    assert_eq!(made, "- [ ] I'll call Rudo.\r\nnext\r\n");
+    assert!(loop_items(&made).is_empty());
+}
+
+#[test]
+fn mark_done_adds_one_tick_after_the_sentence() {
+    let body = "I'll call Rudo. Then lunch.\n";
+    let marked = mark_done(body, 0, "I'll call Rudo.").unwrap();
+    assert_eq!(marked, "I'll call Rudo. \u{2713} Then lunch.\n");
+    assert_eq!(mark_done(&marked, 0, "I'll call Rudo."), None);
+}

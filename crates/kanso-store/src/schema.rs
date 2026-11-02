@@ -231,6 +231,32 @@ CREATE TABLE triage_dismissed (
     PRIMARY KEY (note_id, field, value)
 ) WITHOUT ROWID;
 "#,
+    // Open loops (issue #194): the loops found in note bodies (derived,
+    // rebuilt like `note_tasks`), and the local history of what was
+    // finished, which a rebuild must not lose, so it is not derived.
+    r#"
+CREATE TABLE note_loops (
+    note_id TEXT NOT NULL,
+    ord INTEGER NOT NULL,
+    line INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    text TEXT NOT NULL,
+    key TEXT NOT NULL,
+    due TEXT,
+    source TEXT NOT NULL,
+    PRIMARY KEY (note_id, ord)
+) WITHOUT ROWID;
+CREATE INDEX note_loops_key ON note_loops (key);
+CREATE TABLE finished_items (
+    note_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    text TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (note_id, key)
+) WITHOUT ROWID;
+CREATE INDEX finished_items_at ON finished_items (at);
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -441,7 +467,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let conn = connect(&dir.path().join("k.db")).unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(MIGRATIONS.len(), 13);
+        assert_eq!(MIGRATIONS.len(), 14);
         assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "note_passages", "end_byte"));
         assert!(has_column(&conn, "resurface_dismissed", "other_id"));
@@ -451,7 +477,7 @@ mod tests {
         assert!(has_column(&conn, "file_text", "md5"));
         // Running it again changes nothing.
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 13);
+        assert_eq!(version(&conn), 14);
         assert!(has_column(&conn, "note_files", "file_id"));
         assert!(has_column(&conn, "revisions", "author"));
         assert!(has_column(&conn, "revisions", "agent"));
@@ -475,7 +501,7 @@ mod tests {
         assert!(!has_column(&conn, "note_embeddings", "vector"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 13);
+        assert_eq!(version(&conn), 14);
         assert!(has_column(&conn, "revisions", "batch"));
         assert!(has_column(&conn, "note_embeddings", "vector"));
         assert!(has_column(&conn, "file_text", "text"));

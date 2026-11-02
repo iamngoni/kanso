@@ -7,13 +7,17 @@
 //! [`DERIVED_VERSION`] moves on and [`rebuild_if_stale`] fills them again
 //! from the bodies and note fields when the store opens.
 
+use std::collections::HashSet;
+
 use kanso_core::links::{
     LinkTarget, line_text, mention_lines, normalize_title, note_links, plain_line,
     retitle_wiki_links,
 };
 use kanso_core::model::{LOCK_FIELD, note_files_from_extra};
+use kanso_core::loops::{Loops, locate, loop_items, loop_key, read_loops};
 use kanso_core::now_ms;
 use kanso_core::outline::{Heading, headings};
+use kanso_core::reminders::task_key;
 use kanso_core::tasks::{linked_file_ids, task_items};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Map, Value};
@@ -24,10 +28,19 @@ use crate::{Origin, Result, Store, schema};
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
 /// Changes whenever a derived table's source or derivation changes.
-pub const DERIVED_VERSION: &str = "2";
+pub const DERIVED_VERSION: &str = "3";
 
 /// The tables, for emptying them.
-pub(crate) const TABLES: [&str; 4] = ["note_links", "note_headings", "note_tasks", "note_files"];
+pub(crate) const TABLES: [&str; 5] = [
+    "note_links",
+    "note_headings",
+    "note_tasks",
+    "note_files",
+    "note_loops",
+];
+
+/// How long a finished item is remembered, in days.
+const FINISHED_KEEP_DAYS: i64 = 400;
 
 /// How long a backlink's or mention's context line gets, in characters.
 const CONTEXT_CHARS: usize = 160;
@@ -56,7 +69,8 @@ pub struct HeadingHit {
 }
 
 /// Replaces the derived rows of note `id`: from `fields` (its body), or
-/// none for a deleted note.
+/// none for a deleted note. Also keeps the local history of what was
+/// finished: a task newly ticked, a loop newly closed.
 pub(crate) fn write_note(
     conn: &Connection,
     id: &str,
@@ -64,16 +78,87 @@ pub(crate) fn write_note(
     ownership_fields: Option<&Map<String, Value>>,
     in_locked_notebook: bool,
 ) -> Result<()> {
+    let locked =
+        in_locked_notebook || ownership_fields.is_some_and(|f| f.contains_key(LOCK_FIELD));
+    let before: HashSet<String> = if fields.is_some() && !locked {
+        let mut stmt =
+            conn.prepare_cached("SELECT text FROM note_tasks WHERE note_id = ? AND checked = 0")?;
+        stmt.query_map([id], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<String>>>()?
+            .into_iter()
+            .map(|text| task_key(id, &text, ""))
+            .collect()
+    } else {
+        HashSet::new()
+    };
     for table in TABLES {
         conn.execute(&format!("DELETE FROM {table} WHERE note_id = ?"), [id])?;
     }
     let Some(fields) = fields else {
+        conn.execute("DELETE FROM finished_items WHERE note_id = ?", [id])?;
         return Ok(());
     };
     let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
-    insert_rows(conn, id, body)?;
+    let loops = read_loops(fields);
+    insert_rows(conn, id, body, &loops)?;
+    if locked {
+        conn.execute("DELETE FROM finished_items WHERE note_id = ?", [id])?;
+    } else {
+        record_finished(conn, id, body, &loops, &before)?;
+    }
     if let Some(raw_fields) = ownership_fields {
         write_file_ownership(conn, id, raw_fields, in_locked_notebook)?;
+    }
+    Ok(())
+}
+
+/// Notes what a save finished. `before` holds the keys of the tasks that
+/// were open until now: one that is ticked now is finished (at this
+/// device's clock, so a tick that arrives by sync counts when it arrived);
+/// one that is open again isn't. A loop closed in `kansoLoops` is
+/// finished at the time it was closed.
+fn record_finished(
+    conn: &Connection,
+    id: &str,
+    body: &str,
+    loops: &Loops,
+    before: &HashSet<String>,
+) -> Result<()> {
+    let now = now_ms();
+    for task in task_items(body) {
+        let key = task_key(id, &task.text, "");
+        if task.checked {
+            if before.contains(&key) {
+                conn.execute(
+                    "INSERT OR REPLACE INTO finished_items (note_id, key, kind, text, at)
+                     VALUES (?1, ?2, 'task', ?3, ?4)",
+                    params![id, key, task.text, now],
+                )?;
+            }
+        } else {
+            conn.execute(
+                "DELETE FROM finished_items WHERE note_id = ?1 AND key = ?2 AND kind = 'task'",
+                params![id, key],
+            )?;
+        }
+    }
+    if loops.closed.is_empty() {
+        return Ok(());
+    }
+    let mut texts: Vec<(String, String)> = loop_items(body)
+        .into_iter()
+        .map(|item| (loop_key(id, &item.text), item.text))
+        .collect();
+    texts.extend(loops.ai.values().map(|a| (a.key.clone(), a.text.clone())));
+    for (key, at) in &loops.closed {
+        let Some((_, text)) = texts.iter().find(|(k, _)| k == key) else {
+            continue;
+        };
+        conn.execute(
+            "INSERT OR IGNORE INTO finished_items (note_id, key, kind, text, at)
+             VALUES (?1, ?2, 'loop', ?3, ?4)",
+            params![id, key, text, at],
+        )?;
     }
     Ok(())
 }
@@ -107,7 +192,7 @@ fn write_file_ownership(
     Ok(())
 }
 
-fn insert_rows(conn: &Connection, id: &str, body: &str) -> Result<()> {
+fn insert_rows(conn: &Connection, id: &str, body: &str, loops: &Loops) -> Result<()> {
     if body.is_empty() {
         return Ok(());
     }
@@ -160,6 +245,50 @@ fn insert_rows(conn: &Connection, id: &str, body: &str) -> Result<()> {
             ])?;
         }
     }
+    {
+        let mut stmt = conn.prepare_cached(
+            "INSERT INTO note_loops (note_id, ord, line, kind, text, key, due, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        )?;
+        let mut keys = HashSet::new();
+        let mut ord = 0i64;
+        for item in loop_items(body) {
+            let key = loop_key(id, &item.text);
+            keys.insert(key.clone());
+            stmt.execute(params![
+                id,
+                ord,
+                item.line,
+                item.kind.as_str(),
+                item.text,
+                key,
+                item.due,
+                "rule"
+            ])?;
+            ord += 1;
+        }
+        // Loops an AI pass proposed and the person approved: kept while
+        // their sentence is still in the note.
+        for ai in loops.ai.values() {
+            if keys.contains(&ai.key) {
+                continue;
+            }
+            let Some(line) = locate(body, &ai.text, None) else {
+                continue;
+            };
+            stmt.execute(params![
+                id,
+                ord,
+                line,
+                ai.kind.as_str(),
+                ai.text,
+                ai.key,
+                kanso_core::tasks::due_date(&ai.text),
+                "ai"
+            ])?;
+            ord += 1;
+        }
+    }
     Ok(())
 }
 
@@ -185,16 +314,28 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
         })?
         .collect::<rusqlite::Result<_>>()?;
     for (id, body, json, in_locked_notebook) in notes {
-        insert_rows(&tx, &id, body.as_deref().unwrap_or(""))?;
         let fields = match serde_json::from_str::<Value>(&json)? {
             Value::Object(fields) => fields,
             _ => Map::new(),
         };
+        let loops = if body.is_some() {
+            read_loops(&fields)
+        } else {
+            Loops::default()
+        };
+        insert_rows(&tx, &id, body.as_deref().unwrap_or(""), &loops)?;
         write_file_ownership(&tx, &id, &fields, in_locked_notebook)?;
     }
     schema::set_meta(&tx, DERIVED_VERSION_KEY, DERIVED_VERSION)?;
     tx.commit()?;
     Ok(true)
+}
+
+/// Forgets what was finished more than [`FINISHED_KEEP_DAYS`] days ago.
+pub(crate) fn prune_finished(conn: &Connection) -> Result<()> {
+    let cutoff = now_ms() - FINISHED_KEEP_DAYS * 86_400_000;
+    conn.execute("DELETE FROM finished_items WHERE at < ?", [cutoff])?;
+    Ok(())
 }
 
 /// A note's context line, as plain words, shortened.
