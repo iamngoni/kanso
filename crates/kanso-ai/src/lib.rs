@@ -16,6 +16,8 @@ pub mod client;
 pub mod features;
 pub mod prompt;
 pub mod raw_tool;
+pub mod tidy;
+mod tidy_model;
 pub mod triage;
 
 #[cfg(feature = "acp")]

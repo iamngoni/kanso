@@ -48,14 +48,14 @@ fn spoken_commands_are_on_until_turned_off_and_the_setting_is_kept() {
     let phone = lone_phone();
     assert_eq!(
         phone.library.voice_settings().unwrap(),
-        VoiceSettings {
-            spoken_commands: true
-        }
+        VoiceSettings::default()
     );
+    assert!(VoiceSettings::default().spoken_commands);
     phone
         .library
         .set_voice_settings(VoiceSettings {
             spoken_commands: false,
+            ..VoiceSettings::default()
         })
         .unwrap();
     assert!(!phone.library.voice_settings().unwrap().spoken_commands);
@@ -72,4 +72,31 @@ fn a_dictation_is_spoken_punctuation_and_a_utf16_caret() {
     assert_eq!(said.text, "hello 😀");
     assert_eq!(said.caret_utf16, 8, "the emoji counts two units");
     assert_eq!(dictated(String::new(), None, "   ".into(), false), None);
+}
+
+// no-prop-test: the defaults and one round trip of every voice-capture setting.
+#[test]
+fn voice_capture_settings_default_to_ask_and_are_kept() {
+    use kanso_mobile::VoiceTidy;
+    let phone = lone_phone();
+    let first = phone.library.voice_settings().unwrap();
+    assert_eq!(first.tidy, VoiceTidy::Ask);
+    assert!(first.meetings && !first.keep_audio && !first.allow_server_recognition);
+    let changed = VoiceSettings {
+        spoken_commands: true,
+        tidy: VoiceTidy::Always,
+        meetings: false,
+        keep_audio: true,
+        allow_server_recognition: true,
+    };
+    phone.library.set_voice_settings(changed).unwrap();
+    assert_eq!(phone.library.voice_settings().unwrap(), changed);
+    // A file from before #193 reads with the new fields at their defaults.
+    std::fs::write(
+        phone.dir.path().join("voice.json"),
+        "{\"spokenCommands\":false}",
+    )
+    .unwrap();
+    let old = phone.library.voice_settings().unwrap();
+    assert!(!old.spoken_commands && old.tidy == VoiceTidy::Ask && old.meetings);
 }

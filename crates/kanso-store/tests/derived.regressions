@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 2702c1160701f12f305c17c0edb3d8b0eb1281ab89e5e24ac8d002e72817d5b5 # shrinks to ops = [Put { note: 3, title: 0, body: [Task(true), IdLink(1)], trashed: false }]

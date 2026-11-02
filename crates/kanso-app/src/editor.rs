@@ -3864,6 +3864,60 @@ impl NoteEditor {
 
     /// While a recording is transcribed into this note: its name, how far
     /// along it is, and Cancel.
+    /// A quiet line at the top of a voice note that can be tidied: Tidy, or
+    /// "Tidying…", or why the last try failed with Try again (issue #193).
+    fn render_tidy_strip(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let note = self.note.as_ref()?;
+        let strip = crate::voice_tidy::strip(note, cx)?;
+        let colors = Colors::get(cx);
+        let id = note.id.clone();
+        let (words, tint) = match &strip {
+            crate::voice_tidy::Strip::Offer => (
+                "Tidy this voice note: a title, short paragraphs and tasks. The transcript stays."
+                    .to_owned(),
+                colors.text_secondary,
+            ),
+            crate::voice_tidy::Strip::Working => ("Tidying…".to_owned(), colors.text_secondary),
+            crate::voice_tidy::Strip::Failed(reason) => {
+                (format!("Couldn't tidy this note: {reason}."), colors.danger)
+            }
+        };
+        let working = strip == crate::voice_tidy::Strip::Working;
+        let failed = matches!(strip, crate::voice_tidy::Strip::Failed(_));
+        Some(
+            h_flex()
+                .flex_none()
+                .gap_2()
+                .mx(px(TEXT_INSET - 12.))
+                .my_1()
+                .px(px(12.))
+                .py(px(5.))
+                .rounded(px(6.))
+                .bg(colors.fill)
+                .text_size(px(12.5))
+                .text_color(tint)
+                .debug_selector(|| "tidy-strip".into())
+                .child(
+                    Icon::new(Lucide::Sparkles)
+                        .size(px(13.))
+                        .text_color(colors.text_muted),
+                )
+                .child(div().flex_1().min_w_0().truncate().child(words))
+                .when(!working, |row| {
+                    row.child(
+                        Button::new("tidy-voice-note")
+                            .ghost()
+                            .xsmall()
+                            .label(if failed { "Try again" } else { "Tidy" })
+                            .on_click(cx.listener(move |_, _, window, cx| {
+                                crate::voice_tidy::tidy_note(id.clone(), window, cx)
+                            })),
+                    )
+                })
+                .into_any_element(),
+        )
+    }
+
     fn render_transcribing(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let shown = crate::transcribe::shown_for(self.note_id()?, cx)?;
         let colors = Colors::get(cx);
@@ -4694,6 +4748,7 @@ impl Render for NoteEditor {
                 el.children(self.render_twin_banner(cx))
             })
             .children(self.render_transcribing(cx))
+            .children(self.render_tidy_strip(cx))
             .children(self.render_suggestion(cx))
             .when(self.shared.as_ref().is_some_and(|s| s.ended), |el| {
                 el.child(self.banner(

@@ -14,61 +14,30 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$VoiceNoteEvent {
 
- String get transcript;
-/// Create a copy of VoiceNoteEvent
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$VoiceNoteEventCopyWith<VoiceNoteEvent> get copyWith => _$VoiceNoteEventCopyWithImpl<VoiceNoteEvent>(this as VoiceNoteEvent, _$identity);
+
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VoiceNoteEvent&&(identical(other.transcript, transcript) || other.transcript == transcript));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VoiceNoteEvent);
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,transcript);
+int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'VoiceNoteEvent(transcript: $transcript)';
+  return 'VoiceNoteEvent()';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $VoiceNoteEventCopyWith<$Res>  {
-  factory $VoiceNoteEventCopyWith(VoiceNoteEvent value, $Res Function(VoiceNoteEvent) _then) = _$VoiceNoteEventCopyWithImpl;
-@useResult
-$Res call({
- String transcript
-});
-
-
-
-
-}
-/// @nodoc
-class _$VoiceNoteEventCopyWithImpl<$Res>
-    implements $VoiceNoteEventCopyWith<$Res> {
-  _$VoiceNoteEventCopyWithImpl(this._self, this._then);
-
-  final VoiceNoteEvent _self;
-  final $Res Function(VoiceNoteEvent) _then;
-
-/// Create a copy of VoiceNoteEvent
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? transcript = null,}) {
-  return _then(_self.copyWith(
-transcript: null == transcript ? _self.transcript : transcript // ignore: cast_nullable_to_non_nullable
-as String,
-  ));
-}
-
+class $VoiceNoteEventCopyWith<$Res>  {
+$VoiceNoteEventCopyWith(VoiceNoteEvent _, $Res Function(VoiceNoteEvent) __);
 }
 
 
@@ -86,10 +55,11 @@ extension VoiceNoteEventPatterns on VoiceNoteEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( VoiceNoteSaveRequestedEvent value)?  saveRequested,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( VoiceNoteListeningStartedEvent value)?  listeningStarted,TResult Function( VoiceNoteSaveRequestedEvent value)?  saveRequested,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case VoiceNoteSaveRequestedEvent() when saveRequested != null:
+case VoiceNoteListeningStartedEvent() when listeningStarted != null:
+return listeningStarted(_that);case VoiceNoteSaveRequestedEvent() when saveRequested != null:
 return saveRequested(_that);case _:
   return orElse();
 
@@ -108,10 +78,11 @@ return saveRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( VoiceNoteSaveRequestedEvent value)  saveRequested,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( VoiceNoteListeningStartedEvent value)  listeningStarted,required TResult Function( VoiceNoteSaveRequestedEvent value)  saveRequested,}){
 final _that = this;
 switch (_that) {
-case VoiceNoteSaveRequestedEvent():
+case VoiceNoteListeningStartedEvent():
+return listeningStarted(_that);case VoiceNoteSaveRequestedEvent():
 return saveRequested(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -126,10 +97,11 @@ return saveRequested(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( VoiceNoteSaveRequestedEvent value)?  saveRequested,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( VoiceNoteListeningStartedEvent value)?  listeningStarted,TResult? Function( VoiceNoteSaveRequestedEvent value)?  saveRequested,}){
 final _that = this;
 switch (_that) {
-case VoiceNoteSaveRequestedEvent() when saveRequested != null:
+case VoiceNoteListeningStartedEvent() when listeningStarted != null:
+return listeningStarted(_that);case VoiceNoteSaveRequestedEvent() when saveRequested != null:
 return saveRequested(_that);case _:
   return null;
 
@@ -147,9 +119,10 @@ return saveRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String transcript)?  saveRequested,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  listeningStarted,TResult Function( String transcript)?  saveRequested,required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case VoiceNoteSaveRequestedEvent() when saveRequested != null:
+case VoiceNoteListeningStartedEvent() when listeningStarted != null:
+return listeningStarted();case VoiceNoteSaveRequestedEvent() when saveRequested != null:
 return saveRequested(_that.transcript);case _:
   return orElse();
 
@@ -168,9 +141,10 @@ return saveRequested(_that.transcript);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String transcript)  saveRequested,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  listeningStarted,required TResult Function( String transcript)  saveRequested,}) {final _that = this;
 switch (_that) {
-case VoiceNoteSaveRequestedEvent():
+case VoiceNoteListeningStartedEvent():
+return listeningStarted();case VoiceNoteSaveRequestedEvent():
 return saveRequested(_that.transcript);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -185,9 +159,10 @@ return saveRequested(_that.transcript);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String transcript)?  saveRequested,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  listeningStarted,TResult? Function( String transcript)?  saveRequested,}) {final _that = this;
 switch (_that) {
-case VoiceNoteSaveRequestedEvent() when saveRequested != null:
+case VoiceNoteListeningStartedEvent() when listeningStarted != null:
+return listeningStarted();case VoiceNoteSaveRequestedEvent() when saveRequested != null:
 return saveRequested(_that.transcript);case _:
   return null;
 
@@ -199,15 +174,47 @@ return saveRequested(_that.transcript);case _:
 /// @nodoc
 
 
+class VoiceNoteListeningStartedEvent implements VoiceNoteEvent {
+  const VoiceNoteListeningStartedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VoiceNoteListeningStartedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'VoiceNoteEvent.listeningStarted()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
 class VoiceNoteSaveRequestedEvent implements VoiceNoteEvent {
   const VoiceNoteSaveRequestedEvent(this.transcript);
   
 
-@override final  String transcript;
+ final  String transcript;
 
 /// Create a copy of VoiceNoteEvent
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $VoiceNoteSaveRequestedEventCopyWith<VoiceNoteSaveRequestedEvent> get copyWith => _$VoiceNoteSaveRequestedEventCopyWithImpl<VoiceNoteSaveRequestedEvent>(this, _$identity);
 
@@ -233,7 +240,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $VoiceNoteSaveRequestedEventCopyWith<$Res> implements $VoiceNoteEventCopyWith<$Res> {
   factory $VoiceNoteSaveRequestedEventCopyWith(VoiceNoteSaveRequestedEvent value, $Res Function(VoiceNoteSaveRequestedEvent) _then) = _$VoiceNoteSaveRequestedEventCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String transcript
 });
@@ -252,7 +259,7 @@ class _$VoiceNoteSaveRequestedEventCopyWithImpl<$Res>
 
 /// Create a copy of VoiceNoteEvent
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? transcript = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? transcript = null,}) {
   return _then(VoiceNoteSaveRequestedEvent(
 null == transcript ? _self.transcript : transcript // ignore: cast_nullable_to_non_nullable
 as String,

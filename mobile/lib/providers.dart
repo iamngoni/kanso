@@ -38,6 +38,7 @@ import 'shell/state/focus_mode/focus_mode_bloc.dart';
 import 'shell/state/library_pane/library_pane_bloc.dart';
 import 'shell/state/note_creation/note_creation_bloc.dart';
 import 'tabs/state/tabs/tabs_bloc.dart';
+import 'voice_capture/state/voice_drops/voice_drops_bloc.dart';
 
 /// The BLoCs the whole app shares, above the [child].
 ///
@@ -159,6 +160,11 @@ class AppProviders extends StatelessWidget {
           create: (_) =>
               getIt<CaptureInboxBloc>()
                 ..add(const CaptureInboxEvent.saveRequested()),
+        ),
+        BlocProvider<VoiceDropsBloc>(
+          create: (_) =>
+              getIt<VoiceDropsBloc>()
+                ..add(const VoiceDropsEvent.passRequested()),
         ),
         BlocProvider<WidgetColorsBloc>(
           create: (_) => getIt<WidgetColorsBloc>()

@@ -12,7 +12,8 @@ export 'src/messages.g.dart'
         DictationEvent,
         DictationEventKind,
         DictationPermission,
-        DictationUnavailableReason;
+        DictationUnavailableReason,
+        FileTranscription;
 
 /// The platform's speech recognizer, on the device (`SFSpeechRecognizer` on
 /// iOS, `SpeechRecognizer` on Android).
@@ -56,4 +57,13 @@ class KansoDictation {
 
   /// Opens the app's page of the system's Settings.
   Future<void> openSettings() => api.openSettings();
+
+  /// Recognizes the audio file at [path]. The audio goes to a server only
+  /// when [allowServer] is true and the device can't do it itself.
+  Future<FileTranscription> transcribeFile(
+    String path,
+    String? localeTag,
+    // ignore: avoid_positional_boolean_parameters
+    bool allowServer,
+  ) => api.transcribeFile(path, localeTag, allowServer);
 }

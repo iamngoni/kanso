@@ -412,6 +412,67 @@ data class DictationEvent (
     return "DictationEvent(kind=$kind, text=$text, level=$level, error=$error, message=$message)"
   }
 }
+
+/**
+ * What recognizing an audio file gave.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class FileTranscription (
+  /** The words, empty when [error] is set or nothing was heard. */
+  val text: String,
+  /**
+   * Whether the words were made on the device. False means the system's
+   * server-backed recognizer was used (only when asked to allow it).
+   */
+  val onDevice: Boolean,
+  /**
+   * Null when the file was recognized (even if no words were heard).
+   * Otherwise one of: `unsupported` (this system can't recognize a file),
+   * `notOnDevice` (only a server could, and that wasn't allowed),
+   * `denied` (speech recognition isn't allowed), `unreadable` (the file
+   * couldn't be opened) or `failed`.
+   */
+  val error: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FileTranscription {
+      val text = pigeonVar_list[0] as String
+      val onDevice = pigeonVar_list[1] as Boolean
+      val error = pigeonVar_list[2] as String?
+      return FileTranscription(text, onDevice, error)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      text,
+      onDevice,
+      error,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as FileTranscription
+    return MessagesPigeonUtils.deepEquals(this.text, other.text) && MessagesPigeonUtils.deepEquals(this.onDevice, other.onDevice) && MessagesPigeonUtils.deepEquals(this.error, other.error)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.text)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.onDevice)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.error)
+    return result
+  }
+  override fun toString(): String {
+    return "FileTranscription(text=$text, onDevice=$onDevice, error=$error)"
+  }
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -445,6 +506,11 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           DictationEvent.fromList(it)
         }
       }
+      135.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          FileTranscription.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -472,6 +538,10 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       is DictationEvent -> {
         stream.write(134)
+        writeValue(stream, value.toList())
+      }
+      is FileTranscription -> {
+        stream.write(135)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -508,6 +578,14 @@ interface DictationHostApi {
   fun cancel()
   /** Opens the app's page of the system's Settings. */
   fun openSettings()
+  /**
+   * Recognizes the audio file at [path] (issue #193: a recording the lock
+   * screen, the Action Button or the Android tile made), in [localeTag]
+   * (the device's language when null). The audio is sent to a server only
+   * when [allowServer] is true and the device can't do it itself; the answer
+   * says which happened.
+   */
+  suspend fun transcribeFile(path: String, localeTag: String?, allowServer: Boolean): FileTranscription
 
   companion object {
     /** The codec used by DictationHostApi. */
@@ -617,6 +695,27 @@ interface DictationHostApi {
               MessagesPigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.kanso_dictation.DictationHostApi.transcribeFile$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val pathArg = args[0] as String
+            val localeTagArg = args[1] as String?
+            val allowServerArg = args[2] as Boolean
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.transcribeFile(pathArg, localeTagArg, allowServerArg))
+              } catch (exception: Throwable) {
+                MessagesPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
           }
         } else {
           channel.setMessageHandler(null)

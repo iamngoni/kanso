@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc ba85fbfa6a5c6017f487f9615871c084e0838fdab4e10bc0db867707b8697f62 # shrinks to names = ["ltgurq", "jnkip", "fnv", "qtwevd"], synced = [false, true, false, false, true, true, false, true], deleted = [true, true, false, false, true, true, false, true]
+cc 9a5c7818f8b96be848eab9c40eba97ac65d12fdffd7a725c916ca78d5737f267 # shrinks to ops = [Rename(1, 18432516589892003359, 122), Replay(1, 1547166179994746670), Delete(1, 984043730741632391), Sync(1), Rename(1, 12818024033429500345, 90), Sync(1), Rename(2, 2860363549283393299, 7), Rename(0, 1280745049479457545, 102), Sync(1), LoseThenReplay(1, 12455371993869356814, true), LoseThenReplay(2, 11997800100562744459, true), Create(1), Rename(2, 17300805607940156963, 252), LoseThenReplay(0, 6420140467672576814, true), LoseThenReplay(2, 8660838135698164686, false), Rename(0, 11786734755688714128, 200), Sync(0), Sync(2), Rename(0, 14172168380494583310, 177), Sync(0), Create(1), Sync(0), Replay(1, 14856831451622108480)]

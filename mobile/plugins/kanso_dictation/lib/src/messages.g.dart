@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,8 +34,11 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse({
+  Object? result,
+  PlatformException? error,
+  bool empty = false,
+}) {
   if (empty) {
     return <Object?>[];
   }
@@ -44,6 +47,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -56,8 +60,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -106,62 +111,77 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// Whether the person has let the app listen.
 enum DictationPermission {
   /// Not asked yet: [DictationHostApi.requestPermission] will ask.
   notDetermined,
+
   /// Refused; only Settings can change that.
   denied,
+
   /// Barred by the device's rules (parental controls, a managed device).
   restricted,
+
   /// Allowed.
-  granted;
+  granted,
 }
 
 /// Why speech cannot be recognized on this device, for this language.
 enum DictationUnavailableReason {
   /// The device has no recognizer at all.
   noRecognizer,
+
   /// The language has no recognizer that works on the device itself; the
   /// plugin never falls back to a server on iOS.
   notOnDevice,
+
   /// The language is not one the recognizer knows.
-  unsupportedLanguage;
+  unsupportedLanguage,
 }
 
 /// What a session reports.
 enum DictationEventKind {
   /// The microphone is open and the recognizer is listening.
   listening,
+
   /// The text so far of the phrase being spoken; it replaces the last one.
   partial,
+
   /// A phrase is finished; its text is final.
   finalResult,
+
   /// How loud the voice is now, 0 to 1.
   level,
+
   /// The session failed; see [DictationEvent.error].
   error,
+
   /// The session is over, whichever way it ended. The last event of a
   /// session.
-  ended;
+  ended,
 }
 
 enum DictationErrorCode {
   /// The person has not allowed the microphone or speech recognition.
   permissionDenied,
+
   /// No recognizer can run now.
   notAvailable,
+
   /// Nothing was heard.
   noSpeech,
+
   /// The microphone could not be used, or another app took it.
   audio,
+
   /// A session is running already.
   busy,
+
   /// The system interrupted: a call, an alarm, Siri.
   interrupted,
+
   /// Anything else.
-  unknown;
+  unknown,
 }
 
 /// What a recognizer can do now.
@@ -201,7 +221,8 @@ class DictationAvailability {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static DictationAvailability decode(Object result) {
     result as List<Object?>;
@@ -223,7 +244,11 @@ class DictationAvailability {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(available, other.available) && _deepEquals(onDevice, other.onDevice) && _deepEquals(permission, other.permission) && _deepEquals(language, other.language) && _deepEquals(reason, other.reason);
+    return _deepEquals(available, other.available) &&
+        _deepEquals(onDevice, other.onDevice) &&
+        _deepEquals(permission, other.permission) &&
+        _deepEquals(language, other.language) &&
+        _deepEquals(reason, other.reason);
   }
 
   @override
@@ -271,7 +296,8 @@ class DictationEvent {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static DictationEvent decode(Object result) {
     result as List<Object?>;
@@ -293,7 +319,11 @@ class DictationEvent {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kind, other.kind) && _deepEquals(text, other.text) && _deepEquals(level, other.level) && _deepEquals(error, other.error) && _deepEquals(message, other.message);
+    return _deepEquals(kind, other.kind) &&
+        _deepEquals(text, other.text) &&
+        _deepEquals(level, other.level) &&
+        _deepEquals(error, other.error) &&
+        _deepEquals(message, other.message);
   }
 
   @override
@@ -306,6 +336,72 @@ class DictationEvent {
   }
 }
 
+/// What recognizing an audio file gave.
+class FileTranscription {
+  FileTranscription({
+    required this.text,
+    required this.onDevice,
+    this.error,
+  });
+
+  /// The words, empty when [error] is set or nothing was heard.
+  String text;
+
+  /// Whether the words were made on the device. False means the system's
+  /// server-backed recognizer was used (only when asked to allow it).
+  bool onDevice;
+
+  /// Null when the file was recognized (even if no words were heard).
+  /// Otherwise one of: `unsupported` (this system can't recognize a file),
+  /// `notOnDevice` (only a server could, and that wasn't allowed),
+  /// `denied` (speech recognition isn't allowed), `unreadable` (the file
+  /// couldn't be opened) or `failed`.
+  String? error;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      text,
+      onDevice,
+      error,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static FileTranscription decode(Object result) {
+    result as List<Object?>;
+    return FileTranscription(
+      text: result[0]! as String,
+      onDevice: result[1]! as bool,
+      error: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! FileTranscription || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(text, other.text) &&
+        _deepEquals(onDevice, other.onDevice) &&
+        _deepEquals(error, other.error);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'FileTranscription(text: $text, onDevice: $onDevice, error: $error)';
+  }
+}
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -314,23 +410,26 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is DictationPermission) {
+    } else if (value is DictationPermission) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is DictationUnavailableReason) {
+    } else if (value is DictationUnavailableReason) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is DictationEventKind) {
+    } else if (value is DictationEventKind) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is DictationErrorCode) {
+    } else if (value is DictationErrorCode) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is DictationAvailability) {
+    } else if (value is DictationAvailability) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is DictationEvent) {
+    } else if (value is DictationEvent) {
       buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    } else if (value is FileTranscription) {
+      buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -356,6 +455,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return DictationAvailability.decode(readValue(buffer)!);
       case 134:
         return DictationEvent.decode(readValue(buffer)!);
+      case 135:
+        return FileTranscription.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -367,43 +468,46 @@ class DictationHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   DictationHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   /// What the recognizer for [localeTag] (a BCP 47 tag; the device's
   /// language when null) can do now.
   Future<DictationAvailability> availability(String? localeTag) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.kanso_dictation.DictationHostApi.availability$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_dictation.DictationHostApi.availability$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[localeTag]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[localeTag],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as DictationAvailability;
   }
 
   /// Asks for the microphone and speech recognition if they are not asked
   /// yet, and answers where that leaves them.
   Future<DictationPermission> requestPermission() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.kanso_dictation.DictationHostApi.requestPermission$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_dictation.DictationHostApi.requestPermission$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -413,11 +517,10 @@ class DictationHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as DictationPermission;
   }
 
@@ -426,27 +529,30 @@ class DictationHostApi {
   /// session is [DictationEventKind.ended]. A session already running is a
   /// [DictationErrorCode.busy] error event.
   Future<void> start(String? localeTag) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.kanso_dictation.DictationHostApi.start$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_dictation.DictationHostApi.start$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[localeTag]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[localeTag],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Stops listening and lets the recognizer finish what it heard: a final
   /// result may follow, then ended.
   Future<void> stop() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.kanso_dictation.DictationHostApi.stop$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_dictation.DictationHostApi.stop$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -456,16 +562,16 @@ class DictationHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Stops at once and drops what the recognizer had not finished.
   Future<void> cancel() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.kanso_dictation.DictationHostApi.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_dictation.DictationHostApi.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -475,16 +581,16 @@ class DictationHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Opens the app's page of the system's Settings.
   Future<void> openSettings() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.kanso_dictation.DictationHostApi.openSettings$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_dictation.DictationHostApi.openSettings$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -494,11 +600,40 @@ class DictationHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+  }
+
+  /// Recognizes the audio file at [path] (issue #193: a recording the lock
+  /// screen, the Action Button or the Android tile made), in [localeTag]
+  /// (the device's language when null). The audio is sent to a server only
+  /// when [allowServer] is true and the device can't do it itself; the answer
+  /// says which happened.
+  Future<FileTranscription> transcribeFile(
+    String path,
+    String? localeTag,
+    bool allowServer,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_dictation.DictationHostApi.transcribeFile$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[path, localeTag, allowServer],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as FileTranscription;
   }
 }
 
@@ -507,16 +642,20 @@ abstract class DictationFlutterApi {
 
   void onEvent(DictationEvent event);
 
-  static void setUp(DictationFlutterApi? api, {
-    BinaryMessenger? binaryMessenger, 
+  static void setUp(
+    DictationFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
     String messageChannelSuffix = '',
-  }) 
-{
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  }) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty
+        ? '.$messageChannelSuffix'
+        : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.kanso_dictation.DictationFlutterApi.onEvent$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.kanso_dictation.DictationFlutterApi.onEvent$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -528,8 +667,10 @@ abstract class DictationFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }

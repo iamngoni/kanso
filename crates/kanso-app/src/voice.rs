@@ -151,7 +151,7 @@ pub fn init(cx: &mut App) {
     refresh_model(cx);
 }
 
-fn model_dir(cx: &App) -> std::path::PathBuf {
+pub(crate) fn model_dir(cx: &App) -> std::path::PathBuf {
     MODEL.dir(&cx.global::<AppState>().data_dir)
 }
 

@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 5f8ef711d0b6ec3e82c10a2b4ddfa93bec1001c1d0e52b89f2594d711e6728d9 # shrinks to ops = [Create { book: 0, text: true, by: Api }, SyncLockBook { book: 0 }]
 cc 4e61fa9c0d5a1f8325675db55fb81c63b47fa7071d0df02c262450996b83a4f8 # shrinks to ops = [Create { book: 0, text: false, by: Api }, Create { book: 0, text: true, by: Api }, Edit { note: 5, text: false, by: Api }, SyncLockBook { book: 0 }, Create { book: 0, text: false, by: Api }]
+cc e2275895198a20b4c3cf1765e0c6c208114affe7aae1527177525e63b782a92d # shrinks to ops = [Move { note: 2, book: Some(1), by: Sync }]

@@ -23,6 +23,7 @@ import 'themes.dart';
 import 'triage.dart';
 import 'types.dart';
 import 'voice.dart';
+import 'voice_capture.dart';
 
 /// What the Replace button says, or nothing when there is nothing to do.
 String? replaceApplyLabel({required int matches, required int notes}) =>
@@ -416,6 +417,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required FoldState folds,
     String? showing,
   });
+
+  /// Voice capture: voice notes into the Inbox, the recordings left outside
+  /// the app, and tidying a voice note.
+  KansoVoiceCapture voiceCapture();
 
   /// Voice dictation settings saved beside the library database.
   Future<VoiceSettings> voiceSettings();

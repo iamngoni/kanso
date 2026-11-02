@@ -27,8 +27,8 @@ use crate::workspace::{
     ImportLibrary, NewAgentTask, NewNote, NewNotebook, NewRecoveryKey, NextNote, OpenFile,
     OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes, ShowBacklinks,
     ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview, ShowSignIn,
-    ShowSplit, SignOut, SummarizeNote, SyncNow, ToggleFocusMode, ToggleInspector, TogglePinned,
-    ToggleSidebar, TrashNote,
+    ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode, ToggleInspector,
+    TogglePinned, ToggleSidebar, TrashNote,
 };
 
 /// The palette's sections, in the order they appear with nothing typed.
@@ -840,6 +840,25 @@ static COMMANDS: &[Command] = &[
         keywords: &["ai", "summary", "summarise", "tl;dr", "digest", "assistant"],
         group: Group::Note,
         run: action!(SummarizeNote),
+        needs: Needs::AiNote,
+    },
+    Command {
+        id: "tidy-voice-note",
+        label: "Tidy Voice Note",
+        label_when_pinned: None,
+        description: "Gives the open voice note a title, short paragraphs and tasks for what was said you would do, using your own AI. The transcript stays in the note, folded, and Undo brings the original back. It works only while AI is on in Settings › AI, and not for a locked note or one tagged #ai-exclude.",
+        icon: IconName::Sparkles,
+        keywords: &[
+            "ai",
+            "voice",
+            "transcript",
+            "clean up",
+            "tidy",
+            "meeting",
+            "recording",
+        ],
+        group: Group::Note,
+        run: action!(TidyVoiceNote),
         needs: Needs::AiNote,
     },
     Command {

@@ -110,7 +110,10 @@ pub mod text;
 pub mod text_stats;
 pub mod theme;
 pub mod triage;
+pub mod voice_capture;
 pub mod voice_commands;
+#[cfg(feature = "ai")]
+pub mod voice_tidy;
 pub mod word_goal;
 
 /// Where secrets live: the seam the Keychain, the Credential Manager and the

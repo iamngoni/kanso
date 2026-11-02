@@ -138,6 +138,23 @@ pub fn triage(
     kanso_engine::triage::ai::refine(store, provider.as_ref(), card, title, text, opts, cancel)
 }
 
+/// Tidies a voice transcript (issue #193): a title, paragraphs, and decisions
+/// and tasks the transcript backs with quotes. It sends the transcript and a
+/// title hint, nothing else. The error is a plain reason.
+pub fn tidy(
+    maker: &Maker,
+    kind: kanso_ai::tidy::TidyKind,
+    title_hint: &str,
+    transcript: &str,
+    cancel: &Arc<AtomicBool>,
+) -> Result<kanso_ai::tidy::Tidy, String> {
+    let shared = maker()?;
+    let provider = shared
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    kanso_ai::tidy::tidy(provider.as_ref(), kind, title_hint, transcript, cancel)
+}
+
 /// Fakes for the tests of the features: a provider that records what it was
 /// sent, an agent in process, and the hook that hands either to a feature.
 #[cfg(test)]

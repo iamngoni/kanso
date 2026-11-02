@@ -242,6 +242,10 @@ import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
 import 'triage/models/repos/abs/triage_repository.dart' as _i731;
 import 'triage/models/repos/impl/rust_triage_repository.dart' as _i975;
 import 'triage/state/triage/triage_bloc.dart' as _i1007;
+import 'voice_capture/models/repos/abs/voice_capture_repository.dart' as _i525;
+import 'voice_capture/models/repos/impl/rust_voice_capture_repository.dart'
+    as _i718;
+import 'voice_capture/state/voice_drops/voice_drops_bloc.dart' as _i712;
 import 'voice_settings/models/repos/abs/voice_settings_repository.dart'
     as _i1027;
 import 'voice_settings/models/repos/impl/rust_voice_settings_repository.dart'
@@ -660,6 +664,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i26.ImportFilesRepository>(),
       ),
     );
+    gh.lazySingleton<_i525.VoiceCaptureRepository>(
+      () => _i718.RustVoiceCaptureRepository(
+        gh<_i455.KansoLibrary>(),
+        gh<_i72.LibraryFolder>(),
+        gh<_i825.ExternalChanges>(),
+      ),
+    );
     gh.lazySingleton<_i608.ReplaceRepository>(
       () => _i1.RustReplaceRepository(gh<_i455.KansoLibrary>()),
     );
@@ -740,6 +751,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i601.SyncRepository>(
       () => _i564.RustSyncRepository(gh<_i591.KansoSync>()),
     );
+    gh.factory<_i284.VoiceNoteBloc>(
+      () => _i284.VoiceNoteBloc(gh<_i525.VoiceCaptureRepository>()),
+    );
     gh.lazySingleton<_i333.SessionRepository>(
       () => _i899.RustSessionRepository(gh<_i983.KansoLocks>()),
     );
@@ -812,6 +826,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i1028.ReplaceNotesBloc>(
       () => _i1028.ReplaceNotesBloc(gh<_i608.ReplaceRepository>()),
+    );
+    gh.factory<_i712.VoiceDropsBloc>(
+      () => _i712.VoiceDropsBloc(
+        gh<_i525.VoiceCaptureRepository>(),
+        gh<_i872.DictationRepository>(),
+        gh<_i1027.VoiceSettingsRepository>(),
+      ),
     );
     gh.factory<_i39.ChangePasswordBloc>(
       () => _i39.ChangePasswordBloc(gh<_i333.SessionRepository>()),
@@ -917,12 +938,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i314.AccountSettingsRepository>(),
         gh<_i1035.AccountRepository>(),
         gh<_i227.AuthSessionRepository>(),
-      ),
-    );
-    gh.factory<_i284.VoiceNoteBloc>(
-      () => _i284.VoiceNoteBloc(
-        gh<_i38.LibraryRepository>(),
-        gh<_i314.UsageMetricsRepository>(),
       ),
     );
     gh.factory<_i477.BiometricsBloc>(

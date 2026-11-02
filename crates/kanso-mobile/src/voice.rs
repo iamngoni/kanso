@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::boundary::guard;
 use crate::errors::KansoError;
 use crate::library::Library;
-use crate::voice_model::{Dictated, VoiceSettings};
+use crate::voice_model::{Dictated, VoiceSettings, VoiceTidy};
 
 /// The file the setting is in, next to the library's database.
 const SETTINGS_FILE: &str = "voice.json";
@@ -22,14 +22,64 @@ const SETTINGS_FILE: &str = "voice.json";
 #[serde(default, rename_all = "camelCase")]
 struct SettingsFile {
     spoken_commands: bool,
+    /// "off", "ask" or "always".
+    tidy: String,
+    meetings: bool,
+    keep_audio: bool,
+    allow_server_recognition: bool,
 }
 
 impl Default for SettingsFile {
     fn default() -> Self {
+        let defaults = VoiceSettings::default();
         SettingsFile {
-            spoken_commands: VoiceSettings::default().spoken_commands,
+            spoken_commands: defaults.spoken_commands,
+            tidy: tidy_word(defaults.tidy).to_owned(),
+            meetings: defaults.meetings,
+            keep_audio: defaults.keep_audio,
+            allow_server_recognition: defaults.allow_server_recognition,
         }
     }
+}
+
+fn tidy_word(tidy: VoiceTidy) -> &'static str {
+    match tidy {
+        VoiceTidy::Off => "off",
+        VoiceTidy::Ask => "ask",
+        VoiceTidy::Always => "always",
+    }
+}
+
+fn tidy_of(word: &str) -> VoiceTidy {
+    match word {
+        "off" => VoiceTidy::Off,
+        "always" => VoiceTidy::Always,
+        _ => VoiceTidy::Ask,
+    }
+}
+
+/// The settings `voice.json` next to the library database `library` holds,
+/// or the defaults when there is no readable file.
+pub(crate) fn read_settings(library: &std::path::Path) -> VoiceSettings {
+    let file: SettingsFile = std::fs::read(settings_path(library))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default();
+    VoiceSettings {
+        spoken_commands: file.spoken_commands,
+        tidy: tidy_of(&file.tidy),
+        meetings: file.meetings,
+        keep_audio: file.keep_audio,
+        allow_server_recognition: file.allow_server_recognition,
+    }
+}
+
+fn settings_path(library: &std::path::Path) -> std::path::PathBuf {
+    library
+        .parent()
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join(SETTINGS_FILE)
 }
 
 /// The text to put in for `transcript`, between `before` (the note's text up
@@ -54,15 +104,7 @@ pub fn dictated(
 impl Library {
     /// Voice input's settings.
     pub fn voice_settings(&self) -> Result<VoiceSettings, KansoError> {
-        guard(|| {
-            let file: SettingsFile = std::fs::read(self.voice_path())
-                .ok()
-                .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-                .unwrap_or_default();
-            Ok(VoiceSettings {
-                spoken_commands: file.spoken_commands,
-            })
-        })
+        guard(|| Ok(read_settings(self.path())))
     }
 
     /// Saves voice input's settings.
@@ -71,6 +113,10 @@ impl Library {
             let path = self.voice_path();
             let bytes = serde_json::to_vec_pretty(&SettingsFile {
                 spoken_commands: settings.spoken_commands,
+                tidy: tidy_word(settings.tidy).to_owned(),
+                meetings: settings.meetings,
+                keep_audio: settings.keep_audio,
+                allow_server_recognition: settings.allow_server_recognition,
             })
             .map_err(|err| KansoError::storage(err.to_string()))?;
             let part = path.with_extension("json.part");
@@ -81,10 +127,6 @@ impl Library {
     }
 
     fn voice_path(&self) -> std::path::PathBuf {
-        self.path()
-            .parent()
-            .filter(|dir| !dir.as_os_str().is_empty())
-            .unwrap_or_else(|| std::path::Path::new("."))
-            .join(SETTINGS_FILE)
+        settings_path(self.path())
     }
 }
