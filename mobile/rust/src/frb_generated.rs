@@ -32,9 +32,7 @@ use crate::api::account_settings::*;
 use crate::api::agent_tasks::*;
 use crate::api::ai::*;
 use crate::api::approvals::*;
-use crate::api::cards::*;
 use crate::api::discovery::*;
-use crate::api::draft::*;
 use crate::api::editor::*;
 use crate::api::gallery::*;
 use crate::api::library::*;
@@ -47,7 +45,6 @@ use crate::api::shared::*;
 use crate::api::sync::*;
 use crate::api::themes::*;
 use crate::api::triage::*;
-use crate::api::voice_capture::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
@@ -60,7 +57,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 86528661;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1803096595;
 
 // Section: executor
 
@@ -2560,6 +2557,55 @@ fn wire__crate__api__ai__KansoAi_agent_tasks_impl(
         },
     )
 }
+fn wire__crate__api__ai__KansoAi_ask_scopes_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoAi_ask_scopes",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAi>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::ai::KansoAi::ask_scopes(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__ai__KansoAi_assist_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -3566,6 +3612,9 @@ fn wire__crate__api__ai__KansoAskConversation_ask_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>,
             >>::sse_decode(&mut deserializer);
             let api_question = <String>::sse_decode(&mut deserializer);
+            let api_scope = <crate::api::ai::AskScopeInput>::sse_decode(&mut deserializer);
+            let api_ignore_time = <bool>::sse_decode(&mut deserializer);
+            let api_utc_offset_minutes = <i32>::sse_decode(&mut deserializer);
             let api_sink = <StreamSink<
                 crate::api::ai::AskEvent,
                 flutter_rust_bridge::for_generated::SseCodec,
@@ -3591,6 +3640,9 @@ fn wire__crate__api__ai__KansoAskConversation_ask_impl(
                         crate::api::ai::KansoAskConversation::ask(
                             &*api_that_guard,
                             api_question,
+                            api_scope,
+                            api_ignore_time,
+                            api_utc_offset_minutes,
                             api_sink,
                         );
                     })?;
@@ -3645,6 +3697,56 @@ fn wire__crate__api__ai__KansoAskConversation_clear_impl(
                 })?;
                 std::result::Result::Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__ai__KansoAskConversation_save_last_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoAskConversation_save_last",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::ai::KansoAskConversation::save_last(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -3741,863 +3843,6 @@ fn wire__crate__api__ai__KansoAskConversation_turn_count_impl(
                 ))?;
                 std::result::Result::Ok(output_ok)
             })())
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_add_cards_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_add_cards",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_id = <String>::sse_decode(&mut deserializer);
-            let api_cards = <Vec<crate::api::cards_types::CardPair>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::add_cards(
-                        &*api_that_guard,
-                        api_note_id,
-                        api_cards,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_answer_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_answer",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_id = <String>::sse_decode(&mut deserializer);
-            let api_card_key = <String>::sse_decode(&mut deserializer);
-            let api_grade = <u8>::sse_decode(&mut deserializer);
-            let api_utc_offset_minutes = <i32>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::answer(
-                        &*api_that_guard,
-                        api_note_id,
-                        api_card_key,
-                        api_grade,
-                        api_utc_offset_minutes,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_counts_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_counts",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_scope = <crate::api::cards_types::CardScopeArg>::sse_decode(&mut deserializer);
-            let api_utc_offset_minutes = <i32>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::counts(
-                        &*api_that_guard,
-                        api_scope,
-                        api_utc_offset_minutes,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_due_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_due",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_scope = <crate::api::cards_types::CardScopeArg>::sse_decode(&mut deserializer);
-            let api_limit = <u32>::sse_decode(&mut deserializer);
-            let api_utc_offset_minutes = <i32>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::due(
-                        &*api_that_guard,
-                        api_scope,
-                        api_limit,
-                        api_utc_offset_minutes,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_grade_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_grade",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_question = <String>::sse_decode(&mut deserializer);
-            let api_note_id = <String>::sse_decode(&mut deserializer);
-            let api_answer = <String>::sse_decode(&mut deserializer);
-            let api_run = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
-            >>::sse_decode(&mut deserializer);
-            let api_sink = <StreamSink<
-                crate::api::cards_types::GradeEvent,
-                flutter_rust_bridge::for_generated::SseCodec,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_that_guard = None;
-                    let mut api_run_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_run, 1, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let api_run_guard = api_run_guard.unwrap();
-                    let output_ok = Ok::<_, ()>({
-                        crate::api::cards::KansoCards::grade(
-                            &*api_that_guard,
-                            api_question,
-                            api_note_id,
-                            api_answer,
-                            &*api_run_guard,
-                            api_sink,
-                        );
-                    })?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_make_blocked_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_make_blocked",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok =
-                        crate::api::cards::KansoCards::make_blocked(&*api_that_guard, api_note_id)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_note_cards_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_note_cards",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok =
-                        crate::api::cards::KansoCards::note_cards(&*api_that_guard, api_note_id)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_quiz_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_quiz",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_ids = <Vec<String>>::sse_decode(&mut deserializer);
-            let api_run = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
-            >>::sse_decode(&mut deserializer);
-            let api_sink = <StreamSink<
-                crate::api::cards_types::QuizEvent,
-                flutter_rust_bridge::for_generated::SseCodec,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_that_guard = None;
-                    let mut api_run_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_run, 1, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let api_run_guard = api_run_guard.unwrap();
-                    let output_ok = Ok::<_, ()>({
-                        crate::api::cards::KansoCards::quiz(
-                            &*api_that_guard,
-                            api_note_ids,
-                            &*api_run_guard,
-                            api_sink,
-                        );
-                    })?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_reminder_text_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_reminder_text",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_utc_offset_minutes = <i32>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::reminder_text(
-                        &*api_that_guard,
-                        api_utc_offset_minutes,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_reset_history_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_reset_history",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::reset_history(&*api_that_guard)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_set_settings_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_set_settings",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_input =
-                <crate::api::cards_types::CardSettingsView>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok =
-                        crate::api::cards::KansoCards::set_settings(&*api_that_guard, api_input)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_settings_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_settings",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::settings(&*api_that_guard)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_stats_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_stats",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_scope = <crate::api::cards_types::CardScopeArg>::sse_decode(&mut deserializer);
-            let api_utc_offset_minutes = <i32>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::stats(
-                        &*api_that_guard,
-                        api_scope,
-                        api_utc_offset_minutes,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_suggest_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_suggest",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_id = <String>::sse_decode(&mut deserializer);
-            let api_run = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
-            >>::sse_decode(&mut deserializer);
-            let api_sink = <StreamSink<
-                crate::api::cards_types::SuggestEvent,
-                flutter_rust_bridge::for_generated::SseCodec,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_that_guard = None;
-                    let mut api_run_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_run, 1, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let api_run_guard = api_run_guard.unwrap();
-                    let output_ok = Ok::<_, ()>({
-                        crate::api::cards::KansoCards::suggest(
-                            &*api_that_guard,
-                            api_note_id,
-                            &*api_run_guard,
-                            api_sink,
-                        );
-                    })?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__cards__KansoCards_suspend_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoCards_suspend",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_id = <String>::sse_decode(&mut deserializer);
-            let api_card_key = <String>::sse_decode(&mut deserializer);
-            let api_suspended = <bool>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::cards::KansoCards::suspend(
-                        &*api_that_guard,
-                        api_note_id,
-                        api_card_key,
-                        api_suspended,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
         },
     )
 }
@@ -5562,356 +4807,6 @@ fn wire__crate__api__discovery__KansoDiscovery_set_related_notes_impl(
                         &*api_that_guard,
                         api_on,
                     )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__draft__KansoDrafting_notes_of_notebook_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoDrafting_notes_of_notebook",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>,
-            >>::sse_decode(&mut deserializer);
-            let api_book_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::draft::KansoDrafting::notes_of_notebook(
-                        &*api_that_guard,
-                        api_book_id,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__draft__KansoDrafting_notes_of_tag_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoDrafting_notes_of_tag",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>,
-            >>::sse_decode(&mut deserializer);
-            let api_tag_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::draft::KansoDrafting::notes_of_tag(
-                        &*api_that_guard,
-                        api_tag_id,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__draft__KansoDrafting_preview_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoDrafting_preview",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>,
-            >>::sse_decode(&mut deserializer);
-            let api_text = <String>::sse_decode(&mut deserializer);
-            let api_sources =
-                <Vec<crate::api::draft_types::DraftSourceRef>>::sse_decode(&mut deserializer);
-            let api_leave_out = <Vec<(u32, u32)>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::draft::KansoDrafting::preview(
-                        &*api_that_guard,
-                        api_text,
-                        api_sources,
-                        api_leave_out,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__draft__KansoDrafting_save_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoDrafting_save",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>,
-            >>::sse_decode(&mut deserializer);
-            let api_title = <String>::sse_decode(&mut deserializer);
-            let api_markdown = <String>::sse_decode(&mut deserializer);
-            let api_book_id = <String>::sse_decode(&mut deserializer);
-            let api_source_count = <u32>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::draft::KansoDrafting::save(
-                        &*api_that_guard,
-                        api_title,
-                        api_markdown,
-                        api_book_id,
-                        api_source_count,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__draft__KansoDrafting_sources_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoDrafting_sources",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_ids = <Vec<String>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok =
-                        crate::api::draft::KansoDrafting::sources(&*api_that_guard, api_note_ids)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__draft__KansoDrafting_write_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoDrafting_write",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>,
-            >>::sse_decode(&mut deserializer);
-            let api_note_ids = <Vec<String>>::sse_decode(&mut deserializer);
-            let api_shape = <crate::api::draft_types::DraftShape>::sse_decode(&mut deserializer);
-            let api_request = <String>::sse_decode(&mut deserializer);
-            let api_length = <crate::api::draft_types::DraftLength>::sse_decode(&mut deserializer);
-            let api_run = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
-            >>::sse_decode(&mut deserializer);
-            let api_sink = <StreamSink<
-                crate::api::draft_types::DraftEvent,
-                flutter_rust_bridge::for_generated::SseCodec,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_that_guard = None;
-                    let mut api_run_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_run, 1, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let api_run_guard = api_run_guard.unwrap();
-                    let output_ok = Ok::<_, ()>({
-                        crate::api::draft::KansoDrafting::write(
-                            &*api_that_guard,
-                            api_note_ids,
-                            api_shape,
-                            api_request,
-                            api_length,
-                            &*api_run_guard,
-                            api_sink,
-                        );
-                    })?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -8248,53 +7143,6 @@ fn wire__crate__api__library__KansoLibrary_capture_impl(
         },
     )
 }
-fn wire__crate__api__library__KansoLibrary_cards_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoLibrary_cards",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok =
-                    Ok::<_, ()>(crate::api::library::KansoLibrary::cards(&*api_that_guard))?;
-                std::result::Result::Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__library__KansoLibrary_change_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -9006,54 +7854,6 @@ fn wire__crate__api__library__KansoLibrary_discovery_impl(
                 }
                 let api_that_guard = api_that_guard.unwrap();
                 let output_ok = Ok::<_, ()>(crate::api::library::KansoLibrary::discovery(
-                    &*api_that_guard,
-                ))?;
-                std::result::Result::Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__library__KansoLibrary_drafting_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoLibrary_drafting",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Ok::<_, ()>(crate::api::library::KansoLibrary::drafting(
                     &*api_that_guard,
                 ))?;
                 std::result::Result::Ok(output_ok)
@@ -12963,54 +11763,6 @@ fn wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
                     std::result::Result::Ok(output_ok)
                 })())
             }
-        },
-    )
-}
-fn wire__crate__api__library__KansoLibrary_voice_capture_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoLibrary_voice_capture",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_that_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_that, 0, false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Ok::<_, ()>(crate::api::library::KansoLibrary::voice_capture(
-                    &*api_that_guard,
-                ))?;
-                std::result::Result::Ok(output_ok)
-            })())
         },
     )
 }
@@ -19607,454 +18359,6 @@ fn wire__crate__api__triage__KansoTriage_unreject_impl(
         },
     )
 }
-fn wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_discard_drop",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_inbox = <String>::sse_decode(&mut deserializer);
-            let api_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::voice_capture::KansoVoiceCapture::discard_drop(
-                        &*api_that_guard,
-                        api_inbox,
-                        api_id,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_drops",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_inbox = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::voice_capture::KansoVoiceCapture::drops(
-                        &*api_that_guard,
-                        api_inbox,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_note_info",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::voice_capture::KansoVoiceCapture::note_info(
-                        &*api_that_guard,
-                        api_id,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_quarantine_drop",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_inbox = <String>::sse_decode(&mut deserializer);
-            let api_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::voice_capture::KansoVoiceCapture::quarantine_drop(
-                        &*api_that_guard,
-                        api_inbox,
-                        api_id,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_save",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_input =
-                <crate::api::voice_capture_types::VoiceCaptureInput>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::voice_capture::KansoVoiceCapture::save(
-                        &*api_that_guard,
-                        api_input,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_save_drop",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_inbox = <String>::sse_decode(&mut deserializer);
-            let api_id = <String>::sse_decode(&mut deserializer);
-            let api_transcript = <String>::sse_decode(&mut deserializer);
-            let api_on_device = <bool>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::voice_capture::KansoVoiceCapture::save_drop(
-                        &*api_that_guard,
-                        api_inbox,
-                        api_id,
-                        api_transcript,
-                        api_on_device,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_save_drop_audio_only",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_inbox = <String>::sse_decode(&mut deserializer);
-            let api_id = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok =
-                        crate::api::voice_capture::KansoVoiceCapture::save_drop_audio_only(
-                            &*api_that_guard,
-                            api_inbox,
-                            api_id,
-                        )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "KansoVoiceCapture_tidy_note",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-            >>::sse_decode(&mut deserializer);
-            let api_id = <String>::sse_decode(&mut deserializer);
-            let api_run = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, crate::api::types::KansoError>((move || {
-                    let mut api_that_guard = None;
-                    let mut api_run_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_run, 1, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let api_run_guard = api_run_guard.unwrap();
-                    let output_ok = crate::api::voice_capture::KansoVoiceCapture::tidy_note(
-                        &*api_that_guard,
-                        api_id,
-                        &*api_run_guard,
-                    )?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__diagnostics__backup_excluded_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -20685,11 +18989,6 @@ const _: fn() = || {
         let _: String = AiSummary.text;
         let _: Option<String> = AiSummary.warning;
     }
-    {
-        let Answered = None::<crate::api::cards_types::Answered>.unwrap();
-        let _: i64 = Answered.due_ms;
-        let _: u32 = Answered.waiting;
-    }
     match None::<crate::api::types::ApprovalPhase>.unwrap() {
         crate::api::types::ApprovalPhase::Requesting => {}
         crate::api::types::ApprovalPhase::Waiting => {}
@@ -20847,24 +19146,6 @@ const _: fn() = || {
         }
     }
     {
-        let CardPair = None::<crate::api::cards_types::CardPair>.unwrap();
-        let _: String = CardPair.question;
-        let _: String = CardPair.answer;
-    }
-    {
-        let CardScopeArg = None::<crate::api::cards_types::CardScopeArg>.unwrap();
-        let _: crate::api::cards_types::CardScopeKind = CardScopeArg.kind;
-        let _: String = CardScopeArg.id;
-    }
-    {
-        let CardSettingsView = None::<crate::api::cards_types::CardSettingsView>.unwrap();
-        let _: u32 = CardSettingsView.new_per_day;
-        let _: u32 = CardSettingsView.reviews_per_day;
-        let _: f64 = CardSettingsView.retention;
-        let _: Option<String> = CardSettingsView.reminder;
-        let _: bool = CardSettingsView.show_icons;
-    }
-    {
         let Changed = None::<crate::api::types::Changed>.unwrap();
         let _: u32 = Changed.count;
         let _: Option<u64> = Changed.undo;
@@ -20973,70 +19254,6 @@ const _: fn() = || {
         let _: Option<u64> = DiscoveryMeasure.resident_after;
         let _: u32 = DiscoveryMeasure.notes;
         let _: f64 = DiscoveryMeasure.notes_per_second;
-    }
-    {
-        let DraftCite = None::<crate::api::draft_types::DraftCite>.unwrap();
-        let _: u32 = DraftCite.number;
-        let _: Option<String> = DraftCite.heading;
-    }
-    match None::<crate::api::draft_types::DraftEvent>.unwrap() {
-        crate::api::draft_types::DraftEvent::Status { line } => {
-            let _: String = line;
-        }
-        crate::api::draft_types::DraftEvent::Text { draft } => {
-            let _: crate::api::draft_types::DraftView = draft;
-        }
-        crate::api::draft_types::DraftEvent::Done { draft, sources } => {
-            let _: crate::api::draft_types::DraftView = draft;
-            let _: Vec<crate::api::draft_types::DraftSourceRef> = sources;
-        }
-        crate::api::draft_types::DraftEvent::CutOff { message } => {
-            let _: String = message;
-        }
-        crate::api::draft_types::DraftEvent::Failed { message } => {
-            let _: String = message;
-        }
-        crate::api::draft_types::DraftEvent::Stopped => {}
-    }
-    {
-        let DraftPreview = None::<crate::api::draft_types::DraftPreview>.unwrap();
-        let _: String = DraftPreview.title;
-        let _: String = DraftPreview.markdown;
-        let _: String = DraftPreview.default_book_id;
-    }
-    {
-        let DraftSourceNote = None::<crate::api::draft_types::DraftSourceNote>.unwrap();
-        let _: String = DraftSourceNote.id;
-        let _: String = DraftSourceNote.title;
-        let _: u32 = DraftSourceNote.words;
-    }
-    {
-        let DraftSourceRef = None::<crate::api::draft_types::DraftSourceRef>.unwrap();
-        let _: u32 = DraftSourceRef.number;
-        let _: String = DraftSourceRef.id;
-        let _: String = DraftSourceRef.title;
-    }
-    {
-        let DraftSources = None::<crate::api::draft_types::DraftSources>.unwrap();
-        let _: Vec<crate::api::draft_types::DraftSourceNote> = DraftSources.notes;
-        let _: u32 = DraftSources.left_out_locked;
-        let _: u32 = DraftSources.left_out_excluded;
-        let _: bool = DraftSources.too_many;
-        let _: String = DraftSources.summary;
-    }
-    {
-        let DraftSpan = None::<crate::api::draft_types::DraftSpan>.unwrap();
-        let _: u32 = DraftSpan.start;
-        let _: u32 = DraftSpan.end;
-        let _: Vec<crate::api::draft_types::DraftCite> = DraftSpan.cites;
-        let _: bool = DraftSpan.unsourced;
-    }
-    {
-        let DraftView = None::<crate::api::draft_types::DraftView>.unwrap();
-        let _: String = DraftView.text;
-        let _: Vec<crate::api::draft_types::DraftSpan> = DraftView.spans;
-        let _: u32 = DraftView.removed;
-        let _: bool = DraftView.not_covered;
     }
     {
         let DropsSaved = None::<crate::api::types::DropsSaved>.unwrap();
@@ -21168,21 +19385,6 @@ const _: fn() = || {
             let _: u32 = field0;
         }
     }
-    match None::<crate::api::cards_types::GradeEvent>.unwrap() {
-        crate::api::cards_types::GradeEvent::Graded {
-            verdict,
-            label,
-            comment,
-        } => {
-            let _: crate::api::cards_types::QuizVerdict = verdict;
-            let _: String = label;
-            let _: String = comment;
-        }
-        crate::api::cards_types::GradeEvent::Failed { message } => {
-            let _: String = message;
-        }
-        crate::api::cards_types::GradeEvent::Stopped => {}
-    }
     {
         let GraphEdgeRow = None::<crate::api::types::GraphEdgeRow>.unwrap();
         let _: u32 = GraphEdgeRow.from;
@@ -21224,14 +19426,6 @@ const _: fn() = || {
             let _: String = center;
             let _: u8 = hops;
         }
-    }
-    {
-        let HardCardView = None::<crate::api::cards_types::HardCardView>.unwrap();
-        let _: String = HardCardView.note_id;
-        let _: String = HardCardView.note_title;
-        let _: u32 = HardCardView.line;
-        let _: String = HardCardView.question;
-        let _: u32 = HardCardView.agains;
     }
     {
         let HistoryState = None::<crate::api::types::HistoryState>.unwrap();
@@ -21607,16 +19801,6 @@ const _: fn() = || {
         let _: Option<String> = NewNote.preferred_notebook_id;
         let _: Vec<String> = NewNote.tags;
         let _: bool = NewNote.pinned;
-    }
-    {
-        let NoteCardView = None::<crate::api::cards_types::NoteCardView>.unwrap();
-        let _: String = NoteCardView.card_key;
-        let _: u32 = NoteCardView.line;
-        let _: String = NoteCardView.question;
-        let _: String = NoteCardView.answer;
-        let _: Option<i64> = NoteCardView.due_ms;
-        let _: bool = NoteCardView.suspended;
-        let _: bool = NoteCardView.duplicate;
     }
     match None::<crate::api::types::NoteChange>.unwrap() {
         crate::api::types::NoteChange::TogglePin => {}
@@ -22119,25 +20303,6 @@ const _: fn() = || {
         }
         crate::api::types::ProviderEvent::Cancelled => {}
     }
-    match None::<crate::api::cards_types::QuizEvent>.unwrap() {
-        crate::api::cards_types::QuizEvent::Status { line } => {
-            let _: String = line;
-        }
-        crate::api::cards_types::QuizEvent::Questions { items } => {
-            let _: Vec<crate::api::cards_types::QuizItem> = items;
-        }
-        crate::api::cards_types::QuizEvent::Failed { message } => {
-            let _: String = message;
-        }
-        crate::api::cards_types::QuizEvent::Stopped => {}
-    }
-    {
-        let QuizItem = None::<crate::api::cards_types::QuizItem>.unwrap();
-        let _: String = QuizItem.question;
-        let _: String = QuizItem.note_id;
-        let _: String = QuizItem.note_title;
-        let _: Option<String> = QuizItem.source;
-    }
     {
         let Range16 = None::<crate::api::types::Range16>.unwrap();
         let _: u32 = Range16.start;
@@ -22261,25 +20426,6 @@ const _: fn() = || {
         let _: Option<String> = ResurfaceRow.before;
     }
     {
-        let ReviewCard = None::<crate::api::cards_types::ReviewCard>.unwrap();
-        let _: String = ReviewCard.card_key;
-        let _: String = ReviewCard.note_id;
-        let _: String = ReviewCard.note_title;
-        let _: u32 = ReviewCard.line;
-        let _: String = ReviewCard.question;
-        let _: String = ReviewCard.answer;
-        let _: bool = ReviewCard.is_new;
-        let _: Vec<String> = ReviewCard.intervals;
-    }
-    {
-        let ReviewCounts = None::<crate::api::cards_types::ReviewCounts>.unwrap();
-        let _: u32 = ReviewCounts.total;
-        let _: u32 = ReviewCounts.due;
-        let _: u32 = ReviewCounts.new_cards;
-        let _: u32 = ReviewCounts.suspended;
-        let _: u32 = ReviewCounts.waiting;
-    }
-    {
         let ReviewFinished = None::<crate::api::types::ReviewFinished>.unwrap();
         let _: String = ReviewFinished.note_id;
         let _: String = ReviewFinished.note_title;
@@ -22290,14 +20436,6 @@ const _: fn() = || {
         let ReviewSaved = None::<crate::api::types::ReviewSaved>.unwrap();
         let _: String = ReviewSaved.note_id;
         let _: bool = ReviewSaved.exists;
-    }
-    {
-        let ReviewStats = None::<crate::api::cards_types::ReviewStats>.unwrap();
-        let _: crate::api::cards_types::ReviewCounts = ReviewStats.counts;
-        let _: Vec<u32> = ReviewStats.per_day;
-        let _: Option<f64> = ReviewStats.retention;
-        let _: Vec<u32> = ReviewStats.forecast;
-        let _: Vec<crate::api::cards_types::HardCardView> = ReviewStats.hardest;
     }
     {
         let ReviewTheme = None::<crate::api::types::ReviewTheme>.unwrap();
@@ -22440,26 +20578,6 @@ const _: fn() = || {
         let _: Option<u32> = StyledRun.color;
         let _: Option<bool> = StyledRun.italic;
         let _: Option<u16> = StyledRun.weight;
-    }
-    match None::<crate::api::cards_types::SuggestEvent>.unwrap() {
-        crate::api::cards_types::SuggestEvent::Status { line } => {
-            let _: String = line;
-        }
-        crate::api::cards_types::SuggestEvent::Done { cards } => {
-            let _: Vec<crate::api::cards_types::SuggestedCard> = cards;
-        }
-        crate::api::cards_types::SuggestEvent::Failed { message } => {
-            let _: String = message;
-        }
-        crate::api::cards_types::SuggestEvent::Stopped => {}
-    }
-    {
-        let SuggestedCard = None::<crate::api::cards_types::SuggestedCard>.unwrap();
-        let _: String = SuggestedCard.question;
-        let _: String = SuggestedCard.answer;
-        let _: Option<String> = SuggestedCard.source;
-        let _: Option<u32> = SuggestedCard.line;
-        let _: bool = SuggestedCard.source_missing;
     }
     {
         let SuggestedTag = None::<crate::api::types::SuggestedTag>.unwrap();
@@ -22659,12 +20777,6 @@ const _: fn() = || {
         crate::api::types::Ticked::Missing => {}
     }
     {
-        let TidyOutcome = None::<crate::api::voice_capture_types::TidyOutcome>.unwrap();
-        let _: bool = TidyOutcome.inserted_above;
-        let _: u32 = TidyOutcome.dropped;
-        let _: Option<u64> = TidyOutcome.undo;
-    }
-    {
         let TriageCard = None::<crate::api::triage_types::TriageCard>.unwrap();
         let _: String = TriageCard.note_id;
         let _: String = TriageCard.rev;
@@ -22733,35 +20845,6 @@ const _: fn() = || {
         let _: bool = VisibleNotebook.open;
         let _: bool = VisibleNotebook.parent;
     }
-    {
-        let VoiceCaptureInput = None::<crate::api::voice_capture_types::VoiceCaptureInput>.unwrap();
-        let _: String = VoiceCaptureInput.id;
-        let _: i64 = VoiceCaptureInput.started_ms;
-        let _: u64 = VoiceCaptureInput.duration_ms;
-        let _: String = VoiceCaptureInput.transcript;
-        let _: bool = VoiceCaptureInput.on_device;
-    }
-    {
-        let VoiceCaptureSaved = None::<crate::api::voice_capture_types::VoiceCaptureSaved>.unwrap();
-        let _: Option<String> = VoiceCaptureSaved.note_id;
-        let _: Vec<String> = VoiceCaptureSaved.problems;
-        let _: bool = VoiceCaptureSaved.existed;
-        let _: bool = VoiceCaptureSaved.meeting;
-        let _: bool = VoiceCaptureSaved.tidy_now;
-    }
-    {
-        let VoiceDrop = None::<crate::api::voice_capture_types::VoiceDrop>.unwrap();
-        let _: String = VoiceDrop.id;
-        let _: String = VoiceDrop.audio_path;
-        let _: i64 = VoiceDrop.started_ms;
-        let _: u64 = VoiceDrop.duration_ms;
-    }
-    {
-        let VoiceNoteInfo = None::<crate::api::voice_capture_types::VoiceNoteInfo>.unwrap();
-        let _: String = VoiceNoteInfo.tidy;
-        let _: u64 = VoiceNoteInfo.duration_ms;
-        let _: bool = VoiceNoteInfo.can_tidy;
-    }
 };
 
 // Section: related_funcs
@@ -22788,13 +20871,7 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDiscovery>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoEditor>
@@ -22831,9 +20908,6 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoTriage>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>
 );
 
 // Section: dart2rust
@@ -22916,31 +20990,11 @@ impl SseDecode for KansoAskConversation {
     }
 }
 
-impl SseDecode for KansoCards {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
 impl SseDecode for KansoDiscovery {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDiscovery>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for KansoDrafting {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -23066,16 +21120,6 @@ impl SseDecode for KansoTriage {
     }
 }
 
-impl SseDecode for KansoVoiceCapture {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
 impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAccount>>
 {
@@ -23145,27 +21189,7 @@ impl SseDecode
 }
 
 impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDiscovery>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -23295,16 +21319,6 @@ impl SseDecode
 }
 
 impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
     for StreamSink<crate::api::types::AccountState, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -23345,33 +21359,7 @@ impl SseDecode
 }
 
 impl SseDecode
-    for StreamSink<
-        crate::api::draft_types::DraftEvent,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <String>::sse_decode(deserializer);
-        return StreamSink::deserialize(inner);
-    }
-}
-
-impl SseDecode
     for StreamSink<crate::api::types::EditorEvent, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <String>::sse_decode(deserializer);
-        return StreamSink::deserialize(inner);
-    }
-}
-
-impl SseDecode
-    for StreamSink<
-        crate::api::cards_types::GradeEvent,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -23442,16 +21430,6 @@ impl SseDecode
 }
 
 impl SseDecode
-    for StreamSink<crate::api::cards_types::QuizEvent, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <String>::sse_decode(deserializer);
-        return StreamSink::deserialize(inner);
-    }
-}
-
-impl SseDecode
     for StreamSink<crate::api::types::RelatedState, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -23463,19 +21441,6 @@ impl SseDecode
 
 impl SseDecode
     for StreamSink<crate::api::types::SharedEvent, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <String>::sse_decode(deserializer);
-        return StreamSink::deserialize(inner);
-    }
-}
-
-impl SseDecode
-    for StreamSink<
-        crate::api::cards_types::SuggestEvent,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -23644,12 +21609,18 @@ impl SseDecode for crate::api::ai::AiSettingsInput {
         let mut var_baseUrl = <String>::sse_decode(deserializer);
         let mut var_model = <String>::sse_decode(deserializer);
         let mut var_region = <String>::sse_decode(deserializer);
+        let mut var_askBudget = <String>::sse_decode(deserializer);
+        let mut var_checkSources = <bool>::sse_decode(deserializer);
+        let mut var_useLinks = <bool>::sse_decode(deserializer);
         return crate::api::ai::AiSettingsInput {
             enabled: var_enabled,
             provider: var_provider,
             base_url: var_baseUrl,
             model: var_model,
             region: var_region,
+            ask_budget: var_askBudget,
+            check_sources: var_checkSources,
+            use_links: var_useLinks,
         };
     }
 }
@@ -23665,6 +21636,11 @@ impl SseDecode for crate::api::ai::AiSettingsView {
         let mut var_hasKey = <bool>::sse_decode(deserializer);
         let mut var_host = <String>::sse_decode(deserializer);
         let mut var_isRemote = <bool>::sse_decode(deserializer);
+        let mut var_askBudget = <String>::sse_decode(deserializer);
+        let mut var_budgetWordsLine = <String>::sse_decode(deserializer);
+        let mut var_budgetCostLine = <String>::sse_decode(deserializer);
+        let mut var_checkSources = <bool>::sse_decode(deserializer);
+        let mut var_useLinks = <bool>::sse_decode(deserializer);
         return crate::api::ai::AiSettingsView {
             enabled: var_enabled,
             provider: var_provider,
@@ -23674,6 +21650,11 @@ impl SseDecode for crate::api::ai::AiSettingsView {
             has_key: var_hasKey,
             host: var_host,
             is_remote: var_isRemote,
+            ask_budget: var_askBudget,
+            budget_words_line: var_budgetWordsLine,
+            budget_cost_line: var_budgetCostLine,
+            check_sources: var_checkSources,
+            use_links: var_useLinks,
         };
     }
 }
@@ -23686,18 +21667,6 @@ impl SseDecode for crate::api::types::AiSummary {
         return crate::api::types::AiSummary {
             text: var_text,
             warning: var_warning,
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::Answered {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_dueMs = <i64>::sse_decode(deserializer);
-        let mut var_waiting = <u32>::sse_decode(deserializer);
-        return crate::api::cards_types::Answered {
-            due_ms: var_dueMs,
-            waiting: var_waiting,
         };
     }
 }
@@ -23780,6 +21749,22 @@ impl SseDecode for crate::api::types::ApprovalWait {
     }
 }
 
+impl SseDecode for crate::api::ai::AskClosest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_noteId = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_start = <u32>::sse_decode(deserializer);
+        let mut var_end = <u32>::sse_decode(deserializer);
+        return crate::api::ai::AskClosest {
+            note_id: var_noteId,
+            title: var_title,
+            start: var_start,
+            end: var_end,
+        };
+    }
+}
+
 impl SseDecode for crate::api::ai::AskEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -23803,32 +21788,52 @@ impl SseDecode for crate::api::ai::AskEvent {
                 };
             }
             4 => {
+                let mut var_time = <crate::api::ai::AskTime>::sse_decode(deserializer);
+                return crate::api::ai::AskEvent::Time { time: var_time };
+            }
+            5 => {
                 let mut var_markdown = <String>::sse_decode(deserializer);
                 let mut var_notes = <Vec<crate::api::ai::AskNote>>::sse_decode(deserializer);
+                let mut var_receipts = <Vec<crate::api::ai::AskReceipt>>::sse_decode(deserializer);
+                let mut var_alsoRead = <Vec<crate::api::ai::AskNote>>::sse_decode(deserializer);
+                let mut var_banner = <String>::sse_decode(deserializer);
+                let mut var_unverified = <u32>::sse_decode(deserializer);
+                let mut var_neverWrote = <bool>::sse_decode(deserializer);
+                let mut var_closest = <Vec<crate::api::ai::AskClosest>>::sse_decode(deserializer);
+                let mut var_time = <Option<crate::api::ai::AskTime>>::sse_decode(deserializer);
                 return crate::api::ai::AskEvent::Done {
                     markdown: var_markdown,
                     notes: var_notes,
-                };
-            }
-            5 => {
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::ai::AskEvent::NothingMatches {
-                    message: var_message,
+                    receipts: var_receipts,
+                    also_read: var_alsoRead,
+                    banner: var_banner,
+                    unverified: var_unverified,
+                    never_wrote: var_neverWrote,
+                    closest: var_closest,
+                    time: var_time,
                 };
             }
             6 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_narrow = <bool>::sse_decode(deserializer);
+                return crate::api::ai::AskEvent::NothingMatches {
+                    message: var_message,
+                    narrow: var_narrow,
+                };
+            }
+            7 => {
                 let mut var_message = <String>::sse_decode(deserializer);
                 return crate::api::ai::AskEvent::CutOff {
                     message: var_message,
                 };
             }
-            7 => {
+            8 => {
                 let mut var_message = <String>::sse_decode(deserializer);
                 return crate::api::ai::AskEvent::Failed {
                     message: var_message,
                 };
             }
-            8 => {
+            9 => {
                 return crate::api::ai::AskEvent::Stopped;
             }
             _ => {
@@ -23846,6 +21851,66 @@ impl SseDecode for crate::api::ai::AskNote {
         return crate::api::ai::AskNote {
             id: var_id,
             title: var_title,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai::AskReceipt {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_n = <u32>::sse_decode(deserializer);
+        let mut var_noteId = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_start = <u32>::sse_decode(deserializer);
+        let mut var_end = <u32>::sse_decode(deserializer);
+        let mut var_quote = <String>::sse_decode(deserializer);
+        return crate::api::ai::AskReceipt {
+            n: var_n,
+            note_id: var_noteId,
+            title: var_title,
+            label: var_label,
+            start: var_start,
+            end: var_end,
+            quote: var_quote,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai::AskScopeInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_value = <String>::sse_decode(deserializer);
+        return crate::api::ai::AskScopeInput {
+            kind: var_kind,
+            value: var_value,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai::AskScopeOption {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_value = <String>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        return crate::api::ai::AskScopeOption {
+            kind: var_kind,
+            value: var_value,
+            label: var_label,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ai::AskTime {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_relaxedLine = <String>::sse_decode(deserializer);
+        return crate::api::ai::AskTime {
+            label: var_label,
+            relaxed_line: var_relaxedLine,
         };
     }
 }
@@ -24219,62 +22284,6 @@ impl SseDecode for crate::api::types::CardMoved {
     }
 }
 
-impl SseDecode for crate::api::cards_types::CardPair {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_question = <String>::sse_decode(deserializer);
-        let mut var_answer = <String>::sse_decode(deserializer);
-        return crate::api::cards_types::CardPair {
-            question: var_question,
-            answer: var_answer,
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::CardScopeArg {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_kind = <crate::api::cards_types::CardScopeKind>::sse_decode(deserializer);
-        let mut var_id = <String>::sse_decode(deserializer);
-        return crate::api::cards_types::CardScopeArg {
-            kind: var_kind,
-            id: var_id,
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::CardScopeKind {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::cards_types::CardScopeKind::All,
-            1 => crate::api::cards_types::CardScopeKind::Notebook,
-            2 => crate::api::cards_types::CardScopeKind::Tag,
-            3 => crate::api::cards_types::CardScopeKind::Note,
-            _ => unreachable!("Invalid variant for CardScopeKind: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::CardSettingsView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_newPerDay = <u32>::sse_decode(deserializer);
-        let mut var_reviewsPerDay = <u32>::sse_decode(deserializer);
-        let mut var_retention = <f64>::sse_decode(deserializer);
-        let mut var_reminder = <Option<String>>::sse_decode(deserializer);
-        let mut var_showIcons = <bool>::sse_decode(deserializer);
-        return crate::api::cards_types::CardSettingsView {
-            new_per_day: var_newPerDay,
-            reviews_per_day: var_reviewsPerDay,
-            retention: var_retention,
-            reminder: var_reminder,
-            show_icons: var_showIcons,
-        };
-    }
-}
-
 impl SseDecode for crate::api::types::Changed {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -24596,183 +22605,6 @@ impl SseDecode for crate::api::types::DiscoveryMeasure {
             resident_after: var_residentAfter,
             notes: var_notes,
             notes_per_second: var_notesPerSecond,
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftCite {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_number = <u32>::sse_decode(deserializer);
-        let mut var_heading = <Option<String>>::sse_decode(deserializer);
-        return crate::api::draft_types::DraftCite {
-            number: var_number,
-            heading: var_heading,
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_line = <String>::sse_decode(deserializer);
-                return crate::api::draft_types::DraftEvent::Status { line: var_line };
-            }
-            1 => {
-                let mut var_draft = <crate::api::draft_types::DraftView>::sse_decode(deserializer);
-                return crate::api::draft_types::DraftEvent::Text { draft: var_draft };
-            }
-            2 => {
-                let mut var_draft = <crate::api::draft_types::DraftView>::sse_decode(deserializer);
-                let mut var_sources =
-                    <Vec<crate::api::draft_types::DraftSourceRef>>::sse_decode(deserializer);
-                return crate::api::draft_types::DraftEvent::Done {
-                    draft: var_draft,
-                    sources: var_sources,
-                };
-            }
-            3 => {
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::draft_types::DraftEvent::CutOff {
-                    message: var_message,
-                };
-            }
-            4 => {
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::draft_types::DraftEvent::Failed {
-                    message: var_message,
-                };
-            }
-            5 => {
-                return crate::api::draft_types::DraftEvent::Stopped;
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftLength {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::draft_types::DraftLength::Short,
-            1 => crate::api::draft_types::DraftLength::Medium,
-            2 => crate::api::draft_types::DraftLength::Long,
-            _ => unreachable!("Invalid variant for DraftLength: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftPreview {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_title = <String>::sse_decode(deserializer);
-        let mut var_markdown = <String>::sse_decode(deserializer);
-        let mut var_defaultBookId = <String>::sse_decode(deserializer);
-        return crate::api::draft_types::DraftPreview {
-            title: var_title,
-            markdown: var_markdown,
-            default_book_id: var_defaultBookId,
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftShape {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::draft_types::DraftShape::Report,
-            1 => crate::api::draft_types::DraftShape::Essay,
-            2 => crate::api::draft_types::DraftShape::Update,
-            3 => crate::api::draft_types::DraftShape::Outline,
-            4 => crate::api::draft_types::DraftShape::Custom,
-            _ => unreachable!("Invalid variant for DraftShape: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftSourceNote {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_id = <String>::sse_decode(deserializer);
-        let mut var_title = <String>::sse_decode(deserializer);
-        let mut var_words = <u32>::sse_decode(deserializer);
-        return crate::api::draft_types::DraftSourceNote {
-            id: var_id,
-            title: var_title,
-            words: var_words,
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftSourceRef {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_number = <u32>::sse_decode(deserializer);
-        let mut var_id = <String>::sse_decode(deserializer);
-        let mut var_title = <String>::sse_decode(deserializer);
-        return crate::api::draft_types::DraftSourceRef {
-            number: var_number,
-            id: var_id,
-            title: var_title,
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftSources {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_notes =
-            <Vec<crate::api::draft_types::DraftSourceNote>>::sse_decode(deserializer);
-        let mut var_leftOutLocked = <u32>::sse_decode(deserializer);
-        let mut var_leftOutExcluded = <u32>::sse_decode(deserializer);
-        let mut var_tooMany = <bool>::sse_decode(deserializer);
-        let mut var_summary = <String>::sse_decode(deserializer);
-        return crate::api::draft_types::DraftSources {
-            notes: var_notes,
-            left_out_locked: var_leftOutLocked,
-            left_out_excluded: var_leftOutExcluded,
-            too_many: var_tooMany,
-            summary: var_summary,
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftSpan {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_start = <u32>::sse_decode(deserializer);
-        let mut var_end = <u32>::sse_decode(deserializer);
-        let mut var_cites = <Vec<crate::api::draft_types::DraftCite>>::sse_decode(deserializer);
-        let mut var_unsourced = <bool>::sse_decode(deserializer);
-        return crate::api::draft_types::DraftSpan {
-            start: var_start,
-            end: var_end,
-            cites: var_cites,
-            unsourced: var_unsourced,
-        };
-    }
-}
-
-impl SseDecode for crate::api::draft_types::DraftView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_text = <String>::sse_decode(deserializer);
-        let mut var_spans = <Vec<crate::api::draft_types::DraftSpan>>::sse_decode(deserializer);
-        let mut var_removed = <u32>::sse_decode(deserializer);
-        let mut var_notCovered = <bool>::sse_decode(deserializer);
-        return crate::api::draft_types::DraftView {
-            text: var_text,
-            spans: var_spans,
-            removed: var_removed,
-            not_covered: var_notCovered,
         };
     }
 }
@@ -25148,38 +22980,6 @@ impl SseDecode for crate::api::types::GoalSetting {
     }
 }
 
-impl SseDecode for crate::api::cards_types::GradeEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_verdict =
-                    <crate::api::cards_types::QuizVerdict>::sse_decode(deserializer);
-                let mut var_label = <String>::sse_decode(deserializer);
-                let mut var_comment = <String>::sse_decode(deserializer);
-                return crate::api::cards_types::GradeEvent::Graded {
-                    verdict: var_verdict,
-                    label: var_label,
-                    comment: var_comment,
-                };
-            }
-            1 => {
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::cards_types::GradeEvent::Failed {
-                    message: var_message,
-                };
-            }
-            2 => {
-                return crate::api::cards_types::GradeEvent::Stopped;
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
 impl SseDecode for crate::api::types::GraphEdgeRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -25278,24 +23078,6 @@ impl SseDecode for crate::api::types::GraphRequest {
                 unimplemented!("");
             }
         }
-    }
-}
-
-impl SseDecode for crate::api::cards_types::HardCardView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_noteId = <String>::sse_decode(deserializer);
-        let mut var_noteTitle = <String>::sse_decode(deserializer);
-        let mut var_line = <u32>::sse_decode(deserializer);
-        let mut var_question = <String>::sse_decode(deserializer);
-        let mut var_agains = <u32>::sse_decode(deserializer);
-        return crate::api::cards_types::HardCardView {
-            note_id: var_noteId,
-            note_title: var_noteTitle,
-            line: var_line,
-            question: var_question,
-            agains: var_agains,
-        };
     }
 }
 
@@ -25747,6 +23529,18 @@ impl SseDecode for Vec<crate::api::types::ApprovalPrompt> {
     }
 }
 
+impl SseDecode for Vec<crate::api::ai::AskClosest> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::ai::AskClosest>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::ai::AskNote> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -25754,6 +23548,30 @@ impl SseDecode for Vec<crate::api::ai::AskNote> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::ai::AskNote>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::ai::AskReceipt> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::ai::AskReceipt>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::ai::AskScopeOption> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::ai::AskScopeOption>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -25850,20 +23668,6 @@ impl SseDecode for Vec<crate::api::types::CalendarDay> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::CalendarDay>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::cards_types::CardPair> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::cards_types::CardPair>::sse_decode(
-                deserializer,
-            ));
         }
         return ans_;
     }
@@ -25967,62 +23771,6 @@ impl SseDecode for Vec<crate::api::types::DiffLine> {
     }
 }
 
-impl SseDecode for Vec<crate::api::draft_types::DraftCite> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::draft_types::DraftCite>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::draft_types::DraftSourceNote> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::draft_types::DraftSourceNote>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::draft_types::DraftSourceRef> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::draft_types::DraftSourceRef>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::draft_types::DraftSpan> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::draft_types::DraftSpan>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
 impl SseDecode for Vec<crate::api::types::EditorRun> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -26066,20 +23814,6 @@ impl SseDecode for Vec<crate::api::types::GraphNodeRow> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::GraphNodeRow>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::cards_types::HardCardView> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::cards_types::HardCardView>::sse_decode(
-                deserializer,
-            ));
         }
         return ans_;
     }
@@ -26328,20 +24062,6 @@ impl SseDecode for Vec<crate::api::types::MentionSpan> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::MentionSpan>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::cards_types::NoteCardView> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::cards_types::NoteCardView>::sse_decode(
-                deserializer,
-            ));
         }
         return ans_;
     }
@@ -26745,20 +24465,6 @@ impl SseDecode for crate::api::types::ListQuery {
     }
 }
 
-impl SseDecode for Vec<crate::api::cards_types::QuizItem> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::cards_types::QuizItem>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
 impl SseDecode for Vec<crate::api::types::Range16> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -26780,18 +24486,6 @@ impl SseDecode for Vec<(String, crate::api::types::ShareRole)> {
             ans_.push(<(String, crate::api::types::ShareRole)>::sse_decode(
                 deserializer,
             ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<(u32, u32)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<(u32, u32)>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -26852,20 +24546,6 @@ impl SseDecode for Vec<crate::api::types::ResurfaceRow> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::ResurfaceRow>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::cards_types::ReviewCard> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::cards_types::ReviewCard>::sse_decode(
-                deserializer,
-            ));
         }
         return ans_;
     }
@@ -27004,20 +24684,6 @@ impl SseDecode for Vec<crate::api::types::StyledRun> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::StyledRun>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::cards_types::SuggestedCard> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::cards_types::SuggestedCard>::sse_decode(
-                deserializer,
-            ));
         }
         return ans_;
     }
@@ -27269,20 +24935,6 @@ impl SseDecode for Vec<crate::api::types::VisibleNotebook> {
     }
 }
 
-impl SseDecode for Vec<crate::api::voice_capture_types::VoiceDrop> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::voice_capture_types::VoiceDrop>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
 impl SseDecode for crate::api::types::LiveBatch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -27448,8 +25100,7 @@ impl SseDecode for crate::api::types::LiveDocStyleKind {
             5 => crate::api::types::LiveDocStyleKind::Heading,
             6 => crate::api::types::LiveDocStyleKind::InlineMath,
             7 => crate::api::types::LiveDocStyleKind::Quote,
-            8 => crate::api::types::LiveDocStyleKind::CardSeparator,
-            9 => crate::api::types::LiveDocStyleKind::TaskDone,
+            8 => crate::api::types::LiveDocStyleKind::TaskDone,
             _ => unreachable!("Invalid variant for LiveDocStyleKind: {}", inner),
         };
     }
@@ -27820,28 +25471,6 @@ impl SseDecode for crate::api::types::NewNote {
     }
 }
 
-impl SseDecode for crate::api::cards_types::NoteCardView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_cardKey = <String>::sse_decode(deserializer);
-        let mut var_line = <u32>::sse_decode(deserializer);
-        let mut var_question = <String>::sse_decode(deserializer);
-        let mut var_answer = <String>::sse_decode(deserializer);
-        let mut var_dueMs = <Option<i64>>::sse_decode(deserializer);
-        let mut var_suspended = <bool>::sse_decode(deserializer);
-        let mut var_duplicate = <bool>::sse_decode(deserializer);
-        return crate::api::cards_types::NoteCardView {
-            card_key: var_cardKey,
-            line: var_line,
-            question: var_question,
-            answer: var_answer,
-            due_ms: var_dueMs,
-            suspended: var_suspended,
-            duplicate: var_duplicate,
-        };
-    }
-}
-
 impl SseDecode for crate::api::types::NoteChange {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -28183,6 +25812,17 @@ impl SseDecode for Option<String> {
     }
 }
 
+impl SseDecode for Option<crate::api::ai::AskTime> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::ai::AskTime>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::types::BackupFile> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -28287,17 +25927,6 @@ impl SseDecode for Option<f32> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<f32>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<f64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<f64>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -28598,19 +26227,6 @@ impl SseDecode for Option<u32> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<u32>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<crate::api::voice_capture_types::VoiceNoteInfo> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(
-                <crate::api::voice_capture_types::VoiceNoteInfo>::sse_decode(deserializer),
-            );
         } else {
             return None;
         }
@@ -29593,65 +27209,6 @@ impl SseDecode for crate::api::types::PushPlatformKind {
     }
 }
 
-impl SseDecode for crate::api::cards_types::QuizEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_line = <String>::sse_decode(deserializer);
-                return crate::api::cards_types::QuizEvent::Status { line: var_line };
-            }
-            1 => {
-                let mut var_items =
-                    <Vec<crate::api::cards_types::QuizItem>>::sse_decode(deserializer);
-                return crate::api::cards_types::QuizEvent::Questions { items: var_items };
-            }
-            2 => {
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::cards_types::QuizEvent::Failed {
-                    message: var_message,
-                };
-            }
-            3 => {
-                return crate::api::cards_types::QuizEvent::Stopped;
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseDecode for crate::api::cards_types::QuizItem {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_question = <String>::sse_decode(deserializer);
-        let mut var_noteId = <String>::sse_decode(deserializer);
-        let mut var_noteTitle = <String>::sse_decode(deserializer);
-        let mut var_source = <Option<String>>::sse_decode(deserializer);
-        return crate::api::cards_types::QuizItem {
-            question: var_question,
-            note_id: var_noteId,
-            note_title: var_noteTitle,
-            source: var_source,
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::QuizVerdict {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::cards_types::QuizVerdict::Right,
-            1 => crate::api::cards_types::QuizVerdict::Partly,
-            2 => crate::api::cards_types::QuizVerdict::Wrong,
-            _ => unreachable!("Invalid variant for QuizVerdict: {}", inner),
-        };
-    }
-}
-
 impl SseDecode for crate::api::types::QuotaLimit {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -29684,15 +27241,6 @@ impl SseDecode for (String, crate::api::types::ShareRole) {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <String>::sse_decode(deserializer);
         let mut var_field1 = <crate::api::types::ShareRole>::sse_decode(deserializer);
-        return (var_field0, var_field1);
-    }
-}
-
-impl SseDecode for (u32, u32) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_field0 = <u32>::sse_decode(deserializer);
-        let mut var_field1 = <u32>::sse_decode(deserializer);
         return (var_field0, var_field1);
     }
 }
@@ -29984,48 +27532,6 @@ impl SseDecode for crate::api::types::ResurfaceRow {
     }
 }
 
-impl SseDecode for crate::api::cards_types::ReviewCard {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_cardKey = <String>::sse_decode(deserializer);
-        let mut var_noteId = <String>::sse_decode(deserializer);
-        let mut var_noteTitle = <String>::sse_decode(deserializer);
-        let mut var_line = <u32>::sse_decode(deserializer);
-        let mut var_question = <String>::sse_decode(deserializer);
-        let mut var_answer = <String>::sse_decode(deserializer);
-        let mut var_isNew = <bool>::sse_decode(deserializer);
-        let mut var_intervals = <Vec<String>>::sse_decode(deserializer);
-        return crate::api::cards_types::ReviewCard {
-            card_key: var_cardKey,
-            note_id: var_noteId,
-            note_title: var_noteTitle,
-            line: var_line,
-            question: var_question,
-            answer: var_answer,
-            is_new: var_isNew,
-            intervals: var_intervals,
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::ReviewCounts {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_total = <u32>::sse_decode(deserializer);
-        let mut var_due = <u32>::sse_decode(deserializer);
-        let mut var_newCards = <u32>::sse_decode(deserializer);
-        let mut var_suspended = <u32>::sse_decode(deserializer);
-        let mut var_waiting = <u32>::sse_decode(deserializer);
-        return crate::api::cards_types::ReviewCounts {
-            total: var_total,
-            due: var_due,
-            new_cards: var_newCards,
-            suspended: var_suspended,
-            waiting: var_waiting,
-        };
-    }
-}
-
 impl SseDecode for crate::api::types::ReviewFinished {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -30050,25 +27556,6 @@ impl SseDecode for crate::api::types::ReviewSaved {
         return crate::api::types::ReviewSaved {
             note_id: var_noteId,
             exists: var_exists,
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::ReviewStats {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_counts = <crate::api::cards_types::ReviewCounts>::sse_decode(deserializer);
-        let mut var_perDay = <Vec<u32>>::sse_decode(deserializer);
-        let mut var_retention = <Option<f64>>::sse_decode(deserializer);
-        let mut var_forecast = <Vec<u32>>::sse_decode(deserializer);
-        let mut var_hardest =
-            <Vec<crate::api::cards_types::HardCardView>>::sse_decode(deserializer);
-        return crate::api::cards_types::ReviewStats {
-            counts: var_counts,
-            per_day: var_perDay,
-            retention: var_retention,
-            forecast: var_forecast,
-            hardest: var_hardest,
         };
     }
 }
@@ -30502,54 +27989,6 @@ impl SseDecode for crate::api::types::StyledRun {
             color: var_color,
             italic: var_italic,
             weight: var_weight,
-        };
-    }
-}
-
-impl SseDecode for crate::api::cards_types::SuggestEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_line = <String>::sse_decode(deserializer);
-                return crate::api::cards_types::SuggestEvent::Status { line: var_line };
-            }
-            1 => {
-                let mut var_cards =
-                    <Vec<crate::api::cards_types::SuggestedCard>>::sse_decode(deserializer);
-                return crate::api::cards_types::SuggestEvent::Done { cards: var_cards };
-            }
-            2 => {
-                let mut var_message = <String>::sse_decode(deserializer);
-                return crate::api::cards_types::SuggestEvent::Failed {
-                    message: var_message,
-                };
-            }
-            3 => {
-                return crate::api::cards_types::SuggestEvent::Stopped;
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseDecode for crate::api::cards_types::SuggestedCard {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_question = <String>::sse_decode(deserializer);
-        let mut var_answer = <String>::sse_decode(deserializer);
-        let mut var_source = <Option<String>>::sse_decode(deserializer);
-        let mut var_line = <Option<u32>>::sse_decode(deserializer);
-        let mut var_sourceMissing = <bool>::sse_decode(deserializer);
-        return crate::api::cards_types::SuggestedCard {
-            question: var_question,
-            answer: var_answer,
-            source: var_source,
-            line: var_line,
-            source_missing: var_sourceMissing,
         };
     }
 }
@@ -31168,20 +28607,6 @@ impl SseDecode for crate::api::types::Ticked {
     }
 }
 
-impl SseDecode for crate::api::voice_capture_types::TidyOutcome {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_insertedAbove = <bool>::sse_decode(deserializer);
-        let mut var_dropped = <u32>::sse_decode(deserializer);
-        let mut var_undo = <Option<u64>>::sse_decode(deserializer);
-        return crate::api::voice_capture_types::TidyOutcome {
-            inserted_above: var_insertedAbove,
-            dropped: var_dropped,
-            undo: var_undo,
-        };
-    }
-}
-
 impl SseDecode for crate::api::triage_types::TriageCard {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -31406,99 +28831,12 @@ impl SseDecode for crate::api::types::VisibleNotebook {
     }
 }
 
-impl SseDecode for crate::api::voice_capture_types::VoiceCaptureInput {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_id = <String>::sse_decode(deserializer);
-        let mut var_startedMs = <i64>::sse_decode(deserializer);
-        let mut var_durationMs = <u64>::sse_decode(deserializer);
-        let mut var_transcript = <String>::sse_decode(deserializer);
-        let mut var_onDevice = <bool>::sse_decode(deserializer);
-        return crate::api::voice_capture_types::VoiceCaptureInput {
-            id: var_id,
-            started_ms: var_startedMs,
-            duration_ms: var_durationMs,
-            transcript: var_transcript,
-            on_device: var_onDevice,
-        };
-    }
-}
-
-impl SseDecode for crate::api::voice_capture_types::VoiceCaptureSaved {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_noteId = <Option<String>>::sse_decode(deserializer);
-        let mut var_problems = <Vec<String>>::sse_decode(deserializer);
-        let mut var_existed = <bool>::sse_decode(deserializer);
-        let mut var_meeting = <bool>::sse_decode(deserializer);
-        let mut var_tidyNow = <bool>::sse_decode(deserializer);
-        return crate::api::voice_capture_types::VoiceCaptureSaved {
-            note_id: var_noteId,
-            problems: var_problems,
-            existed: var_existed,
-            meeting: var_meeting,
-            tidy_now: var_tidyNow,
-        };
-    }
-}
-
-impl SseDecode for crate::api::voice_capture_types::VoiceDrop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_id = <String>::sse_decode(deserializer);
-        let mut var_audioPath = <String>::sse_decode(deserializer);
-        let mut var_startedMs = <i64>::sse_decode(deserializer);
-        let mut var_durationMs = <u64>::sse_decode(deserializer);
-        return crate::api::voice_capture_types::VoiceDrop {
-            id: var_id,
-            audio_path: var_audioPath,
-            started_ms: var_startedMs,
-            duration_ms: var_durationMs,
-        };
-    }
-}
-
-impl SseDecode for crate::api::voice_capture_types::VoiceNoteInfo {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_tidy = <String>::sse_decode(deserializer);
-        let mut var_durationMs = <u64>::sse_decode(deserializer);
-        let mut var_canTidy = <bool>::sse_decode(deserializer);
-        return crate::api::voice_capture_types::VoiceNoteInfo {
-            tidy: var_tidy,
-            duration_ms: var_durationMs,
-            can_tidy: var_canTidy,
-        };
-    }
-}
-
 impl SseDecode for crate::api::voice::VoiceSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_spokenCommands = <bool>::sse_decode(deserializer);
-        let mut var_tidy = <crate::api::voice::VoiceTidy>::sse_decode(deserializer);
-        let mut var_meetings = <bool>::sse_decode(deserializer);
-        let mut var_keepAudio = <bool>::sse_decode(deserializer);
-        let mut var_allowServerRecognition = <bool>::sse_decode(deserializer);
         return crate::api::voice::VoiceSettings {
             spoken_commands: var_spokenCommands,
-            tidy: var_tidy,
-            meetings: var_meetings,
-            keep_audio: var_keepAudio,
-            allow_server_recognition: var_allowServerRecognition,
-        };
-    }
-}
-
-impl SseDecode for crate::api::voice::VoiceTidy {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::voice::VoiceTidy::Off,
-            1 => crate::api::voice::VoiceTidy::Ask,
-            2 => crate::api::voice::VoiceTidy::Always,
-            _ => unreachable!("Invalid variant for VoiceTidy: {}", inner),
         };
     }
 }
@@ -31762,1325 +29100,1233 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__ai__KansoAi_assist_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__ai__KansoAi_find_open_loops_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__ai__KansoAi_note_allowed_impl(port, ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__ai__KansoAi_privacy_line_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__ai__KansoAi_set_key_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__api__ai__KansoAi_set_settings_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__api__ai__KansoAi_settings_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__api__ai__KansoAi_summarise_brief_impl(port, ptr, rust_vec_len, data_len),
-        58 => {
+        47 => wire__crate__api__ai__KansoAi_ask_scopes_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__ai__KansoAi_assist_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__ai__KansoAi_find_open_loops_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__ai__KansoAi_note_allowed_impl(port, ptr, rust_vec_len, data_len),
+        53 => wire__crate__api__ai__KansoAi_privacy_line_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__ai__KansoAi_set_key_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__api__ai__KansoAi_set_settings_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__api__ai__KansoAi_settings_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__api__ai__KansoAi_summarise_brief_impl(port, ptr, rust_vec_len, data_len),
+        59 => {
             wire__crate__api__ai__KansoAi_summarise_review_impl(port, ptr, rust_vec_len, data_len)
         }
-        59 => wire__crate__api__ai__KansoAi_summarize_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__ai__KansoAi_test_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__api__approvals__KansoApprovals_approve_impl(
+        60 => wire__crate__api__ai__KansoAi_summarize_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__ai__KansoAi_test_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__approvals__KansoApprovals_approve_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__approvals__KansoApprovals_decline_impl(
+        63 => wire__crate__api__approvals__KansoApprovals_decline_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        63 => wire__crate__api__approvals__KansoApprovals_refresh_impl(
+        64 => wire__crate__api__approvals__KansoApprovals_refresh_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        64 => wire__crate__api__approvals__KansoApprovals_watch_impl(
+        65 => wire__crate__api__approvals__KansoApprovals_watch_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        65 => {
+        66 => {
             wire__crate__api__ai__KansoAskConversation_ask_impl(port, ptr, rust_vec_len, data_len)
         }
-        69 => wire__crate__api__cards__KansoCards_add_cards_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__cards__KansoCards_answer_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__cards__KansoCards_counts_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__cards__KansoCards_due_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__cards__KansoCards_grade_impl(port, ptr, rust_vec_len, data_len),
-        74 => {
-            wire__crate__api__cards__KansoCards_make_blocked_impl(port, ptr, rust_vec_len, data_len)
-        }
-        75 => {
-            wire__crate__api__cards__KansoCards_note_cards_impl(port, ptr, rust_vec_len, data_len)
-        }
-        76 => wire__crate__api__cards__KansoCards_quiz_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__cards__KansoCards_reminder_text_impl(
+        68 => wire__crate__api__ai__KansoAskConversation_save_last_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__cards__KansoCards_reset_history_impl(
+        71 => wire__crate__api__discovery__KansoDiscovery_dismiss_related_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        79 => {
-            wire__crate__api__cards__KansoCards_set_settings_impl(port, ptr, rust_vec_len, data_len)
-        }
-        80 => wire__crate__api__cards__KansoCards_settings_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__cards__KansoCards_stats_impl(port, ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__cards__KansoCards_suggest_impl(port, ptr, rust_vec_len, data_len),
-        83 => wire__crate__api__cards__KansoCards_suspend_impl(port, ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__discovery__KansoDiscovery_dismiss_related_impl(
+        72 => wire__crate__api__discovery__KansoDiscovery_dismiss_twin_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__discovery__KansoDiscovery_dismiss_twin_impl(
+        73 => wire__crate__api__discovery__KansoDiscovery_graph_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__discovery__KansoDiscovery_graph_impl(
+        74 => wire__crate__api__discovery__KansoDiscovery_measure_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        87 => wire__crate__api__discovery__KansoDiscovery_measure_impl(
+        75 => wire__crate__api__discovery__KansoDiscovery_merge_notes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        88 => wire__crate__api__discovery__KansoDiscovery_merge_notes_impl(
+        77 => wire__crate__api__discovery__KansoDiscovery_note_meaning_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__discovery__KansoDiscovery_note_meaning_impl(
+        78 => wire__crate__api__discovery__KansoDiscovery_ocr_keep_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__discovery__KansoDiscovery_ocr_keep_impl(
+        79 => wire__crate__api__discovery__KansoDiscovery_ocr_next_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__discovery__KansoDiscovery_ocr_next_impl(
+        80 => wire__crate__api__discovery__KansoDiscovery_ocr_waiting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__discovery__KansoDiscovery_ocr_waiting_impl(
+        81 => wire__crate__api__discovery__KansoDiscovery_on_this_day_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__discovery__KansoDiscovery_on_this_day_impl(
+        82 => wire__crate__api__discovery__KansoDiscovery_related_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__discovery__KansoDiscovery_related_enabled_impl(
+        83 => wire__crate__api__discovery__KansoDiscovery_related_notes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__discovery__KansoDiscovery_related_notes_impl(
+        84 => wire__crate__api__discovery__KansoDiscovery_related_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__discovery__KansoDiscovery_related_state_impl(
+        85 => wire__crate__api__discovery__KansoDiscovery_related_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__discovery__KansoDiscovery_related_stream_impl(
+        86 => wire__crate__api__discovery__KansoDiscovery_resurface_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__discovery__KansoDiscovery_resurface_impl(
+        87 => wire__crate__api__discovery__KansoDiscovery_search_by_meaning_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__discovery__KansoDiscovery_search_by_meaning_impl(
+        88 => wire__crate__api__discovery__KansoDiscovery_set_related_notes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__discovery__KansoDiscovery_set_related_notes_impl(
+        90 => wire__crate__api__editor__KansoEditor_attach_impl(port, ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__editor__KansoEditor_close_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__editor__KansoEditor_comment_marks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__draft__KansoDrafting_notes_of_notebook_impl(
+        94 => wire__crate__api__editor__KansoEditor_comment_on_selection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__draft__KansoDrafting_notes_of_tag_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        104 => {
-            wire__crate__api__draft__KansoDrafting_preview_impl(port, ptr, rust_vec_len, data_len)
-        }
-        105 => wire__crate__api__draft__KansoDrafting_save_impl(port, ptr, rust_vec_len, data_len),
-        106 => {
-            wire__crate__api__draft__KansoDrafting_sources_impl(port, ptr, rust_vec_len, data_len)
-        }
-        107 => wire__crate__api__draft__KansoDrafting_write_impl(port, ptr, rust_vec_len, data_len),
-        109 => wire__crate__api__editor__KansoEditor_attach_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__api__editor__KansoEditor_close_impl(port, ptr, rust_vec_len, data_len),
-        112 => wire__crate__api__editor__KansoEditor_comment_marks_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        113 => wire__crate__api__editor__KansoEditor_comment_on_selection_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        114 => {
+        95 => {
             wire__crate__api__editor__KansoEditor_completion_impl(port, ptr, rust_vec_len, data_len)
         }
-        115 => wire__crate__api__editor__KansoEditor_default_word_goal_impl(
+        96 => wire__crate__api__editor__KansoEditor_default_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        116 => wire__crate__api__editor__KansoEditor_effective_word_goal_impl(
+        97 => wire__crate__api__editor__KansoEditor_effective_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__editor__KansoEditor_events_impl(port, ptr, rust_vec_len, data_len),
-        118 => wire__crate__api__editor__KansoEditor_flush_impl(port, ptr, rust_vec_len, data_len),
-        119 => {
+        98 => wire__crate__api__editor__KansoEditor_events_impl(port, ptr, rust_vec_len, data_len),
+        99 => wire__crate__api__editor__KansoEditor_flush_impl(port, ptr, rust_vec_len, data_len),
+        100 => {
             wire__crate__api__editor__KansoEditor_keep_mine_impl(port, ptr, rust_vec_len, data_len)
         }
-        120 => {
+        101 => {
             wire__crate__api__editor__KansoEditor_link_at_impl(port, ptr, rust_vec_len, data_len)
         }
-        121 => wire__crate__api__editor__KansoEditor_live_document_impl(
+        102 => wire__crate__api__editor__KansoEditor_live_document_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        122 => wire__crate__api__editor__KansoEditor_live_layout_impl(
+        103 => wire__crate__api__editor__KansoEditor_live_layout_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        124 => wire__crate__api__editor__KansoEditor_remote_cursors_impl(
+        105 => wire__crate__api__editor__KansoEditor_remote_cursors_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        125 => wire__crate__api__editor__KansoEditor_remove_property_impl(
+        106 => wire__crate__api__editor__KansoEditor_remove_property_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        127 => wire__crate__api__editor__KansoEditor_select_comment_impl(
+        108 => wire__crate__api__editor__KansoEditor_select_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        128 => wire__crate__api__editor__KansoEditor_set_property_impl(
+        109 => wire__crate__api__editor__KansoEditor_set_property_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        130 => wire__crate__api__editor__KansoEditor_set_word_goal_impl(
+        111 => wire__crate__api__editor__KansoEditor_set_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        131 => {
+        112 => {
             wire__crate__api__editor__KansoEditor_snapshot_impl(port, ptr, rust_vec_len, data_len)
         }
-        132 => wire__crate__api__editor__KansoEditor_styled_runs_impl(
+        113 => wire__crate__api__editor__KansoEditor_styled_runs_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        115 => {
+            wire__crate__api__editor__KansoEditor_use_theirs_impl(port, ptr, rust_vec_len, data_len)
+        }
+        116 => {
+            wire__crate__api__gallery__KansoGallery_index_impl(port, ptr, rust_vec_len, data_len)
+        }
+        117 => {
+            wire__crate__api__gallery__KansoGallery_install_impl(port, ptr, rust_vec_len, data_len)
+        }
+        118 => wire__crate__api__gallery__KansoGallery_installed_theme_tokens_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        119 => wire__crate__api__gallery__KansoGallery_installed_themes_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        120 => wire__crate__api__gallery__KansoGallery_uninstall_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        125 => wire__crate__api__library__KansoLibrary_approve_ai_loops_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        126 => wire__crate__api__library__KansoLibrary_attachment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        127 => wire__crate__api__library__KansoLibrary_back_up_now_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        128 => wire__crate__api__library__KansoLibrary_backup_if_due_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        129 => {
+            wire__crate__api__library__KansoLibrary_backups_impl(port, ptr, rust_vec_len, data_len)
+        }
+        130 => {
+            wire__crate__api__library__KansoLibrary_board_impl(port, ptr, rust_vec_len, data_len)
+        }
+        131 => {
+            wire__crate__api__library__KansoLibrary_brief_impl(port, ptr, rust_vec_len, data_len)
+        }
+        132 => wire__crate__api__library__KansoLibrary_brief_plan_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        133 => wire__crate__api__library__KansoLibrary_brief_prefs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         134 => {
-            wire__crate__api__editor__KansoEditor_use_theirs_impl(port, ptr, rust_vec_len, data_len)
-        }
-        135 => {
-            wire__crate__api__gallery__KansoGallery_index_impl(port, ptr, rust_vec_len, data_len)
-        }
-        136 => {
-            wire__crate__api__gallery__KansoGallery_install_impl(port, ptr, rust_vec_len, data_len)
-        }
-        137 => wire__crate__api__gallery__KansoGallery_installed_theme_tokens_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        138 => wire__crate__api__gallery__KansoGallery_installed_themes_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        139 => wire__crate__api__gallery__KansoGallery_uninstall_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        144 => wire__crate__api__library__KansoLibrary_approve_ai_loops_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        145 => wire__crate__api__library__KansoLibrary_attachment_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        146 => wire__crate__api__library__KansoLibrary_back_up_now_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        147 => wire__crate__api__library__KansoLibrary_backup_if_due_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        148 => {
-            wire__crate__api__library__KansoLibrary_backups_impl(port, ptr, rust_vec_len, data_len)
-        }
-        149 => {
-            wire__crate__api__library__KansoLibrary_board_impl(port, ptr, rust_vec_len, data_len)
-        }
-        150 => {
-            wire__crate__api__library__KansoLibrary_brief_impl(port, ptr, rust_vec_len, data_len)
-        }
-        151 => wire__crate__api__library__KansoLibrary_brief_plan_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        152 => wire__crate__api__library__KansoLibrary_brief_prefs_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        153 => {
             wire__crate__api__library__KansoLibrary_capture_impl(port, ptr, rust_vec_len, data_len)
         }
-        155 => {
+        135 => {
             wire__crate__api__library__KansoLibrary_change_impl(port, ptr, rust_vec_len, data_len)
         }
-        156 => {
+        136 => {
             wire__crate__api__library__KansoLibrary_changes_impl(port, ptr, rust_vec_len, data_len)
         }
-        157 => wire__crate__api__library__KansoLibrary_close_loop_impl(
+        137 => wire__crate__api__library__KansoLibrary_close_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        158 => {
+        138 => {
             wire__crate__api__library__KansoLibrary_create_impl(port, ptr, rust_vec_len, data_len)
         }
-        159 => wire__crate__api__library__KansoLibrary_create_linked_note_impl(
+        139 => wire__crate__api__library__KansoLibrary_create_linked_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        160 => wire__crate__api__library__KansoLibrary_create_notebook_impl(
+        140 => wire__crate__api__library__KansoLibrary_create_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        161 => wire__crate__api__library__KansoLibrary_create_tag_impl(
+        141 => wire__crate__api__library__KansoLibrary_create_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        163 => wire__crate__api__library__KansoLibrary_daily_template_impl(
+        143 => wire__crate__api__library__KansoLibrary_daily_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        164 => wire__crate__api__library__KansoLibrary_default_word_goal_impl(
+        144 => wire__crate__api__library__KansoLibrary_default_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        165 => wire__crate__api__library__KansoLibrary_delete_backup_impl(
+        145 => wire__crate__api__library__KansoLibrary_delete_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        166 => wire__crate__api__library__KansoLibrary_delete_notebook_impl(
+        146 => wire__crate__api__library__KansoLibrary_delete_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        167 => wire__crate__api__library__KansoLibrary_delete_tag_impl(
+        147 => wire__crate__api__library__KansoLibrary_delete_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        171 => wire__crate__api__library__KansoLibrary_duplicate_impl(
+        150 => wire__crate__api__library__KansoLibrary_duplicate_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        172 => wire__crate__api__library__KansoLibrary_edit_impl(port, ptr, rust_vec_len, data_len),
-        173 => wire__crate__api__library__KansoLibrary_empty_trash_impl(
+        151 => wire__crate__api__library__KansoLibrary_edit_impl(port, ptr, rust_vec_len, data_len),
+        152 => wire__crate__api__library__KansoLibrary_empty_trash_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        175 => {
+        154 => {
             wire__crate__api__library__KansoLibrary_history_impl(port, ptr, rust_vec_len, data_len)
         }
-        176 => wire__crate__api__library__KansoLibrary_history_diff_impl(
+        155 => wire__crate__api__library__KansoLibrary_history_diff_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        177 => {
+        156 => {
             wire__crate__api__library__KansoLibrary_import_impl(port, ptr, rust_vec_len, data_len)
         }
-        178 => wire__crate__api__library__KansoLibrary_import_plan_impl(
+        157 => wire__crate__api__library__KansoLibrary_import_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        179 => wire__crate__api__library__KansoLibrary_journal_month_impl(
+        158 => wire__crate__api__library__KansoLibrary_journal_month_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        180 => wire__crate__api__library__KansoLibrary_journal_open_day_impl(
+        159 => wire__crate__api__library__KansoLibrary_journal_open_day_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        181 => wire__crate__api__library__KansoLibrary_journal_step_impl(
+        160 => wire__crate__api__library__KansoLibrary_journal_step_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        182 => wire__crate__api__library__KansoLibrary_journal_today_impl(
+        161 => wire__crate__api__library__KansoLibrary_journal_today_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        185 => wire__crate__api__library__KansoLibrary_list_impl(port, ptr, rust_vec_len, data_len),
-        188 => wire__crate__api__library__KansoLibrary_move_card_impl(
+        164 => wire__crate__api__library__KansoLibrary_list_impl(port, ptr, rust_vec_len, data_len),
+        167 => wire__crate__api__library__KansoLibrary_move_card_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        189 => wire__crate__api__library__KansoLibrary_new_from_template_impl(
+        168 => wire__crate__api__library__KansoLibrary_new_from_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        190 => wire__crate__api__library__KansoLibrary_new_template_impl(
+        169 => wire__crate__api__library__KansoLibrary_new_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        191 => wire__crate__api__library__KansoLibrary_note_impl(port, ptr, rust_vec_len, data_len),
-        192 => wire__crate__api__library__KansoLibrary_note_link_impl(
+        170 => wire__crate__api__library__KansoLibrary_note_impl(port, ptr, rust_vec_len, data_len),
+        171 => wire__crate__api__library__KansoLibrary_note_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        193 => wire__crate__api__library__KansoLibrary_note_word_goal_impl(
+        172 => wire__crate__api__library__KansoLibrary_note_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        196 => wire__crate__api__library__KansoLibrary_notebooks_impl(
+        175 => wire__crate__api__library__KansoLibrary_notebooks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        197 => wire__crate__api__library__KansoLibrary_open_impl(port, ptr, rust_vec_len, data_len),
-        198 => wire__crate__api__library__KansoLibrary_open_documents_impl(
+        176 => wire__crate__api__library__KansoLibrary_open_impl(port, ptr, rust_vec_len, data_len),
+        177 => wire__crate__api__library__KansoLibrary_open_documents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        199 => wire__crate__api__library__KansoLibrary_open_loops_impl(
+        178 => wire__crate__api__library__KansoLibrary_open_loops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        200 => wire__crate__api__library__KansoLibrary_overdue_tasks_impl(
+        179 => wire__crate__api__library__KansoLibrary_overdue_tasks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        201 => {
+        180 => {
             wire__crate__api__library__KansoLibrary_overview_impl(port, ptr, rust_vec_len, data_len)
         }
-        203 => wire__crate__api__library__KansoLibrary_properties_impl(
+        182 => wire__crate__api__library__KansoLibrary_properties_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        204 => wire__crate__api__library__KansoLibrary_publisher_impl(
+        183 => wire__crate__api__library__KansoLibrary_publisher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        205 => wire__crate__api__library__KansoLibrary_query_view_impl(
+        184 => wire__crate__api__library__KansoLibrary_query_view_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        206 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
+        185 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        207 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
+        186 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        208 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
+        187 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        209 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
+        188 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        210 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
+        189 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        211 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
+        190 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        213 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
+        192 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        214 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
+        193 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        215 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
+        194 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        216 => wire__crate__api__library__KansoLibrary_restore_version_impl(
+        195 => wire__crate__api__library__KansoLibrary_restore_version_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        217 => {
+        196 => {
             wire__crate__api__library__KansoLibrary_review_impl(port, ptr, rust_vec_len, data_len)
         }
-        218 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
-        219 => wire__crate__api__library__KansoLibrary_save_drops_impl(
+        197 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
+        198 => wire__crate__api__library__KansoLibrary_save_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        220 => wire__crate__api__library__KansoLibrary_save_review_impl(
+        199 => wire__crate__api__library__KansoLibrary_save_review_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        221 => {
+        200 => {
             wire__crate__api__library__KansoLibrary_search_impl(port, ptr, rust_vec_len, data_len)
         }
-        222 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
+        201 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        223 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
+        202 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        224 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
+        203 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        225 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
+        204 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        226 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
+        205 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        227 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
+        206 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        228 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
+        207 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        229 => {
+        208 => {
             wire__crate__api__library__KansoLibrary_set_task_impl(port, ptr, rust_vec_len, data_len)
         }
-        230 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
+        209 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        235 => wire__crate__api__library__KansoLibrary_tag_places_impl(
+        214 => wire__crate__api__library__KansoLibrary_tag_places_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        236 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
-        237 => {
+        215 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
+        216 => {
             wire__crate__api__library__KansoLibrary_tasks_impl(port, ptr, rust_vec_len, data_len)
         }
-        238 => wire__crate__api__library__KansoLibrary_templates_impl(
+        217 => wire__crate__api__library__KansoLibrary_templates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        240 => wire__crate__api__library__KansoLibrary_today_note_impl(
+        219 => wire__crate__api__library__KansoLibrary_today_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        241 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
+        220 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        242 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
+        221 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        243 => {
+        222 => {
             wire__crate__api__library__KansoLibrary_trash_impl(port, ptr, rust_vec_len, data_len)
         }
-        245 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
-        246 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
+        224 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
+        225 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        248 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
+        226 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        249 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
+        227 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        250 => wire__crate__api__linking__KansoLinking_backlinks_impl(
+        228 => wire__crate__api__linking__KansoLinking_backlinks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        252 => wire__crate__api__linking__KansoLinking_link_mention_impl(
+        230 => wire__crate__api__linking__KansoLinking_link_mention_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        254 => {
+        232 => {
             wire__crate__api__linking__KansoLinking_palette_impl(port, ptr, rust_vec_len, data_len)
         }
-        255 => wire__crate__api__linking__KansoLinking_quick_open_impl(
+        233 => wire__crate__api__linking__KansoLinking_quick_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        256 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
+        234 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        257 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
+        235 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        258 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
+        236 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        259 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
+        237 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        260 => wire__crate__api__locks__KansoLocks_change_password_impl(
+        238 => wire__crate__api__locks__KansoLocks_change_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        261 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
+        239 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        262 => {
+        240 => {
             wire__crate__api__locks__KansoLocks_is_unlocked_impl(port, ptr, rust_vec_len, data_len)
         }
-        263 => {
+        241 => {
             wire__crate__api__locks__KansoLocks_library_id_impl(port, ptr, rust_vec_len, data_len)
         }
-        264 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
-        265 => {
+        242 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
+        243 => {
             wire__crate__api__locks__KansoLocks_lock_events_impl(port, ptr, rust_vec_len, data_len)
         }
-        266 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
+        244 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        267 => {
+        245 => {
             wire__crate__api__locks__KansoLocks_lock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        268 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
+        246 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        269 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
+        247 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        270 => {
+        248 => {
             wire__crate__api__locks__KansoLocks_lock_status_impl(port, ptr, rust_vec_len, data_len)
         }
-        271 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
+        249 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        272 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
+        250 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        273 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
+        251 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        274 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
+        252 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        275 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
-        276 => {
+        253 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
+        254 => {
             wire__crate__api__locks__KansoLocks_unlock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        277 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
+        255 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        278 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
+        256 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        279 => {
+        257 => {
             wire__crate__api__metrics__KansoMetrics_launched_impl(port, ptr, rust_vec_len, data_len)
         }
-        280 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
+        258 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        281 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
+        259 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        282 => {
+        260 => {
             wire__crate__api__metrics__KansoMetrics_record_impl(port, ptr, rust_vec_len, data_len)
         }
-        283 => {
+        261 => {
             wire__crate__api__metrics__KansoMetrics_send_due_impl(port, ptr, rust_vec_len, data_len)
         }
-        284 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
+        262 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        285 => {
+        263 => {
             wire__crate__api__publish__KansoPublisher_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        286 => wire__crate__api__publish__KansoPublisher_notebook_impl(
+        264 => wire__crate__api__publish__KansoPublisher_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        287 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
+        265 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        288 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
+        266 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        289 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
+        267 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        290 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
+        268 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        291 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
+        269 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        292 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
+        270 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        293 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
+        271 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        294 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
+        272 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        295 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
+        273 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        296 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
+        274 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        297 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
+        275 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        298 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
+        276 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        299 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
+        277 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        300 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
+        278 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        301 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
+        279 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        302 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
+        280 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        303 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
+        281 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        304 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
+        282 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        305 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
+        283 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        306 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
+        284 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        307 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
+        285 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        308 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
+        286 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        309 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
+        287 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        310 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
+        288 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        311 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
-        312 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
+        289 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
+        290 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        313 => wire__crate__api__shared__KansoShared_add_comment_impl(
+        291 => wire__crate__api__shared__KansoShared_add_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        314 => wire__crate__api__shared__KansoShared_approve_request_impl(
+        292 => wire__crate__api__shared__KansoShared_approve_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        315 => {
+        293 => {
             wire__crate__api__shared__KansoShared_can_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        316 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+        294 => wire__crate__api__shared__KansoShared_cancel_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        317 => {
+        295 => {
             wire__crate__api__shared__KansoShared_close_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        318 => {
+        296 => {
             wire__crate__api__shared__KansoShared_comments_impl(port, ptr, rust_vec_len, data_len)
         }
-        319 => wire__crate__api__shared__KansoShared_comments_band_impl(
+        297 => wire__crate__api__shared__KansoShared_comments_band_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        320 => wire__crate__api__shared__KansoShared_create_link_impl(
+        298 => wire__crate__api__shared__KansoShared_create_link_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        299 => {
+            wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
+        }
+        300 => wire__crate__api__shared__KansoShared_decline_request_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        301 => wire__crate__api__shared__KansoShared_delete_comment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        302 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        303 => wire__crate__api__shared__KansoShared_edit_comment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        304 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
+        305 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
+        306 => wire__crate__api__shared__KansoShared_invitations_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        307 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
+        308 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
+        309 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
+        310 => wire__crate__api__shared__KansoShared_live_status_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        311 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        312 => wire__crate__api__shared__KansoShared_open_comments_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        313 => {
+            wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
+        }
+        314 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
+        315 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        316 => {
+            wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
+        }
+        317 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
+        318 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
+        319 => wire__crate__api__shared__KansoShared_sync_shared_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        320 => wire__crate__api__shared__KansoShared_verify_person_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         321 => {
-            wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
-        }
-        322 => wire__crate__api__shared__KansoShared_decline_request_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        323 => wire__crate__api__shared__KansoShared_delete_comment_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        324 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        325 => wire__crate__api__shared__KansoShared_edit_comment_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        326 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
-        327 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
-        328 => wire__crate__api__shared__KansoShared_invitations_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        329 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
-        330 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
-        331 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
-        332 => wire__crate__api__shared__KansoShared_live_status_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        333 => wire__crate__api__shared__KansoShared_lookup_person_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        334 => wire__crate__api__shared__KansoShared_open_comments_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        335 => {
-            wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
-        }
-        336 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
-        337 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        338 => {
-            wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
-        }
-        339 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
-        340 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
-        341 => wire__crate__api__shared__KansoShared_sync_shared_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        342 => wire__crate__api__shared__KansoShared_verify_person_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        343 => {
             wire__crate__api__sync__KansoSync_check_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        344 => {
+        322 => {
             wire__crate__api__sync__KansoSync_default_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        348 => {
+        326 => {
             wire__crate__api__sync__KansoSync_push_enabled_impl(port, ptr, rust_vec_len, data_len)
         }
-        349 => {
+        327 => {
             wire__crate__api__sync__KansoSync_refresh_push_impl(port, ptr, rust_vec_len, data_len)
         }
-        350 => {
+        328 => {
             wire__crate__api__sync__KansoSync_set_foreground_impl(port, ptr, rust_vec_len, data_len)
         }
-        351 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
+        329 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        352 => {
+        330 => {
             wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
         }
-        353 => {
+        331 => {
             wire__crate__api__sync__KansoSync_set_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        354 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
-        355 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
+        332 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
+        333 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        356 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
-        357 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
-        359 => {
+        334 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
+        335 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
+        337 => {
             wire__crate__api__sync__KansoSync_status_stream_impl(port, ptr, rust_vec_len, data_len)
         }
-        360 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
-        361 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
-        362 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
+        338 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
+        339 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
+        340 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        363 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
-        364 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
+        341 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
+        342 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        365 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
-        366 => {
+        343 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
+        344 => {
             wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
         }
-        367 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
+        345 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        368 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
-        369 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
-        370 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
-        371 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
-        372 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
-        373 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
-        374 => {
+        346 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
+        347 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
+        348 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
+        349 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
+        350 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
+        351 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
+        352 => {
             wire__crate__api__triage__KansoTriage_resolve_impl(port, ptr, rust_vec_len, data_len)
         }
-        375 => wire__crate__api__triage__KansoTriage_set_settings_impl(
+        353 => wire__crate__api__triage__KansoTriage_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        376 => {
+        354 => {
             wire__crate__api__triage__KansoTriage_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        377 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
-        378 => {
+        355 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
+        356 => {
             wire__crate__api__triage__KansoTriage_unreject_impl(port, ptr, rust_vec_len, data_len)
         }
-        379 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        380 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        381 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        382 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        383 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        384 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        385 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        386 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        387 => {
+        357 => {
             wire__crate__api__diagnostics__backup_excluded_impl(port, ptr, rust_vec_len, data_len)
         }
-        394 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
-        396 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
-        398 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
-        399 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+        364 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
+        366 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
+        368 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
+        369 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -33096,94 +30342,89 @@ fn pde_ffi_dispatcher_sync_impl(
         44 => wire__crate__api__ai__KansoAiRun_stop_impl(ptr, rust_vec_len, data_len),
         45 => wire__crate__api__ai__KansoAi_actions_impl(ptr, rust_vec_len, data_len),
         46 => wire__crate__api__ai__KansoAi_agent_tasks_impl(ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__ai__KansoAi_conversation_impl(ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__ai__KansoAi_new_run_impl(ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__ai__KansoAi_providers_impl(ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__ai__KansoAskConversation_clear_impl(ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__ai__KansoAskConversation_stop_impl(ptr, rust_vec_len, data_len),
-        68 => {
+        49 => wire__crate__api__ai__KansoAi_conversation_impl(ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__ai__KansoAi_new_run_impl(ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__ai__KansoAi_providers_impl(ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__ai__KansoAskConversation_clear_impl(ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__ai__KansoAskConversation_stop_impl(ptr, rust_vec_len, data_len),
+        70 => {
             wire__crate__api__ai__KansoAskConversation_turn_count_impl(ptr, rust_vec_len, data_len)
         }
-        89 => {
+        76 => {
             wire__crate__api__discovery__KansoDiscovery_model_dir_impl(ptr, rust_vec_len, data_len)
         }
-        108 => wire__crate__api__editor__KansoEditor_apply_impl(ptr, rust_vec_len, data_len),
-        111 => wire__crate__api__editor__KansoEditor_command_impl(ptr, rust_vec_len, data_len),
-        123 => wire__crate__api__editor__KansoEditor_redo_impl(ptr, rust_vec_len, data_len),
-        126 => wire__crate__api__editor__KansoEditor_select_impl(ptr, rust_vec_len, data_len),
-        129 => wire__crate__api__editor__KansoEditor_set_title_impl(ptr, rust_vec_len, data_len),
-        133 => wire__crate__api__editor__KansoEditor_undo_impl(ptr, rust_vec_len, data_len),
-        140 => wire__crate__api__library__KansoLibrary_account_impl(ptr, rust_vec_len, data_len),
-        141 => wire__crate__api__library__KansoLibrary_account_settings_impl(
+        89 => wire__crate__api__editor__KansoEditor_apply_impl(ptr, rust_vec_len, data_len),
+        92 => wire__crate__api__editor__KansoEditor_command_impl(ptr, rust_vec_len, data_len),
+        104 => wire__crate__api__editor__KansoEditor_redo_impl(ptr, rust_vec_len, data_len),
+        107 => wire__crate__api__editor__KansoEditor_select_impl(ptr, rust_vec_len, data_len),
+        110 => wire__crate__api__editor__KansoEditor_set_title_impl(ptr, rust_vec_len, data_len),
+        114 => wire__crate__api__editor__KansoEditor_undo_impl(ptr, rust_vec_len, data_len),
+        121 => wire__crate__api__library__KansoLibrary_account_impl(ptr, rust_vec_len, data_len),
+        122 => wire__crate__api__library__KansoLibrary_account_settings_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        142 => wire__crate__api__library__KansoLibrary_ai_impl(ptr, rust_vec_len, data_len),
-        143 => wire__crate__api__library__KansoLibrary_approvals_impl(ptr, rust_vec_len, data_len),
-        154 => wire__crate__api__library__KansoLibrary_cards_impl(ptr, rust_vec_len, data_len),
-        162 => {
+        123 => wire__crate__api__library__KansoLibrary_ai_impl(ptr, rust_vec_len, data_len),
+        124 => wire__crate__api__library__KansoLibrary_approvals_impl(ptr, rust_vec_len, data_len),
+        142 => {
             wire__crate__api__library__KansoLibrary_daily_date_of_impl(ptr, rust_vec_len, data_len)
         }
-        168 => wire__crate__api__library__KansoLibrary_discovery_impl(ptr, rust_vec_len, data_len),
-        169 => wire__crate__api__library__KansoLibrary_drafting_impl(ptr, rust_vec_len, data_len),
-        170 => wire__crate__api__library__KansoLibrary_due_chip_impl(ptr, rust_vec_len, data_len),
-        174 => wire__crate__api__library__KansoLibrary_gallery_impl(ptr, rust_vec_len, data_len),
-        183 => wire__crate__api__library__KansoLibrary_journal_week_start_impl(
+        148 => wire__crate__api__library__KansoLibrary_discovery_impl(ptr, rust_vec_len, data_len),
+        149 => wire__crate__api__library__KansoLibrary_due_chip_impl(ptr, rust_vec_len, data_len),
+        153 => wire__crate__api__library__KansoLibrary_gallery_impl(ptr, rust_vec_len, data_len),
+        162 => wire__crate__api__library__KansoLibrary_journal_week_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        184 => wire__crate__api__library__KansoLibrary_linking_impl(ptr, rust_vec_len, data_len),
-        186 => wire__crate__api__library__KansoLibrary_locks_impl(ptr, rust_vec_len, data_len),
-        187 => wire__crate__api__library__KansoLibrary_metrics_impl(ptr, rust_vec_len, data_len),
-        194 => wire__crate__api__library__KansoLibrary_notebook_colors_impl(
+        163 => wire__crate__api__library__KansoLibrary_linking_impl(ptr, rust_vec_len, data_len),
+        165 => wire__crate__api__library__KansoLibrary_locks_impl(ptr, rust_vec_len, data_len),
+        166 => wire__crate__api__library__KansoLibrary_metrics_impl(ptr, rust_vec_len, data_len),
+        173 => wire__crate__api__library__KansoLibrary_notebook_colors_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        195 => {
+        174 => {
             wire__crate__api__library__KansoLibrary_notebook_icons_impl(ptr, rust_vec_len, data_len)
         }
-        202 => {
+        181 => {
             wire__crate__api__library__KansoLibrary_parse_color_impl(ptr, rust_vec_len, data_len)
         }
-        212 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
-        231 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
-        232 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
-        233 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
-        234 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
-        239 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
-        244 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
-        247 => {
-            wire__crate__api__library__KansoLibrary_voice_capture_impl(ptr, rust_vec_len, data_len)
-        }
-        251 => wire__crate__api__linking__KansoLinking_current_heading_impl(
+        191 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
+        210 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
+        211 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
+        212 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
+        213 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
+        218 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
+        223 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
+        229 => wire__crate__api__linking__KansoLinking_current_heading_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        253 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
-        345 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
-        346 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
-        347 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
-        358 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
-        388 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
-        389 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
-        390 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
-        391 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
-        392 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
-        393 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
-        395 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
-        397 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
-        400 => {
+        231 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
+        323 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
+        324 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
+        325 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
+        336 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
+        358 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
+        359 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
+        360 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
+        361 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
+        362 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
+        363 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
+        365 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
+        367 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
+        370 => {
             wire__crate__api__word_goal__word_goal_format_count_impl(ptr, rust_vec_len, data_len)
         }
-        401 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
-        402 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
-        403 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
-        404 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
-        405 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+        371 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
+        372 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
+        373 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
+        374 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
+        375 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -33302,21 +30543,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoAskConversation>> for Kan
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<KansoCards> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<KansoCards> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoCards>> for KansoCards {
-    fn into_into_dart(self) -> FrbWrapper<KansoCards> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<KansoDiscovery> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
@@ -33327,21 +30553,6 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<
 
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoDiscovery>> for KansoDiscovery {
     fn into_into_dart(self) -> FrbWrapper<KansoDiscovery> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<KansoDrafting> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<KansoDrafting> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoDrafting>> for KansoDrafting {
-    fn into_into_dart(self) -> FrbWrapper<KansoDrafting> {
         self.into()
     }
 }
@@ -33527,21 +30738,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoTriage>> for KansoTriage 
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<KansoVoiceCapture> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<KansoVoiceCapture> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoVoiceCapture>> for KansoVoiceCapture {
-    fn into_into_dart(self) -> FrbWrapper<KansoVoiceCapture> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::AccountDetails> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -33706,6 +30902,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::ai::AiSettingsInput {
             self.base_url.into_into_dart().into_dart(),
             self.model.into_into_dart().into_dart(),
             self.region.into_into_dart().into_dart(),
+            self.ask_budget.into_into_dart().into_dart(),
+            self.check_sources.into_into_dart().into_dart(),
+            self.use_links.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -33733,6 +30932,11 @@ impl flutter_rust_bridge::IntoDart for crate::api::ai::AiSettingsView {
             self.has_key.into_into_dart().into_dart(),
             self.host.into_into_dart().into_dart(),
             self.is_remote.into_into_dart().into_dart(),
+            self.ask_budget.into_into_dart().into_dart(),
+            self.budget_words_line.into_into_dart().into_dart(),
+            self.budget_cost_line.into_into_dart().into_dart(),
+            self.check_sources.into_into_dart().into_dart(),
+            self.use_links.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -33766,27 +30970,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::AiSummary>>
     for crate::api::types::AiSummary
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::AiSummary> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::Answered> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.due_ms.into_into_dart().into_dart(),
-            self.0.waiting.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::Answered>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::Answered>>
-    for crate::api::cards_types::Answered
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::Answered> {
         self.into()
     }
 }
@@ -33871,6 +31054,24 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::ApprovalWai
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai::AskClosest {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.note_id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.start.into_into_dart().into_dart(),
+            self.end.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ai::AskClosest {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai::AskClosest> for crate::api::ai::AskClosest {
+    fn into_into_dart(self) -> crate::api::ai::AskClosest {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::ai::AskEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -33884,22 +31085,45 @@ impl flutter_rust_bridge::IntoDart for crate::api::ai::AskEvent {
             crate::api::ai::AskEvent::Answer { markdown } => {
                 [3.into_dart(), markdown.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::ai::AskEvent::Done { markdown, notes } => [
-                4.into_dart(),
+            crate::api::ai::AskEvent::Time { time } => {
+                [4.into_dart(), time.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::ai::AskEvent::Done {
+                markdown,
+                notes,
+                receipts,
+                also_read,
+                banner,
+                unverified,
+                never_wrote,
+                closest,
+                time,
+            } => [
+                5.into_dart(),
                 markdown.into_into_dart().into_dart(),
                 notes.into_into_dart().into_dart(),
+                receipts.into_into_dart().into_dart(),
+                also_read.into_into_dart().into_dart(),
+                banner.into_into_dart().into_dart(),
+                unverified.into_into_dart().into_dart(),
+                never_wrote.into_into_dart().into_dart(),
+                closest.into_into_dart().into_dart(),
+                time.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::ai::AskEvent::NothingMatches { message } => {
-                [5.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
+            crate::api::ai::AskEvent::NothingMatches { message, narrow } => [
+                6.into_dart(),
+                message.into_into_dart().into_dart(),
+                narrow.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::ai::AskEvent::CutOff { message } => {
-                [6.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::ai::AskEvent::Failed { message } => {
                 [7.into_dart(), message.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::ai::AskEvent::Stopped => [8.into_dart()].into_dart(),
+            crate::api::ai::AskEvent::Failed { message } => {
+                [8.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::ai::AskEvent::Stopped => [9.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -33925,6 +31149,83 @@ impl flutter_rust_bridge::IntoDart for crate::api::ai::AskNote {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ai::AskNote {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::ai::AskNote> for crate::api::ai::AskNote {
     fn into_into_dart(self) -> crate::api::ai::AskNote {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai::AskReceipt {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.n.into_into_dart().into_dart(),
+            self.note_id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.start.into_into_dart().into_dart(),
+            self.end.into_into_dart().into_dart(),
+            self.quote.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ai::AskReceipt {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai::AskReceipt> for crate::api::ai::AskReceipt {
+    fn into_into_dart(self) -> crate::api::ai::AskReceipt {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai::AskScopeInput {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.value.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ai::AskScopeInput {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai::AskScopeInput>
+    for crate::api::ai::AskScopeInput
+{
+    fn into_into_dart(self) -> crate::api::ai::AskScopeInput {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai::AskScopeOption {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.kind.into_into_dart().into_dart(),
+            self.value.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ai::AskScopeOption
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai::AskScopeOption>
+    for crate::api::ai::AskScopeOption
+{
+    fn into_into_dart(self) -> crate::api::ai::AskScopeOption {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ai::AskTime {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.label.into_into_dart().into_dart(),
+            self.relaxed_line.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ai::AskTime {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ai::AskTime> for crate::api::ai::AskTime {
+    fn into_into_dart(self) -> crate::api::ai::AskTime {
         self
     }
 }
@@ -34402,95 +31703,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::CardMoved>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::CardPair> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.question.into_into_dart().into_dart(),
-            self.0.answer.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::CardPair>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::CardPair>>
-    for crate::api::cards_types::CardPair
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::CardPair> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::CardScopeArg> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.kind.into_into_dart().into_dart(),
-            self.0.id.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::CardScopeArg>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::CardScopeArg>>
-    for crate::api::cards_types::CardScopeArg
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::CardScopeArg> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::CardScopeKind> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::cards_types::CardScopeKind::All => 0.into_dart(),
-            crate::api::cards_types::CardScopeKind::Notebook => 1.into_dart(),
-            crate::api::cards_types::CardScopeKind::Tag => 2.into_dart(),
-            crate::api::cards_types::CardScopeKind::Note => 3.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::CardScopeKind>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::CardScopeKind>>
-    for crate::api::cards_types::CardScopeKind
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::CardScopeKind> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::CardSettingsView> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.new_per_day.into_into_dart().into_dart(),
-            self.0.reviews_per_day.into_into_dart().into_dart(),
-            self.0.retention.into_into_dart().into_dart(),
-            self.0.reminder.into_into_dart().into_dart(),
-            self.0.show_icons.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::CardSettingsView>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::CardSettingsView>>
-    for crate::api::cards_types::CardSettingsView
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::CardSettingsView> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::Changed> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -34954,249 +32166,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::DiscoveryMe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftCite> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.number.into_into_dart().into_dart(),
-            self.0.heading.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftCite>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftCite>>
-    for crate::api::draft_types::DraftCite
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftCite> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftEvent> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::draft_types::DraftEvent::Status { line } => {
-                [0.into_dart(), line.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::draft_types::DraftEvent::Text { draft } => {
-                [1.into_dart(), draft.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::draft_types::DraftEvent::Done { draft, sources } => [
-                2.into_dart(),
-                draft.into_into_dart().into_dart(),
-                sources.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::api::draft_types::DraftEvent::CutOff { message } => {
-                [3.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::draft_types::DraftEvent::Failed { message } => {
-                [4.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::draft_types::DraftEvent::Stopped => [5.into_dart()].into_dart(),
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftEvent>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftEvent>>
-    for crate::api::draft_types::DraftEvent
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftEvent> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftLength> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::draft_types::DraftLength::Short => 0.into_dart(),
-            crate::api::draft_types::DraftLength::Medium => 1.into_dart(),
-            crate::api::draft_types::DraftLength::Long => 2.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftLength>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftLength>>
-    for crate::api::draft_types::DraftLength
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftLength> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftPreview> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.title.into_into_dart().into_dart(),
-            self.0.markdown.into_into_dart().into_dart(),
-            self.0.default_book_id.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftPreview>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftPreview>>
-    for crate::api::draft_types::DraftPreview
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftPreview> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftShape> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::draft_types::DraftShape::Report => 0.into_dart(),
-            crate::api::draft_types::DraftShape::Essay => 1.into_dart(),
-            crate::api::draft_types::DraftShape::Update => 2.into_dart(),
-            crate::api::draft_types::DraftShape::Outline => 3.into_dart(),
-            crate::api::draft_types::DraftShape::Custom => 4.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftShape>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftShape>>
-    for crate::api::draft_types::DraftShape
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftShape> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftSourceNote> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.id.into_into_dart().into_dart(),
-            self.0.title.into_into_dart().into_dart(),
-            self.0.words.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftSourceNote>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftSourceNote>>
-    for crate::api::draft_types::DraftSourceNote
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftSourceNote> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftSourceRef> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.number.into_into_dart().into_dart(),
-            self.0.id.into_into_dart().into_dart(),
-            self.0.title.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftSourceRef>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftSourceRef>>
-    for crate::api::draft_types::DraftSourceRef
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftSourceRef> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftSources> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.notes.into_into_dart().into_dart(),
-            self.0.left_out_locked.into_into_dart().into_dart(),
-            self.0.left_out_excluded.into_into_dart().into_dart(),
-            self.0.too_many.into_into_dart().into_dart(),
-            self.0.summary.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftSources>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftSources>>
-    for crate::api::draft_types::DraftSources
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftSources> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftSpan> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.start.into_into_dart().into_dart(),
-            self.0.end.into_into_dart().into_dart(),
-            self.0.cites.into_into_dart().into_dart(),
-            self.0.unsourced.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftSpan>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftSpan>>
-    for crate::api::draft_types::DraftSpan
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftSpan> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::draft_types::DraftView> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.text.into_into_dart().into_dart(),
-            self.0.spans.into_into_dart().into_dart(),
-            self.0.removed.into_into_dart().into_dart(),
-            self.0.not_covered.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::draft_types::DraftView>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::draft_types::DraftView>>
-    for crate::api::draft_types::DraftView
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::draft_types::DraftView> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::DropsSaved> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -35630,42 +32599,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::GoalSetting
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::GradeEvent> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::cards_types::GradeEvent::Graded {
-                verdict,
-                label,
-                comment,
-            } => [
-                0.into_dart(),
-                verdict.into_into_dart().into_dart(),
-                label.into_into_dart().into_dart(),
-                comment.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            crate::api::cards_types::GradeEvent::Failed { message } => {
-                [1.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::cards_types::GradeEvent::Stopped => [2.into_dart()].into_dart(),
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::GradeEvent>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::GradeEvent>>
-    for crate::api::cards_types::GradeEvent
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::GradeEvent> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::GraphEdgeRow> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -35792,30 +32725,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::GraphReques
     for crate::api::types::GraphRequest
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::GraphRequest> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::HardCardView> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.note_id.into_into_dart().into_dart(),
-            self.0.note_title.into_into_dart().into_dart(),
-            self.0.line.into_into_dart().into_dart(),
-            self.0.question.into_into_dart().into_dart(),
-            self.0.agains.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::HardCardView>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::HardCardView>>
-    for crate::api::cards_types::HardCardView
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::HardCardView> {
         self.into()
     }
 }
@@ -36616,8 +33525,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::LiveDocStyl
             crate::api::types::LiveDocStyleKind::Heading => 5.into_dart(),
             crate::api::types::LiveDocStyleKind::InlineMath => 6.into_dart(),
             crate::api::types::LiveDocStyleKind::Quote => 7.into_dart(),
-            crate::api::types::LiveDocStyleKind::CardSeparator => 8.into_dart(),
-            crate::api::types::LiveDocStyleKind::TaskDone => 9.into_dart(),
+            crate::api::types::LiveDocStyleKind::TaskDone => 8.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -37131,32 +34039,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::NewNote>>
     for crate::api::types::NewNote
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::NewNote> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::NoteCardView> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.card_key.into_into_dart().into_dart(),
-            self.0.line.into_into_dart().into_dart(),
-            self.0.question.into_into_dart().into_dart(),
-            self.0.answer.into_into_dart().into_dart(),
-            self.0.due_ms.into_into_dart().into_dart(),
-            self.0.suspended.into_into_dart().into_dart(),
-            self.0.duplicate.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::NoteCardView>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::NoteCardView>>
-    for crate::api::cards_types::NoteCardView
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::NoteCardView> {
         self.into()
     }
 }
@@ -38751,82 +35633,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PushPlatfor
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::QuizEvent> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::cards_types::QuizEvent::Status { line } => {
-                [0.into_dart(), line.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::cards_types::QuizEvent::Questions { items } => {
-                [1.into_dart(), items.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::cards_types::QuizEvent::Failed { message } => {
-                [2.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::cards_types::QuizEvent::Stopped => [3.into_dart()].into_dart(),
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::QuizEvent>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::QuizEvent>>
-    for crate::api::cards_types::QuizEvent
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::QuizEvent> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::QuizItem> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.question.into_into_dart().into_dart(),
-            self.0.note_id.into_into_dart().into_dart(),
-            self.0.note_title.into_into_dart().into_dart(),
-            self.0.source.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::QuizItem>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::QuizItem>>
-    for crate::api::cards_types::QuizItem
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::QuizItem> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::QuizVerdict> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::cards_types::QuizVerdict::Right => 0.into_dart(),
-            crate::api::cards_types::QuizVerdict::Partly => 1.into_dart(),
-            crate::api::cards_types::QuizVerdict::Wrong => 2.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::QuizVerdict>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::QuizVerdict>>
-    for crate::api::cards_types::QuizVerdict
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::QuizVerdict> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::QuotaLimit> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
@@ -39258,57 +36064,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::ResurfaceRo
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::ReviewCard> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.card_key.into_into_dart().into_dart(),
-            self.0.note_id.into_into_dart().into_dart(),
-            self.0.note_title.into_into_dart().into_dart(),
-            self.0.line.into_into_dart().into_dart(),
-            self.0.question.into_into_dart().into_dart(),
-            self.0.answer.into_into_dart().into_dart(),
-            self.0.is_new.into_into_dart().into_dart(),
-            self.0.intervals.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::ReviewCard>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::ReviewCard>>
-    for crate::api::cards_types::ReviewCard
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::ReviewCard> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::ReviewCounts> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.total.into_into_dart().into_dart(),
-            self.0.due.into_into_dart().into_dart(),
-            self.0.new_cards.into_into_dart().into_dart(),
-            self.0.suspended.into_into_dart().into_dart(),
-            self.0.waiting.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::ReviewCounts>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::ReviewCounts>>
-    for crate::api::cards_types::ReviewCounts
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::ReviewCounts> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::ReviewFinished> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -39349,30 +36104,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::ReviewSaved
     for crate::api::types::ReviewSaved
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::ReviewSaved> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::ReviewStats> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.counts.into_into_dart().into_dart(),
-            self.0.per_day.into_into_dart().into_dart(),
-            self.0.retention.into_into_dart().into_dart(),
-            self.0.forecast.into_into_dart().into_dart(),
-            self.0.hardest.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::ReviewStats>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::ReviewStats>>
-    for crate::api::cards_types::ReviewStats
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::ReviewStats> {
         self.into()
     }
 }
@@ -39980,61 +36711,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::StyledRun>>
     for crate::api::types::StyledRun
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::StyledRun> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::SuggestEvent> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self.0 {
-            crate::api::cards_types::SuggestEvent::Status { line } => {
-                [0.into_dart(), line.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::cards_types::SuggestEvent::Done { cards } => {
-                [1.into_dart(), cards.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::cards_types::SuggestEvent::Failed { message } => {
-                [2.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::cards_types::SuggestEvent::Stopped => [3.into_dart()].into_dart(),
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::SuggestEvent>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::SuggestEvent>>
-    for crate::api::cards_types::SuggestEvent
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::SuggestEvent> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::cards_types::SuggestedCard> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.question.into_into_dart().into_dart(),
-            self.0.answer.into_into_dart().into_dart(),
-            self.0.source.into_into_dart().into_dart(),
-            self.0.line.into_into_dart().into_dart(),
-            self.0.source_missing.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::cards_types::SuggestedCard>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::cards_types::SuggestedCard>>
-    for crate::api::cards_types::SuggestedCard
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::cards_types::SuggestedCard> {
         self.into()
     }
 }
@@ -40878,28 +37554,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::Ticked>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::voice_capture_types::TidyOutcome> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.inserted_above.into_into_dart().into_dart(),
-            self.0.dropped.into_into_dart().into_dart(),
-            self.0.undo.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::voice_capture_types::TidyOutcome>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::voice_capture_types::TidyOutcome>>
-    for crate::api::voice_capture_types::TidyOutcome
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::voice_capture_types::TidyOutcome> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::triage_types::TriageCard> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -41158,117 +37812,9 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::VisibleNote
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for FrbWrapper<crate::api::voice_capture_types::VoiceCaptureInput>
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.id.into_into_dart().into_dart(),
-            self.0.started_ms.into_into_dart().into_dart(),
-            self.0.duration_ms.into_into_dart().into_dart(),
-            self.0.transcript.into_into_dart().into_dart(),
-            self.0.on_device.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::voice_capture_types::VoiceCaptureInput>
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        FrbWrapper<crate::api::voice_capture_types::VoiceCaptureInput>,
-    > for crate::api::voice_capture_types::VoiceCaptureInput
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::voice_capture_types::VoiceCaptureInput> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for FrbWrapper<crate::api::voice_capture_types::VoiceCaptureSaved>
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.note_id.into_into_dart().into_dart(),
-            self.0.problems.into_into_dart().into_dart(),
-            self.0.existed.into_into_dart().into_dart(),
-            self.0.meeting.into_into_dart().into_dart(),
-            self.0.tidy_now.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::voice_capture_types::VoiceCaptureSaved>
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        FrbWrapper<crate::api::voice_capture_types::VoiceCaptureSaved>,
-    > for crate::api::voice_capture_types::VoiceCaptureSaved
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::voice_capture_types::VoiceCaptureSaved> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::voice_capture_types::VoiceDrop> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.id.into_into_dart().into_dart(),
-            self.0.audio_path.into_into_dart().into_dart(),
-            self.0.started_ms.into_into_dart().into_dart(),
-            self.0.duration_ms.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::voice_capture_types::VoiceDrop>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::voice_capture_types::VoiceDrop>>
-    for crate::api::voice_capture_types::VoiceDrop
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::voice_capture_types::VoiceDrop> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::voice_capture_types::VoiceNoteInfo> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.0.tidy.into_into_dart().into_dart(),
-            self.0.duration_ms.into_into_dart().into_dart(),
-            self.0.can_tidy.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<crate::api::voice_capture_types::VoiceNoteInfo>
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::voice_capture_types::VoiceNoteInfo>>
-    for crate::api::voice_capture_types::VoiceNoteInfo
-{
-    fn into_into_dart(self) -> FrbWrapper<crate::api::voice_capture_types::VoiceNoteInfo> {
-        self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::voice::VoiceSettings {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.spoken_commands.into_into_dart().into_dart(),
-            self.tidy.into_into_dart().into_dart(),
-            self.meetings.into_into_dart().into_dart(),
-            self.keep_audio.into_into_dart().into_dart(),
-            self.allow_server_recognition.into_into_dart().into_dart(),
-        ]
-        .into_dart()
+        [self.spoken_commands.into_into_dart().into_dart()].into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -41279,25 +37825,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::voice::VoiceSettings>
     for crate::api::voice::VoiceSettings
 {
     fn into_into_dart(self) -> crate::api::voice::VoiceSettings {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::voice::VoiceTidy {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Off => 0.into_dart(),
-            Self::Ask => 1.into_dart(),
-            Self::Always => 2.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::voice::VoiceTidy {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::voice::VoiceTidy>
-    for crate::api::voice::VoiceTidy
-{
-    fn into_into_dart(self) -> crate::api::voice::VoiceTidy {
         self
     }
 }
@@ -41368,24 +37895,10 @@ impl SseEncode for KansoAskConversation {
     }
 }
 
-impl SseEncode for KansoCards {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
 impl SseEncode for KansoDiscovery {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDiscovery>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
-impl SseEncode for KansoDrafting {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
     }
 }
 
@@ -41473,13 +37986,6 @@ impl SseEncode for KansoTriage {
     }
 }
 
-impl SseEncode for KansoVoiceCapture {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
 impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAccount>>
 {
@@ -41556,29 +38062,7 @@ impl SseEncode
 }
 
 impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDiscovery>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -41721,17 +38205,6 @@ impl SseEncode
 }
 
 impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
     for StreamSink<crate::api::types::AccountState, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -41768,31 +38241,7 @@ impl SseEncode
 }
 
 impl SseEncode
-    for StreamSink<
-        crate::api::draft_types::DraftEvent,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        unimplemented!("")
-    }
-}
-
-impl SseEncode
     for StreamSink<crate::api::types::EditorEvent, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        unimplemented!("")
-    }
-}
-
-impl SseEncode
-    for StreamSink<
-        crate::api::cards_types::GradeEvent,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -41856,15 +38305,6 @@ impl SseEncode
 }
 
 impl SseEncode
-    for StreamSink<crate::api::cards_types::QuizEvent, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        unimplemented!("")
-    }
-}
-
-impl SseEncode
     for StreamSink<crate::api::types::RelatedState, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -41875,18 +38315,6 @@ impl SseEncode
 
 impl SseEncode
     for StreamSink<crate::api::types::SharedEvent, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        unimplemented!("")
-    }
-}
-
-impl SseEncode
-    for StreamSink<
-        crate::api::cards_types::SuggestEvent,
-        flutter_rust_bridge::for_generated::SseCodec,
-    >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -42015,6 +38443,9 @@ impl SseEncode for crate::api::ai::AiSettingsInput {
         <String>::sse_encode(self.base_url, serializer);
         <String>::sse_encode(self.model, serializer);
         <String>::sse_encode(self.region, serializer);
+        <String>::sse_encode(self.ask_budget, serializer);
+        <bool>::sse_encode(self.check_sources, serializer);
+        <bool>::sse_encode(self.use_links, serializer);
     }
 }
 
@@ -42029,6 +38460,11 @@ impl SseEncode for crate::api::ai::AiSettingsView {
         <bool>::sse_encode(self.has_key, serializer);
         <String>::sse_encode(self.host, serializer);
         <bool>::sse_encode(self.is_remote, serializer);
+        <String>::sse_encode(self.ask_budget, serializer);
+        <String>::sse_encode(self.budget_words_line, serializer);
+        <String>::sse_encode(self.budget_cost_line, serializer);
+        <bool>::sse_encode(self.check_sources, serializer);
+        <bool>::sse_encode(self.use_links, serializer);
     }
 }
 
@@ -42037,14 +38473,6 @@ impl SseEncode for crate::api::types::AiSummary {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.text, serializer);
         <Option<String>>::sse_encode(self.warning, serializer);
-    }
-}
-
-impl SseEncode for crate::api::cards_types::Answered {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i64>::sse_encode(self.due_ms, serializer);
-        <u32>::sse_encode(self.waiting, serializer);
     }
 }
 
@@ -42109,6 +38537,16 @@ impl SseEncode for crate::api::types::ApprovalWait {
     }
 }
 
+impl SseEncode for crate::api::ai::AskClosest {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.note_id, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <u32>::sse_encode(self.start, serializer);
+        <u32>::sse_encode(self.end, serializer);
+    }
+}
+
 impl SseEncode for crate::api::ai::AskEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -42128,25 +38566,47 @@ impl SseEncode for crate::api::ai::AskEvent {
                 <i32>::sse_encode(3, serializer);
                 <String>::sse_encode(markdown, serializer);
             }
-            crate::api::ai::AskEvent::Done { markdown, notes } => {
+            crate::api::ai::AskEvent::Time { time } => {
                 <i32>::sse_encode(4, serializer);
+                <crate::api::ai::AskTime>::sse_encode(time, serializer);
+            }
+            crate::api::ai::AskEvent::Done {
+                markdown,
+                notes,
+                receipts,
+                also_read,
+                banner,
+                unverified,
+                never_wrote,
+                closest,
+                time,
+            } => {
+                <i32>::sse_encode(5, serializer);
                 <String>::sse_encode(markdown, serializer);
                 <Vec<crate::api::ai::AskNote>>::sse_encode(notes, serializer);
+                <Vec<crate::api::ai::AskReceipt>>::sse_encode(receipts, serializer);
+                <Vec<crate::api::ai::AskNote>>::sse_encode(also_read, serializer);
+                <String>::sse_encode(banner, serializer);
+                <u32>::sse_encode(unverified, serializer);
+                <bool>::sse_encode(never_wrote, serializer);
+                <Vec<crate::api::ai::AskClosest>>::sse_encode(closest, serializer);
+                <Option<crate::api::ai::AskTime>>::sse_encode(time, serializer);
             }
-            crate::api::ai::AskEvent::NothingMatches { message } => {
-                <i32>::sse_encode(5, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::api::ai::AskEvent::CutOff { message } => {
+            crate::api::ai::AskEvent::NothingMatches { message, narrow } => {
                 <i32>::sse_encode(6, serializer);
                 <String>::sse_encode(message, serializer);
+                <bool>::sse_encode(narrow, serializer);
             }
-            crate::api::ai::AskEvent::Failed { message } => {
+            crate::api::ai::AskEvent::CutOff { message } => {
                 <i32>::sse_encode(7, serializer);
                 <String>::sse_encode(message, serializer);
             }
-            crate::api::ai::AskEvent::Stopped => {
+            crate::api::ai::AskEvent::Failed { message } => {
                 <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::api::ai::AskEvent::Stopped => {
+                <i32>::sse_encode(9, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -42160,6 +38620,44 @@ impl SseEncode for crate::api::ai::AskNote {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.title, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ai::AskReceipt {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.n, serializer);
+        <String>::sse_encode(self.note_id, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <u32>::sse_encode(self.start, serializer);
+        <u32>::sse_encode(self.end, serializer);
+        <String>::sse_encode(self.quote, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ai::AskScopeInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.value, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ai::AskScopeOption {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.value, serializer);
+        <String>::sse_encode(self.label, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ai::AskTime {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.relaxed_line, serializer);
     }
 }
 
@@ -42444,51 +38942,6 @@ impl SseEncode for crate::api::types::CardMoved {
     }
 }
 
-impl SseEncode for crate::api::cards_types::CardPair {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.question, serializer);
-        <String>::sse_encode(self.answer, serializer);
-    }
-}
-
-impl SseEncode for crate::api::cards_types::CardScopeArg {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::cards_types::CardScopeKind>::sse_encode(self.kind, serializer);
-        <String>::sse_encode(self.id, serializer);
-    }
-}
-
-impl SseEncode for crate::api::cards_types::CardScopeKind {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::cards_types::CardScopeKind::All => 0,
-                crate::api::cards_types::CardScopeKind::Notebook => 1,
-                crate::api::cards_types::CardScopeKind::Tag => 2,
-                crate::api::cards_types::CardScopeKind::Note => 3,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::cards_types::CardSettingsView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u32>::sse_encode(self.new_per_day, serializer);
-        <u32>::sse_encode(self.reviews_per_day, serializer);
-        <f64>::sse_encode(self.retention, serializer);
-        <Option<String>>::sse_encode(self.reminder, serializer);
-        <bool>::sse_encode(self.show_icons, serializer);
-    }
-}
-
 impl SseEncode for crate::api::types::Changed {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -42735,143 +39188,6 @@ impl SseEncode for crate::api::types::DiscoveryMeasure {
         <Option<u64>>::sse_encode(self.resident_after, serializer);
         <u32>::sse_encode(self.notes, serializer);
         <f64>::sse_encode(self.notes_per_second, serializer);
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftCite {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u32>::sse_encode(self.number, serializer);
-        <Option<String>>::sse_encode(self.heading, serializer);
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::api::draft_types::DraftEvent::Status { line } => {
-                <i32>::sse_encode(0, serializer);
-                <String>::sse_encode(line, serializer);
-            }
-            crate::api::draft_types::DraftEvent::Text { draft } => {
-                <i32>::sse_encode(1, serializer);
-                <crate::api::draft_types::DraftView>::sse_encode(draft, serializer);
-            }
-            crate::api::draft_types::DraftEvent::Done { draft, sources } => {
-                <i32>::sse_encode(2, serializer);
-                <crate::api::draft_types::DraftView>::sse_encode(draft, serializer);
-                <Vec<crate::api::draft_types::DraftSourceRef>>::sse_encode(sources, serializer);
-            }
-            crate::api::draft_types::DraftEvent::CutOff { message } => {
-                <i32>::sse_encode(3, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::api::draft_types::DraftEvent::Failed { message } => {
-                <i32>::sse_encode(4, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::api::draft_types::DraftEvent::Stopped => {
-                <i32>::sse_encode(5, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftLength {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::draft_types::DraftLength::Short => 0,
-                crate::api::draft_types::DraftLength::Medium => 1,
-                crate::api::draft_types::DraftLength::Long => 2,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftPreview {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.title, serializer);
-        <String>::sse_encode(self.markdown, serializer);
-        <String>::sse_encode(self.default_book_id, serializer);
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftShape {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::draft_types::DraftShape::Report => 0,
-                crate::api::draft_types::DraftShape::Essay => 1,
-                crate::api::draft_types::DraftShape::Update => 2,
-                crate::api::draft_types::DraftShape::Outline => 3,
-                crate::api::draft_types::DraftShape::Custom => 4,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftSourceNote {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.id, serializer);
-        <String>::sse_encode(self.title, serializer);
-        <u32>::sse_encode(self.words, serializer);
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftSourceRef {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u32>::sse_encode(self.number, serializer);
-        <String>::sse_encode(self.id, serializer);
-        <String>::sse_encode(self.title, serializer);
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftSources {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<crate::api::draft_types::DraftSourceNote>>::sse_encode(self.notes, serializer);
-        <u32>::sse_encode(self.left_out_locked, serializer);
-        <u32>::sse_encode(self.left_out_excluded, serializer);
-        <bool>::sse_encode(self.too_many, serializer);
-        <String>::sse_encode(self.summary, serializer);
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftSpan {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u32>::sse_encode(self.start, serializer);
-        <u32>::sse_encode(self.end, serializer);
-        <Vec<crate::api::draft_types::DraftCite>>::sse_encode(self.cites, serializer);
-        <bool>::sse_encode(self.unsourced, serializer);
-    }
-}
-
-impl SseEncode for crate::api::draft_types::DraftView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.text, serializer);
-        <Vec<crate::api::draft_types::DraftSpan>>::sse_encode(self.spans, serializer);
-        <u32>::sse_encode(self.removed, serializer);
-        <bool>::sse_encode(self.not_covered, serializer);
     }
 }
 
@@ -43162,34 +39478,6 @@ impl SseEncode for crate::api::types::GoalSetting {
     }
 }
 
-impl SseEncode for crate::api::cards_types::GradeEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::api::cards_types::GradeEvent::Graded {
-                verdict,
-                label,
-                comment,
-            } => {
-                <i32>::sse_encode(0, serializer);
-                <crate::api::cards_types::QuizVerdict>::sse_encode(verdict, serializer);
-                <String>::sse_encode(label, serializer);
-                <String>::sse_encode(comment, serializer);
-            }
-            crate::api::cards_types::GradeEvent::Failed { message } => {
-                <i32>::sse_encode(1, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::api::cards_types::GradeEvent::Stopped => {
-                <i32>::sse_encode(2, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
 impl SseEncode for crate::api::types::GraphEdgeRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -43262,17 +39550,6 @@ impl SseEncode for crate::api::types::GraphRequest {
                 unimplemented!("");
             }
         }
-    }
-}
-
-impl SseEncode for crate::api::cards_types::HardCardView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.note_id, serializer);
-        <String>::sse_encode(self.note_title, serializer);
-        <u32>::sse_encode(self.line, serializer);
-        <String>::sse_encode(self.question, serializer);
-        <u32>::sse_encode(self.agains, serializer);
     }
 }
 
@@ -43602,12 +39879,42 @@ impl SseEncode for Vec<crate::api::types::ApprovalPrompt> {
     }
 }
 
+impl SseEncode for Vec<crate::api::ai::AskClosest> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::ai::AskClosest>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::ai::AskNote> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::ai::AskNote>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::ai::AskReceipt> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::ai::AskReceipt>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::ai::AskScopeOption> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::ai::AskScopeOption>::sse_encode(item, serializer);
         }
     }
 }
@@ -43692,16 +39999,6 @@ impl SseEncode for Vec<crate::api::types::CalendarDay> {
     }
 }
 
-impl SseEncode for Vec<crate::api::cards_types::CardPair> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::cards_types::CardPair>::sse_encode(item, serializer);
-        }
-    }
-}
-
 impl SseEncode for Vec<crate::api::types::ColorChoice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -43782,46 +40079,6 @@ impl SseEncode for Vec<crate::api::types::DiffLine> {
     }
 }
 
-impl SseEncode for Vec<crate::api::draft_types::DraftCite> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::draft_types::DraftCite>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::draft_types::DraftSourceNote> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::draft_types::DraftSourceNote>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::draft_types::DraftSourceRef> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::draft_types::DraftSourceRef>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::draft_types::DraftSpan> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::draft_types::DraftSpan>::sse_encode(item, serializer);
-        }
-    }
-}
-
 impl SseEncode for Vec<crate::api::types::EditorRun> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -43858,16 +40115,6 @@ impl SseEncode for Vec<crate::api::types::GraphNodeRow> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::GraphNodeRow>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::cards_types::HardCardView> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::cards_types::HardCardView>::sse_encode(item, serializer);
         }
     }
 }
@@ -44068,16 +40315,6 @@ impl SseEncode for Vec<crate::api::types::MentionSpan> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::MentionSpan>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::cards_types::NoteCardView> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::cards_types::NoteCardView>::sse_encode(item, serializer);
         }
     }
 }
@@ -44402,16 +40639,6 @@ impl SseEncode for crate::api::types::ListQuery {
     }
 }
 
-impl SseEncode for Vec<crate::api::cards_types::QuizItem> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::cards_types::QuizItem>::sse_encode(item, serializer);
-        }
-    }
-}
-
 impl SseEncode for Vec<crate::api::types::Range16> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -44428,16 +40655,6 @@ impl SseEncode for Vec<(String, crate::api::types::ShareRole)> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <(String, crate::api::types::ShareRole)>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<(u32, u32)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <(u32, u32)>::sse_encode(item, serializer);
         }
     }
 }
@@ -44488,16 +40705,6 @@ impl SseEncode for Vec<crate::api::types::ResurfaceRow> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::ResurfaceRow>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::cards_types::ReviewCard> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::cards_types::ReviewCard>::sse_encode(item, serializer);
         }
     }
 }
@@ -44608,16 +40815,6 @@ impl SseEncode for Vec<crate::api::types::StyledRun> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::StyledRun>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::cards_types::SuggestedCard> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::cards_types::SuggestedCard>::sse_encode(item, serializer);
         }
     }
 }
@@ -44812,16 +41009,6 @@ impl SseEncode for Vec<crate::api::types::VisibleNotebook> {
     }
 }
 
-impl SseEncode for Vec<crate::api::voice_capture_types::VoiceDrop> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::voice_capture_types::VoiceDrop>::sse_encode(item, serializer);
-        }
-    }
-}
-
 impl SseEncode for crate::api::types::LiveBatch {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -44959,8 +41146,7 @@ impl SseEncode for crate::api::types::LiveDocStyleKind {
                 crate::api::types::LiveDocStyleKind::Heading => 5,
                 crate::api::types::LiveDocStyleKind::InlineMath => 6,
                 crate::api::types::LiveDocStyleKind::Quote => 7,
-                crate::api::types::LiveDocStyleKind::CardSeparator => 8,
-                crate::api::types::LiveDocStyleKind::TaskDone => 9,
+                crate::api::types::LiveDocStyleKind::TaskDone => 8,
                 _ => {
                     unimplemented!("");
                 }
@@ -45244,19 +41430,6 @@ impl SseEncode for crate::api::types::NewNote {
     }
 }
 
-impl SseEncode for crate::api::cards_types::NoteCardView {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.card_key, serializer);
-        <u32>::sse_encode(self.line, serializer);
-        <String>::sse_encode(self.question, serializer);
-        <String>::sse_encode(self.answer, serializer);
-        <Option<i64>>::sse_encode(self.due_ms, serializer);
-        <bool>::sse_encode(self.suspended, serializer);
-        <bool>::sse_encode(self.duplicate, serializer);
-    }
-}
-
 impl SseEncode for crate::api::types::NoteChange {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -45504,6 +41677,16 @@ impl SseEncode for Option<String> {
     }
 }
 
+impl SseEncode for Option<crate::api::ai::AskTime> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::ai::AskTime>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::types::BackupFile> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -45600,16 +41783,6 @@ impl SseEncode for Option<f32> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <f32>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<f64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <f64>::sse_encode(value, serializer);
         }
     }
 }
@@ -45870,16 +42043,6 @@ impl SseEncode for Option<u32> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <u32>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<crate::api::voice_capture_types::VoiceNoteInfo> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <crate::api::voice_capture_types::VoiceNoteInfo>::sse_encode(value, serializer);
         }
     }
 }
@@ -46688,59 +42851,6 @@ impl SseEncode for crate::api::types::PushPlatformKind {
     }
 }
 
-impl SseEncode for crate::api::cards_types::QuizEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::api::cards_types::QuizEvent::Status { line } => {
-                <i32>::sse_encode(0, serializer);
-                <String>::sse_encode(line, serializer);
-            }
-            crate::api::cards_types::QuizEvent::Questions { items } => {
-                <i32>::sse_encode(1, serializer);
-                <Vec<crate::api::cards_types::QuizItem>>::sse_encode(items, serializer);
-            }
-            crate::api::cards_types::QuizEvent::Failed { message } => {
-                <i32>::sse_encode(2, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::api::cards_types::QuizEvent::Stopped => {
-                <i32>::sse_encode(3, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseEncode for crate::api::cards_types::QuizItem {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.question, serializer);
-        <String>::sse_encode(self.note_id, serializer);
-        <String>::sse_encode(self.note_title, serializer);
-        <Option<String>>::sse_encode(self.source, serializer);
-    }
-}
-
-impl SseEncode for crate::api::cards_types::QuizVerdict {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::cards_types::QuizVerdict::Right => 0,
-                crate::api::cards_types::QuizVerdict::Partly => 1,
-                crate::api::cards_types::QuizVerdict::Wrong => 2,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
 impl SseEncode for crate::api::types::QuotaLimit {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -46773,14 +42883,6 @@ impl SseEncode for (String, crate::api::types::ShareRole) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
         <crate::api::types::ShareRole>::sse_encode(self.1, serializer);
-    }
-}
-
-impl SseEncode for (u32, u32) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u32>::sse_encode(self.0, serializer);
-        <u32>::sse_encode(self.1, serializer);
     }
 }
 
@@ -46988,31 +43090,6 @@ impl SseEncode for crate::api::types::ResurfaceRow {
     }
 }
 
-impl SseEncode for crate::api::cards_types::ReviewCard {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.card_key, serializer);
-        <String>::sse_encode(self.note_id, serializer);
-        <String>::sse_encode(self.note_title, serializer);
-        <u32>::sse_encode(self.line, serializer);
-        <String>::sse_encode(self.question, serializer);
-        <String>::sse_encode(self.answer, serializer);
-        <bool>::sse_encode(self.is_new, serializer);
-        <Vec<String>>::sse_encode(self.intervals, serializer);
-    }
-}
-
-impl SseEncode for crate::api::cards_types::ReviewCounts {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u32>::sse_encode(self.total, serializer);
-        <u32>::sse_encode(self.due, serializer);
-        <u32>::sse_encode(self.new_cards, serializer);
-        <u32>::sse_encode(self.suspended, serializer);
-        <u32>::sse_encode(self.waiting, serializer);
-    }
-}
-
 impl SseEncode for crate::api::types::ReviewFinished {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -47028,17 +43105,6 @@ impl SseEncode for crate::api::types::ReviewSaved {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.note_id, serializer);
         <bool>::sse_encode(self.exists, serializer);
-    }
-}
-
-impl SseEncode for crate::api::cards_types::ReviewStats {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::cards_types::ReviewCounts>::sse_encode(self.counts, serializer);
-        <Vec<u32>>::sse_encode(self.per_day, serializer);
-        <Option<f64>>::sse_encode(self.retention, serializer);
-        <Vec<u32>>::sse_encode(self.forecast, serializer);
-        <Vec<crate::api::cards_types::HardCardView>>::sse_encode(self.hardest, serializer);
     }
 }
 
@@ -47380,43 +43446,6 @@ impl SseEncode for crate::api::types::StyledRun {
         <Option<u32>>::sse_encode(self.color, serializer);
         <Option<bool>>::sse_encode(self.italic, serializer);
         <Option<u16>>::sse_encode(self.weight, serializer);
-    }
-}
-
-impl SseEncode for crate::api::cards_types::SuggestEvent {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::api::cards_types::SuggestEvent::Status { line } => {
-                <i32>::sse_encode(0, serializer);
-                <String>::sse_encode(line, serializer);
-            }
-            crate::api::cards_types::SuggestEvent::Done { cards } => {
-                <i32>::sse_encode(1, serializer);
-                <Vec<crate::api::cards_types::SuggestedCard>>::sse_encode(cards, serializer);
-            }
-            crate::api::cards_types::SuggestEvent::Failed { message } => {
-                <i32>::sse_encode(2, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-            crate::api::cards_types::SuggestEvent::Stopped => {
-                <i32>::sse_encode(3, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseEncode for crate::api::cards_types::SuggestedCard {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.question, serializer);
-        <String>::sse_encode(self.answer, serializer);
-        <Option<String>>::sse_encode(self.source, serializer);
-        <Option<u32>>::sse_encode(self.line, serializer);
-        <bool>::sse_encode(self.source_missing, serializer);
     }
 }
 
@@ -47868,15 +43897,6 @@ impl SseEncode for crate::api::types::Ticked {
     }
 }
 
-impl SseEncode for crate::api::voice_capture_types::TidyOutcome {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.inserted_above, serializer);
-        <u32>::sse_encode(self.dropped, serializer);
-        <Option<u64>>::sse_encode(self.undo, serializer);
-    }
-}
-
 impl SseEncode for crate::api::triage_types::TriageCard {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -48051,72 +44071,10 @@ impl SseEncode for crate::api::types::VisibleNotebook {
     }
 }
 
-impl SseEncode for crate::api::voice_capture_types::VoiceCaptureInput {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.id, serializer);
-        <i64>::sse_encode(self.started_ms, serializer);
-        <u64>::sse_encode(self.duration_ms, serializer);
-        <String>::sse_encode(self.transcript, serializer);
-        <bool>::sse_encode(self.on_device, serializer);
-    }
-}
-
-impl SseEncode for crate::api::voice_capture_types::VoiceCaptureSaved {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Option<String>>::sse_encode(self.note_id, serializer);
-        <Vec<String>>::sse_encode(self.problems, serializer);
-        <bool>::sse_encode(self.existed, serializer);
-        <bool>::sse_encode(self.meeting, serializer);
-        <bool>::sse_encode(self.tidy_now, serializer);
-    }
-}
-
-impl SseEncode for crate::api::voice_capture_types::VoiceDrop {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.id, serializer);
-        <String>::sse_encode(self.audio_path, serializer);
-        <i64>::sse_encode(self.started_ms, serializer);
-        <u64>::sse_encode(self.duration_ms, serializer);
-    }
-}
-
-impl SseEncode for crate::api::voice_capture_types::VoiceNoteInfo {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.tidy, serializer);
-        <u64>::sse_encode(self.duration_ms, serializer);
-        <bool>::sse_encode(self.can_tidy, serializer);
-    }
-}
-
 impl SseEncode for crate::api::voice::VoiceSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.spoken_commands, serializer);
-        <crate::api::voice::VoiceTidy>::sse_encode(self.tidy, serializer);
-        <bool>::sse_encode(self.meetings, serializer);
-        <bool>::sse_encode(self.keep_audio, serializer);
-        <bool>::sse_encode(self.allow_server_recognition, serializer);
-    }
-}
-
-impl SseEncode for crate::api::voice::VoiceTidy {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::voice::VoiceTidy::Off => 0,
-                crate::api::voice::VoiceTidy::Ask => 1,
-                crate::api::voice::VoiceTidy::Always => 2,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
     }
 }
 
@@ -48133,9 +44091,7 @@ mod io {
     use crate::api::agent_tasks::*;
     use crate::api::ai::*;
     use crate::api::approvals::*;
-    use crate::api::cards::*;
     use crate::api::discovery::*;
-    use crate::api::draft::*;
     use crate::api::editor::*;
     use crate::api::gallery::*;
     use crate::api::library::*;
@@ -48148,7 +44104,6 @@ mod io {
     use crate::api::sync::*;
     use crate::api::themes::*;
     use crate::api::triage::*;
-    use crate::api::voice_capture::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -48258,20 +44213,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCards(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCards(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoDiscovery(
         ptr: *const std::ffi::c_void,
     ) {
@@ -48283,20 +44224,6 @@ mod io {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDiscovery>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoDrafting(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoDrafting(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDrafting>>::decrement_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]
@@ -48465,20 +44392,6 @@ mod io {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoTriage>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoVoiceCapture(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoVoiceCapture(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoVoiceCapture>>::decrement_strong_count(ptr as _);
     }
 }
 #[cfg(not(target_family = "wasm"))]

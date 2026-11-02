@@ -6,8 +6,10 @@ use flutter_rust_bridge::frb;
 use kanso_mobile::{
     AiAction as CoreAiAction, AiHandle, AiProviderInfo as CoreAiProviderInfo, AiRun,
     AiSettingsInput as CoreAiSettingsInput, AiSettingsView as CoreAiSettingsView, AiSummary,
-    AskConversation, AskEvent as CoreAskEvent, AskNote as CoreAskNote,
-    AssistEvent as CoreAssistEvent, KansoError, LoopScan,
+    AskClosest as CoreAskClosest, AskConversation, AskEvent as CoreAskEvent,
+    AskNote as CoreAskNote, AskReceipt as CoreAskReceipt, AskScopeInput as CoreAskScopeInput,
+    AskScopeOption as CoreAskScopeOption, AskTime as CoreAskTime, AssistEvent as CoreAssistEvent,
+    KansoError, LoopScan,
 };
 
 /// A provider the AI settings page can offer. This bridge view contains no
@@ -71,6 +73,11 @@ pub struct AiSettingsView {
     pub has_key: bool,
     pub host: String,
     pub is_remote: bool,
+    pub ask_budget: String,
+    pub budget_words_line: String,
+    pub budget_cost_line: String,
+    pub check_sources: bool,
+    pub use_links: bool,
 }
 
 impl From<CoreAiSettingsView> for AiSettingsView {
@@ -84,6 +91,11 @@ impl From<CoreAiSettingsView> for AiSettingsView {
             has_key: view.has_key,
             host: view.host,
             is_remote: view.is_remote,
+            ask_budget: view.ask_budget,
+            budget_words_line: view.budget_words_line,
+            budget_cost_line: view.budget_cost_line,
+            check_sources: view.check_sources,
+            use_links: view.use_links,
         }
     }
 }
@@ -97,6 +109,9 @@ pub struct AiSettingsInput {
     pub base_url: String,
     pub model: String,
     pub region: String,
+    pub ask_budget: String,
+    pub check_sources: bool,
+    pub use_links: bool,
 }
 
 impl From<AiSettingsInput> for CoreAiSettingsInput {
@@ -107,6 +122,105 @@ impl From<AiSettingsInput> for CoreAiSettingsInput {
             base_url: input.base_url,
             model: input.model,
             region: input.region,
+            ask_budget: input.ask_budget,
+            check_sources: input.check_sources,
+            use_links: input.use_links,
+        }
+    }
+}
+
+/// What a question is limited to: `all`, `book` (notebook ID) or `tag`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskScopeInput {
+    pub kind: String,
+    pub value: String,
+}
+
+impl From<AskScopeInput> for CoreAskScopeInput {
+    fn from(scope: AskScopeInput) -> Self {
+        CoreAskScopeInput {
+            kind: scope.kind,
+            value: scope.value,
+        }
+    }
+}
+
+/// One choice in the scope sheet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskScopeOption {
+    pub kind: String,
+    pub value: String,
+    pub label: String,
+}
+
+impl From<CoreAskScopeOption> for AskScopeOption {
+    fn from(option: CoreAskScopeOption) -> Self {
+        AskScopeOption {
+            kind: option.kind,
+            value: option.value,
+            label: option.label,
+        }
+    }
+}
+
+/// The lines an answer's sentence rests on, as they were sent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskReceipt {
+    pub n: u32,
+    pub note_id: String,
+    pub title: String,
+    pub label: String,
+    pub start: u32,
+    pub end: u32,
+    pub quote: String,
+}
+
+impl From<CoreAskReceipt> for AskReceipt {
+    fn from(r: CoreAskReceipt) -> Self {
+        AskReceipt {
+            n: r.n,
+            note_id: r.note_id,
+            title: r.title,
+            label: r.label,
+            start: r.start,
+            end: r.end,
+            quote: r.quote,
+        }
+    }
+}
+
+/// A passage found for a question the notes do not answer.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskClosest {
+    pub note_id: String,
+    pub title: String,
+    pub start: u32,
+    pub end: u32,
+}
+
+impl From<CoreAskClosest> for AskClosest {
+    fn from(c: CoreAskClosest) -> Self {
+        AskClosest {
+            note_id: c.note_id,
+            title: c.title,
+            start: c.start,
+            end: c.end,
+        }
+    }
+}
+
+/// The time a question was understood to be about.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskTime {
+    pub label: String,
+    pub relaxed_line: String,
+}
+
+impl From<CoreAskTime> for AskTime {
+    fn from(t: CoreAskTime) -> Self {
+        AskTime {
+            label: t.label,
+            relaxed_line: t.relaxed_line,
         }
     }
 }
@@ -142,12 +256,23 @@ pub enum AskEvent {
     Answer {
         markdown: String,
     },
+    Time {
+        time: AskTime,
+    },
     Done {
         markdown: String,
         notes: Vec<AskNote>,
+        receipts: Vec<AskReceipt>,
+        also_read: Vec<AskNote>,
+        banner: String,
+        unverified: u32,
+        never_wrote: bool,
+        closest: Vec<AskClosest>,
+        time: Option<AskTime>,
     },
     NothingMatches {
         message: String,
+        narrow: bool,
     },
     CutOff {
         message: String,
@@ -167,11 +292,31 @@ impl From<CoreAskEvent> for AskEvent {
             },
             CoreAskEvent::Status { line } => AskEvent::Status { line },
             CoreAskEvent::Answer { markdown } => AskEvent::Answer { markdown },
-            CoreAskEvent::Done { markdown, notes } => AskEvent::Done {
+            CoreAskEvent::Time { time } => AskEvent::Time { time: time.into() },
+            CoreAskEvent::Done {
+                markdown,
+                notes,
+                receipts,
+                also_read,
+                banner,
+                unverified,
+                never_wrote,
+                closest,
+                time,
+            } => AskEvent::Done {
                 markdown,
                 notes: notes.into_iter().map(AskNote::from).collect(),
+                receipts: receipts.into_iter().map(AskReceipt::from).collect(),
+                also_read: also_read.into_iter().map(AskNote::from).collect(),
+                banner,
+                unverified,
+                never_wrote,
+                closest: closest.into_iter().map(AskClosest::from).collect(),
+                time: time.map(AskTime::from),
             },
-            CoreAskEvent::NothingMatches { message } => AskEvent::NothingMatches { message },
+            CoreAskEvent::NothingMatches { message, narrow } => {
+                AskEvent::NothingMatches { message, narrow }
+            }
             CoreAskEvent::CutOff { message } => AskEvent::CutOff { message },
             CoreAskEvent::Failed { message } => AskEvent::Failed { message },
             CoreAskEvent::Stopped => AskEvent::Stopped,
@@ -251,6 +396,13 @@ impl KansoAi {
 
     pub fn note_allowed(&self, id: String) -> Result<bool, KansoError> {
         self.0.note_allowed(&id)
+    }
+
+    /// What a question can be limited to: all notes, notebooks, tags.
+    pub fn ask_scopes(&self) -> Result<Vec<AskScopeOption>, KansoError> {
+        self.0
+            .ask_scopes()
+            .map(|options| options.into_iter().map(AskScopeOption::from).collect())
     }
 
     /// Reads the recent notes with the model for open loops the rules
@@ -342,10 +494,20 @@ pub struct KansoAskConversation(AskConversation);
 impl KansoAskConversation {
     /// The answer's events, until it ends or Dart stops listening. A question
     /// that can't start (AI off, no key) is one `Failed` event with the reason.
-    pub fn ask(&self, question: String, sink: StreamSink<AskEvent>) {
+    pub fn ask(
+        &self,
+        question: String,
+        scope: AskScopeInput,
+        ignore_time: bool,
+        utc_offset_minutes: i32,
+        sink: StreamSink<AskEvent>,
+    ) {
         let refused = sink.clone();
         if let Err(err) = self.0.ask(
             question,
+            scope.into(),
+            ignore_time,
+            utc_offset_minutes,
             Box::new(move |event| sink.add(event.into()).is_ok()),
         ) {
             refused
@@ -369,6 +531,11 @@ impl KansoAskConversation {
     #[frb(sync)]
     pub fn turn_count(&self) -> u32 {
         self.0.turn_count()
+    }
+
+    /// Saves the newest answer as a note and returns its ID.
+    pub fn save_last(&self) -> Result<String, KansoError> {
+        self.0.save_last()
     }
 }
 

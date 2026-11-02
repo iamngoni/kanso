@@ -684,10 +684,25 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ApprovalWait dco_decode_approval_wait(dynamic raw);
 
   @protected
+  AskClosest dco_decode_ask_closest(dynamic raw);
+
+  @protected
   AskEvent dco_decode_ask_event(dynamic raw);
 
   @protected
   AskNote dco_decode_ask_note(dynamic raw);
+
+  @protected
+  AskReceipt dco_decode_ask_receipt(dynamic raw);
+
+  @protected
+  AskScopeInput dco_decode_ask_scope_input(dynamic raw);
+
+  @protected
+  AskScopeOption dco_decode_ask_scope_option(dynamic raw);
+
+  @protected
+  AskTime dco_decode_ask_time(dynamic raw);
 
   @protected
   AssistEvent dco_decode_assist_event(dynamic raw);
@@ -730,6 +745,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AiSettingsInput dco_decode_box_autoadd_ai_settings_input(dynamic raw);
+
+  @protected
+  AskScopeInput dco_decode_box_autoadd_ask_scope_input(dynamic raw);
+
+  @protected
+  AskTime dco_decode_box_autoadd_ask_time(dynamic raw);
 
   @protected
   BackupFile dco_decode_box_autoadd_backup_file(dynamic raw);
@@ -1233,7 +1254,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<ApprovalPrompt> dco_decode_list_approval_prompt(dynamic raw);
 
   @protected
+  List<AskClosest> dco_decode_list_ask_closest(dynamic raw);
+
+  @protected
   List<AskNote> dco_decode_list_ask_note(dynamic raw);
+
+  @protected
+  List<AskReceipt> dco_decode_list_ask_receipt(dynamic raw);
+
+  @protected
+  List<AskScopeOption> dco_decode_list_ask_scope_option(dynamic raw);
 
   @protected
   List<BackupFile> dco_decode_list_backup_file(dynamic raw);
@@ -1742,6 +1772,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  AskTime? dco_decode_opt_box_autoadd_ask_time(dynamic raw);
 
   @protected
   BackupFile? dco_decode_opt_box_autoadd_backup_file(dynamic raw);
@@ -2882,10 +2915,25 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ApprovalWait sse_decode_approval_wait(SseDeserializer deserializer);
 
   @protected
+  AskClosest sse_decode_ask_closest(SseDeserializer deserializer);
+
+  @protected
   AskEvent sse_decode_ask_event(SseDeserializer deserializer);
 
   @protected
   AskNote sse_decode_ask_note(SseDeserializer deserializer);
+
+  @protected
+  AskReceipt sse_decode_ask_receipt(SseDeserializer deserializer);
+
+  @protected
+  AskScopeInput sse_decode_ask_scope_input(SseDeserializer deserializer);
+
+  @protected
+  AskScopeOption sse_decode_ask_scope_option(SseDeserializer deserializer);
+
+  @protected
+  AskTime sse_decode_ask_time(SseDeserializer deserializer);
 
   @protected
   AssistEvent sse_decode_assist_event(SseDeserializer deserializer);
@@ -2934,6 +2982,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AiSettingsInput sse_decode_box_autoadd_ai_settings_input(
     SseDeserializer deserializer,
   );
+
+  @protected
+  AskScopeInput sse_decode_box_autoadd_ask_scope_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AskTime sse_decode_box_autoadd_ask_time(SseDeserializer deserializer);
 
   @protected
   BackupFile sse_decode_box_autoadd_backup_file(SseDeserializer deserializer);
@@ -3497,7 +3553,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<AskClosest> sse_decode_list_ask_closest(SseDeserializer deserializer);
+
+  @protected
   List<AskNote> sse_decode_list_ask_note(SseDeserializer deserializer);
+
+  @protected
+  List<AskReceipt> sse_decode_list_ask_receipt(SseDeserializer deserializer);
+
+  @protected
+  List<AskScopeOption> sse_decode_list_ask_scope_option(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<BackupFile> sse_decode_list_backup_file(SseDeserializer deserializer);
@@ -4110,6 +4177,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  AskTime? sse_decode_opt_box_autoadd_ask_time(SseDeserializer deserializer);
 
   @protected
   BackupFile? sse_decode_opt_box_autoadd_backup_file(
@@ -5431,10 +5501,28 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_approval_wait(ApprovalWait self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ask_closest(AskClosest self, SseSerializer serializer);
+
+  @protected
   void sse_encode_ask_event(AskEvent self, SseSerializer serializer);
 
   @protected
   void sse_encode_ask_note(AskNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ask_receipt(AskReceipt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ask_scope_input(AskScopeInput self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ask_scope_option(
+    AskScopeOption self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ask_time(AskTime self, SseSerializer serializer);
 
   @protected
   void sse_encode_assist_event(AssistEvent self, SseSerializer serializer);
@@ -5492,6 +5580,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     AiSettingsInput self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_ask_scope_input(
+    AskScopeInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_ask_time(AskTime self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_backup_file(
@@ -6223,7 +6320,25 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_ask_closest(
+    List<AskClosest> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_ask_note(List<AskNote> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_ask_receipt(
+    List<AskReceipt> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_ask_scope_option(
+    List<AskScopeOption> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_backup_file(
@@ -7034,6 +7149,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_ask_time(
+    AskTime? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_backup_file(
