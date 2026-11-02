@@ -236,6 +236,7 @@ pub const DOCUMENTED_FEATURES: &[&str] = &[
     "plugin_command",
     "theme_changed",
     "sync_conflict_resolved",
+    "review_prompt",
 ];
 
 /// A feature that was used; an import says where from.
@@ -274,6 +275,7 @@ pub enum Feature {
     PluginCommand,
     ThemeChanged,
     SyncConflictResolved,
+    ReviewPrompt,
 }
 
 impl Feature {
@@ -312,6 +314,7 @@ impl Feature {
             Feature::PluginCommand,
             Feature::ThemeChanged,
             Feature::SyncConflictResolved,
+            Feature::ReviewPrompt,
         ]
         .into_iter()
         .chain(ImportSource::ALL.into_iter().map(Feature::Import))
@@ -353,6 +356,7 @@ impl Feature {
             Feature::PluginCommand => "plugin_command",
             Feature::ThemeChanged => "theme_changed",
             Feature::SyncConflictResolved => "sync_conflict_resolved",
+            Feature::ReviewPrompt => "review_prompt",
         }
     }
 

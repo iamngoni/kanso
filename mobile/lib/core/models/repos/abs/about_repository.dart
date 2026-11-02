@@ -20,4 +20,8 @@ abstract interface class AboutRepository {
 
   /// Opens the website's help page in the browser.
   Future<Either<ApplicationError, Unit>> openHelp();
+
+  /// Opens the store's page to write a review of the app (the App Store,
+  /// or Google Play once the listing is live). Fails where there is none.
+  Future<Either<ApplicationError, Unit>> openRatePage();
 }

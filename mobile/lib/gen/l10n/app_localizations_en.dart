@@ -394,6 +394,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsHelp => 'Help';
 
   @override
+  String get settingsRate => 'Rate Kanso Pocket';
+
+  @override
   String get settingsLicences => 'Licences';
 
   @override

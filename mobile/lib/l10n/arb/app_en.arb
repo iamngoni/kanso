@@ -506,6 +506,10 @@
   "@settingsHelp": {
     "description": "Opens Kanso's help page on the website."
   },
+  "settingsRate": "Rate Kanso Pocket",
+  "@settingsRate": {
+    "description": "Opens the app's page in the App Store (or Google Play) to write a review."
+  },
   "settingsLicences": "Licences",
   "@settingsLicences": {
     "description": "Opens the licences of what Kanso is made of."

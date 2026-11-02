@@ -16,7 +16,7 @@ part 'about_event.dart';
 part 'about_state.dart';
 
 /// What the About section shows: the version of the app, and the ways to
-/// Kanso's website, release notes and help.
+/// Kanso's website, release notes, help and store page.
 @injectable
 class AboutBloc extends Bloc<AboutEvent, AboutState> {
   AboutBloc(this._about) : super(const AboutState()) {
@@ -31,6 +31,10 @@ class AboutBloc extends Bloc<AboutEvent, AboutState> {
     );
     on<AboutHelpOpenedEvent>(
       (event, emit) => _about.openHelp(),
+      transformer: droppable(),
+    );
+    on<AboutRateOpenedEvent>(
+      (event, emit) => _about.openRatePage(),
       transformer: droppable(),
     );
   }

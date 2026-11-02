@@ -10,6 +10,7 @@ import 'core/bridge/frb_generated.dart';
 import 'core/configs/app_environment.dart';
 import 'core/models/data/appearance_status.dart';
 import 'core/router/kanso_router.dart';
+import 'core/services/review_prompt.dart';
 import 'core/state/appearance/appearance_bloc.dart';
 import 'core/utils/license_registration.dart';
 import 'crash/models/repos/abs/crash_report_repository.dart';
@@ -51,9 +52,9 @@ Future<void> bootstrap(
   await beforeRun?.call();
   final windows = getIt<NoteWindowRepository>();
   final router = getIt<KansoRouter>();
-  final metrics = environment == AppEnvironment.production && kReleaseMode
-      ? getIt<UsageMetricsRepository>()
-      : null;
+  final release = environment == AppEnvironment.production && kReleaseMode;
+  final metrics = release ? getIt<UsageMetricsRepository>() : null;
+  final reviewPrompt = release ? getIt<ReviewPrompt>() : null;
   runApp(
     AppProviders(
       appearance: appearance,
@@ -66,6 +67,7 @@ Future<void> bootstrap(
             router: router,
             reminders: getIt<RemindersCoordinator>(),
             metrics: metrics,
+            reviewPrompt: reviewPrompt,
           ),
         ),
       ),

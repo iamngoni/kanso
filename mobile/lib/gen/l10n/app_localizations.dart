@@ -784,6 +784,12 @@ abstract class AppLocalizations {
   /// **'Help'**
   String get settingsHelp;
 
+  /// Opens the app's page in the App Store (or Google Play) to write a review.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate Kanso Pocket'**
+  String get settingsRate;
+
   /// Opens the licences of what Kanso is made of.
   ///
   /// In en, this message translates to:

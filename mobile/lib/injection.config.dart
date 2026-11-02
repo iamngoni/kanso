@@ -76,8 +76,10 @@ import 'core/models/repos/abs/preferences_repository.dart' as _i384;
 import 'core/models/repos/abs/reminder_notifier.dart' as _i874;
 import 'core/models/repos/abs/reminders_repository.dart' as _i58;
 import 'core/models/repos/abs/renderer_repository.dart' as _i732;
+import 'core/models/repos/abs/review_prompt_repository.dart' as _i765;
 import 'core/models/repos/abs/session_repository.dart' as _i333;
 import 'core/models/repos/abs/shared_notes_repository.dart' as _i374;
+import 'core/models/repos/abs/store_review_repository.dart' as _i690;
 import 'core/models/repos/abs/sync_repository.dart' as _i601;
 import 'core/models/repos/abs/system_share_repository.dart' as _i202;
 import 'core/models/repos/abs/templates_repository.dart' as _i460;
@@ -91,8 +93,11 @@ import 'core/models/repos/impl/flutter_haptics_repository.dart' as _i438;
 import 'core/models/repos/impl/flutter_licences_repository.dart' as _i1025;
 import 'core/models/repos/impl/flutter_system_share_repository.dart' as _i254;
 import 'core/models/repos/impl/google_font_source.dart' as _i434;
+import 'core/models/repos/impl/in_app_store_review_repository.dart' as _i155;
 import 'core/models/repos/impl/package_info_about_repository.dart' as _i489;
 import 'core/models/repos/impl/plugin_auth_session_repository.dart' as _i680;
+import 'core/models/repos/impl/preferences_review_prompt_repository.dart'
+    as _i842;
 import 'core/models/repos/impl/rust_account_repository.dart' as _i450;
 import 'core/models/repos/impl/rust_account_settings_repository.dart' as _i350;
 import 'core/models/repos/impl/rust_agent_tasks_repository.dart' as _i770;
@@ -120,6 +125,7 @@ import 'core/router/layout_class_notifier.dart' as _i609;
 import 'core/services/external_changes.dart' as _i825;
 import 'core/services/library_folder_migration.dart' as _i846;
 import 'core/services/preview_theme_fitter.dart' as _i550;
+import 'core/services/review_prompt.dart' as _i849;
 import 'core/services/widget_reloader.dart' as _i608;
 import 'core/state/account/account_bloc.dart' as _i168;
 import 'core/state/appearance/appearance_bloc.dart' as _i551;
@@ -324,6 +330,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i909.PatchRepository>(
       () => _i989.ShorebirdPatchRepository(),
     );
+    gh.lazySingleton<_i690.StoreReviewRepository>(
+      () => _i155.InAppStoreReviewRepository(),
+    );
     gh.lazySingleton<_i951.LicencesRepository>(
       () => _i1025.FlutterLicencesRepository(),
     );
@@ -380,6 +389,11 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i330.PrivacyCoverBloc>(
       () => _i330.PrivacyCoverBloc(gh<_i279.DeviceLockRepository>()),
+    );
+    gh.lazySingleton<_i765.ReviewPromptRepository>(
+      () => _i842.PreferencesReviewPromptRepository(
+        gh<_i384.PreferencesRepository>(),
+      ),
     );
     gh.factory<_i380.AboutBloc>(
       () => _i380.AboutBloc(gh<_i80.AboutRepository>()),
@@ -476,6 +490,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i732.RendererRepository>(
       () => _i820.RustRendererRepository(gh<_i832.KansoRenderer>()),
+    );
+    gh.lazySingleton<_i849.ReviewPrompt>(
+      () => _i849.ReviewPrompt(
+        gh<_i765.ReviewPromptRepository>(),
+        gh<_i690.StoreReviewRepository>(),
+        gh<_i80.AboutRepository>(),
+        gh<_i288.CrashReportRepository>(),
+      ),
     );
     gh.lazySingleton<_i704.PaletteRepository>(
       () => _i97.RustPaletteRepository(gh<_i455.KansoLibrary>()),

@@ -16,6 +16,7 @@ import '../../../capture/models/repos/abs/media_picker_repository.dart';
 import '../../../core/bridge/api/types.dart' hide EditorEvent;
 import '../../../core/bridge/api/types.dart' as core;
 import '../../../core/models/data/application_error.dart';
+import '../../../core/utils/review_moments.dart';
 import '../../models/data/editor_destination.dart';
 import '../../models/data/editor_status.dart';
 import '../../models/data/flush_reason.dart';
@@ -79,6 +80,10 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
   final MediaPickerRepository _picker;
   EditorDocument? _document;
   StreamSubscription<EditorSignal>? _events;
+
+  /// Whether the open note was written in since it was opened, so letting
+  /// it go counts towards the review prompt.
+  bool _edited = false;
 
   /// Picks from the source, and attaches each file picked in turn where
   /// the caret is then; why any was refused is kept to say.
@@ -226,6 +231,9 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
   }
 
   void _onEdited(EditorEditedEvent event, Emitter<EditorState> emit) {
+    if (_document != null) {
+      _edited = true;
+    }
     if (state.status == EditorStatus.ready &&
         state.save is! SaveState_Conflict) {
       emit(state.copyWith(save: const SaveState.pending()));
@@ -499,13 +507,18 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
   /// Saves and lets go of the open note.
   Future<void> _release() async {
     final document = _document;
+    final edited = _edited;
     _document = null;
+    _edited = false;
     await _events?.cancel();
     _events = null;
     if (document != null) {
       // Leaving saves what was typed, keeping it over a change made
       // elsewhere. A note whose lock closed has been saved already.
       await document.close();
+      if (edited) {
+        markNoteEditedForReview();
+      }
     }
   }
 

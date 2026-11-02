@@ -61,6 +61,7 @@ export const FEATURES = [
 	"plugin_command",
 	"theme_changed",
 	"sync_conflict_resolved",
+	"review_prompt",
 ] as const;
 export const COUNTS = ["1", "2-5", "6-20", "21+"] as const;
 export const DURATIONS = ["<1m", "1-5m", "5-15m", "15-60m", "1-3h", "3h+"] as const;
