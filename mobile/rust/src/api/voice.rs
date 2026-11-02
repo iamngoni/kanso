@@ -10,10 +10,22 @@ pub struct Dictated {
     pub caret_utf16: u32,
 }
 
-/// Spoken-command preference saved beside the library database.
+/// Whether a voice note is tidied by the person's own AI.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VoiceTidy {
+    Off,
+    Ask,
+    Always,
+}
+
+/// Voice settings saved beside the library database.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct VoiceSettings {
     pub spoken_commands: bool,
+    pub tidy: VoiceTidy,
+    pub meetings: bool,
+    pub keep_audio: bool,
+    pub allow_server_recognition: bool,
 }
 
 /// The text to put in for `transcript` at the caret, between `before` and

@@ -131,7 +131,7 @@ fn capture_at(store: &Store, share: Share, drop_id: &str) -> Result<CaptureOutco
 }
 
 /// 32 random lowercase hex characters: a drop's ID.
-fn new_drop_id() -> String {
+pub(crate) fn new_drop_id() -> String {
     (0..32)
         .map(|_| char::from_digit(fastrand::u32(0..16), 16).unwrap_or('0'))
         .collect()
@@ -241,6 +241,14 @@ fn save_drops_at(store: &Store, inbox: &Path, now: SystemTime) -> Result<DropsSa
         }
         let modified_ms = meta.modified().ok().map_or(0, millis);
         let manifest = read_manifest(&folder);
+        // A recording waits for the app to transcribe it (`voice_capture`):
+        // it is neither a share nor a failure, so it is left where it is.
+        if manifest
+            .as_ref()
+            .is_ok_and(|json| json.get("kind").and_then(Value::as_str) == Some("voice"))
+        {
+            continue;
+        }
         let created_ms = manifest
             .as_ref()
             .ok()
@@ -418,7 +426,7 @@ fn shared_from(manifest: &Value, folder: &Path) -> Result<(Shared, Vec<String>),
 /// Whether `path` names a file directly inside the drop's folder: not empty,
 /// no separator, not `.` or `..`, not a drive or an absolute path, and not
 /// the description itself.
-fn is_plain_name(path: &str) -> bool {
+pub(crate) fn is_plain_name(path: &str) -> bool {
     !path.is_empty()
         && path != "."
         && path != ".."

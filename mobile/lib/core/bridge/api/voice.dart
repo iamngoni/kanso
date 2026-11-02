@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
 
 /// The text to put in for `transcript` at the caret, between `before` and
 /// `after`, and where the caret goes (in UTF-16 units). `None` when nothing
@@ -28,10 +28,7 @@ class Dictated {
   final String text;
   final int caretUtf16;
 
-  const Dictated({
-    required this.text,
-    required this.caretUtf16,
-  });
+  const Dictated({required this.text, required this.caretUtf16});
 
   @override
   int get hashCode => text.hashCode ^ caretUtf16.hashCode;
@@ -45,21 +42,41 @@ class Dictated {
           caretUtf16 == other.caretUtf16;
 }
 
-/// Spoken-command preference saved beside the library database.
+/// Voice settings saved beside the library database.
 class VoiceSettings {
   final bool spokenCommands;
+  final VoiceTidy tidy;
+  final bool meetings;
+  final bool keepAudio;
+  final bool allowServerRecognition;
 
   const VoiceSettings({
     required this.spokenCommands,
+    required this.tidy,
+    required this.meetings,
+    required this.keepAudio,
+    required this.allowServerRecognition,
   });
 
   @override
-  int get hashCode => spokenCommands.hashCode;
+  int get hashCode =>
+      spokenCommands.hashCode ^
+      tidy.hashCode ^
+      meetings.hashCode ^
+      keepAudio.hashCode ^
+      allowServerRecognition.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is VoiceSettings &&
           runtimeType == other.runtimeType &&
-          spokenCommands == other.spokenCommands;
+          spokenCommands == other.spokenCommands &&
+          tidy == other.tidy &&
+          meetings == other.meetings &&
+          keepAudio == other.keepAudio &&
+          allowServerRecognition == other.allowServerRecognition;
 }
+
+/// Whether a voice note is tidied by the person's own AI.
+enum VoiceTidy { off, ask, always }
