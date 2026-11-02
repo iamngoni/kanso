@@ -21,3 +21,4 @@ pub mod measure;
 pub mod model_fetch;
 pub mod ocr;
 pub mod related;
+pub mod resurface;

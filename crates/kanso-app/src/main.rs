@@ -127,6 +127,7 @@ mod query_view_ui;
 mod related;
 mod reminders;
 mod replace;
+mod resurface;
 mod review_queue;
 #[cfg(test)]
 mod review_tests;

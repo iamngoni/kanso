@@ -496,6 +496,16 @@ pub struct DiscoverySettings {
     pub image_text: bool,
     /// How many links out the inspector's graph reaches: 1 or 2.
     pub graph_hops: u8,
+    /// Past notes about the paragraph being written (`resurface.rs`): on
+    /// when related notes are.
+    pub resurface: bool,
+    /// Where they show: the margin beside the text, or only the inspector's
+    /// Related tab.
+    pub resurface_margin: bool,
+    /// How close a note must be to show.
+    pub resurface_closeness: kanso_engine::discovery::resurface::Closeness,
+    /// Notes written on this day in earlier years, on daily notes.
+    pub on_this_day: bool,
 }
 
 impl Default for DiscoverySettings {
@@ -504,6 +514,10 @@ impl Default for DiscoverySettings {
             related_notes: false,
             image_text: cfg!(target_os = "macos"),
             graph_hops: 1,
+            resurface: true,
+            resurface_margin: true,
+            resurface_closeness: Default::default(),
+            on_this_day: true,
         }
     }
 }
@@ -860,7 +874,19 @@ mod tests {
             any::<bool>(),
             gen_editor(),
             (any::<bool>(), "(ctrl-|alt-|shift-|cmd-){1,3}[a-z0-9]"),
-            (any::<bool>(), any::<bool>(), 1u8..=2),
+            (
+                any::<bool>(),
+                any::<bool>(),
+                1u8..=2,
+                any::<bool>(),
+                any::<bool>(),
+                prop::sample::select(vec![
+                    kanso_engine::discovery::resurface::Closeness::Closer,
+                    kanso_engine::discovery::resurface::Closeness::Default,
+                    kanso_engine::discovery::resurface::Closeness::Looser,
+                ]),
+                any::<bool>(),
+            ),
             (
                 prop::sample::select(vec![
                     VoiceEngine::Ask,
@@ -878,7 +904,15 @@ mod tests {
                     auto_install,
                     editor,
                     (enabled, shortcut),
-                    (related_notes, image_text, graph_hops),
+                    (
+                        related_notes,
+                        image_text,
+                        graph_hops,
+                        resurface,
+                        resurface_margin,
+                        resurface_closeness,
+                        on_this_day,
+                    ),
                     (engine, spoken_commands),
                     ai,
                 )| AppConfig {
@@ -896,6 +930,10 @@ mod tests {
                         related_notes,
                         image_text,
                         graph_hops,
+                        resurface,
+                        resurface_margin,
+                        resurface_closeness,
+                        on_this_day,
                     },
                     ..config
                 },

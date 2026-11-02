@@ -57,6 +57,7 @@ use crate::note_meaning::NoteMeaning;
 use crate::pairing::Pairs;
 use crate::preview::{ImageResize, LinkSender, Preview, PreviewEdit, TEXT_INSET, readable_width};
 use crate::preview_tasks::{self, TaskTick};
+use crate::resurface::{Resurface, ResurfaceEvent};
 use crate::smart_paste;
 use crate::spellcheck::{
     self, CorrectSpelling, IgnoreSpelling, LearnSpelling, Misspelling, SpellMarks,
@@ -88,6 +89,9 @@ pub(crate) mod inline_glue;
 mod inline_tests;
 #[path = "editor_peers.rs"]
 pub(crate) mod peers;
+#[cfg(test)]
+#[path = "resurface_tests.rs"]
+mod resurface_tests;
 #[cfg(test)]
 #[path = "spellcheck_tests.rs"]
 mod spellcheck_tests;
@@ -156,6 +160,9 @@ pub enum EditorEvent {
     ShowBacklinks,
     /// The inspector button: the inspector opens or closes.
     ToggleInspector,
+    /// A note picked in the margin of related notes: the workspace opens
+    /// it, in a new tab for a ⌘-click.
+    OpenNote { id: String, new_tab: bool },
     /// The editor let go of a note deleted elsewhere, after the reader
     /// chose the version from elsewhere: its tab goes with it.
     Closed(String),
@@ -344,6 +351,11 @@ pub struct NoteEditor {
     /// What related notes say about the open note: suggested tags, and a
     /// note that says nearly the same.
     meaning: Entity<NoteMeaning>,
+    /// Past notes about the paragraph being written, for the margin beside
+    /// the text and the inspector's Related tab.
+    resurface: Entity<Resurface>,
+    /// The width of the pane the text is in, in points, as last drawn.
+    pane_width: f32,
     /// The text last taken from another editor of the same note
     /// (`editor_peers.rs`), to tell its echo from typing.
     peer_echo: Option<(String, String)>,
@@ -402,6 +414,7 @@ impl NoteEditor {
         });
         let wiki: SharedIndex = Rc::new(RefCell::new(Arc::new(WikiIndex::default())));
         let meaning = cx.new(|cx| NoteMeaning::new(store.clone(), cx));
+        let resurface = cx.new(|cx| Resurface::new(store.clone(), body.clone(), title.clone(), cx));
         body.update(cx, |state, _| {
             // `#tags` beside `[[` wiki-links: the editor takes one provider.
             state.lsp_mut().completion_provider =
@@ -448,6 +461,20 @@ impl NoteEditor {
             footer
         });
         let subscriptions = vec![
+            cx.subscribe_in(
+                &resurface,
+                window,
+                |this, _, event, window, cx| match event {
+                    ResurfaceEvent::Link(title) => this.link_to(title, window, cx),
+                    ResurfaceEvent::Open { id, new_tab } => cx.emit(EditorEvent::OpenNote {
+                        id: id.clone(),
+                        new_tab: *new_tab,
+                    }),
+                    ResurfaceEvent::Leave => {
+                        this.body.update(cx, |body, cx| body.focus(window, cx))
+                    }
+                },
+            ),
             cx.subscribe(&footer, |this, _, event: &FooterEvent, cx| match event {
                 FooterEvent::Goal(goal) => this.set_word_goal(*goal, cx),
                 FooterEvent::CustomGoal => cx.emit(EditorEvent::Pick(Picker::WordGoal)),
@@ -590,6 +617,8 @@ impl NoteEditor {
             account_read_only: false,
             collab_read_only: false,
             meaning,
+            resurface,
+            pane_width: 0.,
             peer_echo: None,
             from_peer: false,
             standalone: false,
@@ -973,6 +1002,41 @@ impl NoteEditor {
         &self.meaning
     }
 
+    /// Past notes about the paragraph being written.
+    pub fn resurface(&self) -> &Entity<Resurface> {
+        &self.resurface
+    }
+
+    /// Puts `[[title]]` at the caret as one undo step, and the keyboard
+    /// back in the text.
+    fn link_to(&mut self, title: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if self.note.is_none() || self.text_read_only {
+            return;
+        }
+        let link = format!("[[{}]]", title.trim());
+        self.body.update(cx, |state, cx| {
+            let caret = state.cursor();
+            state.set_selected_range(caret..caret, cx);
+            state.replace(link, window, cx);
+            state.focus(window, cx);
+        });
+    }
+
+    /// The width the pane was last drawn at, so the margin knows whether
+    /// it has room.
+    fn set_pane_width(&mut self, width: f32, cx: &mut Context<Self>) {
+        if (self.pane_width - width).abs() > 0.5 {
+            self.pane_width = width;
+            cx.notify();
+        }
+    }
+
+    /// The keyboard goes to the margin of related notes, when it shows.
+    fn focus_resurface(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.resurface
+            .update(cx, |resurface, cx| resurface.focus_margin(window, cx));
+    }
+
     pub fn note_id(&self) -> Option<&str> {
         self.note.as_ref().map(|n| n.id.as_str())
     }
@@ -1086,6 +1150,16 @@ impl NoteEditor {
         let id = self.note_id().map(str::to_owned);
         self.meaning
             .update(cx, |meaning, cx| meaning.follow(id.as_deref(), cx));
+        // The margin works for a note in the clear only: never a locked
+        // one, a sticky's, or one in the trash.
+        let margin_for = self
+            .note
+            .as_ref()
+            .filter(|note| self.lock == LockView::Plain && !self.compact && !note.is_trashed())
+            .map(|note| note.id.clone());
+        self.resurface.update(cx, |resurface, cx| {
+            resurface.follow(margin_for.as_deref(), cx)
+        });
         let has_note = self.note.is_some();
         self.footer
             .update(cx, |footer, cx| footer.note_opened(has_note, cx));
@@ -2324,6 +2398,17 @@ impl NoteEditor {
                 .is_some_and(|voice| voice.is_for(&cx.entity()))
         {
             crate::voice::cancel(cx);
+            cx.stop_propagation();
+            return;
+        }
+        // ⌥⌘R moves the keyboard to the margin of related notes.
+        if event.keystroke.key == "r"
+            && event.keystroke.modifiers.secondary()
+            && event.keystroke.modifiers.alt
+            && !event.keystroke.modifiers.shift
+            && self.resurface.read(cx).in_margin(cx)
+        {
+            self.focus_resurface(window, cx);
             cx.stop_propagation();
             return;
         }
@@ -4507,9 +4592,13 @@ impl Render for NoteEditor {
             );
         let body = match mode {
             _ if self.lock.is_closed() => self.render_locked(cx),
-            ViewMode::Edit | ViewMode::Live => {
-                h_flex().size_full().child(source).into_any_element()
-            }
+            ViewMode::Edit | ViewMode::Live => h_flex()
+                .size_full()
+                .child(source)
+                // Past notes about the paragraph, when there is room; it
+                // takes no width while it has nothing to say.
+                .child(self.resurface.clone())
+                .into_any_element(),
             ViewMode::Preview => h_flex().size_full().child(preview).into_any_element(),
             ViewMode::Split => {
                 self.place_split(window, cx);
@@ -4567,6 +4656,31 @@ impl Render for NoteEditor {
             }
         };
 
+        // The margin needs a wide pane, the inspector shut, and the text
+        // alone (or in Live).
+        let room = crate::resurface::pane_has_room(self.pane_width, self.inspector_open)
+            && matches!(mode, ViewMode::Edit | ViewMode::Live)
+            && !compact
+            && !focus_mode;
+        self.resurface
+            .update(cx, |resurface, cx| resurface.set_room(room, cx));
+        let measure_pane = {
+            let editor = cx.entity().downgrade();
+            canvas(
+                |bounds, _, _| bounds,
+                move |_, bounds, window, cx| {
+                    let width = crate::zoom::unscaled(bounds.size.width);
+                    let editor = editor.clone();
+                    window.defer(cx, move |_, cx| {
+                        editor
+                            .update(cx, |this, cx| this.set_pane_width(width, cx))
+                            .ok();
+                    });
+                },
+            )
+            .absolute()
+            .size_full()
+        };
         let column = v_flex()
             .size_full()
             .bg(colors.editor)
@@ -4589,7 +4703,15 @@ impl Render for NoteEditor {
                 ))
             })
             .children(self.render_problems(cx))
-            .child(div().flex_1().min_h_0().w_full().child(body))
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .w_full()
+                    .relative()
+                    .child(body)
+                    .child(measure_pane),
+            )
             // Redrawn only when the cursor or the counts change.
             .when(!compact, |el| {
                 el.child(

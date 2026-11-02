@@ -26,11 +26,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use kanso_core::tags::is_ai_exclude;
 use kanso_engine::discovery::graph::{self as layout, GraphFilter as Narrow, Scope};
 use kanso_engine::discovery::indexer::{Indexer, load_static};
-use kanso_engine::discovery::meaning::{self, Dismissed, MEANING_MIN_CHARS};
+use kanso_engine::discovery::meaning::{self, MEANING_MIN_CHARS};
 use kanso_engine::discovery::measure::{self, SAMPLE_NOTES};
 use kanso_engine::discovery::model_fetch::Model;
 use kanso_engine::discovery::ocr;
 use kanso_engine::discovery::related::{MODEL, MODEL_ID, Status, related_words, similarity_label};
+use kanso_engine::discovery::resurface::{self as resurfacing, Closeness, SHOWN};
 use kanso_store::{
     MEANING_SIMILARITY, MeaningSearch, Origin, RelatedNote, Store, StoreError, blend_meaning,
 };
@@ -40,8 +41,8 @@ use crate::errors::KansoError;
 use crate::library::{Inner, Library};
 use crate::model::{
     DiscoveryMeasure, GraphEdgeRow, GraphFilter, GraphLayout, GraphNodeRow, GraphRequest,
-    ImageToRead, MeaningResult, NoteMeaning, NoteView, RelatedRow, RelatedState, RelatedStatus,
-    SuggestedTag, TwinRow,
+    ImageToRead, MeaningResult, NoteMeaning, NoteView, OnThisDayRow, RelatedRow, RelatedState,
+    RelatedStatus, ResurfaceResult, ResurfaceRow, SuggestedTag, TwinRow,
 };
 use crate::stream::Listeners;
 
@@ -91,8 +92,6 @@ pub(crate) struct DiscoveryState {
     indexer: std::sync::Mutex<Option<Indexer>>,
     shared: Arc<Shared>,
     start: std::sync::Mutex<Arc<IndexerStart>>,
-    /// Pairs of notes said not to be twins, until the library is closed.
-    dismissed: std::sync::Mutex<Dismissed>,
 }
 
 impl Default for DiscoveryState {
@@ -105,7 +104,6 @@ impl Default for DiscoveryState {
                 generation: AtomicU64::new(0),
             }),
             start: std::sync::Mutex::new(default_start()),
-            dismissed: std::sync::Mutex::new(Dismissed::default()),
         }
     }
 }
@@ -333,9 +331,10 @@ impl Discovery {
                     weight: s.weight,
                 })
                 .collect();
-            let dismissed = held(&self.inner.discovery.dismissed).clone();
+            // Said not to be twins: kept in the library, so it holds after
+            // it is closed.
             let twin = twin
-                .filter(|other| !dismissed.has(id, &other.id))
+                .filter(|other| !self.store().is_dismissed(id, &other.id).unwrap_or(false))
                 .map(|other| TwinRow {
                     percent: (other.score.clamp(0., 1.) * 100.).round() as u32,
                     id: other.id,
@@ -346,11 +345,89 @@ impl Discovery {
     }
 
     /// The two notes are different notes after all: not mentioned as twins
-    /// again, from either side, until the library is closed.
+    /// again, from either side. Kept in the library, on this device only.
     pub fn dismiss_twin(&self, id: &str, other_id: &str) -> Result<(), KansoError> {
+        guard(|| Ok(self.store().dismiss_twin(id, other_id)?))
+    }
+
+    // MARK: Resurfacing
+
+    /// Up to three past notes about the paragraph around the caret of note
+    /// `id`, from the text as it is typed (`title` and `body`, not what is
+    /// saved) and `caret`, a UTF-16 offset in `body`. `closeness` is the
+    /// setting's name ("closer", "default" or "looser"); `utc_offset_secs`
+    /// is the zone now, for the dates. Nothing for a paragraph under six
+    /// words, and nothing at all for a note that is locked, in the trash,
+    /// or tagged `#ai-exclude`: no query is made from its words.
+    pub fn resurface(
+        &self,
+        id: &str,
+        title: &str,
+        body: &str,
+        caret: u32,
+        closeness: &str,
+        utc_offset_secs: i32,
+    ) -> Result<ResurfaceResult, KansoError> {
         guard(|| {
-            held(&self.inner.discovery.dismissed).add(id, other_id);
-            Ok(())
+            if self.store().embedding_model()?.is_none() {
+                return Ok(ResurfaceResult::Off);
+            }
+            if !self.store().note_discoverable(id)? {
+                return Ok(ResurfaceResult::Found { rows: Vec::new() });
+            }
+            let at = byte_offset(body, caret as usize);
+            let Some(query) = resurfacing::query(title, body, at) else {
+                return Ok(ResurfaceResult::Found { rows: Vec::new() });
+            };
+            let opts = Closeness::from_key(closeness).opts();
+            Ok(match self.store().resurface(&query, id, opts)? {
+                kanso_store::Resurfacing::Off => ResurfaceResult::Off,
+                kanso_store::Resurfacing::NoModel => ResurfaceResult::NoModel,
+                kanso_store::Resurfacing::Found(found) => ResurfaceResult::Found {
+                    rows: resurfacing::present(&found, kanso_core::now_ms(), utc_offset_secs)
+                        .into_iter()
+                        .map(|item| ResurfaceRow {
+                            id: item.id,
+                            title: item.title,
+                            book: item.book,
+                            when: item.when,
+                            snippet: item.snippet,
+                            before: item.before,
+                        })
+                        .collect(),
+                },
+            })
+        })
+    }
+
+    /// "Not related": note `other_id` is not shown beside note `id` again.
+    pub fn dismiss_related(&self, id: &str, other_id: &str) -> Result<(), KansoError> {
+        guard(|| Ok(self.store().dismiss_related(id, other_id)?))
+    }
+
+    /// For a daily note, up to three notes written on its date in earlier
+    /// years (its own daily notes first, newest year first). Nothing for
+    /// any other note. Needs no language model.
+    pub fn on_this_day(
+        &self,
+        id: &str,
+        utc_offset_secs: i32,
+    ) -> Result<Vec<OnThisDayRow>, KansoError> {
+        guard(|| {
+            let Some(date) = kanso_core::roles::daily_date(id) else {
+                return Ok(Vec::new());
+            };
+            let found =
+                resurfacing::on_this_day(self.store(), date, &move |_| utc_offset_secs, SHOWN)?;
+            Ok(found
+                .into_iter()
+                .map(|note| OnThisDayRow {
+                    id: note.id,
+                    title: note.title,
+                    book: note.book,
+                    ago: note.ago,
+                })
+                .collect())
         })
     }
 
@@ -652,6 +729,19 @@ fn apple_resident() -> Option<u64> {
         )
     };
     (status == 0).then_some(info.resident_size)
+}
+
+/// The byte offset in `text` of a UTF-16 offset (clamped to the end, and
+/// to the start of the character it falls inside).
+fn byte_offset(text: &str, utf16: usize) -> usize {
+    let mut units = 0;
+    for (at, c) in text.char_indices() {
+        if units + c.len_utf16() > utf16 {
+            return at;
+        }
+        units += c.len_utf16();
+    }
+    text.len()
 }
 
 #[cfg(test)]

@@ -648,6 +648,15 @@ impl Workspace {
                     this.show_inspector(Some(InspectorTab::Backlinks), cx);
                 }
                 EditorEvent::ToggleInspector => this.toggle_inspector(cx),
+                EditorEvent::OpenNote { id, new_tab } => {
+                    if *new_tab {
+                        this.open_note_in_new_tab(id, window, cx);
+                    } else {
+                        let id = id.clone();
+                        this.library
+                            .update(cx, |library, cx| library.select(Some(id), cx));
+                    }
+                }
                 EditorEvent::Closed(id) => this.close_tab_of_note(id, window, cx),
                 EditorEvent::Renamed {
                     id,

@@ -149,6 +149,49 @@ impl Store {
             .unwrap_or_default())
     }
 
+    /// Whether note `id` may be read by the discovery features: live,
+    /// outside the trash, not locked and not tagged `#ai-exclude`. The
+    /// margin makes no query from the words of any other.
+    pub fn note_discoverable(&self, id: &str) -> Result<bool> {
+        self.read(|conn| {
+            Ok(conn
+                .query_row(
+                    concat!(
+                        "SELECT 1 FROM docs d WHERE d.id = ? AND ",
+                        crate::schema::discoverable!("d.")
+                    ),
+                    [id],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some())
+        })
+    }
+
+    /// The first `chars` characters of note `id`'s words, for a peek at a
+    /// resurfaced note; `None` when it may not be read (see
+    /// [`Store::note_discoverable`]).
+    pub fn note_excerpt(&self, id: &str, chars: usize) -> Result<Option<String>> {
+        self.read(|conn| {
+            let ok = conn
+                .query_row(
+                    concat!(
+                        "SELECT 1 FROM docs d WHERE d.id = ? AND ",
+                        crate::schema::discoverable!("d.")
+                    ),
+                    [id],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some();
+            if !ok {
+                return Ok(None);
+            }
+            let body = note_body(conn, id)?;
+            Ok(Some(body.chars().take(chars).collect()))
+        })
+    }
+
     /// The notes `id` was said to be unrelated to ("Not related" in its
     /// margin) and the twins it was said not to be.
     pub fn dismissed_related(&self, id: &str) -> Result<HashSet<String>> {

@@ -145,6 +145,39 @@ pub fn measure(
     })
 }
 
+/// How many fake notes resurfacing is timed against: the budget is 15 ms
+/// on a desktop and 40 ms on a phone at this many.
+pub const RESURFACE_NOTES: usize = 50_000;
+
+/// How long, in milliseconds, scoring a query against `notes` fake notes of
+/// `dim` numbers takes in the in-memory index resurfacing searches, once
+/// the index is built: its dot products and nothing else.
+pub fn resurface_query_ms(notes: usize, dim: usize) -> f64 {
+    let vector = |seed: u64| -> Vec<f32> {
+        let mut x = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        (0..dim)
+            .map(|_| {
+                x = x
+                    .wrapping_mul(6_364_136_223_846_793_005)
+                    .wrapping_add(1_442_695_040_888_963_407);
+                ((x >> 33) as f32 / (1u64 << 31) as f32) - 0.5
+            })
+            .collect()
+    };
+    let mut index = kanso_store::VectorIndex::new("measure", dim);
+    for n in 0..notes {
+        index.put(&format!("note:{n}"), &vector(n as u64));
+    }
+    let query = vector(u64::MAX / 3);
+    let started = Instant::now();
+    let found = index.nearest(&query, "", 0.3, 50);
+    let took = started.elapsed().as_secs_f64() * 1000.;
+    debug_assert!(found.len() <= 50);
+    took
+}
+
 /// Embeds `texts` as the indexer does, a batch at a time; how many vectors.
 fn embed_all(embedder: &dyn Embedder, texts: &[String]) -> usize {
     texts
@@ -188,6 +221,20 @@ mod tests {
         folder: "m",
         files: &FILES,
     };
+
+    /// A query against a small index is timed; the 50,000-note budget (15 ms
+    /// desktop) is checked in release builds by the ignored test below.
+    #[test]
+    fn resurfacing_is_timed_against_fake_notes() {
+        assert!(resurface_query_ms(500, 64) >= 0.);
+    }
+
+    #[test]
+    #[ignore = "benchmark: run with --release"]
+    fn fifty_thousand_notes_resurface_within_the_desktop_budget() {
+        let ms = resurface_query_ms(RESURFACE_NOTES, 256);
+        assert!(ms <= 15., "took {ms} ms");
+    }
 
     #[test]
     fn a_model_is_measured_with_a_fake() {
