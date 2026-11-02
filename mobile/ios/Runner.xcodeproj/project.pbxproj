@@ -41,6 +41,22 @@
 		D93E4B8C90D029ED01B2380F /* CaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F088FED550A2CCD71B9EAD /* CaptureUITests.swift */; };
 		E284B9603BE8AADC6F58B4BA /* KansoWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DE68850E941F7AE9842B13EA /* KansoWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F1F2F3F4F5F60718293A4B5D /* KansoReminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F2F3F4F5F60718293A4B5C /* KansoReminders.swift */; };
+		A11CE000000000000000000A /* VoiceDropManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* VoiceDropManifest.swift */; };
+		A11CE000000000000000000B /* VoiceDropManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* VoiceDropManifest.swift */; };
+		A11CE000000000000000000C /* VoiceCaptureState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000002 /* VoiceCaptureState.swift */; };
+		A11CE000000000000000000D /* VoiceCaptureState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000002 /* VoiceCaptureState.swift */; };
+		A11CE000000000000000000E /* VoiceDropWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000003 /* VoiceDropWriter.swift */; };
+		A11CE000000000000000000F /* VoiceDropWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000003 /* VoiceDropWriter.swift */; };
+		A11CE0000000000000000010 /* VoiceCaptureAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000004 /* VoiceCaptureAttributes.swift */; };
+		A11CE0000000000000000011 /* VoiceCaptureAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000004 /* VoiceCaptureAttributes.swift */; };
+		A11CE0000000000000000012 /* VoiceCaptureController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000005 /* VoiceCaptureController.swift */; };
+		A11CE0000000000000000013 /* VoiceCaptureController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000005 /* VoiceCaptureController.swift */; };
+		A11CE0000000000000000014 /* VoiceCaptureIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000006 /* VoiceCaptureIntents.swift */; };
+		A11CE0000000000000000015 /* VoiceCaptureIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000006 /* VoiceCaptureIntents.swift */; };
+		A11CE0000000000000000016 /* VoiceCaptureLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000007 /* VoiceCaptureLiveActivity.swift */; };
+		A11CE0000000000000000017 /* KansoControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000008 /* KansoControls.swift */; };
+		A11CE0000000000000000018 /* VoiceDropTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000009 /* VoiceDropTests.swift */; };
+		A11CE000000000000000004B /* DropWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC98EC37B3595873FC88D02C /* DropWriter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -143,6 +159,15 @@
 		EDC18B638AAD36507F1F7BCD /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F1F2F3F4F5F60718293A4B5C /* KansoReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KansoReminders.swift; sourceTree = "<group>"; };
 		F539F99A22C0758280EEE66F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A11CE0000000000000000001 /* VoiceDropManifest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceDropManifest.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000002 /* VoiceCaptureState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceCaptureState.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000003 /* VoiceDropWriter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceDropWriter.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000004 /* VoiceCaptureAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceCaptureAttributes.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000005 /* VoiceCaptureController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceCaptureController.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000006 /* VoiceCaptureIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceCaptureIntents.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000007 /* VoiceCaptureLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceCaptureLiveActivity.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000008 /* KansoControls.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KansoControls.swift; sourceTree = "<group>"; };
+		A11CE0000000000000000009 /* VoiceDropTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceDropTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -186,6 +211,8 @@
 			children = (
 				9FB3D86356FEF1A35DE99D2D /* KansoWidgets.swift */,
 				2C9572412C9A933370F4DB7C /* WidgetPalette.swift */,
+				A11CE0000000000000000007 /* VoiceCaptureLiveActivity.swift */,
+				A11CE0000000000000000008 /* KansoControls.swift */,
 				EDC18B638AAD36507F1F7BCD /* Info.plist */,
 				49C206BB88666F9CAB8EC5CF /* KansoWidgets.entitlements */,
 			);
@@ -197,6 +224,7 @@
 			children = (
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
 				D33A7BEC3A8936FFE828B942 /* DropWriterTests.swift */,
+				A11CE0000000000000000009 /* VoiceDropTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -295,6 +323,12 @@
 				4F5DE67EEABE44BDA59B4EBC /* KansoLibraryLocation.swift */,
 				DC98EC37B3595873FC88D02C /* DropWriter.swift */,
 				D76A16A9E056807A850A0222 /* KansoCore.swift */,
+				A11CE0000000000000000001 /* VoiceDropManifest.swift */,
+				A11CE0000000000000000002 /* VoiceCaptureState.swift */,
+				A11CE0000000000000000003 /* VoiceDropWriter.swift */,
+				A11CE0000000000000000004 /* VoiceCaptureAttributes.swift */,
+				A11CE0000000000000000005 /* VoiceCaptureController.swift */,
+				A11CE0000000000000000006 /* VoiceCaptureIntents.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -549,6 +583,7 @@
 			files = (
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
 				BB1A0688790E97746A06B89A /* DropWriterTests.swift in Sources */,
+				A11CE0000000000000000018 /* VoiceDropTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -574,6 +609,12 @@
 				B69D9DA81E62862DC1D2563F /* KansoLibraryLocation.swift in Sources */,
 				85A4B5ACFD7D6AB1A9BAE91F /* DropWriter.swift in Sources */,
 				4656BCE271B6BA41E784C494 /* KansoCore.swift in Sources */,
+				A11CE000000000000000000A /* VoiceDropManifest.swift in Sources */,
+				A11CE000000000000000000C /* VoiceCaptureState.swift in Sources */,
+				A11CE000000000000000000E /* VoiceDropWriter.swift in Sources */,
+				A11CE0000000000000000010 /* VoiceCaptureAttributes.swift in Sources */,
+				A11CE0000000000000000012 /* VoiceCaptureController.swift in Sources */,
+				A11CE0000000000000000014 /* VoiceCaptureIntents.swift in Sources */,
 				C7A5E0E000000000000000A2 /* NoteSceneDelegate.swift in Sources */,
 				C7A5E0DF00000000000000A2 /* NoteWindows.swift in Sources */,
 			);
@@ -586,6 +627,15 @@
 				C9E94BDC087DFFE5E00B40A9 /* KansoWidgets.swift in Sources */,
 				D07B4C74BDEF2BE7413AC1CB /* WidgetPalette.swift in Sources */,
 				281E9B09E4A4132845EE2BAC /* KansoLibraryLocation.swift in Sources */,
+				A11CE000000000000000000B /* VoiceDropManifest.swift in Sources */,
+				A11CE000000000000000000D /* VoiceCaptureState.swift in Sources */,
+				A11CE000000000000000000F /* VoiceDropWriter.swift in Sources */,
+				A11CE0000000000000000011 /* VoiceCaptureAttributes.swift in Sources */,
+				A11CE0000000000000000013 /* VoiceCaptureController.swift in Sources */,
+				A11CE0000000000000000015 /* VoiceCaptureIntents.swift in Sources */,
+				A11CE0000000000000000016 /* VoiceCaptureLiveActivity.swift in Sources */,
+				A11CE0000000000000000017 /* KansoControls.swift in Sources */,
+				A11CE000000000000000004B /* DropWriter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
