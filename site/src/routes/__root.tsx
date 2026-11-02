@@ -6,6 +6,7 @@
 import { HeadContent, Link, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { SiteFooter, SiteHeader } from "../components/SiteChrome";
+import { APP_STORE_ID } from "../lib/stores";
 import appCss from "../styles/app.css?url";
 
 export const SITE_URL = "https://kansoapp.app";
@@ -28,6 +29,7 @@ export const Route = createRootRoute({
       { property: "og:image", content: `${SITE_URL}/og.png` },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
+      { name: "apple-itunes-app", content: `app-id=${APP_STORE_ID}` },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [

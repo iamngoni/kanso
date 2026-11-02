@@ -7,8 +7,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/cn";
-import { PLATFORMS, PLATFORM_NAMES, type Platform } from "../lib/platform";
+import { AndroidStore, AppStoreBadge } from "../components/AppStoreBadge";
+import { PLATFORMS, PLATFORM_NAMES, type MobileOs, type Platform } from "../lib/platform";
 import { RELEASES_URL, type Release, buildsFor, formatDate, formatSize } from "../lib/release";
+import { ANDROID_URL } from "../lib/stores";
 import { getSiteData } from "../server/fns";
 
 export const Route = createFileRoute("/download")({
@@ -16,7 +18,7 @@ export const Route = createFileRoute("/download")({
   head: () => ({
     meta: [
       { title: "Download Kanso" },
-      { name: "description", content: "Download Kanso for macOS, Windows or Linux. Free and open source; it updates itself." },
+      { name: "description", content: "Download Kanso for macOS, Windows or Linux, or Kanso Pocket for iPhone and iPad from the App Store. Free and open source; it updates itself." },
     ],
     links: [{ rel: "canonical", href: "https://kansoapp.app/download" }],
   }),
@@ -39,7 +41,17 @@ const INSTALL: Record<Platform, readonly string[]> = {
 };
 
 function DownloadPage() {
-  const { release, platform } = Route.useLoaderData();
+  const { release, platform, mobile } = Route.useLoaderData();
+  return <Download release={release} platform={platform} mobile={mobile} />;
+}
+
+export interface DownloadProps {
+  release: Release | null;
+  platform: Platform | null;
+  mobile?: MobileOs | null;
+}
+
+export function Download({ release, platform, mobile = null }: DownloadProps) {
   const order = platform ? [platform, ...PLATFORMS.filter((p) => p !== platform)] : [...PLATFORMS];
   return (
     <section className="page pt-[clamp(3.5rem,9vw,7rem)] pb-[clamp(5rem,12vw,9rem)]">
@@ -62,13 +74,17 @@ function DownloadPage() {
         </p>
       )}
 
+      {mobile && <MobileSection mine className="mt-[clamp(3rem,7vw,5rem)]" />}
+
       {release && (
-        <div className="mt-[clamp(3rem,7vw,5rem)] grid gap-px overflow-hidden rounded-[0.9rem] border border-line bg-line">
+        <div className={cn("grid gap-px overflow-hidden rounded-[0.9rem] border border-line bg-line", mobile ? "mt-6" : "mt-[clamp(3rem,7vw,5rem)]")}>
           {order.map((p) => (
             <PlatformRow key={p} platform={p} release={release} mine={p === platform} />
           ))}
         </div>
       )}
+
+      {!mobile && <MobileSection mine={false} className="mt-6" />}
 
       {release?.checksumsUrl && (
         <p className="mt-8 max-w-2xl text-[0.9375rem] text-fg-3">
@@ -133,6 +149,28 @@ function PlatformRow({ platform, release, mine }: { platform: Platform; release:
       <a href={release.pageUrl} className="sr-only">
         Release notes for {release.version} <ArrowUpRight />
       </a>
+    </div>
+  );
+}
+
+/** Kanso Pocket: the App Store badge, and Android's state until it has a listing. */
+function MobileSection({ mine, className }: { mine: boolean; className?: string }) {
+  return (
+    <div className={cn("grid gap-8 rounded-[0.9rem] border border-line bg-elevated p-6 sm:p-9 lg:grid-cols-12", mine && "bg-sidebar", className)}>
+      <div className="lg:col-span-4">
+        <h2 className="flex flex-wrap items-center gap-3 text-[clamp(1.5rem,1.25rem+0.9vw,2rem)] font-semibold tracking-[-0.02em]">
+          Kanso Pocket, for your phone
+          {mine && <span className="rounded-full bg-accent/12 px-2 py-0.5 font-[family-name:var(--font-sans)] text-[0.75rem] font-medium text-accent">Your device</span>}
+        </h2>
+        <ul className="mt-4 grid gap-2 text-[0.9375rem] text-fg-2">
+          <li>The same notes on your iPhone and iPad: write, search and lock them.</li>
+          <li>Sign in with your Kanso account to keep it in step with your computer.</li>
+        </ul>
+      </div>
+      <div className="flex flex-wrap content-start items-center gap-4 lg:col-span-7 lg:col-start-6">
+        <AppStoreBadge />
+        <AndroidStore url={ANDROID_URL} />
+      </div>
     </div>
   );
 }

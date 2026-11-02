@@ -6,7 +6,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
-import { type Platform, detectPlatform } from "../lib/platform";
+import { type MobileOs, type Platform, detectMobileOs, detectPlatform } from "../lib/platform";
 import type { Release } from "../lib/release";
 import type { ReleaseNote } from "../lib/releases";
 import { latestRelease, runtimeDeps } from "./release";
@@ -15,12 +15,14 @@ import { recentReleases } from "./releases";
 export interface SiteData {
   readonly release: Release | null;
   readonly platform: Platform | null;
+  readonly mobile: MobileOs | null;
 }
 
 export const getSiteData = createServerFn({ method: "GET" }).handler(
   async (): Promise<SiteData> => ({
     release: await latestRelease(runtimeDeps()),
     platform: detectPlatform(getRequestHeader("user-agent"), getRequestHeader("sec-ch-ua-platform")),
+    mobile: detectMobileOs(getRequestHeader("user-agent"), getRequestHeader("sec-ch-ua-platform")),
   }),
 );
 

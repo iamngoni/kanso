@@ -7,6 +7,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { REPOSITORY_URL } from "../lib/release";
+import { ANDROID_URL, APP_STORE_URL } from "../lib/stores";
 
 export const ISSUES_URL = `${REPOSITORY_URL}/issues`;
 
@@ -38,7 +39,16 @@ export const TOPICS: readonly Topic[] = [
           notes live on that computer, in plain Markdown, and Kanso works without an account or a connection.
         </p>
         <p>
-          On an iPhone, iPad or Android phone or tablet, Kanso is the same app: write, search and lock notes there as you do on
+          On an iPhone or iPad, get{" "}
+          <a href={APP_STORE_URL} className="ink-link">Kanso Pocket from the App Store</a>
+          {ANDROID_URL ? (
+            <>
+              ; on Android, <a href={ANDROID_URL} className="ink-link">get it from Google Play</a>
+            </>
+          ) : (
+            "; the Android version is coming soon to Google Play"
+          )}
+          . It is the same app: write, search and lock notes there as you do on
           your computer, and sign in with your Kanso account (see below) to keep them in step. The mobile apps share version
           numbers with the computer apps, so{" "}
           <Link to="/releases" className="ink-link">the release notes</Link> cover them all.
