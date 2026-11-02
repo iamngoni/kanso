@@ -53,6 +53,19 @@ impl fmt::Debug for Minted {
     }
 }
 
+/// Lines of one note an agent was shown, numbered as the excerpts of its
+/// prompt are, so a receipt `[n:Lx]` can be checked against them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ShownNote {
+    pub number: usize,
+    pub id: String,
+    pub title: String,
+    /// The day the note last changed (`2026-10-14`).
+    pub updated: Option<String>,
+    /// 0-based line numbers and their text as shown, in order, each once.
+    pub lines: Vec<(u32, String)>,
+}
+
 struct Entry {
     id: TokenId,
     hash: [u8; 32],
@@ -64,6 +77,8 @@ struct Entry {
     reads: Vec<String>,
     /// Tool calls since the question began.
     calls: usize,
+    /// The lines shown since the question began, numbered.
+    shown: Vec<ShownNote>,
 }
 
 impl Entry {
@@ -194,6 +209,7 @@ impl TokenStore {
             scope: Arc::new(scope),
             reads: Vec::new(),
             calls: 0,
+            shown: Vec::new(),
         });
         Minted { id, token }
     }
@@ -251,7 +267,65 @@ impl TokenStore {
         if let Some(entry) = self.lock().entries.iter_mut().find(|entry| entry.id == id) {
             entry.calls = 0;
             entry.reads.clear();
+            entry.shown.clear();
         }
+    }
+
+    /// Starts token `id`'s numbering from the excerpts the question's prompt
+    /// already numbered. Replaces anything shown before.
+    pub fn seed_shown(&self, id: TokenId, notes: Vec<ShownNote>) {
+        if let Some(entry) = self.lock().entries.iter_mut().find(|entry| entry.id == id) {
+            entry.shown = notes;
+        }
+    }
+
+    /// Everything token `id` was shown this question, numbered. Empty once
+    /// the token is revoked.
+    pub fn shown_notes(&self, id: TokenId) -> Vec<ShownNote> {
+        self.lock()
+            .entries
+            .iter()
+            .find(|entry| entry.id == id)
+            .map(|entry| entry.shown.clone())
+            .unwrap_or_default()
+    }
+
+    /// Notes that `lines` of note `note` were shown to token `id`, and
+    /// returns the number they carry: the note's existing number when it was
+    /// shown before (the lines are merged into it), else the next one.
+    pub(crate) fn show_lines(
+        &self,
+        id: TokenId,
+        note: &str,
+        title: &str,
+        updated: Option<String>,
+        lines: Vec<(u32, String)>,
+    ) -> usize {
+        let mut inner = self.lock();
+        let Some(entry) = inner.entries.iter_mut().find(|entry| entry.id == id) else {
+            return 0;
+        };
+        if let Some(seen) = entry.shown.iter_mut().find(|seen| seen.id == note) {
+            for (n, text) in lines {
+                match seen.lines.binary_search_by_key(&n, |(line, _)| *line) {
+                    Ok(_) => {}
+                    Err(at) => seen.lines.insert(at, (n, text)),
+                }
+            }
+            return seen.number;
+        }
+        let number = entry.shown.iter().map(|seen| seen.number).max().unwrap_or(0) + 1;
+        let mut lines = lines;
+        lines.sort_by_key(|(n, _)| *n);
+        lines.dedup_by_key(|(n, _)| *n);
+        entry.shown.push(ShownNote {
+            number,
+            id: note.to_owned(),
+            title: title.to_owned(),
+            updated,
+            lines,
+        });
+        number
     }
 
     /// Counts one tool call on `id`; `false` once the question has made

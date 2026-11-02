@@ -386,6 +386,9 @@ mod tests {
         assert_eq!(
             &names[18..],
             [
+                "kanso-ask-read-lines",
+                "kanso-ask-search",
+                "kanso-ask-when",
                 "kanso-attach-file",
                 "kanso-create-daily-note",
                 "kanso-create-from-template",

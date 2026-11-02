@@ -78,6 +78,7 @@ pub(crate) fn call_with_state(
     let Some(mut visible) = Visibility::new(&state.store, scope) else {
         return tools::error_result("Couldn't read the notes.");
     };
+    visible.attach(state.tokens.clone(), token);
     // A list or a search shows no more notes than the task has left to read.
     if let Some(limits) = &scope.task_limits {
         visible.limit_reads(task_reads(state, token, scope), limits.max_notes);

@@ -28,7 +28,7 @@ use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
 /// attachments. Everything else is denied.
-pub const READ_TOOLS: [&str; 18] = [
+pub const READ_TOOLS: [&str; 21] = [
     "search-notes",
     "read-note",
     "list-notes",
@@ -47,11 +47,21 @@ pub const READ_TOOLS: [&str; 18] = [
     "kanso-run-query-view",
     "kanso-list-versions",
     "kanso-read-version",
+    "kanso-ask-search",
+    "kanso-ask-read-lines",
+    "kanso-ask-when",
 ];
 
-/// The tools Ask your notes gives an agent: the same two a model with an
-/// API key gets.
-pub const ASK_TOOLS: [&str; 2] = ["search-notes", "read-note"];
+/// The tools Ask your notes gives an agent: the same five a model with an
+/// API key gets. The last three number what they show (`L12| text`) so an
+/// answer can cite lines and have them checked.
+pub const ASK_TOOLS: [&str; 5] = [
+    "search-notes",
+    "read-note",
+    "kanso-ask-search",
+    "kanso-ask-read-lines",
+    "kanso-ask-when",
+];
 
 /// The tools that stage an edit for review instead of writing, given only to
 /// a scope the person allowed to suggest edits. The first write release is
@@ -345,6 +355,15 @@ pub(crate) struct Visibility<'a> {
     budget: Option<(HashSet<String>, usize)>,
     /// The notes a budgeted request has let through, once each.
     spent: std::cell::RefCell<HashSet<String>>,
+    /// Where the lines shown are numbered, when a token is asking.
+    numbering: Option<(crate::tokens::TokenStore, TokenId)>,
+}
+
+/// `2026-10-14` for a time in milliseconds since the epoch.
+pub(crate) fn day_of(ms: i64) -> String {
+    chrono::DateTime::from_timestamp_millis(ms)
+        .map(|at| at.format("%Y-%m-%d").to_string())
+        .unwrap_or_default()
 }
 
 impl<'a> Visibility<'a> {
@@ -394,6 +413,7 @@ impl<'a> Visibility<'a> {
             shown: Default::default(),
             budget: None,
             spent: Default::default(),
+            numbering: None,
         })
     }
 
@@ -476,6 +496,28 @@ impl<'a> Visibility<'a> {
         }
         spent.insert(id.to_owned());
         true
+    }
+
+    /// Lets this request number the lines it shows against token `id` of
+    /// `tokens`.
+    pub(crate) fn attach(&mut self, tokens: crate::tokens::TokenStore, id: TokenId) {
+        self.numbering = Some((tokens, id));
+    }
+
+    /// Records that `lines` of `note` were shown, and the number they carry.
+    /// 0 when no token is attached (the lines are not numbered).
+    pub(crate) fn show_lines(&self, note: &Note, lines: Vec<(u32, String)>) -> usize {
+        let Some((tokens, id)) = &self.numbering else {
+            return 0;
+        };
+        self.show(&note.id);
+        tokens.show_lines(
+            *id,
+            &note.id,
+            &note.title,
+            Some(day_of(note.updated_at)),
+            lines,
+        )
     }
 
     /// Notes note `id` as shown to the agent, for the Used notes list.

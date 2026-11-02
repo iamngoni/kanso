@@ -53,7 +53,7 @@ pub use scope::{
     ASK_TOOLS, AgentScope, Caller, READ_TOOLS, SUGGEST_TOOLS, TASK_TOOLS, TaskLimits, TaskOps,
     has_readable_notes, readable_notes,
 };
-pub use tokens::{Minted, TokenId, TokenStore};
+pub use tokens::{Minted, ShownNote, TokenId, TokenStore};
 
 /// Largest request body accepted. A 10 MB image is about 13.4 MB in base64.
 pub const MAX_BODY_BYTES: usize = 16 * 1024 * 1024;

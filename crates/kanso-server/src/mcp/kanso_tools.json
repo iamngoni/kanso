@@ -1,5 +1,100 @@
 [
   {
+    "name": "kanso-ask-read-lines",
+    "description": "Read lines of one note for Ask. Returns the lines written `L12| text`, under the note's number, so you can cite them as `[number:L12-14]`. At most 200 lines. A note that cannot be read is reported as not found.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "ID of the note. It always starts with `note:`."
+        },
+        "start": {
+          "type": "integer",
+          "description": "The first line to read, counting from 1."
+        },
+        "end": {
+          "type": "integer",
+          "description": "The last line to read, counting from 1. At most 200 lines after start."
+        }
+      },
+      "required": [
+        "noteId",
+        "start"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-ask-search",
+    "description": "Search the user's notes for Ask. Returns the best matching notes, each with a number, its title, the day it last changed and the lines that match, written `L12| text`. Cite what you use as `[number:L12]` or `[number:L12-14]`, with the note's number and the line numbers shown. Only notes this session may read are searched.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Words to search for."
+        },
+        "limit": {
+          "type": "integer",
+          "default": 5,
+          "description": "How many notes, from 1 to 10."
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-ask-when",
+    "description": "Find notes by when they were written or changed, or tasks by when they are due, for Ask. Dates are `YYYY-MM-DD`. Returns numbered notes with their opening lines, written `L1| text`, and tasks due in the range with their lines.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "The first day, `YYYY-MM-DD`."
+        },
+        "to": {
+          "type": "string",
+          "description": "The last day, `YYYY-MM-DD`. Defaults to the first day."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "written",
+            "about"
+          ],
+          "default": "written",
+          "description": "`written` finds notes changed in the range; `about` finds tasks due in it."
+        },
+        "limit": {
+          "type": "integer",
+          "default": 8,
+          "description": "How many notes, from 1 to 15."
+        }
+      },
+      "required": [
+        "from"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-attach-file",
     "description": "Create an image attachment from base64 bytes and explicitly append its Markdown image link to a note. The file must fit Kanso’s 10 MiB attachment limit and use a supported image content type.",
     "inputSchema": {
