@@ -1003,6 +1003,14 @@ fn back_up_now_keeps_its_copy_apart(cx: &mut TestAppContext) {
     let f = setup(cx);
     f.keys(cx, "cmd-,");
     assert_eq!(f.page(cx), SettingsPage::General);
+    // The page is long enough that Backups is below the fold.
+    cx.update(|cx| {
+        f.workspace
+            .read(cx)
+            .settings
+            .clone()
+            .update(cx, |settings, _| settings.scroll_to_end_for_test())
+    });
     f.click(cx, "backup-now");
     cx.run_until_parked();
     let dir = crate::paths::backups_dir(f._dir.path());
