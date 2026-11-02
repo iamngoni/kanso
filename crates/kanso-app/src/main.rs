@@ -164,6 +164,9 @@ mod smart_paste;
 mod snapshots;
 mod spellcheck;
 // Tests check with a word list instead.
+mod flashcards_model;
+mod flashcards_view;
+mod settings_flashcards;
 #[cfg(all(target_os = "macos", not(test)))]
 mod spellcheck_macos;
 mod split;

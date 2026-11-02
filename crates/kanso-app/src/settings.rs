@@ -1107,6 +1107,7 @@ impl SettingsView {
                 colors,
             ),
             crate::settings_inbox::inbox_section(cx),
+            crate::settings_flashcards::flashcards_section(cx),
         ])
         .chain(crate::settings_discovery::sections(cx))
         .collect()

@@ -247,6 +247,7 @@ fn view_menu(cx: &App) -> Vec<MenuItem> {
         MenuItem::action("Board", crate::board_view::ShowBoard),
         MenuItem::action("Tasks Board", crate::board_view::ShowTaskBoard),
         MenuItem::action("Triage Inbox", crate::triage_view::ShowTriage),
+        MenuItem::action("Review Flashcards", crate::flashcards_view::ShowFlashcards),
         MenuItem::action("Focus Mode", ToggleFocusMode),
         MenuItem::action("Search All Notes", SearchAllNotes),
         MenuItem::action("Replace in All Notes…", crate::replace::ReplaceInNotes),
@@ -437,6 +438,10 @@ pub struct Workspace {
     /// Inbox triage over the window while open (`triage_view.rs`); made the
     /// first time it opens.
     pub(crate) triage: Option<Entity<crate::triage_view::TriageView>>,
+    /// Review over the window while open (`flashcards_view.rs`).
+    pub(crate) flashcards: Option<Entity<crate::flashcards_view::FlashcardsView>>,
+    pub(crate) flashcards_open: bool,
+    pub(crate) _flashcards_events: Option<Subscription>,
     pub(crate) triage_open: bool,
     pub(crate) _triage_events: Option<Subscription>,
     /// The open calendar sheet's picks.
@@ -806,6 +811,9 @@ impl Workspace {
             board_open: false,
             _board_events: None,
             triage: None,
+            flashcards: None,
+            flashcards_open: false,
+            _flashcards_events: None,
             triage_open: false,
             _triage_events: None,
             _calendar_events: None,
@@ -2903,6 +2911,7 @@ impl Render for Workspace {
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
             .map(|el| crate::triage_view::on_actions(el, cx))
+            .map(|el| crate::flashcards_view::on_actions(el, cx))
             .map(|el| crate::digest_view::on_actions(el, cx))
             // Off macOS, Kanso's own title bar with the menus.
             .when_some(self.title_bar.clone(), |el, menus| {
@@ -3032,6 +3041,7 @@ impl Render for Workspace {
                 self,
                 if focus_mode { 0. } else { leading },
             ))
+            .children(crate::flashcards_view::overlay(self))
             // Over everything else when open.
             .child(self.palette.clone())
             // The system draws the real traffic lights above the palette too.
