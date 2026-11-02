@@ -278,13 +278,15 @@ void main() {
       final appearance = SeededAppearanceBloc(const AppearanceState());
       addTearDown(appearance.close);
       await tester.pumpWidget(
-        KansoTestApp(
-          home: MultiBlocProvider(
-            providers: [
-              BlocProvider<AppearanceBloc>.value(value: appearance),
-              BlocProvider<LockStatusBloc>.value(value: status),
-            ],
-            child: Builder(
+        // The app provides these above its navigator, so a pushed route
+        // sees them.
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<AppearanceBloc>.value(value: appearance),
+            BlocProvider<LockStatusBloc>.value(value: status),
+          ],
+          child: KansoTestApp(
+            home: Builder(
               builder: (context) => GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => PresentationPage.show(context, noteId: 'note:1'),
