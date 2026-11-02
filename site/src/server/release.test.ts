@@ -35,7 +35,7 @@ describe("latestRelease", () => {
     expect(request.url).toBe(LATEST_RELEASE_API);
     expect(request.headers.get("accept")).toBe("application/vnd.github+json");
     expect(init.signal).toBeInstanceOf(AbortSignal);
-    expect(t.put).toHaveBeenCalledTimes(1);
+    expect(t.put).toHaveBeenCalledTimes(2);
     const stored = (t.put.mock.calls[0] as unknown as [Request, Response])[1];
     expect(stored.headers.get("cache-control")).toBe(`public, max-age=${RELEASE_CACHE_SECONDS}`);
     expect(await stored.json()).toEqual(json);
