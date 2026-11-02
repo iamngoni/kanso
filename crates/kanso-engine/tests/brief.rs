@@ -220,6 +220,34 @@ fn the_weekly_review_covers_the_week() {
     assert!(md.contains("[[New]]") && md.contains("[[Changed]]"));
 }
 
+#[test]
+fn saving_a_review_writes_one_journal_note_per_week_and_asks_before_replacing() {
+    let (_dir, store) = open();
+    let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    note(&store, "note:new", "New", "text", &b, noon(day(1)));
+    let review = weekly_review(&store, day(0), now()).unwrap();
+    assert_eq!(brief::saved_review(&store, day(0)).unwrap(), None);
+    let id = match brief::save_review(&store, &review, false, Origin::Ui).unwrap() {
+        brief::Saved::Written { id } => id,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(id, "note:weekly-review-2026-w45");
+    let saved = store.note(&id).unwrap().unwrap();
+    assert_eq!(saved.title, "Weekly review \u{2014} 2026-W45");
+    assert_eq!(saved.book_id, "book:journal");
+    assert!(saved.body.contains("[[New]]"));
+    // The same week again asks first.
+    assert_eq!(
+        brief::save_review(&store, &review, false, Origin::Ui).unwrap(),
+        brief::Saved::Exists { id: id.clone() }
+    );
+    note(&store, "note:more", "More", "text", &b, noon(day(2)));
+    let again = weekly_review(&store, day(0), now()).unwrap();
+    brief::save_review(&store, &again, true, Origin::Ui).unwrap();
+    assert!(store.note(&id).unwrap().unwrap().body.contains("[[More]]"));
+    assert_eq!(brief::saved_review(&store, day(0)).unwrap(), Some(id));
+}
+
 // MARK: Properties
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

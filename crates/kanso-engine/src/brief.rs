@@ -8,10 +8,12 @@
 //! not in the trash).
 
 mod markdown;
+mod save;
 mod schedule;
 mod themes;
 
 pub use markdown::{iso_week_label, review_markdown, review_title};
+pub use save::{Saved, review_note_id, save_review, saved_review};
 pub use schedule::{
     BriefSettings, GRACE_MS, NoticeKind, PLAN_DAYS, Planned, due_now, fire_at, next_wake, plan,
     shown_key,

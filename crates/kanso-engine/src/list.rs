@@ -39,12 +39,28 @@ pub enum Filter {
     /// The tasks across notes, in the Tasks view (`crate::tasks_view`),
     /// in the note list's place.
     Tasks,
+    /// Open loops across notes (`crate::digest_view`), in the note list's
+    /// place: things notes say they will do, wait for or check.
+    OpenLoops,
+    /// The morning brief, in the note list's place.
+    Brief,
+    /// The weekly review, in the note list's place.
+    Review,
     /// Notes other accounts shared with this one (docs/ACCOUNTS.md ›
     /// Collaboration), with invitations waiting above them.
     Shared,
 }
 
 impl Filter {
+    /// Whether this is a place with a view of its own in the list's place,
+    /// not a list of notes: Tasks, Open Loops, the brief and the review.
+    pub fn is_place(&self) -> bool {
+        matches!(
+            self,
+            Filter::Tasks | Filter::OpenLoops | Filter::Brief | Filter::Review
+        )
+    }
+
     /// The query clauses this filter adds to a search.
     pub fn clauses(&self) -> Vec<Clause> {
         let clause = |field, value: &str| Clause {
@@ -53,9 +69,14 @@ impl Filter {
             value: value.to_owned(),
         };
         match self {
-            Filter::All | Filter::Pinned | Filter::Recent | Filter::Tasks | Filter::Shared => {
-                Vec::new()
-            }
+            Filter::All
+            | Filter::Pinned
+            | Filter::Recent
+            | Filter::Tasks
+            | Filter::OpenLoops
+            | Filter::Brief
+            | Filter::Review
+            | Filter::Shared => Vec::new(),
             Filter::Book(id) => vec![clause(Field::BookId, id)],
             Filter::Tag(id) => vec![clause(Field::TagId, id)],
             Filter::TagPath(path) => vec![clause(Field::Tag, path)],

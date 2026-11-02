@@ -712,6 +712,9 @@ pub struct AppConfig {
     pub editor: EditorSettings,
     pub capture: CaptureSettings,
     pub reminders: RemindersSettings,
+    /// Open loops, the morning brief and the weekly review (Settings ›
+    /// General › Brief and review).
+    pub briefs: kanso_engine::brief::BriefSettings,
     pub discovery: DiscoverySettings,
     pub inbox: InboxSettings,
     pub voice: VoiceSettings,
@@ -759,6 +762,7 @@ impl Default for AppConfig {
             editor: EditorSettings::default(),
             capture: CaptureSettings::default(),
             reminders: RemindersSettings::default(),
+            briefs: Default::default(),
             discovery: DiscoverySettings::default(),
             inbox: InboxSettings::default(),
             voice: VoiceSettings::default(),
@@ -1221,6 +1225,7 @@ mod tests {
                     editor: EditorSettings::default(),
                     capture: CaptureSettings::default(),
                     reminders: super::RemindersSettings::default(),
+                    briefs: Default::default(),
                     discovery: DiscoverySettings::default(),
                     inbox: super::InboxSettings::default(),
                     voice: VoiceSettings::default(),

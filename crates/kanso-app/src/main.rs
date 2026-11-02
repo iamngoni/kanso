@@ -24,6 +24,7 @@ mod ask_panel;
 mod ask_tests;
 mod assets;
 mod board_view;
+mod briefs;
 mod book_colors;
 mod book_icons;
 mod calendar;
@@ -42,6 +43,7 @@ mod commands;
 mod config;
 mod device_approval;
 mod dialogs;
+mod digest_view;
 mod dictation;
 mod diff_view;
 mod due;
@@ -136,6 +138,7 @@ mod selection;
 mod services;
 mod settings;
 mod settings_ai;
+mod settings_briefs;
 mod settings_capture;
 mod settings_discovery;
 mod settings_gallery;
@@ -645,7 +648,8 @@ fn run_app(
             Arc::new(flavour::CURRENT.keychain()),
             cx,
         );
-        reminders::init(store, open_main_window, cx);
+        reminders::init(store.clone(), open_main_window, cx);
+        briefs::init(store, open_main_window, cx);
         // Discovery, in the background: related notes and text in images.
         related::init(cx);
         voice::init(cx);

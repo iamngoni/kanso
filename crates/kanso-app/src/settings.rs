@@ -1055,6 +1055,7 @@ impl SettingsView {
             crate::settings_capture::capture_section(&self.shortcut, cx),
             crate::settings_capture::journal_section(cx),
             crate::reminders::reminders_section(cx),
+            crate::settings_briefs::briefs_section(cx),
             section(
                 "Data",
                 vec![

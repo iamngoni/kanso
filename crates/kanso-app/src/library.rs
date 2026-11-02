@@ -23,7 +23,12 @@ pub use kanso_engine::list::{
 /// Tasks and the trash have no board of their own; theirs is all notes.
 pub fn board_scope(filter: &Filter) -> Filter {
     match filter {
-        Filter::Status(_) | Filter::Tasks | Filter::Trash => Filter::All,
+        Filter::Status(_)
+        | Filter::Tasks
+        | Filter::OpenLoops
+        | Filter::Brief
+        | Filter::Review
+        | Filter::Trash => Filter::All,
         other => other.clone(),
     }
 }
@@ -53,6 +58,8 @@ pub struct Library {
     pub recent: u32,
     /// How many open tasks are overdue, for the sidebar's Tasks badge.
     pub overdue: u32,
+    /// How many loops are open, for the sidebar's Open Loops count.
+    pub open_loops: u32,
     /// How many notes others shared with this account.
     pub shared: u32,
     pub filter: Filter,
@@ -90,6 +97,7 @@ struct Loaded {
     counts: StatusCounts,
     recent: u32,
     overdue: u32,
+    open_loops: u32,
     shared: u32,
     /// `None` while the Tasks view shows: the list keeps its notes.
     notes: Option<Vec<NoteSummary>>,
@@ -124,6 +132,7 @@ impl Library {
             counts: StatusCounts::default(),
             recent: 0,
             overdue: 0,
+            open_loops: 0,
             shared: 0,
             filter: Filter::All,
             search: String::new(),
@@ -155,6 +164,12 @@ impl Library {
             self.overdue = overdue;
             cx.notify();
         }
+        if let Ok(open) = self.store.open_loop_count(&kanso_store::LoopQuery::default())
+            && open != self.open_loops
+        {
+            self.open_loops = open;
+            cx.notify();
+        }
     }
 
     /// Reloads everything on a background thread; a newer reload wins.
@@ -174,7 +189,7 @@ impl Library {
             kanso_core::dates::DateTime::from_local_ms(Clock::local_ms(cx, Clock::now_ms(cx)));
         let task = cx.background_executor().spawn(async move {
             let notes = match filter {
-                Filter::Tasks => None,
+                Filter::Tasks | Filter::OpenLoops | Filter::Brief | Filter::Review => None,
                 _ => Some(list_notes(
                     &store,
                     &filter,
@@ -204,6 +219,7 @@ impl Library {
                 counts: store.status_counts()?,
                 recent,
                 overdue: store.overdue_count(now)?,
+                open_loops: store.open_loop_count(&kanso_store::LoopQuery::default())?,
                 shared: u32::try_from(store.shared_with_me()?.len()).unwrap_or(u32::MAX),
                 notes,
             })
@@ -223,6 +239,7 @@ impl Library {
                         this.counts = loaded.counts;
                         this.recent = loaded.recent;
                         this.overdue = loaded.overdue;
+                        this.open_loops = loaded.open_loops;
                         this.shared = loaded.shared;
                         if let Some(notes) = loaded.notes {
                             this.notes = notes;
@@ -254,8 +271,8 @@ impl Library {
     pub fn set_filter(&mut self, filter: Filter, cx: &mut Context<Self>) {
         cx.emit(LibraryEvent::Shown);
         if self.filter != filter {
-            // The Tasks view leaves the open note as it is.
-            self.reselect = filter != Filter::Tasks;
+            // The Tasks view and the other places leave the open note as it is.
+            self.reselect = !filter.is_place();
             self.filter = filter;
             self.status_only = None;
             self.pinned_only = false;
@@ -494,6 +511,9 @@ impl Library {
             Filter::Status(status) => status.label().into(),
             Filter::Trash => "Trash".into(),
             Filter::Tasks => "Tasks".into(),
+            Filter::OpenLoops => "Open Loops".into(),
+            Filter::Brief => "Morning Brief".into(),
+            Filter::Review => "Weekly Review".into(),
             Filter::Shared => "Shared with me".into(),
         }
     }

@@ -65,7 +65,7 @@ fn notification_for(task: &ReminderTask, today: kanso_core::dates::Date) -> Syst
 /// Whether notifications can reach the screen: never touched outside an
 /// app bundle on macOS, and quiet when turned off for Kanso. Tests stand in
 /// for the platform with `Reminders::assume_app`.
-fn can_notify(cx: &App) -> bool {
+pub(crate) fn can_notify(cx: &App) -> bool {
     cx.try_global::<Reminders>().is_some_and(|r| r.assume_app)
         || notify_support::availability() == Availability::Ready
 }
@@ -165,6 +165,12 @@ pub fn check(cx: &mut App) -> Duration {
 /// A click on a reminder or one of its buttons.
 // no-prop-test: delegates to kanso_engine::tasks::reminders::acknowledge, tested there.
 fn respond(response: SystemNotificationResponse, cx: &mut App) {
+    // The morning brief's and the weekly review's notifications share this
+    // handler.
+    if crate::briefs::owns(&response.tag) {
+        crate::briefs::respond(response, cx);
+        return;
+    }
     if !cx.has_global::<Reminders>() {
         return;
     }
