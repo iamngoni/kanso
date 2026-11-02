@@ -322,6 +322,63 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get discoveryResurface => 'Related notes while writing';
+
+  @override
+  String get discoveryResurfaceDetail =>
+      'After you pause, a small pill offers up to three past notes about the paragraph you are writing. It works on this device: nothing about your notes is sent anywhere.';
+
+  @override
+  String get discoveryCloseness => 'How close';
+
+  @override
+  String get discoveryClosenessCloser => 'Closer';
+
+  @override
+  String get discoveryClosenessDefault => 'Default';
+
+  @override
+  String get discoveryClosenessLooser => 'Looser';
+
+  @override
+  String get discoveryOnThisDay => 'Show “On this day” on daily notes';
+
+  @override
+  String get discoveryOnThisDayDetail =>
+      'A daily note lists up to three notes written on its date in earlier years. It needs no language model.';
+
+  @override
+  String resurfacePill(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count related',
+      one: '1 related',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get resurfaceAboutParagraph => 'About this paragraph';
+
+  @override
+  String get resurfaceAboutNote => 'About this note';
+
+  @override
+  String get resurfaceOnThisDay => 'On this day';
+
+  @override
+  String get resurfaceLink => 'Link';
+
+  @override
+  String get resurfaceNotRelated => 'Not related';
+
+  @override
+  String resurfaceNoteMeta(String notebook, String when) {
+    return '$notebook · $when';
+  }
+
+  @override
   String get settingsAbout => 'About';
 
   @override

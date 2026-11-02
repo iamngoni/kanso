@@ -193,6 +193,33 @@ void discoverySuite(OpenLibrary open) {
       },
     );
 
+    test(
+      'past notes about a paragraph wait for related notes to be on',
+      () async {
+        final library = await open();
+        final discovery = library.discovery();
+        final orchard = await makeNote(library, 'Orchard', 'fruit trees');
+        final other = await makeNote(library, 'Other', 'fruit trees pruned');
+
+        // Related notes start off: nothing is found, and nothing is listed.
+        final found = await discovery.resurface(
+          id: orchard,
+          title: 'Orchard',
+          body: 'fruit trees pruned in winter, and the frost on the fruit',
+          caret: 10,
+          closeness: 'default',
+          utcOffsetSecs: 0,
+        );
+        expect(found, isA<ResurfaceResult_Off>());
+        expect(
+          await discovery.onThisDay(id: orchard, utcOffsetSecs: 0),
+          isEmpty,
+        );
+        // Telling a note it is not related is harmless while it is off.
+        await discovery.dismissRelated(id: orchard, otherId: other);
+      },
+    );
+
     test('merging keeps the note and puts the other in the trash', () async {
       final library = await open();
       final discovery = library.discovery();

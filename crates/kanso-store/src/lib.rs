@@ -14,6 +14,7 @@ mod graph;
 mod history;
 mod meaning;
 mod ocr;
+mod passages;
 mod plugin;
 mod query_view;
 mod read;
@@ -38,16 +39,21 @@ pub use collab::{LOCKED_SHARED, SharedText};
 pub use derived::{Backlink, DERIVED_VERSION, DERIVED_VERSION_KEY, HeadingHit};
 pub use doc::{Attachment, Doc};
 pub use embed::{
-    Embedder, EmbeddingQueue, MODEL_KEY as EMBED_MODEL_KEY, PendingEmbedding, RelatedNote,
-    content_hash, cosine, embed_text, top_k,
+    EmbeddedNote, EmbeddedPassage, Embedder, EmbeddingQueue, MODEL_KEY as EMBED_MODEL_KEY,
+    PendingEmbedding, RelatedNote, content_hash, cosine, embed_text, top_k,
 };
 pub use graph::{GraphLink, GraphNote};
-pub use meaning::model::{MeaningSearch, Merged, TagSuggestion};
+pub use meaning::index::Index as VectorIndex;
+pub use meaning::model::{
+    BEFORE_AGE_MS, BEFORE_SIMILARITY, DayNote, MeaningSearch, Merged, ResurfaceOpts, Resurfaced,
+    Resurfacing, SIMILARITY_CLOSER, SIMILARITY_DEFAULT, SIMILARITY_LOOSER, TagSuggestion,
+};
 pub use meaning::rank::{
     DUPLICATE_SIMILARITY, MEANING_SIMILARITY, TAG_NEIGHBOUR_SIMILARITY, blend_meaning, merged_body,
     merged_tags, suggest_tags,
 };
 pub use ocr::{OCR_TYPES, UnreadImage};
+pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
 pub use plugin::{
     PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter, plugin_data,
     set_plugin_data,
@@ -146,6 +152,9 @@ pub struct Store {
     /// The app's embedding model while it is loaded, for turning a search
     /// into a vector ([`Store::lend_embedder`]).
     embedder: std::sync::RwLock<Option<std::sync::Arc<dyn Embedder>>>,
+    /// The note vectors resurfacing searches, loaded on first use
+    /// (`meaning/index.rs`).
+    index: Mutex<Option<meaning::index::Index>>,
 }
 
 impl Store {
@@ -167,6 +176,7 @@ impl Store {
             subscribers: Mutex::new(Vec::new()),
             wal_to_empty: Default::default(),
             embedder: Default::default(),
+            index: Mutex::new(None),
         })
     }
 

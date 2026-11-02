@@ -23,6 +23,7 @@ use kanso_core::links::{normalize_title, plain_line};
 use md5::{Digest as _, Md5};
 use rusqlite::{Connection, OptionalExtension, params};
 
+use crate::passages::{Passage, encode_i8, passages, quantize};
 use crate::{Result, Store, schema};
 
 /// The `meta` key holding the model whose embeddings are in use, while
@@ -30,14 +31,14 @@ use crate::{Result, Store, schema};
 pub const MODEL_KEY: &str = "embed.model";
 
 /// The table, for emptying it with the library.
-pub(crate) const TABLES: [&str; 1] = ["note_embeddings"];
+pub(crate) const TABLES: [&str; 3] = ["note_embeddings", "note_passages", "resurface_dismissed"];
 
 /// Changes whenever [`embed_text`] builds the text differently, so every
 /// note is embedded again.
-const TEXT_VERSION: &str = "1";
+const TEXT_VERSION: &str = "2";
 /// How much of a note is embedded, in characters. The models read a few
 /// hundred words at most; the rest only costs time.
-const TEXT_CHARS: usize = 6_000;
+pub(crate) const TEXT_CHARS: usize = 6_000;
 
 /// Something that turns texts into vectors of one fixed length: the app's
 /// static model, or a fake in tests.
@@ -65,6 +66,35 @@ pub struct PendingEmbedding {
     pub id: String,
     pub text: String,
     pub hash: String,
+    /// The note's words, for [`PendingEmbedding::passages`].
+    pub body: String,
+}
+
+impl PendingEmbedding {
+    /// The note's passages, each embedded with the note (`passages.rs`).
+    /// Worked out here, when asked for, so a queue of thousands of notes
+    /// doesn't split them all for the few embedded in a batch.
+    pub fn passages(&self) -> Vec<Passage> {
+        passages(&self.body, TEXT_CHARS)
+    }
+}
+
+/// A passage and its vector, as kept with a note's.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EmbeddedPassage {
+    pub start: usize,
+    pub end: usize,
+    pub vector: Vec<f32>,
+}
+
+/// A note's embedding, with the hash of the text it was made from and the
+/// embeddings of its passages.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EmbeddedNote {
+    pub id: String,
+    pub hash: String,
+    pub vector: Vec<f32>,
+    pub passages: Vec<EmbeddedPassage>,
 }
 
 /// What [`Store::embedding_queue`] found.
@@ -187,29 +217,34 @@ pub fn decode_vector(bytes: &[u8], dim: usize) -> Option<Vec<f32>> {
 /// Removes note `id`'s embeddings, when it is deleted.
 pub(crate) fn forget_note(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("DELETE FROM note_embeddings WHERE note_id = ?", [id])?;
+    conn.execute("DELETE FROM note_passages WHERE note_id = ?", [id])?;
+    conn.execute(
+        "DELETE FROM resurface_dismissed WHERE note_id = ?1 OR other_id = ?1",
+        [id],
+    )?;
     Ok(())
 }
 
 /// Deletes the vectors of notes that are locked or tagged `#ai-exclude`:
 /// they may have been embedded before they were locked or tagged.
 fn forget_undiscoverable(conn: &Connection) -> Result<()> {
-    conn.execute(
-        concat!(
-            "DELETE FROM note_embeddings WHERE note_id IN (SELECT d.id FROM docs d
-                WHERE d.type = 'note' AND (",
-            crate::schema::note_locked!("d."),
-            " OR ",
-            crate::schema::ai_excluded!("d."),
-            "))"
-        ),
-        [],
-    )?;
+    for table in ["note_embeddings", "note_passages"] {
+        conn.execute(
+            &format!(
+                "DELETE FROM {table} WHERE note_id IN (SELECT d.id FROM docs d
+                    WHERE d.type = 'note' AND ({} OR {}))",
+                crate::schema::note_locked!("d."),
+                crate::schema::ai_excluded!("d."),
+            ),
+            [],
+        )?;
+    }
     Ok(())
 }
 
 /// The live notes outside the trash that note `id` links to, or that link
 /// to it, by ID or by wiki-link title.
-fn linked_notes(conn: &Connection, id: &str) -> Result<HashSet<String>> {
+pub(crate) fn linked_notes(conn: &Connection, id: &str) -> Result<HashSet<String>> {
     let title: Option<String> = conn
         .query_row("SELECT title FROM docs WHERE id = ?", [id], |row| {
             row.get(0)
@@ -247,15 +282,19 @@ impl Store {
             match model {
                 Some(model) => {
                     tx.execute("DELETE FROM note_embeddings WHERE model != ?", [model])?;
+                    tx.execute("DELETE FROM note_passages WHERE model != ?", [model])?;
                     schema::set_meta(tx, MODEL_KEY, model)?;
                 }
                 None => {
                     tx.execute("DELETE FROM note_embeddings", [])?;
+                    tx.execute("DELETE FROM note_passages", [])?;
                     tx.execute("DELETE FROM meta WHERE key = ?", [MODEL_KEY])?;
                 }
             }
             Ok(())
-        })
+        })?;
+        *self.index.lock().expect("index poisoned") = None;
+        Ok(())
     }
 
     /// The live notes outside the trash whose embedding by `model` is
@@ -281,10 +320,8 @@ impl Store {
                 queue.total += 1;
                 let title: Option<String> = row.get(1)?;
                 let body: Option<String> = row.get(2)?;
-                let text = embed_text(
-                    title.as_deref().unwrap_or(""),
-                    body.as_deref().unwrap_or(""),
-                );
+                let body = body.as_deref().unwrap_or("");
+                let text = embed_text(title.as_deref().unwrap_or(""), body);
                 let hash = content_hash(&text);
                 let kept: Option<String> = row.get(3)?;
                 if kept.as_deref() != Some(hash.as_str()) {
@@ -292,6 +329,7 @@ impl Store {
                         id: row.get(0)?,
                         text,
                         hash,
+                        body: body.to_owned(),
                     });
                 }
             }
@@ -303,9 +341,25 @@ impl Store {
     /// was made from. Notes deleted meanwhile are skipped, and nothing is
     /// kept once related notes are off or on another model.
     pub fn put_embeddings(&self, model: &str, rows: &[(String, String, Vec<f32>)]) -> Result<()> {
-        self.write(|tx, _| {
+        let notes: Vec<EmbeddedNote> = rows
+            .iter()
+            .map(|(id, hash, vector)| EmbeddedNote {
+                id: id.clone(),
+                hash: hash.clone(),
+                vector: vector.clone(),
+                passages: Vec::new(),
+            })
+            .collect();
+        self.put_embedded(model, &notes)
+    }
+
+    /// [`Store::put_embeddings`] with each note's passages, which replace
+    /// the passages it had, in the same transaction.
+    pub fn put_embedded(&self, model: &str, rows: &[EmbeddedNote]) -> Result<()> {
+        let kept = self.write(|tx, _| {
+            let mut kept: Vec<usize> = Vec::new();
             if schema::get_meta(tx, MODEL_KEY)?.as_deref() != Some(model) {
-                return Ok(());
+                return Ok(kept);
             }
             // Whatever can't be embedded any more loses its vectors, even
             // those of other notes than these.
@@ -327,7 +381,13 @@ impl Store {
                 " FROM docs d WHERE d.id = ? AND ",
                 crate::schema::discoverable!("d.")
             ))?;
-            for (id, hash, vector) in rows {
+            let mut drop_passages =
+                tx.prepare_cached("DELETE FROM note_passages WHERE note_id = ?1 AND model = ?2")?;
+            let mut add_passage = tx.prepare_cached(
+                "INSERT OR REPLACE INTO note_passages (note_id, model, ord, start_byte, end_byte, dim, vector)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )?;
+            for (at, EmbeddedNote { id, hash, vector, passages }) in rows.iter().enumerate() {
                 let current = now
                     .query_row([id], |row| {
                         Ok(content_hash(&embed_text(
@@ -346,9 +406,33 @@ impl Store {
                     encode_vector(vector),
                     hash
                 ])?;
+                drop_passages.execute(params![id, model])?;
+                for (ord, passage) in passages.iter().enumerate() {
+                    let (scale, numbers) = quantize(&passage.vector);
+                    add_passage.execute(params![
+                        id,
+                        model,
+                        ord as i64,
+                        passage.start as i64,
+                        passage.end as i64,
+                        numbers.len() as i64,
+                        encode_i8(scale, &numbers),
+                    ])?;
+                }
+                kept.push(at);
             }
-            Ok(())
-        })
+            Ok(kept)
+        })?;
+        // The index hears of the vectors that were kept.
+        let mut index = self.index.lock().expect("index poisoned");
+        if let Some(index) = index.as_mut()
+            && index.model == model
+        {
+            for at in kept {
+                index.put(&rows[at].id, &rows[at].vector);
+            }
+        }
+        Ok(())
     }
 
     /// How many notes that can be embedded (live, outside the trash, not
@@ -555,6 +639,19 @@ mod tests {
                 )?)
             })
             .unwrap()
+    }
+
+    // no-prop-test: one queue entry; the passages' own properties are in passages.rs.
+    #[test]
+    fn a_pending_note_splits_its_passages_when_asked() {
+        let (_dir, store) = open();
+        store.set_embedding_model(Some("letters")).unwrap();
+        let body = "First paragraph about orchards and fruit.\n\nSecond paragraph about boats.";
+        note(&store, "Plain", body);
+        let queue = store.embedding_queue("letters").unwrap();
+        let pending = &queue.pending[0];
+        assert_eq!(pending.body, body);
+        assert_eq!(pending.passages(), passages(body, TEXT_CHARS));
     }
 
     #[test]

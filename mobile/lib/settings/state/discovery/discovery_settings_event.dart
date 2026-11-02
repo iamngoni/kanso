@@ -14,6 +14,14 @@ sealed class DiscoverySettingsEvent with _$DiscoverySettingsEvent {
       RelatedRetryRequestedEvent;
   const factory DiscoverySettingsEvent.ocrChanged({required bool enabled}) =
       OcrSettingChangedEvent;
+  const factory DiscoverySettingsEvent.resurfaceChanged({
+    required bool enabled,
+  }) = ResurfaceSettingChangedEvent;
+  const factory DiscoverySettingsEvent.closenessChanged(String closeness) =
+      ClosenessChangedEvent;
+  const factory DiscoverySettingsEvent.onThisDayChanged({
+    required bool enabled,
+  }) = OnThisDaySettingChangedEvent;
   const factory DiscoverySettingsEvent.relatedStatusReceived(
     RelatedState status,
   ) = RelatedStatusReceivedEvent;

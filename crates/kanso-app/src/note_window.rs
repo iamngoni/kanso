@@ -625,6 +625,14 @@ impl NoteWindow {
             }
             EditorEvent::ShowBacklinks => self.show_backlinks(cx),
             EditorEvent::ToggleInspector => {}
+            // A note from the margin of related notes opens in a tab of
+            // the main window: this window shows its own note.
+            EditorEvent::OpenNote { id, .. } => {
+                let id = id.clone();
+                in_main_window(cx, move |workspace, window, cx| {
+                    workspace.open_note_in_new_tab(&id, window, cx)
+                });
+            }
             // This window's note is its own; nothing else shows it.
             EditorEvent::Closed(_) => {}
             EditorEvent::Renamed {

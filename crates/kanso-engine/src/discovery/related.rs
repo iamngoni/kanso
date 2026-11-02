@@ -28,7 +28,7 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
-use kanso_store::{Embedder, Store};
+use kanso_store::{EmbeddedNote, EmbeddedPassage, Embedder, Store};
 
 pub use super::model_fetch::percent;
 use super::model_fetch::{Model, ModelError, ModelFile};
@@ -141,16 +141,46 @@ pub fn embed_batch(store: &Store, embedder: &dyn Embedder) -> kanso_store::Resul
     let queue = store.embedding_queue(embedder.model())?;
     let total = queue.total;
     let waiting = queue.pending.len();
-    let batch: Vec<_> = queue.pending.into_iter().take(BATCH).collect();
-    let texts: Vec<String> = batch.iter().map(|p| p.text.clone()).collect();
-    let vectors = embedder.embed(&texts);
-    let rows: Vec<(String, String, Vec<f32>)> = batch
+    // Passages are split only for the notes taken.
+    let batch: Vec<_> = queue
+        .pending
         .into_iter()
-        .zip(vectors)
-        .map(|(p, v)| (p.id, p.hash, v))
+        .take(BATCH)
+        .map(|p| {
+            let passages = p.passages();
+            (p, passages)
+        })
         .collect();
+    // Each note's text, then its passages' texts, in one go.
+    let texts: Vec<String> = batch
+        .iter()
+        .flat_map(|(p, passages)| {
+            std::iter::once(p.text.clone()).chain(passages.iter().map(|q| q.text.clone()))
+        })
+        .collect();
+    let mut vectors = embedder.embed(&texts).into_iter();
+    let mut rows: Vec<EmbeddedNote> = Vec::with_capacity(batch.len());
+    for (pending, split) in batch {
+        let Some(vector) = vectors.next() else { break };
+        let passages = split
+            .iter()
+            .map_while(|passage| {
+                vectors.next().map(|vector| EmbeddedPassage {
+                    start: passage.start,
+                    end: passage.end,
+                    vector,
+                })
+            })
+            .collect();
+        rows.push(EmbeddedNote {
+            id: pending.id,
+            hash: pending.hash,
+            vector,
+            passages,
+        });
+    }
     let kept = rows.len();
-    store.put_embeddings(embedder.model(), &rows)?;
+    store.put_embedded(embedder.model(), &rows)?;
     Ok((waiting - kept, total))
 }
 

@@ -52,6 +52,20 @@ impl Clock {
         )
     }
 
+    /// The zone as a function of an instant in milliseconds to its offset
+    /// from UTC in seconds, that a background thread can hold.
+    pub fn zone(cx: &App) -> Box<dyn Fn(i64) -> i32 + Send + Sync> {
+        match Self::fixed_in(cx) {
+            Some((_, offset)) => Box::new(move |_| offset),
+            None => Box::new(|at_ms| {
+                Local
+                    .timestamp_millis_opt(at_ms)
+                    .earliest()
+                    .map_or(0, |time| time.offset().local_minus_utc())
+            }),
+        }
+    }
+
     /// How far local time is ahead of UTC at the instant `at_ms`, in seconds.
     /// It can differ between two instants across a daylight-saving change.
     pub fn utc_offset_secs(cx: &App, at_ms: i64) -> i32 {

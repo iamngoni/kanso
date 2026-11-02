@@ -108,6 +108,18 @@ abstract class Preferences with _$Preferences {
     /// Whether focus mode shows the open note in Live, and leaving it goes
     /// back to the mode the note was in.
     @Default(false) bool livePreviewInFocus,
+
+    /// Whether the editor offers past notes about the paragraph being
+    /// written, in a pill above the keyboard (when related notes are on).
+    @Default(true) bool resurface,
+
+    /// How close a past note must be to be offered: "closer", "default" or
+    /// "looser". A value this version does not know is "default".
+    @Default('default') String resurfaceCloseness,
+
+    /// Whether a daily note lists the notes written on its date in earlier
+    /// years.
+    @Default(true) bool onThisDay,
   }) = _Preferences;
 
   factory Preferences.fromJson(Map<String, dynamic> json) =>

@@ -12,5 +12,8 @@ abstract class DiscoverySettingsState with _$DiscoverySettingsState {
     @Default(false) bool relatedBusy,
     @Default(false) bool ocrEnabled,
     @Default(0) int ocrWaiting,
+    @Default(true) bool resurfaceEnabled,
+    @Default('default') String closeness,
+    @Default(true) bool onThisDayEnabled,
   }) = _DiscoverySettingsState;
 }

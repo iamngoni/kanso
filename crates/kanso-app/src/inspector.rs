@@ -141,6 +141,14 @@ impl Inspector {
                 cx.notify();
             }
         }));
+        // Past notes about the paragraph being written show on the Related
+        // tab when the margin isn't showing them.
+        let resurface = editor.read(cx).resurface().clone();
+        subscriptions.push(cx.observe(&resurface, |this, _, cx| {
+            if this.visible && this.tab == InspectorTab::Related {
+                cx.notify();
+            }
+        }));
         // A new state or new embeddings: the Related tab asks again.
         subscriptions.push(cx.observe_global::<Related>(|this, cx| {
             if this.visible && this.tab == InspectorTab::Related {
@@ -888,7 +896,18 @@ impl Inspector {
             RelatedStatus::Indexing { .. } | RelatedStatus::Ready { .. } => {}
         }
         self.load_related(generation, cx);
+        let about = self.render_about_paragraph(cx);
         let Some(related) = self.related.clone() else {
+            if let Some(about) = about {
+                return v_flex()
+                    .id("related")
+                    .size_full()
+                    .overflow_y_scroll()
+                    .px(px(PAD_X))
+                    .pb(px(12.))
+                    .child(about)
+                    .into_any_element();
+            }
             return state(
                 Lucide::Sparkles,
                 "Reading this note…".into(),
@@ -897,7 +916,8 @@ impl Inspector {
             .into_any_element();
         };
         let tags = self.render_suggested_tags(cx);
-        if related.is_empty() && tags.is_none() {
+        let has_about = about.is_some();
+        if related.is_empty() && tags.is_none() && !has_about {
             return state(
                 Lucide::Sparkles,
                 "Nothing related yet".into(),
@@ -913,6 +933,7 @@ impl Inspector {
             .track_scroll(&self.scroll)
             .px(px(PAD_X))
             .pb(px(12.))
+            .children(about)
             .children(tags)
             .when(!related.is_empty(), |el| {
                 el.child(
@@ -920,7 +941,11 @@ impl Inspector {
                         .px(px(8.))
                         .pt(px(10.))
                         .pb(px(6.))
-                        .child("Not linked yet"),
+                        .child(if has_about {
+                            "About this note"
+                        } else {
+                            "Not linked yet"
+                        }),
                 )
             })
             .children(related.into_iter().enumerate().map(|(ix, note)| {
@@ -987,6 +1012,31 @@ impl Inspector {
 }
 
 impl Inspector {
+    /// "About this paragraph": past notes about the paragraph being written,
+    /// when the margin beside the text isn't showing them (the inspector is
+    /// open, the pane is narrow, or the setting keeps them here).
+    fn render_about_paragraph(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let colors = Colors::get(cx);
+        let resurface = self.editor.read(cx).resurface().clone();
+        let state = resurface.read(cx);
+        if state.in_margin(cx) || !state.has_content(cx) {
+            return None;
+        }
+        Some(
+            v_flex()
+                .w_full()
+                .child(
+                    section_label(div(), colors)
+                        .px(px(8.))
+                        .pt(px(10.))
+                        .pb(px(6.))
+                        .child("About this paragraph"),
+                )
+                .child(crate::resurface::item_list(&resurface, cx))
+                .into_any_element(),
+        )
+    }
+
     /// The tags the open note's close notes have and it hasn't, each a
     /// chip that adds it; `None` when there are none.
     fn render_suggested_tags(&self, cx: &mut Context<Self>) -> Option<AnyElement> {

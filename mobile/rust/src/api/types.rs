@@ -24,21 +24,21 @@ pub use kanso_mobile::{
     LiveDocStyle, LiveDocStyleKind, LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun,
     LiveStatus, LocalTime, LockEvent, LockReason, LockState, LockStatus, LockedInfo, MadeNote,
     MeaningResult, MemberRow, MentionSpan, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning,
-    NoteRow, NoteView, NotebookRole, NotebookRow, OpenedDocuments, OpenedFile, PaletteDto,
-    PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PersonLookup, PersonRow,
-    PreviewAlign, PreviewBlock, PreviewCell, PreviewCodeRun, PreviewFigureKind, PreviewInline,
-    PreviewLink, PreviewListItem, PreviewOptions, PreviewQueryRow, PreviewRow, PreviewSourcedBlock,
-    PreviewSvg, PreviewTaskBox, PromptState, Property, PropertyKind, ProviderEvent, ProviderKind,
-    PushEnvironmentKind, PushPlatformKind, QuotaLimit, Range16, RecoveryKeyText, RelatedRow,
-    RelatedState, RelatedStatus, ReminderAnswer, ReminderNote, ReminderPlan, Replacement, RunBatch,
-    SaveState, Saved, SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo,
-    ShareLinkRow, ShareRole, SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection,
-    SignOutReasonKind, SignedUp, SortKey, SpanRow, StatusChoice, StatusCount, StyledRun,
-    SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind,
-    SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine, SyncTone, SyntaxStyleRow, Table,
-    TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard, TaskGroupKind, TaskItem, TaskListQuery,
-    TaskPlace, TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow,
-    VisibleNotebook,
+    NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow, OpenedDocuments, OpenedFile,
+    PaletteDto, PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PersonLookup,
+    PersonRow, PreviewAlign, PreviewBlock, PreviewCell, PreviewCodeRun, PreviewFigureKind,
+    PreviewInline, PreviewLink, PreviewListItem, PreviewOptions, PreviewQueryRow, PreviewRow,
+    PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState, Property, PropertyKind,
+    ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind, QuotaLimit, Range16,
+    RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer, ReminderNote,
+    ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, RunBatch, SaveState, Saved,
+    SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo, ShareLinkRow, ShareRole,
+    SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection, SignOutReasonKind, SignedUp,
+    SortKey, SpanRow, StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount,
+    SyncIntervalOption, SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus,
+    SyncStatusLine, SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow,
+    TaskBoard, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow,
+    TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
 };
 pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
@@ -2004,6 +2004,31 @@ pub enum _MeaningResult {
     Off,
     NoModel,
     Found { rows: Vec<RelatedRow> },
+}
+
+#[frb(mirror(ResurfaceRow))]
+pub struct _ResurfaceRow {
+    pub id: String,
+    pub title: String,
+    pub book: String,
+    pub when: String,
+    pub snippet: String,
+    pub before: Option<String>,
+}
+
+#[frb(mirror(ResurfaceResult))]
+pub enum _ResurfaceResult {
+    Off,
+    NoModel,
+    Found { rows: Vec<ResurfaceRow> },
+}
+
+#[frb(mirror(OnThisDayRow))]
+pub struct _OnThisDayRow {
+    pub id: String,
+    pub title: String,
+    pub book: String,
+    pub ago: String,
 }
 
 #[frb(mirror(GraphFilter))]

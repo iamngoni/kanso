@@ -55,6 +55,42 @@ class RustDiscoveryRepository implements DiscoveryRepository {
       attempt(() => _discovery.noteMeaning(id: id));
 
   @override
+  Future<Either<ApplicationError, ResurfaceResult>> resurface({
+    required String id,
+    required String title,
+    required String body,
+    required int caret,
+    required String closeness,
+    required int utcOffsetSecs,
+  }) => attempt(
+    () => _discovery.resurface(
+      id: id,
+      title: title,
+      body: body,
+      caret: caret,
+      closeness: closeness,
+      utcOffsetSecs: utcOffsetSecs,
+    ),
+  );
+
+  @override
+  Future<Either<ApplicationError, Unit>> dismissRelated(
+    String id,
+    String otherId,
+  ) => attempt(() async {
+    await _discovery.dismissRelated(id: id, otherId: otherId);
+    return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, List<OnThisDayRow>>> onThisDay(
+    String id, {
+    required int utcOffsetSecs,
+  }) => attempt(
+    () => _discovery.onThisDay(id: id, utcOffsetSecs: utcOffsetSecs),
+  );
+
+  @override
   Future<Either<ApplicationError, Unit>> dismissTwin(
     String id,
     String otherId,

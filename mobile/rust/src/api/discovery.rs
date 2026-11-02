@@ -6,7 +6,7 @@ use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
     Discovery, DiscoveryMeasure, GraphLayout, GraphRequest, ImageToRead, KansoError, MeaningResult,
-    NoteMeaning, NoteView, RelatedRow, RelatedState,
+    NoteMeaning, NoteView, OnThisDayRow, RelatedRow, RelatedState, ResurfaceResult,
 };
 
 #[frb(opaque)]
@@ -54,6 +54,36 @@ impl KansoDiscovery {
 
     pub fn dismiss_twin(&self, id: String, other_id: String) -> Result<(), KansoError> {
         self.0.dismiss_twin(&id, &other_id)
+    }
+
+    /// Up to three past notes about the paragraph around `caret` (a UTF-16
+    /// offset in `body`) of note `id`, from the text as it is typed.
+    /// `closeness` is "closer", "default" or "looser".
+    pub fn resurface(
+        &self,
+        id: String,
+        title: String,
+        body: String,
+        caret: u32,
+        closeness: String,
+        utc_offset_secs: i32,
+    ) -> Result<ResurfaceResult, KansoError> {
+        self.0
+            .resurface(&id, &title, &body, caret, &closeness, utc_offset_secs)
+    }
+
+    /// "Not related": `other_id` is not shown beside note `id` again.
+    pub fn dismiss_related(&self, id: String, other_id: String) -> Result<(), KansoError> {
+        self.0.dismiss_related(&id, &other_id)
+    }
+
+    /// For a daily note, notes written on its date in earlier years.
+    pub fn on_this_day(
+        &self,
+        id: String,
+        utc_offset_secs: i32,
+    ) -> Result<Vec<OnThisDayRow>, KansoError> {
+        self.0.on_this_day(&id, utc_offset_secs)
     }
 
     pub fn merge_notes(&self, keep_id: String, other_id: String) -> Result<NoteView, KansoError> {

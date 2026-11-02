@@ -88,8 +88,14 @@ impl NoteMeaning {
     }
 
     /// The open note and its near twin are different notes after all: not
-    /// mentioned again while Kanso runs, from either side.
+    /// mentioned again, from either side.
     pub fn dismiss_duplicate(&mut self, cx: &mut Context<Self>) {
+        // Kept in the library, so it holds after Kanso is closed.
+        if let (Some(note), Some(twin)) = (self.meaning.note(), self.meaning.twin())
+            && let Err(err) = self.store.dismiss_twin(note, &twin.id)
+        {
+            eprintln!("kanso: couldn't keep that: {err}");
+        }
         if self.meaning.dismiss_twin() {
             cx.notify();
         }

@@ -67,7 +67,12 @@ pub fn read(store: &Store, id: &str) -> (Vec<TagSuggestion>, Option<RelatedNote>
         .ok()
         .flatten()
         .unwrap_or_default();
-    let twin = store.near_duplicate(id, &model).ok().flatten();
+    // A twin said not to be one stays dismissed, kept in the library.
+    let twin = store
+        .near_duplicate(id, &model)
+        .ok()
+        .flatten()
+        .filter(|other| !store.is_dismissed(id, &other.id).unwrap_or(false));
     (suggested, twin)
 }
 

@@ -40,6 +40,7 @@ import '../../note/state/note/note_bloc.dart';
 import '../../note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../note/state/note_discovery/note_discovery_bloc.dart';
 import '../../note/state/note_mode_intent/note_mode_intent_bloc.dart';
+import '../../note/state/resurface/resurface_bloc.dart';
 import '../../note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import '../../note/views/pages/presentation_page.dart';
 import '../../note/views/widgets/note_html_export.dart';
@@ -580,7 +581,11 @@ abstract final class PaletteLauncher {
         );
       case 'show-related':
         if (open != null) {
-          await RelatedNotesSheet.show(context, noteId: open);
+          await RelatedNotesSheet.show(
+            context,
+            noteId: open,
+            resurface: _maybeRead<ResurfaceBloc>(context),
+          );
         }
       case 'summarize-note':
         final summaryNote = note?.id ?? noteId;

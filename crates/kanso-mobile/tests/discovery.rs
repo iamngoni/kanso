@@ -21,7 +21,7 @@ use kanso_engine::discovery::model_fetch::{Fetch, Model, ModelError, ModelFile, 
 use kanso_engine::discovery::related::MODEL_ID;
 use kanso_mobile::{
     Discovery, GraphFilter, GraphRequest, KansoError, Library, MeaningResult, NoteChange,
-    RelatedState, RelatedStatus,
+    RelatedState, RelatedStatus, ResurfaceResult,
 };
 use kanso_store::{Embedder, Origin, Put, Store};
 use proptest::prelude::*;
@@ -684,4 +684,194 @@ fn the_query_rule_and_a_dismissal_are_the_engines() {
     );
     assert_eq!(Discovery::meaning_query("ab"), None);
     assert_eq!(Discovery::MIN_QUERY_CHARS, 3);
+}
+
+const WRITING: &str =
+    "Thinking about the orchard again, pruning the fruit trees before winter comes.";
+
+/// Past notes come back for the paragraph being typed (not the saved note),
+/// with the passage, the date and notebook; the caret is a UTF-16 offset;
+/// "Not related" keeps a note away for good; short paragraphs and notes
+/// that may not be read give nothing.
+#[test]
+fn resurfacing_finds_past_notes_for_the_paragraph_being_typed() {
+    let mut ids = HashMap::new();
+    let (phone, _states) = indexed(2, |phone| {
+        let store = store(phone);
+        let book = book(&store, "Home");
+        let past = raw_note(
+            &store,
+            json!({"title": "Orchard diary", "bookId": book, "createdAt": 1_700_000_000_000i64,
+                   "body": "Notes on the orchard.\n\nPruned the fruit trees in winter and wrapped the young trunks."}),
+        );
+        let other = raw_note(
+            &store,
+            json!({"title": "Taxes", "bookId": book, "body": "zzzz qqqq xxxx jjjj kkkk vvvv wwww"}),
+        );
+        ids.insert("past", past);
+        ids.insert("other", other);
+    });
+    let discovery = phone.library.discovery();
+    let writing = note(&phone.library, "Today", "");
+    // An emoji before the caret is two UTF-16 units.
+    let body = format!("\u{1F333} {WRITING}");
+    let caret = body.encode_utf16().count() as u32;
+    let found = |discovery: &Discovery| {
+        discovery
+            .resurface(&writing, "Today", &body, caret, "default", 0)
+            .unwrap()
+    };
+    let ResurfaceResult::Found { rows } = found(&discovery) else {
+        panic!("expected notes");
+    };
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].id, ids["past"]);
+    assert_eq!(rows[0].book, "Home");
+    assert_eq!(rows[0].when, "November 2023");
+    assert!(
+        rows[0].snippet.contains("Pruned the fruit trees"),
+        "{}",
+        rows[0].snippet
+    );
+    // A caret past the end is the end; a paragraph under six words is nothing.
+    assert!(matches!(
+        discovery.resurface(&writing, "Today", &body, 9_999, "default", 0).unwrap(),
+        ResurfaceResult::Found { rows } if rows.len() == 1
+    ));
+    assert_eq!(
+        discovery
+            .resurface(&writing, "", "orchard fruit", 3, "default", 0)
+            .unwrap(),
+        ResurfaceResult::Found { rows: Vec::new() }
+    );
+
+    // Not related: never again for this note, kept in the library.
+    discovery.dismiss_related(&writing, &ids["past"]).unwrap();
+    assert_eq!(
+        found(&discovery),
+        ResurfaceResult::Found { rows: Vec::new() }
+    );
+    assert!(
+        store(&phone)
+            .dismissed_related(&writing)
+            .unwrap()
+            .contains(&ids["past"])
+    );
+}
+
+/// A locked note makes no query.
+#[test]
+fn resurfacing_makes_no_query_for_a_locked_note() {
+    let (phone, _states) = indexed(1, |phone| {
+        raw_note(
+            &store(phone),
+            json!({"title": "Orchard diary", "body": format!("{ORCHARD}. Pruned the fruit trees in winter.")}),
+        );
+    });
+    let writing = note(&phone.library, "Today", "");
+    let discovery = phone.library.discovery();
+    let ask = || {
+        discovery
+            .resurface(&writing, "Today", WRITING, 5, "looser", 0)
+            .unwrap()
+    };
+    assert!(matches!(ask(), ResurfaceResult::Found { rows } if !rows.is_empty()));
+    phone
+        .library
+        .locks()
+        .lock_note(&writing, LOCK_PASSWORD.into())
+        .unwrap();
+    assert_eq!(ask(), ResurfaceResult::Found { rows: Vec::new() });
+}
+
+#[test]
+fn resurfacing_is_off_while_related_notes_are() {
+    install();
+    let phone = lone_phone();
+    let id = note(&phone.library, "A", "x");
+    assert_eq!(
+        phone
+            .library
+            .discovery()
+            .resurface(&id, "A", WRITING, 5, "default", 0)
+            .unwrap(),
+        ResurfaceResult::Off
+    );
+}
+
+/// A twin said not to be one stays dismissed in the library.
+#[test]
+fn a_dismissed_twin_is_kept_in_the_library() {
+    install();
+    let phone = lone_phone();
+    let a = note(&phone.library, "A", ORCHARD);
+    let b = note(&phone.library, "B", ORCHARD);
+    phone.library.discovery().dismiss_twin(&a, &b).unwrap();
+    assert!(store(&phone).is_dismissed(&b, &a).unwrap());
+}
+
+/// A daily note lists the notes of its date in earlier years, daily notes
+/// first; any other note lists nothing; no model is needed.
+#[test]
+fn on_this_day_lists_the_same_date_in_earlier_years() {
+    install();
+    let phone = lone_phone();
+    let store = store(&phone);
+    let book = book(&store, "Journal");
+    // 2024-03-10 12:00 UTC and the daily notes of 2025 and 2026.
+    let walk = raw_note(
+        &store,
+        json!({"title": "Walk", "bookId": book, "body": "x", "createdAt": 1_710_072_000_000i64}),
+    );
+    let daily_2025 = raw_note(
+        &store,
+        json!({"_id": "note:daily-2025-03-10", "title": "2025-03-10", "bookId": book, "body": "x",
+               "createdAt": 1_741_608_000_000i64}),
+    );
+    let today = raw_note(
+        &store,
+        json!({"_id": "note:daily-2026-03-10", "title": "2026-03-10", "bookId": book, "body": "x",
+               "createdAt": 1_773_144_000_000i64}),
+    );
+    let other = raw_note(
+        &store,
+        json!({"title": "Other", "bookId": book, "body": "x", "createdAt": 1_710_300_000_000i64}),
+    );
+    let discovery = phone.library.discovery();
+    let rows = discovery.on_this_day(&today, 0).unwrap();
+    assert_eq!(
+        rows.iter().map(|r| r.id.clone()).collect::<Vec<_>>(),
+        [daily_2025, walk]
+    );
+    assert_eq!(rows[0].ago, "1 year ago");
+    assert_eq!(rows[1].ago, "2 years ago");
+    assert_eq!(rows[0].book, "Journal");
+    assert!(discovery.on_this_day(&other, 0).unwrap().is_empty());
+}
+
+/// A locked daily note lists nothing for its date.
+// no-prop-test: one fixed library; the rule is the store's `note_discoverable`.
+#[test]
+fn on_this_day_lists_nothing_for_a_locked_daily_note() {
+    install();
+    let phone = lone_phone();
+    let store = store(&phone);
+    let book = book(&store, "Journal");
+    raw_note(
+        &store,
+        json!({"title": "Walk", "bookId": book, "body": "x", "createdAt": 1_710_072_000_000i64}),
+    );
+    let today = raw_note(
+        &store,
+        json!({"_id": "note:daily-2026-03-10", "title": "2026-03-10", "bookId": book, "body": "x",
+               "createdAt": 1_773_144_000_000i64}),
+    );
+    let discovery = phone.library.discovery();
+    assert_eq!(discovery.on_this_day(&today, 0).unwrap().len(), 1);
+    phone
+        .library
+        .locks()
+        .lock_note(&today, LOCK_PASSWORD.into())
+        .unwrap();
+    assert!(discovery.on_this_day(&today, 0).unwrap().is_empty());
 }

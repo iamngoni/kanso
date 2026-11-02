@@ -20,6 +20,30 @@ abstract interface class DiscoveryRepository {
     required int limit,
   });
   Future<Either<ApplicationError, NoteMeaning>> noteMeaning(String id);
+
+  /// Up to three past notes about the paragraph around [caret] (a UTF-16
+  /// offset in [body]) of note [id], from the text as it is typed.
+  /// [closeness] is "closer", "default" or "looser".
+  Future<Either<ApplicationError, ResurfaceResult>> resurface({
+    required String id,
+    required String title,
+    required String body,
+    required int caret,
+    required String closeness,
+    required int utcOffsetSecs,
+  });
+
+  /// "Not related": [otherId] is not shown beside note [id] again.
+  Future<Either<ApplicationError, Unit>> dismissRelated(
+    String id,
+    String otherId,
+  );
+
+  /// For a daily note, notes written on its date in earlier years.
+  Future<Either<ApplicationError, List<OnThisDayRow>>> onThisDay(
+    String id, {
+    required int utcOffsetSecs,
+  });
   Future<Either<ApplicationError, Unit>> dismissTwin(String id, String otherId);
   Future<Either<ApplicationError, NoteView>> mergeNotes(
     String keepId,

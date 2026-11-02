@@ -413,6 +413,79 @@
       }
     }
   },
+  "discoveryResurface": "Related notes while writing",
+  "@discoveryResurface": {
+    "description": "Enables a pill above the keyboard that offers past notes about the paragraph being written."
+  },
+  "discoveryResurfaceDetail": "After you pause, a small pill offers up to three past notes about the paragraph you are writing. It works on this device: nothing about your notes is sent anywhere.",
+  "@discoveryResurfaceDetail": {
+    "description": "Explains the pill of related notes above the keyboard."
+  },
+  "discoveryCloseness": "How close",
+  "@discoveryCloseness": {
+    "description": "Chooses how alike a past note must be to the writing to be offered."
+  },
+  "discoveryClosenessCloser": "Closer",
+  "@discoveryClosenessCloser": {
+    "description": "Offers fewer, nearer notes."
+  },
+  "discoveryClosenessDefault": "Default",
+  "@discoveryClosenessDefault": {
+    "description": "Offers notes of ordinary closeness."
+  },
+  "discoveryClosenessLooser": "Looser",
+  "@discoveryClosenessLooser": {
+    "description": "Offers more, looser notes."
+  },
+  "discoveryOnThisDay": "Show “On this day” on daily notes",
+  "@discoveryOnThisDay": {
+    "description": "Enables listing notes written on a daily note's date in earlier years."
+  },
+  "discoveryOnThisDayDetail": "A daily note lists up to three notes written on its date in earlier years. It needs no language model.",
+  "@discoveryOnThisDayDetail": {
+    "description": "Explains On this day."
+  },
+  "resurfacePill": "{count, plural, =1{1 related} other{{count} related}}",
+  "@resurfacePill": {
+    "description": "The pill above the keyboard: how many past notes are about the paragraph being written.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "resurfaceAboutParagraph": "About this paragraph",
+  "@resurfaceAboutParagraph": {
+    "description": "The section of the related notes sheet with notes about the paragraph being written."
+  },
+  "resurfaceAboutNote": "About this note",
+  "@resurfaceAboutNote": {
+    "description": "The section of the related notes sheet with notes about the whole note."
+  },
+  "resurfaceOnThisDay": "On this day",
+  "@resurfaceOnThisDay": {
+    "description": "The section of the related notes sheet with notes written on this date in earlier years."
+  },
+  "resurfaceLink": "Link",
+  "@resurfaceLink": {
+    "description": "Puts a link to the past note at the caret."
+  },
+  "resurfaceNotRelated": "Not related",
+  "@resurfaceNotRelated": {
+    "description": "Keeps the past note from being offered for this note again."
+  },
+  "resurfaceNoteMeta": "{notebook} · {when}",
+  "@resurfaceNoteMeta": {
+    "description": "A past note's notebook and when it was written, as 'Home · March 2024'.",
+    "placeholders": {
+      "notebook": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
   "settingsAbout": "About",
   "@settingsAbout": {
     "description": "A section of settings."

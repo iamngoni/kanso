@@ -8,8 +8,10 @@
 //! lends the store its model while it is loaded ([`Store::lend_embedder`]),
 //! and a store opened without the app answers [`MeaningSearch::NoModel`].
 
+pub mod index;
 pub mod model;
 pub mod rank;
+mod resurface;
 
 use std::collections::HashSet;
 use std::sync::Arc;

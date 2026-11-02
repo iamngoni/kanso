@@ -2277,6 +2277,48 @@ pub enum MeaningResult {
     Found { rows: Vec<RelatedRow> },
 }
 
+/// A past note about the paragraph being written, as the pill's sheet
+/// shows it: the same words the desktop's margin uses
+/// (`kanso_engine::discovery::resurface`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ResurfaceRow {
+    pub id: String,
+    pub title: String,
+    /// The notebook's name, or empty.
+    pub book: String,
+    /// "March 2024".
+    pub when: String,
+    /// The passage that matched, as one plain line.
+    pub snippet: String,
+    /// "You wrote about this before · 2 years ago" when the match is close
+    /// and old enough.
+    pub before: Option<String>,
+}
+
+/// What resurfacing found for a paragraph.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ResurfaceResult {
+    /// Related notes are off.
+    Off,
+    /// Related notes are on, but the model isn't loaded yet.
+    NoModel,
+    /// Up to three past notes, closest first; none for a paragraph that is
+    /// too short, a note that is locked or tagged `#ai-exclude`, or when
+    /// nothing is close enough.
+    Found { rows: Vec<ResurfaceRow> },
+}
+
+/// A note written on this day in an earlier year.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OnThisDayRow {
+    pub id: String,
+    pub title: String,
+    /// The notebook's name, or empty.
+    pub book: String,
+    /// "1 year ago", "3 years ago".
+    pub ago: String,
+}
+
 /// Which graph to lay out.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GraphRequest {

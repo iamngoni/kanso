@@ -20,6 +20,9 @@ int meaningMinChars() =>
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoDiscovery>>
 abstract class KansoDiscovery implements RustOpaqueInterface {
+  /// "Not related": `other_id` is not shown beside note `id` again.
+  Future<void> dismissRelated({required String id, required String otherId});
+
   Future<void> dismissTwin({required String id, required String otherId});
 
   Future<GraphLayout> graph({required GraphRequest request});
@@ -49,6 +52,12 @@ abstract class KansoDiscovery implements RustOpaqueInterface {
 
   Future<int> ocrWaiting();
 
+  /// For a daily note, notes written on its date in earlier years.
+  Future<List<OnThisDayRow>> onThisDay({
+    required String id,
+    required int utcOffsetSecs,
+  });
+
   /// Whether related notes are on.
   Future<bool> relatedEnabled();
 
@@ -62,6 +71,18 @@ abstract class KansoDiscovery implements RustOpaqueInterface {
   /// Where related notes stand now and each time that changes, until Dart
   /// stops listening.
   Stream<RelatedState> relatedStream();
+
+  /// Up to three past notes about the paragraph around `caret` (a UTF-16
+  /// offset in `body`) of note `id`, from the text as it is typed.
+  /// `closeness` is "closer", "default" or "looser".
+  Future<ResurfaceResult> resurface({
+    required String id,
+    required String title,
+    required String body,
+    required int caret,
+    required String closeness,
+    required int utcOffsetSecs,
+  });
 
   Future<MeaningResult> searchByMeaning({
     required String query,

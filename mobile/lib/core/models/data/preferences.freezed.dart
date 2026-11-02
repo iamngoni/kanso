@@ -43,7 +43,13 @@ mixin _$Preferences {
 /// list, tabs or the note's bars.
  bool get focusMode;/// Whether focus mode shows the open note in Live, and leaving it goes
 /// back to the mode the note was in.
- bool get livePreviewInFocus;
+ bool get livePreviewInFocus;/// Whether the editor offers past notes about the paragraph being
+/// written, in a pill above the keyboard (when related notes are on).
+ bool get resurface;/// How close a past note must be to be offered: "closer", "default" or
+/// "looser". A value this version does not know is "default".
+ String get resurfaceCloseness;/// Whether a daily note lists the notes written on its date in earlier
+/// years.
+ bool get onThisDay;
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -56,16 +62,16 @@ $PreferencesCopyWith<Preferences> get copyWith => _$PreferencesCopyWithImpl<Pref
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other.openTabs, openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled)&&(identical(other.focusMode, focusMode) || other.focusMode == focusMode)&&(identical(other.livePreviewInFocus, livePreviewInFocus) || other.livePreviewInFocus == livePreviewInFocus));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other.openTabs, openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled)&&(identical(other.focusMode, focusMode) || other.focusMode == focusMode)&&(identical(other.livePreviewInFocus, livePreviewInFocus) || other.livePreviewInFocus == livePreviewInFocus)&&(identical(other.resurface, resurface) || other.resurface == resurface)&&(identical(other.resurfaceCloseness, resurfaceCloseness) || other.resurfaceCloseness == resurfaceCloseness)&&(identical(other.onThisDay, onThisDay) || other.onThisDay == onThisDay));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,themeSelection,fonts,textSize,previewTextSize,interfaceTextSize,iconTheme,diagramRenderer,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(openTabs),activeTab,searchImageText,remindersEnabled,focusMode,livePreviewInFocus);
+int get hashCode => Object.hashAll([runtimeType,themeSelection,fonts,textSize,previewTextSize,interfaceTextSize,iconTheme,diagramRenderer,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(openTabs),activeTab,searchImageText,remindersEnabled,focusMode,livePreviewInFocus,resurface,resurfaceCloseness,onThisDay]);
 
 @override
 String toString() {
-  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, iconTheme: $iconTheme, diagramRenderer: $diagramRenderer, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled, focusMode: $focusMode, livePreviewInFocus: $livePreviewInFocus)';
+  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, iconTheme: $iconTheme, diagramRenderer: $diagramRenderer, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled, focusMode: $focusMode, livePreviewInFocus: $livePreviewInFocus, resurface: $resurface, resurfaceCloseness: $resurfaceCloseness, onThisDay: $onThisDay)';
 }
 
 
@@ -76,7 +82,7 @@ abstract mixin class $PreferencesCopyWith<$Res>  {
   factory $PreferencesCopyWith(Preferences value, $Res Function(Preferences) _then) = _$PreferencesCopyWithImpl;
 @useResult
 $Res call({
- ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double textSize,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double previewTextSize,@JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0) double interfaceTextSize, String iconTheme,@JsonKey(unknownEnumValue: DiagramRenderer.pele) DiagramRenderer diagramRenderer,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled, bool focusMode, bool livePreviewInFocus
+ ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double textSize,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double previewTextSize,@JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0) double interfaceTextSize, String iconTheme,@JsonKey(unknownEnumValue: DiagramRenderer.pele) DiagramRenderer diagramRenderer,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled, bool focusMode, bool livePreviewInFocus, bool resurface, String resurfaceCloseness, bool onThisDay
 });
 
 
@@ -93,7 +99,7 @@ class _$PreferencesCopyWithImpl<$Res>
 
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? iconTheme = null,Object? diagramRenderer = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,Object? focusMode = null,Object? livePreviewInFocus = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? iconTheme = null,Object? diagramRenderer = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,Object? focusMode = null,Object? livePreviewInFocus = null,Object? resurface = null,Object? resurfaceCloseness = null,Object? onThisDay = null,}) {
   return _then(_self.copyWith(
 themeSelection: null == themeSelection ? _self.themeSelection : themeSelection // ignore: cast_nullable_to_non_nullable
 as ThemeSelection,fonts: null == fonts ? _self.fonts : fonts // ignore: cast_nullable_to_non_nullable
@@ -113,6 +119,9 @@ as int,searchImageText: null == searchImageText ? _self.searchImageText : search
 as bool,remindersEnabled: null == remindersEnabled ? _self.remindersEnabled : remindersEnabled // ignore: cast_nullable_to_non_nullable
 as bool,focusMode: null == focusMode ? _self.focusMode : focusMode // ignore: cast_nullable_to_non_nullable
 as bool,livePreviewInFocus: null == livePreviewInFocus ? _self.livePreviewInFocus : livePreviewInFocus // ignore: cast_nullable_to_non_nullable
+as bool,resurface: null == resurface ? _self.resurface : resurface // ignore: cast_nullable_to_non_nullable
+as bool,resurfaceCloseness: null == resurfaceCloseness ? _self.resurfaceCloseness : resurfaceCloseness // ignore: cast_nullable_to_non_nullable
+as String,onThisDay: null == onThisDay ? _self.onThisDay : onThisDay // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -216,10 +225,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double textSize, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double previewTextSize, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0)  double interfaceTextSize,  String iconTheme, @JsonKey(unknownEnumValue: DiagramRenderer.pele)  DiagramRenderer diagramRenderer, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode,  bool livePreviewInFocus)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double textSize, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double previewTextSize, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0)  double interfaceTextSize,  String iconTheme, @JsonKey(unknownEnumValue: DiagramRenderer.pele)  DiagramRenderer diagramRenderer, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode,  bool livePreviewInFocus,  bool resurface,  String resurfaceCloseness,  bool onThisDay)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Preferences() when $default != null:
-return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.iconTheme,_that.diagramRenderer,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode,_that.livePreviewInFocus);case _:
+return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.iconTheme,_that.diagramRenderer,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode,_that.livePreviewInFocus,_that.resurface,_that.resurfaceCloseness,_that.onThisDay);case _:
   return orElse();
 
 }
@@ -237,10 +246,10 @@ return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTex
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double textSize, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double previewTextSize, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0)  double interfaceTextSize,  String iconTheme, @JsonKey(unknownEnumValue: DiagramRenderer.pele)  DiagramRenderer diagramRenderer, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode,  bool livePreviewInFocus)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double textSize, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double previewTextSize, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0)  double interfaceTextSize,  String iconTheme, @JsonKey(unknownEnumValue: DiagramRenderer.pele)  DiagramRenderer diagramRenderer, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode,  bool livePreviewInFocus,  bool resurface,  String resurfaceCloseness,  bool onThisDay)  $default,) {final _that = this;
 switch (_that) {
 case _Preferences():
-return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.iconTheme,_that.diagramRenderer,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode,_that.livePreviewInFocus);case _:
+return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.iconTheme,_that.diagramRenderer,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode,_that.livePreviewInFocus,_that.resurface,_that.resurfaceCloseness,_that.onThisDay);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -257,10 +266,10 @@ return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTex
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double textSize, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double previewTextSize, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0)  double interfaceTextSize,  String iconTheme, @JsonKey(unknownEnumValue: DiagramRenderer.pele)  DiagramRenderer diagramRenderer, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode,  bool livePreviewInFocus)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ThemeSelection themeSelection,  KansoFonts fonts, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double textSize, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0)  double previewTextSize, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0)  double interfaceTextSize,  String iconTheme, @JsonKey(unknownEnumValue: DiagramRenderer.pele)  DiagramRenderer diagramRenderer, @JsonKey(unknownEnumValue: SortKey.updated)  SortKey sort,  bool descending,  bool backupNoticeSeen,  bool biometricOfferSeen,  String? defaultNotebookId,  List<String> openTabs,  int activeTab,  bool searchImageText,  bool remindersEnabled,  bool focusMode,  bool livePreviewInFocus,  bool resurface,  String resurfaceCloseness,  bool onThisDay)?  $default,) {final _that = this;
 switch (_that) {
 case _Preferences() when $default != null:
-return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.iconTheme,_that.diagramRenderer,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode,_that.livePreviewInFocus);case _:
+return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.iconTheme,_that.diagramRenderer,_that.sort,_that.descending,_that.backupNoticeSeen,_that.biometricOfferSeen,_that.defaultNotebookId,_that.openTabs,_that.activeTab,_that.searchImageText,_that.remindersEnabled,_that.focusMode,_that.livePreviewInFocus,_that.resurface,_that.resurfaceCloseness,_that.onThisDay);case _:
   return null;
 
 }
@@ -272,7 +281,7 @@ return $default(_that.themeSelection,_that.fonts,_that.textSize,_that.previewTex
 @JsonSerializable()
 
 class _Preferences implements Preferences {
-  const _Preferences({this.themeSelection = const ThemeSelection(), this.fonts = const KansoFonts(), @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) this.textSize = 1.0, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) this.previewTextSize = 1.0, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0) this.interfaceTextSize = 1.0, this.iconTheme = KansoIconSet.lucideId, @JsonKey(unknownEnumValue: DiagramRenderer.pele) this.diagramRenderer = DiagramRenderer.pele, @JsonKey(unknownEnumValue: SortKey.updated) this.sort = SortKey.updated, this.descending = true, this.backupNoticeSeen = false, this.biometricOfferSeen = false, this.defaultNotebookId, final  List<String> openTabs = const <String>[], this.activeTab = 0, this.searchImageText = false, this.remindersEnabled = true, this.focusMode = false, this.livePreviewInFocus = false}): _openTabs = openTabs;
+  const _Preferences({this.themeSelection = const ThemeSelection(), this.fonts = const KansoFonts(), @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) this.textSize = 1.0, @JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) this.previewTextSize = 1.0, @JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0) this.interfaceTextSize = 1.0, this.iconTheme = KansoIconSet.lucideId, @JsonKey(unknownEnumValue: DiagramRenderer.pele) this.diagramRenderer = DiagramRenderer.pele, @JsonKey(unknownEnumValue: SortKey.updated) this.sort = SortKey.updated, this.descending = true, this.backupNoticeSeen = false, this.biometricOfferSeen = false, this.defaultNotebookId, final  List<String> openTabs = const <String>[], this.activeTab = 0, this.searchImageText = false, this.remindersEnabled = true, this.focusMode = false, this.livePreviewInFocus = false, this.resurface = true, this.resurfaceCloseness = 'default', this.onThisDay = true}): _openTabs = openTabs;
   factory _Preferences.fromJson(Map<String, dynamic> json) => _$PreferencesFromJson(json);
 
 /// The themes the interface is drawn in.
@@ -330,6 +339,15 @@ class _Preferences implements Preferences {
 /// Whether focus mode shows the open note in Live, and leaving it goes
 /// back to the mode the note was in.
 @override@JsonKey() final  bool livePreviewInFocus;
+/// Whether the editor offers past notes about the paragraph being
+/// written, in a pill above the keyboard (when related notes are on).
+@override@JsonKey() final  bool resurface;
+/// How close a past note must be to be offered: "closer", "default" or
+/// "looser". A value this version does not know is "default".
+@override@JsonKey() final  String resurfaceCloseness;
+/// Whether a daily note lists the notes written on its date in earlier
+/// years.
+@override@JsonKey() final  bool onThisDay;
 
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
@@ -344,16 +362,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other._openTabs, _openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled)&&(identical(other.focusMode, focusMode) || other.focusMode == focusMode)&&(identical(other.livePreviewInFocus, livePreviewInFocus) || other.livePreviewInFocus == livePreviewInFocus));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Preferences&&(identical(other.themeSelection, themeSelection) || other.themeSelection == themeSelection)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.iconTheme, iconTheme) || other.iconTheme == iconTheme)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.descending, descending) || other.descending == descending)&&(identical(other.backupNoticeSeen, backupNoticeSeen) || other.backupNoticeSeen == backupNoticeSeen)&&(identical(other.biometricOfferSeen, biometricOfferSeen) || other.biometricOfferSeen == biometricOfferSeen)&&(identical(other.defaultNotebookId, defaultNotebookId) || other.defaultNotebookId == defaultNotebookId)&&const DeepCollectionEquality().equals(other._openTabs, _openTabs)&&(identical(other.activeTab, activeTab) || other.activeTab == activeTab)&&(identical(other.searchImageText, searchImageText) || other.searchImageText == searchImageText)&&(identical(other.remindersEnabled, remindersEnabled) || other.remindersEnabled == remindersEnabled)&&(identical(other.focusMode, focusMode) || other.focusMode == focusMode)&&(identical(other.livePreviewInFocus, livePreviewInFocus) || other.livePreviewInFocus == livePreviewInFocus)&&(identical(other.resurface, resurface) || other.resurface == resurface)&&(identical(other.resurfaceCloseness, resurfaceCloseness) || other.resurfaceCloseness == resurfaceCloseness)&&(identical(other.onThisDay, onThisDay) || other.onThisDay == onThisDay));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,themeSelection,fonts,textSize,previewTextSize,interfaceTextSize,iconTheme,diagramRenderer,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(_openTabs),activeTab,searchImageText,remindersEnabled,focusMode,livePreviewInFocus);
+int get hashCode => Object.hashAll([runtimeType,themeSelection,fonts,textSize,previewTextSize,interfaceTextSize,iconTheme,diagramRenderer,sort,descending,backupNoticeSeen,biometricOfferSeen,defaultNotebookId,const DeepCollectionEquality().hash(_openTabs),activeTab,searchImageText,remindersEnabled,focusMode,livePreviewInFocus,resurface,resurfaceCloseness,onThisDay]);
 
 @override
 String toString() {
-  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, iconTheme: $iconTheme, diagramRenderer: $diagramRenderer, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled, focusMode: $focusMode, livePreviewInFocus: $livePreviewInFocus)';
+  return 'Preferences(themeSelection: $themeSelection, fonts: $fonts, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, iconTheme: $iconTheme, diagramRenderer: $diagramRenderer, sort: $sort, descending: $descending, backupNoticeSeen: $backupNoticeSeen, biometricOfferSeen: $biometricOfferSeen, defaultNotebookId: $defaultNotebookId, openTabs: $openTabs, activeTab: $activeTab, searchImageText: $searchImageText, remindersEnabled: $remindersEnabled, focusMode: $focusMode, livePreviewInFocus: $livePreviewInFocus, resurface: $resurface, resurfaceCloseness: $resurfaceCloseness, onThisDay: $onThisDay)';
 }
 
 
@@ -364,7 +382,7 @@ abstract mixin class _$PreferencesCopyWith<$Res> implements $PreferencesCopyWith
   factory _$PreferencesCopyWith(_Preferences value, $Res Function(_Preferences) _then) = __$PreferencesCopyWithImpl;
 @override @useResult
 $Res call({
- ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double textSize,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double previewTextSize,@JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0) double interfaceTextSize, String iconTheme,@JsonKey(unknownEnumValue: DiagramRenderer.pele) DiagramRenderer diagramRenderer,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled, bool focusMode, bool livePreviewInFocus
+ ThemeSelection themeSelection, KansoFonts fonts,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double textSize,@JsonKey(fromJson: textScaleFromJson, toJson: textScaleToJson, defaultValue: 1.0) double previewTextSize,@JsonKey(fromJson: interfaceTextScaleFromJson, toJson: interfaceTextScaleToJson, defaultValue: 1.0) double interfaceTextSize, String iconTheme,@JsonKey(unknownEnumValue: DiagramRenderer.pele) DiagramRenderer diagramRenderer,@JsonKey(unknownEnumValue: SortKey.updated) SortKey sort, bool descending, bool backupNoticeSeen, bool biometricOfferSeen, String? defaultNotebookId, List<String> openTabs, int activeTab, bool searchImageText, bool remindersEnabled, bool focusMode, bool livePreviewInFocus, bool resurface, String resurfaceCloseness, bool onThisDay
 });
 
 
@@ -381,7 +399,7 @@ class __$PreferencesCopyWithImpl<$Res>
 
 /// Create a copy of Preferences
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? iconTheme = null,Object? diagramRenderer = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,Object? focusMode = null,Object? livePreviewInFocus = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? themeSelection = null,Object? fonts = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? iconTheme = null,Object? diagramRenderer = null,Object? sort = null,Object? descending = null,Object? backupNoticeSeen = null,Object? biometricOfferSeen = null,Object? defaultNotebookId = freezed,Object? openTabs = null,Object? activeTab = null,Object? searchImageText = null,Object? remindersEnabled = null,Object? focusMode = null,Object? livePreviewInFocus = null,Object? resurface = null,Object? resurfaceCloseness = null,Object? onThisDay = null,}) {
   return _then(_Preferences(
 themeSelection: null == themeSelection ? _self.themeSelection : themeSelection // ignore: cast_nullable_to_non_nullable
 as ThemeSelection,fonts: null == fonts ? _self.fonts : fonts // ignore: cast_nullable_to_non_nullable
@@ -401,6 +419,9 @@ as int,searchImageText: null == searchImageText ? _self.searchImageText : search
 as bool,remindersEnabled: null == remindersEnabled ? _self.remindersEnabled : remindersEnabled // ignore: cast_nullable_to_non_nullable
 as bool,focusMode: null == focusMode ? _self.focusMode : focusMode // ignore: cast_nullable_to_non_nullable
 as bool,livePreviewInFocus: null == livePreviewInFocus ? _self.livePreviewInFocus : livePreviewInFocus // ignore: cast_nullable_to_non_nullable
+as bool,resurface: null == resurface ? _self.resurface : resurface // ignore: cast_nullable_to_non_nullable
+as bool,resurfaceCloseness: null == resurfaceCloseness ? _self.resurfaceCloseness : resurfaceCloseness // ignore: cast_nullable_to_non_nullable
+as String,onThisDay: null == onThisDay ? _self.onThisDay : onThisDay // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

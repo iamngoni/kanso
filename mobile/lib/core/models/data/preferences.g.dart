@@ -49,6 +49,9 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
   remindersEnabled: json['remindersEnabled'] as bool? ?? true,
   focusMode: json['focusMode'] as bool? ?? false,
   livePreviewInFocus: json['livePreviewInFocus'] as bool? ?? false,
+  resurface: json['resurface'] as bool? ?? true,
+  resurfaceCloseness: json['resurfaceCloseness'] as String? ?? 'default',
+  onThisDay: json['onThisDay'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
@@ -71,6 +74,9 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'remindersEnabled': instance.remindersEnabled,
       'focusMode': instance.focusMode,
       'livePreviewInFocus': instance.livePreviewInFocus,
+      'resurface': instance.resurface,
+      'resurfaceCloseness': instance.resurfaceCloseness,
+      'onThisDay': instance.onThisDay,
     };
 
 const _$DiagramRendererEnumMap = {

@@ -1126,6 +1126,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<NotebookRow> dco_decode_list_notebook_row(dynamic raw);
 
   @protected
+  List<OnThisDayRow> dco_decode_list_on_this_day_row(dynamic raw);
+
+  @protected
   List<OpenedFile> dco_decode_list_opened_file(dynamic raw);
 
   @protected
@@ -1213,6 +1216,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ReplaceNote> dco_decode_list_replace_note(dynamic raw);
+
+  @protected
+  List<ResurfaceRow> dco_decode_list_resurface_row(dynamic raw);
 
   @protected
   ListShape dco_decode_list_shape(dynamic raw);
@@ -1384,6 +1390,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   NotebookRow dco_decode_notebook_row(dynamic raw);
+
+  @protected
+  OnThisDayRow dco_decode_on_this_day_row(dynamic raw);
 
   @protected
   OpenedDocuments dco_decode_opened_documents(dynamic raw);
@@ -1680,6 +1689,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Replacement dco_decode_replacement(dynamic raw);
+
+  @protected
+  ResurfaceResult dco_decode_resurface_result(dynamic raw);
+
+  @protected
+  ResurfaceRow dco_decode_resurface_row(dynamic raw);
 
   @protected
   RunBatch dco_decode_run_batch(dynamic raw);
@@ -2974,6 +2989,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<NotebookRow> sse_decode_list_notebook_row(SseDeserializer deserializer);
 
   @protected
+  List<OnThisDayRow> sse_decode_list_on_this_day_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<OpenedFile> sse_decode_list_opened_file(SseDeserializer deserializer);
 
   @protected
@@ -3089,6 +3109,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ReplaceNote> sse_decode_list_replace_note(SseDeserializer deserializer);
+
+  @protected
+  List<ResurfaceRow> sse_decode_list_resurface_row(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ListShape sse_decode_list_shape(SseDeserializer deserializer);
@@ -3276,6 +3301,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   NotebookRow sse_decode_notebook_row(SseDeserializer deserializer);
+
+  @protected
+  OnThisDayRow sse_decode_on_this_day_row(SseDeserializer deserializer);
 
   @protected
   OpenedDocuments sse_decode_opened_documents(SseDeserializer deserializer);
@@ -3632,6 +3660,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Replacement sse_decode_replacement(SseDeserializer deserializer);
+
+  @protected
+  ResurfaceResult sse_decode_resurface_result(SseDeserializer deserializer);
+
+  @protected
+  ResurfaceRow sse_decode_resurface_row(SseDeserializer deserializer);
 
   @protected
   RunBatch sse_decode_run_batch(SseDeserializer deserializer);
@@ -5234,6 +5268,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_on_this_day_row(
+    List<OnThisDayRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_opened_file(
     List<OpenedFile> self,
     SseSerializer serializer,
@@ -5389,6 +5429,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_replace_note(
     List<ReplaceNote> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_resurface_row(
+    List<ResurfaceRow> self,
     SseSerializer serializer,
   );
 
@@ -5619,6 +5665,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_notebook_row(NotebookRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_on_this_day_row(OnThisDayRow self, SseSerializer serializer);
 
   @protected
   void sse_encode_opened_documents(
@@ -6078,6 +6127,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_replacement(Replacement self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_resurface_result(
+    ResurfaceResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_resurface_row(ResurfaceRow self, SseSerializer serializer);
 
   @protected
   void sse_encode_run_batch(RunBatch self, SseSerializer serializer);

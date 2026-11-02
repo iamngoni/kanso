@@ -1282,6 +1282,7 @@ fn writing_section(cx: &mut Context<SettingsView>) -> AnyElement {
                 ))
                 .trailing(switch("vim-keys", writing.vim, |e, on| e.vim = on)),
     ];
+    rows.extend(resurface_rows(cx));
     // Only where the system has a dictionary to check with.
     if crate::spellcheck::AVAILABLE {
         rows.insert(
@@ -1292,6 +1293,80 @@ fn writing_section(cx: &mut Context<SettingsView>) -> AnyElement {
         );
     }
     section("Writing", rows, colors)
+}
+
+/// Settings › Editor › Writing: past notes about the paragraph being
+/// written, and notes from this day in earlier years (`resurface.rs`).
+// no-prop-test: layout and clicks; the settings snapshots show it and the
+// `config` tests cover the settings' defaults and round trip.
+fn resurface_rows(cx: &mut Context<SettingsView>) -> Vec<Row> {
+    use kanso_engine::discovery::resurface::Closeness;
+    let colors = Colors::get(cx);
+    let discovery = config(cx).discovery;
+    let related_on = discovery.related_notes;
+    let switch =
+        |id: &'static str, on: bool, set: fn(&mut crate::config::DiscoverySettings, bool)| {
+            div().debug_selector(move || id.into()).child(
+                Switch::new(id)
+                    .checked(on)
+                    .on_click(move |on, _, cx| set_discovery(cx, |d| set(d, *on))),
+            )
+        };
+    let main = if related_on {
+        Row::new(Lucide::Sparkles, "Related notes while writing")
+            .detail("A quiet margin beside the text shows up to three past notes about the paragraph you're writing, after you pause. Everything stays on this device.")
+            .trailing(switch("resurface", discovery.resurface, |d, on| d.resurface = on))
+    } else {
+        Row::new(Lucide::Sparkles, "Related notes while writing")
+            .detail("Turn on Related notes in Settings › Discovery to use this.")
+            .trailing(
+                Button::new("resurface-turn-on")
+                    .outline()
+                    .small()
+                    .label("Turn on")
+                    .on_click(|_, _, cx| crate::related::set_enabled(true, cx)),
+            )
+    };
+    let mut rows = vec![main];
+    if related_on && discovery.resurface {
+        rows.push(
+            Row::new(Lucide::PanelRight, "Show in the margin")
+                .detail("Beside the text when the pane is wide enough. Otherwise, or if you choose Only in the inspector, they show in the inspector's Related tab.")
+                .trailing(segmented(
+                    "resurface-where",
+                    [("Margin", true), ("Only in the inspector", false)],
+                    discovery.resurface_margin,
+                    |margin, _, cx| set_discovery(cx, |d| d.resurface_margin = margin),
+                    colors,
+                )),
+        );
+        rows.push(
+            Row::new(Lucide::Target, "How close")
+                .detail("How alike a note must be to your writing to show. Closer shows fewer, nearer notes.")
+                .trailing(segmented(
+                    "resurface-closeness",
+                    [
+                        (Closeness::Closer.label(), Closeness::Closer),
+                        (Closeness::Default.label(), Closeness::Default),
+                        (Closeness::Looser.label(), Closeness::Looser),
+                    ],
+                    discovery.resurface_closeness,
+                    |closeness, _, cx| set_discovery(cx, |d| d.resurface_closeness = closeness),
+                    colors,
+                )),
+        );
+    }
+    rows.push(
+        Row::new(Lucide::CalendarDays, "Show “On this day” on daily notes")
+            .detail("A daily note lists up to three notes written on this date in earlier years. It needs no language model.")
+            .trailing(switch("on-this-day", discovery.on_this_day, |d, on| d.on_this_day = on)),
+    );
+    rows
+}
+
+fn set_discovery(cx: &mut App, change: impl FnOnce(&mut crate::config::DiscoverySettings)) {
+    AppState::update_config(cx, |config| change(&mut config.discovery));
+    cx.refresh_windows();
 }
 
 /// A keystroke as GPUI writes it (`secondary-shift-v`), shown as this

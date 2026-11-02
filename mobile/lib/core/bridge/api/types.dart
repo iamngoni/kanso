@@ -3181,6 +3181,34 @@ class NotebookRow {
           hasChildren == other.hasChildren;
 }
 
+class OnThisDayRow {
+  final String id;
+  final String title;
+  final String book;
+  final String ago;
+
+  const OnThisDayRow({
+    required this.id,
+    required this.title,
+    required this.book,
+    required this.ago,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ title.hashCode ^ book.hashCode ^ ago.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OnThisDayRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          book == other.book &&
+          ago == other.ago;
+}
+
 class OpenedDocuments {
   final String? noteId;
   final List<String> problems;
@@ -4283,6 +4311,55 @@ class Replacement {
           start == other.start &&
           end == other.end &&
           text == other.text;
+}
+
+@freezed
+sealed class ResurfaceResult with _$ResurfaceResult {
+  const ResurfaceResult._();
+
+  const factory ResurfaceResult.off() = ResurfaceResult_Off;
+  const factory ResurfaceResult.noModel() = ResurfaceResult_NoModel;
+  const factory ResurfaceResult.found({required List<ResurfaceRow> rows}) =
+      ResurfaceResult_Found;
+}
+
+class ResurfaceRow {
+  final String id;
+  final String title;
+  final String book;
+  final String when;
+  final String snippet;
+  final String? before;
+
+  const ResurfaceRow({
+    required this.id,
+    required this.title,
+    required this.book,
+    required this.when,
+    required this.snippet,
+    this.before,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      book.hashCode ^
+      when.hashCode ^
+      snippet.hashCode ^
+      before.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ResurfaceRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          book == other.book &&
+          when == other.when &&
+          snippet == other.snippet &&
+          before == other.before;
 }
 
 class RunBatch {
