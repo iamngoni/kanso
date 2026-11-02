@@ -33,6 +33,7 @@ kanso-metrics.workspace = true
 kanso-gallery.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true
+kanso-server.workspace = true
 # Without the desktop Keychain: secrets go through `Secrets`, and the phones'
 # stores are in `secrets`.
 kanso-sync = { path = "../kanso-sync", default-features = false }

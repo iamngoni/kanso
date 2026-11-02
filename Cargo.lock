@@ -4715,6 +4715,7 @@ dependencies = [
  "kanso-metrics",
  "kanso-mobile",
  "kanso-render",
+ "kanso-server",
  "kanso-store",
  "kanso-sync",
  "kanso-tls",
