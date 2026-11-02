@@ -26,7 +26,7 @@ pub const GRACE_MS: i64 = 30 * 60_000;
 pub type Acks = BTreeMap<String, i64>;
 
 /// A stable 64-bit FNV-1a hash of `text`.
-fn fnv1a(text: &str) -> u64 {
+pub(crate) fn fnv1a(text: &str) -> u64 {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in text.bytes() {
         hash ^= u64::from(byte);
