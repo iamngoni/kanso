@@ -5005,14 +5005,26 @@ impl Api for MemoryApi<'_> {
             {
                 return Err(ApiError::BadRequest);
             }
-            s.provider_start(
+            let started = s.provider_start(
                 &Provider::Google,
                 &r.device,
                 n,
                 None,
                 None,
                 Some(r.code_challenge.clone()),
-            )
+            )?;
+            // As the Worker's page does: Google answers at the loopback with
+            // the state, so a test can play the browser.
+            Ok(match started {
+                ProviderStart::Google(mut start) => {
+                    start.auth_url = format!(
+                        "{}&redirect_uri={}&state={}",
+                        start.auth_url, r.redirect_uri, start.state
+                    );
+                    ProviderStart::Google(start)
+                }
+                other => other,
+            })
         })
     }
     fn provider_poll(

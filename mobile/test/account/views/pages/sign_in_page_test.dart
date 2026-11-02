@@ -170,6 +170,33 @@ void main() {
       expect(find.text('Signing in…'), findsNothing);
     });
 
+    testWidgets('a provider’s flow can be cancelled while it signs in', (
+      tester,
+    ) async {
+      final steps = StreamController<ProviderEvent>();
+      addTearDown(steps.close);
+      final account = FixtureAccountRepository()..providerStream = steps.stream;
+      final rig = _Rig(account);
+      await _pump(tester, rig);
+      expect(find.text('Cancel'), findsNothing);
+      await tester.tap(find.text('Continue with Google'));
+      await tester.pump();
+      steps.add(
+        const ProviderEvent.openPage(
+          url: 'https://accounts.google.example.invalid/auth',
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Signing in…'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(account.calls, contains('cancelProvider'));
+      expect(find.text('Signing in…'), findsNothing);
+      expect(find.text('Continue with Google'), findsOneWidget);
+    });
+
     testWidgets('a refusal is shown in the library’s words', (tester) async {
       final account = FixtureAccountRepository()
         ..signedIn = const Left<ApplicationError, AccountState>(

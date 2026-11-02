@@ -213,23 +213,78 @@ class SignInBloc extends Bloc<SignInEvent, SignInState> {
     emit(_afterSignUp(result));
   }
 
+  /// The longest a provider's flow may run, from the press to its last
+  /// step. The server gives a flow ten minutes; past that it can't finish.
+  @visibleForTesting
+  Duration providerTimeout = const Duration(minutes: 11);
+
+  /// The longest the library may take to finish once the provider's page is
+  /// closed (it has the code; what is left is the server and this phone).
+  @visibleForTesting
+  Duration afterPageTimeout = const Duration(seconds: 90);
+
+  /// Ends the provider flow that runs, if one does: what Cancel does.
+  void Function()? _endProviderFlow;
+
   Future<void> _onProviderPressed(
     SignInProviderPressedEvent event,
     Emitter<SignInState> emit,
   ) async {
     emit(_busy(SignInAction.ofProvider(event.provider)));
     final driver = ProviderFlowDriver(_session, _account.providerPageEnded);
-    await emit.onEach<ProviderEvent>(
+    final flow = _ProviderFlow(
       _account.startProvider(
         server: state.server,
         provider: event.provider,
         deviceName: event.deviceName,
       ),
-      onData: (step) {
-        driver.handle(step);
-        emit(_afterProviderStep(step));
-      },
+      timeout: providerTimeout,
+      afterPage: afterPageTimeout,
     );
+    _endProviderFlow = flow.end;
+    try {
+      await emit.onEach<ProviderEvent>(
+        flow.steps,
+        onData: (step) {
+          driver.handle(step);
+          emit(_afterProviderStep(step));
+        },
+        onError: (Object error, StackTrace _) {
+          emit(
+            state.copyWith(
+              busy: null,
+              code: null,
+              error: const ApplicationError.unexpected(
+                message: 'The sign-in stopped unexpectedly.',
+              ),
+            ),
+          );
+        },
+      );
+    } finally {
+      if (identical(_endProviderFlow, flow.end)) {
+        _endProviderFlow = null;
+      }
+      flow.dispose();
+    }
+    if (flow.timedOut) {
+      // The library never said how the flow ended: it is stopped, and the
+      // person can try again.
+      await _account.cancelProvider();
+      await _session.close();
+      if (state.busy == SignInAction.ofProvider(event.provider)) {
+        emit(
+          state.copyWith(
+            busy: null,
+            code: null,
+            error: const ApplicationError.network(
+              message: 'Signing in took too long. Try again.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     // A flow that ended without saying how is over all the same.
     if (state.busy != null && state.busy != SignInAction.binding) {
       emit(state.copyWith(busy: null, code: null));
@@ -252,6 +307,9 @@ class SignInBloc extends Bloc<SignInEvent, SignInState> {
     SignInProviderCancelledEvent event,
     Emitter<SignInState> emit,
   ) async {
+    // The flow's handler stops listening at once: whatever the library still
+    // says of it is not shown, and the buttons are back.
+    _endProviderFlow?.call();
     await _account.cancelProvider();
     await _session.close();
     emit(state.copyWith(busy: null, code: null, suggestedUsername: null));
@@ -371,5 +429,85 @@ class SignInBloc extends Bloc<SignInEvent, SignInState> {
       ),
       ProviderEvent_Cancelled() => state.copyWith(busy: null, code: null),
     };
+  }
+}
+
+/// A provider flow's steps as the screen follows them: they end with the
+/// flow's last step (the library may keep its stream open after it), when
+/// the screen ends them, or when the flow runs out of time, so the screen
+/// can never wait on them forever.
+class _ProviderFlow {
+  _ProviderFlow(
+    Stream<ProviderEvent> source, {
+    required Duration timeout,
+    required this.afterPage,
+  }) {
+    _subscription = source.listen(
+      _onStep,
+      onError: _onError,
+      onDone: end,
+    );
+    _arm(timeout);
+  }
+
+  final Duration afterPage;
+  final StreamController<ProviderEvent> _out = StreamController();
+  late final StreamSubscription<ProviderEvent> _subscription;
+  Timer? _timer;
+
+  /// Whether the flow ran out of time before its last step.
+  bool timedOut = false;
+
+  Stream<ProviderEvent> get steps => _out.stream;
+
+  void _onStep(ProviderEvent step) {
+    if (_out.isClosed) {
+      return;
+    }
+    _out.add(step);
+    switch (step) {
+      // The page is closed: what is left is the server and this phone, and
+      // it gets less time.
+      case ProviderEvent_ClosePage():
+        _arm(afterPage);
+      // The page is up, or GitHub's code is: the person takes their time.
+      case ProviderEvent_OpenPage() || ProviderEvent_ShowCode():
+        break;
+      case ProviderEvent_NeedsUsername() ||
+          ProviderEvent_Finished() ||
+          ProviderEvent_Failed() ||
+          ProviderEvent_Cancelled():
+        end();
+    }
+  }
+
+  /// A broken stream is the flow's end: the screen says so once.
+  void _onError(Object error, StackTrace stackTrace) {
+    if (_out.isClosed) {
+      return;
+    }
+    _out.addError(error, stackTrace);
+    end();
+  }
+
+  void _arm(Duration after) {
+    _timer?.cancel();
+    _timer = Timer(after, () {
+      timedOut = true;
+      end();
+    });
+  }
+
+  /// Stops following the flow.
+  void end() {
+    _timer?.cancel();
+    if (!_out.isClosed) {
+      unawaited(_out.close());
+    }
+  }
+
+  void dispose() {
+    end();
+    unawaited(_subscription.cancel());
   }
 }

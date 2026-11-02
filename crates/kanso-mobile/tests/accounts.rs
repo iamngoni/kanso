@@ -1532,3 +1532,86 @@ fn one_account_task_runs_at_a_time() {
         events.last().is_some_and(is_last)
     });
 }
+
+/// Plays the system's sign-in page for Google: the person picks their
+/// account and Google answers at the app's loopback with a code and the
+/// flow's state, as the Worker's page asks it to.
+fn google_answers(page: &str, code: &str) -> String {
+    use std::io::{Read as _, Write as _};
+    let query = page.split_once('?').unwrap().1;
+    let param = |name: &str| {
+        query
+            .split('&')
+            .find_map(|pair| pair.strip_prefix(&format!("{name}=")))
+            .unwrap_or_else(|| panic!("no {name} in {page}"))
+            .to_owned()
+    };
+    let loopback = param("redirect_uri");
+    let state = param("state");
+    let address = loopback.trim_start_matches("http://");
+    // Safari opens a spare connection before it asks; it sends nothing.
+    let _spare = std::net::TcpStream::connect(address).unwrap();
+    std::thread::sleep(Duration::from_millis(100));
+    let mut stream = std::net::TcpStream::connect(address).unwrap();
+    write!(
+        stream,
+        "GET /?state={state}&code={code}&scope=openid HTTP/1.1\r\nHost: {address}\r\n\r\n"
+    )
+    .unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut answer = String::new();
+    let _ = stream.read_to_string(&mut answer);
+    answer
+}
+
+// no-prop-test: Google's whole flow on a phone, through the loopback: the
+// account's Google identity signs a new phone in to the account, locked.
+#[test]
+fn google_signs_a_new_phone_in_through_the_loopback_and_ends() {
+    let server = Arc::new(MemoryServer::new());
+    let (a, _) = first_phone(&server, &[("Plans", "for the account")]);
+    let account_id = session_of(&a.secrets).account_id;
+    server.set_providers(vec![Provider::Google]);
+    server.set_provider_outcomes(Provider::Google, [format!("session:{account_id}")]);
+
+    let b = phone(&server);
+    let acct = account(&b);
+    let (events, sink) = log();
+    acct.start_provider(SERVER.into(), ProviderKind::Google, "Phone B".into(), sink);
+    let seen = wait_for(&events, "the page", |events| {
+        events
+            .iter()
+            .any(|event| matches!(event, ProviderEvent::OpenPage { .. }))
+    });
+    let ProviderEvent::OpenPage {
+        url,
+        callback_scheme,
+    } = &seen[0]
+    else {
+        panic!("{seen:?}");
+    };
+    assert_eq!(callback_scheme, &None);
+    let answer = google_answers(url, "4/google-code");
+    assert!(answer.contains("Return to Kanso"), "{answer}");
+
+    let events = wait_for(&events, "the end of the flow", |events| {
+        events.last().is_some_and(is_last)
+    });
+    assert!(
+        matches!(
+            events.last(),
+            Some(ProviderEvent::Finished(AccountState::Locked(_)))
+        ),
+        "{events:?}"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| **event == ProviderEvent::ClosePage)
+            .count(),
+        1,
+        "{events:?}"
+    );
+}
