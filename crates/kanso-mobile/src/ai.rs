@@ -535,6 +535,11 @@ impl AiRun {
     }
 
     /// Whether the request was asked to stop.
+    /// The flag that stops the request.
+    pub(crate) fn cancel_flag(&self) -> Arc<AtomicBool> {
+        self.cancel.clone()
+    }
+
     pub(crate) fn stopped(&self) -> bool {
         self.cancel.load(Ordering::Relaxed)
     }
@@ -758,14 +763,14 @@ fn split_selection(
 
 /// A request's stream, kept to one ending. Events go to the shell's sink; a
 /// sink that says it is gone stops the request.
-struct Emitter<T: Clone + 'static> {
+pub(crate) struct Emitter<T: Clone + 'static> {
     listeners: Listeners<T>,
     ended: AtomicBool,
     cancel: Arc<AtomicBool>,
 }
 
 impl<T: Clone + 'static> Emitter<T> {
-    fn new(sink: Sink<T>, cancel: Arc<AtomicBool>) -> Emitter<T> {
+    pub(crate) fn new(sink: Sink<T>, cancel: Arc<AtomicBool>) -> Emitter<T> {
         let listeners = Listeners::default();
         listeners.add(sink);
         Emitter {
@@ -776,7 +781,7 @@ impl<T: Clone + 'static> Emitter<T> {
     }
 
     /// Sends a value that isn't the end, unless the stream has ended.
-    fn send(&self, value: T) {
+    pub(crate) fn send(&self, value: T) {
         if self.ended.load(Ordering::SeqCst) || self.cancel.load(Ordering::Relaxed) {
             return;
         }
@@ -787,7 +792,7 @@ impl<T: Clone + 'static> Emitter<T> {
     }
 
     /// Sends the end, once.
-    fn finish(&self, value: T) {
+    pub(crate) fn finish(&self, value: T) {
         if !self.ended.swap(true, Ordering::SeqCst) {
             self.listeners.send(value);
         }
@@ -795,7 +800,7 @@ impl<T: Clone + 'static> Emitter<T> {
 }
 
 /// Runs `work` on a named thread, or says why it can't.
-fn spawn(name: &str, work: impl FnOnce() + Send + 'static) -> Result<(), KansoError> {
+pub(crate) fn spawn(name: &str, work: impl FnOnce() + Send + 'static) -> Result<(), KansoError> {
     std::thread::Builder::new()
         .name(name.into())
         .spawn(work)

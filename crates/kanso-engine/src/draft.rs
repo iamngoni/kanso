@@ -325,6 +325,38 @@ pub fn title_of(draft: &str) -> String {
     }
 }
 
+/// A model's draft made safe to show and checked against its sources:
+/// remote images dropped, raw HTML neutralised, then citations checked.
+pub fn prepare(raw: &str, sources: &[Source]) -> kanso_ai::draft_model::CheckedDraft {
+    kanso_ai::draft::check_citations(&ask::sanitize_answer(raw, &[]), sources)
+}
+
+/// Whether a draft is the model saying the notes don't hold what was asked.
+pub fn not_covered(text: &str) -> bool {
+    text.trim_start()
+        .to_lowercase()
+        .starts_with("your notes don't cover")
+}
+
+/// The Markdown that is saved from a checked draft's text: citations as
+/// links to their notes, renumbered, and a `## Sources` section.
+pub fn final_markdown(checked_text: &str, refs: &[SourceRef]) -> String {
+    let checked = kanso_ai::draft_model::CheckedDraft {
+        text: checked_text.to_owned(),
+        ..Default::default()
+    };
+    kanso_ai::draft::saved_markdown(&checked, refs)
+}
+
+/// The notebook a draft is offered to be saved in: the first source's.
+pub fn default_book(store: &Store, refs: &[SourceRef]) -> String {
+    refs.iter()
+        .find_map(|r| store.note(&r.id).ok().flatten())
+        .map(|n| n.book_id)
+        .filter(|b| b != TRASH_BOOK_ID)
+        .unwrap_or_else(|| "book:inbox".to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
