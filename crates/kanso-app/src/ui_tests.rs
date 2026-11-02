@@ -2750,7 +2750,7 @@ fn triage_files_only_what_was_accepted(cx: &mut TestAppContext) {
         )
         .unwrap()
         .id;
-    cx.update(|cx| crate::workspace::bind_keys(cx));
+    cx.update(crate::workspace::bind_keys);
     f.window
         .update(cx, |_, window, _| window.activate_window())
         .unwrap();

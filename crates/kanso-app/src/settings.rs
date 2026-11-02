@@ -1054,7 +1054,6 @@ impl SettingsView {
         [zoom].into_iter().chain(startup).chain(stickies).chain([
             crate::settings_capture::capture_section(&self.shortcut, cx),
             crate::settings_capture::journal_section(cx),
-            crate::settings_inbox::inbox_section(cx),
             crate::reminders::reminders_section(cx),
             section(
                 "Data",
@@ -1106,6 +1105,7 @@ impl SettingsView {
                 ],
                 colors,
             ),
+            crate::settings_inbox::inbox_section(cx),
         ])
         .chain(crate::settings_discovery::sections(cx))
         .collect()

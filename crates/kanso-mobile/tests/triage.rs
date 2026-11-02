@@ -291,7 +291,7 @@ fn a_note_changed_since_its_card_is_left_alone() {
         .unwrap();
     let filed = triage.file(vec![filing(&card, |_| true)]).unwrap();
     assert_eq!(filed.filed, 0);
-    assert_eq!(filed.stale, [w.waiting.clone()]);
+    assert_eq!(filed.stale, std::slice::from_ref(&w.waiting));
     assert_eq!(filed.undo, 0);
     let note = w.store.note(&w.waiting).unwrap().unwrap();
     assert_eq!(note.book_id, w.inbox);
