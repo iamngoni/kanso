@@ -4403,7 +4403,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-acp"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "libc",
  "proptest",
@@ -4415,7 +4415,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-ai"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "agent-runtime",
  "anyhow",
@@ -4432,7 +4432,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-app"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -4504,7 +4504,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-collab"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "base64 0.22.1",
  "chacha20poly1305",
@@ -4532,7 +4532,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-core"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "fastrand",
  "markdown",
@@ -4547,7 +4547,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-engine"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -4609,7 +4609,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-fido"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "base64 0.22.1",
  "hmac 0.13.0",
@@ -4623,7 +4623,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-gallery"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -4644,7 +4644,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-import"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "aes 0.8.4",
  "anyhow",
@@ -4671,7 +4671,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-metrics"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "getrandom 0.4.3",
  "kanso-tls",
@@ -4684,7 +4684,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-mobile"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "agent-runtime",
  "anyhow",
@@ -4733,7 +4733,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-mobile-bridge"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "flutter_rust_bridge",
  "jni",
@@ -4747,7 +4747,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-plugin-host"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "proptest",
  "rquickjs",
@@ -4757,7 +4757,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-plugins"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4784,7 +4784,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-render"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "base64 0.22.1",
  "flate2",
@@ -4800,7 +4800,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-server"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -4827,7 +4827,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-store"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "async-channel",
  "base64 0.22.1",
@@ -4843,7 +4843,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-sync"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -4878,7 +4878,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-tls"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "jni",
  "proptest",
@@ -4891,7 +4891,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-update"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -4914,7 +4914,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-voice"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "async-channel",
  "block2 0.6.2",
@@ -4934,7 +4934,7 @@ dependencies = [
 
 [[package]]
 name = "kanso-webauthn"
-version = "0.9.2"
+version = "0.9.3"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.2",
