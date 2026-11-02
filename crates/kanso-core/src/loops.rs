@@ -419,11 +419,19 @@ pub fn loop_items(body: &str) -> Vec<LoopItem> {
             continue;
         }
         let prose = list_content(trimmed);
-        for (_, sentence) in sentences(prose) {
+        let parts = sentences(prose);
+        for (n, (_, sentence)) in parts.iter().copied().enumerate() {
+            // "Call Bob. ✓": the mark is a sentence of its own.
+            if parts.get(n + 1).is_some_and(|(_, next)| next.trim() == DONE_MARK.trim()) {
+                continue;
+            }
             let Some((kind, begin, len)) = classify(sentence, prose.len()) else {
                 continue;
             };
             let text = clip(sentence[begin..].trim()).trim_end_matches(['*', '_']);
+            if text.trim_end_matches(['.', '!', ',', ';']).ends_with('\u{2713}') {
+                continue;
+            }
             let mut end = len.min(text.len());
             while !text.is_char_boundary(end) {
                 end -= 1;
@@ -472,14 +480,19 @@ fn fnv1a(text: &str) -> u64 {
 pub fn normalize(text: &str) -> String {
     let folded = fold(text);
     let words: Vec<&str> = folded.split_whitespace().collect();
+    // The done mark ("Mark done loops in the note") is not part of the
+    // sentence, so marking a loop must not change its key.
     words
         .join(" ")
-        .trim_end_matches(['.', '!', ',', ';'])
+        .trim_end_matches(['.', '!', ',', ';', '\u{2713}', ' '])
         .to_owned()
 }
 
 /// The key a loop is known by: `<note id>~<hash of its sentence>`. The
-/// same sentence on any device, at any line, gets the same key. (Like
+/// same sentence on any device, at any line, gets the same key. Two
+/// identical sentences in one note therefore share a key: closing or
+/// dismissing one closes both (they are one loop written twice), and the
+/// open list shows the first. (Like
 /// [`crate::reminders::task_key`], without a due date.)
 pub fn loop_key(note_id: &str, text: &str) -> String {
     format!("{note_id}~{:016x}", fnv1a(&normalize(text)))

@@ -525,8 +525,38 @@ mod tests {
         assert!(!has_column(&conn, "triage_dismissed", "value"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 13);
+        assert_eq!(version(&conn), 14);
         assert!(has_column(&conn, "triage_dismissed", "value"));
+        assert!(has_column(&conn, "note_loops", "key"));
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+    }
+
+    /// A database pinned at version 13 (Inbox triage) moves to 14 (open
+    /// loops) keeping what it had, and the loops tables work.
+    #[test]
+    fn version_thirteen_moves_to_fourteen() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db")).unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(13).enumerate() {
+            conn.execute_batch(&format!(
+                "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
+                index + 1
+            ))
+            .unwrap();
+        }
+        assert_eq!(version(&conn), 13);
+        assert!(!has_column(&conn, "note_loops", "key"));
+        set_meta(&conn, "kept", "yes").unwrap();
+        migrate(&conn).unwrap();
+        assert_eq!(MIGRATIONS.len(), 14);
+        assert_eq!(version(&conn), 14);
+        assert!(has_column(&conn, "note_loops", "key"));
+        assert!(has_column(&conn, "finished_items", "at"));
+        assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+        conn.execute(
+            "INSERT INTO finished_items (note_id, key, kind, text, at) VALUES ('n', 'k', 'ask', 't', 1)",
+            [],
+        )
+        .unwrap();
     }
 }

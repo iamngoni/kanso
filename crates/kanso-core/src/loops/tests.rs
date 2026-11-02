@@ -453,8 +453,54 @@ fn body_strategy() -> impl Strategy<Value = String> {
     prop::collection::vec(line, 0..14).prop_map(|lines| lines.join("\n"))
 }
 
+/// Marks every loop in `body` done, the way "Mark done loops in the note"
+/// does, one at a time (the body is re-read after each).
+fn mark_all(mut body: String) -> String {
+    for _ in 0..40 {
+        let Some(item) = loop_items(&body).into_iter().next() else {
+            break;
+        };
+        match mark_done(&body, item.line, &item.text) {
+            Some(next) => body = next,
+            None => break,
+        }
+    }
+    body
+}
+
+#[test]
+fn done_mark_without_punctuation_keeps_the_key_and_closes_the_loop() {
+    let body = "Waiting on Tendai";
+    let key = loop_key("n", &loop_items(body)[0].text);
+    let marked = mark_done(body, 0, &loop_items(body)[0].text).unwrap();
+    assert!(marked.ends_with(DONE_MARK));
+    assert!(loop_items(&marked).is_empty());
+    assert_eq!(loop_key("n", &format!("Waiting on Tendai{DONE_MARK}")), key);
+    assert_eq!(loop_key("n", &format!("Waiting on Tendai{DONE_MARK}.")), key);
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(512))]
+
+    /// Once every loop is marked done, none is left, and the marks never
+    /// change a loop's key.
+    #[test]
+    fn prop_marking_every_loop_leaves_none(body in body_strategy()) {
+        let keys: Vec<String> = loop_items(&body).iter().map(|i| loop_key("n", &i.text)).collect();
+        let marked = mark_all(body);
+        prop_assert!(loop_items(&marked).is_empty(), "left: {marked:?}");
+        for key in &keys {
+            prop_assert!(!key.is_empty());
+        }
+    }
+
+    #[test]
+    fn prop_done_mark_never_changes_a_key(text in "[A-Za-z ]{1,30}") {
+        prop_assert_eq!(
+            loop_key("n", &text),
+            loop_key("n", &format!("{}{DONE_MARK}", text.trim_end()))
+        );
+    }
 
     #[test]
     fn prop_loop_items_never_panic_and_lines_are_in_range(body in "\\PC{0,300}") {

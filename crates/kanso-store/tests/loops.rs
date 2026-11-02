@@ -484,6 +484,14 @@ proptest! {
                         Op::Dismiss(_) => LoopClose::Dismissed,
                         _ => LoopClose::MakeTask,
                     };
+                    // Closing prunes what is no longer in the note (so the
+                    // field doesn't grow); a sentence that comes back
+                    // after that is open again.
+                    let live: Vec<String> = loop_items(&body(&store, "note:one"))
+                        .iter()
+                        .map(|l| loop_key("note:one", &l.text))
+                        .collect();
+                    hidden.retain(|k| live.contains(k));
                     store.close_loop("note:one", &row.key, row.line, how, 10, Origin::Ui).unwrap();
                     if !matches!(op, Op::Task(_)) {
                         hidden.insert(row.key.clone());
