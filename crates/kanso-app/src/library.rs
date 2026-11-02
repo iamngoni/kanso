@@ -83,6 +83,9 @@ pub struct Library {
     /// After a filter or search change, select the first note when the
     /// selection is not in the new list.
     reselect: bool,
+    /// The last place that wasn't one of the pages (the brief, the review,
+    /// open loops), for Escape to go back to.
+    pub previous: Filter,
     reload_task: Option<Task<()>>,
     _watch: Task<()>,
 }
@@ -147,6 +150,7 @@ impl Library {
             load_error: None,
             generation: 0,
             reselect: true,
+            previous: Filter::All,
             reload_task: None,
             _watch: watch,
         };
@@ -286,12 +290,27 @@ impl Library {
     pub fn set_filter(&mut self, filter: Filter, cx: &mut Context<Self>) {
         cx.emit(LibraryEvent::Shown);
         if self.filter != filter {
+            if !matches!(
+                self.filter,
+                Filter::OpenLoops | Filter::Brief | Filter::Review
+            ) {
+                self.previous = self.filter.clone();
+            }
             // The Tasks view and the other places leave the open note as it is.
             self.reselect = !filter.is_place();
             self.filter = filter;
             self.status_only = None;
             self.pinned_only = false;
             self.reload(cx);
+        }
+    }
+
+    /// Leaves a page for `filter` with note `keep` still the one selected,
+    /// rather than the list's first.
+    pub fn leave_page(&mut self, filter: Filter, keep: bool, cx: &mut Context<Self>) {
+        self.set_filter(filter, cx);
+        if keep {
+            self.reselect = false;
         }
     }
 

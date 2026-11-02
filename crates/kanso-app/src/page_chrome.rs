@@ -13,7 +13,9 @@ use std::rc::Rc;
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
-use gpui_kit::component::{Disableable as _, Icon, Sizable as _, StyledExt as _, h_flex, v_flex};
+use gpui_kit::component::{
+    ActiveTheme as _, Disableable as _, Icon, Sizable as _, StyledExt as _, h_flex, v_flex,
+};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
@@ -192,7 +194,8 @@ pub fn page_header(
 ) -> Stateful<Div> {
     let colors = Colors::get(cx);
     let title: SharedString = title.into();
-    let label_size = px(13.);
+    // Buttons set their label at `text_sm`: the theme's size less an eighth.
+    let label_size = cx.theme().font_size * 0.875;
     let title_width = text_width(&title, px(14.), FontWeight::SEMIBOLD, window).min(px(240.));
     let pinned_width = if pinned.is_some() {
         px(ICON_BUTTON + GAP)
@@ -230,11 +233,12 @@ pub fn page_header(
         }
     };
     let more = (!rest.is_empty()).then(|| {
-        let items: Vec<(SharedString, Lucide, bool, Handler)> = rest
+        let items: Vec<(SharedString, SharedString, Lucide, bool, Handler)> = rest
             .iter()
             .map(|a| {
                 (
                     a.label.clone(),
+                    a.tooltip.clone(),
                     a.icon,
                     a.disabled || a.loading,
                     a.on_click.clone(),
@@ -252,13 +256,26 @@ pub fn page_header(
             .tooltip("More")
             .debug_selector(|| "page-more".into())
             .dropdown_menu(move |mut menu, _, _| {
-                for (label, icon, disabled, handler) in &items {
+                for (label, tooltip, icon, disabled, handler) in &items {
                     let handler = handler.clone();
                     menu = menu.item(
-                        PopupMenuItem::new(label.clone())
-                            .icon(Icon::new(*icon))
-                            .disabled(*disabled)
-                            .on_click(move |_, window, cx| handler(window, cx)),
+                        PopupMenuItem::element({
+                            let label = label.clone();
+                            let tooltip = tooltip.clone();
+                            move |_, _| {
+                                let tooltip = tooltip.clone();
+                                div()
+                                    .id(SharedString::from(format!("more-{label}")))
+                                    .child(label.clone())
+                                    .tooltip(move |window, cx| {
+                                        gpui_kit::component::tooltip::Tooltip::new(tooltip.clone())
+                                            .build(window, cx)
+                                    })
+                            }
+                        })
+                        .icon(Icon::new(*icon))
+                        .disabled(*disabled)
+                        .on_click(move |_, window, cx| handler(window, cx)),
                     );
                 }
                 menu
@@ -279,6 +296,7 @@ pub fn page_header(
                 .flex_1()
                 .min_w_0()
                 .truncate()
+                .debug_selector(|| "page-title".into())
                 .text_size(px(14.))
                 .font_semibold()
                 .text_color(colors.text)
@@ -482,9 +500,21 @@ pub struct AiTrouble {
 
 /// The words for model error `raw`. Never the raw text as the title; the
 /// detail says what to do.
+/// Whether `text` has HTTP status `code` as a number of its own: "status
+/// 401", "HTTP 401:", "(401)", not the 401 inside "14010" or "a401b".
+fn has_status_code(text: &str, code: &str) -> bool {
+    text.match_indices(code).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + code.len()..].chars().next();
+        let edge = |c: Option<char>| c.is_none_or(|c| !c.is_alphanumeric() && c != '_');
+        edge(before) && edge(after)
+    })
+}
+
 pub fn ai_trouble(raw: &str) -> AiTrouble {
     let lower = raw.to_lowercase();
     let has = |words: &[&str]| words.iter().any(|w| lower.contains(w));
+    let code = |codes: &[&str]| codes.iter().any(|c| has_status_code(&lower, c));
     let local = if lower.contains("ollama") {
         Some("Ollama")
     } else if lower.contains("lm studio") || lower.contains("lmstudio") {
@@ -492,80 +522,75 @@ pub fn ai_trouble(raw: &str) -> AiTrouble {
     } else {
         None
     };
-    let (title, detail) = if has(&[
-        "401",
-        "403",
-        "unauthori",
-        "api key",
-        "invalid key",
-        "forbidden",
-    ]) {
-        (
-            "Your model turned the key down",
-            "Check the API key in Settings › AI, then try again.".to_owned(),
-        )
-    } else if has(&["429", "rate limit", "quota", "too many requests"]) {
-        (
-            "Your model is busy",
-            "It's limiting requests right now. Wait a moment, then try again.".to_owned(),
-        )
-    } else if has(&["timed out", "timeout"]) {
-        (
-            "Your model took too long",
-            "It didn't answer in time. Try again, or pick a smaller model in Settings › AI."
-                .to_owned(),
-        )
-    } else if has(&[
-        "not found",
-        "404",
-        "no such model",
-        "unknown model",
-        "model_not_found",
-    ]) {
-        (
-            "Your model wasn't found",
-            "The model named in Settings › AI isn't available. Choose another, then try again."
-                .to_owned(),
-        )
-    } else if has(&[
-        "transport",
-        "connect",
-        "connection",
-        "refused",
-        "unreachable",
-        "dns",
-        "network",
-        "failed to call",
-        "error sending request",
-    ]) {
-        match local {
-            Some(app) => (
-                "Couldn't reach your model",
-                format!("Is {app} running? Start it, then try again."),
-            ),
-            None => (
-                "Couldn't reach your model",
-                "Check your connection and the address in Settings › AI, then try again."
+    let (title, detail) =
+        if code(&["401", "403"]) || has(&["unauthori", "api key", "invalid key", "forbidden"]) {
+            (
+                "Your model turned the key down",
+                "Check the API key in Settings › AI, then try again.".to_owned(),
+            )
+        } else if code(&["429"]) || has(&["rate limit", "quota", "too many requests"]) {
+            (
+                "Your model is busy",
+                "It's limiting requests right now. Wait a moment, then try again.".to_owned(),
+            )
+        } else if has(&["timed out", "timeout"]) {
+            (
+                "Your model took too long",
+                "It didn't answer in time. Try again, or pick a smaller model in Settings › AI."
                     .to_owned(),
-            ),
-        }
-    } else if has(&[
-        "not set up",
-        "not configured",
-        "no model",
-        "no provider",
-        "ai is off",
-    ]) {
-        (
-            "AI isn't set up yet",
-            "Choose a model in Settings › AI to use this.".to_owned(),
-        )
-    } else {
-        (
-            "Your model ran into a problem",
-            "Try again. If it keeps happening, check Settings › AI.".to_owned(),
-        )
-    };
+            )
+        } else if code(&["404"])
+            || has(&[
+                "not found",
+                "no such model",
+                "unknown model",
+                "model_not_found",
+            ])
+        {
+            (
+                "Your model wasn't found",
+                "The model named in Settings › AI isn't available. Choose another, then try again."
+                    .to_owned(),
+            )
+        } else if has(&[
+            "transport",
+            "connect",
+            "connection",
+            "refused",
+            "unreachable",
+            "dns",
+            "network",
+            "failed to call",
+            "error sending request",
+        ]) {
+            match local {
+                Some(app) => (
+                    "Couldn't reach your model",
+                    format!("Is {app} running? Start it, then try again."),
+                ),
+                None => (
+                    "Couldn't reach your model",
+                    "Check your connection and the address in Settings › AI, then try again."
+                        .to_owned(),
+                ),
+            }
+        } else if has(&[
+            "not set up",
+            "not configured",
+            "no model",
+            "no provider",
+            "ai is off",
+        ]) {
+            (
+                "AI isn't set up yet",
+                "Choose a model in Settings › AI to use this.".to_owned(),
+            )
+        } else {
+            (
+                "Your model ran into a problem",
+                "Try again. If it keeps happening, check Settings › AI.".to_owned(),
+            )
+        };
     AiTrouble {
         title: title.to_owned(),
         detail,
@@ -579,9 +604,12 @@ pub fn ai_error_card(
     trouble: &AiTrouble,
     on_retry: impl Fn(&mut Window, &mut App) + 'static,
     on_dismiss: impl Fn(&mut Window, &mut App) + 'static,
-    cx: &App,
+    window: &mut Window,
+    cx: &mut App,
 ) -> Div {
     let colors = Colors::get(cx);
+    let details = window.use_keyed_state("ai-error-details", cx, |_, _| false);
+    let details_open = *details.read(cx);
     h_flex()
         .debug_selector(|| "ai-error".into())
         .w_full()
@@ -642,15 +670,46 @@ pub fn ai_error_card(
                                         cx,
                                     )
                                 }),
+                        )
+                        .child(
+                            Button::new("ai-details")
+                                .ghost()
+                                .small()
+                                .icon(if details_open {
+                                    Lucide::ChevronDown
+                                } else {
+                                    Lucide::ChevronRight
+                                })
+                                .label("Details")
+                                .debug_selector(|| "ai-details".into())
+                                .on_click(move |_, _, cx| {
+                                    details.update(cx, |open, cx| {
+                                        *open = !*open;
+                                        cx.notify();
+                                    })
+                                }),
                         ),
-                ),
+                )
+                .when(details_open, |el| {
+                    el.child(
+                        div()
+                            .debug_selector(|| "ai-details-text".into())
+                            .mt(px(6.))
+                            .p(px(8.))
+                            .rounded(px(6.))
+                            .bg(colors.elevated)
+                            .text_size(px(12.))
+                            .text_color(colors.text_secondary)
+                            .child(trouble.raw.clone()),
+                    )
+                }),
         )
         .child(
             Button::new("ai-error-dismiss")
                 .ghost()
                 .xsmall()
                 .icon(Icon::new(Lucide::X).text_color(colors.text_muted))
-                .tooltip(SharedString::from(format!("Dismiss · {}", trouble.raw)))
+                .tooltip("Dismiss")
                 .on_click(move |_, window, cx| on_dismiss(window, cx)),
         )
 }
@@ -730,6 +789,25 @@ mod tests {
             prop_assert!(!t.detail.is_empty());
             prop_assert!(TITLES.contains(&t.title.as_str()), "{}", t.title);
         }
+    }
+
+    #[test]
+    fn status_codes_match_as_numbers_not_substrings() {
+        for raw in ["status 401", "HTTP 401: nope", "error (401)", "401"] {
+            assert_eq!(
+                ai_trouble(raw).title,
+                "Your model turned the key down",
+                "{raw}"
+            );
+        }
+        for raw in ["port 14010 closed", "id a401b", "took 4290 ms"] {
+            assert_eq!(
+                ai_trouble(raw).title,
+                "Your model ran into a problem",
+                "{raw}"
+            );
+        }
+        assert_eq!(ai_trouble("status code: 429").title, "Your model is busy");
     }
 
     #[test]

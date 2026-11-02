@@ -594,6 +594,17 @@ impl Workspace {
                 // A place asked for: the list shows, whatever hid it. A
                 // locked notebook asks for its password once.
                 LibraryEvent::Shown => {
+                    this.close_triage(window, cx);
+                    // A page takes the keyboard once the filter has changed.
+                    cx.defer_in(window, |this, window, cx| {
+                        if matches!(
+                            this.library.read(cx).filter,
+                            Filter::OpenLoops | Filter::Brief | Filter::Review
+                        ) {
+                            this.digest
+                                .update(cx, |digest, cx| digest.focus_list(window, cx));
+                        }
+                    });
                     this.leave_settings(window, cx);
                     this.set_focus_mode(false, window, cx);
                     if let Filter::Book(id) = this.library.read(cx).filter.clone()
@@ -608,6 +619,11 @@ impl Workspace {
                 // behind Settings.
                 LibraryEvent::Selected { id, asked } => {
                     let id = id.clone();
+                    // A note someone opened (palette, ⌘N, a tab, a link)
+                    // while a page shows brings its notebook back.
+                    if *asked {
+                        this.leave_page_for(id.as_deref(), cx);
+                    }
                     this.accept_selection(id.clone(), *asked, window, cx);
                     AppState::update_config_soon(cx, |config| config.last_note = id);
                 }
@@ -1086,6 +1102,15 @@ impl Workspace {
                 self.open_today(window, cx);
                 self.leave_page_for(None, cx);
             }
+            DigestEvent::Close => {
+                let back = self.library.read(cx).previous.clone();
+                let selected = self.library.read(cx).selected.clone();
+                self.library.update(cx, |library, cx| {
+                    library.leave_page(back, selected.is_some(), cx)
+                });
+                self.editor
+                    .update(cx, |editor, cx| editor.focus_body(window, cx));
+            }
         }
     }
 
@@ -1100,12 +1125,16 @@ impl Workspace {
             return;
         }
         let store = self.library.read(cx).store.clone();
-        let book = note_id
-            .and_then(|id| store.note(id).ok().flatten())
-            .map(|note| note.book_id);
-        let filter = book.map_or(Filter::All, Filter::Book);
+        let note = note_id.and_then(|id| store.note(id).ok().flatten());
+        let keep = note.is_some();
+        // A trashed note lives in the Trash, not in a notebook of that name.
+        let filter = match note {
+            Some(note) if note.is_trashed() => Filter::Trash,
+            Some(note) => Filter::Book(note.book_id),
+            None => Filter::All,
+        };
         self.library
-            .update(cx, |library, cx| library.set_filter(filter, cx));
+            .update(cx, |library, cx| library.leave_page(filter, keep, cx));
     }
 
     /// Opens a task's note at its line, from the Tasks view.
@@ -2347,10 +2376,6 @@ impl Render for Workspace {
             self.library.read(cx).filter,
             Filter::OpenLoops | Filter::Brief | Filter::Review
         );
-        if let Some(triage) = self.triage.clone().filter(|_| self.triage_open) {
-            let width = window.viewport_size().width - px(leading);
-            triage.update(cx, |triage, cx| triage.set_frame(width, list_inset, cx));
-        }
         if digest_shown {
             let page_width = window.viewport_size().width - px(leading);
             self.digest
@@ -2366,6 +2391,12 @@ impl Render for Workspace {
         // Settings would win if they did.
         let settings_open = self.settings_open();
         let focus_mode = self.focus_mode && !settings_open;
+        if let Some(triage) = self.triage.clone().filter(|_| self.triage_open) {
+            // The overlay starts where the sidebar ends, or at 0 in focus mode.
+            let lead = if focus_mode { 0. } else { leading };
+            let width = window.viewport_size().width - px(lead);
+            triage.update(cx, |triage, cx| triage.set_frame(width, list_inset, cx));
+        }
         self.editor
             .update(cx, |editor, cx| editor.set_focus_mode(focus_mode, cx));
         let widths = self.fitted_widths(window);

@@ -89,6 +89,8 @@ pub enum DigestEvent {
     },
     /// Open today's daily note.
     OpenToday,
+    /// Escape: back to the place before the page.
+    Close,
     /// Something to tell the user.
     Notice(String),
 }
@@ -292,6 +294,14 @@ impl DigestView {
             self.pane_width = width;
             cx.notify();
         }
+    }
+
+    #[cfg(test)]
+    pub fn show_error_for_test(&mut self, raw: &str) {
+        self.ai_error = Some((
+            AiJob::Summary { brief: false },
+            page_chrome::ai_trouble(raw),
+        ));
     }
 
     pub fn focus_list(&self, window: &mut Window, cx: &mut App) {
@@ -712,7 +722,12 @@ impl DigestView {
     }
 
     /// The inline card for an AI action of this page that failed.
-    fn error_card(&self, jobs: &[AiJob], cx: &mut Context<Self>) -> Option<AnyElement> {
+    fn error_card(
+        &self,
+        jobs: &[AiJob],
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
         let (job, trouble) = self.ai_error.as_ref().filter(|(j, _)| jobs.contains(j))?;
         let job = *job;
         let retry = cx.entity().downgrade();
@@ -740,6 +755,7 @@ impl DigestView {
                         })
                         .ok();
                 },
+                window,
                 cx,
             )
             .into_any_element(),
@@ -1058,14 +1074,19 @@ impl DigestView {
                 cx,
             ));
         }
+        // What the list shows, so the line and the list never disagree.
+        let shown_loops = list
+            .iter()
+            .filter(|entry| matches!(entry, Entry::Loop(_)))
+            .count();
         let hero = page_chrome::hero(
             "Open Loops",
-            Some(if self.loops.is_empty() {
+            Some(if shown_loops == 0 {
                 "The promises and questions in your notes, in one place.".into()
             } else {
                 format!(
                     "{} in your notes: things you'll do, wait on or need to check.",
-                    plural(self.loops.len() as u32, "open loop", "open loops")
+                    plural(shown_loops as u32, "open loop", "open loops")
                 )
                 .into()
             }),
@@ -1075,7 +1096,7 @@ impl DigestView {
         let top = page_chrome::column()
             .pb(px(0.))
             .child(hero)
-            .children(self.error_card(&[AiJob::FindMore], cx));
+            .children(self.error_card(&[AiJob::FindMore], window, cx));
         let body = if let Some(found) = &self.found {
             v_flex()
                 .size_full()
@@ -1432,7 +1453,7 @@ impl DigestView {
             None,
             cx,
         ));
-        page = page.children(self.error_card(&[job], cx));
+        page = page.children(self.error_card(&[job], window, cx));
         page = page.children(self.summary_block("brief", cx));
         if let Some(brief) = self.brief.clone() {
             if brief.is_empty() && brief.relevant.is_empty() {
@@ -1663,7 +1684,7 @@ impl DigestView {
             Some(week_nav.into_any_element()),
             cx,
         ));
-        page = page.children(self.error_card(&[job], cx));
+        page = page.children(self.error_card(&[job], window, cx));
         page = page.children(self.summary_block("review", cx));
         if let Some(review) = self.review.clone() {
             if review_is_empty(&review) {
@@ -1938,6 +1959,12 @@ impl Render for DigestView {
             .bg(colors.editor)
             .key_context("DigestView")
             .track_focus(&self.focus)
+            .on_key_down(cx.listener(|_, event: &KeyDownEvent, _, cx| {
+                if event.keystroke.key == "escape" && !event.keystroke.modifiers.modified() {
+                    cx.emit(DigestEvent::Close);
+                    cx.stop_propagation();
+                }
+            }))
             .child(page)
     }
 }

@@ -199,10 +199,15 @@ fn read(store: &Store, opts: &TriageOptions, skip: &HashSet<String>) -> Result<L
         infos.insert(
             card.note_id.clone(),
             Info {
-                snippet: kanso_core::links::plain_line(note.body.trim_start())
-                    .chars()
-                    .take(280)
-                    .collect(),
+                snippet: {
+                    let line = kanso_core::links::plain_line(note.body.trim_start());
+                    let mut text: String = line.chars().take(280).collect();
+                    if line.chars().nth(280).is_some() {
+                        text = text.trim_end().to_owned();
+                        text.push('…');
+                    }
+                    text
+                },
                 title: note.title,
                 updated_at: note.updated_at,
                 names,
