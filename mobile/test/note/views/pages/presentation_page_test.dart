@@ -314,6 +314,19 @@ void main() {
       expect(find.byType(PresentationDeck), findsNothing);
     });
 
+    testWidgets('keeps its slides when a redraw fails for another reason', (
+      tester,
+    ) async {
+      await open(tester);
+      drawn = const Left(ConflictError(message: 'Later'));
+      tester
+          .element(find.byType(PresentationDeck))
+          .read<PreviewBloc>()
+          .add(const PreviewEvent.changesReceived());
+      await tester.pumpAndSettle();
+      expect(find.byType(PresentationDeck), findsOneWidget);
+    });
+
     testWidgets('a tap on a slide writes nothing to the note', (tester) async {
       await open(tester);
       final size = tester.getSize(find.byType(PresentationDeck));

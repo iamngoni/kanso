@@ -18,11 +18,11 @@ import 'preview/preview_style.dart';
 /// How long moving to another slide takes.
 const Duration _slideChange = Duration(milliseconds: 280);
 
-/// The note's [blocks] as slides, as the desktop cuts its text: a rule starts
-/// a new slide and isn't on either; a note with no rule starts one at each
-/// top-level heading of level 1 or 2. Empty slides are left out. The blocks
-/// are the core's, so a rule in a code block, or `---` under a line of text,
-/// was never a rule.
+/// The note's [blocks] as slides, by the rules the desktop cuts its text by
+/// (`kanso_core::slides`): a rule starts a new slide and isn't on either; a
+/// note with no rule starts one at each top-level heading of level 1 or 2.
+/// Empty slides are left out. The blocks are the core's, so a rule in a code
+/// block, or `---` under a line of text, was never a rule.
 List<List<PreviewBlock>> slidesOf(List<PreviewBlock> blocks) {
   final byRules = blocks.any((block) => block is PreviewBlock_Rule);
   final slides = <List<PreviewBlock>>[];

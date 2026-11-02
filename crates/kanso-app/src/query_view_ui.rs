@@ -314,7 +314,7 @@ fn render(
     let Some(rows) = rows_for(&spec, &block.source, rich, self_id, cx) else {
         return waiting(at, cx);
     };
-    table(&spec, &rows, at, links, cx)
+    table(&spec, &rows, at, rich.text_scale(), links, cx)
 }
 
 /// A query that can't be read: its source, with a badge saying why.
@@ -372,7 +372,14 @@ fn waiting(at: u64, cx: &App) -> AnyElement {
 }
 
 /// The table: a header, then a row for each note, its title first.
-fn table(spec: &ViewSpec, rows: &[ViewRow], at: u64, links: &LinkSender, cx: &App) -> AnyElement {
+fn table(
+    spec: &ViewSpec,
+    rows: &[ViewRow],
+    at: u64,
+    scale: f32,
+    links: &LinkSender,
+    cx: &App,
+) -> AnyElement {
     let colors = Colors::get(cx);
     let labels = spec.labels();
     let mut table = v_flex()
@@ -381,13 +388,13 @@ fn table(spec: &ViewSpec, rows: &[ViewRow], at: u64, links: &LinkSender, cx: &Ap
         .w_full()
         .min_w_0()
         .pb(px(6.))
-        .child(header(&labels, colors));
+        .child(header(&labels, scale, colors));
     if rows.is_empty() {
         table = table.child(
             div()
                 .px(px(8.))
                 .py(px(8.))
-                .text_size(px(12.5))
+                .text_size(px(12.5 * scale))
                 .text_color(colors.text_muted)
                 .child("No notes match."),
         );
@@ -418,7 +425,7 @@ fn table(spec: &ViewSpec, rows: &[ViewRow], at: u64, links: &LinkSender, cx: &Ap
                         .w(relative(0.34))
                         .min_w_0()
                         .truncate()
-                        .text_size(px(13.))
+                        .text_size(px(13. * scale))
                         .text_color(colors.link)
                         .cursor_pointer()
                         .hover(|el| el.text_color(colors.text))
@@ -432,7 +439,7 @@ fn table(spec: &ViewSpec, rows: &[ViewRow], at: u64, links: &LinkSender, cx: &Ap
                         .flex_1()
                         .min_w_0()
                         .truncate()
-                        .text_size(px(12.5))
+                        .text_size(px(12.5 * scale))
                         .text_color(colors.text_secondary)
                         .child(cell.as_ref().map(cell_text).unwrap_or_default())
                 })),
@@ -441,7 +448,7 @@ fn table(spec: &ViewSpec, rows: &[ViewRow], at: u64, links: &LinkSender, cx: &Ap
     table.into_any_element()
 }
 
-fn header(labels: &[String], colors: &Colors) -> AnyElement {
+fn header(labels: &[String], scale: f32, colors: &Colors) -> AnyElement {
     h_flex()
         .w_full()
         .min_w_0()
@@ -456,7 +463,7 @@ fn header(labels: &[String], colors: &Colors) -> AnyElement {
                 .when(ix > 0, |el| el.flex_1())
                 .min_w_0()
                 .truncate()
-                .text_size(px(11.5))
+                .text_size(px(11.5 * scale))
                 .text_color(colors.text_muted)
                 .child(label.clone())
         }))

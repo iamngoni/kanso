@@ -320,7 +320,7 @@ fn open_window(
 
 /// The main window's library, so both windows show the same notes, or one
 /// of the note window's own when the main window is closed.
-fn shared_library(store: Arc<Store>, cx: &mut App) -> Entity<Library> {
+pub(crate) fn shared_library(store: Arc<Store>, cx: &mut App) -> Entity<Library> {
     crate::workspace::main_workspace(cx)
         .map(|(_, workspace)| workspace.read(cx).library.clone())
         .unwrap_or_else(|| cx.new(|cx| Library::new(store, cx)))

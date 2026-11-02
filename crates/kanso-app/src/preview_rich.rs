@@ -401,7 +401,7 @@ fn render_block(
     let picture = img(image(&job, svg))
         .object_fit(ObjectFit::Contain)
         .max_w(relative(1.))
-        .w(px(svg.width));
+        .w(px(svg.width * rich.text_scale()));
     match block.kind {
         Kind::DisplayMath => h_flex()
             .id(ElementId::NamedInteger(BLOCK.into(), at))
@@ -413,7 +413,7 @@ fn render_block(
         Kind::Excalidraw => drawing_block(
             block,
             source,
-            (picture.into_any_element(), svg.width),
+            (picture.into_any_element(), svg.width * rich.text_scale()),
             rich,
             at,
             window,

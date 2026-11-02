@@ -6,7 +6,7 @@
 //! the preview's edits and note links go to channels nobody reads, so ticking a
 //! box or dragging a picture on a slide leaves the note alone. Links to the web
 //! still open. Slides close when the note can't be read any more: its keys were
-//! forgotten, or it was deleted.
+//! forgotten, or it was deleted for good.
 
 use std::sync::Arc;
 
@@ -16,6 +16,7 @@ use gpui_kit::*;
 use kanso_core::{Note, slides};
 use kanso_store::Store;
 
+use crate::library::Library;
 use crate::locked::LockKeys;
 use crate::preview::Preview;
 use crate::theme::Colors;
@@ -123,7 +124,7 @@ pub fn present(id: String, window: &Window, cx: &mut App) {
     let asked_in = window.window_handle();
     // The windows can't be looked through from inside this one's update.
     cx.defer(move |cx| {
-        flush_everywhere(cx);
+        crate::workspace::for_each_editor(cx, |editor, cx| editor.flush(cx));
         let store = cx.global::<AppState>().store.clone();
         let Ok(Some(mut note)) = store.note(&id) else {
             return;
@@ -139,20 +140,18 @@ pub fn present(id: String, window: &Window, cx: &mut App) {
     });
 }
 
-/// Saves the typing waiting in the main window and in every note's own.
-fn flush_everywhere(cx: &mut App) {
-    if let Some((_, workspace)) = crate::workspace::main_workspace(cx) {
-        workspace.update(cx, |workspace, cx| workspace.flush(cx));
-    }
-    for (_, view) in crate::note_window::note_windows(cx) {
-        let editor = view.read(cx).editor.clone();
-        editor.update(cx, |editor, cx| editor.flush(cx));
+/// Whether note `id` is gone, or its text can't be opened now.
+fn unreadable(store: &Store, id: &str, cx: &mut App) -> bool {
+    match store.note(id) {
+        Ok(Some(mut note)) => crate::locked::reveal(&mut note, cx).is_closed(),
+        _ => true,
     }
 }
 
 /// Presents `note`, whose text is already readable, on `display`.
 fn open(note: Note, display: Option<DisplayId>, cx: &mut App) {
     let store = cx.global::<AppState>().store.clone();
+    let library = crate::note_window::shared_library(store.clone(), cx);
     let titlebar = TitlebarOptions {
         title: Some(note.title.clone().into()),
         appears_transparent: cfg!(target_os = "macos"),
@@ -168,7 +167,7 @@ fn open(note: Note, display: Option<DisplayId>, cx: &mut App) {
     };
     let opened = gpui_kit::open_window(options, cx, |window, cx| {
         crate::themes::apply(Some(window), cx);
-        cx.new(|cx| Presentation::new(note, store, window, cx))
+        cx.new(|cx| Presentation::new(note, store, library, window, cx))
     });
     if let Err(err) = opened {
         eprintln!("kanso: couldn't open the presentation: {err:#}");
@@ -186,7 +185,13 @@ pub struct Presentation {
 }
 
 impl Presentation {
-    fn new(note: Note, store: Arc<Store>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    fn new(
+        note: Note,
+        store: Arc<Store>,
+        library: Entity<Library>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let slides = slides_of(&note.title, &note.body);
         // The receivers go at once: a slide asks nothing of the note.
         let (links, _) = async_channel::unbounded();
@@ -213,12 +218,16 @@ impl Presentation {
             // Whatever a click took the keyboard to, the keys stay here.
             cx.on_focus_lost(window, |this, window, cx| window.focus(&this.focus, cx)),
             // Any note can be locked after it starts, so this always watches.
-            cx.observe_global_in::<LockKeys>(window, move |_, window, cx| {
-                let closed = match store.note(&id) {
-                    Ok(Some(mut note)) => crate::locked::reveal(&mut note, cx).is_closed(),
-                    _ => true,
-                };
-                if closed {
+            cx.observe_global_in::<LockKeys>(window, {
+                let (store, id) = (store.clone(), id.clone());
+                move |_, window, cx| {
+                    if unreadable(&store, &id, cx) {
+                        window.remove_window();
+                    }
+                }
+            }),
+            cx.observe_in(&library, window, move |_, _, window, cx| {
+                if unreadable(&store, &id, cx) {
                     window.remove_window();
                 }
             }),

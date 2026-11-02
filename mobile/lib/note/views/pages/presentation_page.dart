@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/models/data/application_error.dart';
 import '../../../core/state/appearance/appearance_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_page_route.dart';
@@ -42,6 +43,26 @@ class PresentationPage extends StatefulWidget {
 class _PresentationPageState extends State<PresentationPage> {
   PreviewBloc? _preview;
 
+  /// Notes were locked, and the note is being drawn again to see if it still
+  /// can be: any failure now closes the slides rather than leave them showing.
+  bool _locking = false;
+
+  /// Whether [state] means the note can't be shown. A failed draw of a note
+  /// that is on show keeps its slides, as the preview does.
+  bool _unreadable(PreviewState state) {
+    final error = state.error;
+    return error != null &&
+        (_locking || state.blocks == null || error is LockedError);
+  }
+
+  /// Takes this page away, wherever it is among the routes.
+  void _remove() {
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      Navigator.of(context).removeRoute(route);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -73,10 +94,10 @@ class _PresentationPageState extends State<PresentationPage> {
     );
   }
 
+  /// The size the core draws at. A slide's text scaler sizes up what it draws
+  /// as it does the text, so it isn't scaled here too.
   double _size(AppearanceState appearance) =>
-      previewBaseTextSize *
-      appearance.previewTextSize *
-      slideTextScale(MediaQuery.sizeOf(context));
+      previewBaseTextSize * appearance.previewTextSize;
 
   @override
   void didChangeDependencies() {
@@ -110,14 +131,19 @@ class _PresentationPageState extends State<PresentationPage> {
             // Notes locked: what the core shows now replaces the slides.
             BlocListener<LockStatusBloc, LockStatusState>(
               listenWhen: (before, now) => before.unlocked && !now.unlocked,
-              listener: (_, _) =>
-                  _preview?.add(const PreviewEvent.changesReceived()),
+              listener: (_, _) {
+                _locking = true;
+                _preview?.add(const PreviewEvent.changesReceived());
+              },
             ),
             // The note can't be read any more.
             BlocListener<PreviewBloc, PreviewState>(
-              listenWhen: (before, now) =>
-                  before.error == null && now.error != null,
-              listener: (_, _) => close(),
+              listenWhen: (before, now) => before.error != now.error,
+              listener: (_, state) {
+                if (_unreadable(state)) {
+                  _remove();
+                }
+              },
             ),
           ],
           child: BlocBuilder<PreviewBloc, PreviewState>(
