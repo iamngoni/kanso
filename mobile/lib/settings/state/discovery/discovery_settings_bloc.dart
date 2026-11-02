@@ -10,6 +10,7 @@ import 'package:injectable/injectable.dart';
 import 'package:kanso_ocr/kanso_ocr.dart';
 
 import '../../../core/bridge/api/types.dart';
+import '../../../core/models/data/preferences.dart';
 import '../../../core/models/repos/abs/preferences_repository.dart';
 import '../../../discovery/models/repos/abs/discovery_repository.dart';
 
@@ -28,6 +29,27 @@ class DiscoverySettingsBloc
     on<RelatedSettingChangedEvent>(_onRelatedChanged);
     on<RelatedRetryRequestedEvent>(_onRetry);
     on<OcrSettingChangedEvent>(_onOcrChanged);
+    on<ResurfaceSettingChangedEvent>(
+      (event, emit) => _keep(
+        emit,
+        (current) => current.copyWith(resurface: event.enabled),
+        state.copyWith(resurfaceEnabled: event.enabled),
+      ),
+    );
+    on<ClosenessChangedEvent>(
+      (event, emit) => _keep(
+        emit,
+        (current) => current.copyWith(resurfaceCloseness: event.closeness),
+        state.copyWith(closeness: event.closeness),
+      ),
+    );
+    on<OnThisDaySettingChangedEvent>(
+      (event, emit) => _keep(
+        emit,
+        (current) => current.copyWith(onThisDay: event.enabled),
+        state.copyWith(onThisDayEnabled: event.enabled),
+      ),
+    );
     on<OcrCountReceivedEvent>(
       (event, emit) => emit(state.copyWith(ocrWaiting: event.count)),
     );
@@ -59,6 +81,12 @@ class DiscoverySettingsBloc
           (_) => false,
           (value) => value.searchImageText,
         ),
+        resurfaceEnabled: preferences.fold((_) => true, (v) => v.resurface),
+        closeness: preferences.fold(
+          (_) => 'default',
+          (value) => value.resurfaceCloseness,
+        ),
+        onThisDayEnabled: preferences.fold((_) => true, (v) => v.onThisDay),
       ),
     );
     await _relatedSubscription?.cancel();
@@ -111,6 +139,18 @@ class DiscoverySettingsBloc
       const RelatedSettingChangedEvent(enabled: true),
       emit,
     );
+  }
+
+  /// Saves a preference of resurfacing, then shows it.
+  Future<void> _keep(
+    Emitter<DiscoverySettingsState> emit,
+    Preferences Function(Preferences current) change,
+    DiscoverySettingsState next,
+  ) async {
+    final saved = await _preferences.update(change);
+    if (saved.isRight()) {
+      emit(next);
+    }
   }
 
   Future<void> _onOcrChanged(

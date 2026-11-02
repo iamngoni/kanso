@@ -20,6 +20,7 @@ import 'package:kanso/library/state/new_notebook/new_notebook_bloc.dart';
 import 'package:kanso/note/models/repos/impl/memory_note_place_repository.dart';
 import 'package:kanso/note/state/note/note_bloc.dart';
 import 'package:kanso/note/state/note_discovery/note_discovery_bloc.dart';
+import 'package:kanso/note/state/resurface/resurface_bloc.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
 import 'package:kanso/push/state/push_setting/push_setting_bloc.dart';
 import 'package:kanso/reminders/state/reminders_settings/reminders_settings_bloc.dart';
@@ -182,6 +183,12 @@ void _registerPageBlocs({
   }
   getIt.registerFactory<NoteDiscoveryBloc>(
     () => NoteDiscoveryBloc(discovery),
+  );
+  if (getIt.isRegistered<ResurfaceBloc>()) {
+    getIt.unregister<ResurfaceBloc>();
+  }
+  getIt.registerFactory<ResurfaceBloc>(
+    () => ResurfaceBloc(discovery, ForgetfulPreferencesRepository()),
   );
   if (getIt.isRegistered<GraphBloc>()) {
     getIt.unregister<GraphBloc>();

@@ -38,6 +38,26 @@ class FixtureDiscoveryRepository implements DiscoveryRepository {
       );
 
   @override
+  Future<Either<ApplicationError, ResurfaceResult>> resurface({
+    required String id,
+    required String title,
+    required String body,
+    required int caret,
+    required String closeness,
+    required int utcOffsetSecs,
+  }) async => const Right<ApplicationError, ResurfaceResult>(
+    ResurfaceResult.off(),
+  );
+
+  @override
+  Future<Either<ApplicationError, List<OnThisDayRow>>> onThisDay(
+    String id, {
+    required int utcOffsetSecs,
+  }) async => const Right<ApplicationError, List<OnThisDayRow>>(
+    <OnThisDayRow>[],
+  );
+
+  @override
   Future<Either<ApplicationError, int>> ocrWaiting() async =>
       const Right<ApplicationError, int>(0);
 

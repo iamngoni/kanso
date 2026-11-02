@@ -22,6 +22,7 @@ import '../../state/note/note_bloc.dart';
 import '../../state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../state/note_discovery/note_discovery_bloc.dart';
 import '../../state/note_mode_intent/note_mode_intent_bloc.dart';
+import '../../state/resurface/resurface_bloc.dart';
 import '../widgets/note_pane.dart';
 import '../widgets/note_theme_sync.dart';
 
@@ -98,6 +99,10 @@ class NotePage extends StatelessWidget {
                 create: (_) =>
                     getIt<NoteDiscoveryBloc>()
                       ..add(NoteDiscoveryEvent.started(noteId)),
+              ),
+              BlocProvider<ResurfaceBloc>(
+                create: (_) =>
+                    getIt<ResurfaceBloc>()..add(ResurfaceEvent.started(noteId)),
               ),
               // Unlocking this note, if it is locked.
               BlocProvider<UnlockBloc>(create: (_) => getIt<UnlockBloc>()),

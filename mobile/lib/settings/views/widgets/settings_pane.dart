@@ -280,6 +280,53 @@ class SettingsPane extends StatelessWidget {
                                         ),
                                       ),
                           ),
+                          if (discovery.relatedEnabled) ...<Widget>[
+                            DiscoverySettingSwitchRow(
+                              title: l10n.discoveryResurface,
+                              detail: l10n.discoveryResurfaceDetail,
+                              value: discovery.resurfaceEnabled,
+                              onChanged: (enabled) =>
+                                  context.read<DiscoverySettingsBloc>().add(
+                                    DiscoverySettingsEvent.resurfaceChanged(
+                                      enabled: enabled,
+                                    ),
+                                  ),
+                            ),
+                            if (discovery.resurfaceEnabled)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  KansoSpacing.md,
+                                  0,
+                                  KansoSpacing.md,
+                                  KansoSpacing.sm,
+                                ),
+                                child: KansoSegmented<String>(
+                                  expanded: true,
+                                  semanticLabel: l10n.discoveryCloseness,
+                                  selected: discovery.closeness,
+                                  segments: <KansoSegment<String>>[
+                                    KansoSegment<String>(
+                                      value: 'closer',
+                                      label: l10n.discoveryClosenessCloser,
+                                    ),
+                                    KansoSegment<String>(
+                                      value: 'default',
+                                      label: l10n.discoveryClosenessDefault,
+                                    ),
+                                    KansoSegment<String>(
+                                      value: 'looser',
+                                      label: l10n.discoveryClosenessLooser,
+                                    ),
+                                  ],
+                                  onChanged: (closeness) =>
+                                      context.read<DiscoverySettingsBloc>().add(
+                                        DiscoverySettingsEvent.closenessChanged(
+                                          closeness,
+                                        ),
+                                      ),
+                                ),
+                              ),
+                          ],
                           if (discovery.relatedEnabled)
                             DiscoveryStatusRow(
                               status: discovery.related,
@@ -289,6 +336,17 @@ class SettingsPane extends StatelessWidget {
                                 );
                               },
                             ),
+                          DiscoverySettingSwitchRow(
+                            title: l10n.discoveryOnThisDay,
+                            detail: l10n.discoveryOnThisDayDetail,
+                            value: discovery.onThisDayEnabled,
+                            onChanged: (enabled) =>
+                                context.read<DiscoverySettingsBloc>().add(
+                                  DiscoverySettingsEvent.onThisDayChanged(
+                                    enabled: enabled,
+                                  ),
+                                ),
+                          ),
                           DiscoverySettingSwitchRow(
                             title: l10n.discoverySearchImages,
                             detail: l10n.discoverySearchImagesDetail,

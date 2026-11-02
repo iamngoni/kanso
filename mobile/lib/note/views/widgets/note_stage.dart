@@ -18,6 +18,7 @@ import 'locked_note_pane.dart';
 import 'note_body.dart';
 import 'note_loading_pane.dart';
 import 'note_not_found_pane.dart';
+import 'resurface_pill.dart';
 
 /// What is under a note's bar: the editor while it is edited, otherwise the
 /// note read (title, facts and text), its lock, or why there is none to
@@ -59,13 +60,18 @@ class NoteStage extends StatelessWidget {
             final note = state.note;
             return switch (state.status) {
               NoteScreenStatus.loading => NoteLoadingPane(gutter: gutter),
-              NoteScreenStatus.ready when note != null => NoteBody(
-                note: note,
-                lines: state.lines,
-                index: index,
-                gutter: gutter,
-                onEditAt: (offset) => context.read<NoteBloc>().add(
-                  NoteEvent.modeChanged(NoteMode.edit, bodyCaret: offset),
+              NoteScreenStatus.ready when note != null => ResurfaceReading(
+                noteId: note.id,
+                title: note.title,
+                body: note.body ?? '',
+                child: NoteBody(
+                  note: note,
+                  lines: state.lines,
+                  index: index,
+                  gutter: gutter,
+                  onEditAt: (offset) => context.read<NoteBloc>().add(
+                    NoteEvent.modeChanged(NoteMode.edit, bodyCaret: offset),
+                  ),
                 ),
               ),
               NoteScreenStatus.locked when note != null => LockedNotePane(

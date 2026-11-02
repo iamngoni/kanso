@@ -176,6 +176,7 @@ import 'note/state/note_assist_intent/note_assist_intent_bloc.dart' as _i247;
 import 'note/state/note_discovery/note_discovery_bloc.dart' as _i779;
 import 'note/state/note_mode_intent/note_mode_intent_bloc.dart' as _i908;
 import 'note/state/preview/preview_bloc.dart' as _i435;
+import 'note/state/resurface/resurface_bloc.dart' as _i170;
 import 'note/state/word_goal_intent/word_goal_intent_bloc.dart' as _i304;
 import 'note_links/models/repos/abs/note_links_repository.dart' as _i393;
 import 'note_links/models/repos/impl/rust_note_links_repository.dart' as _i199;
@@ -503,6 +504,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i974.HistoryRepository>(
       () => _i1065.RustHistoryRepository(gh<_i455.KansoLibrary>()),
+    );
+    gh.factory<_i170.ResurfaceBloc>(
+      () => _i170.ResurfaceBloc(
+        gh<_i673.DiscoveryRepository>(),
+        gh<_i384.PreferencesRepository>(),
+      ),
     );
     gh.factory<_i904.DiscoverySettingsBloc>(
       () => _i904.DiscoverySettingsBloc(

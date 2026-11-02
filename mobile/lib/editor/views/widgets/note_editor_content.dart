@@ -37,7 +37,9 @@ import '../../../note/state/note/note_bloc.dart';
 import '../../../note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import '../../../note/state/preview/preview_bloc.dart'
     show PreviewThemes, previewBaseTextSize;
+import '../../../note/state/resurface/resurface_bloc.dart';
 import '../../../note/state/word_goal_intent/word_goal_intent_bloc.dart';
+import '../../../note/views/widgets/resurface_pill.dart';
 import '../../../note_list/views/widgets/note_list_notice.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
@@ -157,6 +159,12 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   /// A palette request to open this note's word-goal picker.
   WordGoalIntentBloc? wordGoalIntents;
 
+  /// Past notes about the paragraph being written, where the page has them.
+  ResurfaceBloc? resurface;
+
+  /// Coalesces the changes told to [resurface].
+  Timer? resurfaceTimer;
+
   /// The server request last taken, so a rebuild cannot run it again.
   int? handledAssistRequest;
 
@@ -201,6 +209,11 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
     } on ProviderNotFoundException {
       wordGoalIntents = null;
     }
+    try {
+      resurface = context.read<ResurfaceBloc>();
+    } on ProviderNotFoundException {
+      resurface = null;
+    }
     readOnly = status?.state.readOnly ?? false;
     final caret = widget.caret;
     int? start;
@@ -241,6 +254,11 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
     );
     controller.addListener(scheduleWordCount);
     title = TextEditingController(text: widget.snapshot.title);
+    if (resurface != null) {
+      controller.addListener(tellResurface);
+      title.addListener(tellResurface);
+      tellResurface();
+    }
     textFocus = FocusNode(debugLabel: 'Note text');
     titleFocus = FocusNode(debugLabel: 'Note title');
     // The page's place is kept from its top; with text before the window it
@@ -507,7 +525,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
     }
     scroll.dispose();
     wordCountTimer?.cancel();
-    controller.removeListener(scheduleWordCount);
+    resurfaceTimer?.cancel();
+    controller
+      ..removeListener(tellResurface)
+      ..removeListener(scheduleWordCount);
     wordCount.dispose();
     titleFocus.dispose();
     textFocus.dispose();
@@ -520,6 +541,47 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   void onTitleChanged(String text) {
     widget.document.setTitle(text);
     editor.add(const EditorEvent.edited());
+  }
+
+  /// Tells the pill of related notes what is being written, once the
+  /// changes slow down; it asks only after the text has paused.
+  void tellResurface() {
+    final bloc = resurface;
+    if (bloc == null || readOnly) {
+      return;
+    }
+    resurfaceTimer?.cancel();
+    resurfaceTimer = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted || bloc.isClosed) {
+        return;
+      }
+      final selection = controller.noteSelection;
+      bloc.add(
+        ResurfaceEvent.edited(
+          title: title.text,
+          body: controller.noteText,
+          caret: selection.isValid
+              ? selection.baseOffset
+              : controller.noteLength,
+        ),
+      );
+    });
+  }
+
+  /// A link to the note titled [noteTitle], where the caret is.
+  void linkTo(String noteTitle) {
+    if (noteTitle.isEmpty || readOnly) {
+      return;
+    }
+    final selection = controller.noteSelection;
+    final at = selection.isValid ? selection.end : controller.noteLength;
+    controller.run(
+      EditCommand.insert(
+        range: Range16(start: at, end: at),
+        text: '[[$noteTitle]]',
+      ),
+    );
+    textFocus.requestFocus();
   }
 
   /// Debounces Markdown counting while a long note is being typed in.
@@ -1190,19 +1252,32 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                         ? 0
                         : MediaQuery.paddingOf(context).bottom,
                   ),
-                  child: BlocBuilder<EditorBloc, EditorState>(
-                    buildWhen: (before, now) => before.context != now.context,
-                    builder: (context, state) => KeyboardAccessoryBar(
-                      editorContext: state.context,
-                      onCommand: controller.run,
-                      onUndo: controller.undo,
-                      onRedo: controller.redo,
-                      onImage: attach,
-                      extras:
-                          editorExtras?.accessoryKeys(textTarget) ??
-                          const <EditorAccessoryExtra>[],
-                      target: textTarget,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      // Above the keys: a pill when past notes are about
+                      // the paragraph being written.
+                      ResurfacePillRow(
+                        noteId: note.state.noteId,
+                        onLink: linkTo,
+                      ),
+                      BlocBuilder<EditorBloc, EditorState>(
+                        buildWhen: (before, now) =>
+                            before.context != now.context,
+                        builder: (context, state) => KeyboardAccessoryBar(
+                          editorContext: state.context,
+                          onCommand: controller.run,
+                          onUndo: controller.undo,
+                          onRedo: controller.redo,
+                          onImage: attach,
+                          extras:
+                              editorExtras?.accessoryKeys(textTarget) ??
+                              const <EditorAccessoryExtra>[],
+                          target: textTarget,
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },

@@ -664,6 +664,96 @@ abstract class AppLocalizations {
   /// **'Reading images… {count} to go.'**
   String discoveryReadingImages(int count);
 
+  /// Enables a pill above the keyboard that offers past notes about the paragraph being written.
+  ///
+  /// In en, this message translates to:
+  /// **'Related notes while writing'**
+  String get discoveryResurface;
+
+  /// Explains the pill of related notes above the keyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'After you pause, a small pill offers up to three past notes about the paragraph you are writing. It works on this device: nothing about your notes is sent anywhere.'**
+  String get discoveryResurfaceDetail;
+
+  /// Chooses how alike a past note must be to the writing to be offered.
+  ///
+  /// In en, this message translates to:
+  /// **'How close'**
+  String get discoveryCloseness;
+
+  /// Offers fewer, nearer notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Closer'**
+  String get discoveryClosenessCloser;
+
+  /// Offers notes of ordinary closeness.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get discoveryClosenessDefault;
+
+  /// Offers more, looser notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Looser'**
+  String get discoveryClosenessLooser;
+
+  /// Enables listing notes written on a daily note's date in earlier years.
+  ///
+  /// In en, this message translates to:
+  /// **'Show “On this day” on daily notes'**
+  String get discoveryOnThisDay;
+
+  /// Explains On this day.
+  ///
+  /// In en, this message translates to:
+  /// **'A daily note lists up to three notes written on its date in earlier years. It needs no language model.'**
+  String get discoveryOnThisDayDetail;
+
+  /// The pill above the keyboard: how many past notes are about the paragraph being written.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 related} other{{count} related}}'**
+  String resurfacePill(int count);
+
+  /// The section of the related notes sheet with notes about the paragraph being written.
+  ///
+  /// In en, this message translates to:
+  /// **'About this paragraph'**
+  String get resurfaceAboutParagraph;
+
+  /// The section of the related notes sheet with notes about the whole note.
+  ///
+  /// In en, this message translates to:
+  /// **'About this note'**
+  String get resurfaceAboutNote;
+
+  /// The section of the related notes sheet with notes written on this date in earlier years.
+  ///
+  /// In en, this message translates to:
+  /// **'On this day'**
+  String get resurfaceOnThisDay;
+
+  /// Puts a link to the past note at the caret.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get resurfaceLink;
+
+  /// Keeps the past note from being offered for this note again.
+  ///
+  /// In en, this message translates to:
+  /// **'Not related'**
+  String get resurfaceNotRelated;
+
+  /// A past note's notebook and when it was written, as 'Home · March 2024'.
+  ///
+  /// In en, this message translates to:
+  /// **'{notebook} · {when}'**
+  String resurfaceNoteMeta(String notebook, String when);
+
   /// A section of settings.
   ///
   /// In en, this message translates to:

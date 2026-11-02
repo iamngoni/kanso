@@ -67,14 +67,14 @@ fn index(store: &Arc<Store>) {
         .pending
         .into_iter()
         .map(|p| EmbeddedNote {
-            vector: Words.embed(&[p.text.clone()]).remove(0),
+            vector: Words.embed(std::slice::from_ref(&p.text)).remove(0),
             passages: p
                 .passages
                 .iter()
                 .map(|q| EmbeddedPassage {
                     start: q.start,
                     end: q.end,
-                    vector: Words.embed(&[q.text.clone()]).remove(0),
+                    vector: Words.embed(std::slice::from_ref(&q.text)).remove(0),
                 })
                 .collect(),
             id: p.id,

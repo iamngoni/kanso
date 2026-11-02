@@ -252,6 +252,9 @@ What locking does and doesn't do:
   three passes), bound to the note, and kept in the note itself (`kansoLock`). The note's body in the
   database is empty, so search, backlinks, tasks, reminders, related notes and the local API (REST
   and MCP) never see it. Sync carries the sealed text inside the note's own encrypted document.
+- Past notes about the paragraph you are writing use a vector for each passage of a note and your
+  "Not related" answers. Both stay on this device: they are not synced, they are emptied with the
+  library (or when the embedding model changes), and they are in the daily `VACUUM INTO` backups.
 - Locking deletes the note's earlier versions, its embedding and the search index's words, and SQLite
   overwrites the space they took. Daily backups made before you locked it still hold the text until
   they are replaced, after 14 days.

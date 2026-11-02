@@ -55,14 +55,17 @@ extension DiscoverySettingsEventPatterns on DiscoverySettingsEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DiscoverySettingsStartedEvent value)?  started,TResult Function( RelatedSettingChangedEvent value)?  relatedChanged,TResult Function( RelatedRetryRequestedEvent value)?  relatedRetryRequested,TResult Function( OcrSettingChangedEvent value)?  ocrChanged,TResult Function( RelatedStatusReceivedEvent value)?  relatedStatusReceived,TResult Function( OcrCountReceivedEvent value)?  ocrCountReceived,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DiscoverySettingsStartedEvent value)?  started,TResult Function( RelatedSettingChangedEvent value)?  relatedChanged,TResult Function( RelatedRetryRequestedEvent value)?  relatedRetryRequested,TResult Function( OcrSettingChangedEvent value)?  ocrChanged,TResult Function( ResurfaceSettingChangedEvent value)?  resurfaceChanged,TResult Function( ClosenessChangedEvent value)?  closenessChanged,TResult Function( OnThisDaySettingChangedEvent value)?  onThisDayChanged,TResult Function( RelatedStatusReceivedEvent value)?  relatedStatusReceived,TResult Function( OcrCountReceivedEvent value)?  ocrCountReceived,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case DiscoverySettingsStartedEvent() when started != null:
 return started(_that);case RelatedSettingChangedEvent() when relatedChanged != null:
 return relatedChanged(_that);case RelatedRetryRequestedEvent() when relatedRetryRequested != null:
 return relatedRetryRequested(_that);case OcrSettingChangedEvent() when ocrChanged != null:
-return ocrChanged(_that);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
+return ocrChanged(_that);case ResurfaceSettingChangedEvent() when resurfaceChanged != null:
+return resurfaceChanged(_that);case ClosenessChangedEvent() when closenessChanged != null:
+return closenessChanged(_that);case OnThisDaySettingChangedEvent() when onThisDayChanged != null:
+return onThisDayChanged(_that);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
 return relatedStatusReceived(_that);case OcrCountReceivedEvent() when ocrCountReceived != null:
 return ocrCountReceived(_that);case _:
   return orElse();
@@ -82,14 +85,17 @@ return ocrCountReceived(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DiscoverySettingsStartedEvent value)  started,required TResult Function( RelatedSettingChangedEvent value)  relatedChanged,required TResult Function( RelatedRetryRequestedEvent value)  relatedRetryRequested,required TResult Function( OcrSettingChangedEvent value)  ocrChanged,required TResult Function( RelatedStatusReceivedEvent value)  relatedStatusReceived,required TResult Function( OcrCountReceivedEvent value)  ocrCountReceived,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DiscoverySettingsStartedEvent value)  started,required TResult Function( RelatedSettingChangedEvent value)  relatedChanged,required TResult Function( RelatedRetryRequestedEvent value)  relatedRetryRequested,required TResult Function( OcrSettingChangedEvent value)  ocrChanged,required TResult Function( ResurfaceSettingChangedEvent value)  resurfaceChanged,required TResult Function( ClosenessChangedEvent value)  closenessChanged,required TResult Function( OnThisDaySettingChangedEvent value)  onThisDayChanged,required TResult Function( RelatedStatusReceivedEvent value)  relatedStatusReceived,required TResult Function( OcrCountReceivedEvent value)  ocrCountReceived,}){
 final _that = this;
 switch (_that) {
 case DiscoverySettingsStartedEvent():
 return started(_that);case RelatedSettingChangedEvent():
 return relatedChanged(_that);case RelatedRetryRequestedEvent():
 return relatedRetryRequested(_that);case OcrSettingChangedEvent():
-return ocrChanged(_that);case RelatedStatusReceivedEvent():
+return ocrChanged(_that);case ResurfaceSettingChangedEvent():
+return resurfaceChanged(_that);case ClosenessChangedEvent():
+return closenessChanged(_that);case OnThisDaySettingChangedEvent():
+return onThisDayChanged(_that);case RelatedStatusReceivedEvent():
 return relatedStatusReceived(_that);case OcrCountReceivedEvent():
 return ocrCountReceived(_that);}
 }
@@ -105,14 +111,17 @@ return ocrCountReceived(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DiscoverySettingsStartedEvent value)?  started,TResult? Function( RelatedSettingChangedEvent value)?  relatedChanged,TResult? Function( RelatedRetryRequestedEvent value)?  relatedRetryRequested,TResult? Function( OcrSettingChangedEvent value)?  ocrChanged,TResult? Function( RelatedStatusReceivedEvent value)?  relatedStatusReceived,TResult? Function( OcrCountReceivedEvent value)?  ocrCountReceived,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DiscoverySettingsStartedEvent value)?  started,TResult? Function( RelatedSettingChangedEvent value)?  relatedChanged,TResult? Function( RelatedRetryRequestedEvent value)?  relatedRetryRequested,TResult? Function( OcrSettingChangedEvent value)?  ocrChanged,TResult? Function( ResurfaceSettingChangedEvent value)?  resurfaceChanged,TResult? Function( ClosenessChangedEvent value)?  closenessChanged,TResult? Function( OnThisDaySettingChangedEvent value)?  onThisDayChanged,TResult? Function( RelatedStatusReceivedEvent value)?  relatedStatusReceived,TResult? Function( OcrCountReceivedEvent value)?  ocrCountReceived,}){
 final _that = this;
 switch (_that) {
 case DiscoverySettingsStartedEvent() when started != null:
 return started(_that);case RelatedSettingChangedEvent() when relatedChanged != null:
 return relatedChanged(_that);case RelatedRetryRequestedEvent() when relatedRetryRequested != null:
 return relatedRetryRequested(_that);case OcrSettingChangedEvent() when ocrChanged != null:
-return ocrChanged(_that);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
+return ocrChanged(_that);case ResurfaceSettingChangedEvent() when resurfaceChanged != null:
+return resurfaceChanged(_that);case ClosenessChangedEvent() when closenessChanged != null:
+return closenessChanged(_that);case OnThisDaySettingChangedEvent() when onThisDayChanged != null:
+return onThisDayChanged(_that);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
 return relatedStatusReceived(_that);case OcrCountReceivedEvent() when ocrCountReceived != null:
 return ocrCountReceived(_that);case _:
   return null;
@@ -131,13 +140,16 @@ return ocrCountReceived(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( bool enabled)?  relatedChanged,TResult Function()?  relatedRetryRequested,TResult Function( bool enabled)?  ocrChanged,TResult Function( RelatedState status)?  relatedStatusReceived,TResult Function( int count)?  ocrCountReceived,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( bool enabled)?  relatedChanged,TResult Function()?  relatedRetryRequested,TResult Function( bool enabled)?  ocrChanged,TResult Function( bool enabled)?  resurfaceChanged,TResult Function( String closeness)?  closenessChanged,TResult Function( bool enabled)?  onThisDayChanged,TResult Function( RelatedState status)?  relatedStatusReceived,TResult Function( int count)?  ocrCountReceived,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case DiscoverySettingsStartedEvent() when started != null:
 return started();case RelatedSettingChangedEvent() when relatedChanged != null:
 return relatedChanged(_that.enabled);case RelatedRetryRequestedEvent() when relatedRetryRequested != null:
 return relatedRetryRequested();case OcrSettingChangedEvent() when ocrChanged != null:
-return ocrChanged(_that.enabled);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
+return ocrChanged(_that.enabled);case ResurfaceSettingChangedEvent() when resurfaceChanged != null:
+return resurfaceChanged(_that.enabled);case ClosenessChangedEvent() when closenessChanged != null:
+return closenessChanged(_that.closeness);case OnThisDaySettingChangedEvent() when onThisDayChanged != null:
+return onThisDayChanged(_that.enabled);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
 return relatedStatusReceived(_that.status);case OcrCountReceivedEvent() when ocrCountReceived != null:
 return ocrCountReceived(_that.count);case _:
   return orElse();
@@ -157,13 +169,16 @@ return ocrCountReceived(_that.count);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( bool enabled)  relatedChanged,required TResult Function()  relatedRetryRequested,required TResult Function( bool enabled)  ocrChanged,required TResult Function( RelatedState status)  relatedStatusReceived,required TResult Function( int count)  ocrCountReceived,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( bool enabled)  relatedChanged,required TResult Function()  relatedRetryRequested,required TResult Function( bool enabled)  ocrChanged,required TResult Function( bool enabled)  resurfaceChanged,required TResult Function( String closeness)  closenessChanged,required TResult Function( bool enabled)  onThisDayChanged,required TResult Function( RelatedState status)  relatedStatusReceived,required TResult Function( int count)  ocrCountReceived,}) {final _that = this;
 switch (_that) {
 case DiscoverySettingsStartedEvent():
 return started();case RelatedSettingChangedEvent():
 return relatedChanged(_that.enabled);case RelatedRetryRequestedEvent():
 return relatedRetryRequested();case OcrSettingChangedEvent():
-return ocrChanged(_that.enabled);case RelatedStatusReceivedEvent():
+return ocrChanged(_that.enabled);case ResurfaceSettingChangedEvent():
+return resurfaceChanged(_that.enabled);case ClosenessChangedEvent():
+return closenessChanged(_that.closeness);case OnThisDaySettingChangedEvent():
+return onThisDayChanged(_that.enabled);case RelatedStatusReceivedEvent():
 return relatedStatusReceived(_that.status);case OcrCountReceivedEvent():
 return ocrCountReceived(_that.count);}
 }
@@ -179,13 +194,16 @@ return ocrCountReceived(_that.count);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( bool enabled)?  relatedChanged,TResult? Function()?  relatedRetryRequested,TResult? Function( bool enabled)?  ocrChanged,TResult? Function( RelatedState status)?  relatedStatusReceived,TResult? Function( int count)?  ocrCountReceived,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( bool enabled)?  relatedChanged,TResult? Function()?  relatedRetryRequested,TResult? Function( bool enabled)?  ocrChanged,TResult? Function( bool enabled)?  resurfaceChanged,TResult? Function( String closeness)?  closenessChanged,TResult? Function( bool enabled)?  onThisDayChanged,TResult? Function( RelatedState status)?  relatedStatusReceived,TResult? Function( int count)?  ocrCountReceived,}) {final _that = this;
 switch (_that) {
 case DiscoverySettingsStartedEvent() when started != null:
 return started();case RelatedSettingChangedEvent() when relatedChanged != null:
 return relatedChanged(_that.enabled);case RelatedRetryRequestedEvent() when relatedRetryRequested != null:
 return relatedRetryRequested();case OcrSettingChangedEvent() when ocrChanged != null:
-return ocrChanged(_that.enabled);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
+return ocrChanged(_that.enabled);case ResurfaceSettingChangedEvent() when resurfaceChanged != null:
+return resurfaceChanged(_that.enabled);case ClosenessChangedEvent() when closenessChanged != null:
+return closenessChanged(_that.closeness);case OnThisDaySettingChangedEvent() when onThisDayChanged != null:
+return onThisDayChanged(_that.enabled);case RelatedStatusReceivedEvent() when relatedStatusReceived != null:
 return relatedStatusReceived(_that.status);case OcrCountReceivedEvent() when ocrCountReceived != null:
 return ocrCountReceived(_that.count);case _:
   return null;
@@ -394,6 +412,204 @@ as bool,
 /// @nodoc
 
 
+class ResurfaceSettingChangedEvent implements DiscoverySettingsEvent {
+  const ResurfaceSettingChangedEvent({required this.enabled});
+  
+
+ final  bool enabled;
+
+/// Create a copy of DiscoverySettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ResurfaceSettingChangedEventCopyWith<ResurfaceSettingChangedEvent> get copyWith => _$ResurfaceSettingChangedEventCopyWithImpl<ResurfaceSettingChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ResurfaceSettingChangedEvent&&(identical(other.enabled, enabled) || other.enabled == enabled));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,enabled);
+
+@override
+String toString() {
+  return 'DiscoverySettingsEvent.resurfaceChanged(enabled: $enabled)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ResurfaceSettingChangedEventCopyWith<$Res> implements $DiscoverySettingsEventCopyWith<$Res> {
+  factory $ResurfaceSettingChangedEventCopyWith(ResurfaceSettingChangedEvent value, $Res Function(ResurfaceSettingChangedEvent) _then) = _$ResurfaceSettingChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ bool enabled
+});
+
+
+
+
+}
+/// @nodoc
+class _$ResurfaceSettingChangedEventCopyWithImpl<$Res>
+    implements $ResurfaceSettingChangedEventCopyWith<$Res> {
+  _$ResurfaceSettingChangedEventCopyWithImpl(this._self, this._then);
+
+  final ResurfaceSettingChangedEvent _self;
+  final $Res Function(ResurfaceSettingChangedEvent) _then;
+
+/// Create a copy of DiscoverySettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? enabled = null,}) {
+  return _then(ResurfaceSettingChangedEvent(
+enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class ClosenessChangedEvent implements DiscoverySettingsEvent {
+  const ClosenessChangedEvent(this.closeness);
+  
+
+ final  String closeness;
+
+/// Create a copy of DiscoverySettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ClosenessChangedEventCopyWith<ClosenessChangedEvent> get copyWith => _$ClosenessChangedEventCopyWithImpl<ClosenessChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClosenessChangedEvent&&(identical(other.closeness, closeness) || other.closeness == closeness));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,closeness);
+
+@override
+String toString() {
+  return 'DiscoverySettingsEvent.closenessChanged(closeness: $closeness)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ClosenessChangedEventCopyWith<$Res> implements $DiscoverySettingsEventCopyWith<$Res> {
+  factory $ClosenessChangedEventCopyWith(ClosenessChangedEvent value, $Res Function(ClosenessChangedEvent) _then) = _$ClosenessChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ String closeness
+});
+
+
+
+
+}
+/// @nodoc
+class _$ClosenessChangedEventCopyWithImpl<$Res>
+    implements $ClosenessChangedEventCopyWith<$Res> {
+  _$ClosenessChangedEventCopyWithImpl(this._self, this._then);
+
+  final ClosenessChangedEvent _self;
+  final $Res Function(ClosenessChangedEvent) _then;
+
+/// Create a copy of DiscoverySettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? closeness = null,}) {
+  return _then(ClosenessChangedEvent(
+null == closeness ? _self.closeness : closeness // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class OnThisDaySettingChangedEvent implements DiscoverySettingsEvent {
+  const OnThisDaySettingChangedEvent({required this.enabled});
+  
+
+ final  bool enabled;
+
+/// Create a copy of DiscoverySettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$OnThisDaySettingChangedEventCopyWith<OnThisDaySettingChangedEvent> get copyWith => _$OnThisDaySettingChangedEventCopyWithImpl<OnThisDaySettingChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnThisDaySettingChangedEvent&&(identical(other.enabled, enabled) || other.enabled == enabled));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,enabled);
+
+@override
+String toString() {
+  return 'DiscoverySettingsEvent.onThisDayChanged(enabled: $enabled)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $OnThisDaySettingChangedEventCopyWith<$Res> implements $DiscoverySettingsEventCopyWith<$Res> {
+  factory $OnThisDaySettingChangedEventCopyWith(OnThisDaySettingChangedEvent value, $Res Function(OnThisDaySettingChangedEvent) _then) = _$OnThisDaySettingChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ bool enabled
+});
+
+
+
+
+}
+/// @nodoc
+class _$OnThisDaySettingChangedEventCopyWithImpl<$Res>
+    implements $OnThisDaySettingChangedEventCopyWith<$Res> {
+  _$OnThisDaySettingChangedEventCopyWithImpl(this._self, this._then);
+
+  final OnThisDaySettingChangedEvent _self;
+  final $Res Function(OnThisDaySettingChangedEvent) _then;
+
+/// Create a copy of DiscoverySettingsEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? enabled = null,}) {
+  return _then(OnThisDaySettingChangedEvent(
+enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class RelatedStatusReceivedEvent implements DiscoverySettingsEvent {
   const RelatedStatusReceivedEvent(this.status);
   
@@ -526,7 +742,7 @@ as int,
 /// @nodoc
 mixin _$DiscoverySettingsState {
 
- bool get relatedEnabled; RelatedState? get related; bool get relatedBusy; bool get ocrEnabled; int get ocrWaiting;
+ bool get relatedEnabled; RelatedState? get related; bool get relatedBusy; bool get ocrEnabled; int get ocrWaiting; bool get resurfaceEnabled; String get closeness; bool get onThisDayEnabled;
 /// Create a copy of DiscoverySettingsState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -537,16 +753,16 @@ $DiscoverySettingsStateCopyWith<DiscoverySettingsState> get copyWith => _$Discov
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DiscoverySettingsState&&(identical(other.relatedEnabled, relatedEnabled) || other.relatedEnabled == relatedEnabled)&&(identical(other.related, related) || other.related == related)&&(identical(other.relatedBusy, relatedBusy) || other.relatedBusy == relatedBusy)&&(identical(other.ocrEnabled, ocrEnabled) || other.ocrEnabled == ocrEnabled)&&(identical(other.ocrWaiting, ocrWaiting) || other.ocrWaiting == ocrWaiting));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DiscoverySettingsState&&(identical(other.relatedEnabled, relatedEnabled) || other.relatedEnabled == relatedEnabled)&&(identical(other.related, related) || other.related == related)&&(identical(other.relatedBusy, relatedBusy) || other.relatedBusy == relatedBusy)&&(identical(other.ocrEnabled, ocrEnabled) || other.ocrEnabled == ocrEnabled)&&(identical(other.ocrWaiting, ocrWaiting) || other.ocrWaiting == ocrWaiting)&&(identical(other.resurfaceEnabled, resurfaceEnabled) || other.resurfaceEnabled == resurfaceEnabled)&&(identical(other.closeness, closeness) || other.closeness == closeness)&&(identical(other.onThisDayEnabled, onThisDayEnabled) || other.onThisDayEnabled == onThisDayEnabled));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,relatedEnabled,related,relatedBusy,ocrEnabled,ocrWaiting);
+int get hashCode => Object.hash(runtimeType,relatedEnabled,related,relatedBusy,ocrEnabled,ocrWaiting,resurfaceEnabled,closeness,onThisDayEnabled);
 
 @override
 String toString() {
-  return 'DiscoverySettingsState(relatedEnabled: $relatedEnabled, related: $related, relatedBusy: $relatedBusy, ocrEnabled: $ocrEnabled, ocrWaiting: $ocrWaiting)';
+  return 'DiscoverySettingsState(relatedEnabled: $relatedEnabled, related: $related, relatedBusy: $relatedBusy, ocrEnabled: $ocrEnabled, ocrWaiting: $ocrWaiting, resurfaceEnabled: $resurfaceEnabled, closeness: $closeness, onThisDayEnabled: $onThisDayEnabled)';
 }
 
 
@@ -557,7 +773,7 @@ abstract mixin class $DiscoverySettingsStateCopyWith<$Res>  {
   factory $DiscoverySettingsStateCopyWith(DiscoverySettingsState value, $Res Function(DiscoverySettingsState) _then) = _$DiscoverySettingsStateCopyWithImpl;
 @useResult
 $Res call({
- bool relatedEnabled, RelatedState? related, bool relatedBusy, bool ocrEnabled, int ocrWaiting
+ bool relatedEnabled, RelatedState? related, bool relatedBusy, bool ocrEnabled, int ocrWaiting, bool resurfaceEnabled, String closeness, bool onThisDayEnabled
 });
 
 
@@ -574,14 +790,17 @@ class _$DiscoverySettingsStateCopyWithImpl<$Res>
 
 /// Create a copy of DiscoverySettingsState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? relatedEnabled = null,Object? related = freezed,Object? relatedBusy = null,Object? ocrEnabled = null,Object? ocrWaiting = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? relatedEnabled = null,Object? related = freezed,Object? relatedBusy = null,Object? ocrEnabled = null,Object? ocrWaiting = null,Object? resurfaceEnabled = null,Object? closeness = null,Object? onThisDayEnabled = null,}) {
   return _then(_self.copyWith(
 relatedEnabled: null == relatedEnabled ? _self.relatedEnabled : relatedEnabled // ignore: cast_nullable_to_non_nullable
 as bool,related: freezed == related ? _self.related : related // ignore: cast_nullable_to_non_nullable
 as RelatedState?,relatedBusy: null == relatedBusy ? _self.relatedBusy : relatedBusy // ignore: cast_nullable_to_non_nullable
 as bool,ocrEnabled: null == ocrEnabled ? _self.ocrEnabled : ocrEnabled // ignore: cast_nullable_to_non_nullable
 as bool,ocrWaiting: null == ocrWaiting ? _self.ocrWaiting : ocrWaiting // ignore: cast_nullable_to_non_nullable
-as int,
+as int,resurfaceEnabled: null == resurfaceEnabled ? _self.resurfaceEnabled : resurfaceEnabled // ignore: cast_nullable_to_non_nullable
+as bool,closeness: null == closeness ? _self.closeness : closeness // ignore: cast_nullable_to_non_nullable
+as String,onThisDayEnabled: null == onThisDayEnabled ? _self.onThisDayEnabled : onThisDayEnabled // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -666,10 +885,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool relatedEnabled,  RelatedState? related,  bool relatedBusy,  bool ocrEnabled,  int ocrWaiting)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool relatedEnabled,  RelatedState? related,  bool relatedBusy,  bool ocrEnabled,  int ocrWaiting,  bool resurfaceEnabled,  String closeness,  bool onThisDayEnabled)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _DiscoverySettingsState() when $default != null:
-return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEnabled,_that.ocrWaiting);case _:
+return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEnabled,_that.ocrWaiting,_that.resurfaceEnabled,_that.closeness,_that.onThisDayEnabled);case _:
   return orElse();
 
 }
@@ -687,10 +906,10 @@ return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEn
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool relatedEnabled,  RelatedState? related,  bool relatedBusy,  bool ocrEnabled,  int ocrWaiting)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool relatedEnabled,  RelatedState? related,  bool relatedBusy,  bool ocrEnabled,  int ocrWaiting,  bool resurfaceEnabled,  String closeness,  bool onThisDayEnabled)  $default,) {final _that = this;
 switch (_that) {
 case _DiscoverySettingsState():
-return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEnabled,_that.ocrWaiting);case _:
+return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEnabled,_that.ocrWaiting,_that.resurfaceEnabled,_that.closeness,_that.onThisDayEnabled);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -707,10 +926,10 @@ return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEn
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool relatedEnabled,  RelatedState? related,  bool relatedBusy,  bool ocrEnabled,  int ocrWaiting)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool relatedEnabled,  RelatedState? related,  bool relatedBusy,  bool ocrEnabled,  int ocrWaiting,  bool resurfaceEnabled,  String closeness,  bool onThisDayEnabled)?  $default,) {final _that = this;
 switch (_that) {
 case _DiscoverySettingsState() when $default != null:
-return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEnabled,_that.ocrWaiting);case _:
+return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEnabled,_that.ocrWaiting,_that.resurfaceEnabled,_that.closeness,_that.onThisDayEnabled);case _:
   return null;
 
 }
@@ -722,7 +941,7 @@ return $default(_that.relatedEnabled,_that.related,_that.relatedBusy,_that.ocrEn
 
 
 class _DiscoverySettingsState implements DiscoverySettingsState {
-  const _DiscoverySettingsState({this.relatedEnabled = false, this.related, this.relatedBusy = false, this.ocrEnabled = false, this.ocrWaiting = 0});
+  const _DiscoverySettingsState({this.relatedEnabled = false, this.related, this.relatedBusy = false, this.ocrEnabled = false, this.ocrWaiting = 0, this.resurfaceEnabled = true, this.closeness = 'default', this.onThisDayEnabled = true});
   
 
 @override@JsonKey() final  bool relatedEnabled;
@@ -730,6 +949,9 @@ class _DiscoverySettingsState implements DiscoverySettingsState {
 @override@JsonKey() final  bool relatedBusy;
 @override@JsonKey() final  bool ocrEnabled;
 @override@JsonKey() final  int ocrWaiting;
+@override@JsonKey() final  bool resurfaceEnabled;
+@override@JsonKey() final  String closeness;
+@override@JsonKey() final  bool onThisDayEnabled;
 
 /// Create a copy of DiscoverySettingsState
 /// with the given fields replaced by the non-null parameter values.
@@ -741,16 +963,16 @@ _$DiscoverySettingsStateCopyWith<_DiscoverySettingsState> get copyWith => __$Dis
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DiscoverySettingsState&&(identical(other.relatedEnabled, relatedEnabled) || other.relatedEnabled == relatedEnabled)&&(identical(other.related, related) || other.related == related)&&(identical(other.relatedBusy, relatedBusy) || other.relatedBusy == relatedBusy)&&(identical(other.ocrEnabled, ocrEnabled) || other.ocrEnabled == ocrEnabled)&&(identical(other.ocrWaiting, ocrWaiting) || other.ocrWaiting == ocrWaiting));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DiscoverySettingsState&&(identical(other.relatedEnabled, relatedEnabled) || other.relatedEnabled == relatedEnabled)&&(identical(other.related, related) || other.related == related)&&(identical(other.relatedBusy, relatedBusy) || other.relatedBusy == relatedBusy)&&(identical(other.ocrEnabled, ocrEnabled) || other.ocrEnabled == ocrEnabled)&&(identical(other.ocrWaiting, ocrWaiting) || other.ocrWaiting == ocrWaiting)&&(identical(other.resurfaceEnabled, resurfaceEnabled) || other.resurfaceEnabled == resurfaceEnabled)&&(identical(other.closeness, closeness) || other.closeness == closeness)&&(identical(other.onThisDayEnabled, onThisDayEnabled) || other.onThisDayEnabled == onThisDayEnabled));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,relatedEnabled,related,relatedBusy,ocrEnabled,ocrWaiting);
+int get hashCode => Object.hash(runtimeType,relatedEnabled,related,relatedBusy,ocrEnabled,ocrWaiting,resurfaceEnabled,closeness,onThisDayEnabled);
 
 @override
 String toString() {
-  return 'DiscoverySettingsState(relatedEnabled: $relatedEnabled, related: $related, relatedBusy: $relatedBusy, ocrEnabled: $ocrEnabled, ocrWaiting: $ocrWaiting)';
+  return 'DiscoverySettingsState(relatedEnabled: $relatedEnabled, related: $related, relatedBusy: $relatedBusy, ocrEnabled: $ocrEnabled, ocrWaiting: $ocrWaiting, resurfaceEnabled: $resurfaceEnabled, closeness: $closeness, onThisDayEnabled: $onThisDayEnabled)';
 }
 
 
@@ -761,7 +983,7 @@ abstract mixin class _$DiscoverySettingsStateCopyWith<$Res> implements $Discover
   factory _$DiscoverySettingsStateCopyWith(_DiscoverySettingsState value, $Res Function(_DiscoverySettingsState) _then) = __$DiscoverySettingsStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool relatedEnabled, RelatedState? related, bool relatedBusy, bool ocrEnabled, int ocrWaiting
+ bool relatedEnabled, RelatedState? related, bool relatedBusy, bool ocrEnabled, int ocrWaiting, bool resurfaceEnabled, String closeness, bool onThisDayEnabled
 });
 
 
@@ -778,14 +1000,17 @@ class __$DiscoverySettingsStateCopyWithImpl<$Res>
 
 /// Create a copy of DiscoverySettingsState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? relatedEnabled = null,Object? related = freezed,Object? relatedBusy = null,Object? ocrEnabled = null,Object? ocrWaiting = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? relatedEnabled = null,Object? related = freezed,Object? relatedBusy = null,Object? ocrEnabled = null,Object? ocrWaiting = null,Object? resurfaceEnabled = null,Object? closeness = null,Object? onThisDayEnabled = null,}) {
   return _then(_DiscoverySettingsState(
 relatedEnabled: null == relatedEnabled ? _self.relatedEnabled : relatedEnabled // ignore: cast_nullable_to_non_nullable
 as bool,related: freezed == related ? _self.related : related // ignore: cast_nullable_to_non_nullable
 as RelatedState?,relatedBusy: null == relatedBusy ? _self.relatedBusy : relatedBusy // ignore: cast_nullable_to_non_nullable
 as bool,ocrEnabled: null == ocrEnabled ? _self.ocrEnabled : ocrEnabled // ignore: cast_nullable_to_non_nullable
 as bool,ocrWaiting: null == ocrWaiting ? _self.ocrWaiting : ocrWaiting // ignore: cast_nullable_to_non_nullable
-as int,
+as int,resurfaceEnabled: null == resurfaceEnabled ? _self.resurfaceEnabled : resurfaceEnabled // ignore: cast_nullable_to_non_nullable
+as bool,closeness: null == closeness ? _self.closeness : closeness // ignore: cast_nullable_to_non_nullable
+as String,onThisDayEnabled: null == onThisDayEnabled ? _self.onThisDayEnabled : onThisDayEnabled // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

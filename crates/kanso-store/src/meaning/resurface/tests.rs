@@ -76,14 +76,14 @@ fn index(store: &Store) {
     let queue = store.embedding_queue("words").unwrap();
     let mut rows = Vec::new();
     for pending in queue.pending {
-        let vector = Words.embed(&[pending.text.clone()]).remove(0);
+        let vector = Words.embed(std::slice::from_ref(&pending.text)).remove(0);
         let passages = pending
             .passages
             .iter()
             .map(|p| EmbeddedPassage {
                 start: p.start,
                 end: p.end,
-                vector: Words.embed(&[p.text.clone()]).remove(0),
+                vector: Words.embed(std::slice::from_ref(&p.text)).remove(0),
             })
             .collect();
         rows.push(EmbeddedNote {
@@ -298,7 +298,7 @@ fn on_this_day_lists_daily_notes_first_and_skips_the_unreadable() {
     let later = day(6_000, "Later");
     let outside = day(9_000, "Outside");
     let found = store
-        .on_this_day(&[(4_000, 7_000), (0, 2_000)], &[early.clone()], 3)
+        .on_this_day(&[(4_000, 7_000), (0, 2_000)], std::slice::from_ref(&early), 3)
         .unwrap();
     let ids: Vec<&str> = found.iter().map(|n| n.id.as_str()).collect();
     assert_eq!(ids, [early.as_str(), later.as_str(), inside.as_str()]);

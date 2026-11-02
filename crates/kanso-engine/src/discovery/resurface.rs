@@ -464,7 +464,7 @@ mod tests {
             passage: (0, 3),
             snippet: "the valve".into(),
         };
-        let items = present(&[near.clone()], 1_710_072_000_000 + 800 * day, 0);
+        let items = present(std::slice::from_ref(&near), 1_710_072_000_000 + 800 * day, 0);
         assert_eq!(items[0].title, "Untitled");
         assert_eq!(items[0].place, "Home \u{b7} March 2024");
         assert_eq!(
