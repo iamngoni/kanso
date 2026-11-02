@@ -210,7 +210,7 @@ fn file_ownership_unions_note_lists_and_bodies_and_survives_trash_and_rebuild() 
             .meta(kanso_store::DERIVED_VERSION_KEY)
             .unwrap()
             .as_deref(),
-        Some("3")
+        Some("4")
     );
 }
 

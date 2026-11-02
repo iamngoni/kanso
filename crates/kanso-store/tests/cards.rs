@@ -403,3 +403,29 @@ proptest! {
         prop_assert_eq!(got, want);
     }
 }
+
+#[test]
+fn cards_are_rebuilt_when_the_derived_version_moves() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("kanso.db");
+    let (n, key) = {
+        let store = Store::open(&path).unwrap();
+        let bk = book(&store);
+        let n = note(&store, &bk, "Q :: A\n");
+        // As a library built before flashcards existed: version 3.
+        store
+            .set_meta(kanso_store::DERIVED_VERSION_KEY, "3")
+            .unwrap();
+        let key = cards::card_key(&n, "Q");
+        (n, key)
+    };
+    let store = Store::open(&path).unwrap();
+    assert_eq!(keys(&store, &n), vec![key]);
+    assert_eq!(
+        store
+            .meta(kanso_store::DERIVED_VERSION_KEY)
+            .unwrap()
+            .as_deref(),
+        Some(kanso_store::DERIVED_VERSION)
+    );
+}
