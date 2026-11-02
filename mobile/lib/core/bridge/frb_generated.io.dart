@@ -23,6 +23,8 @@ import 'api/shared.dart';
 import 'api/shortcuts.dart';
 import 'api/sync.dart';
 import 'api/themes.dart';
+import 'api/triage.dart';
+import 'api/triage_types.dart';
 import 'api/types.dart';
 import 'api/voice.dart';
 import 'api/word_goal.dart';
@@ -111,6 +113,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoThemesPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemesPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoTriagePtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriagePtr;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
@@ -224,6 +230,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoTriage
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+    dynamic raw,
+  );
+
+  @protected
   KansoAccount
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccount(
     dynamic raw,
@@ -328,6 +340,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoThemes
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    dynamic raw,
+  );
+
+  @protected
+  KansoTriage
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
     dynamic raw,
   );
 
@@ -442,6 +460,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoThemes
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    dynamic raw,
+  );
+
+  @protected
+  KansoTriage
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
     dynamic raw,
   );
 
@@ -765,6 +789,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   TextChange dco_decode_box_autoadd_text_change(dynamic raw);
+
+  @protected
+  TriageCard dco_decode_box_autoadd_triage_card(dynamic raw);
+
+  @protected
+  TriageSettings dco_decode_box_autoadd_triage_settings(dynamic raw);
 
   @protected
   TwinRow dco_decode_box_autoadd_twin_row(dynamic raw);
@@ -1281,6 +1311,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<ThemedIcon> dco_decode_list_themed_icon(dynamic raw);
 
   @protected
+  List<TriageCard> dco_decode_list_triage_card(dynamic raw);
+
+  @protected
+  List<TriageChip> dco_decode_list_triage_chip(dynamic raw);
+
+  @protected
+  List<TriageFiling> dco_decode_list_triage_filing(dynamic raw);
+
+  @protected
+  List<TriageNote> dco_decode_list_triage_note(dynamic raw);
+
+  @protected
   List<VisibleNotebook> dco_decode_list_visible_notebook(dynamic raw);
 
   @protected
@@ -1506,6 +1548,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   TaskPlace? dco_decode_opt_box_autoadd_task_place(dynamic raw);
+
+  @protected
+  TriageCard? dco_decode_opt_box_autoadd_triage_card(dynamic raw);
 
   @protected
   TwinRow? dco_decode_opt_box_autoadd_twin_row(dynamic raw);
@@ -1859,6 +1904,33 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Ticked dco_decode_ticked(dynamic raw);
 
   @protected
+  TriageCard dco_decode_triage_card(dynamic raw);
+
+  @protected
+  TriageChip dco_decode_triage_chip(dynamic raw);
+
+  @protected
+  TriageField dco_decode_triage_field(dynamic raw);
+
+  @protected
+  TriageFiled dco_decode_triage_filed(dynamic raw);
+
+  @protected
+  TriageFiling dco_decode_triage_filing(dynamic raw);
+
+  @protected
+  TriageMissing dco_decode_triage_missing(dynamic raw);
+
+  @protected
+  TriageNote dco_decode_triage_note(dynamic raw);
+
+  @protected
+  TriageSettings dco_decode_triage_settings(dynamic raw);
+
+  @protected
+  TriageStatus dco_decode_triage_status(dynamic raw);
+
+  @protected
   TwinRow dco_decode_twin_row(dynamic raw);
 
   @protected
@@ -1997,6 +2069,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoTriage
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoAccount
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccount(
     SseDeserializer deserializer,
@@ -2101,6 +2179,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoThemes
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoTriage
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
     SseDeserializer deserializer,
   );
 
@@ -2215,6 +2299,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoThemes
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoTriage
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
     SseDeserializer deserializer,
   );
 
@@ -2588,6 +2678,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   TextChange sse_decode_box_autoadd_text_change(SseDeserializer deserializer);
+
+  @protected
+  TriageCard sse_decode_box_autoadd_triage_card(SseDeserializer deserializer);
+
+  @protected
+  TriageSettings sse_decode_box_autoadd_triage_settings(
+    SseDeserializer deserializer,
+  );
 
   @protected
   TwinRow sse_decode_box_autoadd_twin_row(SseDeserializer deserializer);
@@ -3188,6 +3286,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<ThemedIcon> sse_decode_list_themed_icon(SseDeserializer deserializer);
 
   @protected
+  List<TriageCard> sse_decode_list_triage_card(SseDeserializer deserializer);
+
+  @protected
+  List<TriageChip> sse_decode_list_triage_chip(SseDeserializer deserializer);
+
+  @protected
+  List<TriageFiling> sse_decode_list_triage_filing(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<TriageNote> sse_decode_list_triage_note(SseDeserializer deserializer);
+
+  @protected
   List<VisibleNotebook> sse_decode_list_visible_notebook(
     SseDeserializer deserializer,
   );
@@ -3461,6 +3573,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   TaskPlace? sse_decode_opt_box_autoadd_task_place(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TriageCard? sse_decode_opt_box_autoadd_triage_card(
     SseDeserializer deserializer,
   );
 
@@ -3834,6 +3951,33 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Ticked sse_decode_ticked(SseDeserializer deserializer);
 
   @protected
+  TriageCard sse_decode_triage_card(SseDeserializer deserializer);
+
+  @protected
+  TriageChip sse_decode_triage_chip(SseDeserializer deserializer);
+
+  @protected
+  TriageField sse_decode_triage_field(SseDeserializer deserializer);
+
+  @protected
+  TriageFiled sse_decode_triage_filed(SseDeserializer deserializer);
+
+  @protected
+  TriageFiling sse_decode_triage_filing(SseDeserializer deserializer);
+
+  @protected
+  TriageMissing sse_decode_triage_missing(SseDeserializer deserializer);
+
+  @protected
+  TriageNote sse_decode_triage_note(SseDeserializer deserializer);
+
+  @protected
+  TriageSettings sse_decode_triage_settings(SseDeserializer deserializer);
+
+  @protected
+  TriageStatus sse_decode_triage_status(SseDeserializer deserializer);
+
+  @protected
   TwinRow sse_decode_twin_row(SseDeserializer deserializer);
 
   @protected
@@ -3994,6 +4138,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+    KansoTriage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAccount(
     KansoAccount self,
     SseSerializer serializer,
@@ -4115,6 +4266,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
     KansoThemes self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+    KansoTriage self,
     SseSerializer serializer,
   );
 
@@ -4247,6 +4405,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes(
     KansoThemes self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+    KansoTriage self,
     SseSerializer serializer,
   );
 
@@ -4766,6 +4931,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_text_change(
     TextChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_triage_card(
+    TriageCard self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_triage_settings(
+    TriageSettings self,
     SseSerializer serializer,
   );
 
@@ -5541,6 +5718,30 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_triage_card(
+    List<TriageCard> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_triage_chip(
+    List<TriageChip> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_triage_filing(
+    List<TriageFiling> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_triage_note(
+    List<TriageNote> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_visible_notebook(
     List<VisibleNotebook> self,
     SseSerializer serializer,
@@ -5867,6 +6068,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_task_place(
     TaskPlace? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_triage_card(
+    TriageCard? self,
     SseSerializer serializer,
   );
 
@@ -6319,6 +6526,36 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_ticked(Ticked self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_card(TriageCard self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_chip(TriageChip self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_field(TriageField self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_filed(TriageFiled self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_filing(TriageFiling self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_missing(TriageMissing self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_note(TriageNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_triage_settings(
+    TriageSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_triage_status(TriageStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_twin_row(TwinRow self, SseSerializer serializer);
@@ -6975,5 +7212,39 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemes =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoThemesPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriagePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriagePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriagePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriage =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoTriagePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

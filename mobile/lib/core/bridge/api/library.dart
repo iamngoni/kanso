@@ -20,6 +20,7 @@ import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
 import 'themes.dart';
+import 'triage.dart';
 import 'types.dart';
 import 'voice.dart';
 
@@ -380,6 +381,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   });
 
   Future<void> trash({required String id});
+
+  KansoTriage triage();
 
   Future<int> undo({required int ticket});
 

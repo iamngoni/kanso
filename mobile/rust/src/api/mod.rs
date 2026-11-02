@@ -30,6 +30,8 @@ pub mod shared;
 pub mod shortcuts;
 pub mod sync;
 pub mod themes;
+pub mod triage;
+pub mod triage_types;
 pub mod types;
 pub mod voice;
 pub mod word_goal;
