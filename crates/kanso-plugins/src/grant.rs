@@ -34,7 +34,6 @@ pub fn initial(manifest: &Manifest) -> Grant {
         panel: p.ui.contains(&Surface::Panel),
         secrets: p.secrets.clone(),
         network: p.network.clone(),
-        clipboard: p.clipboard.clone(),
         ask_before_changing: true,
     }
 }
@@ -83,9 +82,6 @@ pub fn check(
     }
     if let Some(extra) = grant.network.difference(&p.network).next() {
         return not_asked(extra);
-    }
-    if let Some(extra) = grant.clipboard.difference(&p.clipboard).next() {
-        return not_asked(&format!("the clipboard ({extra:?})"));
     }
     if notes
         .read_books
@@ -138,11 +134,6 @@ pub fn narrow_to(grant: &Grant, manifest: &Manifest) -> Grant {
         panel: grant.panel && p.ui.contains(&Surface::Panel),
         secrets: grant.secrets.intersection(&p.secrets).cloned().collect(),
         network: grant.network.intersection(&p.network).cloned().collect(),
-        clipboard: grant
-            .clipboard
-            .intersection(&p.clipboard)
-            .copied()
-            .collect(),
         ask_before_changing: grant.ask_before_changing,
     }
 }
@@ -161,15 +152,13 @@ pub fn is_within(narrower: &Grant, wider: &Grant) -> bool {
         && (!narrower.panel || wider.panel)
         && narrower.secrets.is_subset(&wider.secrets)
         && narrower.network.is_subset(&wider.network)
-        && narrower.clipboard.is_subset(&wider.clipboard)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::{
-        ClipboardPermission, EditorPermission, Fence, NotesRequest, Permissions, Publisher,
-        ReadRequest,
+        EditorPermission, Fence, NotesRequest, Permissions, Publisher, ReadRequest,
     };
     use proptest::prelude::*;
 
@@ -210,27 +199,9 @@ mod tests {
             any::<bool>(),
             prop::collection::btree_set("[a-c]", 0..3),
             prop::collection::btree_set("[a-c]\\.example", 0..3),
-            prop::collection::btree_set(
-                prop::sample::select(vec![
-                    ClipboardPermission::HistoryRead,
-                    ClipboardPermission::Write,
-                ]),
-                0..3,
-            ),
         )
             .prop_map(
-                |(
-                    commands,
-                    editor,
-                    read,
-                    write,
-                    create,
-                    fences,
-                    panel,
-                    secrets,
-                    network,
-                    clipboard,
-                )| {
+                |(commands, editor, read, write, create, fences, panel, secrets, network)| {
                     Permissions {
                         commands,
                         editor,
@@ -253,7 +224,6 @@ mod tests {
                         },
                         secrets,
                         network,
-                        clipboard,
                     }
                 },
             )
@@ -280,13 +250,6 @@ mod tests {
                 any::<bool>(),
                 prop::collection::btree_set("[a-d]", 0..3),
                 prop::collection::btree_set("[a-d]\\.example", 0..3),
-                prop::collection::btree_set(
-                    prop::sample::select(vec![
-                        ClipboardPermission::HistoryRead,
-                        ClipboardPermission::Write,
-                    ]),
-                    0..3,
-                ),
             ),
         )
             .prop_map(
@@ -299,7 +262,7 @@ mod tests {
                     write_books,
                     create,
                     fences,
-                    (panel, secrets, network, clipboard),
+                    (panel, secrets, network),
                 )| Grant {
                     commands,
                     editor,
@@ -314,7 +277,6 @@ mod tests {
                     panel,
                     secrets,
                     network,
-                    clipboard,
                     ask_before_changing: true,
                 },
             )
