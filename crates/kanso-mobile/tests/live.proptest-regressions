@@ -1,0 +1,4 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+cc 9031665693b3ac15268ea71284740d1df2b928bb555773ebb58ed24e70b15b47 # shrinks to pieces = ["Setext\n===\n", "---\n", "para **b** _i_ ~~s~~ `c` 🙂\n", "---\n"], reveal = []

@@ -4,4 +4,4 @@
 #
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
-cc 1340d073a4dc85ef42b9313f3bc1f8cf9428fe68f9dc84f97ae5f4d6d8cd308b # shrinks to notes = [], files = []
+cc 3c107b058777586f407d009996a0d757257a8d3171fc9eca2680882c4f5874bc # shrinks to body = "", at = Index(0)
