@@ -817,6 +817,7 @@ mod tests {
                 panel: false,
                 secrets: Default::default(),
                 network: Default::default(),
+                clipboard: Default::default(),
                 ask_before_changing: true,
             },
             disabled: None,

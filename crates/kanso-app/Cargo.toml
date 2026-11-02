@@ -150,9 +150,10 @@ gpui-pre-apple = "=0.3.9"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Sticky notes on X11 (`sticky.rs`): the window's ID, and the EWMH request
-# that keeps it on top. The versions GPUI already builds.
+# that keeps it on top. The versions GPUI already builds. XFixes: clipboard
+# history hears when the clipboard changes hands (`clipboard_watch.rs`).
 raw-window-handle = "0.6"
-x11rb = "0.13"
+x11rb = { version = "0.13", features = ["xfixes"] }
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 # The same, with the cosmic-text shaping the Linux platform uses.

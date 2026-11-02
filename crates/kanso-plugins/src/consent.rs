@@ -1,7 +1,7 @@
 //! What the install and update sheets say, generated from the manifest and
 //! the grant, never written by the author.
 
-use crate::model::{EditorPermission, Grant, Manifest, Permissions, Surface};
+use crate::model::{ClipboardPermission, EditorPermission, Grant, Manifest, Permissions, Surface};
 
 /// Each thing `permissions` asks for, one plain line apiece, in a fixed
 /// order: what the directory lists and what an update's diff compares.
@@ -45,10 +45,24 @@ pub fn permission_lines(permissions: &Permissions) -> Vec<String> {
     for secret in &permissions.secrets {
         lines.push(format!("use the token you save for it as {secret}"));
     }
+    for clipboard in &permissions.clipboard {
+        lines.push(clipboard_line(*clipboard).to_owned());
+    }
     for host in &permissions.network {
         lines.push(format!("connect to {host}"));
     }
     lines
+}
+
+/// What a clipboard permission lets a plugin do, in the sheet's words.
+/// Pure.
+fn clipboard_line(permission: ClipboardPermission) -> &'static str {
+    match permission {
+        ClipboardPermission::HistoryRead => {
+            "read the text you copy in any app while Kanso is open (Kanso keeps the last 15 in memory, leaving out passwords and what looks like a key)"
+        }
+        ClipboardPermission::Write => "put text on the clipboard",
+    }
 }
 
 /// How a plugin's code is vouched for.
@@ -144,6 +158,9 @@ pub fn sheet(
     for secret in &grant.secrets {
         can.push(format!("use the token you save for it as {secret}"));
     }
+    for clipboard in &grant.clipboard {
+        can.push(clipboard_line(*clipboard).to_owned());
+    }
 
     let mut warning = None;
     if !hosts.is_empty() {
@@ -184,6 +201,9 @@ pub fn sheet(
         "read locked notes, your lock password, your keys, your account or your sync code"
             .to_owned(),
     );
+    if !grant.clipboard.contains(&ClipboardPermission::HistoryRead) {
+        cannot.push("read what you copy in other apps".to_owned());
+    }
     if hosts.is_empty() {
         cannot.push("use the network".to_owned());
     }
@@ -263,6 +283,7 @@ mod tests {
             panel: false,
             secrets: BTreeSet::new(),
             network: BTreeSet::new(),
+            clipboard: BTreeSet::new(),
             ask_before_changing: true,
         }
     }
@@ -314,6 +335,7 @@ mod tests {
             [
                 "read other notes or notebooks",
                 "read locked notes, your lock password, your keys, your account or your sync code",
+                "read what you copy in other apps",
                 "use the network",
                 "read files on your computer",
                 "delete notes, notebooks or tags",
@@ -449,9 +471,25 @@ mod tests {
             any::<bool>(),
             proptest::collection::btree_set("[A-Z]{1,6}", 0..3),
             proptest::collection::btree_set("[a-z]{1,6}\\.example", 0..3),
+            proptest::collection::btree_set(
+                proptest::sample::select(vec![
+                    ClipboardPermission::HistoryRead,
+                    ClipboardPermission::Write,
+                ]),
+                0..3,
+            ),
         )
             .prop_map(
-                |(commands, editor, (rb, rt, ra, wb, create), fences, panel, secrets, network)| {
+                |(
+                    commands,
+                    editor,
+                    (rb, rt, ra, wb, create),
+                    fences,
+                    panel,
+                    secrets,
+                    network,
+                    clipboard,
+                )| {
                     Grant {
                         commands,
                         editor,
@@ -466,6 +504,7 @@ mod tests {
                         panel,
                         secrets,
                         network,
+                        clipboard,
                         ask_before_changing: true,
                     }
                 },
@@ -532,6 +571,17 @@ mod tests {
             if g.fences.is_empty() { prop_assert!(!has("draw")); }
             if !g.panel { prop_assert!(!has("panel")); }
             if g.secrets.is_empty() { prop_assert!(!has("token")); }
+            // The clipboard only as granted, and its absence said out loud.
+            let reads_clipboard = g.clipboard.contains(&ClipboardPermission::HistoryRead);
+            prop_assert_eq!(has("text you copy"), reads_clipboard);
+            prop_assert_eq!(
+                s.cannot.contains(&"read what you copy in other apps".to_owned()),
+                !reads_clipboard
+            );
+            prop_assert_eq!(
+                has("put text on the clipboard"),
+                g.clipboard.contains(&ClipboardPermission::Write)
+            );
             if g.network.is_empty() { prop_assert!(!has("connect to") && !has("send what")); }
             if !g.notes.reads() && g.editor.is_empty() && !g.network.is_empty() {
                 prop_assert!(!has("read notes"));

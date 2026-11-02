@@ -963,6 +963,8 @@ mod tests {
                 kanso.settings.get();
                 kanso.settings.set({ k: 1 });
                 kanso.secrets.get('token');
+                kanso.clipboard.history();
+                kanso.clipboard.write('copied');
                 kanso.fetch('https://example.com', { method: 'POST', headers: { a: 'b' }, body: 'x' });
             } });
         "#;
@@ -999,6 +1001,8 @@ mod tests {
             ("settings.get", serde_json::json!({})),
             ("settings.set", serde_json::json!({ "value": { "k": 1 } })),
             ("secrets.get", serde_json::json!({ "name": "token" })),
+            ("clipboard.history", serde_json::json!({})),
+            ("clipboard.write", serde_json::json!({ "text": "copied" })),
             (
                 "fetch",
                 serde_json::json!({ "url": "https://example.com", "method": "POST", "headers": { "a": "b" }, "body": "x" }),

@@ -411,6 +411,7 @@ impl PluginsPage {
                         let id = id.clone();
                         cx.listener(move |_, on: &bool, _, cx| {
                             shared.set_enabled(&id, *on);
+                            crate::clipboard_history::sync(cx);
                             cx.notify();
                         })
                     })),
@@ -471,6 +472,7 @@ impl PluginsPage {
                                         if let Err(why) = shared.set_grant(&id, grant) {
                                             notify_error(why, window, cx);
                                         }
+                                        crate::clipboard_history::sync(cx);
                                         cx.notify();
                                     })
                                 }),
@@ -615,6 +617,7 @@ impl PluginsPage {
                         let id = id.clone();
                         cx.listener(move |_, _, _, cx| {
                             shared.set_enabled(&id, true);
+                            crate::clipboard_history::sync(cx);
                             cx.notify();
                         })
                     }),
@@ -631,6 +634,7 @@ impl PluginsPage {
                         let id = id.clone();
                         cx.listener(move |_, _, _, cx| {
                             shared.block(&id);
+                            crate::clipboard_history::sync(cx);
                             cx.notify();
                         })
                     }),
@@ -980,6 +984,7 @@ pub fn open_books_sheet(
                 if let Err(why) = shared.set_grant(plugin.id(), grant) {
                     notify_error(why, window, cx);
                 }
+                crate::clipboard_history::sync(cx);
                 page.update(cx, |_, cx| cx.notify());
                 true
             })

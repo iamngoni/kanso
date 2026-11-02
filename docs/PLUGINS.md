@@ -124,7 +124,8 @@ kanso plugin dev kanso-plugins/plugins/app.kanso.sample.wordcount/source
     "fences": [{ "language": "barchart" }],
     "ui": ["panel"],
     "secrets": ["token"],
-    "network": ["api.example.com"]
+    "network": ["api.example.com"],
+    "clipboard": ["write"]
   }
 }
 ```
@@ -144,6 +145,7 @@ most 5 MB and 200 files, its script at most 2 MB.
 | `ui: ["panel"]` | A panel in the inspector |
 | `secrets` | Reading these tokens, which you type in Settings › Plugins |
 | `network` | HTTPS requests to exactly these hosts |
+| `clipboard` | `history.read`: the text copied in any app while Kanso is open ([Clipboard](#clipboard)). `write`: putting text on the clipboard |
 
 ### The API
 
@@ -226,10 +228,54 @@ kanso.fetch(url, { method, headers, body }) // { status, headers, body }
 kanso.log(level, text)      // shown in Settings › Plugins
 ```
 
+```js
+kanso.clipboard.history()   // [{ text, copiedAt }], newest first, at most 15
+kanso.clipboard.write(text) // puts text on the clipboard once the call returns
+```
+
+`history` needs `clipboard: ["history.read"]` and `write` needs
+`clipboard: ["write"]`; see [Clipboard](#clipboard).
+
 `fetch` goes through Kanso: HTTPS only, to the manifest's hosts only, never
 to an IP address or a private network, with redirects checked at each hop.
 A plugin may make 30 requests a minute and receive 20 MB a day, and
 Settings › Plugins lists its recent requests. Renderers can't fetch.
+
+## Clipboard
+
+A plugin only runs when it's used, so it can't watch the clipboard itself.
+Kanso does, and only while an installed plugin that holds
+`clipboard: ["history.read"]` is on (and not held back by safe mode). With
+no such plugin, nothing watches, as before; when the last one is turned
+off, blocked or removed, the watching stops and every copy is forgotten
+within a couple of seconds.
+
+What Kanso keeps:
+
+- the last 15 texts copied in any app while Kanso is open, newest first, a
+  copy made again moving to the front; at most 16 KB each, text only;
+- in memory only: never the library, the config, a log, search, sync, the
+  local API or MCP, and gone when Kanso quits;
+- for an hour each.
+
+What it leaves out: a copy the app it came from marked secret (macOS's
+`org.nspasteboard` concealed, transient and generated markers; Windows'
+`ExcludeClipboardContentFromMonitorProcessing`, `Clipboard Viewer Ignore`
+and `CanIncludeInClipboardHistory` = 0; KDE's `x-kde-passwordManagerHint`,
+as KeePassXC sets it, also when the copy is handed on unmarked afterwards),
+Kanso's own recovery key, and text that looks like a key, a token, a card
+number or a generated password.
+
+It watches on macOS and Windows, and on Linux under X11 or XWayland
+(`KANSO_BACKEND=x11`, or Run under XWayland in Settings › General). On
+native Wayland only the window in front may read the clipboard, so the
+history stays empty.
+
+A plugin with `clipboard: ["history.read"]` can't ask for `network`: what
+was copied could be a password, and must not be able to leave the computer.
+The manifest is refused otherwise, at install and in the directory. The
+install sheet of every plugin without it says it can't "read what you copy
+in other apps".
 
 ## Decisions
 
@@ -245,6 +291,8 @@ The design's open questions are settled:
 - Reads leave out `#ai-exclude` notes.
 - Settings stay on this Mac.
 - Per-note data syncs with the note.
+- Clipboard history is collected by Kanso, only while a plugin that reads it
+  is on, and never reaches a plugin that can use the network.
 
 ## Publishing
 

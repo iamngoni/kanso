@@ -28,6 +28,32 @@ pub fn still_ours(copied: isize, now: isize) -> bool {
     copied == now
 }
 
+/// A hash of the last secret copied, so clipboard history
+/// (`clipboard_history.rs`) skips it on a clipboard that can't mark it
+/// concealed. Only the hash is kept.
+static OWN_SECRET: Mutex<Option<u64>> = Mutex::new(None);
+
+pub(crate) fn fingerprint(text: &str) -> u64 {
+    use std::hash::{Hash as _, Hasher as _};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn remember_own_secret(secret: &str) {
+    *OWN_SECRET
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner()) = Some(fingerprint(secret));
+}
+
+/// Whether `text` is the last secret Kanso copied (the recovery key).
+pub fn is_own_secret(text: &str) -> bool {
+    *OWN_SECRET
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+        == Some(fingerprint(text))
+}
+
 /// Whether to clear the clipboard now. `timer` is the copy whose minute is
 /// up, or `None` at quit for whichever secret was copied last; `now` is the
 /// clipboard's change count. Only the last secret is ever cleared, and only
@@ -68,6 +94,7 @@ pub fn clear_secret_on_quit() {
 /// clipboard couldn't be written.
 #[cfg(target_os = "macos")]
 pub fn copy_secret(secret: &str, cx: &mut App) -> bool {
+    remember_own_secret(secret);
     let Some(copied) = mac::copy_secret(secret) else {
         return false;
     };
@@ -89,12 +116,7 @@ pub fn copy_secret(secret: &str, cx: &mut App) -> bool {
 /// the minute. Not cleared at quit.
 #[cfg(not(target_os = "macos"))]
 pub fn copy_secret(secret: &str, cx: &mut App) -> bool {
-    fn fingerprint(text: &str) -> u64 {
-        use std::hash::{Hash as _, Hasher as _};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        text.hash(&mut hasher);
-        hasher.finish()
-    }
+    remember_own_secret(secret);
     cx.write_to_clipboard(ClipboardItem::new_string(secret.to_owned()));
     let copied = fingerprint(secret);
     cx.spawn(async move |cx| {
@@ -168,11 +190,100 @@ fn cf_html_fragment(data: &[u8]) -> Option<String> {
 }
 
 #[cfg(target_os = "windows")]
-mod win {
+pub(crate) mod win {
     use windows_sys::Win32::System::DataExchange::{
-        CloseClipboard, GetClipboardData, IsClipboardFormatAvailable, OpenClipboard,
-        RegisterClipboardFormatW,
+        CloseClipboard, GetClipboardData, GetClipboardSequenceNumber, IsClipboardFormatAvailable,
+        OpenClipboard, RegisterClipboardFormatW,
     };
+
+    /// `CF_UNICODETEXT`.
+    const UNICODE_TEXT: u32 = 13;
+
+    /// The clipboard's sequence number, which every copy changes.
+    pub fn sequence() -> u32 {
+        // SAFETY: a plain query.
+        unsafe { GetClipboardSequenceNumber() }
+    }
+
+    fn format(name: &str) -> u32 {
+        let name: Vec<u16> = name.encode_utf16().chain([0]).collect();
+        // SAFETY: a NUL-terminated UTF-16 name; registering is idempotent.
+        unsafe { RegisterClipboardFormatW(name.as_ptr()) }
+    }
+
+    /// The bytes of `format` on the open clipboard.
+    ///
+    /// # Safety
+    /// The clipboard is open on this thread.
+    unsafe fn data(format: u32) -> Option<Vec<u8>> {
+        // SAFETY: the clipboard is open; the locked memory is copied
+        // before it is unlocked.
+        unsafe {
+            let handle = GetClipboardData(format);
+            if handle.is_null() {
+                return None;
+            }
+            let data = GlobalLock(handle) as *const u8;
+            if data.is_null() {
+                return None;
+            }
+            let bytes = std::slice::from_raw_parts(data, GlobalSize(handle)).to_vec();
+            GlobalUnlock(handle);
+            Some(bytes)
+        }
+    }
+
+    /// What was copied, for clipboard history (`clipboard_watch.rs`):
+    /// whether the app asked monitors and the history to leave it alone
+    /// (as password managers do), and its text. `None` while another app
+    /// has the clipboard open.
+    pub fn read_copy() -> Option<(bool, Option<String>)> {
+        let excluded = [
+            format("ExcludeClipboardContentFromMonitorProcessing"),
+            format("Clipboard Viewer Ignore"),
+        ];
+        let history = format("CanIncludeInClipboardHistory");
+        // SAFETY: the clipboard is opened and closed here, and only read
+        // while open.
+        unsafe {
+            if OpenClipboard(std::ptr::null_mut()) == 0 {
+                return None;
+            }
+            let read = (|| {
+                if excluded
+                    .iter()
+                    .any(|&f| f != 0 && IsClipboardFormatAvailable(f) != 0)
+                {
+                    return (true, None);
+                }
+                if history != 0 && IsClipboardFormatAvailable(history) != 0 {
+                    // A DWORD: 0 keeps it out of the history.
+                    let allowed = data(history).and_then(|bytes| {
+                        bytes
+                            .get(..4)
+                            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                    });
+                    if allowed == Some(0) {
+                        return (true, None);
+                    }
+                }
+                if IsClipboardFormatAvailable(UNICODE_TEXT) == 0 {
+                    return (false, None);
+                }
+                let text = data(UNICODE_TEXT).map(|bytes| {
+                    let units: Vec<u16> = bytes
+                        .chunks_exact(2)
+                        .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+                        .take_while(|&unit| unit != 0)
+                        .collect();
+                    String::from_utf16_lossy(&units)
+                });
+                (false, text)
+            })();
+            CloseClipboard();
+            Some(read)
+        }
+    }
     use windows_sys::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
 
     #[cfg_attr(test, allow(dead_code))]
@@ -212,7 +323,7 @@ mod win {
 }
 
 #[cfg(target_os = "macos")]
-mod mac {
+pub(crate) mod mac {
     use std::ffi::{CString, c_char, c_void};
     use std::path::Path;
 
@@ -224,6 +335,8 @@ mod mac {
         fn objc_getClass(name: *const c_char) -> Id;
         fn sel_registerName(name: *const c_char) -> Sel;
         fn objc_msgSend();
+        fn objc_autoreleasePoolPush() -> *mut c_void;
+        fn objc_autoreleasePoolPop(pool: *mut c_void);
     }
 
     #[link(name = "AppKit", kind = "framework")]
@@ -240,6 +353,8 @@ mod mac {
     /// nspasteboard.org's markers: don't show it, don't keep it.
     const CONCEALED: &str = "org.nspasteboard.ConcealedType";
     const TRANSIENT: &str = "org.nspasteboard.TransientType";
+    /// A password generator's: made, not typed.
+    const AUTO_GENERATED: &str = "org.nspasteboard.AutoGeneratedType";
 
     fn class(name: &str) -> Option<Id> {
         let name = CString::new(name).ok()?;
@@ -332,6 +447,68 @@ mod mac {
         }
         let html = unsafe { std::ffi::CStr::from_ptr(bytes) };
         Some(html.to_string_lossy().into_owned())
+    }
+
+    /// `UTF8String` of an NSString, copied.
+    fn rust_string(string: Id) -> Option<String> {
+        if string.is_null() {
+            return None;
+        }
+        // SAFETY: `UTF8String` returns a NUL-terminated buffer the string
+        // owns, valid while it lives; it is copied at once.
+        let utf8: unsafe extern "C" fn(Id, Sel) -> *const c_char =
+            unsafe { std::mem::transmute(objc_msgSend as unsafe extern "C" fn()) };
+        let bytes = unsafe { utf8(string, sel("UTF8String")) };
+        if bytes.is_null() {
+            return None;
+        }
+        Some(
+            unsafe { std::ffi::CStr::from_ptr(bytes) }
+                .to_string_lossy()
+                .into_owned(),
+        )
+    }
+
+    /// What was copied, for clipboard history (`clipboard_watch.rs`):
+    /// whether the app marked it concealed, transient or generated, and its
+    /// text. Off the main thread, so in an autorelease pool of its own.
+    pub fn read_copy() -> Option<(bool, Option<String>)> {
+        // SAFETY: a pool pushed and popped on this thread around the calls
+        // that autorelease.
+        let pool = unsafe { objc_autoreleasePoolPush() };
+        let read = (|| {
+            let pasteboard = general_pasteboard()?;
+            // SAFETY: `types` returns an autoreleased NSArray of NSStrings
+            // (or nil); `count` an NSUInteger, `objectAtIndex:` an element.
+            let send: unsafe extern "C" fn(Id, Sel) -> Id =
+                unsafe { std::mem::transmute(objc_msgSend as unsafe extern "C" fn()) };
+            let count: unsafe extern "C" fn(Id, Sel) -> usize =
+                unsafe { std::mem::transmute(objc_msgSend as unsafe extern "C" fn()) };
+            let at: unsafe extern "C" fn(Id, Sel, usize) -> Id =
+                unsafe { std::mem::transmute(objc_msgSend as unsafe extern "C" fn()) };
+            let types = unsafe { send(pasteboard, sel("types")) };
+            let mut kinds = Vec::new();
+            if !types.is_null() {
+                for ix in 0..unsafe { count(types, sel("count")) } {
+                    kinds.extend(rust_string(unsafe { at(types, sel("objectAtIndex:"), ix) }));
+                }
+            }
+            if kinds
+                .iter()
+                .any(|kind| [CONCEALED, TRANSIENT, AUTO_GENERATED].contains(&kind.as_str()))
+            {
+                return Some((true, None));
+            }
+            let kind = ns_string(UTF8_TEXT)?;
+            // SAFETY: `stringForType:` takes an NSString and returns an
+            // autoreleased NSString, or nil when there is no text.
+            let string_for: unsafe extern "C" fn(Id, Sel, Id) -> Id =
+                unsafe { std::mem::transmute(objc_msgSend as unsafe extern "C" fn()) };
+            let text = unsafe { string_for(pasteboard, sel("stringForType:"), kind) };
+            Some((false, rust_string(text)))
+        })();
+        unsafe { objc_autoreleasePoolPop(pool) };
+        read
     }
 
     pub fn change_count() -> Option<isize> {
