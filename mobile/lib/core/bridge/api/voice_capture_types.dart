@@ -9,11 +9,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 class TidyOutcome {
   final bool insertedAbove;
   final int dropped;
+  final int? undo;
 
-  const TidyOutcome({required this.insertedAbove, required this.dropped});
+  const TidyOutcome({
+    required this.insertedAbove,
+    required this.dropped,
+    this.undo,
+  });
 
   @override
-  int get hashCode => insertedAbove.hashCode ^ dropped.hashCode;
+  int get hashCode => insertedAbove.hashCode ^ dropped.hashCode ^ undo.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -21,7 +26,8 @@ class TidyOutcome {
       other is TidyOutcome &&
           runtimeType == other.runtimeType &&
           insertedAbove == other.insertedAbove &&
-          dropped == other.dropped;
+          dropped == other.dropped &&
+          undo == other.undo;
 }
 
 class VoiceCaptureInput {

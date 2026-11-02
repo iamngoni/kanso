@@ -23,6 +23,9 @@ abstract class KansoVoiceCapture implements RustOpaqueInterface {
   /// Tidy may be offered.
   Future<VoiceNoteInfo?> noteInfo({required String id});
 
+  /// Moves recording `id` to `inbox-kept/` beside the inbox. Never deletes.
+  Future<void> quarantineDrop({required String inbox, required String id});
+
   /// Saves a voice note as a note in the Inbox. No `note_id` in the answer
   /// means nothing was heard and nothing was saved.
   Future<VoiceCaptureSaved> save({required VoiceCaptureInput input});

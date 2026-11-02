@@ -5,10 +5,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/voice_capture_types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/router/kanso_routes.dart';
+import '../../../core/state/undo_notice/undo_notice_bloc.dart';
+import '../../../core/utils/ai_trouble_text.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_icon.dart';
@@ -107,9 +112,27 @@ class _VoiceTidyStripState extends State<VoiceTidyStrip> {
       }),
       (outcome) {
         setState(() => _working = false);
+        final ticket = outcome.undo;
+        if (ticket != null) {
+          _offerUndo(ticket);
+        }
         unawaited(_load());
       },
     );
+  }
+
+  /// The notice that puts the note back as it was.
+  void _offerUndo(int ticket) {
+    final message = context.l10n.voiceTidyDone;
+    try {
+      context.read<UndoNoticeBloc>().add(
+        UndoNoticeEvent.shown(ticket, message),
+      );
+    } on ProviderNotFoundException {
+      if (getIt.isRegistered<UndoNoticeBloc>()) {
+        getIt<UndoNoticeBloc>().add(UndoNoticeEvent.shown(ticket, message));
+      }
+    }
   }
 
   @override
@@ -125,7 +148,7 @@ class _VoiceTidyStripState extends State<VoiceTidyStrip> {
     final words = _working
         ? l10n.voiceTidyWorking
         : failure != null
-        ? l10n.voiceTidyFailed(failure)
+        ? aiTroubleText(failure, l10n)
         : l10n.voiceTidyOffer;
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -157,6 +180,14 @@ class _VoiceTidyStripState extends State<VoiceTidyStrip> {
               ),
             ),
           ),
+          if (!_working && failure != null)
+            KansoButton(
+              label: l10n.aiTroubleSettings,
+              variant: KansoButtonVariant.quiet,
+              compact: true,
+              expanded: false,
+              onPressed: () => unawaited(context.push(KansoRoutes.settingsAi)),
+            ),
           if (!_working)
             KansoButton(
               label: failure != null ? l10n.voiceTidyTryAgain : l10n.voiceTidy,

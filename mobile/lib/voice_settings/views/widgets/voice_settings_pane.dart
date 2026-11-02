@@ -20,6 +20,7 @@ import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../dictation/models/data/dictation_permission.dart';
 import '../../../shell/views/widgets/shell_back_button.dart';
+import '../../../voice_capture/state/voice_drops/voice_drops_bloc.dart';
 import '../../models/data/voice_settings.dart';
 import '../../models/data/voice_tidy_mode.dart';
 import '../../state/voice_settings/voice_settings_bloc.dart';
@@ -203,9 +204,13 @@ class VoiceSettingsPane extends StatelessWidget {
           title: l10n.voiceSettingsCaptureSection,
           dividerIndent: iconInset,
           children: <Widget>[
-            KansoSettingsRow(
-              icon: KansoIcons.sparkles,
-              label: l10n.voiceSettingsTidy,
+            Opacity(
+              opacity: aiOn ? 1 : 0.5,
+              child: KansoSettingsRow(
+                icon: KansoIcons.sparkles,
+                label: l10n.voiceSettingsTidy,
+                value: aiOn ? null : l10n.voiceSettingsTidyOff,
+              ),
             ),
             if (aiOn)
               Padding(
@@ -242,7 +247,7 @@ class VoiceSettingsPane extends StatelessWidget {
               (on) => change(settings.copyWith(meetings: on)),
             ),
             toggle(
-              KansoIcons.sparkles,
+              KansoIcons.mic,
               l10n.voiceSettingsKeepAudio,
               settings.keepAudio,
               (on) => change(settings.copyWith(keepAudio: on)),
@@ -264,6 +269,7 @@ class VoiceSettingsPane extends StatelessWidget {
           ),
         ),
         const SizedBox(height: KansoSpacing.lg),
+        _waiting(context),
         KansoGroupedSection(
           footer: l10n.voiceSettingsServerHelp,
           dividerIndent: iconInset,
@@ -277,6 +283,42 @@ class VoiceSettingsPane extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  /// How many recordings wait to be transcribed, and what was left out of
+  /// the last ones. Nothing where the app has no voice drops (a test host).
+  Widget _waiting(BuildContext context) {
+    final VoiceDropsState drops;
+    try {
+      drops = context.watch<VoiceDropsBloc>().state;
+    } on ProviderNotFoundException {
+      return const SizedBox.shrink();
+    }
+    final l10n = context.l10n;
+    final colors = context.colors;
+    if (drops.waiting == 0 && drops.problems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: KansoSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          if (drops.waiting > 0)
+            Text(
+              l10n.voiceSettingsWaiting(drops.waiting),
+              style: context.typography.meta.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
+          for (final problem in drops.problems)
+            Text(
+              problem,
+              style: context.typography.meta.copyWith(color: colors.danger),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -28,8 +28,7 @@ use crate::workspace::{
     OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes, ShowBacklinks,
     ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview, ShowSignIn,
     ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode, ToggleInspector,
-    TogglePinned,
-    ToggleSidebar, TrashNote,
+    TogglePinned, ToggleSidebar, TrashNote,
 };
 
 /// The palette's sections, in the order they appear with nothing typed.

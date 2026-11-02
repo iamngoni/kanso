@@ -39,7 +39,9 @@ part 'voice_drops_state.dart';
 class VoiceDropsBloc extends Bloc<VoiceDropsEvent, VoiceDropsState> {
   VoiceDropsBloc(this._voice, this._dictation, this._settings)
     : super(const VoiceDropsState()) {
-    on<VoiceDropsPassRequestedEvent>(_onPass, transformer: droppable());
+    // One pass at a time, but a request made during one is not lost: it
+    // runs after it.
+    on<VoiceDropsPassRequestedEvent>(_onPass, transformer: sequential());
   }
 
   final VoiceCaptureRepository _voice;
@@ -90,6 +92,7 @@ class VoiceDropsBloc extends Bloc<VoiceDropsEvent, VoiceDropsState> {
           made.fold(
             (error) => waitingCount++,
             (result) {
+              problems.addAll(result.problems);
               final id = result.noteId;
               if (id != null) {
                 saved.add(id);
@@ -104,6 +107,7 @@ class VoiceDropsBloc extends Bloc<VoiceDropsEvent, VoiceDropsState> {
           made.fold(
             (error) => waitingCount++,
             (result) {
+              problems.addAll(result.problems);
               final id = result.noteId;
               if (id != null) {
                 saved.add(id);
@@ -115,11 +119,23 @@ class VoiceDropsBloc extends Bloc<VoiceDropsEvent, VoiceDropsState> {
             FileTranscriptProblem.failed:
           waitingCount++;
         case FileTranscriptProblem.unreadable:
-          // A file that can't be opened never will be: do not keep it.
-          await _voice.discardDrop(drop.id);
-          problems.add(
-            'A recording could not be read and was discarded.',
+          // Never thrown away: keep the audio as a note if it is audio, and
+          // set it aside if it is not.
+          final made = await _voice.saveDropAudioOnly(drop.id);
+          final kept = made.fold<VoiceCaptureSaved?>(
+            (error) => null,
+            (result) => result,
           );
+          final id = kept?.noteId;
+          if (id != null) {
+            saved.add(id);
+            problems.addAll(kept!.problems);
+          } else {
+            await _voice.quarantineDrop(drop.id);
+            problems.add(
+              'A recording could not be read. It was kept aside, not deleted.',
+            );
+          }
       }
     }
     emit(

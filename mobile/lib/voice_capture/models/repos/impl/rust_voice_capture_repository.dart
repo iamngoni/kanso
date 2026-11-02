@@ -61,6 +61,16 @@ class RustVoiceCaptureRepository implements VoiceCaptureRepository {
   });
 
   @override
+  Future<Either<ApplicationError, Unit>> quarantineDrop(String id) =>
+      attempt(() async {
+        await _library.voiceCapture().quarantineDrop(
+          inbox: _folder.inboxPath,
+          id: id,
+        );
+        return unit;
+      });
+
+  @override
   Future<Either<ApplicationError, Unit>> discardDrop(String id) =>
       attempt(() async {
         await _library.voiceCapture().discardDrop(

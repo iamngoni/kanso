@@ -6734,5 +6734,9 @@
         "type": "int"
       }
     }
+  },
+  "voiceTidyDone": "Tidied this voice note",
+  "@voiceTidyDone": {
+    "description": "Notice after a voice note was tidied; Undo puts it back as it was."
   }
 }

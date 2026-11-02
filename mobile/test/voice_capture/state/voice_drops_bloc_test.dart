@@ -133,7 +133,7 @@ void main() {
   );
 
   blocTest<VoiceDropsBloc, VoiceDropsState>(
-    'an unreadable file is discarded and reported',
+    'an unreadable file is kept as audio when it is audio',
     setUp: () {
       heard(
         const FileTranscript(
@@ -142,7 +142,40 @@ void main() {
           problem: FileTranscriptProblem.unreadable,
         ),
       );
-      when(() => voice.discardDrop(any())).thenAnswer(
+      when(() => voice.saveDropAudioOnly(any())).thenAnswer(
+        (_) async => const Right<ApplicationError, VoiceCaptureSaved>(_saved),
+      );
+    },
+    build: build,
+    act: (bloc) => bloc.add(const VoiceDropsEvent.passRequested()),
+    verify: (bloc) {
+      expect(bloc.state.saved, <String>['note:cap-1']);
+      verifyNever(() => voice.discardDrop(any()));
+      verifyNever(() => voice.quarantineDrop(any()));
+    },
+  );
+
+  blocTest<VoiceDropsBloc, VoiceDropsState>(
+    'a file that is not audio is set aside, never deleted',
+    setUp: () {
+      heard(
+        const FileTranscript(
+          text: '',
+          onDevice: false,
+          problem: FileTranscriptProblem.unreadable,
+        ),
+      );
+      when(() => voice.saveDropAudioOnly(any())).thenAnswer(
+        (_) async => const Right<ApplicationError, VoiceCaptureSaved>(
+          VoiceCaptureSaved(
+            problems: <String>["The recording isn't in a format Kanso keeps."],
+            existed: false,
+            meeting: false,
+            tidyNow: false,
+          ),
+        ),
+      );
+      when(() => voice.quarantineDrop(any())).thenAnswer(
         (_) async => const Right<ApplicationError, Unit>(unit),
       );
     },
@@ -150,8 +183,50 @@ void main() {
     act: (bloc) => bloc.add(const VoiceDropsEvent.passRequested()),
     verify: (bloc) {
       expect(bloc.state.problems, hasLength(1));
-      verify(() => voice.discardDrop(_drop.id)).called(1);
+      verify(() => voice.quarantineDrop(_drop.id)).called(1);
+      verifyNever(() => voice.discardDrop(any()));
     },
+  );
+
+  blocTest<VoiceDropsBloc, VoiceDropsState>(
+    'what a save left out is reported',
+    setUp: () {
+      heard(const FileTranscript(text: 'Long', onDevice: true));
+      when(
+        () => voice.saveDrop(any(), any(), onDevice: any(named: 'onDevice')),
+      ).thenAnswer(
+        (_) async => const Right<ApplicationError, VoiceCaptureSaved>(
+          VoiceCaptureSaved(
+            noteId: 'note:cap-1',
+            problems: <String>['The recording is over 10 MB.'],
+            existed: false,
+            meeting: false,
+            tidyNow: false,
+          ),
+        ),
+      );
+    },
+    build: build,
+    act: (bloc) => bloc.add(const VoiceDropsEvent.passRequested()),
+    verify: (bloc) =>
+        expect(bloc.state.problems, <String>['The recording is over 10 MB.']),
+  );
+
+  blocTest<VoiceDropsBloc, VoiceDropsState>(
+    'a request made during a pass runs after it',
+    setUp: () {
+      heard(const FileTranscript(text: 'Buy milk', onDevice: true));
+      when(
+        () => voice.saveDrop(any(), any(), onDevice: any(named: 'onDevice')),
+      ).thenAnswer(
+        (_) async => const Right<ApplicationError, VoiceCaptureSaved>(_saved),
+      );
+    },
+    build: build,
+    act: (bloc) => bloc
+      ..add(const VoiceDropsEvent.passRequested())
+      ..add(const VoiceDropsEvent.passRequested()),
+    verify: (bloc) => verify(() => voice.drops()).called(2),
   );
 
   blocTest<VoiceDropsBloc, VoiceDropsState>(

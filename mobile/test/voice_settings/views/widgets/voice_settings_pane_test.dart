@@ -167,6 +167,8 @@ void main() {
     await pump(tester, granted);
     expect(find.text('Tidy voice notes'), findsOneWidget);
     expect(find.text('Ask each time'), findsNothing);
+    // The row stays, greyed, saying Off.
+    expect(find.text('Off'), findsOneWidget);
     expect(find.textContaining('Set up AI'), findsOneWidget);
   });
 

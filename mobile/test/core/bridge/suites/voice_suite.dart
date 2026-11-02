@@ -182,6 +182,20 @@ void voiceSuite(OpenLibrary open) {
         id: '12ab12ab12ab12ab12ab12ab12ab12ab',
       );
       expect(third.existsSync(), isFalse);
+
+      // A recording nothing could be made of is set aside, not deleted.
+      final fourth = drop('34cd34cd34cd34cd34cd34cd34cd34cd');
+      await voice.quarantineDrop(
+        inbox: inbox,
+        id: '34cd34cd34cd34cd34cd34cd34cd34cd',
+      );
+      expect(fourth.existsSync(), isFalse);
+      expect(
+        Directory(
+          p.join(folder.path, 'inbox-kept', '34cd34cd34cd34cd34cd34cd34cd34cd'),
+        ).existsSync(),
+        isTrue,
+      );
     });
   });
 }

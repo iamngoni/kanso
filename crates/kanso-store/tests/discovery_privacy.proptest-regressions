@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 3c107b058777586f407d009996a0d757257a8d3171fc9eca2680882c4f5874bc # shrinks to kinds = [InLockedBook]
+cc 94e7bd027fcb4d52b0481d77c77c52020b8c259e63d2722fcae7a790b6dd76d0 # shrinks to kinds = [Trashed]
+cc 17b7af13588a3e47fbce0de68ad7629333cec7bbe2cf250830bb1d5b77ff0b8f # shrinks to kinds = [Locked, Plain, Trashed, Excluded, Plain, Locked]

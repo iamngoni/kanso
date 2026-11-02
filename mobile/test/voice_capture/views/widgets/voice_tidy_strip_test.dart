@@ -69,7 +69,9 @@ void main() {
     await pump(tester);
     await tester.tap(find.text('Tidy'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('busy'), findsOneWidget);
+    // Words a person can act on, never the raw error.
+    expect(find.textContaining('The model is busy'), findsNothing);
     expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('AI settings'), findsOneWidget);
   });
 }

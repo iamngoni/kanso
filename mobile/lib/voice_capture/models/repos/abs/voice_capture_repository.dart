@@ -35,6 +35,10 @@ abstract interface class VoiceCaptureRepository {
     String id,
   );
 
+  /// Moves recording [id] to the folder of kept recordings beside the inbox.
+  /// Never deletes: for a file nothing could be made of.
+  Future<Either<ApplicationError, Unit>> quarantineDrop(String id);
+
   /// Removes recording [id] without saving it.
   Future<Either<ApplicationError, Unit>> discardDrop(String id);
 
