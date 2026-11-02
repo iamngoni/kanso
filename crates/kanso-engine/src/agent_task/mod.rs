@@ -381,19 +381,20 @@ pub fn api_prompt(task: &OpenTask) -> Prompt {
 
 /// What follows the system prompt: the goal, and where new notes go.
 pub fn user_text(task: &OpenTask, api_names: bool) -> String {
-    let mut text = format!("Task: {}", task.spec.goal.trim());
+    let goal = format!("Task: {}", task.spec.goal.trim());
     let book = task.spec.new_note_book.trim();
-    if !book.is_empty() {
-        let tool = if api_names {
-            "create_note"
-        } else {
-            "create-note"
-        };
-        text.push_str(&format!(
-            "\n\nNew notes go in the notebook with bookId \"{book}\" (leave `bookId` out of {tool} to use it). Notes can only be created and moved into the notebooks of the notes you were given and that one."
-        ));
+    if book.is_empty() {
+        return goal;
     }
-    text
+    let tool = if api_names {
+        "create_note"
+    } else {
+        "create-note"
+    };
+    // The task comes last, as the system prompt says.
+    format!(
+        "New notes go in the notebook with bookId \"{book}\" (leave `bookId` out of {tool} to use it). Notes can only be created and moved into the notebooks of the notes you were given and that one.\n\n{goal}"
+    )
 }
 
 /// Runs `task` on a model with an API key. The events are the model's words
