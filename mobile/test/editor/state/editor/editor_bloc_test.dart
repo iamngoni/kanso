@@ -13,15 +13,21 @@ import 'package:kanso/capture/models/data/media_source.dart';
 import 'package:kanso/core/bridge/api/types.dart' as core;
 import 'package:kanso/core/bridge/api/types.dart' hide EditorEvent;
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/services/review_prompt.dart';
+import 'package:kanso/crash/models/data/pending_crash_report.dart';
 import 'package:kanso/editor/models/data/editor_destination.dart';
 import 'package:kanso/editor/models/data/editor_status.dart';
 import 'package:kanso/editor/models/data/flush_reason.dart';
 import 'package:kanso/editor/state/editor/editor_bloc.dart';
+import 'package:kanso/injection.dart';
 
+import '../../../helpers/crash_samples.dart';
 import '../../../helpers/fake_editor_document.dart';
 import '../../../helpers/fake_editor_repository.dart';
 import '../../../helpers/fake_media_picker_repository.dart';
 import '../../../helpers/fake_web_link_repository.dart';
+import '../../../helpers/fixture_about_repository.dart';
+import '../../../helpers/review_prompt_fixtures.dart';
 
 const _noHistory = HistoryState(canUndo: false, canRedo: false);
 const _context = EditorContext(
@@ -784,6 +790,51 @@ void main() {
         ),
       );
       await bloc.stream.firstWhere((s) => s.linkError != null);
+    });
+  });
+
+  group('EditorBloc review moments', () {
+    late ReviewPrompt prompt;
+
+    setUp(() {
+      prompt = ReviewPrompt(
+        MemoryReviewPromptRepository(),
+        FixtureStoreReviewRepository(),
+        FixtureAboutRepository(),
+        FixtureCrashReportRepository(<PendingCrashReport>[]),
+      );
+      getIt.registerSingleton<ReviewPrompt>(prompt);
+      addTearDown(getIt.reset);
+    });
+
+    test('leaving after editing is a good moment', () async {
+      final bloc = await ready();
+      bloc
+        ..add(const EditorEvent.edited())
+        ..add(const EditorEvent.closed());
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(prompt.hasPendingMoment, isTrue);
+    });
+
+    test('another device taking the lock is not', () async {
+      final bloc = await ready();
+      bloc.add(const EditorEvent.edited());
+      document.events_.add(const core.EditorEvent.closed());
+      await bloc.stream.firstWhere((s) => s.status == EditorStatus.locked);
+      await bloc.close();
+      expect(prompt.hasPendingMoment, isFalse);
+    });
+
+    test('the note deleted elsewhere is not', () async {
+      final bloc = await ready();
+      bloc.add(const EditorEvent.edited());
+      document.failures['useTheirs'] = const ApplicationError.notFound(
+        message: 'gone',
+      );
+      bloc.add(const EditorEvent.useTheirsRequested());
+      await bloc.stream.firstWhere((s) => s.status == EditorStatus.notFound);
+      await bloc.close();
+      expect(prompt.hasPendingMoment, isFalse);
     });
   });
 

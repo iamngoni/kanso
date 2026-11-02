@@ -7,6 +7,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'review_prompt_record.freezed.dart';
 part 'review_prompt_record.g.dart';
 
+/// Times are kept in UTC; older records may hold local times, which parse
+/// the same. [lastActiveDay] stays a local day.
+///
 /// What the phone counts to decide whether to ask for a review of Kanso
 /// Pocket: kept in the preferences, on this phone only, and never sent.
 @freezed
@@ -22,7 +25,8 @@ abstract class ReviewPromptRecord with _$ReviewPromptRecord {
     /// The last day the app was opened, `YYYY-MM-DD` in local time.
     String? lastActiveDay,
 
-    /// How many times a note was let go after it was written in.
+    /// How many edit sessions: times a note was let go after it was written
+    /// in (the same note twice counts twice).
     @Default(0) int notesEdited,
 
     /// When the app last crashed, or sync or signing in last failed.
