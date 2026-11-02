@@ -9,6 +9,9 @@ import 'package:kanso/ask/models/data/ask_phase.dart';
 import 'package:kanso/ask/state/ask/ask_bloc.dart';
 import 'package:kanso/core/models/data/ai_note_ref.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/ask_receipt.dart';
+import 'package:kanso/core/models/data/ask_scope.dart';
+import 'package:kanso/core/models/data/ask_time_note.dart';
 import 'package:kanso/core/models/data/ask_update.dart';
 import 'package:kanso/core/models/data/load_status.dart';
 
@@ -27,7 +30,11 @@ class RememberingAiRepository extends FixtureAiRepository {
   final List<List<String>> histories = <List<String>>[];
 
   @override
-  Stream<AskUpdate> ask(String question) {
+  Stream<AskUpdate> ask(
+    String question, {
+    AskScope scope = AskScope.everything,
+    bool ignoreTime = false,
+  }) {
     histories.add(List<String>.of(conversation));
     conversation.add(question);
     return const Stream<AskUpdate>.empty();
@@ -113,6 +120,60 @@ void main() {
       await _settle();
       expect(ai.asked, <String>['one']);
     });
+
+    test('a question is asked over the scope that was chosen', () async {
+      final (bloc, ai) = await _open();
+      const work = AskScope(kind: 'book', value: 'b1', label: 'Work');
+      ai.scopes = const <AskScope>[AskScope.everything, work];
+      bloc.add(const AskEvent.scopesRequested());
+      await _settle();
+      expect(bloc.state.scopes, ai.scopes);
+      bloc
+        ..add(const AskEvent.scopeChosen(work))
+        ..add(const AskEvent.questionAsked('what?'));
+      await _settle();
+      expect(bloc.state.turns.single.scope, work);
+      ai.askUpdates.add(const AskUpdate.nothingMatches(narrow: true));
+      await _settle();
+      expect(bloc.state.turns.single.narrow, isTrue);
+      bloc.add(const AskEvent.searchedAll());
+      await _settle();
+      expect(bloc.state.scope, AskScope.everything);
+      expect(bloc.state.turns.single.question, 'what?');
+      expect(bloc.state.turns.single.scope, AskScope.everything);
+    });
+
+    test(
+      'receipts, the time and the banner reach the turn; save works',
+      () async {
+        final (bloc, ai) = await _open();
+        bloc.add(const AskEvent.questionAsked('last month?'));
+        await _settle();
+        ai.askUpdates
+          ..add(const AskUpdate.time(time: AskTimeNote(label: 'Written June')))
+          ..add(
+            const AskUpdate.done(
+              answer: 'Yes [1](kanso-cite:1)',
+              used: <AiNoteRef>[_pricing],
+              receipts: <AskReceipt>[AskReceipt(n: 1, noteId: 'n1', end: 2)],
+              banner: 'Careful.',
+              unverified: 1,
+            ),
+          );
+        await _settle();
+        final turn = bloc.state.turns.single;
+        expect(turn.time?.label, 'Written June');
+        expect(turn.receipts.single.noteId, 'n1');
+        expect(turn.banner, 'Careful.');
+        expect(turn.unverified, 1);
+        bloc
+          ..add(const AskEvent.answerSaved())
+          ..add(const AskEvent.answerSaved());
+        await _settle();
+        expect(ai.saves, 1, reason: 'a saved answer is saved once');
+        expect(bloc.state.turns.single.savedNoteId, ai.savedId);
+      },
+    );
 
     test('a follow-up joins the conversation', () async {
       final (bloc, ai) = await _open();

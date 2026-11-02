@@ -33,6 +33,11 @@ const _view = bridge.AiSettingsView(
   hasKey: true,
   host: 'api.anthropic.com',
   isRemote: true,
+  askBudget: 'standard',
+  budgetWordsLine: '',
+  budgetCostLine: '',
+  checkSources: true,
+  useLinks: true,
 );
 
 void main() {
@@ -53,8 +58,12 @@ void main() {
         baseUrl: '',
         model: '',
         region: '',
+        askBudget: '',
+        checkSources: true,
+        useLinks: true,
       ),
     );
+    registerFallbackValue(const bridge.AskScopeInput(kind: 'all', value: ''));
   });
 
   setUp(() {
@@ -174,7 +183,14 @@ void main() {
     });
 
     test('an answer is searched, written and done, with its notes', () async {
-      when(() => conversation.ask(question: 'q')).thenAnswer(
+      when(
+        () => conversation.ask(
+          question: 'q',
+          scope: any(named: 'scope'),
+          ignoreTime: any(named: 'ignoreTime'),
+          utcOffsetMinutes: any(named: 'utcOffsetMinutes'),
+        ),
+      ).thenAnswer(
         (_) => Stream<bridge.AskEvent>.fromIterable(const <bridge.AskEvent>[
           bridge.AskEvent.searching(),
           bridge.AskEvent.status(line: 'Thinking…'),
@@ -189,6 +205,12 @@ void main() {
             notes: <bridge.AskNote>[
               bridge.AskNote(id: 'a:1', title: 'A'),
             ],
+            receipts: <bridge.AskReceipt>[],
+            alsoRead: <bridge.AskNote>[],
+            banner: '',
+            unverified: 0,
+            neverWrote: false,
+            closest: <bridge.AskClosest>[],
           ),
         ]),
       );
@@ -206,9 +228,16 @@ void main() {
     });
 
     test('nothing matching, a cut off and a failure are updates', () async {
-      when(() => conversation.ask(question: 'q')).thenAnswer(
+      when(
+        () => conversation.ask(
+          question: 'q',
+          scope: any(named: 'scope'),
+          ignoreTime: any(named: 'ignoreTime'),
+          utcOffsetMinutes: any(named: 'utcOffsetMinutes'),
+        ),
+      ).thenAnswer(
         (_) => Stream<bridge.AskEvent>.fromIterable(const <bridge.AskEvent>[
-          bridge.AskEvent.nothingMatches(message: 'n'),
+          bridge.AskEvent.nothingMatches(message: 'n', narrow: false),
           bridge.AskEvent.cutOff(message: 'c'),
           bridge.AskEvent.failed(message: 'AI is turned off.'),
           bridge.AskEvent.stopped(),
