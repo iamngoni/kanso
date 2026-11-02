@@ -1,0 +1,153 @@
+[
+ {
+  "file": "good-single.md",
+  "shown": [
+   {
+    "title": "Pricing decision September",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 1,
+  "unsupported": 0
+ },
+ {
+  "file": "good-range.md",
+  "shown": [
+   {
+    "title": "Pricing decision September",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 1,
+  "unsupported": 0
+ },
+ {
+  "file": "good-two.md",
+  "shown": [
+   {
+    "title": "Pricing decision September",
+    "start": 0,
+    "end": 4
+   },
+   {
+    "title": "Pricing revision October",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 2,
+  "unsupported": 0
+ },
+ {
+  "file": "fabricated-note.md",
+  "shown": [
+   {
+    "title": "Cabin trip",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 0,
+  "unsupported": 1
+ },
+ {
+  "file": "line-not-shown.md",
+  "shown": [
+   {
+    "title": "Cabin trip",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 0,
+  "unsupported": 1
+ },
+ {
+  "file": "unsupported-claim.md",
+  "shown": [
+   {
+    "title": "Cabin trip",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 0,
+  "unsupported": 1
+ },
+ {
+  "file": "mixed.md",
+  "shown": [
+   {
+    "title": "Cabin trip",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 2,
+  "unsupported": 1
+ },
+ {
+  "file": "no-sources.md",
+  "shown": [
+   {
+    "title": "Cabin trip",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 0,
+  "unsupported": 0,
+  "no_sources": true
+ },
+ {
+  "file": "never-wrote.md",
+  "shown": [
+   {
+    "title": "Cabin trip",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 0,
+  "unsupported": 0,
+  "not_in_notes": true
+ },
+ {
+  "file": "too-wide-range.md",
+  "shown": [
+   {
+    "title": "Annual review",
+    "start": 0,
+    "end": 45
+   }
+  ],
+  "valid": 1,
+  "unsupported": 0
+ },
+ {
+  "file": "marker-twice.md",
+  "shown": [
+   {
+    "title": "Passport",
+    "start": 0,
+    "end": 2
+   }
+  ],
+  "valid": 1,
+  "unsupported": 0
+ },
+ {
+  "file": "fully-fake.md",
+  "shown": [
+   {
+    "title": "Pricing decision August",
+    "start": 0,
+    "end": 4
+   }
+  ],
+  "valid": 0,
+  "unsupported": 2
+ }
+]

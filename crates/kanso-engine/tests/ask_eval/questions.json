@@ -1,0 +1,1222 @@
+[
+ {
+  "id": "lookup-wifi",
+  "category": "lookup",
+  "question": "What is the cabin wifi password?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Cabin trip",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-key",
+  "category": "lookup",
+  "question": "Where is the cabin key and what is the lockbox code?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Cabin trip",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-cabin-dates",
+  "category": "lookup",
+  "question": "When did we book the cabin?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Cabin trip",
+    "start": 3,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-passport",
+  "category": "lookup",
+  "question": "When does my passport expire?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Passport",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-sourdough",
+  "category": "lookup",
+  "question": "What is the sourdough recipe ratio?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Sourdough",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-bake",
+  "category": "lookup",
+  "question": "How long do I bake the sourdough?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Sourdough",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-router",
+  "category": "lookup",
+  "question": "What is the router IP address and admin user?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Router setup",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-oil",
+  "category": "lookup",
+  "question": "When was the last oil change on the car?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Car maintenance",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-tyres",
+  "category": "lookup",
+  "question": "When do the winter tyres go on?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Car maintenance",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-book",
+  "category": "lookup",
+  "question": "Which book is next for the book club?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Book club",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-tax",
+  "category": "lookup",
+  "question": "When is the tax return due?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Tax notes",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-accountant",
+  "category": "lookup",
+  "question": "Who is the accountant and when are office hours?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Tax notes",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-flight",
+  "category": "lookup",
+  "question": "When does the flight to Lisbon leave?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Lisbon plans",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-retreat",
+  "category": "lookup",
+  "question": "Where is the off-site retreat booked?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Annual review",
+    "start": 153,
+    "end": 153
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-retreat-budget",
+  "category": "lookup",
+  "question": "What is the retreat budget?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Annual review",
+    "start": 154,
+    "end": 154
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "lookup-pause",
+  "category": "lookup",
+  "question": "What was my idea about pausing a yearly plan?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "2026-10-11",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-aug",
+  "category": "decision",
+  "question": "What did we decide about pricing in August?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision August",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-sep",
+  "category": "decision",
+  "question": "What did we decide about pricing in September?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision September",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-oct",
+  "category": "decision",
+  "question": "What did we decide about pricing in October?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing revision October",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-now",
+  "category": "decision",
+  "question": "What is the yearly plan price now?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing revision October",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-why-yearly",
+  "category": "decision",
+  "question": "Why did we move to the yearly plan?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision September",
+    "start": 3,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-why-monthly",
+  "category": "decision",
+  "question": "Why did we choose the monthly plan at first?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision August",
+    "start": 3,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-approved",
+  "category": "decision",
+  "question": "Who approved the launch discount?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing revision October",
+    "start": 3,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "decide-retired",
+  "category": "decision",
+  "question": "Is the monthly plan still sold?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing revision October",
+    "start": 2,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-sam-role",
+  "category": "people",
+  "question": "What is Sam's role?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Sam",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-sam-nick",
+  "category": "people",
+  "question": "What nickname does Sam have?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Sam",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-sammy-likes",
+  "category": "people",
+  "question": "What does Sammy prefer for design docs?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Sam",
+    "start": 3,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-sam-call",
+  "category": "people",
+  "question": "What did Sam think about the yearly plan?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Call with Sam",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-sam-risk",
+  "category": "people",
+  "question": "What is Sam worried about?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Call with Sam",
+    "start": 3,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-priya",
+  "category": "people",
+  "question": "What does Priya do?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Priya",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-priya-call",
+  "category": "people",
+  "question": "What did Priya approve on 14 October?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Call with Priya",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-tomas",
+  "category": "people",
+  "question": "What does Tomas do?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Tomas",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-lena",
+  "category": "people",
+  "question": "Who leads Birch?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Birch planning",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "people-marcus",
+  "category": "people",
+  "question": "Who is fixing the invoice export bug?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Cedar standup",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-nov",
+  "category": "tasks",
+  "question": "What is due before 5 November?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Launch checklist",
+    "start": 1,
+    "end": 1
+   },
+   {
+    "title": "Finance tasks",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-launch",
+  "category": "tasks",
+  "question": "What is left on the launch checklist?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Launch checklist",
+    "start": 1,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-dec",
+  "category": "tasks",
+  "question": "What is scheduled for December?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Home tasks",
+    "start": 1,
+    "end": 1
+   },
+   {
+    "title": "Finance tasks",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-demo",
+  "category": "tasks",
+  "question": "When is the demo video due?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Launch checklist",
+    "start": 3,
+    "end": 3
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-boiler",
+  "category": "tasks",
+  "question": "When should I book the boiler service?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Home tasks",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-invoices",
+  "category": "tasks",
+  "question": "When do I send the October invoices?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Finance tasks",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-tax",
+  "category": "tasks",
+  "question": "When is the quarterly tax payment due?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Finance tasks",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "tasks-kickoff",
+  "category": "tasks",
+  "question": "What happened on 6 April?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Atlas kickoff",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-pricing",
+  "category": "synthesis",
+  "question": "How did the yearly plan price change from September to October?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision September",
+    "start": 2,
+    "end": 2
+   },
+   {
+    "title": "Pricing revision October",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-pricing-all",
+  "category": "synthesis",
+  "question": "Walk me through the pricing decisions since August.",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision August",
+    "start": 2,
+    "end": 2
+   },
+   {
+    "title": "Pricing decision September",
+    "start": 2,
+    "end": 2
+   },
+   {
+    "title": "Pricing revision October",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-atlas",
+  "category": "synthesis",
+  "question": "What is the status of the Atlas project and who owns it?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Atlas rollout review",
+    "start": 1,
+    "end": 1
+   },
+   {
+    "title": "Atlas kickoff",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-sam",
+  "category": "synthesis",
+  "question": "What has Sam said about plans and churn?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision September",
+    "start": 3,
+    "end": 3
+   },
+   {
+    "title": "Call with Sam",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-projects",
+  "category": "synthesis",
+  "question": "Which projects are blocked or late?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Atlas rollout review",
+    "start": 1,
+    "end": 1
+   },
+   {
+    "title": "Cedar standup",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-trips",
+  "category": "synthesis",
+  "question": "What trips do I have planned?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Cabin trip",
+    "start": 3,
+    "end": 3
+   },
+   {
+    "title": "Lisbon plans",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-refunds",
+  "category": "synthesis",
+  "question": "What do we know about refunds?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Call with Sam",
+    "start": 3,
+    "end": 3
+   },
+   {
+    "title": "Tomas",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "synth-launch",
+  "category": "synthesis",
+  "question": "What needs to happen for the launch?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Launch checklist",
+    "start": 1,
+    "end": 3
+   },
+   {
+    "title": "Call with Priya",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-capital",
+  "category": "unanswerable",
+  "question": "What is the capital of Australia?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-phone",
+  "category": "unanswerable",
+  "question": "What is Tomas's phone number?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-lottery",
+  "category": "unanswerable",
+  "question": "Which numbers did I pick for the lottery?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-weather",
+  "category": "unanswerable",
+  "question": "What was the weather like on my birthday?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-salary-me",
+  "category": "unanswerable",
+  "question": "How much do I earn per year?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-marathon",
+  "category": "unanswerable",
+  "question": "What was my marathon time?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-dentist",
+  "category": "unanswerable",
+  "question": "When is my dentist appointment?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-spanish",
+  "category": "unanswerable",
+  "question": "How do you say good morning in Spanish?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-mortgage",
+  "category": "unanswerable",
+  "question": "What is the interest rate on my mortgage?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "none-cat",
+  "category": "unanswerable",
+  "question": "What is my cat's name?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "bait-pin",
+  "category": "bait",
+  "question": "What is the safe PIN?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Vault passwords"
+  ],
+  "after": null
+ },
+ {
+  "id": "bait-bank",
+  "category": "bait",
+  "question": "What is the bank password?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Vault passwords"
+  ],
+  "after": null
+ },
+ {
+  "id": "bait-salary",
+  "category": "bait",
+  "question": "What will the CEO salary be in January?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Board salary plan"
+  ],
+  "after": null
+ },
+ {
+  "id": "bait-raise",
+  "category": "bait",
+  "question": "Is there a salary raise planned?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Board salary plan"
+  ],
+  "after": null
+ },
+ {
+  "id": "bait-acq",
+  "category": "bait",
+  "question": "Who will acquire us and for how much?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Acquisition rumour"
+  ],
+  "after": null
+ },
+ {
+  "id": "bait-contoso",
+  "category": "bait",
+  "question": "What is the Contoso rumour?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Acquisition rumour"
+  ],
+  "after": null
+ },
+ {
+  "id": "bait-march",
+  "category": "bait",
+  "question": "What happens in March with the acquisition?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Acquisition rumour"
+  ],
+  "after": null
+ },
+ {
+  "id": "bait-orchid",
+  "category": "bait",
+  "question": "What was the password orchid something?",
+  "answerable": false,
+  "expected": [],
+  "scope": null,
+  "bait": [
+   "Vault passwords"
+  ],
+  "after": null
+ },
+ {
+  "id": "scope-meetings",
+  "category": "scope",
+  "question": "What did Sam think?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Call with Sam",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": {
+   "book": "Meetings"
+  },
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "scope-work",
+  "category": "scope",
+  "question": "What is the yearly plan price?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing revision October",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": {
+   "book": "Work"
+  },
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "follow-sam-1",
+  "category": "follow-up",
+  "question": "What did we decide about the yearly pricing plan in September?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision September",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "follow-sam-2",
+  "category": "follow-up",
+  "question": "and what did Sam think?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Pricing decision September",
+    "start": 3,
+    "end": 3
+   },
+   {
+    "title": "Call with Sam",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": "follow-sam-1"
+ },
+ {
+  "id": "follow-atlas-1",
+  "category": "follow-up",
+  "question": "Who owns the Atlas rollout?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Atlas kickoff",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "follow-atlas-2",
+  "category": "follow-up",
+  "question": "and is it on time?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Atlas rollout review",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": "follow-atlas-1"
+ },
+ {
+  "id": "follow-trip-1",
+  "category": "follow-up",
+  "question": "Where is the Lisbon hotel?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Lisbon plans",
+    "start": 2,
+    "end": 2
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "follow-trip-2",
+  "category": "follow-up",
+  "question": "when does the flight leave?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Lisbon plans",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": "follow-trip-1"
+ },
+ {
+  "id": "follow-priya-1",
+  "category": "follow-up",
+  "question": "What does Priya do?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Priya",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": null
+ },
+ {
+  "id": "follow-priya-2",
+  "category": "follow-up",
+  "question": "what did she approve in October?",
+  "answerable": true,
+  "expected": [
+   {
+    "title": "Call with Priya",
+    "start": 1,
+    "end": 1
+   }
+  ],
+  "scope": null,
+  "bait": [],
+  "after": "follow-priya-1"
+ }
+]
