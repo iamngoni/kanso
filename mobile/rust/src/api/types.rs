@@ -24,6 +24,7 @@ pub use kanso_mobile::{
     LiveDocStyle, LiveDocStyleKind, LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun,
     LiveStatus, LocalTime, LockEvent, LockReason, LockState, LockStatus, LockedInfo, MadeNote,
     MeaningResult, MemberRow, MentionSpan, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning,
+    OnThisDayRow, ResurfaceResult, ResurfaceRow,
     NoteRow, NoteView, NotebookRole, NotebookRow, OpenedDocuments, OpenedFile, PaletteDto,
     PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PersonLookup, PersonRow,
     PreviewAlign, PreviewBlock, PreviewCell, PreviewCodeRun, PreviewFigureKind, PreviewInline,
@@ -2004,6 +2005,31 @@ pub enum _MeaningResult {
     Off,
     NoModel,
     Found { rows: Vec<RelatedRow> },
+}
+
+#[frb(mirror(ResurfaceRow))]
+pub struct _ResurfaceRow {
+    pub id: String,
+    pub title: String,
+    pub book: String,
+    pub when: String,
+    pub snippet: String,
+    pub before: Option<String>,
+}
+
+#[frb(mirror(ResurfaceResult))]
+pub enum _ResurfaceResult {
+    Off,
+    NoModel,
+    Found { rows: Vec<ResurfaceRow> },
+}
+
+#[frb(mirror(OnThisDayRow))]
+pub struct _OnThisDayRow {
+    pub id: String,
+    pub title: String,
+    pub book: String,
+    pub ago: String,
 }
 
 #[frb(mirror(GraphFilter))]

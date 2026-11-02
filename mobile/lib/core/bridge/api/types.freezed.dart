@@ -11170,6 +11170,308 @@ as String,
 }
 
 /// @nodoc
+mixin _$ResurfaceResult {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ResurfaceResult);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ResurfaceResult()';
+}
+
+
+}
+
+/// @nodoc
+class $ResurfaceResultCopyWith<$Res>  {
+$ResurfaceResultCopyWith(ResurfaceResult _, $Res Function(ResurfaceResult) __);
+}
+
+
+/// Adds pattern-matching-related methods to [ResurfaceResult].
+extension ResurfaceResultPatterns on ResurfaceResult {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ResurfaceResult_Off value)?  off,TResult Function( ResurfaceResult_NoModel value)?  noModel,TResult Function( ResurfaceResult_Found value)?  found,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case ResurfaceResult_Off() when off != null:
+return off(_that);case ResurfaceResult_NoModel() when noModel != null:
+return noModel(_that);case ResurfaceResult_Found() when found != null:
+return found(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ResurfaceResult_Off value)  off,required TResult Function( ResurfaceResult_NoModel value)  noModel,required TResult Function( ResurfaceResult_Found value)  found,}){
+final _that = this;
+switch (_that) {
+case ResurfaceResult_Off():
+return off(_that);case ResurfaceResult_NoModel():
+return noModel(_that);case ResurfaceResult_Found():
+return found(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ResurfaceResult_Off value)?  off,TResult? Function( ResurfaceResult_NoModel value)?  noModel,TResult? Function( ResurfaceResult_Found value)?  found,}){
+final _that = this;
+switch (_that) {
+case ResurfaceResult_Off() when off != null:
+return off(_that);case ResurfaceResult_NoModel() when noModel != null:
+return noModel(_that);case ResurfaceResult_Found() when found != null:
+return found(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  off,TResult Function()?  noModel,TResult Function( List<ResurfaceRow> rows)?  found,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case ResurfaceResult_Off() when off != null:
+return off();case ResurfaceResult_NoModel() when noModel != null:
+return noModel();case ResurfaceResult_Found() when found != null:
+return found(_that.rows);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  off,required TResult Function()  noModel,required TResult Function( List<ResurfaceRow> rows)  found,}) {final _that = this;
+switch (_that) {
+case ResurfaceResult_Off():
+return off();case ResurfaceResult_NoModel():
+return noModel();case ResurfaceResult_Found():
+return found(_that.rows);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  off,TResult? Function()?  noModel,TResult? Function( List<ResurfaceRow> rows)?  found,}) {final _that = this;
+switch (_that) {
+case ResurfaceResult_Off() when off != null:
+return off();case ResurfaceResult_NoModel() when noModel != null:
+return noModel();case ResurfaceResult_Found() when found != null:
+return found(_that.rows);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class ResurfaceResult_Off extends ResurfaceResult {
+  const ResurfaceResult_Off(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ResurfaceResult_Off);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ResurfaceResult.off()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class ResurfaceResult_NoModel extends ResurfaceResult {
+  const ResurfaceResult_NoModel(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ResurfaceResult_NoModel);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ResurfaceResult.noModel()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class ResurfaceResult_Found extends ResurfaceResult {
+  const ResurfaceResult_Found({required final  List<ResurfaceRow> rows}): _rows = rows,super._();
+  
+
+ final  List<ResurfaceRow> _rows;
+ List<ResurfaceRow> get rows {
+  if (_rows is EqualUnmodifiableListView) return _rows;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_rows);
+}
+
+
+/// Create a copy of ResurfaceResult
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ResurfaceResult_FoundCopyWith<ResurfaceResult_Found> get copyWith => _$ResurfaceResult_FoundCopyWithImpl<ResurfaceResult_Found>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ResurfaceResult_Found&&const DeepCollectionEquality().equals(other._rows, _rows));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_rows));
+
+@override
+String toString() {
+  return 'ResurfaceResult.found(rows: $rows)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ResurfaceResult_FoundCopyWith<$Res> implements $ResurfaceResultCopyWith<$Res> {
+  factory $ResurfaceResult_FoundCopyWith(ResurfaceResult_Found value, $Res Function(ResurfaceResult_Found) _then) = _$ResurfaceResult_FoundCopyWithImpl;
+@useResult
+$Res call({
+ List<ResurfaceRow> rows
+});
+
+
+
+
+}
+/// @nodoc
+class _$ResurfaceResult_FoundCopyWithImpl<$Res>
+    implements $ResurfaceResult_FoundCopyWith<$Res> {
+  _$ResurfaceResult_FoundCopyWithImpl(this._self, this._then);
+
+  final ResurfaceResult_Found _self;
+  final $Res Function(ResurfaceResult_Found) _then;
+
+/// Create a copy of ResurfaceResult
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? rows = null,}) {
+  return _then(ResurfaceResult_Found(
+rows: null == rows ? _self._rows : rows // ignore: cast_nullable_to_non_nullable
+as List<ResurfaceRow>,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$SaveState {
 
 

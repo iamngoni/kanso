@@ -3851,7 +3851,7 @@ impl NoteEditor {
                         .ghost()
                         .xsmall()
                         .label("Not the same")
-                        .tooltip("Don't mention these two again while Kanso is open")
+                        .tooltip("Don't mention these two again")
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.meaning
                                 .update(cx, |meaning, cx| meaning.dismiss_duplicate(cx));

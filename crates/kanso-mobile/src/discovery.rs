@@ -315,7 +315,7 @@ impl Discovery {
 
     /// What the embeddings say about note `id`: the tags its nearest notes
     /// have and it hasn't (at most five, heaviest first), and a note that
-    /// says nearly the same, unless it was dismissed this session.
+    /// says nearly the same, unless it was dismissed.
     pub fn note_meaning(&self, id: &str) -> Result<NoteMeaning, KansoError> {
         guard(|| {
             let note = self.library().stored(id)?;
