@@ -40,4 +40,6 @@ pub mod triage;
 pub mod triage_types;
 pub mod types;
 pub mod voice;
+pub mod voice_capture;
+pub mod voice_capture_types;
 pub mod word_goal;

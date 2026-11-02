@@ -80,6 +80,12 @@ public class KansoDictationPlugin: NSObject, FlutterPlugin, DictationHostApi {
     }
   }
 
+  func transcribeFile(path: String, localeTag: String?, allowServer: Bool) async throws
+    -> FileTranscription
+  {
+    await FileTranscriber.transcribe(path: path, localeTag: localeTag, allowServer: allowServer)
+  }
+
   func openSettings() throws {
     guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
     DispatchQueue.main.async { UIApplication.shared.open(url) }

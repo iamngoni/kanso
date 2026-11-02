@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/context_extensions.dart';
+import '../../models/data/dictation_status.dart';
 import '../../models/data/voice_note_status.dart';
 import '../../state/dictation/dictation_bloc.dart';
 import '../../state/voice_note/voice_note_bloc.dart';
@@ -26,6 +27,15 @@ class VoiceNotePane extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: <BlocListener<dynamic, dynamic>>[
+        // The microphone came on: the note's length counts from here.
+        BlocListener<DictationBloc, DictationState>(
+          listenWhen: (before, now) =>
+              before.status != DictationStatus.listening &&
+              now.status == DictationStatus.listening,
+          listener: (context, state) => context.read<VoiceNoteBloc>().add(
+            const VoiceNoteEvent.listeningStarted(),
+          ),
+        ),
         // The recognizer is done, so the words are all there: keep them.
         BlocListener<DictationBloc, DictationState>(
           listenWhen: (before, now) => !before.finished && now.finished,

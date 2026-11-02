@@ -10,6 +10,7 @@ import '../../../../core/bridge/api/voice.dart' as bridge;
 import '../../../../core/models/data/application_error.dart';
 import '../../../../core/utils/kanso_error_mapping.dart';
 import '../../data/voice_settings.dart';
+import '../../data/voice_tidy_mode.dart';
 import '../abs/voice_settings_repository.dart';
 
 /// The voice settings kept by the Rust core, with the library's other
@@ -24,7 +25,17 @@ class RustVoiceSettingsRepository implements VoiceSettingsRepository {
   Future<Either<ApplicationError, VoiceSettings>> settings() =>
       attempt(() async {
         final read = await library.voiceSettings();
-        return VoiceSettings(spokenCommands: read.spokenCommands);
+        return VoiceSettings(
+          spokenCommands: read.spokenCommands,
+          tidy: switch (read.tidy) {
+            bridge.VoiceTidy.off => VoiceTidyMode.off,
+            bridge.VoiceTidy.ask => VoiceTidyMode.ask,
+            bridge.VoiceTidy.always => VoiceTidyMode.always,
+          },
+          meetings: read.meetings,
+          keepAudio: read.keepAudio,
+          allowServerRecognition: read.allowServerRecognition,
+        );
       });
 
   @override
@@ -32,7 +43,17 @@ class RustVoiceSettingsRepository implements VoiceSettingsRepository {
     VoiceSettings settings,
   ) => attempt(() async {
     await library.setVoiceSettings(
-      settings: bridge.VoiceSettings(spokenCommands: settings.spokenCommands),
+      settings: bridge.VoiceSettings(
+        spokenCommands: settings.spokenCommands,
+        tidy: switch (settings.tidy) {
+          VoiceTidyMode.off => bridge.VoiceTidy.off,
+          VoiceTidyMode.ask => bridge.VoiceTidy.ask,
+          VoiceTidyMode.always => bridge.VoiceTidy.always,
+        },
+        meetings: settings.meetings,
+        keepAudio: settings.keepAudio,
+        allowServerRecognition: settings.allowServerRecognition,
+      ),
     );
     return settings;
   });

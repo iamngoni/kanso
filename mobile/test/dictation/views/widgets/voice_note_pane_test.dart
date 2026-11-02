@@ -6,7 +6,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/bridge/api/voice_capture_types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/views/widgets/kanso_button.dart';
 import 'package:kanso/dictation/models/data/dictation_capability.dart';
@@ -19,27 +19,32 @@ import 'package:kanso/dictation/views/widgets/voice_note_pane.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/close_bloc_later.dart';
-import '../../../helpers/fake_usage_metrics.dart';
 import '../../../helpers/mock_repositories.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../helpers/fake_dictation_text_rules.dart';
 import '../../helpers/mock_dictation_repository.dart';
 
-class FakeNewNote extends Fake implements NewNote {}
+class FakeVoiceInput extends Fake implements VoiceCaptureInput {}
+
+const VoiceCaptureSaved _saved = VoiceCaptureSaved(
+  noteId: 'note:new',
+  problems: <String>[],
+  existed: false,
+  meeting: false,
+  tidyNow: false,
+);
 
 void main() {
   late SpokenRepository spoken;
-  late MockLibraryRepository library;
+  late MockVoiceCaptureRepository library;
 
-  setUpAll(() => registerFallbackValue(FakeNewNote()));
+  setUpAll(() => registerFallbackValue(FakeVoiceInput()));
 
   setUp(() {
     spoken = SpokenRepository();
-    library = MockLibraryRepository();
-    when(() => library.create(any())).thenAnswer(
-      (_) async => const Right<ApplicationError, Saved>(
-        Saved(id: 'note:new', rev: 'r1'),
-      ),
+    library = MockVoiceCaptureRepository();
+    when(() => library.save(any())).thenAnswer(
+      (_) async => const Right<ApplicationError, VoiceCaptureSaved>(_saved),
     );
   });
 
@@ -47,7 +52,7 @@ void main() {
 
   Future<GoRouterHandle> pump(WidgetTester tester) async {
     final dictation = DictationBloc(spoken.repository, PassThroughRules());
-    final voice = VoiceNoteBloc(library, FakeUsageMetrics());
+    final voice = VoiceNoteBloc(library);
     closeBlocLater(dictation);
     closeBlocLater(voice);
     final router = await pumpRouted(
@@ -109,10 +114,11 @@ void main() {
     await hear(tester, const DictationSignal.finalText('Groceries'));
     await hear(tester, const DictationSignal.ended());
     await tester.pumpAndSettle();
-    final note =
-        verify(() => library.create(captureAny())).captured.single as NewNote;
-    expect(note.title, 'Groceries');
-    expect(note.body, isEmpty);
+    final input =
+        verify(() => library.save(captureAny())).captured.single
+            as VoiceCaptureInput;
+    expect(input.transcript, 'Groceries');
+    expect(input.onDevice, isTrue);
     expect(whereIs(handle.router), '/note/note%3Anew');
   });
 
@@ -120,7 +126,7 @@ void main() {
     await pump(tester);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-    verifyNever(() => library.create(any()));
+    verifyNever(() => library.save(any()));
   });
 
   testWidgets('a phone that cannot listen says so and offers a way out', (
@@ -159,8 +165,8 @@ void main() {
   });
 
   testWidgets('a note that could not be saved keeps the words', (tester) async {
-    when(() => library.create(any())).thenAnswer(
-      (_) async => const Left<ApplicationError, Saved>(
+    when(() => library.save(any())).thenAnswer(
+      (_) async => const Left<ApplicationError, VoiceCaptureSaved>(
         ApplicationError.storage(message: 'Disk full.'),
       ),
     );
@@ -178,7 +184,7 @@ void main() {
     expect(find.textContaining('Disk full'), findsNothing);
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
-    verify(() => library.create(any())).called(2);
+    verify(() => library.save(any())).called(2);
   });
 }
 

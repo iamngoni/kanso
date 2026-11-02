@@ -368,6 +368,61 @@ struct DictationEvent: Hashable, CustomStringConvertible {
   }
 }
 
+/// What recognizing an audio file gave.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct FileTranscription: Hashable, CustomStringConvertible {
+  /// The words, empty when [error] is set or nothing was heard.
+  var text: String
+  /// Whether the words were made on the device. False means the system's
+  /// server-backed recognizer was used (only when asked to allow it).
+  var onDevice: Bool
+  /// Null when the file was recognized (even if no words were heard).
+  /// Otherwise one of: `unsupported` (this system can't recognize a file),
+  /// `notOnDevice` (only a server could, and that wasn't allowed),
+  /// `denied` (speech recognition isn't allowed), `unreadable` (the file
+  /// couldn't be opened) or `failed`.
+  var error: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> FileTranscription? {
+    let text = pigeonVar_list[0] as! String
+    let onDevice = pigeonVar_list[1] as! Bool
+    let error: String? = nilOrValue(pigeonVar_list[2])
+
+    return FileTranscription(
+      text: text,
+      onDevice: onDevice,
+      error: error
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      text,
+      onDevice,
+      error,
+    ]
+  }
+  static func == (lhs: FileTranscription, rhs: FileTranscription) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.text, rhs.text) && MessagesPigeonInternal.deepEquals(lhs.onDevice, rhs.onDevice) && MessagesPigeonInternal.deepEquals(lhs.error, rhs.error)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("FileTranscription")
+    MessagesPigeonInternal.deepHash(value: text, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: onDevice, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: error, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "FileTranscription(text: \(String(describing: text)), onDevice: \(String(describing: onDevice)), error: \(String(describing: error)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -399,6 +454,8 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       return DictationAvailability.fromList(self.readValue() as! [Any?])
     case 134:
       return DictationEvent.fromList(self.readValue() as! [Any?])
+    case 135:
+      return FileTranscription.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -424,6 +481,9 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? DictationEvent {
       super.writeByte(134)
+      super.writeValue(value.toList())
+    } else if let value = value as? FileTranscription {
+      super.writeByte(135)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -466,6 +526,12 @@ protocol DictationHostApi {
   func cancel() throws
   /// Opens the app's page of the system's Settings.
   func openSettings() throws
+  /// Recognizes the audio file at [path] (issue #193: a recording the lock
+  /// screen, the Action Button or the Android tile made), in [localeTag]
+  /// (the device's language when null). The audio is sent to a server only
+  /// when [allowServer] is true and the device can't do it itself; the answer
+  /// says which happened.
+  func transcribeFile(path: String, localeTag: String?, allowServer: Bool) async throws -> FileTranscription
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -573,6 +639,30 @@ class DictationHostApiSetup {
       }
     } else {
       openSettingsChannel.setMessageHandler(nil)
+    }
+    /// Recognizes the audio file at [path] (issue #193: a recording the lock
+    /// screen, the Action Button or the Android tile made), in [localeTag]
+    /// (the device's language when null). The audio is sent to a server only
+    /// when [allowServer] is true and the device can't do it itself; the answer
+    /// says which happened.
+    let transcribeFileChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.kanso_dictation.DictationHostApi.transcribeFile\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      transcribeFileChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let pathArg = args[0] as! String
+        let localeTagArg: String? = nilOrValue(args[1])
+        let allowServerArg = args[2] as! Bool
+        Task { @MainActor in
+          do {
+            let result = try await api.transcribeFile(path: pathArg, localeTag: localeTagArg, allowServer: allowServerArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      transcribeFileChannel.setMessageHandler(nil)
     }
   }
 }

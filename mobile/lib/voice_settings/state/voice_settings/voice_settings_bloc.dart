@@ -28,6 +28,7 @@ class VoiceSettingsBloc extends Bloc<VoiceSettingsEvent, VoiceSettingsState> {
       onSpokenCommandsChanged,
       transformer: sequential(),
     );
+    on<VoiceSettingsChangedEvent>(onChanged, transformer: sequential());
     on<VoiceSettingsSystemSettingsRequestedEvent>(
       (event, emit) => dictation.openSettings(),
       transformer: droppable(),
@@ -55,6 +56,20 @@ class VoiceSettingsBloc extends Bloc<VoiceSettingsEvent, VoiceSettingsState> {
           capability: heard,
         ),
       ),
+    );
+  }
+
+  Future<void> onChanged(
+    VoiceSettingsChangedEvent event,
+    Emitter<VoiceSettingsState> emit,
+  ) async {
+    final before = state.settings;
+    // The control moves at once; it moves back if the choice was not kept.
+    emit(state.copyWith(settings: event.settings));
+    final saved = await settings.save(event.settings);
+    saved.fold(
+      (error) => emit(state.copyWith(settings: before)),
+      (kept) => emit(state.copyWith(settings: kept)),
     );
   }
 

@@ -6,6 +6,10 @@ part of 'voice_note_bloc.dart';
 
 @freezed
 sealed class VoiceNoteEvent with _$VoiceNoteEvent {
+  /// The microphone came on: the clock for the note's length starts.
+  const factory VoiceNoteEvent.listeningStarted() =
+      VoiceNoteListeningStartedEvent;
+
   /// The person is done: save [transcript] as a new note.
   const factory VoiceNoteEvent.saveRequested(String transcript) =
       VoiceNoteSaveRequestedEvent;

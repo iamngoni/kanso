@@ -102,5 +102,14 @@ struct KansoShortcuts: AppShortcutsProvider {
       ],
       shortTitle: "Add to Kanso",
       systemImageName: "tray.and.arrow.down")
+    AppShortcut(
+      intent: CaptureVoiceIntent(),
+      phrases: [
+        "Capture in \(.applicationName)",
+        "Voice note in \(.applicationName)",
+        "Record a note in \(.applicationName)",
+      ],
+      shortTitle: "Capture Voice Note",
+      systemImageName: "mic.fill")
   }
 }

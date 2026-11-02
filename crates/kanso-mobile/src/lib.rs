@@ -164,6 +164,8 @@ mod triage;
 mod triage_model;
 mod undo;
 mod voice;
+mod voice_capture;
+mod voice_capture_model;
 mod voice_model;
 mod word_goals;
 
@@ -218,7 +220,8 @@ pub use themes_model::*;
 pub use triage::{MAX_TAGS_LIMIT, Triage};
 pub use triage_model::*;
 pub use voice::dictated;
-pub use voice_model::{Dictated, VoiceSettings};
+pub use voice_capture_model::*;
+pub use voice_model::{Dictated, VoiceSettings, VoiceTidy};
 
 /// Where secrets live: the seam the Keychain, the Keystore and the tests'
 /// memory store stand behind.

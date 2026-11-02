@@ -35,6 +35,7 @@ use super::shared::KansoShared;
 use super::sync::KansoSync;
 use super::themes::KansoThemes;
 use super::triage::KansoTriage;
+use super::voice_capture::KansoVoiceCapture;
 
 /// An open library. Cheap to clone on the Rust side; Dart holds one.
 #[frb(opaque)]
@@ -65,6 +66,14 @@ impl KansoLibrary {
             .voice_settings()
             .map(|settings| super::voice::VoiceSettings {
                 spoken_commands: settings.spoken_commands,
+                tidy: match settings.tidy {
+                    kanso_mobile::VoiceTidy::Off => super::voice::VoiceTidy::Off,
+                    kanso_mobile::VoiceTidy::Ask => super::voice::VoiceTidy::Ask,
+                    kanso_mobile::VoiceTidy::Always => super::voice::VoiceTidy::Always,
+                },
+                meetings: settings.meetings,
+                keep_audio: settings.keep_audio,
+                allow_server_recognition: settings.allow_server_recognition,
             })
     }
 
@@ -75,6 +84,14 @@ impl KansoLibrary {
     ) -> Result<(), KansoError> {
         self.0.set_voice_settings(kanso_mobile::VoiceSettings {
             spoken_commands: settings.spoken_commands,
+            tidy: match settings.tidy {
+                super::voice::VoiceTidy::Off => kanso_mobile::VoiceTidy::Off,
+                super::voice::VoiceTidy::Ask => kanso_mobile::VoiceTidy::Ask,
+                super::voice::VoiceTidy::Always => kanso_mobile::VoiceTidy::Always,
+            },
+            meetings: settings.meetings,
+            keep_audio: settings.keep_audio,
+            allow_server_recognition: settings.allow_server_recognition,
         })
     }
 
@@ -455,6 +472,13 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn discovery(&self) -> KansoDiscovery {
         KansoDiscovery::new(self.0.discovery())
+    }
+
+    /// Voice capture: voice notes into the Inbox, the recordings left outside
+    /// the app, and tidying a voice note.
+    #[frb(sync)]
+    pub fn voice_capture(&self) -> KansoVoiceCapture {
+        KansoVoiceCapture::new(self.0.clone())
     }
 
     #[frb(sync)]

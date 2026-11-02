@@ -16,7 +16,14 @@ mixin _$VoiceSettings {
 
 /// Whether "comma", "new paragraph" and "delete that" are acted on
 /// rather than written. On by default, as on the desktop.
- bool get spokenCommands;
+ bool get spokenCommands;/// Tidy voice notes: off, ask each time, or always.
+ VoiceTidyMode get tidy;/// Whether a recording longer than three minutes is a meeting, which
+/// tidy gives a Summary, Decisions, Action items and Notes.
+ bool get meetings;/// Whether the recording's audio is kept with the note. A meeting's is
+/// kept either way.
+ bool get keepAudio;/// Whether the system's server-backed recognizer may transcribe a
+/// recording the phone can't do itself. Off: it waits.
+ bool get allowServerRecognition;
 /// Create a copy of VoiceSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,16 +34,16 @@ $VoiceSettingsCopyWith<VoiceSettings> get copyWith => _$VoiceSettingsCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VoiceSettings&&(identical(other.spokenCommands, spokenCommands) || other.spokenCommands == spokenCommands));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VoiceSettings&&(identical(other.spokenCommands, spokenCommands) || other.spokenCommands == spokenCommands)&&(identical(other.tidy, tidy) || other.tidy == tidy)&&(identical(other.meetings, meetings) || other.meetings == meetings)&&(identical(other.keepAudio, keepAudio) || other.keepAudio == keepAudio)&&(identical(other.allowServerRecognition, allowServerRecognition) || other.allowServerRecognition == allowServerRecognition));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,spokenCommands);
+int get hashCode => Object.hash(runtimeType,spokenCommands,tidy,meetings,keepAudio,allowServerRecognition);
 
 @override
 String toString() {
-  return 'VoiceSettings(spokenCommands: $spokenCommands)';
+  return 'VoiceSettings(spokenCommands: $spokenCommands, tidy: $tidy, meetings: $meetings, keepAudio: $keepAudio, allowServerRecognition: $allowServerRecognition)';
 }
 
 
@@ -47,7 +54,7 @@ abstract mixin class $VoiceSettingsCopyWith<$Res>  {
   factory $VoiceSettingsCopyWith(VoiceSettings value, $Res Function(VoiceSettings) _then) = _$VoiceSettingsCopyWithImpl;
 @useResult
 $Res call({
- bool spokenCommands
+ bool spokenCommands, VoiceTidyMode tidy, bool meetings, bool keepAudio, bool allowServerRecognition
 });
 
 
@@ -64,9 +71,13 @@ class _$VoiceSettingsCopyWithImpl<$Res>
 
 /// Create a copy of VoiceSettings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? spokenCommands = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? spokenCommands = null,Object? tidy = null,Object? meetings = null,Object? keepAudio = null,Object? allowServerRecognition = null,}) {
   return _then(_self.copyWith(
 spokenCommands: null == spokenCommands ? _self.spokenCommands : spokenCommands // ignore: cast_nullable_to_non_nullable
+as bool,tidy: null == tidy ? _self.tidy : tidy // ignore: cast_nullable_to_non_nullable
+as VoiceTidyMode,meetings: null == meetings ? _self.meetings : meetings // ignore: cast_nullable_to_non_nullable
+as bool,keepAudio: null == keepAudio ? _self.keepAudio : keepAudio // ignore: cast_nullable_to_non_nullable
+as bool,allowServerRecognition: null == allowServerRecognition ? _self.allowServerRecognition : allowServerRecognition // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -152,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool spokenCommands)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool spokenCommands,  VoiceTidyMode tidy,  bool meetings,  bool keepAudio,  bool allowServerRecognition)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VoiceSettings() when $default != null:
-return $default(_that.spokenCommands);case _:
+return $default(_that.spokenCommands,_that.tidy,_that.meetings,_that.keepAudio,_that.allowServerRecognition);case _:
   return orElse();
 
 }
@@ -173,10 +184,10 @@ return $default(_that.spokenCommands);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool spokenCommands)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool spokenCommands,  VoiceTidyMode tidy,  bool meetings,  bool keepAudio,  bool allowServerRecognition)  $default,) {final _that = this;
 switch (_that) {
 case _VoiceSettings():
-return $default(_that.spokenCommands);case _:
+return $default(_that.spokenCommands,_that.tidy,_that.meetings,_that.keepAudio,_that.allowServerRecognition);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -193,10 +204,10 @@ return $default(_that.spokenCommands);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool spokenCommands)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool spokenCommands,  VoiceTidyMode tidy,  bool meetings,  bool keepAudio,  bool allowServerRecognition)?  $default,) {final _that = this;
 switch (_that) {
 case _VoiceSettings() when $default != null:
-return $default(_that.spokenCommands);case _:
+return $default(_that.spokenCommands,_that.tidy,_that.meetings,_that.keepAudio,_that.allowServerRecognition);case _:
   return null;
 
 }
@@ -208,12 +219,23 @@ return $default(_that.spokenCommands);case _:
 
 
 class _VoiceSettings implements VoiceSettings {
-  const _VoiceSettings({this.spokenCommands = true});
+  const _VoiceSettings({this.spokenCommands = true, this.tidy = VoiceTidyMode.ask, this.meetings = true, this.keepAudio = false, this.allowServerRecognition = false});
   
 
 /// Whether "comma", "new paragraph" and "delete that" are acted on
 /// rather than written. On by default, as on the desktop.
 @override@JsonKey() final  bool spokenCommands;
+/// Tidy voice notes: off, ask each time, or always.
+@override@JsonKey() final  VoiceTidyMode tidy;
+/// Whether a recording longer than three minutes is a meeting, which
+/// tidy gives a Summary, Decisions, Action items and Notes.
+@override@JsonKey() final  bool meetings;
+/// Whether the recording's audio is kept with the note. A meeting's is
+/// kept either way.
+@override@JsonKey() final  bool keepAudio;
+/// Whether the system's server-backed recognizer may transcribe a
+/// recording the phone can't do itself. Off: it waits.
+@override@JsonKey() final  bool allowServerRecognition;
 
 /// Create a copy of VoiceSettings
 /// with the given fields replaced by the non-null parameter values.
@@ -225,16 +247,16 @@ _$VoiceSettingsCopyWith<_VoiceSettings> get copyWith => __$VoiceSettingsCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VoiceSettings&&(identical(other.spokenCommands, spokenCommands) || other.spokenCommands == spokenCommands));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _VoiceSettings&&(identical(other.spokenCommands, spokenCommands) || other.spokenCommands == spokenCommands)&&(identical(other.tidy, tidy) || other.tidy == tidy)&&(identical(other.meetings, meetings) || other.meetings == meetings)&&(identical(other.keepAudio, keepAudio) || other.keepAudio == keepAudio)&&(identical(other.allowServerRecognition, allowServerRecognition) || other.allowServerRecognition == allowServerRecognition));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,spokenCommands);
+int get hashCode => Object.hash(runtimeType,spokenCommands,tidy,meetings,keepAudio,allowServerRecognition);
 
 @override
 String toString() {
-  return 'VoiceSettings(spokenCommands: $spokenCommands)';
+  return 'VoiceSettings(spokenCommands: $spokenCommands, tidy: $tidy, meetings: $meetings, keepAudio: $keepAudio, allowServerRecognition: $allowServerRecognition)';
 }
 
 
@@ -245,7 +267,7 @@ abstract mixin class _$VoiceSettingsCopyWith<$Res> implements $VoiceSettingsCopy
   factory _$VoiceSettingsCopyWith(_VoiceSettings value, $Res Function(_VoiceSettings) _then) = __$VoiceSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- bool spokenCommands
+ bool spokenCommands, VoiceTidyMode tidy, bool meetings, bool keepAudio, bool allowServerRecognition
 });
 
 
@@ -262,9 +284,13 @@ class __$VoiceSettingsCopyWithImpl<$Res>
 
 /// Create a copy of VoiceSettings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? spokenCommands = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? spokenCommands = null,Object? tidy = null,Object? meetings = null,Object? keepAudio = null,Object? allowServerRecognition = null,}) {
   return _then(_VoiceSettings(
 spokenCommands: null == spokenCommands ? _self.spokenCommands : spokenCommands // ignore: cast_nullable_to_non_nullable
+as bool,tidy: null == tidy ? _self.tidy : tidy // ignore: cast_nullable_to_non_nullable
+as VoiceTidyMode,meetings: null == meetings ? _self.meetings : meetings // ignore: cast_nullable_to_non_nullable
+as bool,keepAudio: null == keepAudio ? _self.keepAudio : keepAudio // ignore: cast_nullable_to_non_nullable
+as bool,allowServerRecognition: null == allowServerRecognition ? _self.allowServerRecognition : allowServerRecognition // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

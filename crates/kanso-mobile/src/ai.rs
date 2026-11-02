@@ -534,12 +534,12 @@ impl AiRun {
         self.cancel.store(true, Ordering::Relaxed);
     }
 
-    /// Whether the request was asked to stop.
-    /// The flag that stops the request.
+    /// The flag a request polls to see whether it was asked to stop.
     pub(crate) fn cancel_flag(&self) -> Arc<AtomicBool> {
         self.cancel.clone()
     }
 
+    /// Whether the request was asked to stop.
     pub(crate) fn stopped(&self) -> bool {
         self.cancel.load(Ordering::Relaxed)
     }

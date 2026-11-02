@@ -13,6 +13,7 @@ import '../../data/dictation_failure.dart';
 import '../../data/dictation_permission.dart';
 import '../../data/dictation_signal.dart';
 import '../../data/dictation_unavailable_reason.dart';
+import '../../data/file_transcript.dart';
 import '../abs/dictation_repository.dart';
 
 /// Dictation through the `kanso_dictation` plugin: `SFSpeechRecognizer` on
@@ -64,6 +65,27 @@ class PlatformDictationRepository implements DictationRepository {
   Future<Either<ApplicationError, Unit>> openSettings() => attempt(() async {
     await dictation.openSettings();
     return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, FileTranscript>> transcribeFile(
+    String path, {
+    required bool allowServer,
+    String? localeTag,
+  }) => attempt(() async {
+    final answer = await dictation.transcribeFile(path, localeTag, allowServer);
+    return FileTranscript(
+      text: answer.text,
+      onDevice: answer.onDevice,
+      problem: switch (answer.error) {
+        null => null,
+        'unsupported' => FileTranscriptProblem.unsupported,
+        'notOnDevice' => FileTranscriptProblem.notOnDevice,
+        'denied' => FileTranscriptProblem.denied,
+        'unreadable' => FileTranscriptProblem.unreadable,
+        _ => FileTranscriptProblem.failed,
+      },
+    );
   });
 
   @override

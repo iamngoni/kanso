@@ -554,3 +554,39 @@ proptest! {
         prop_assert_eq!(body(&store, "note:m"), expected);
     }
 }
+
+/// A voice capture's tidy state only moves forward: a device that tidied
+/// it and a device that hadn't agree on "done", whichever version wins.
+// no-prop-test: two fixed devices; the ordering itself is property-tested
+// in kanso-core's capture_mark.
+#[test]
+fn a_capture_tidied_on_one_device_stays_tidied_when_the_other_wins() {
+    let (_dir, store) = temp_store();
+    let a = book(&store, "book:a");
+    let rev = store
+        .put(
+            DocType::Note,
+            json!({"_id": "note:cap-1", "title": "t", "body": "mine\n", "bookId": a,
+                "updatedAt": 1000,
+                "kansoCapture": {"v": 1, "kind": "voice", "duration_ms": 5, "engine": "parakeet", "tidy": "done"}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .rev;
+    let remote = SyncDoc {
+        id: "note:cap-1".into(),
+        rev: format!("{}-{}", 2, "0123456789abcdef0123456789abcdef"),
+        deleted: false,
+        fields: json!({"title": "t", "body": "theirs\n", "bookId": a, "updatedAt": 2000,
+            "kansoCapture": {"v": 1, "kind": "voice", "duration_ms": 5, "engine": "parakeet", "tidy": "pending"}})
+        .as_object()
+        .unwrap()
+        .clone(),
+        base_rev: Some(rev),
+    };
+    store.apply_remote(&remote, None, None).unwrap();
+    let doc = store.get("note:cap-1").unwrap().unwrap();
+    assert_eq!(doc.fields["kansoCapture"]["tidy"], "done");
+    assert_eq!(doc.fields["body"], "theirs\n", "the newer text still wins");
+}

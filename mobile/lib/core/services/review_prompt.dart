@@ -24,7 +24,8 @@ const Duration reviewMomentFreshness = Duration(minutes: 10);
 /// system's own prompt and only at a good moment: after something went
 /// well ([moment]), back on a list with the keyboard down (the host's
 /// part, see `ReviewPromptHost`), and only when [reviewIneligibility] says
-/// nothing against it.
+/// nothing against it. The "10 notes" it asks for are counted as edit
+/// sessions: each time a note is let go after being written in.
 ///
 /// What it counts stays on this phone ([ReviewPromptRepository]). Every
 /// part is best effort: a failure never reaches what the person was doing.
@@ -85,7 +86,7 @@ class ReviewPrompt {
   /// The app crashed, or sync or signing in failed: no asking for a while.
   Future<void> trouble() async {
     final now = clock.now();
-    await _change((record) => record.copyWith(lastTroubleAt: now));
+    await _change((record) => record.copyWith(lastTroubleAt: now.toUtc()));
   }
 
   /// Something went well: the app may ask once the person is back on a

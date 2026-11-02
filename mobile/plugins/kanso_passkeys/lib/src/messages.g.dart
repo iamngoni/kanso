@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,20 +34,21 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
 /// How a ceremony ended, as far as Dart is told. The answer itself (with the
 /// PRF output) never comes here: the plugin hands it to Rust.
 enum PasskeyOutcome {
   /// The sheet answered and Rust took the answer.
   done,
+
   /// The person dismissed the sheet.
   cancelled,
+
   /// This phone, its credential provider or the app's setup can't run it.
   unavailable,
-  /// Anything else.
-  failed;
-}
 
+  /// Anything else.
+  failed,
+}
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -56,7 +57,7 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is PasskeyOutcome) {
+    } else if (value is PasskeyOutcome) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
     } else {
@@ -81,39 +82,45 @@ class PasskeysHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   PasskeysHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   /// Runs the platform's passkey sheet for [ticket].
   ///
   /// [kind] is `register` or `assert`; [optionsJson] is the non-secret
   /// request of the facade's `PasskeyRequest`. The plugin passes the
   /// answer, or `{"error": ...}`, to Rust itself.
-  Future<PasskeyOutcome> run(int ticket, String kind, String optionsJson) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.kanso_passkeys.PasskeysHostApi.run$pigeonVar_messageChannelSuffix';
+  Future<PasskeyOutcome> run(
+    int ticket,
+    String kind,
+    String optionsJson,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.kanso_passkeys.PasskeysHostApi.run$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[ticket, kind, optionsJson]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[ticket, kind, optionsJson],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as PasskeyOutcome;
   }
 }

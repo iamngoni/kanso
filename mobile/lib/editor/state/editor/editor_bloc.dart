@@ -225,7 +225,8 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
       case core.EditorEvent_Failed(:final message):
         emit(state.copyWith(save: SaveState.failed(message: message)));
       case core.EditorEvent_Closed():
-        await _release();
+        // Another device took the lock: not the person's own leaving.
+        await _release(deliberate: false);
         emit(EditorState(noteId: state.noteId, status: EditorStatus.locked));
     }
   }
@@ -386,8 +387,8 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     await result.fold(
       (error) async {
         if (error is NotFoundError) {
-          // Deleted elsewhere: the session is over.
-          await _release();
+          // Deleted elsewhere: the session is over, and no good moment.
+          await _release(deliberate: false);
           emit(
             EditorState(noteId: state.noteId, status: EditorStatus.notFound),
           );
@@ -504,8 +505,10 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     return SaveState.failed(message: error.message);
   }
 
-  /// Saves and lets go of the open note.
-  Future<void> _release() async {
+  /// Saves and lets go of the open note. Only a [deliberate] leave after
+  /// writing counts as a good moment for the review prompt, not losing the
+  /// lock or the note to another device.
+  Future<void> _release({bool deliberate = true}) async {
     final document = _document;
     final edited = _edited;
     _document = null;
@@ -516,7 +519,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
       // Leaving saves what was typed, keeping it over a change made
       // elsewhere. A note whose lock closed has been saved already.
       await document.close();
-      if (edited) {
+      if (edited && deliberate) {
         markNoteEditedForReview();
       }
     }

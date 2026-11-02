@@ -42,9 +42,8 @@ class KansoOcr implements TextReader {
   /// The recognizer's name, known without asking the native side (which
   /// answers the same through [OcrHostApi.engine]).
   @override
-  String get engine => defaultTargetPlatform == TargetPlatform.iOS
-      ? 'vision'
-      : 'mlkit';
+  String get engine =>
+      defaultTargetPlatform == TargetPlatform.iOS ? 'vision' : 'mlkit';
 
   @override
   Future<String> read(Uint8List image) => api.read(image);

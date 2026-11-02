@@ -35,6 +35,9 @@ mod calendar;
 mod calendar_view;
 mod capture;
 mod capture_cli;
+mod capture_voice;
+#[cfg(test)]
+mod capture_voice_tests;
 mod clipboard;
 mod clock;
 mod code_lang;
@@ -206,6 +209,7 @@ mod vim;
 mod voice;
 mod voice_commands;
 mod voice_state;
+mod voice_tidy;
 mod wikilinks;
 mod word_goal;
 mod workspace;

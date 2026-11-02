@@ -34,5 +34,6 @@ class KansoApplication : Application() {
         // uses.
         KansoPush.onWake = { context -> SyncWorker.enqueueNow(context) }
         KansoCrashes.start(this)
+        VoiceCaptureService.sweep(this)
     }
 }

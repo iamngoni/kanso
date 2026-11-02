@@ -79,11 +79,13 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>Kanso uses Face ID to unlock your locked notes.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kanso turns what you say into text on this device.</string>
+	<string>Kanso turns what you say into text on this device. It also records voice notes you start from the Action Button, Control Center or a widget.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kanso adds the photos you choose to your notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Kanso turns what you say into text on this device. Nothing you say leaves it.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>app.kanso.Kanso.note</string>
@@ -121,6 +123,7 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>audio</string>
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>

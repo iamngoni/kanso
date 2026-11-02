@@ -19,7 +19,8 @@ mixin _$ReviewPromptRecord {
 /// update that brought it). Null until then.
  DateTime? get firstOpenedAt;/// On how many different days the app was opened.
  int get activeDays;/// The last day the app was opened, `YYYY-MM-DD` in local time.
- String? get lastActiveDay;/// How many times a note was let go after it was written in.
+ String? get lastActiveDay;/// How many edit sessions: times a note was let go after it was written
+/// in (the same note twice counts twice).
  int get notesEdited;/// When the app last crashed, or sync or signing in last failed.
  DateTime? get lastTroubleAt;/// When the app last asked the system for a review.
  DateTime? get lastAskedAt;/// The versions of the app that have asked, oldest first; one is never
@@ -236,7 +237,8 @@ class _ReviewPromptRecord implements ReviewPromptRecord {
 @override@JsonKey() final  int activeDays;
 /// The last day the app was opened, `YYYY-MM-DD` in local time.
 @override final  String? lastActiveDay;
-/// How many times a note was let go after it was written in.
+/// How many edit sessions: times a note was let go after it was written
+/// in (the same note twice counts twice).
 @override@JsonKey() final  int notesEdited;
 /// When the app last crashed, or sync or signing in last failed.
 @override final  DateTime? lastTroubleAt;

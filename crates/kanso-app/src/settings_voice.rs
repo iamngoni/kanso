@@ -8,7 +8,7 @@ use gpui_kit::component::{Sizable as _, WindowExt as _, h_flex};
 use gpui_kit::*;
 use kanso_voice::permission::{self, Permission};
 
-use crate::config::VoiceEngine;
+use crate::config::{TidyMode, VoiceEngine};
 use crate::settings::{Row, SettingsView, section as settings_section, segmented};
 use crate::settings_discovery::{megabytes, meter, this_device};
 use crate::theme::Colors;
@@ -124,7 +124,51 @@ pub fn section(cx: &mut Context<SettingsView>) -> AnyElement {
             "Your system's own dictation types into the note. Set it up, and pick its language, in your system's keyboard settings.",
         ));
     }
+    rows.extend(capture_rows(cx, colors));
     settings_section("Voice input", rows, colors)
+}
+
+/// What the Tidy row says under its title. Pure.
+pub fn tidy_detail(ai_on: bool) -> &'static str {
+    if ai_on {
+        "Your own AI gives a voice note a title, short paragraphs and tasks for what was said you would do. Only the words are sent. The transcript stays in the note, folded under it."
+    } else {
+        "Set up AI in Settings › AI to tidy notes."
+    }
+}
+
+/// Voice capture's rows (issue #193): tidying, and what counts as a meeting.
+// no-prop-test: layout; `tidy_detail` says what it shows.
+fn capture_rows(cx: &mut Context<SettingsView>, colors: &Colors) -> Vec<Row> {
+    let config = cx.global::<AppState>().config.clone();
+    let ai_on = config.ai.enabled;
+    let mut tidy = Row::new(Lucide::Sparkles, "Tidy voice notes").detail(tidy_detail(ai_on));
+    if ai_on {
+        tidy = tidy.trailing(segmented(
+            "voice-tidy",
+            [
+                ("Off", TidyMode::Off),
+                ("Ask Each Time", TidyMode::Ask),
+                ("Always", TidyMode::Always),
+            ],
+            config.voice.tidy,
+            |mode, _, cx| AppState::update_config(cx, |config| config.voice.tidy = mode),
+            colors,
+        ));
+    }
+    let meetings = Row::new(Lucide::Users, "Meetings")
+        .detail("Treat recordings longer than 3 minutes as meetings: tidy gives them a Summary, Decisions, Action items and Notes.")
+        .trailing(
+            div().debug_selector(|| "voice-meetings".into()).child(
+                Switch::new("voice-meetings")
+                    .checked(config.voice.meetings)
+                    .on_click(|on, _, cx| {
+                        let on = *on;
+                        AppState::update_config(cx, |config| config.voice.meetings = on)
+                    }),
+            ),
+        );
+    vec![tidy, meetings]
 }
 
 // no-prop-test: layout; `model_words` has the tests.
@@ -185,7 +229,7 @@ fn model_row(model: &ModelState, colors: &Colors) -> Row {
 
 #[cfg(test)]
 mod tests {
-    use super::{ModelState, model_words};
+    use super::{ModelState, model_words, tidy_detail};
     use proptest::prelude::*;
 
     #[test]
@@ -202,6 +246,13 @@ mod tests {
             "Downloading the voice model… 50%"
         );
         assert!(model_words(&ModelState::Ready).1.contains("NVIDIA"));
+    }
+
+    // no-prop-test: two fixed sentences.
+    #[test]
+    fn tidy_row_points_to_ai_settings_without_ai() {
+        assert!(tidy_detail(false).contains("Settings › AI"));
+        assert!(tidy_detail(true).contains("transcript stays"));
     }
 
     fn reads(state: &ModelState, why: &str) -> Result<(), TestCaseError> {

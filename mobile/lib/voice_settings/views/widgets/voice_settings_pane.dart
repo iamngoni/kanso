@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/load_status.dart';
@@ -12,11 +13,16 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
+import '../../../core/views/widgets/kanso_segment.dart';
+import '../../../core/views/widgets/kanso_segmented.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../dictation/models/data/dictation_permission.dart';
 import '../../../shell/views/widgets/shell_back_button.dart';
+import '../../../voice_capture/state/voice_drops/voice_drops_bloc.dart';
+import '../../models/data/voice_settings.dart';
+import '../../models/data/voice_tidy_mode.dart';
 import '../../state/voice_settings/voice_settings_bloc.dart';
 import 'voice_recognition_row.dart';
 
@@ -154,11 +160,163 @@ class VoiceSettingsPane extends StatelessWidget {
                             ),
                         ],
                       ),
+                    const SizedBox(height: KansoSpacing.lg),
+                    _captureSection(context, state),
                   ],
                 );
               },
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Voice notes: tidying, meetings, the audio, and the speech server.
+  Widget _captureSection(BuildContext context, VoiceSettingsState state) {
+    final colors = context.colors;
+    final l10n = context.l10n;
+    final ready = state.status == LoadStatus.ready;
+    final aiOn = context.watch<AiStatusBloc>().state.enabled;
+    final settings = state.settings;
+    void change(VoiceSettings next) => context.read<VoiceSettingsBloc>().add(
+      VoiceSettingsEvent.changed(settings: next),
+    );
+    Widget toggle(
+      KansoIcons icon,
+      String label,
+      // ignore: avoid_positional_boolean_parameters
+      bool value,
+      ValueChanged<bool> onChanged,
+    ) => KansoSettingsRow(
+      icon: icon,
+      label: label,
+      trailing: KansoSwitch(
+        value: value,
+        onChanged: ready ? onChanged : null,
+      ),
+      onTap: ready ? () => onChanged(!value) : null,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        KansoGroupedSection(
+          title: l10n.voiceSettingsCaptureSection,
+          dividerIndent: iconInset,
+          children: <Widget>[
+            Opacity(
+              opacity: aiOn ? 1 : 0.5,
+              child: KansoSettingsRow(
+                icon: KansoIcons.sparkles,
+                label: l10n.voiceSettingsTidy,
+                value: aiOn ? null : l10n.voiceSettingsTidyOff,
+              ),
+            ),
+            if (aiOn)
+              Padding(
+                padding: const EdgeInsets.all(KansoSpacing.sm),
+                child: KansoSegmented<VoiceTidyMode>(
+                  expanded: true,
+                  semanticLabel: l10n.voiceSettingsTidy,
+                  selected: settings.tidy,
+                  onChanged: (mode) {
+                    if (ready) {
+                      change(settings.copyWith(tidy: mode));
+                    }
+                  },
+                  segments: <KansoSegment<VoiceTidyMode>>[
+                    KansoSegment<VoiceTidyMode>(
+                      value: VoiceTidyMode.off,
+                      label: l10n.voiceSettingsTidyOff,
+                    ),
+                    KansoSegment<VoiceTidyMode>(
+                      value: VoiceTidyMode.ask,
+                      label: l10n.voiceSettingsTidyAsk,
+                    ),
+                    KansoSegment<VoiceTidyMode>(
+                      value: VoiceTidyMode.always,
+                      label: l10n.voiceSettingsTidyAlways,
+                    ),
+                  ],
+                ),
+              ),
+            toggle(
+              KansoIcons.users,
+              l10n.voiceSettingsMeetings,
+              settings.meetings,
+              (on) => change(settings.copyWith(meetings: on)),
+            ),
+            toggle(
+              KansoIcons.mic,
+              l10n.voiceSettingsKeepAudio,
+              settings.keepAudio,
+              (on) => change(settings.copyWith(keepAudio: on)),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            KansoSpacing.md,
+            KansoSpacing.xs,
+            KansoSpacing.md,
+            0,
+          ),
+          child: Text(
+            aiOn ? l10n.voiceSettingsTidyHelp : l10n.voiceSettingsTidyNeedsAi,
+            style: context.typography.meta.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(height: KansoSpacing.lg),
+        _waiting(context),
+        KansoGroupedSection(
+          footer: l10n.voiceSettingsServerHelp,
+          dividerIndent: iconInset,
+          children: <Widget>[
+            toggle(
+              KansoIcons.cloud,
+              l10n.voiceSettingsServer,
+              settings.allowServerRecognition,
+              (on) => change(settings.copyWith(allowServerRecognition: on)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// How many recordings wait to be transcribed, and what was left out of
+  /// the last ones. Nothing where the app has no voice drops (a test host).
+  Widget _waiting(BuildContext context) {
+    final VoiceDropsState drops;
+    try {
+      drops = context.watch<VoiceDropsBloc>().state;
+    } on ProviderNotFoundException {
+      return const SizedBox.shrink();
+    }
+    final l10n = context.l10n;
+    final colors = context.colors;
+    if (drops.waiting == 0 && drops.problems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: KansoSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          if (drops.waiting > 0)
+            Text(
+              l10n.voiceSettingsWaiting(drops.waiting),
+              style: context.typography.meta.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
+          for (final problem in drops.problems)
+            Text(
+              problem,
+              style: context.typography.meta.copyWith(color: colors.danger),
+            ),
         ],
       ),
     );

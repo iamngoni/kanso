@@ -8938,6 +8938,126 @@ abstract class AppLocalizations {
   /// **'An agent reads only notes that are not locked, not in the Trash and not tagged #ai-exclude. It never writes; you approve every change.'**
   String get agentSettingsFooter;
 
+  /// Button on a voice note that asks the person's own AI to tidy it.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidy'**
+  String get voiceTidy;
+
+  /// The strip over a voice note that can be tidied.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidy this voice note: a title, short paragraphs and tasks. The transcript stays.'**
+  String get voiceTidyOffer;
+
+  /// Shown while the AI tidies a voice note.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidying…'**
+  String get voiceTidyWorking;
+
+  /// Why tidying a voice note failed; the note is unchanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t tidy this note: {reason}.'**
+  String voiceTidyFailed(String reason);
+
+  /// Button that tries tidying a voice note again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get voiceTidyTryAgain;
+
+  /// Settings section for voice capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice notes'**
+  String get voiceSettingsCaptureSection;
+
+  /// Settings row: whether voice notes are tidied by AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidy voice notes'**
+  String get voiceSettingsTidy;
+
+  /// Tidy voice notes: never.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get voiceSettingsTidyOff;
+
+  /// Tidy voice notes: a Tidy button is offered each time.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask each time'**
+  String get voiceSettingsTidyAsk;
+
+  /// Tidy voice notes: every capture is tidied.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get voiceSettingsTidyAlways;
+
+  /// Explains tidying voice notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own AI gives a voice note a title, short paragraphs and tasks for what was said you would do. Only the words are sent. The transcript stays in the note, folded under it.'**
+  String get voiceSettingsTidyHelp;
+
+  /// Says tidying needs AI to be set up.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up AI in Settings › AI to tidy notes.'**
+  String get voiceSettingsTidyNeedsAi;
+
+  /// Settings row: recordings over three minutes are meetings.
+  ///
+  /// In en, this message translates to:
+  /// **'Meetings'**
+  String get voiceSettingsMeetings;
+
+  /// Explains the meetings switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Treat recordings longer than 3 minutes as meetings. Tidy gives them a Summary, Decisions, Action items and Notes, and their audio is kept.'**
+  String get voiceSettingsMeetingsHelp;
+
+  /// Settings row: keep the recording's audio with the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep audio'**
+  String get voiceSettingsKeepAudio;
+
+  /// Explains the keep audio switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach the recording to the voice note. Audio over 10 MB isn\'t kept; the transcript always is.'**
+  String get voiceSettingsKeepAudioHelp;
+
+  /// Settings row: allow the system's server recognizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the speech server when needed'**
+  String get voiceSettingsServer;
+
+  /// Explains the server recognizer switch and its privacy cost.
+  ///
+  /// In en, this message translates to:
+  /// **'When this phone can\'t turn a recording into text by itself, it can send the audio to the system\'s speech service to be transcribed. Off, such a recording waits here, untouched.'**
+  String get voiceSettingsServerHelp;
+
+  /// How many recordings wait.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 recording is waiting to be transcribed} other{{count} recordings are waiting to be transcribed}}'**
+  String voiceSettingsWaiting(int count);
+
+  /// Notice after a voice note was tidied; Undo puts it back as it was.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidied this voice note'**
+  String get voiceTidyDone;
+
   /// Flashcards, Quiz Me and drafting: review title.
   ///
   /// In en, this message translates to:

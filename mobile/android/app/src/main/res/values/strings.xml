@@ -16,4 +16,8 @@
     <string name="widget_new">New note</string>
     <string name="widget_voice">Voice note</string>
     <string name="widget_today">Today</string>
+
+    <string name="tile_voice_label">Voice note</string>
+    <string name="tile_voice_idle">Tap to record</string>
+    <string name="tile_voice_recording">Recording</string>
 </resources>
