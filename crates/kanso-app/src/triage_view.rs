@@ -31,7 +31,7 @@ use gpui_kit::*;
 use kanso_core::roles::Role;
 use kanso_engine::triage::file::{self, undo};
 use kanso_engine::triage::session::{CardState, Chip, Mark, Session};
-use kanso_engine::triage::{self, Field, Filed, Reason, Source, Suggestion, TriageOptions};
+use kanso_engine::triage::{self, Field, Filed, Reason, Source, TriageOptions};
 use kanso_store::Store;
 
 use crate::clock::Clock;
@@ -114,7 +114,6 @@ struct Loaded {
 }
 
 pub struct TriageView {
-    library: Entity<Library>,
     store: Arc<Store>,
     session: Session,
     infos: HashMap<String, Info>,
@@ -214,7 +213,6 @@ impl TriageView {
             }
         })];
         TriageView {
-            library,
             store,
             session: Session::default(),
             infos: HashMap::new(),
@@ -528,7 +526,6 @@ impl TriageView {
         let note_id = state.note_id.clone();
         let view = cx.entity().downgrade();
         let store = self.store.clone();
-        let library = self.library.clone();
         let (title, initial) = match current.field {
             Field::Notebook => ("Notebook", current.label.clone()),
             Field::Tag => ("Tag", current.label.clone()),
@@ -537,7 +534,7 @@ impl TriageView {
         };
         let field = current.field;
         crate::dialogs::prompt_checked(title, &initial, "Use", window, cx, move |text, _, cx| {
-            let made = resolve(field, &text, &store, &library, cx)?;
+            let made = triage::resolve(&store, field, &text)?;
             let (view, note_id) = (view.clone(), note_id.clone());
             view.update(cx, |this, cx| {
                 if let Some(state) = this.session.cards.iter_mut().find(|c| c.note_id == note_id)
@@ -1208,79 +1205,6 @@ impl TriageView {
                     ),
             )
             .into_any_element()
-    }
-}
-
-/// The suggestion a typed `text` makes for `field`, or why it can't: a
-/// notebook, note or title the library has, a tag it has or a new one.
-fn resolve(
-    field: Field,
-    text: &str,
-    store: &Store,
-    library: &Entity<Library>,
-    cx: &App,
-) -> Result<Suggestion, String> {
-    let text = text.trim();
-    let same = |a: &str| a.trim().to_lowercase() == text.to_lowercase();
-    let make = |value: String, label: String, is_new: bool| Suggestion {
-        field,
-        value,
-        label,
-        score: 1.,
-        because: Vec::new(),
-        source: Source::Library,
-        is_new,
-    };
-    match field {
-        Field::Notebook => {
-            let library = library.read(cx);
-            let book = library
-                .books
-                .iter()
-                .find(|b| same(&b.name))
-                .ok_or_else(|| format!("There is no notebook named “{text}”."))?;
-            if book.id == Role::Inbox.book_id() || book.id == kanso_core::model::TRASH_BOOK_ID {
-                return Err("Choose a notebook to file into.".into());
-            }
-            if library.is_book_locked(&book.id) {
-                return Err("A locked notebook can't be filed into from here.".into());
-            }
-            Ok(make(book.id.clone(), book.name.clone(), false))
-        }
-        Field::Tag => {
-            let name = text.trim_start_matches('#').trim();
-            if name.is_empty() {
-                return Err("Type a tag.".into());
-            }
-            let library = library.read(cx);
-            Ok(
-                match library
-                    .tags
-                    .iter()
-                    .find(|t| name.eq_ignore_ascii_case(&t.name))
-                {
-                    Some(tag) => make(tag.id.clone(), tag.name.clone(), false),
-                    None => make(name.to_owned(), name.to_owned(), true),
-                },
-            )
-        }
-        Field::Title => {
-            if text.is_empty() {
-                return Err("Type a title.".into());
-            }
-            Ok(make(text.to_owned(), text.to_owned(), false))
-        }
-        Field::Link => {
-            let titles = store.linkable_titles().map_err(|e| e.to_string())?;
-            let found: Vec<_> = titles.iter().filter(|(_, t)| same(t)).collect();
-            match found.as_slice() {
-                [(id, title)] if kanso_engine::triage::links::linkable(title) => {
-                    Ok(make(id.clone(), title.clone(), false))
-                }
-                [] => Err(format!("There is no note titled “{text}”.")),
-                _ => Err("More than one note has that title.".into()),
-            }
-        }
     }
 }
 

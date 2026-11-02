@@ -23,6 +23,7 @@ pub mod file;
 pub mod links;
 pub mod model;
 pub mod notebook;
+pub mod resolve;
 pub mod session;
 pub mod title;
 
@@ -32,6 +33,7 @@ use kanso_core::Note;
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_store::{Result, Store};
 
+pub use resolve::resolve;
 pub use model::{
     BECAUSE_MAX, Card, Field, Filed, Filing, Reason, Source, Suggestion, TriageOptions,
 };
