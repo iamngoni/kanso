@@ -170,12 +170,13 @@ fn watch(stop: &AtomicBool, copies: &async_channel::Sender<Copied>) -> anyhow::R
     let mut secrets = Secrets::default();
     while !stop.load(Ordering::Relaxed) {
         let now = count();
-        if now.is_some() && now != seen {
-            if let Some(read) = read_copy() {
-                seen = now;
-                if !send(copies, read, &mut secrets) {
-                    break;
-                }
+        if now.is_some()
+            && now != seen
+            && let Some(read) = read_copy()
+        {
+            seen = now;
+            if !send(copies, read, &mut secrets) {
+                break;
             }
         }
         std::thread::sleep(POLL);

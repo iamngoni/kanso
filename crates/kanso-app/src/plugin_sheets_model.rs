@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use kanso_plugins::batch::ReviewNote;
-use kanso_plugins::model::{Grant, Manifest};
+use kanso_plugins::model::{ClipboardPermission, Grant, Manifest};
 
 /// What the install button says. Pure.
 pub fn install_label(update: bool, key_changed: bool) -> &'static str {
@@ -23,6 +23,47 @@ pub fn install_enabled(folder: Option<&str>, typed: &str, trusted: bool) -> bool
     match folder {
         None => true,
         Some(path) => trusted && !path.is_empty() && typed == path,
+    }
+}
+
+/// How many times installing a sensitive plugin warns before it installs.
+pub const SENSITIVE_STEPS: u8 = 3;
+
+/// Whether installing `manifest` gives it something sensitive it didn't
+/// have under `before` (the installed grant, on an update): reading what
+/// is copied in other apps, which runs in the background while Kanso is
+/// open. Such an install warns three times. Pure.
+pub fn newly_sensitive(manifest: &Manifest, before: Option<&Grant>) -> bool {
+    let reads =
+        |set: &BTreeSet<ClipboardPermission>| set.contains(&ClipboardPermission::HistoryRead);
+    reads(&manifest.permissions.clipboard) && !before.is_some_and(|grant| reads(&grant.clipboard))
+}
+
+/// Whether the button on `step` (0-based) of a sensitive install works:
+/// the first needs the sheet itself ready, the second the box saying the
+/// person understands, the last the plugin's name typed exactly. Pure.
+pub fn sensitive_step_ready(
+    step: u8,
+    sheet_ready: bool,
+    understood: bool,
+    typed_name: &str,
+    name: &str,
+) -> bool {
+    match step {
+        0 => sheet_ready,
+        1 => sheet_ready && understood,
+        _ => {
+            sheet_ready && understood && !name.trim().is_empty() && typed_name.trim() == name.trim()
+        }
+    }
+}
+
+/// What the button on `step` of a sensitive install says. Pure.
+pub fn sensitive_step_label(step: u8) -> String {
+    if step + 1 >= SENSITIVE_STEPS {
+        "Install anyway".to_owned()
+    } else {
+        format!("Continue ({} of {SENSITIVE_STEPS})", step + 1)
     }
 }
 
@@ -91,8 +132,12 @@ pub fn note_summary(note: &ReviewNote) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{chosen_grant, install_enabled, install_label, note_summary, starting_ticks};
+    use super::{
+        SENSITIVE_STEPS, chosen_grant, install_enabled, install_label, newly_sensitive,
+        note_summary, sensitive_step_label, sensitive_step_ready, starting_ticks,
+    };
     use kanso_plugins::batch::ReviewNote;
+    use kanso_plugins::model::ClipboardPermission;
     use kanso_plugins::model::{
         Grant, Manifest, NotesRequest, Permissions, Publisher, ReadRequest,
     };
@@ -242,6 +287,63 @@ mod tests {
             let text = note_summary(&note(vec!["Text"], added, removed));
             prop_assert_eq!(text.contains(&format!("+{added}")), added > 0);
             prop_assert_eq!(text.contains(&format!("−{removed}")), removed > 0);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { rng_seed: proptest::test_runner::RngSeed::Fixed(186), ..ProptestConfig::default() })]
+
+        /// A sensitive install only gets to the last step's button with
+        /// every gate passed, and only the exact name opens it.
+        #[test]
+        fn prop_sensitive_install_needs_every_gate(
+            step in 0u8..SENSITIVE_STEPS,
+            ready in any::<bool>(),
+            understood in any::<bool>(),
+            name in "[A-Za-z][A-Za-z ]{0,12}",
+            typed in "[A-Za-z ]{0,14}",
+        ) {
+            let ok = sensitive_step_ready(step, ready, understood, &typed, &name);
+            if ok {
+                prop_assert!(ready);
+            }
+            if step >= 1 && ok {
+                prop_assert!(understood);
+            }
+            if step == SENSITIVE_STEPS - 1 {
+                prop_assert_eq!(ok, ready && understood && typed.trim() == name.trim());
+                prop_assert!(sensitive_step_ready(step, true, true, &name, &name));
+            }
+        }
+
+        /// Only the last step installs; the others count up to it.
+        #[test]
+        fn prop_only_the_last_step_installs(step in 0u8..SENSITIVE_STEPS) {
+            let label = sensitive_step_label(step);
+            prop_assert_eq!(label == "Install anyway", step == SENSITIVE_STEPS - 1);
+        }
+
+        /// Warned about when reading other apps' copies is new to it, and
+        /// only then.
+        #[test]
+        fn prop_sensitive_only_when_newly_reading(asks in any::<bool>(), had in proptest::option::of(any::<bool>())) {
+            let mut m = manifest(false, false, false);
+            if asks {
+                m.permissions.commands = true;
+                m.permissions.clipboard.insert(ClipboardPermission::HistoryRead);
+            }
+            let before = had.map(|had| {
+                let mut g = kanso_plugins::grant::initial(&manifest(false, false, false));
+                g.clipboard.clear();
+                if had {
+                    g.clipboard.insert(ClipboardPermission::HistoryRead);
+                }
+                g
+            });
+            prop_assert_eq!(
+                newly_sensitive(&m, before.as_ref()),
+                asks && had != Some(true)
+            );
         }
     }
 }

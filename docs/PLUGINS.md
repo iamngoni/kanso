@@ -272,7 +272,16 @@ native Wayland only the window in front may read the clipboard, so the
 history stays empty.
 
 A plugin with `clipboard: ["history.read"]` can't ask for `network`: what
-was copied could be a password, and must not be able to leave the computer.
+was copied could be a password, and must not be able to leave the computer. Nor can it ask for
+`notes.write` or `notes.create` (a note can be shared or published), and
+its panel can't show links (an address could carry a copy away in one
+click). Replacing the selection stays: that's an edit the person sees and
+can undo.
+
+Installing a plugin that newly gets `history.read` warns three times: a
+red notice on the install sheet, a page saying what reading the clipboard
+means with a box to tick, then the plugin's name typed to install it. An
+update that adds `history.read` warns the same way.
 The manifest is refused otherwise, at install and in the directory. The
 install sheet of every plugin without it says it can't "read what you copy
 in other apps".

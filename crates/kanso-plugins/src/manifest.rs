@@ -307,6 +307,15 @@ fn validate_permissions(p: &model::Permissions) -> Result<(), ManifestError> {
             "a plugin that reads the clipboard history can't use the network",
         ));
     }
+    // Nor change notes behind the person's back: a note can be shared or
+    // published. Editing the selection stays, as an edit they see and undo.
+    if p.clipboard.contains(&ClipboardPermission::HistoryRead)
+        && (!p.notes.write.is_empty() || p.notes.create)
+    {
+        return Err(bad(
+            "a plugin that reads the clipboard history can't change or create notes",
+        ));
+    }
     if p.network.len() > MAX_HOSTS {
         return Err(bad(format!("more than {MAX_HOSTS} hosts")));
     }
@@ -666,6 +675,15 @@ mod tests {
         assert_eq!(validate(&m), Ok(()));
         m.permissions.network.insert("api.example.com".into());
         assert!(matches!(validate(&m), Err(ManifestError::BadPermission(_))));
+        // Nor change or create notes, which can be shared or published.
+        m.permissions.network.clear();
+        m.permissions.notes.write = vec!["book".into()];
+        assert!(matches!(validate(&m), Err(ManifestError::BadPermission(_))));
+        m.permissions.notes.write.clear();
+        m.permissions.notes.create = true;
+        assert!(matches!(validate(&m), Err(ManifestError::BadPermission(_))));
+        m.permissions.notes.create = false;
+        m.permissions.network.insert("api.example.com".into());
         // Writing alone may go with the network: it reads nothing.
         m.permissions
             .clipboard

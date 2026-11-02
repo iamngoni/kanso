@@ -456,6 +456,18 @@ impl Router<'_> {
         }
         let tree = crate::panel::check(args.get("tree").unwrap_or(&Value::Null))
             .map_err(|e| invalid(e.to_string()))?;
+        // A link's address could carry what was copied off the computer in
+        // one click: a plugin that reads the clipboard history shows none.
+        if crate::panel::has_links(&tree)
+            && self
+                .grant()
+                .clipboard
+                .contains(&crate::model::ClipboardPermission::HistoryRead)
+        {
+            return Err(invalid(
+                "a plugin that reads the clipboard history can't show links",
+            ));
+        }
         let scope = self.scope()?;
         for image in crate::panel::images(&tree) {
             if scope.attachment(image).is_none() {
