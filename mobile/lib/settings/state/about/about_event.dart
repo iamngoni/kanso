@@ -17,4 +17,7 @@ sealed class AboutEvent with _$AboutEvent {
 
   /// The person chose the help row.
   const factory AboutEvent.helpOpened() = AboutHelpOpenedEvent;
+
+  /// The person chose to rate the app.
+  const factory AboutEvent.rateOpened() = AboutRateOpenedEvent;
 }

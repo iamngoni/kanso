@@ -18,7 +18,8 @@ enum UsageFeature {
   graphOpened('graph_opened'),
   themeChanged('theme_changed'),
   wikilinkFollowed('wikilink_followed'),
-  focusMode('focus_mode');
+  focusMode('focus_mode'),
+  reviewPrompt('review_prompt');
 
   const UsageFeature(this.wireName);
 

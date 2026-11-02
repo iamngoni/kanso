@@ -32,6 +32,9 @@ void main() {
     when(
       () => about.openHelp(),
     ).thenAnswer((_) async => const Right<ApplicationError, Unit>(unit));
+    when(
+      () => about.openRatePage(),
+    ).thenAnswer((_) async => const Right<ApplicationError, Unit>(unit));
   });
 
   AboutBloc build() => AboutBloc(about);
@@ -68,6 +71,17 @@ void main() {
         const AboutState(),
         const AboutState(status: LoadStatus.failed),
       ],
+    );
+
+    blocTest<AboutBloc, AboutState>(
+      'rateOpened opens the store page and changes nothing shown',
+      build: build,
+      act: (bloc) => bloc.add(const AboutEvent.rateOpened()),
+      expect: () => <AboutState>[],
+      verify: (_) {
+        verify(() => about.openRatePage()).called(1);
+        verifyNever(() => about.openWebsite());
+      },
     );
 
     blocTest<AboutBloc, AboutState>(

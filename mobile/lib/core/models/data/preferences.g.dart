@@ -52,6 +52,11 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
   resurface: json['resurface'] as bool? ?? true,
   resurfaceCloseness: json['resurfaceCloseness'] as String? ?? 'default',
   onThisDay: json['onThisDay'] as bool? ?? true,
+  reviewPrompt: json['reviewPrompt'] == null
+      ? const ReviewPromptRecord()
+      : ReviewPromptRecord.fromJson(
+          json['reviewPrompt'] as Map<String, dynamic>,
+        ),
 );
 
 Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
@@ -77,6 +82,7 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'resurface': instance.resurface,
       'resurfaceCloseness': instance.resurfaceCloseness,
       'onThisDay': instance.onThisDay,
+      'reviewPrompt': instance.reviewPrompt.toJson(),
     };
 
 const _$DiagramRendererEnumMap = {

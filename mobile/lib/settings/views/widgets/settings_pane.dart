@@ -2,6 +2,7 @@
 // Created 2026-10-25.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../core/bridge/api/types.dart' show DiagramRenderer;
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/configs/kanso_stores.dart';
 import '../../../core/models/data/load_status.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/appearance/appearance_bloc.dart';
@@ -483,6 +485,18 @@ class SettingsPane extends StatelessWidget {
                                 const AboutEvent.helpOpened(),
                               ),
                             ),
+                            if (KansoStores.writeReviewFor(
+                                  defaultTargetPlatform,
+                                ) !=
+                                null)
+                              KansoSettingsRow(
+                                icon: KansoIcons.star,
+                                label: l10n.settingsRate,
+                                external: true,
+                                onTap: () => context.read<AboutBloc>().add(
+                                  const AboutEvent.rateOpened(),
+                                ),
+                              ),
                             KansoSettingsRow(
                               icon: KansoIcons.scale,
                               label: l10n.settingsLicences,

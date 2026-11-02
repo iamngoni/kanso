@@ -12,6 +12,7 @@ import 'core/configs/kanso_theme.dart';
 import 'core/configs/kanso_theme_scope.dart';
 import 'core/models/repos/abs/ai_repository.dart';
 import 'core/router/kanso_router.dart';
+import 'core/services/review_prompt.dart';
 import 'core/state/appearance/appearance_bloc.dart';
 import 'core/utils/context_extensions.dart';
 import 'core/utils/kanso_scroll_behavior.dart';
@@ -19,6 +20,7 @@ import 'core/views/widgets/foreground_reporter.dart';
 import 'core/views/widgets/kanso_feedback.dart';
 import 'core/views/widgets/kanso_icon_set_scope.dart';
 import 'core/views/widgets/layout_class_reporter.dart';
+import 'core/views/widgets/review_prompt_host.dart';
 import 'crash/views/widgets/crash_notice_host.dart';
 import 'dictation/views/widgets/dictation_scope.dart';
 import 'gen/l10n/app_localizations.dart';
@@ -36,7 +38,13 @@ import 'settings/views/widgets/backup_notice_host.dart';
 /// let another device in and the notices about crashes and device backups
 /// over them.
 class App extends StatefulWidget {
-  const App({required this.router, this.reminders, this.metrics, super.key});
+  const App({
+    required this.router,
+    this.reminders,
+    this.metrics,
+    this.reviewPrompt,
+    super.key,
+  });
 
   /// The routes of the app, and how many panes there is room for.
   final KansoRouter router;
@@ -47,6 +55,10 @@ class App extends StatefulWidget {
   /// The anonymous count, present only in a production release. Omitted in
   /// tests and development, where no notice is shown and nothing is sent.
   final UsageMetricsRepository? metrics;
+
+  /// Asks happy people to rate the app, present only in a production
+  /// release, like [metrics].
+  final ReviewPrompt? reviewPrompt;
 
   @override
   State<App> createState() => _AppState();
@@ -84,7 +96,15 @@ class _AppState extends State<App> {
                       child: BackupNoticeHost(
                         child: OpenedDocumentsHost(
                           router: widget.router.config,
-                          child: DeviceApprovalHost(child: child!),
+                          child: DeviceApprovalHost(
+                            child: widget.reviewPrompt == null
+                                ? child!
+                                : ReviewPromptHost(
+                                    prompt: widget.reviewPrompt!,
+                                    router: widget.router.config,
+                                    child: child!,
+                                  ),
+                          ),
                         ),
                       ),
                     ),

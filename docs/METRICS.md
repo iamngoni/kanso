@@ -140,6 +140,7 @@ Once per feature per batch in which it was used, with how often since the last b
 | `plugin_command` | a plugin's command is run |
 | `theme_changed` | the theme is changed |
 | `sync_conflict_resolved` | a sync conflict is resolved |
+| `review_prompt` | the app asks the system to show its review prompt (phones; the system decides whether it shows). Nothing about the review, or whether one was written, is known or sent |
 
 Phones count only the features that exist there: see [Platform availability](#platform-availability).
 Only the feature's name and a range are sent: never a title, text, tag name, notebook name, search
@@ -163,7 +164,7 @@ platform leaves out what it can't read cleanly rather than guess.
 | `attachments_mb` | sent | sent |
 | `sync_errors` | sent | sent |
 | `channel` | `stable`, `beta` for a pre-release version, `dev` for Kanso Dev | `stable` |
-| features not counted | none | `table_inserted`, `diagram`, `sticky_opened`, `new_window`, `plugin_installed`, `plugin_command` (they don't exist on phones) |
+| features not counted | `review_prompt` (the desktop never asks for a review) | `table_inserted`, `diagram`, `sticky_opened`, `new_window`, `plugin_installed`, `plugin_command` (they don't exist on phones) |
 
 ## The batch (JSON, version 1)
 

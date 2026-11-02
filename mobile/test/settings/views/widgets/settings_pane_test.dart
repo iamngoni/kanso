@@ -115,6 +115,9 @@ Future<_Settings> _pump(
   when(
     about.openHelp,
   ).thenAnswer((_) async => const Right<ApplicationError, Unit>(unit));
+  when(
+    about.openRatePage,
+  ).thenAnswer((_) async => const Right<ApplicationError, Unit>(unit));
   final aboutBloc = AboutBloc(about)..add(const AboutEvent.started());
   final syncRepository = FixtureSyncRepository(current: status);
   final syncBloc = SyncStatusBloc(syncRepository)
@@ -648,6 +651,31 @@ void main() {
       verify(screen.about.openReleaseNotes).called(1);
       verifyNever(screen.about.openWebsite);
     });
+
+    testWidgets(
+      'on iPhone and iPad, Rate Kanso Pocket opens the App Store review page',
+      (tester) async {
+        final screen = await _pump(tester);
+        await _scrollIntoView(tester, find.text('Rate Kanso Pocket'));
+        await tester.tap(find.text('Rate Kanso Pocket'));
+        await tester.pump();
+        verify(screen.about.openRatePage).called(1);
+        verifyNever(screen.about.openWebsite);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+
+    testWidgets(
+      'on Android there is no Rate row until Play lists the app',
+      (
+        tester,
+      ) async {
+        await _pump(tester);
+        await _scrollIntoView(tester, find.text('Licences'));
+        expect(find.text('Rate Kanso Pocket'), findsNothing);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
 
     testWidgets('the Help row opens the help page', (tester) async {
       final screen = await _pump(tester);

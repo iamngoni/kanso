@@ -3,11 +3,13 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../configs/kanso_links.dart';
+import '../../../configs/kanso_stores.dart';
 import '../../data/app_version.dart';
 import '../../data/application_error.dart';
 import '../abs/about_repository.dart';
@@ -18,10 +20,15 @@ import 'shorebird_patch_repository.dart';
 /// website's pages opened in the browser.
 @LazySingleton(as: AboutRepository)
 class PackageInfoAboutRepository implements AboutRepository {
-  PackageInfoAboutRepository([PatchRepository? patches])
-    : _patches = patches ?? ShorebirdPatchRepository();
+  PackageInfoAboutRepository([
+    PatchRepository? patches,
+    @ignoreParam this._platform,
+  ]) : _patches = patches ?? ShorebirdPatchRepository();
 
   final PatchRepository _patches;
+
+  /// The platform whose store to open; the running one when null.
+  final TargetPlatform? _platform;
 
   @override
   Future<Either<ApplicationError, AppVersion>> version() async {
@@ -51,6 +58,17 @@ class PackageInfoAboutRepository implements AboutRepository {
 
   @override
   Future<Either<ApplicationError, Unit>> openHelp() => _open(KansoLinks.help);
+
+  @override
+  Future<Either<ApplicationError, Unit>> openRatePage() async {
+    final page = KansoStores.writeReviewFor(_platform ?? defaultTargetPlatform);
+    if (page == null) {
+      return const Left<ApplicationError, Unit>(
+        ApplicationError.unexpected(message: 'No store page to rate the app'),
+      );
+    }
+    return _open(page);
+  }
 
   Future<Either<ApplicationError, Unit>> _open(Uri address) async {
     try {

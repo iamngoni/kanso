@@ -209,7 +209,7 @@ phone, whatever the width of the window.
 
 **Preferences** live in `kanso/preferences.json` in the library folder, so they
 stay on the phone and out of backups: the themes (`ThemeSelection`), fonts,
-text size, list sort and notices seen. A save writes a temporary file and
+text size, list sort, notices seen and what the review prompt counts. A save writes a temporary file and
 renames it over the old one, one change at a time. A missing or unreadable file
 is the defaults; a value the file has and this version does not know is that
 value's default. `bootstrap` reads the saved themes before the first frame.
@@ -230,13 +230,23 @@ every domain from backups and from device transfers (Android 12 and later also
 need `dataExtractionRules`). `test/platform/backup_exclusion_test.dart` reads
 the manifest and both files.
 
+**The review prompt** (`ReviewPrompt`, `ReviewPromptHost`, issue #212) asks the system for a
+review (`in_app_review`: `AppStore.requestReview(in:)`, Play's in-app review) and never shows a
+prompt of its own. It asks only after a good moment (a note let go after it was written in, the
+first sync, a publish, a saved weekly review, a task ticked off), back on a list with the keyboard
+down, and only when `reviewIneligibility` allows: 7 days since the first open, 5 days of use, 10
+notes written in, no crash or sync or sign-in failure in 3 days, 120 days since the last ask and
+never twice from one version. Its counts stay in `preferences.json`; the anonymous count gets only
+`review_prompt` (docs/METRICS.md). It runs in production releases only, and not on Android until
+the Play listing is live.
+
 ## Settings, themes and the first launch
 
 **Settings** (`lib/settings/`) has only rows that work: General (Default
 notebook), Appearance (Theme, Fonts, Text size), Sync (the live status, "Off" while no account is signed in, a
 line that the notes are not in device backups and, once an account is signed in,
 the switch "Wake this device when notes change elsewhere", see Push below) and About (the version, from
-`package_info_plus`; the website, opened with `url_launcher`; Licences). Licences
+`package_info_plus`; the website, opened with `url_launcher`; Rate Kanso Pocket, which opens the App Store's write-review page, and Google Play's once the listing is live (`KansoStores`); Licences). Licences
 is a page Kanso draws from Flutter's `LicenseRegistry`, never Flutter's own
 Material one. Settings opens as a sheet on a tablet and a page on a phone, and
 Fonts, Theme and Licences slide inside it. Everything the app does not do yet

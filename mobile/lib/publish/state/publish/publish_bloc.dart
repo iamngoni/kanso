@@ -10,6 +10,8 @@ import 'package:injectable/injectable.dart';
 import '../../../core/bridge/api/publish.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/application_error.dart';
+import '../../../core/models/data/review_moment.dart';
+import '../../../core/utils/review_moments.dart';
 import '../../models/data/publish_view_model.dart';
 import '../../models/repos/abs/publish_repository.dart';
 
@@ -176,7 +178,10 @@ class PublishBloc extends Bloc<PublishEvent, PublishState> {
     emit(
       result.fold<PublishState>(
         (error) => PublishState.failed(view: view, text: _errorText(error)),
-        (link) => PublishState.published(view: view, link: link),
+        (link) {
+          markReviewMoment(ReviewMoment.published);
+          return PublishState.published(view: view, link: link);
+        },
       ),
     );
   }

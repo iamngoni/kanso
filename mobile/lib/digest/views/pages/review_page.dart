@@ -9,9 +9,11 @@ import 'package:flutter/material.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/models/data/review_moment.dart';
 import '../../../core/models/repos/abs/digest_repository.dart';
 import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../core/utils/review_moments.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
@@ -89,12 +91,15 @@ class _ReviewPageState extends State<ReviewPage> {
         l10n.digestReviewError,
         tone: KansoFeedbackTone.error,
       ),
-      (done) => KansoFeedback.show(
-        context,
-        l10n.digestReviewSaved,
-        actionLabel: l10n.digestReviewOpenSaved,
-        onAction: () => openDigestNote(context, done.noteId),
-      ),
+      (done) {
+        markReviewMoment(ReviewMoment.weeklyReviewFinished);
+        KansoFeedback.show(
+          context,
+          l10n.digestReviewSaved,
+          actionLabel: l10n.digestReviewOpenSaved,
+          onAction: () => openDigestNote(context, done.noteId),
+        );
+      },
     );
   }
 

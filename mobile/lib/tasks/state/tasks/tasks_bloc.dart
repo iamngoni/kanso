@@ -11,10 +11,12 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/application_error.dart';
+import '../../../core/models/data/review_moment.dart';
 import '../../../core/models/repos/abs/haptics_repository.dart';
 import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../../core/utils/debounce.dart';
+import '../../../core/utils/review_moments.dart';
 import '../../models/data/tasks_notice.dart';
 import '../../models/data/tasks_status.dart';
 
@@ -123,6 +125,9 @@ class TasksBloc extends Bloc<TasksEvent, TasksState> {
               if (!task.checked) task.key,
             ];
             emit(state.copyWith(kept: kept, notice: null));
+            if (!task.checked) {
+              markReviewMoment(ReviewMoment.taskDone);
+            }
             await _haptics.selection();
           case Ticked_Unchanged():
             break;

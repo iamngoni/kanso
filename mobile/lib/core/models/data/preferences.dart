@@ -9,6 +9,7 @@ import '../../bridge/api/types.dart' show DiagramRenderer;
 import 'kanso_fonts.dart';
 import 'kanso_icon_set.dart';
 import 'kanso_text_size.dart';
+import 'review_prompt_record.dart';
 import 'theme_selection.dart';
 
 part 'preferences.freezed.dart';
@@ -120,6 +121,10 @@ abstract class Preferences with _$Preferences {
     /// Whether a daily note lists the notes written on its date in earlier
     /// years.
     @Default(true) bool onThisDay,
+
+    /// What decides whether to ask for a review of the app: when it was
+    /// first opened, how often it is used, and when it last asked.
+    @Default(ReviewPromptRecord()) ReviewPromptRecord reviewPrompt,
   }) = _Preferences;
 
   factory Preferences.fromJson(Map<String, dynamic> json) =>

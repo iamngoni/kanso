@@ -419,6 +419,8 @@ fn feature_named(name: &str) -> Option<Feature> {
         "theme_changed" => Feature::ThemeChanged,
         "wikilink_followed" => Feature::WikilinkFollowed,
         "focus_mode" => Feature::FocusMode,
+        // The app asked the system for a review of it.
+        "review_prompt" => Feature::ReviewPrompt,
         _ => return None,
     })
 }
@@ -482,6 +484,7 @@ mod tests {
             ("theme_changed", Feature::ThemeChanged),
             ("wikilink_followed", Feature::WikilinkFollowed),
             ("focus_mode", Feature::FocusMode),
+            ("review_prompt", Feature::ReviewPrompt),
         ] {
             assert_eq!(feature_named(name), Some(feature));
         }
