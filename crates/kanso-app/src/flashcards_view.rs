@@ -263,7 +263,7 @@ impl FlashcardsView {
                 } else {
                     "Done for today.".to_owned()
                 },
-                Some("Review More (R) pulls the cards due soon.".to_owned()).filter(|_| !none),
+                (!none).then(|| "Review More (R) pulls the cards due soon.".to_owned()),
                 colors,
             )
             .into_any_element();

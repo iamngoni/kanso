@@ -468,14 +468,12 @@ impl Cards {
 }
 
 /// The end of a request: the result as the event, or why not.
-fn finish<R, T: Clone + 'static>(
+fn finish<R, T: Clone + EndEvents + 'static>(
     emitter: &Emitter<T>,
     cancel: &AtomicBool,
     result: Result<R, String>,
     done: impl FnOnce(R) -> T,
-) where
-    T: EndEvents,
-{
+) {
     if cancel.load(std::sync::atomic::Ordering::Relaxed) {
         emitter.finish(T::stopped());
         return;

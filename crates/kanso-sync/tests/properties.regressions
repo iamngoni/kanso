@@ -7,3 +7,4 @@
 cc 2d5af27f4ea5a479cf22002fd4a596e1caad14f1fce180ba288391f0ea8dcdda # shrinks to ops = [Write { mac: 0, pick: 0, word: 0 }, SyncA(None), SyncA(Replay { pick: 0 }), SyncA(Replay { pick: 0 })]
 cc 3e90ab6d0aaa7d65833fec887cb0841133668acbcaf2d60a12bf1401ea11c5d4 # shrinks to ops = [Write { mac: 0, pick: 3, word: 0 }, SyncA([None]), SyncA([None]), Delete { mac: 0, pick: 3 }, SyncA([Lost { pick: 0 }, ConflictReplay { pick: 0 }])]
 cc 03cbcccfa3a97ade943ea13ba5510637376947c75ceb25bdb04575bca8cadd09 # shrinks to ops = [Write { mac: 0, pick: 1, word: 0 }, Delete { mac: 0, pick: 0 }, Write { mac: 1, pick: 1, word: 0 }, SyncB, Write { mac: 1, pick: 1, word: 0 }, SyncB, SyncA([Lost { pick: 0 }, ConflictReplay { pick: 0 }]), Delete { mac: 0, pick: 1 }, Write { mac: 0, pick: 2, word: 0 }, SyncA([Replay { pick: 2 }, SwapSealed { a: 0, b: 0 }])]
+cc 8c27a2536c20624d09b8d01830ec2cc0b10a58d2add16e6382aba4a63018f1d5 # shrinks to ops = []

@@ -190,8 +190,7 @@ pub fn append_cards(body: &str, cards: &[(String, String)]) -> String {
     let mut out = body.trim_end_matches('\n').to_owned();
     let last_heading = body
         .lines()
-        .filter(|l| l.starts_with('#'))
-        .next_back()
+        .rfind(|l| l.starts_with('#'))
         .map(str::trim_end);
     if last_heading == Some(CARDS_HEADING) {
         out.push('\n');

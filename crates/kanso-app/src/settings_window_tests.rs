@@ -142,6 +142,16 @@ impl Fixture {
             .unwrap()
     }
 
+    /// The top edge of what is drawn with `selector`.
+    fn draw_bounds_y(&self, cx: &mut TestAppContext, selector: &'static str) -> f32 {
+        self.draw(cx);
+        let mut vcx = VisualTestContext::from_window(self.window, cx);
+        let bounds = vcx
+            .debug_bounds(selector)
+            .unwrap_or_else(|| panic!("{selector} is drawn"));
+        f32::from(bounds.origin.y)
+    }
+
     /// Clicks the middle of what is drawn with `selector`.
     fn click(&self, cx: &mut TestAppContext, selector: &'static str) {
         self.draw(cx);
@@ -1010,6 +1020,16 @@ fn back_up_now_keeps_its_copy_apart(cx: &mut TestAppContext) {
             .settings
             .clone()
             .update(cx, |settings, _| settings.scroll_to_end_for_test())
+    });
+    f.draw(cx);
+    // Backups is above the end of the page now: bring it into view.
+    let y = f.draw_bounds_y(cx, "backup-now");
+    cx.update(|cx| {
+        f.workspace
+            .read(cx)
+            .settings
+            .clone()
+            .update(cx, |settings, _| settings.scroll_by_for_test(300. - y))
     });
     f.click(cx, "backup-now");
     cx.run_until_parked();

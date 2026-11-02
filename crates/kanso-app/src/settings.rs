@@ -757,6 +757,12 @@ impl SettingsView {
 
     /// Scrolls the page to its end, where drawing clamps it.
     #[cfg(test)]
+    /// Moves the page up or down by `dy` pixels (test).
+    pub(crate) fn scroll_by_for_test(&mut self, dy: f32) {
+        let at = self.scroll.offset();
+        self.scroll.set_offset(point(at.x, at.y + px(dy)));
+    }
+
     pub(crate) fn scroll_to_end_for_test(&mut self) {
         self.scroll.set_offset(point(px(0.), px(-100_000.)));
     }

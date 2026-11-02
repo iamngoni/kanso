@@ -383,9 +383,9 @@ fn parse_inner(inner: &str) -> Option<Vec<(usize, Option<String>)>> {
         let heading = heading.trim();
         return (!heading.is_empty()).then(|| vec![(number, Some(heading.to_owned()))]);
     }
-    if rest.starts_with(',') {
+    if let Some(more) = rest.strip_prefix(',') {
         let mut cites = vec![(number, None)];
-        for part in rest[1..].split(',') {
+        for part in more.split(',') {
             cites.push((part.trim().parse::<usize>().ok()?, None));
         }
         return Some(cites);
@@ -1087,7 +1087,7 @@ mod tests {
 
     #[test]
     fn quiz_questions_and_grades_parse() {
-        let excerpts = vec![Excerpt {
+        let excerpts = [Excerpt {
             id: "note:a".into(),
             title: "A".into(),
             text: "x".into(),

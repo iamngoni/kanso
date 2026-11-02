@@ -188,13 +188,11 @@ mod tests {
         #[test]
         fn prop_a_sitting_always_ends(grades in prop::collection::vec(1u8..=4, 1..60), n in 1usize..8) {
             let mut s = Session::new((0..n).map(|i| card(i, i % 2 == 0)).collect());
-            let mut steps = 0;
-            for g in grades.iter().cycle().take(500) {
+            for (steps, g) in grades.iter().cycle().take(500).enumerate() {
                 if s.is_done() { break; }
                 // Only the first few answers may be Again, so it ends.
                 let g = if steps > 40 { 3 } else { *g };
                 s.answered_with(g);
-                steps += 1;
             }
             prop_assert!(s.is_done());
             prop_assert!(s.answered() >= n);

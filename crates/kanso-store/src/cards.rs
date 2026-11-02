@@ -293,7 +293,7 @@ impl Store {
     }
 
     pub fn card_settings(&self) -> Result<CardSettings> {
-        self.read(|conn| settings_in(conn))
+        self.read(settings_in)
     }
 
     /// Saves the settings; a new target recall reschedules every card.
@@ -527,7 +527,7 @@ impl Store {
     }
 
     /// Forgets every answer and mark on this account (Settings > Flashcards
-    /// > Reset Review History). The review documents become tombstones,
+    /// Reset Review History). The review documents become tombstones,
     /// which sync.
     pub fn reset_review_history(&self) -> Result<usize> {
         self.write(|tx, changes| {
