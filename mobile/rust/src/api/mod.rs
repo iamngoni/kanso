@@ -9,6 +9,7 @@
 
 pub mod account;
 pub mod account_settings;
+pub mod agent_tasks;
 pub mod ai;
 pub mod approvals;
 pub mod board;
