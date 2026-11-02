@@ -200,7 +200,7 @@ impl Sidebar {
     // no-prop-test: drawing; the count is the store's (`cards_waiting`).
     fn review_row(&self, waiting: usize, cx: &mut Context<Self>) -> Stateful<Div> {
         let colors = Colors::get(cx);
-        let icon = self.icon(Icon::new(Lucide::Layers), cx);
+        let icon = self.icon(Icon::new(Lucide::BookOpen), cx);
         div()
             .id("review-flashcards")
             .debug_selector(|| "review-flashcards".into())

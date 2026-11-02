@@ -224,9 +224,9 @@ impl FlashcardsView {
         let toggle = HeaderAction::new(
             "review-stats",
             if self.tab == Tab::Review {
-                Lucide::ChartBar
+                Lucide::ChartLine
             } else {
-                Lucide::Layers
+                Lucide::BookOpen
             },
             if self.tab == Tab::Review {
                 "Stats"

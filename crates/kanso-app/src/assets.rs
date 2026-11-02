@@ -36,7 +36,6 @@ icon_assets!(
         Camera,
         Car,
         Cat,
-        ChartBar,
         ChartLine,
         ChefHat,
         Church,
@@ -110,7 +109,6 @@ icon_assets!(
         Landmark,
         Languages,
         Laptop,
-        Layers,
         LayoutTemplate,
         Leaf,
         Library,
@@ -306,8 +304,8 @@ mod tests {
     #[test]
     fn the_learning_pages_icons_are_bundled() {
         for icon in [
-            IconName::Layers,
-            IconName::ChartBar,
+            IconName::BookOpen,
+            IconName::ChartLine,
             IconName::PenTool,
             IconName::FilePlus,
             IconName::Notebook,

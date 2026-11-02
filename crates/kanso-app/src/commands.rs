@@ -866,7 +866,7 @@ static COMMANDS: &[Command] = &[
         label: "Make Flashcards…",
         label_when_pinned: None,
         description: "Suggests question and answer cards from the open note. You tick the ones to keep and they are written under a Flashcards heading. It works only while AI is on in Settings › AI.",
-        icon: IconName::Layers,
+        icon: IconName::Copy,
         keywords: &["ai", "flashcards", "cards", "study", "learn", "questions"],
         group: Group::Note,
         run: action!(crate::learn_view::MakeFlashcardsFromNote),

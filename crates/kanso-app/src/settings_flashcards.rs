@@ -129,7 +129,7 @@ pub fn flashcards_section(cx: &App) -> AnyElement {
             Row::new(Lucide::Bell, "Daily reminder")
                 .detail("A notification at this time saying how many flashcards are due. It never shows a question.")
                 .trailing(reminder_menu),
-            Row::new(Lucide::Layers, "Show card icons in the editor")
+            Row::new(Lucide::Copy, "Show card icons in the editor")
                 .detail("Dims the :: and marks the line of a card in the editor.")
                 .trailing(div().debug_selector(|| "cards-icons".into()).child(
                     Switch::new("cards-icons")
