@@ -139,6 +139,7 @@ mod settings_ai;
 mod settings_capture;
 mod settings_discovery;
 mod settings_gallery;
+mod settings_inbox;
 mod settings_plugins;
 mod settings_plugins_model;
 mod settings_themes;
@@ -179,6 +180,7 @@ mod themes;
 mod title_bar;
 mod touch_id;
 mod transcribe;
+mod triage_view;
 #[cfg(test)]
 mod ui_tests;
 mod updates;

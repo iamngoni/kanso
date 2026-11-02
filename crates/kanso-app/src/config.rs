@@ -471,6 +471,33 @@ impl Default for CaptureSettings {
     }
 }
 
+/// Inbox triage (Settings › General › Inbox): the bar above the Inbox's
+/// notes, and which suggestions a card makes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct InboxSettings {
+    /// "7 notes to file · Triage" above the Inbox's notes.
+    pub show_triage_bar: bool,
+    pub suggest_titles: bool,
+    pub suggest_links: bool,
+    /// The most tags suggested for a note.
+    pub max_tags: u8,
+}
+
+/// The most tags a card may suggest.
+pub const MAX_TAGS_LIMIT: u8 = 5;
+
+impl Default for InboxSettings {
+    fn default() -> Self {
+        InboxSettings {
+            show_triage_bar: true,
+            suggest_titles: true,
+            suggest_links: true,
+            max_tags: 3,
+        }
+    }
+}
+
 /// Notifications for tasks with a due time (Settings › General).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -622,6 +649,10 @@ pub struct AiSettings {
     pub base_url: String,
     pub model: String,
     pub agent: AgentChoice,
+    /// Let the model rank Inbox triage's suggestions (Settings › AI). Off
+    /// until turned on: it sends the note and the names of likely notebooks
+    /// and tags to the provider.
+    pub inbox_suggestions: bool,
 }
 
 impl Default for AiSettings {
@@ -640,6 +671,7 @@ impl AiSettings {
             base_url: provider.default_base_url().to_owned(),
             model: provider.default_model().to_owned(),
             agent: AgentChoice::default(),
+            inbox_suggestions: false,
         }
     }
 
@@ -681,6 +713,7 @@ pub struct AppConfig {
     pub capture: CaptureSettings,
     pub reminders: RemindersSettings,
     pub discovery: DiscoverySettings,
+    pub inbox: InboxSettings,
     pub voice: VoiceSettings,
     pub locked: LockedSettings,
     pub ai: AiSettings,
@@ -727,6 +760,7 @@ impl Default for AppConfig {
             capture: CaptureSettings::default(),
             reminders: RemindersSettings::default(),
             discovery: DiscoverySettings::default(),
+            inbox: InboxSettings::default(),
             voice: VoiceSettings::default(),
             locked: LockedSettings::default(),
             ai: AiSettings::default(),
@@ -1098,6 +1132,7 @@ mod tests {
                     base_url,
                     model,
                     agent,
+                    inbox_suggestions: enabled,
                 },
             )
     }
@@ -1187,6 +1222,7 @@ mod tests {
                     capture: CaptureSettings::default(),
                     reminders: super::RemindersSettings::default(),
                     discovery: DiscoverySettings::default(),
+                    inbox: super::InboxSettings::default(),
                     voice: VoiceSettings::default(),
                     locked: LockedSettings::default(),
                     ai: AiSettings::default(),

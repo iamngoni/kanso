@@ -23,6 +23,7 @@ pub mod file;
 pub mod links;
 pub mod model;
 pub mod notebook;
+pub mod session;
 pub mod title;
 
 use std::collections::{HashMap, HashSet};

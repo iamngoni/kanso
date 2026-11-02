@@ -16,6 +16,7 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::model::TRASH_BOOK_ID;
+use kanso_core::roles::Role;
 use kanso_core::{Field, NoteStatus, Query};
 use kanso_engine::list;
 use kanso_store::{NoteSummary, Sort};
@@ -191,6 +192,9 @@ pub struct NoteList {
     /// Whether the list has the keyboard, as of the last frame: its
     /// selected row then shows a focus ring.
     list_focused: bool,
+    /// How many Inbox notes wait in Triage, as of the list version in the
+    /// first part.
+    triage_count: (u64, usize),
     _subscriptions: Vec<Subscription>,
 }
 
@@ -252,6 +256,7 @@ impl NoteList {
             list_focused: false,
             pressed: None,
             leading_inset: px(0.),
+            triage_count: (u64::MAX, 0),
             _subscriptions: subscriptions,
         }
     }
@@ -1441,6 +1446,7 @@ impl Render for NoteList {
         let empty = library.notes.is_empty();
         let shared_list = library.filter == Filter::Shared;
         let colors = Colors::get(cx);
+        let triage_bar = self.triage_bar(cx);
 
         let body = if empty {
             self.render_empty(cx)
@@ -1465,6 +1471,7 @@ impl Render for NoteList {
             .when(shared_list, |el| {
                 el.children(crate::shared_inbox::render(&self.library, cx))
             })
+            .children(triage_bar)
             .when_some(error, |el, error| {
                 el.child(
                     div()
@@ -1522,6 +1529,32 @@ impl Render for NoteList {
 }
 
 impl NoteList {
+    /// The Triage bar, above the Inbox's notes while some wait to be filed
+    /// (`triage_view.rs`). The count is read again only when the list is.
+    fn triage_bar(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let library = self.library.read(cx);
+        let in_inbox = matches!(&library.filter, Filter::Book(id) if id == Role::Inbox.book_id());
+        if !in_inbox
+            || !cx
+                .global::<crate::workspace::AppState>()
+                .config
+                .inbox
+                .show_triage_bar
+        {
+            return None;
+        }
+        let version = library.notes_version;
+        if self.triage_count.0 != version {
+            let waiting = library
+                .store
+                .inbox_waiting(Role::Inbox.book_id())
+                .map_or(0, |notes| notes.len());
+            self.triage_count = (version, waiting);
+        }
+        let count = self.triage_count.1;
+        (count > 0).then(|| crate::triage_view::bar(count, Colors::get(cx)).into_any_element())
+    }
+
     /// Whether the foot of the list offers sync (see `sync_nudge`).
     fn offers_sync(&self, cx: &App) -> bool {
         let signed_out = cx

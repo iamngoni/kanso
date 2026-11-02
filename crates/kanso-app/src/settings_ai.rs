@@ -1278,6 +1278,24 @@ impl Render for AiPage {
                 )),
         ];
         if ai.enabled {
+            rows.push(
+                Row::new(
+                    gpui_kit::assets::IconName::Inbox,
+                    "Use AI for Inbox suggestions",
+                )
+                .detail(
+                    "Sends the note and the names of likely notebooks and tags to your AI provider.",
+                )
+                .trailing(div().debug_selector(|| "ai-inbox".into()).child(
+                    Switch::new("ai-inbox")
+                        .checked(ai.inbox_suggestions)
+                        .on_click(|on, _, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.ai.inbox_suggestions = *on
+                            });
+                        }),
+                )),
+            );
             rows.push(self.backend_row(&ai, cx));
             if ai.backend == AiBackend::Agent {
                 rows.push(self.agent_row(&ai, cx));

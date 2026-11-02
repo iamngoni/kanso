@@ -118,6 +118,26 @@ pub fn summarize(
     kanso_ai::features::summarize(provider.as_ref(), title, text, cancel, &mut on_event);
 }
 
+/// Refines an Inbox triage card with the model (issue #195): it ranks the
+/// library's candidates and may suggest a title, and nothing else. The note
+/// is checked for eligibility first; the error is a plain reason.
+#[allow(clippy::too_many_arguments)]
+pub fn triage(
+    maker: &Maker,
+    store: &Store,
+    card: &kanso_engine::triage::Card,
+    title: &str,
+    text: &str,
+    opts: &kanso_engine::triage::TriageOptions,
+    cancel: &Arc<AtomicBool>,
+) -> Result<Vec<kanso_engine::triage::Suggestion>, String> {
+    let shared = maker()?;
+    let provider = shared
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    kanso_engine::triage::ai::refine(store, provider.as_ref(), card, title, text, opts, cancel)
+}
+
 /// Fakes for the tests of the features: a provider that records what it was
 /// sent, an agent in process, and the hook that hands either to a feature.
 #[cfg(test)]
