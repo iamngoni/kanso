@@ -20,8 +20,8 @@ use kanso_store::{CardScope, CardStats, Store};
 use crate::clock::Clock;
 use crate::flashcards_model::{Command, Session, button_labels, command_for};
 use crate::layout::BOTTOM_BAND_HEIGHT;
-use crate::page_chrome::{self, HeaderAction};
 use crate::note_list::quiet_empty;
+use crate::page_chrome::{self, HeaderAction};
 use crate::theme::Colors;
 use crate::workspace::{AppState, Workspace};
 use crate::zoom::px;
@@ -228,7 +228,11 @@ impl FlashcardsView {
             } else {
                 Lucide::Layers
             },
-            if self.tab == Tab::Review { "Stats" } else { "Cards" },
+            if self.tab == Tab::Review {
+                "Stats"
+            } else {
+                "Cards"
+            },
             move |window, cx| {
                 view.update(cx, |this, cx| this.run(Command::ToggleStats, window, cx))
                     .ok();

@@ -36,6 +36,7 @@ pub(crate) fn live_document(
     version: u64,
     reveal: &[Range16],
     missing: &dyn Fn(&str) -> bool,
+    card_marks: bool,
 ) -> LiveDocument {
     let units = index.len_utf16() as u32;
     let to_byte = |unit: u32| index.utf16_to_byte(text, unit.min(units) as usize);
@@ -149,6 +150,17 @@ pub(crate) fn live_document(
             }
         }))
         .collect();
+    if card_marks && text.contains(" :: ") {
+        styles.extend(
+            kanso_core::cards::card_marks(text)
+                .into_iter()
+                .map(|mark| LiveDocStyle {
+                    range: range(&mark.separator),
+                    kind: LiveDocStyleKind::CardSeparator,
+                    level: 0,
+                }),
+        );
+    }
     // Stable: a span keeps its place among those starting with it.
     styles.sort_by_key(|style| style.range.start);
     let links = layout
@@ -336,7 +348,7 @@ mod tests {
     fn nested_numbers_count_from_their_lists_start() {
         let text = "1. a\n\n   3. b\n   3. c\n\n2. d\n";
         let index = Utf16Index::new(text);
-        let doc = live_document(text, &index, 1, &[], &|_| false);
+        let doc = live_document(text, &index, 1, &[], &|_| false, false);
         let numbers: Vec<&str> = doc
             .markers
             .iter()
@@ -344,5 +356,21 @@ mod tests {
             .map(|marker| marker.text.as_str())
             .collect();
         assert_eq!(numbers, vec!["1.", "3.", "4.", "2."]);
+    }
+
+    #[test]
+    fn the_separator_of_a_card_line_is_a_dim_style_when_asked_for() {
+        let text = "café :: thé\n`x :: y`\n";
+        let index = Utf16Index::new(text);
+        let separators = |on: bool| -> Vec<(u32, u32)> {
+            live_document(text, &index, 1, &[], &|_| false, on)
+                .styles
+                .iter()
+                .filter(|s| s.kind == LiveDocStyleKind::CardSeparator)
+                .map(|s| (s.range.start, s.range.end))
+                .collect()
+        };
+        assert_eq!(separators(true), vec![(5, 7)], "UTF-16 units, code skipped");
+        assert!(separators(false).is_empty(), "off in Settings");
     }
 }

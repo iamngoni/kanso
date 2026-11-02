@@ -15,6 +15,7 @@ import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
+import '../../../draft/views/widgets/draft_from_group.dart';
 import '../../../injection.dart';
 import 'library_actions.dart';
 import 'library_color_sheets.dart';
@@ -125,6 +126,7 @@ class TagActionsSheet extends StatelessWidget {
             style: context.typography.barTitle,
           ),
         ),
+        DraftFromGroup(source: DraftSourceTag(tag.id), host: host),
         KansoSheetGroup(
           dividerIndent: KansoSettingsRow.iconInset,
           children: <Widget>[

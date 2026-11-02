@@ -4,10 +4,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../core/bridge/api/library.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/router/kanso_routes.dart';
+import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
 import '../../../core/views/widgets/kanso_sidebar_row.dart';
 import '../../../injection.dart';
@@ -57,7 +57,7 @@ class _ReviewLibraryRowState extends State<ReviewLibraryRow> {
     }
     return KansoSidebarRow(
       icon: KansoIcons.bookOpen,
-      label: FlashcardsText.reviewTitle,
+      label: context.l10n.flashcardsReviewTitle,
       count: _waiting == 0 ? null : _waiting,
       onTap: () {
         KansoDrawerScope.maybeOf(context)?.close();

@@ -1484,6 +1484,8 @@ pub enum LiveDocStyleKind {
     InlineMath,
     /// A whole quote: `level` is how many quotes deep.
     Quote,
+    /// The `::` of a flashcard line (`question :: answer`), drawn dim.
+    CardSeparator,
     /// The first block of a ticked task, drawn muted.
     TaskDone,
 }

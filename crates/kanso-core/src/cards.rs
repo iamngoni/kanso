@@ -36,10 +36,7 @@ pub struct CardLine {
 /// part of it. A line needs ` :: ` outside code with something on both
 /// sides, neither longer than [`MAX_SIDE`].
 pub fn card_lines(body: &str) -> Vec<CardLine> {
-    scan(body)
-        .into_iter()
-        .map(|(card, _)| card)
-        .collect()
+    scan(body).into_iter().map(|(card, _)| card).collect()
 }
 
 /// Where a card's line and its ` :: ` sit in the note's text, for the

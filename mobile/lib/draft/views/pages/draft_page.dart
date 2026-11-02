@@ -112,12 +112,12 @@ class _DraftPageState extends State<DraftPage> {
               });
             case DraftEvent_CutOff(:final message):
               setState(() {
-                _error = message;
+                _error = FlashcardsText.failure(message, context.l10n);
                 _working = false;
               });
             case DraftEvent_Failed(:final message):
               setState(() {
-                _error = message;
+                _error = FlashcardsText.failure(message, context.l10n);
                 _working = false;
               });
             case DraftEvent_Stopped():
@@ -184,9 +184,9 @@ class _DraftPageState extends State<DraftPage> {
     }
     final yes = await KansoConfirmSheet.show(
       context,
-      title: FlashcardsText.draftDiscardTitle,
-      message: FlashcardsText.draftDiscardBody,
-      confirmLabel: FlashcardsText.draftDiscard,
+      title: context.l10n.flashcardsDraftDiscardTitle,
+      message: context.l10n.flashcardsDraftDiscardBody,
+      confirmLabel: context.l10n.flashcardsDraftDiscard,
     );
     if (yes && mounted) {
       GoRouter.of(context).pop();
@@ -223,8 +223,8 @@ class _DraftPageState extends State<DraftPage> {
                 bordered: false,
                 leading: const ShellBackButton(),
                 title: _stage == _Stage.review
-                    ? FlashcardsText.draftReviewTitle
-                    : FlashcardsText.draftTitle,
+                    ? context.l10n.flashcardsDraftReviewTitle
+                    : context.l10n.flashcardsDraftTitle,
               ),
               Expanded(child: _content(context)),
             ],
@@ -253,7 +253,10 @@ class _DraftPageState extends State<DraftPage> {
           const SizedBox(height: KansoSpacing.lg),
           if (_error case final message?)
             Text(message, style: type.meta.copyWith(color: colors.danger)),
-          KansoButton(label: FlashcardsText.draftSave, onPressed: _save),
+          KansoButton(
+            label: context.l10n.flashcardsDraftSave,
+            onPressed: _save,
+          ),
           const SizedBox(height: KansoSpacing.xs),
           KansoButton(
             label: 'Back to the draft',
@@ -266,7 +269,7 @@ class _DraftPageState extends State<DraftPage> {
     return ListView(
       padding: const EdgeInsets.all(KansoSpacing.md),
       children: <Widget>[
-        Text(FlashcardsText.draftSources, style: type.sectionLabel),
+        Text(context.l10n.flashcardsDraftSources, style: type.sectionLabel),
         const SizedBox(height: KansoSpacing.xxs),
         if (sources == null)
           const LinearProgressIndicator()
@@ -293,12 +296,12 @@ class _DraftPageState extends State<DraftPage> {
             )
           else if (sources.notes.isEmpty)
             Text(
-              FlashcardsText.draftNone,
+              context.l10n.flashcardsDraftNone,
               style: type.meta.copyWith(color: colors.danger),
             )
           else
             Text(
-              FlashcardsText.draftSent(sources.notes.length),
+              context.l10n.flashcardsDraftSent(sources.notes.length),
               style: type.meta.copyWith(color: colors.textMuted),
             ),
         ],
@@ -306,9 +309,9 @@ class _DraftPageState extends State<DraftPage> {
         Wrap(
           spacing: KansoSpacing.xs,
           children: <Widget>[
-            for (var i = 0; i < FlashcardsText.shapes.length; i++)
+            for (var i = 0; i < FlashcardsText.shapes(context.l10n).length; i++)
               ChoiceChip(
-                label: Text(FlashcardsText.shapes[i]),
+                label: Text(FlashcardsText.shapes(context.l10n)[i]),
                 selected: _shape == i,
                 onSelected: (_) => setState(() => _shape = i),
               ),
@@ -318,9 +321,13 @@ class _DraftPageState extends State<DraftPage> {
         Wrap(
           spacing: KansoSpacing.xs,
           children: <Widget>[
-            for (var i = 0; i < FlashcardsText.lengths.length; i++)
+            for (
+              var i = 0;
+              i < FlashcardsText.lengths(context.l10n).length;
+              i++
+            )
               ChoiceChip(
-                label: Text(FlashcardsText.lengths[i]),
+                label: Text(FlashcardsText.lengths(context.l10n)[i]),
                 selected: _length == i,
                 onSelected: (_) => setState(() => _length = i),
               ),
@@ -332,20 +339,22 @@ class _DraftPageState extends State<DraftPage> {
           minLines: 2,
           maxLines: 6,
           onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(hintText: FlashcardsText.draftWhat),
+          decoration: InputDecoration(
+            hintText: context.l10n.flashcardsDraftWhat,
+          ),
         ),
         const SizedBox(height: KansoSpacing.sm),
         if (_working)
           KansoButton(
-            label: FlashcardsText.draftStop,
+            label: context.l10n.flashcardsDraftStop,
             variant: KansoButtonVariant.secondary,
             onPressed: () => _run?.stop(),
           )
         else
           KansoButton(
             label: _view == null
-                ? FlashcardsText.draftWrite
-                : FlashcardsText.draftTryAgain,
+                ? context.l10n.flashcardsDraftWrite
+                : context.l10n.flashcardsDraftTryAgain,
             onPressed:
                 sources == null || sources.notes.isEmpty || sources.tooMany
                 ? null
@@ -363,12 +372,12 @@ class _DraftPageState extends State<DraftPage> {
             if (_finished && !view.notCovered) ...<Widget>[
               const SizedBox(height: KansoSpacing.md),
               KansoButton(
-                label: FlashcardsText.draftSave,
+                label: context.l10n.flashcardsDraftSave,
                 onPressed: _toReview,
               ),
               const SizedBox(height: KansoSpacing.xs),
               KansoButton(
-                label: FlashcardsText.draftCopy,
+                label: context.l10n.flashcardsDraftCopy,
                 variant: KansoButtonVariant.secondary,
                 onPressed: () =>
                     Clipboard.setData(ClipboardData(text: view.text)),
@@ -427,7 +436,7 @@ class _DraftPageState extends State<DraftPage> {
     if (view.removed > 0 || view.spans.any((s) => s.unsourced)) {
       children.add(
         TextSpan(
-          text: '\n\n${FlashcardsText.draftNoSource} (underlined)',
+          text: '\n\n${context.l10n.flashcardsDraftNoSource} (underlined)',
           style: TextStyle(color: colors.textMuted, fontSize: 12),
         ),
       );

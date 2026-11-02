@@ -17,6 +17,7 @@ use kanso_core::loops::{LoopKind, age_label};
 use kanso_core::now_ms;
 use kanso_core::tasks::Due;
 use kanso_engine::brief::{self, BriefSettings, Now, ThemeKind};
+use kanso_engine::flashcards as engine_cards;
 use kanso_engine::loops_ai;
 use kanso_engine::tasks::chip_label;
 use kanso_store::{LoopClose, LoopQuery, LoopRow, Origin, TaskRow};
@@ -277,7 +278,34 @@ impl Library {
                 return Ok(Vec::new());
             }
             let settings = self.brief_prefs_now();
-            Ok(brief::plan(&settings, now_here())
+            let here = now_here();
+            let store = &self.inner.store;
+            let card_settings = store.card_settings().unwrap_or_default();
+            let cards_waiting = {
+                let day = engine_cards::day_start_ms(here.utc_ms, (here.offset_ms / 60_000) as i32);
+                store
+                    .cards_waiting(&kanso_store::CardScope::All, here.utc_ms, day)
+                    .unwrap_or(0)
+            };
+            let flashcards = engine_cards::plan_reminders(
+                card_settings.reminder.as_deref(),
+                store.has_cards().unwrap_or(false),
+                cards_waiting,
+                here.local_ms(),
+            )
+            .into_iter()
+            .map(|planned| PlannedNotice {
+                id: format!("cards-{}", planned.date.iso()),
+                is_review: false,
+                title: "Flashcards".to_owned(),
+                body: planned.body,
+                year: planned.date.year,
+                month: planned.date.month,
+                day: planned.date.day,
+                hour: planned.hour,
+                minute: planned.minute,
+            });
+            Ok(brief::plan(&settings, here)
                 .into_iter()
                 .map(|planned| PlannedNotice {
                     id: format!("{}-{}", planned.kind.as_str(), planned.date.iso()),
@@ -290,6 +318,7 @@ impl Library {
                     hour: planned.hour,
                     minute: planned.minute,
                 })
+                .chain(flashcards)
                 .collect())
         })
     }

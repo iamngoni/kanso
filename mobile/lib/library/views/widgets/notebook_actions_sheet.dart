@@ -15,6 +15,7 @@ import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
+import '../../../draft/views/widgets/draft_from_group.dart';
 import '../../../injection.dart';
 import '../../../lock/state/lock_status/lock_status_bloc.dart';
 import '../../../publish/views/widgets/publish_sheet.dart';
@@ -210,6 +211,7 @@ class NotebookActionsSheet extends StatelessWidget {
                 ),
             ],
           ),
+        DraftFromGroup(source: DraftSourceNotebook(notebook.id), host: host),
         KansoSheetGroup(
           dividerIndent: KansoSettingsRow.iconInset,
           children: <Widget>[

@@ -509,6 +509,44 @@ void main() {
       );
     });
 
+    test(
+      'the flashcard reminder is scheduled and a tap opens Review',
+      () async {
+        digest.planned = const <PlannedNotice>[
+          PlannedNotice(
+            id: 'cards-2026-10-28',
+            isReview: false,
+            title: 'Flashcards',
+            body: '3 flashcards are due.',
+            year: 2026,
+            month: 10,
+            day: 28,
+            hour: 9,
+            minute: 30,
+          ),
+        ];
+        await atTen(coordinator.refresh);
+        final scheduled = notifier.scheduled.single.last;
+        expect(scheduled.key, 'digest:cards:cards-2026-10-28');
+        expect(scheduled.title, 'Flashcards');
+        expect(scheduled.actions, isFalse);
+        final taps = <void>[];
+        final subscription = coordinator.cardsOpened.listen(taps.add);
+        addTearDown(subscription.cancel);
+        await coordinator.start();
+        notifier.live.add(
+          const ReminderResponse(
+            key: 'digest:cards:cards-2026-10-28',
+            noteId: '',
+            line: 0,
+            action: ReminderAnswer.open,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(taps.length, 1);
+      },
+    );
+
     test('answers given while it runs are applied once each', () async {
       await coordinator.start();
       notifier.live.add(

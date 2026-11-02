@@ -174,17 +174,19 @@ class _ReviewPageState extends State<FlashcardReviewPage> {
               backgroundColor: colors.app,
               bordered: false,
               leading: const ShellBackButton(),
-              title: _stats ? FlashcardsText.stats : FlashcardsText.reviewTitle,
+              title: _stats
+                  ? context.l10n.flashcardsStats
+                  : context.l10n.flashcardsReviewTitle,
               trailing: <Widget>[
                 KansoIconButton(
                   icon: KansoIcons.chartLine,
-                  semanticLabel: FlashcardsText.stats,
+                  semanticLabel: context.l10n.flashcardsStats,
                   selected: _stats,
                   onPressed: () => setState(() => _stats = !_stats),
                 ),
                 KansoIconButton(
                   icon: KansoIcons.settings,
-                  semanticLabel: FlashcardsText.settings,
+                  semanticLabel: context.l10n.flashcardsSettings,
                   onPressed: () => context.push(KansoRoutes.flashcardsSettings),
                 ),
               ],
@@ -232,7 +234,7 @@ class _ReviewPageState extends State<FlashcardReviewPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Text(
-              FlashcardsText.progress(_answered + 1, _total, fresh),
+              context.l10n.flashcardsProgress(_answered + 1, _total, fresh),
               style: type.meta.copyWith(color: colors.textSecondary),
             ),
             Expanded(
@@ -255,7 +257,7 @@ class _ReviewPageState extends State<FlashcardReviewPage> {
                           onPressed: _openNote,
                           child: Text(
                             card.noteTitle.isEmpty
-                                ? FlashcardsText.openNote
+                                ? context.l10n.flashcardsOpenNote
                                 : card.noteTitle,
                             style: type.secondary.copyWith(color: colors.link),
                           ),
@@ -276,7 +278,7 @@ class _ReviewPageState extends State<FlashcardReviewPage> {
               ),
             if (!_revealed)
               KansoButton(
-                label: FlashcardsText.showAnswer,
+                label: context.l10n.flashcardsShowAnswer,
                 onPressed: () => setState(() => _revealed = true),
               )
             else ...<Widget>[
@@ -286,7 +288,7 @@ class _ReviewPageState extends State<FlashcardReviewPage> {
                     if (i > 0) const SizedBox(width: KansoSpacing.xs),
                     Expanded(
                       child: _GradeButton(
-                        name: FlashcardsText.grades[i],
+                        name: FlashcardsText.grades(context.l10n)[i],
                         interval: card.intervals.length > i
                             ? card.intervals[i]
                             : '',
@@ -301,13 +303,13 @@ class _ReviewPageState extends State<FlashcardReviewPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
                   Text(
-                    FlashcardsText.swipeHint,
+                    context.l10n.flashcardsSwipeHint,
                     style: type.meta.copyWith(color: colors.textMuted),
                   ),
                   TextButton(
                     onPressed: _suspend,
                     child: Text(
-                      FlashcardsText.suspend,
+                      context.l10n.flashcardsSuspend,
                       style: type.meta.copyWith(color: colors.textSecondary),
                     ),
                   ),
@@ -384,15 +386,15 @@ class _Finished extends StatelessWidget {
             title: error != null
                 ? error!
                 : none
-                ? FlashcardsText.noCardsTitle
-                : FlashcardsText.doneForToday,
+                ? context.l10n.flashcardsNoCardsTitle
+                : context.l10n.flashcardsDoneForToday,
             message: none
-                ? FlashcardsText.noCardsBody
-                : FlashcardsText.doneBody,
+                ? context.l10n.flashcardsNoCardsBody
+                : context.l10n.flashcardsDoneBody,
           ),
           const SizedBox(height: KansoSpacing.lg),
           KansoButton(
-            label: FlashcardsText.reviewMore,
+            label: context.l10n.flashcardsReviewMore,
             variant: KansoButtonVariant.secondary,
             expanded: false,
             onPressed: onMore,

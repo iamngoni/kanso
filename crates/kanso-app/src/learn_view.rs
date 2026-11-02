@@ -22,9 +22,11 @@ use gpui_kit::component::{
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use kanso_ai::draft_model::{CheckedDraft, Graded, Length, QuizQuestion, Shape, Source, Suggestion};
-use kanso_ai::prompt::Excerpt;
 use kanso_ai::draft::SourceRef;
+use kanso_ai::draft_model::{
+    CheckedDraft, Graded, Length, QuizQuestion, Shape, Source, Suggestion,
+};
+use kanso_ai::prompt::Excerpt;
 use kanso_engine::draft::{self as engine, SourceList};
 use kanso_store::Store;
 
@@ -575,21 +577,25 @@ impl LearnView {
     fn header(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
         let view = cx.entity().downgrade();
-        let act = |id: &'static str,
-                   icon: Lucide,
-                   label: String,
-                   run: fn(&mut LearnView, &mut Window, &mut Context<LearnView>)| {
-            let view = view.clone();
-            HeaderAction::new(id, icon, label, move |window, cx| {
-                view.update(cx, |this, cx| run(this, window, cx)).ok();
-            })
-        };
+        let act =
+            |id: &'static str,
+             icon: Lucide,
+             label: String,
+             run: fn(&mut LearnView, &mut Window, &mut Context<LearnView>)| {
+                let view = view.clone();
+                HeaderAction::new(id, icon, label, move |window, cx| {
+                    view.update(cx, |this, cx| run(this, window, cx)).ok();
+                })
+            };
         let mut actions: Vec<HeaderAction> = Vec::new();
         match (self.mode, self.phase) {
             (Mode::Draft, Phase::Setup) => actions.push(
-                act("learn-write", Lucide::Sparkles, "Write Draft".into(), |t, _, cx| {
-                    t.start(cx)
-                })
+                act(
+                    "learn-write",
+                    Lucide::Sparkles,
+                    "Write Draft".into(),
+                    |t, _, cx| t.start(cx),
+                )
                 .style(ActionStyle::Primary)
                 .tooltip("Write a draft from the notes (⌘↩)"),
             ),
@@ -607,9 +613,12 @@ impl LearnView {
             ),
             (Mode::Draft, Phase::Ready) => {
                 actions.push(
-                    act("learn-discard", Lucide::Trash, "Discard".into(), |t, w, cx| {
-                        t.discard(w, cx)
-                    })
+                    act(
+                        "learn-discard",
+                        Lucide::Trash,
+                        "Discard".into(),
+                        |t, w, cx| t.discard(w, cx),
+                    )
                     .tooltip("Throw the draft away"),
                 );
                 actions.push(
@@ -620,15 +629,21 @@ impl LearnView {
                     .tooltip("Copy the draft as Markdown"),
                 );
                 actions.push(
-                    act("learn-again", Lucide::RefreshCw, "Draft Again".into(), |t, _, cx| {
-                        t.start(cx)
-                    })
+                    act(
+                        "learn-again",
+                        Lucide::RefreshCw,
+                        "Draft Again".into(),
+                        |t, _, cx| t.start(cx),
+                    )
                     .tooltip("Write it again with the same settings"),
                 );
                 actions.push(
-                    act("learn-save", Lucide::FilePlus, "Save as Note".into(), |t, w, cx| {
-                        t.save_draft(w, cx)
-                    })
+                    act(
+                        "learn-save",
+                        Lucide::FilePlus,
+                        "Save as Note".into(),
+                        |t, w, cx| t.save_draft(w, cx),
+                    )
                     .style(ActionStyle::Primary)
                     .tooltip("Save the draft as a new note"),
                 );
@@ -639,16 +654,25 @@ impl LearnView {
                     let id = id.clone();
                     let view = view.clone();
                     actions.push(
-                        HeaderAction::new("learn-open", Lucide::FileText, "Open Note", move |_, cx| {
-                            view.update(cx, |_, cx| cx.emit(LearnEvent::Open(id.clone()))).ok();
-                        })
+                        HeaderAction::new(
+                            "learn-open",
+                            Lucide::FileText,
+                            "Open Note",
+                            move |_, cx| {
+                                view.update(cx, |_, cx| cx.emit(LearnEvent::Open(id.clone())))
+                                    .ok();
+                            },
+                        )
                         .style(ActionStyle::Primary),
                     );
                 } else {
                     actions.push(
-                        act("learn-add", Lucide::Plus, add_label(&self.picks), |t, w, cx| {
-                            t.add_cards(w, cx)
-                        })
+                        act(
+                            "learn-add",
+                            Lucide::Plus,
+                            add_label(&self.picks),
+                            |t, w, cx| t.add_cards(w, cx),
+                        )
                         .style(ActionStyle::Primary)
                         .disabled(none)
                         .tooltip("Write the ticked cards under Flashcards in the note"),
@@ -656,9 +680,12 @@ impl LearnView {
                 }
             }
             (Mode::Quiz, Phase::Ready) if self.quiz.is_done() => actions.push(
-                act("learn-again", Lucide::RefreshCw, "Quiz Again".into(), |t, _, cx| {
-                    t.start(cx)
-                })
+                act(
+                    "learn-again",
+                    Lucide::RefreshCw,
+                    "Quiz Again".into(),
+                    |t, _, cx| t.start(cx),
+                )
                 .style(ActionStyle::Primary),
             ),
             _ => {}
@@ -749,8 +776,10 @@ impl LearnView {
         set: fn(&mut LearnView, T),
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        h_flex().gap(px(6.)).flex_wrap().children(options.iter().enumerate().map(
-            |(ix, (label, value))| {
+        h_flex()
+            .gap(px(6.))
+            .flex_wrap()
+            .children(options.iter().enumerate().map(|(ix, (label, value))| {
                 let (value, view) = (*value, cx.entity().downgrade());
                 Button::new((id, ix))
                     .outline()
@@ -765,8 +794,7 @@ impl LearnView {
                         })
                         .ok();
                     })
-            },
-        ))
+            }))
     }
 
     fn render_setup(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -1240,7 +1268,11 @@ impl Render for LearnView {
                 .pt(px(24.))
                 .child(self.render_working(
                     if self.mode == Mode::Quiz {
-                        if self.grading { "Checking your answer…" } else { "Writing questions…" }
+                        if self.grading {
+                            "Checking your answer…"
+                        } else {
+                            "Writing questions…"
+                        }
                     } else {
                         "Reading the note…"
                     },

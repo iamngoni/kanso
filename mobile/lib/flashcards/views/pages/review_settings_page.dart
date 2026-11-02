@@ -2,6 +2,8 @@
 // Created 2026-11-02.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/bridge/api/cards.dart';
@@ -15,8 +17,8 @@ import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
+import '../../../reminders/utils/reminders_coordinator.dart';
 import '../../../shell/views/widgets/shell_back_button.dart';
-import '../../utils/flashcards_text.dart';
 
 /// Settings › Flashcards, at `/review/settings`: the daily limits, the
 /// target recall, the daily reminder, the editor's card icons and a reset of
@@ -53,6 +55,8 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
   Future<void> _save(CardSettingsView next) async {
     try {
       final saved = await _cards.setSettings(input: next);
+      // The daily reminder's time may have changed: plan the system's again.
+      unawaited(getIt<RemindersCoordinator>().refresh());
       if (mounted) {
         setState(() {
           _settings = saved;
@@ -99,9 +103,9 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
   Future<void> _reset() async {
     final yes = await KansoConfirmSheet.show(
       context,
-      title: FlashcardsText.resetTitle,
-      message: FlashcardsText.resetBody,
-      confirmLabel: FlashcardsText.reset,
+      title: context.l10n.flashcardsResetTitle,
+      message: context.l10n.flashcardsResetBody,
+      confirmLabel: context.l10n.flashcardsReset,
     );
     if (yes) {
       try {
@@ -129,7 +133,7 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
               backgroundColor: colors.app,
               bordered: false,
               leading: const ShellBackButton(),
-              title: FlashcardsText.settings,
+              title: context.l10n.flashcardsSettings,
             ),
             Expanded(
               child: s == null
@@ -142,20 +146,20 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
                       padding: const EdgeInsets.all(KansoSpacing.md),
                       children: <Widget>[
                         _Stepper(
-                          label: FlashcardsText.newPerDay,
+                          label: context.l10n.flashcardsNewPerDay,
                           value: s.newPerDay,
                           step: 5,
                           onChanged: (v) => _save(_with(s, newPerDay: v)),
                         ),
                         _Stepper(
-                          label: FlashcardsText.reviewsPerDay,
+                          label: context.l10n.flashcardsReviewsPerDay,
                           value: s.reviewsPerDay,
                           step: 25,
                           onChanged: (v) => _save(_with(s, reviewsPerDay: v)),
                         ),
                         const SizedBox(height: KansoSpacing.md),
                         Text(
-                          '${FlashcardsText.targetRecall}: '
+                          '${context.l10n.flashcardsTargetRecall}: '
                           '${(s.retention * 100).round()}%',
                           style: type.body,
                         ),
@@ -172,11 +176,11 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                            FlashcardsText.dailyReminder,
+                            context.l10n.flashcardsDailyReminder,
                             style: type.body,
                           ),
                           subtitle: Text(
-                            s.reminder ?? FlashcardsText.reminderOff,
+                            s.reminder ?? context.l10n.flashcardsReminderOff,
                             style: type.meta.copyWith(
                               color: colors.textSecondary,
                             ),
@@ -187,14 +191,16 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
                                   onPressed: () => _save(
                                     _with(s, clearReminder: true),
                                   ),
-                                  child: const Text(FlashcardsText.reminderOff),
+                                  child: Text(
+                                    context.l10n.flashcardsReminderOff,
+                                  ),
                                 ),
                           onTap: () => _pickTime(s),
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                            FlashcardsText.showIcons,
+                            context.l10n.flashcardsShowIcons,
                             style: type.body,
                           ),
                           value: s.showIcons,
@@ -207,7 +213,7 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
                           ),
                         const SizedBox(height: KansoSpacing.lg),
                         KansoButton(
-                          label: FlashcardsText.resetHistory,
+                          label: context.l10n.flashcardsResetHistory,
                           variant: KansoButtonVariant.danger,
                           onPressed: _reset,
                         ),

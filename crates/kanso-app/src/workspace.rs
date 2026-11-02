@@ -1426,15 +1426,24 @@ impl Workspace {
             NoteCommand::OpenInNewWindow => self.open_in_new_window(id, window, cx),
             NoteCommand::OpenAsSticky => self.open_as_sticky(id, window, cx),
             NoteCommand::Present => crate::presentation::present(id.to_owned(), window, cx),
-            NoteCommand::DraftFrom => {
-                self.show_learn(crate::learn_model::Mode::Draft, vec![id.to_owned()], window, cx)
-            }
-            NoteCommand::MakeFlashcards => {
-                self.show_learn(crate::learn_model::Mode::Make, vec![id.to_owned()], window, cx)
-            }
-            NoteCommand::QuizMe => {
-                self.show_learn(crate::learn_model::Mode::Quiz, vec![id.to_owned()], window, cx)
-            }
+            NoteCommand::DraftFrom => self.show_learn(
+                crate::learn_model::Mode::Draft,
+                vec![id.to_owned()],
+                window,
+                cx,
+            ),
+            NoteCommand::MakeFlashcards => self.show_learn(
+                crate::learn_model::Mode::Make,
+                vec![id.to_owned()],
+                window,
+                cx,
+            ),
+            NoteCommand::QuizMe => self.show_learn(
+                crate::learn_model::Mode::Quiz,
+                vec![id.to_owned()],
+                window,
+                cx,
+            ),
             // These work on the open note, so the note opens first.
             NoteCommand::ShowHistory => {
                 if self.open_note(id, window, cx) {

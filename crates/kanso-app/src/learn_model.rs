@@ -222,7 +222,10 @@ mod tests {
 
     #[test]
     fn a_card_whose_quote_is_missing_starts_unticked() {
-        let picks = picks_from(vec![suggestion("Q1", "A1", false), suggestion("Q2", "A2", true)]);
+        let picks = picks_from(vec![
+            suggestion("Q1", "A1", false),
+            suggestion("Q2", "A2", true),
+        ]);
         assert!(picks[0].on);
         assert!(!picks[1].on);
         assert_eq!(chosen(&picks), vec![("Q1".to_owned(), "A1".to_owned())]);

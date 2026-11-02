@@ -14,7 +14,6 @@ import '../../../core/router/kanso_routes.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/kanso_error_mapping.dart';
 import '../../../injection.dart';
-import '../../utils/flashcards_text.dart';
 
 /// The stats of the cards in [scope]: counts, reviews a day, retention, the
 /// next week's forecast and the hardest cards. Worked out on this device
@@ -71,35 +70,41 @@ class _StatsBody extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            _Figure(label: FlashcardsText.statsTotal, value: counts.total),
-            _Figure(label: FlashcardsText.statsDue, value: counts.due),
-            _Figure(label: FlashcardsText.statsNew, value: counts.newCards),
             _Figure(
-              label: FlashcardsText.statsSuspended,
+              label: context.l10n.flashcardsStatsTotal,
+              value: counts.total,
+            ),
+            _Figure(label: context.l10n.flashcardsStatsDue, value: counts.due),
+            _Figure(
+              label: context.l10n.flashcardsStatsNew,
+              value: counts.newCards,
+            ),
+            _Figure(
+              label: context.l10n.flashcardsStatsSuspended,
               value: counts.suspended,
             ),
           ],
         ),
         const SizedBox(height: KansoSpacing.lg),
-        Text(FlashcardsText.statsPerDay, style: type.sectionLabel),
+        Text(context.l10n.flashcardsStatsPerDay, style: type.sectionLabel),
         const SizedBox(height: KansoSpacing.xs),
         _Bars(values: stats.perDay, color: colors.accent),
         const SizedBox(height: KansoSpacing.lg),
-        Text(FlashcardsText.statsRetention, style: type.sectionLabel),
+        Text(context.l10n.flashcardsStatsRetention, style: type.sectionLabel),
         const SizedBox(height: KansoSpacing.xs),
         Text(
           retention == null
-              ? FlashcardsText.statsNone
+              ? context.l10n.flashcardsStatsNone
               : '${(retention * 100).round()}%',
           style: type.heading1,
         ),
         const SizedBox(height: KansoSpacing.lg),
-        Text(FlashcardsText.statsForecast, style: type.sectionLabel),
+        Text(context.l10n.flashcardsStatsForecast, style: type.sectionLabel),
         const SizedBox(height: KansoSpacing.xs),
         _Bars(values: stats.forecast, color: colors.success),
         if (stats.hardest.isNotEmpty) ...<Widget>[
           const SizedBox(height: KansoSpacing.lg),
-          Text(FlashcardsText.statsHardest, style: type.sectionLabel),
+          Text(context.l10n.flashcardsStatsHardest, style: type.sectionLabel),
           for (final card in stats.hardest)
             ListTile(
               contentPadding: EdgeInsets.zero,

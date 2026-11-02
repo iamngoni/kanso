@@ -19,6 +19,7 @@ import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
+import '../../../draft/views/widgets/draft_from_group.dart';
 import '../../../injection.dart';
 import '../../../publish/views/widgets/publish_sheet.dart';
 import '../../state/note_list/note_list_bloc.dart';
@@ -198,6 +199,7 @@ class NoteActionsSheet extends StatelessWidget {
                 ),
             ],
           ),
+        if (!inTrash) DraftFromGroup(source: DraftSourceNotes(ids), host: host),
         if (inTrash)
           KansoSheetGroup(
             dividerIndent: KansoSettingsRow.iconInset,

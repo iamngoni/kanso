@@ -8,6 +8,7 @@ import 'package:kanso/core/bridge/api/cards_types.dart';
 import 'package:kanso/core/bridge/api/library.dart';
 import 'package:kanso/flashcards/utils/flashcards_text.dart';
 import 'package:kanso/flashcards/views/pages/review_page.dart';
+import 'package:kanso/gen/l10n/app_localizations_en.dart';
 import 'package:kanso/injection.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -27,6 +28,8 @@ ReviewCard _card(String question, {bool isNew = true}) => ReviewCard(
   isNew: isNew,
   intervals: const <String>['10 min', '1 day', '4 days', '2 weeks'],
 );
+
+final AppLocalizationsEn l10n = AppLocalizationsEn();
 
 void main() {
   late _MockCards cards;
@@ -73,12 +76,12 @@ void main() {
     expect(find.text('1 of 2 · 2 new'), findsOneWidget);
     expect(find.text('The answer to Q one'), findsNothing);
 
-    await tester.tap(find.text(FlashcardsText.showAnswer));
+    await tester.tap(find.text(l10n.flashcardsShowAnswer));
     await tester.pumpAndSettle();
     expect(find.text('The answer to Q one'), findsOneWidget);
     expect(find.text('4 days'), findsOneWidget);
 
-    await tester.tap(find.text(FlashcardsText.good));
+    await tester.tap(find.text(l10n.flashcardsGood));
     await tester.pumpAndSettle();
     verify(
       () => cards.answer(
@@ -99,24 +102,24 @@ void main() {
     await tester.pumpWidget(const KansoTestApp(home: FlashcardReviewPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text(FlashcardsText.showAnswer));
+    await tester.tap(find.text(l10n.flashcardsShowAnswer));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(FlashcardsText.again));
+    await tester.tap(find.text(l10n.flashcardsAgain));
     await tester.pumpAndSettle();
     expect(find.text('Only'), findsOneWidget, reason: 'asked again');
 
-    await tester.tap(find.text(FlashcardsText.showAnswer));
+    await tester.tap(find.text(l10n.flashcardsShowAnswer));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(FlashcardsText.easy));
+    await tester.tap(find.text(l10n.flashcardsEasy));
     await tester.pumpAndSettle();
-    expect(find.text(FlashcardsText.doneForToday), findsOneWidget);
-    expect(find.text(FlashcardsText.reviewMore), findsOneWidget);
+    expect(find.text(l10n.flashcardsDoneForToday), findsOneWidget);
+    expect(find.text(l10n.flashcardsReviewMore), findsOneWidget);
   });
 
   testWidgets('with no cards it explains how to write one', (tester) async {
     serve(const <ReviewCard>[]);
     await tester.pumpWidget(const KansoTestApp(home: FlashcardReviewPage()));
     await tester.pumpAndSettle();
-    expect(find.text(FlashcardsText.noCardsTitle), findsOneWidget);
+    expect(find.text(l10n.flashcardsNoCardsTitle), findsOneWidget);
   });
 }

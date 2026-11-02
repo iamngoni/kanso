@@ -164,9 +164,9 @@ mod smart_paste;
 mod snapshots;
 mod spellcheck;
 // Tests check with a word list instead.
+mod card_marks;
 mod flashcards_model;
 mod flashcards_view;
-mod card_marks;
 mod learn_model;
 mod learn_view;
 mod settings_flashcards;

@@ -76,7 +76,7 @@ class _QuizPageState extends State<QuizPage> {
           });
         case QuizEvent_Failed(:final message):
           setState(() {
-            _error = message;
+            _error = FlashcardsText.failure(message, context.l10n);
             _loading = false;
           });
         case QuizEvent_Stopped():
@@ -112,7 +112,7 @@ class _QuizPageState extends State<QuizPage> {
               });
             case GradeEvent_Failed(:final message):
               setState(() {
-                _error = message;
+                _error = FlashcardsText.failure(message, context.l10n);
                 _grading = false;
               });
             case GradeEvent_Stopped():
@@ -175,7 +175,7 @@ class _QuizPageState extends State<QuizPage> {
               backgroundColor: colors.app,
               bordered: false,
               leading: const ShellBackButton(),
-              title: FlashcardsText.quizMe,
+              title: context.l10n.flashcardsQuizMe,
             ),
             Expanded(
               child: _loading
@@ -186,10 +186,13 @@ class _QuizPageState extends State<QuizPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: <Widget>[
-                          Text(FlashcardsText.quizDone, style: type.heading2),
+                          Text(
+                            context.l10n.flashcardsQuizDone,
+                            style: type.heading2,
+                          ),
                           const SizedBox(height: KansoSpacing.lg),
                           KansoButton(
-                            label: FlashcardsText.quizAgain,
+                            label: context.l10n.flashcardsQuizAgain,
                             onPressed: _start,
                           ),
                         ],
@@ -217,7 +220,7 @@ class _QuizPageState extends State<QuizPage> {
       padding: const EdgeInsets.all(KansoSpacing.md),
       children: <Widget>[
         Text(
-          FlashcardsText.quizProgress(_at + 1, _items.length),
+          context.l10n.flashcardsQuizProgress(_at + 1, _items.length),
           style: type.meta.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: KansoSpacing.sm),
@@ -232,12 +235,14 @@ class _QuizPageState extends State<QuizPage> {
           enabled: grade == null,
           minLines: 3,
           maxLines: 8,
-          decoration: const InputDecoration(hintText: FlashcardsText.quizHint),
+          decoration: InputDecoration(
+            hintText: context.l10n.flashcardsQuizHint,
+          ),
         ),
         const SizedBox(height: KansoSpacing.md),
         if (grade == null)
           KansoButton(
-            label: FlashcardsText.quizCheck,
+            label: context.l10n.flashcardsQuizCheck,
             onPressed: _grading || _answer.text.trim().isEmpty ? null : _check,
           )
         else ...<Widget>[
@@ -248,12 +253,12 @@ class _QuizPageState extends State<QuizPage> {
           KansoButton(
             label: _saved == item.question
                 ? 'Saved'
-                : FlashcardsText.quizSaveCard,
+                : context.l10n.flashcardsQuizSaveCard,
             variant: KansoButtonVariant.secondary,
             onPressed: _saved == item.question ? null : _saveCard,
           ),
           const SizedBox(height: KansoSpacing.xs),
-          KansoButton(label: FlashcardsText.quizNext, onPressed: _next),
+          KansoButton(label: context.l10n.flashcardsQuizNext, onPressed: _next),
         ],
         if (_grading)
           const Padding(

@@ -52,7 +52,7 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
   late final KansoAiRun _run = getIt<KansoAi>().newRun();
   StreamSubscription<SuggestEvent>? _events;
   List<_Row> _rows = <_Row>[];
-  String _status = FlashcardsText.makeReading;
+  String _status = '';
   String? _error;
   bool _working = true;
   bool _adding = false;
@@ -72,12 +72,12 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
             _rows = cards.map(_Row.new).toList();
             _working = false;
             if (cards.isEmpty) {
-              _error = FlashcardsText.noSuggestions;
+              _error = context.l10n.flashcardsNoSuggestions;
             }
           });
         case SuggestEvent_Failed(:final message):
           setState(() {
-            _error = message;
+            _error = FlashcardsText.failure(message, context.l10n);
             _working = false;
           });
         case SuggestEvent_Stopped():
@@ -157,7 +157,7 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(FlashcardsText.added(n))),
+          SnackBar(content: Text(context.l10n.flashcardsAdded(n))),
         );
       }
     } on Object catch (e) {
@@ -179,7 +179,7 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Text(FlashcardsText.makeCards, style: type.heading2),
+        Text(context.l10n.flashcardsMakeCards, style: type.heading2),
         const SizedBox(height: KansoSpacing.sm),
         if (_working)
           Padding(
@@ -192,7 +192,12 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 const SizedBox(width: KansoSpacing.sm),
-                Text(_status, style: type.secondary),
+                Text(
+                  _status.isEmpty
+                      ? context.l10n.flashcardsMakeReading
+                      : _status,
+                  style: type.secondary,
+                ),
               ],
             ),
           ),
@@ -220,7 +225,7 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
                   ),
                   subtitle: row.card.sourceMissing
                       ? Text(
-                          FlashcardsText.sourceNotFound,
+                          context.l10n.flashcardsSourceNotFound,
                           style: type.meta.copyWith(color: colors.warning),
                         )
                       : row.card.line == null
@@ -241,7 +246,7 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
         ),
         const SizedBox(height: KansoSpacing.sm),
         KansoButton(
-          label: FlashcardsText.addCards(ticked),
+          label: context.l10n.flashcardsAddCards(ticked),
           onPressed: ticked == 0 || _adding || _working ? null : _add,
         ),
       ],

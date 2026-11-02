@@ -55,7 +55,6 @@ pub fn decorations(text: &str, dim: Hsla, tint: Hsla) -> Vec<TextDecoration> {
 pub struct CardMarks {
     collection: Option<TextDecorationCollection>,
     task: Option<Task<()>>,
-    count: usize,
 }
 
 impl CardMarks {
@@ -77,7 +76,6 @@ impl CardMarks {
         } else {
             Vec::new()
         };
-        self.count = decorations.len();
         match &self.collection {
             Some(collection) => collection.set(decorations, cx),
             None if decorations.is_empty() => {}
@@ -87,12 +85,6 @@ impl CardMarks {
                 }));
             }
         }
-    }
-
-    /// How many decorations are on the text now.
-    #[cfg(test)]
-    pub fn count(&self) -> usize {
-        self.count
     }
 
     /// Marks the cards once typing pauses.

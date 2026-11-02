@@ -5,14 +5,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../core/bridge/api/library.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/router/kanso_routes.dart';
+import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../injection.dart';
-import '../../utils/flashcards_text.dart';
 import 'make_flashcards_sheet.dart';
 
 /// "Draft from This Note…", "Make Flashcards…" and "Quiz Me" for a note's
@@ -65,7 +64,7 @@ class _LearnNoteActionsState extends State<LearnNoteActions> {
           children: <Widget>[
             KansoSettingsRow(
               icon: KansoIcons.penTool,
-              label: FlashcardsText.draftFrom,
+              label: context.l10n.flashcardsDraftFrom,
               onTap: _blocked != null
                   ? null
                   : () {
@@ -78,7 +77,7 @@ class _LearnNoteActionsState extends State<LearnNoteActions> {
             ),
             KansoSettingsRow(
               icon: KansoIcons.copy,
-              label: FlashcardsText.makeCards,
+              label: context.l10n.flashcardsMakeCards,
               value: _known ? _blocked : null,
               onTap: _blocked != null
                   ? null
@@ -91,7 +90,7 @@ class _LearnNoteActionsState extends State<LearnNoteActions> {
             ),
             KansoSettingsRow(
               icon: KansoIcons.sparkles,
-              label: FlashcardsText.quizMe,
+              label: context.l10n.flashcardsQuizMe,
               onTap: _blocked != null
                   ? null
                   : () {

@@ -24847,7 +24847,8 @@ impl SseDecode for crate::api::types::LiveDocStyleKind {
             5 => crate::api::types::LiveDocStyleKind::Heading,
             6 => crate::api::types::LiveDocStyleKind::InlineMath,
             7 => crate::api::types::LiveDocStyleKind::Quote,
-            8 => crate::api::types::LiveDocStyleKind::TaskDone,
+            8 => crate::api::types::LiveDocStyleKind::CardSeparator,
+            9 => crate::api::types::LiveDocStyleKind::TaskDone,
             _ => unreachable!("Invalid variant for LiveDocStyleKind: {}", inner),
         };
     }
@@ -33126,7 +33127,8 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::LiveDocStyl
             crate::api::types::LiveDocStyleKind::Heading => 5.into_dart(),
             crate::api::types::LiveDocStyleKind::InlineMath => 6.into_dart(),
             crate::api::types::LiveDocStyleKind::Quote => 7.into_dart(),
-            crate::api::types::LiveDocStyleKind::TaskDone => 8.into_dart(),
+            crate::api::types::LiveDocStyleKind::CardSeparator => 8.into_dart(),
+            crate::api::types::LiveDocStyleKind::TaskDone => 9.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -40639,7 +40641,8 @@ impl SseEncode for crate::api::types::LiveDocStyleKind {
                 crate::api::types::LiveDocStyleKind::Heading => 5,
                 crate::api::types::LiveDocStyleKind::InlineMath => 6,
                 crate::api::types::LiveDocStyleKind::Quote => 7,
-                crate::api::types::LiveDocStyleKind::TaskDone => 8,
+                crate::api::types::LiveDocStyleKind::CardSeparator => 8,
+                crate::api::types::LiveDocStyleKind::TaskDone => 9,
                 _ => {
                     unimplemented!("");
                 }

@@ -244,6 +244,54 @@ pub fn reminder_wait(at: u32, now: u32) -> u32 {
     if now <= at { at - now } else { 1440 - now + at }
 }
 
+/// One flashcard reminder to hand the system ahead of time.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PlannedReminder {
+    pub date: kanso_core::dates::Date,
+    pub hour: u32,
+    pub minute: u32,
+    pub body: String,
+}
+
+/// How many days ahead reminders are scheduled.
+pub const REMINDER_DAYS: i64 = 7;
+
+/// The reminders to schedule for the next week: one a day at the chosen
+/// time, while the library has cards. Today's says how many are waiting (and
+/// is left out when none are, or the time has passed); later days say it
+/// without a count, which cannot be known days ahead. Never a question or
+/// an answer. `local_ms` is the clock now, in the person's zone.
+pub fn plan_reminders(
+    reminder: Option<&str>,
+    has_cards: bool,
+    waiting: usize,
+    local_ms: i64,
+) -> Vec<PlannedReminder> {
+    let Some(at) = reminder.and_then(parse_reminder).filter(|_| has_cards) else {
+        return Vec::new();
+    };
+    let now = kanso_core::dates::DateTime::from_local_ms(local_ms);
+    let now_min = now.hour * 60 + now.minute;
+    (0..REMINDER_DAYS)
+        .filter_map(|i| {
+            let body = if i == 0 {
+                if at <= now_min {
+                    return None;
+                }
+                reminder_text(waiting)?
+            } else {
+                "Your flashcards are waiting.".to_owned()
+            };
+            Some(PlannedReminder {
+                date: now.date.add_days(i),
+                hour: at / 60,
+                minute: at % 60,
+                body,
+            })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
@@ -481,6 +529,37 @@ mod tests {
             let wait = reminder_wait(at, now);
             prop_assert!(wait <= 1440);
             prop_assert_eq!((now + wait) % 1440, at);
+        }
+    }
+
+    proptest! {
+        /// Whatever the clock and the settings, the plan is at most a week
+        /// of future reminders at the chosen time, in date order, and says
+        /// nothing from a note.
+        #[test]
+        fn prop_the_plan_is_future_ordered_and_count_only(
+            at in 0u32..1440,
+            local in 0i64..4_000_000_000_000,
+            waiting in 0usize..50,
+            has in any::<bool>(),
+        ) {
+            let text = format!("{:02}:{:02}", at / 60, at % 60);
+            let plan = plan_reminders(Some(&text), has, waiting, local);
+            prop_assert!(plan.len() <= REMINDER_DAYS as usize);
+            if !has {
+                prop_assert!(plan.is_empty());
+            }
+            let now = kanso_core::dates::DateTime::from_local_ms(local);
+            for window in plan.windows(2) {
+                prop_assert!(window[0].date < window[1].date);
+            }
+            for r in &plan {
+                prop_assert_eq!((r.hour, r.minute), (at / 60, at % 60));
+                prop_assert!(
+                    r.date > now.date || (r.date == now.date && at > now.hour * 60 + now.minute)
+                );
+                prop_assert!(r.body.ends_with('.'));
+            }
         }
     }
 }

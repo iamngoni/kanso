@@ -5263,4 +5263,307 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get agentSettingsFooter =>
       'An agent reads only notes that are not locked, not in the Trash and not tagged #ai-exclude. It never writes; you approve every change.';
+
+  @override
+  String get flashcardsReviewTitle => 'Review';
+
+  @override
+  String get flashcardsShowAnswer => 'Show Answer';
+
+  @override
+  String get flashcardsAgain => 'Again';
+
+  @override
+  String get flashcardsHard => 'Hard';
+
+  @override
+  String get flashcardsGood => 'Good';
+
+  @override
+  String get flashcardsEasy => 'Easy';
+
+  @override
+  String get flashcardsSwipeHint => 'Swipe left for Again, right for Good';
+
+  @override
+  String get flashcardsDoneForToday => 'Done for today.';
+
+  @override
+  String get flashcardsDoneBody =>
+      'Come back when more cards are due. Cards are lines written as question :: answer in your notes.';
+
+  @override
+  String get flashcardsReviewMore => 'Review More';
+
+  @override
+  String get flashcardsNoCardsTitle => 'No cards yet';
+
+  @override
+  String get flashcardsNoCardsBody =>
+      'Write a line like  What is FSRS? :: A scheduler  in any note. Each such line is a flashcard.';
+
+  @override
+  String get flashcardsStats => 'Stats';
+
+  @override
+  String get flashcardsSettings => 'Flashcards';
+
+  @override
+  String get flashcardsSuspend => 'Suspend Card';
+
+  @override
+  String get flashcardsSuspended => 'Card suspended.';
+
+  @override
+  String get flashcardsOpenNote => 'Open Note';
+
+  @override
+  String get flashcardsStatsTotal => 'Cards';
+
+  @override
+  String get flashcardsStatsDue => 'Due today';
+
+  @override
+  String get flashcardsStatsNew => 'New';
+
+  @override
+  String get flashcardsStatsSuspended => 'Suspended';
+
+  @override
+  String get flashcardsStatsPerDay => 'Reviews, last 30 days';
+
+  @override
+  String get flashcardsStatsRetention => 'Retention, last 30 days';
+
+  @override
+  String get flashcardsStatsForecast => 'Due, next 7 days';
+
+  @override
+  String get flashcardsStatsHardest => 'Hardest cards';
+
+  @override
+  String get flashcardsStatsNone => 'Nothing reviewed yet.';
+
+  @override
+  String get flashcardsNewPerDay => 'New cards a day';
+
+  @override
+  String get flashcardsReviewsPerDay => 'Reviews a day';
+
+  @override
+  String get flashcardsTargetRecall => 'Target recall';
+
+  @override
+  String get flashcardsDailyReminder => 'Daily reminder';
+
+  @override
+  String get flashcardsReminderOff => 'Off';
+
+  @override
+  String get flashcardsShowIcons => 'Show card icons in the editor';
+
+  @override
+  String get flashcardsResetHistory => 'Reset Review History…';
+
+  @override
+  String get flashcardsResetTitle => 'Reset review history?';
+
+  @override
+  String get flashcardsResetBody =>
+      'Every card starts again as new, on all your devices. The cards in your notes stay.';
+
+  @override
+  String get flashcardsReset => 'Reset';
+
+  @override
+  String get flashcardsMakeCards => 'Make Flashcards…';
+
+  @override
+  String get flashcardsMakeBlockedExcluded => 'This note is excluded from AI.';
+
+  @override
+  String get flashcardsMakeReading => 'Reading the note…';
+
+  @override
+  String get flashcardsSourceNotFound => 'Source not found';
+
+  @override
+  String get flashcardsNoSuggestions => 'No cards came back. Try again.';
+
+  @override
+  String get flashcardsQuizMe => 'Quiz Me';
+
+  @override
+  String get flashcardsQuizHint => 'Type your answer';
+
+  @override
+  String get flashcardsQuizCheck => 'Check';
+
+  @override
+  String get flashcardsQuizNext => 'Next';
+
+  @override
+  String get flashcardsQuizSaveCard => 'Save as Card';
+
+  @override
+  String get flashcardsQuizDone => 'That was the round.';
+
+  @override
+  String get flashcardsQuizAgain => 'Another Round';
+
+  @override
+  String get flashcardsDraftFrom => 'Draft from This Note…';
+
+  @override
+  String get flashcardsDraftTitle => 'Draft';
+
+  @override
+  String get flashcardsDraftSources => 'Sources';
+
+  @override
+  String get flashcardsDraftWhat => 'What should it say, and for whom?';
+
+  @override
+  String get flashcardsDraftWrite => 'Write Draft';
+
+  @override
+  String get flashcardsDraftStop => 'Stop';
+
+  @override
+  String get flashcardsDraftTryAgain => 'Try Again';
+
+  @override
+  String get flashcardsDraftCopy => 'Copy';
+
+  @override
+  String get flashcardsDraftSave => 'Save as Note';
+
+  @override
+  String get flashcardsDraftDiscard => 'Discard';
+
+  @override
+  String get flashcardsDraftDiscardTitle => 'Discard this draft?';
+
+  @override
+  String get flashcardsDraftDiscardBody =>
+      'It has not been saved. Drafts are not kept.';
+
+  @override
+  String get flashcardsDraftNoSource => 'No source in your notes';
+
+  @override
+  String get flashcardsDraftNone =>
+      'None of these notes can be sent to AI. Locked notes and notes tagged #ai-exclude are never sent.';
+
+  @override
+  String get flashcardsDraftNoAi =>
+      'Drafting needs an AI provider. Choose one in Settings › AI.';
+
+  @override
+  String get flashcardsDraftSaved => 'Saved the draft as a note.';
+
+  @override
+  String get flashcardsDraftReviewTitle => 'Review';
+
+  @override
+  String get flashcardsDraftNotebook => 'Notebook';
+
+  @override
+  String flashcardsProgress(int at, int total, int fresh) {
+    String _temp0 = intl.Intl.pluralLogic(
+      fresh,
+      locale: localeName,
+      other: ' · $fresh new',
+      zero: '',
+    );
+    return '$at of $total$_temp0';
+  }
+
+  @override
+  String flashcardsInterval(String name, String span) {
+    return '$name · $span';
+  }
+
+  @override
+  String flashcardsAddCards(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Add $n Cards',
+      one: 'Add 1 Card',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String flashcardsAdded(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Added $n cards.',
+      one: 'Added 1 card.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String flashcardsQuizProgress(int at, int total) {
+    return 'Question $at of $total';
+  }
+
+  @override
+  String flashcardsDraftSent(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Only these $n notes are sent to your AI.',
+      one: 'Only this note is sent to your AI.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get flashcardsShapeReport => 'Report';
+
+  @override
+  String get flashcardsShapeEssay => 'Essay';
+
+  @override
+  String get flashcardsShapeUpdate => 'Update';
+
+  @override
+  String get flashcardsShapeOutline => 'Outline';
+
+  @override
+  String get flashcardsShapeCustom => 'Custom';
+
+  @override
+  String get flashcardsLengthShort => 'Short';
+
+  @override
+  String get flashcardsLengthMedium => 'Medium';
+
+  @override
+  String get flashcardsLengthLong => 'Long';
+
+  @override
+  String get flashcardsDraftFromNotebook => 'Draft from This Notebook…';
+
+  @override
+  String get flashcardsDraftFromTag => 'Draft from This Tag…';
+
+  @override
+  String flashcardsDraftFromNotes(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'Draft from These $n Notes…',
+      one: 'Draft from This Note…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get flashcardsDraftNoNotes =>
+      'There are no notes here that a draft can read. Locked notes and notes tagged #ai-exclude are never sent.';
 }

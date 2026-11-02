@@ -55,6 +55,7 @@ pub type Run = Rc<dyn Fn(NoteCommand, &mut Window, &mut App)>;
 
 /// Adds the items for a note that is `pinned` or not, `locked` or not and
 /// has `status` to `menu`, each calling `run` with its command.
+#[allow(clippy::too_many_arguments)] // the note's state, the menu and its window
 pub fn items(
     menu: PopupMenu,
     pinned: bool,
