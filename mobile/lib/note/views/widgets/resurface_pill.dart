@@ -33,13 +33,17 @@ class ResurfacePill extends StatelessWidget {
     }
     return BlocBuilder<ResurfaceBloc, ResurfaceState>(
       bloc: bloc,
-      buildWhen: (before, now) => before.rows.length != now.rows.length,
+      buildWhen: (before, now) =>
+          before.rows.length != now.rows.length ||
+          before.day.length != now.day.length ||
+          before.enabled != now.enabled,
       builder: (context, state) {
-        if (!state.enabled || state.rows.isEmpty) {
+        final count = resurfaceCount(state);
+        if (count == 0) {
           return const SizedBox.shrink();
         }
         final colors = context.colors;
-        final label = context.l10n.resurfacePill(state.rows.length);
+        final label = context.l10n.resurfacePill(count);
         return TweenAnimationBuilder<double>(
           key: const ValueKey<String>('resurface pill'),
           tween: Tween<double>(begin: 0, end: 1),
@@ -89,7 +93,13 @@ class ResurfacePill extends StatelessWidget {
   }
 }
 
+/// How many notes the pill offers: the past notes about the paragraph (when
+/// they are on) and the notes of this day (on their own setting).
+int resurfaceCount(ResurfaceState state) =>
+    (state.enabled ? state.rows.length : 0) + state.day.length;
+
 /// The pill, right-aligned in a row of its own above the keyboard's bar.
+/// The row takes no room while there is no pill.
 class ResurfacePillRow extends StatelessWidget {
   const ResurfacePillRow({required this.noteId, this.onLink, super.key});
 
@@ -98,15 +108,29 @@ class ResurfacePillRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: AlignmentDirectional.centerEnd,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.only(
-          end: KansoSpacing.md,
-          bottom: KansoSpacing.xs,
-        ),
-        child: ResurfacePill(noteId: noteId, onLink: onLink),
-      ),
+    final bloc = ResurfacePill._maybeRead(context);
+    if (bloc == null) {
+      return const SizedBox.shrink();
+    }
+    return BlocBuilder<ResurfaceBloc, ResurfaceState>(
+      bloc: bloc,
+      buildWhen: (before, now) =>
+          (resurfaceCount(before) == 0) != (resurfaceCount(now) == 0),
+      builder: (context, state) {
+        if (resurfaceCount(state) == 0) {
+          return const SizedBox.shrink();
+        }
+        return Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              end: KansoSpacing.md,
+              bottom: KansoSpacing.xs,
+            ),
+            child: ResurfacePill(noteId: noteId, onLink: onLink),
+          ),
+        );
+      },
     );
   }
 }

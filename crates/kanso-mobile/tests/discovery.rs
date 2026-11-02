@@ -848,3 +848,30 @@ fn on_this_day_lists_the_same_date_in_earlier_years() {
     assert_eq!(rows[0].book, "Journal");
     assert!(discovery.on_this_day(&other, 0).unwrap().is_empty());
 }
+
+/// A locked daily note lists nothing for its date.
+// no-prop-test: one fixed library; the rule is the store's `note_discoverable`.
+#[test]
+fn on_this_day_lists_nothing_for_a_locked_daily_note() {
+    install();
+    let phone = lone_phone();
+    let store = store(&phone);
+    let book = book(&store, "Journal");
+    raw_note(
+        &store,
+        json!({"title": "Walk", "bookId": book, "body": "x", "createdAt": 1_710_072_000_000i64}),
+    );
+    let today = raw_note(
+        &store,
+        json!({"_id": "note:daily-2026-03-10", "title": "2026-03-10", "bookId": book, "body": "x",
+               "createdAt": 1_773_144_000_000i64}),
+    );
+    let discovery = phone.library.discovery();
+    assert_eq!(discovery.on_this_day(&today, 0).unwrap().len(), 1);
+    phone
+        .library
+        .locks()
+        .lock_note(&today, LOCK_PASSWORD.into())
+        .unwrap();
+    assert!(discovery.on_this_day(&today, 0).unwrap().is_empty());
+}

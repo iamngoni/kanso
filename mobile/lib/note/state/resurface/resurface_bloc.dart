@@ -51,24 +51,42 @@ class ResurfaceBloc extends Bloc<ResurfaceEvent, ResurfaceState> {
 
   static int _systemOffset() => DateTime.now().timeZoneOffset.inSeconds;
 
+  /// An edit that came before the note was loaded; run once it is.
+  ResurfaceEditedEvent? _pending;
+
+  /// What the Settings say now: whether paragraphs are offered, whether the
+  /// notes of this day are, and how close a note must be.
+  Future<({bool enabled, bool day, String closeness})> _readSettings() async {
+    final preferences = await _preferences.load();
+    final related = await _discovery.relatedEnabled();
+    final settings = preferences.fold((_) => null, (value) => value);
+    final on = related.fold((_) => false, (value) => value);
+    return (
+      enabled: on && (settings?.resurface ?? true),
+      day: settings?.onThisDay ?? true,
+      closeness: settings?.resurfaceCloseness ?? 'default',
+    );
+  }
+
   Future<void> _onStarted(
     ResurfaceStartedEvent event,
     Emitter<ResurfaceState> emit,
   ) async {
-    final preferences = await _preferences.load();
-    final related = await _discovery.relatedEnabled();
-    final settings = preferences.fold((_) => null, (value) => value);
-    final resurface = settings?.resurface ?? true;
-    final onThisDay = settings?.onThisDay ?? true;
-    final on = related.fold((_) => false, (value) => value);
+    final settings = await _readSettings();
     emit(
       ResurfaceState(
         noteId: event.noteId,
-        enabled: on && resurface,
-        closeness: settings?.resurfaceCloseness ?? 'default',
+        enabled: settings.enabled,
+        closeness: settings.closeness,
       ),
     );
-    if (!onThisDay) {
+    // An edit that came while the settings were being read.
+    final pending = _pending;
+    if (pending != null) {
+      _pending = null;
+      add(pending);
+    }
+    if (!settings.day) {
       return;
     }
     final day = await _discovery.onThisDay(
@@ -86,13 +104,24 @@ class ResurfaceBloc extends Bloc<ResurfaceEvent, ResurfaceState> {
     ResurfaceEditedEvent event,
     Emitter<ResurfaceState> emit,
   ) async {
-    if (!state.enabled || state.noteId.isEmpty) {
+    if (state.noteId.isEmpty) {
+      // Not loaded yet: ask when it is.
+      _pending = event;
+      return;
+    }
+    // Off when the note was opened: look at the Settings again before
+    // waiting on anything (they may have been turned on since).
+    if (!state.enabled && !await _refresh(emit)) {
       return;
     }
     // Typing: nothing is asked until the text has been still for a moment.
     // A newer edit drops this one (the transformer restarts).
     await Future<void>.delayed(settle);
     if (emit.isDone) {
+      return;
+    }
+    // The Settings may have changed while typing.
+    if (!await _refresh(emit)) {
       return;
     }
     final result = await _discovery.resurface(
@@ -111,6 +140,25 @@ class ResurfaceBloc extends Bloc<ResurfaceEvent, ResurfaceState> {
       },
     );
     emit(state.copyWith(rows: mergeResurfaced(state.rows, rows)));
+  }
+
+  /// Takes the Settings as they are now; true when notes are offered.
+  Future<bool> _refresh(Emitter<ResurfaceState> emit) async {
+    final settings = await _readSettings();
+    if (emit.isDone) {
+      return false;
+    }
+    if (settings.enabled != state.enabled ||
+        settings.closeness != state.closeness) {
+      emit(
+        state.copyWith(
+          enabled: settings.enabled,
+          closeness: settings.closeness,
+          rows: settings.enabled ? state.rows : const <ResurfaceRow>[],
+        ),
+      );
+    }
+    return settings.enabled;
   }
 
   Future<void> _onDismissed(

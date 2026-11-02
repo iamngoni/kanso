@@ -196,6 +196,45 @@ void main() {
     },
   );
 
+  test('an edit sent right after started is asked once it is loaded', () async {
+    answer(<ResurfaceRow>[_row('a')]);
+    final bloc = build()
+      ..add(const ResurfaceEvent.started('note-a'))
+      ..add(
+        const ResurfaceEvent.edited(
+          title: 'T',
+          body: 'one two three four five six seven',
+          caret: 3,
+        ),
+      );
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(bloc.state.rows.map((r) => r.id), <String>['a']);
+    await bloc.close();
+  });
+
+  test('the Settings changed since the note opened are picked up', () async {
+    answer(<ResurfaceRow>[_row('a')]);
+    var on = false;
+    when(() => preferences.load()).thenAnswer(
+      (_) async => right(Preferences(resurface: on)),
+    );
+    final bloc = build()..add(const ResurfaceEvent.started('note-a'));
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(bloc.state.enabled, isFalse);
+    on = true;
+    bloc.add(
+      const ResurfaceEvent.edited(
+        title: 'T',
+        body: 'one two three four five six seven',
+        caret: 3,
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(bloc.state.enabled, isTrue);
+    expect(bloc.state.rows.map((r) => r.id), <String>['a']);
+    await bloc.close();
+  });
+
   test('notes that stay stay in place, new ones come in at the end', () async {
     final bloc = build()..add(const ResurfaceEvent.started('note-a'));
     await Future<void>.delayed(const Duration(milliseconds: 5));

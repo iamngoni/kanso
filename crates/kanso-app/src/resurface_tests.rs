@@ -69,7 +69,7 @@ fn index(store: &Arc<Store>) {
         .map(|p| EmbeddedNote {
             vector: Words.embed(std::slice::from_ref(&p.text)).remove(0),
             passages: p
-                .passages
+                .passages()
                 .iter()
                 .map(|q| EmbeddedPassage {
                     start: q.start,
@@ -293,4 +293,33 @@ fn a_daily_note_lists_this_day_in_earlier_years(cx: &mut TestAppContext) {
     assert_eq!(ids, [daily_2025, older]);
     assert_eq!(day[0].ago, "1 year ago");
     assert_eq!(day[1].ago, "2 years ago");
+}
+
+/// A search that is replaced before it ends doesn't count as asked: the
+/// paragraph is asked again; once a search ends, it is not.
+// no-prop-test: drives the editor; asking is one flag on the view.
+#[gpui_kit::test]
+fn a_replaced_search_leaves_the_paragraph_to_be_asked_again(cx: &mut TestAppContext) {
+    let (open, _) = open_with_past_notes(cx);
+    open.input(cx, WRITING);
+    let job = |cx: &mut TestAppContext| {
+        open.with(cx, |editor, _, cx| {
+            editor.resurface().update(cx, |r, cx| r.job_for_test(cx))
+        })
+    };
+    let first = job(cx);
+    assert!(first.is_some(), "a new paragraph is asked");
+    assert_eq!(
+        open.with(cx, |e, _, cx| e.resurface().read(cx).asked_for_test()),
+        None,
+        "not asked until a search ends"
+    );
+    let query = first.unwrap();
+    assert!(job(cx).is_some(), "the replaced search is asked again");
+    open.with(cx, |editor, _, cx| {
+        editor.resurface().update(cx, |r, cx| {
+            r.apply_asked_for_test(Vec::new(), query.clone(), cx)
+        })
+    });
+    assert!(job(cx).is_none(), "a finished search is not asked again");
 }

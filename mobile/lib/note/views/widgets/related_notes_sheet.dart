@@ -173,7 +173,8 @@ class _RelatedNotesSheetState extends State<RelatedNotesSheet> {
               ResurfaceItem(
                 row: row,
                 onOpen: () => _open(context, row.id),
-                onLink: widget.onLink == null
+                // A note with no title has nothing to link to.
+                onLink: widget.onLink == null || row.title.trim().isEmpty
                     ? null
                     : () {
                         Navigator.of(context).pop();

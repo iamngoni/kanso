@@ -275,11 +275,13 @@ impl Resurface {
             cx.background_executor().timer(delay).await;
             let job = this.update(cx, |this, cx| this.job(cx)).ok().flatten();
             let Some(job) = job else { return };
+            let asked = job.query.clone();
             let found = cx
                 .background_executor()
                 .spawn(async move { job.run() })
                 .await;
-            this.update(cx, |this, cx| this.apply(found, cx)).ok();
+            this.update(cx, |this, cx| this.apply(found, asked, cx))
+                .ok();
         }));
     }
 
@@ -300,8 +302,8 @@ impl Resurface {
         if query == self.asked {
             return None;
         }
-        self.asked = query.clone();
         if query.is_none() {
+            self.asked = None;
             if !self.items.is_empty() {
                 self.items.clear();
                 cx.notify();
@@ -321,7 +323,12 @@ impl Resurface {
 
     /// What a search found: items that stay stay where they are, the gone
     /// go, new ones come in at the bottom.
-    fn apply(&mut self, found: Vec<Item>, cx: &mut Context<Self>) {
+    ///
+    /// `asked` is the query the search was made for: it counts as asked
+    /// only now that the search finished, so a search that was replaced
+    /// before it ended leaves its paragraph to be asked again.
+    fn apply(&mut self, found: Vec<Item>, asked: Option<String>, cx: &mut Context<Self>) {
+        self.asked = asked;
         self.generation += 1;
         let generation = self.generation;
         let mut next: Vec<Shown> = Vec::new();
@@ -554,7 +561,27 @@ impl Resurface {
     /// Runs the settle early and applies a search made of `found`.
     #[cfg(test)]
     pub fn apply_for_test(&mut self, found: Vec<Item>, cx: &mut Context<Self>) {
-        self.apply(found, cx);
+        self.apply(found, self.asked.clone(), cx);
+    }
+
+    #[cfg(test)]
+    pub fn asked_for_test(&self) -> Option<String> {
+        self.asked.clone()
+    }
+
+    #[cfg(test)]
+    pub fn job_for_test(&mut self, cx: &mut Context<Self>) -> Option<Option<String>> {
+        self.job(cx).map(|job| job.query)
+    }
+
+    #[cfg(test)]
+    pub fn apply_asked_for_test(
+        &mut self,
+        found: Vec<Item>,
+        asked: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply(found, asked, cx);
     }
 }
 

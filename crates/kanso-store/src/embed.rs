@@ -66,8 +66,17 @@ pub struct PendingEmbedding {
     pub id: String,
     pub text: String,
     pub hash: String,
+    /// The note's words, for [`PendingEmbedding::passages`].
+    pub body: String,
+}
+
+impl PendingEmbedding {
     /// The note's passages, each embedded with the note (`passages.rs`).
-    pub passages: Vec<Passage>,
+    /// Worked out here, when asked for, so a queue of thousands of notes
+    /// doesn't split them all for the few embedded in a batch.
+    pub fn passages(&self) -> Vec<Passage> {
+        passages(&self.body, TEXT_CHARS)
+    }
 }
 
 /// A passage and its vector, as kept with a note's.
@@ -320,7 +329,7 @@ impl Store {
                         id: row.get(0)?,
                         text,
                         hash,
-                        passages: passages(body, TEXT_CHARS),
+                        body: body.to_owned(),
                     });
                 }
             }
@@ -630,6 +639,19 @@ mod tests {
                 )?)
             })
             .unwrap()
+    }
+
+    // no-prop-test: one queue entry; the passages' own properties are in passages.rs.
+    #[test]
+    fn a_pending_note_splits_its_passages_when_asked() {
+        let (_dir, store) = open();
+        store.set_embedding_model(Some("letters")).unwrap();
+        let body = "First paragraph about orchards and fruit.\n\nSecond paragraph about boats.";
+        note(&store, "Plain", body);
+        let queue = store.embedding_queue("letters").unwrap();
+        let pending = &queue.pending[0];
+        assert_eq!(pending.body, body);
+        assert_eq!(pending.passages(), passages(body, TEXT_CHARS));
     }
 
     #[test]

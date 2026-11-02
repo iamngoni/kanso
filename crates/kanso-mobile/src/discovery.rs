@@ -407,7 +407,8 @@ impl Discovery {
 
     /// For a daily note, up to three notes written on its date in earlier
     /// years (its own daily notes first, newest year first). Nothing for
-    /// any other note. Needs no language model.
+    /// any other note, or a note that is locked, in the trash or tagged
+    /// `#ai-exclude`. Needs no language model.
     pub fn on_this_day(
         &self,
         id: &str,
@@ -417,6 +418,11 @@ impl Discovery {
             let Some(date) = kanso_core::roles::daily_date(id) else {
                 return Ok(Vec::new());
             };
+            // Like the paragraphs: nothing beside a locked, trashed or
+            // `#ai-exclude` note.
+            if !self.store().note_discoverable(id)? {
+                return Ok(Vec::new());
+            }
             let found =
                 resurfacing::on_this_day(self.store(), date, &move |_| utc_offset_secs, SHOWN)?;
             Ok(found

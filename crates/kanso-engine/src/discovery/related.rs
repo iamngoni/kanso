@@ -141,20 +141,28 @@ pub fn embed_batch(store: &Store, embedder: &dyn Embedder) -> kanso_store::Resul
     let queue = store.embedding_queue(embedder.model())?;
     let total = queue.total;
     let waiting = queue.pending.len();
-    let batch: Vec<_> = queue.pending.into_iter().take(BATCH).collect();
+    // Passages are split only for the notes taken.
+    let batch: Vec<_> = queue
+        .pending
+        .into_iter()
+        .take(BATCH)
+        .map(|p| {
+            let passages = p.passages();
+            (p, passages)
+        })
+        .collect();
     // Each note's text, then its passages' texts, in one go.
     let texts: Vec<String> = batch
         .iter()
-        .flat_map(|p| {
-            std::iter::once(p.text.clone()).chain(p.passages.iter().map(|q| q.text.clone()))
+        .flat_map(|(p, passages)| {
+            std::iter::once(p.text.clone()).chain(passages.iter().map(|q| q.text.clone()))
         })
         .collect();
     let mut vectors = embedder.embed(&texts).into_iter();
     let mut rows: Vec<EmbeddedNote> = Vec::with_capacity(batch.len());
-    for pending in batch {
+    for (pending, split) in batch {
         let Some(vector) = vectors.next() else { break };
-        let passages = pending
-            .passages
+        let passages = split
             .iter()
             .map_while(|passage| {
                 vectors.next().map(|vector| EmbeddedPassage {
