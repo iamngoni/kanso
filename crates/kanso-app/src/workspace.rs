@@ -86,6 +86,7 @@ actions!(
         ShowBacklinks,
         AskYourNotes,
         NewAgentTask,
+        UndoAgentTask,
         SummarizeNote,
     ]
 );
@@ -291,6 +292,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Paste and Match Style", PastePlainText),
             MenuItem::action("Format Table", FormatTable),
             MenuItem::action("New Drawing", NewDrawing),
+            MenuItem::action("Undo Agent Task", UndoAgentTask),
             MenuItem::separator(),
             MenuItem::os_submenu("Services", SystemMenuType::Services),
         ]),
@@ -1262,6 +1264,13 @@ impl Workspace {
             NoteCommand::Trash => BatchChange::Move(TRASH_BOOK_ID.into()),
             NoteCommand::SetStatus(status) => BatchChange::Status(status),
             NoteCommand::Export => return self.export(Some(ids.to_vec()), window, cx),
+            NoteCommand::AskAgent => {
+                if cx.global::<AppState>().config.ai.enabled {
+                    self.show_inspector(Some(InspectorTab::Agents), cx);
+                    crate::agent_task_panel::open_new(ids.to_vec(), window, cx);
+                }
+                return;
+            }
             NoteCommand::Duplicate
             | NoteCommand::ShowHistory
             | NoteCommand::Publish
@@ -1318,6 +1327,8 @@ impl Workspace {
                     }
                 }
             }
+            // Only the menu of several selected notes offers it.
+            NoteCommand::AskAgent => {}
             NoteCommand::Trash => {
                 if !self.with_open_note(id, cx, |editor, cx| editor.trash(cx)) {
                     self.merge(

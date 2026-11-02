@@ -36,6 +36,9 @@ pub enum NoteCommand {
     Lock,
     /// Keeps a locked note's text as plain text again.
     RemoveLock,
+    /// Starts an agent task that may read the selected notes
+    /// (`agent_task_panel.rs`).
+    AskAgent,
     Trash,
 }
 
@@ -111,7 +114,9 @@ pub fn several_items(
         PopupMenuItem::new(label).on_click(move |_, window, cx| run(command, window, cx))
     };
     let statuses = run.clone();
-    menu.label(format!("{count} Notes Selected"))
+    let ai = cx.global::<crate::workspace::AppState>().config.ai.enabled;
+    let menu = menu
+        .label(format!("{count} Notes Selected"))
         .separator()
         .item(item(
             if all_pinned {
@@ -131,10 +136,17 @@ pub fn several_items(
             menu
         })
         .separator()
-        .item(item(format!("Export {count} Notes…"), NoteCommand::Export))
-        .separator()
-        .item(item(
-            format!("Move {count} Notes to Trash"),
-            NoteCommand::Trash,
+        .item(item(format!("Export {count} Notes…"), NoteCommand::Export));
+    let menu = if ai {
+        menu.item(item(
+            format!("Ask an Agent About {count} Notes…"),
+            NoteCommand::AskAgent,
         ))
+    } else {
+        menu
+    };
+    menu.separator().item(item(
+        format!("Move {count} Notes to Trash"),
+        NoteCommand::Trash,
+    ))
 }

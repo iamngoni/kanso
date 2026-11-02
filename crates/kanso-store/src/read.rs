@@ -123,6 +123,9 @@ pub struct Revision {
     /// The agent whose suggested edit, applied by the person, replaced this
     /// version (origin `agent`).
     pub agent: Option<String>,
+    /// The batch that replaced this version, while it can still be undone
+    /// (`agent:…` for an agent task, `plugin:…` for a plugin).
+    pub batch: Option<String>,
 }
 
 const DOC_COLUMNS: &str = "d.id, d.type, d.rev, d.seq, d.deleted, d.json, \
@@ -730,7 +733,7 @@ impl Store {
     pub fn revisions(&self, id: &str) -> Result<Vec<Revision>> {
         self.read(|conn| {
             let mut stmt = conn.prepare(
-                "SELECT rev, saved_at, origin, json, author, agent FROM revisions WHERE doc_id = ? AND json != 'null' ORDER BY saved_at DESC, id DESC",
+                "SELECT rev, saved_at, origin, json, author, agent, batch FROM revisions WHERE doc_id = ? AND json != 'null' ORDER BY saved_at DESC, id DESC",
             )?;
             let rows = stmt.query_map([id], |row| {
                 let json: String = row.get(3)?;
@@ -744,6 +747,7 @@ impl Store {
                     },
                     author: row.get(4)?,
                     agent: row.get(5)?,
+                    batch: row.get(6)?,
                 })
             })?;
             Ok(rows.collect::<rusqlite::Result<_>>()?)

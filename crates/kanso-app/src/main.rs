@@ -625,6 +625,7 @@ fn run_app(
         board_view::bind_keys(cx);
         workspace::set_menus(cx);
         cx.on_action(|_: &Quit, cx| quit(cx));
+        cx.on_action(|_: &workspace::UndoAgentTask, cx| agent_task_panel::undo_latest(cx));
         watch_for_quit(cx);
         agent_permission::install(cx);
         settings::register_app_actions(cx, open_main_window);

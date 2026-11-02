@@ -48,6 +48,23 @@ pub fn owns(tag: &str) -> bool {
     tag.starts_with(TAG)
 }
 
+/// Edit > Undo Agent Task: takes back the most recent applied task that is
+/// still undoable.
+pub fn undo_latest(cx: &mut App) {
+    let Some(runner) = tasks(cx) else { return };
+    let Some(row) = runner
+        .rows()
+        .into_iter()
+        .rev()
+        .find(|row| runner.can_undo(row.id))
+    else {
+        return;
+    };
+    let now = crate::clock::Clock::now_ms(cx);
+    runner.undo(row.id, now);
+    cx.refresh_windows();
+}
+
 /// A click on the "ready to review" notification: bring the window forward
 /// with the Agent Tasks tab showing.
 pub fn respond(cx: &mut App) {
