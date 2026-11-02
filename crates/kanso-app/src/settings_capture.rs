@@ -4,11 +4,12 @@
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::WindowExt as _;
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Sizable as _, h_flex};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_store::Origin;
 
@@ -26,6 +27,9 @@ pub struct ShortcutRecorder {
     recording: Option<Subscription>,
     /// The last thing pressed while recording that can't be a shortcut.
     hint: Option<&'static str>,
+    /// Records the Voice capture shortcut (unset by default) instead of the
+    /// Quick note one.
+    voice: bool,
 }
 
 impl ShortcutRecorder {
@@ -33,6 +37,15 @@ impl ShortcutRecorder {
         ShortcutRecorder {
             recording: None,
             hint: None,
+            voice: false,
+        }
+    }
+
+    /// The recorder of the Voice capture shortcut.
+    pub fn voice() -> Self {
+        ShortcutRecorder {
+            voice: true,
+            ..ShortcutRecorder::new()
         }
     }
 
@@ -67,8 +80,13 @@ impl ShortcutRecorder {
         }
         match Shortcut::from_keystroke(keystroke) {
             Some(shortcut) => {
+                let voice = self.voice;
                 AppState::update_config(cx, |config| {
-                    config.capture.shortcut = shortcut.text();
+                    if voice {
+                        config.capture.voice_shortcut = shortcut.text();
+                    } else {
+                        config.capture.shortcut = shortcut.text();
+                    }
                     config.capture.enabled = true;
                 });
                 self.stop(cx);
@@ -95,9 +113,14 @@ impl Render for ShortcutRecorder {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
         let config = cx.global::<AppState>().config.capture.clone();
-        let label =
-            Shortcut::parse(&config.shortcut).map_or_else(|| "None".to_owned(), |s| s.label());
+        let written = if self.voice {
+            &config.voice_shortcut
+        } else {
+            &config.shortcut
+        };
+        let label = Shortcut::parse(written).map_or_else(|| "None".to_owned(), |s| s.label());
         let recording = self.is_recording();
+        let voice = self.voice;
         let keys = div()
             .debug_selector(|| "capture-shortcut".into())
             .px(px(8.))
@@ -139,16 +162,35 @@ impl Render for ShortcutRecorder {
                         }
                     })),
             )
-            .child(
-                div().debug_selector(|| "capture-enabled".into()).child(
-                    Switch::new("capture-enabled")
-                        .checked(config.enabled)
-                        .on_click(|on, _, cx| {
-                            AppState::update_config(cx, |config| config.capture.enabled = *on);
-                            hotkey::apply(cx);
-                        }),
-                ),
+            .when(
+                voice && !config.voice_shortcut.is_empty() && !recording,
+                |row| {
+                    row.child(
+                        Button::new("voice-shortcut-clear")
+                            .ghost()
+                            .small()
+                            .label("Clear")
+                            .on_click(|_, _, cx| {
+                                AppState::update_config(cx, |config| {
+                                    config.capture.voice_shortcut.clear()
+                                });
+                                hotkey::apply(cx);
+                            }),
+                    )
+                },
             )
+            .when(!voice, |row| {
+                row.child(
+                    div().debug_selector(|| "capture-enabled".into()).child(
+                        Switch::new("capture-enabled")
+                            .checked(config.enabled)
+                            .on_click(|on, _, cx| {
+                                AppState::update_config(cx, |config| config.capture.enabled = *on);
+                                hotkey::apply(cx);
+                            }),
+                    ),
+                )
+            })
     }
 }
 
@@ -164,18 +206,37 @@ pub fn capture_detail(status: &Status, label: &str) -> String {
     }
 }
 
-pub fn capture_section(recorder: &Entity<ShortcutRecorder>, cx: &App) -> AnyElement {
+/// What the Voice capture row says. Pure.
+pub fn voice_capture_detail(status: &Status, label: &str) -> String {
+    let opens = "A second shortcut that opens Quick note already listening: speak, and your words are written. Leave it unset if you only want the mic button.";
+    match status {
+        Status::Unavailable(why) => hotkey::unavailable_note(why, label),
+        Status::Off | Status::On(_) => opens.to_owned(),
+    }
+}
+
+pub fn capture_section(
+    recorder: &Entity<ShortcutRecorder>,
+    voice_recorder: &Entity<ShortcutRecorder>,
+    cx: &App,
+) -> AnyElement {
     let colors = Colors::get(cx);
     let config = &cx.global::<AppState>().config.capture;
     let label =
         Shortcut::parse(&config.shortcut).map_or_else(|| "The shortcut".to_owned(), |s| s.label());
     let detail = capture_detail(&hotkey::status(cx), &label);
+    let voice_label = Shortcut::parse(&config.voice_shortcut)
+        .map_or_else(|| "The shortcut".to_owned(), |s| s.label());
+    let voice_detail = voice_capture_detail(&hotkey::voice_status_now(cx), &voice_label);
     section(
         "Quick capture",
         vec![
             Row::new(Lucide::Zap, "Quick note shortcut")
                 .detail(detail)
                 .trailing(recorder.clone()),
+            Row::new(Lucide::Mic, "Voice capture shortcut")
+                .detail(voice_detail)
+                .trailing(voice_recorder.clone()),
         ],
         colors,
     )
@@ -260,6 +321,16 @@ pub fn journal_section(cx: &App) -> AnyElement {
 mod tests {
     use super::capture_detail;
     use crate::hotkey::{Status, Unavailable};
+
+    // no-prop-test: three fixed sentences.
+    #[test]
+    fn voice_details() {
+        assert!(super::voice_capture_detail(&Status::Off, "x").contains("listening"));
+        assert!(
+            super::voice_capture_detail(&Status::Unavailable(Unavailable::Invalid), "x")
+                .contains("can't be used")
+        );
+    }
 
     #[test]
     fn details() {

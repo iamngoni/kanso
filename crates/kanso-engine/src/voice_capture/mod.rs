@@ -189,5 +189,78 @@ pub fn save_voice_capture(
     }
 }
 
+/// Saves text that was spoken into a window, as `save_capture` saves typed
+/// text, with the capture's record added. For the desktop's Quick Capture,
+/// where the person may have edited the words or tidied them before saving.
+///
+/// `id` is 32 lowercase hex characters (the note is `note:cap-<id>`, saved
+/// once). The note goes in `book`, or the Inbox when that's `None` or gone.
+/// A tidied text starts with its `# Title` line, which names the note;
+/// untidied words are titled by their first sentence and kept whole.
+/// `Ok(None)` for empty text. A locked notebook refuses.
+#[allow(clippy::too_many_arguments)]
+pub fn save_voice_text(
+    store: &Store,
+    id: &str,
+    text: &str,
+    book: Option<&str>,
+    duration_ms: u64,
+    engine: Engine,
+    tidy: TidyState,
+    origin: Origin,
+) -> Result<Option<SavedCapture>, CaptureError> {
+    if !is_drop_id(id) {
+        return Err(CaptureError::BadId);
+    }
+    let note = note_id(id);
+    if store.get(&note)?.is_some() {
+        return Ok(Some(SavedCapture {
+            id: note,
+            problems: Vec::new(),
+            existed: true,
+        }));
+    }
+    let text = text.trim();
+    if text.is_empty() {
+        return Ok(None);
+    }
+    let (title, body) = if tidy == TidyState::Done {
+        crate::capture::split_capture(text).expect("text is not empty")
+    } else {
+        (voice_title(text), text.to_owned())
+    };
+    let book = match book {
+        Some(book) if store.get(book)?.is_some() => book.to_owned(),
+        _ => store.role_book(Role::Inbox, origin)?,
+    };
+    if store.locked_books()?.contains(&book) {
+        return Err(CaptureError::Locked);
+    }
+    let written = store.put(
+        DocType::Note,
+        json!({
+            "_id": note,
+            "title": title,
+            "body": body,
+            "bookId": book,
+            "kansoCapture": capture_value(duration_ms, engine, tidy),
+        }),
+        Put::Upsert,
+        origin,
+    )?;
+    Ok(Some(SavedCapture {
+        id: written.id,
+        problems: Vec::new(),
+        existed: false,
+    }))
+}
+
+/// A fresh capture ID: 32 lowercase hex characters.
+pub fn new_capture_id() -> String {
+    (0..32)
+        .map(|_| char::from_digit(fastrand::u32(0..16), 16).expect("a hex digit"))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests;

@@ -192,3 +192,88 @@ proptest! {
         }
     }
 }
+
+#[test]
+fn spoken_text_saves_where_asked_with_the_record() {
+    let (_dir, store) = store();
+    let id = new_capture_id();
+    assert!(is_drop_id(&id));
+    let saved = save_voice_text(
+        &store,
+        &id,
+        "# Plumber\n\n- [ ] Call\n\n<details>x</details>",
+        None,
+        9_000,
+        Engine::Parakeet,
+        TidyState::Done,
+        Origin::Ui,
+    )
+    .unwrap()
+    .unwrap();
+    let note = store.note(&saved.id).unwrap().unwrap();
+    assert_eq!(note.title, "Plumber");
+    assert_eq!(note.book_id, "book:inbox");
+    assert_eq!(note.extra["kansoCapture"]["tidy"], "done");
+    assert_eq!(note.extra["kansoCapture"]["engine"], "parakeet");
+    let again = save_voice_text(
+        &store,
+        &id,
+        "other",
+        None,
+        1,
+        Engine::Parakeet,
+        TidyState::None,
+        Origin::Ui,
+    )
+    .unwrap()
+    .unwrap();
+    assert!(again.existed);
+    // Untidied words keep all of the text and are titled by their first sentence.
+    let two = new_capture_id();
+    let saved = save_voice_text(
+        &store,
+        &two,
+        "buy milk. and eggs",
+        None,
+        1,
+        Engine::Parakeet,
+        TidyState::None,
+        Origin::Ui,
+    )
+    .unwrap()
+    .unwrap();
+    let note = store.note(&saved.id).unwrap().unwrap();
+    assert_eq!(
+        (note.title.as_str(), note.body.as_str()),
+        ("Buy milk", "buy milk. and eggs")
+    );
+    // Empty and locked.
+    assert_eq!(
+        save_voice_text(
+            &store,
+            &new_capture_id(),
+            " ",
+            None,
+            1,
+            Engine::Parakeet,
+            TidyState::None,
+            Origin::Ui
+        )
+        .unwrap(),
+        None
+    );
+    lock_inbox(&store);
+    assert!(matches!(
+        save_voice_text(
+            &store,
+            &new_capture_id(),
+            "x y",
+            None,
+            1,
+            Engine::Parakeet,
+            TidyState::None,
+            Origin::Ui
+        ),
+        Err(CaptureError::Locked)
+    ));
+}

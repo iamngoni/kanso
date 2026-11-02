@@ -55,15 +55,17 @@ pub fn bind_keys(cx: &mut App) {
 
 pub struct CaptureView {
     store: Arc<Store>,
-    body: Entity<EditorState>,
+    pub(crate) body: Entity<EditorState>,
     /// The notebooks to choose from, `(id, name)`, the Inbox first.
     books: Vec<(String, String)>,
     /// `None`: the Inbox.
     book: Option<String>,
     /// Escape was pressed over text: asking whether to discard it.
     confirming: bool,
-    error: Option<String>,
+    pub(crate) error: Option<String>,
     focus: FocusHandle,
+    /// Voice in this window (`capture_voice`).
+    pub(crate) voice: crate::capture_voice::CaptureVoice,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -115,6 +117,7 @@ impl CaptureView {
             confirming: false,
             error: None,
             focus: cx.focus_handle(),
+            voice: Default::default(),
             _subscriptions: subscriptions,
         }
     }
@@ -149,7 +152,27 @@ impl CaptureView {
 
     pub fn save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.text(cx);
-        match save_capture(&self.store, &text, self.book.as_deref(), Origin::Ui) {
+        let saved = if self.voice.from_voice {
+            let id = self
+                .voice
+                .id
+                .get_or_insert_with(kanso_engine::voice_capture::new_capture_id)
+                .clone();
+            kanso_engine::voice_capture::save_voice_text(
+                &self.store,
+                &id,
+                &text,
+                self.book.as_deref(),
+                self.voice.heard_ms,
+                kanso_engine::voice_capture::Engine::Parakeet,
+                self.voice.tidy_state(),
+                Origin::Ui,
+            )
+            .map(|saved| saved.map(|s| s.id))
+        } else {
+            save_capture(&self.store, &text, self.book.as_deref(), Origin::Ui)
+        };
+        match saved {
             Ok(_) => {
                 crate::metrics::record(cx, crate::metrics::Feature::QuickCapture);
                 window.remove_window();
@@ -164,6 +187,16 @@ impl CaptureView {
     /// Escape: closes an empty capture; over text, asks first, and a second
     /// Escape discards it.
     pub fn cancel(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let crate::capture_voice::TidyUi::Working(cancel) = &self.voice.tidy {
+            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+            self.voice.tidy = Default::default();
+            cx.notify();
+            return;
+        }
+        if self.voice.busy() {
+            self.cancel_mic(window, cx);
+            return;
+        }
         if self.text(cx).trim().is_empty() || self.confirming {
             window.remove_window();
         } else {
@@ -203,6 +236,7 @@ impl CaptureView {
                     .text_color(colors.text_muted)
                     .child("Quick note"),
             )
+            .children(self.voice_buttons(cx))
             .child(
                 Button::new("capture-book")
                     .ghost()
@@ -346,7 +380,13 @@ impl Render for CaptureView {
             .text_color(colors.text)
             .on_action(cx.listener(|this, _: &SaveCapture, window, cx| this.save(window, cx)))
             .on_action(cx.listener(|this, _: &CancelCapture, window, cx| this.cancel(window, cx)))
+            .on_modifiers_changed(
+                cx.listener(|this, event: &ModifiersChangedEvent, window, cx| {
+                    this.modifiers_changed(event.modifiers, window, cx)
+                }),
+            )
             .child(self.render_header(cx))
+            .children(self.render_voice_bar(cx))
             .child(
                 div().flex_1().min_h_0().px(px(6.)).child(
                     Editor::new(&self.body)
@@ -363,7 +403,17 @@ impl Render for CaptureView {
 
 /// Opens the capture window, or brings the open one forward.
 pub fn open(cx: &mut App) {
-    if focus_existing(cx) {
+    open_with(false, cx);
+}
+
+/// Opens the capture window already listening, or starts listening in the
+/// one that's open (the "Voice capture" shortcut).
+pub fn open_listening(cx: &mut App) {
+    open_with(true, cx);
+}
+
+fn open_with(listen: bool, cx: &mut App) {
+    if focus_existing(listen, cx) {
         return;
     }
     let Some(store) = cx.try_global::<AppState>().map(|state| state.store.clone()) else {
@@ -395,7 +445,14 @@ pub fn open(cx: &mut App) {
     };
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         crate::themes::apply(Some(window), cx);
-        cx.new(|cx| CaptureView::new(store, window, cx))
+        let view = cx.new(|cx| CaptureView::new(store, window, cx));
+        if listen {
+            let weak = view.downgrade();
+            window.defer(cx, move |window, cx| {
+                weak.update(cx, |view, cx| view.toggle_mic(window, cx)).ok();
+            });
+        }
+        view
     });
     if let Err(err) = opened {
         eprintln!("kanso: couldn't open the quick capture window: {err:#}");
@@ -403,7 +460,7 @@ pub fn open(cx: &mut App) {
 }
 
 /// Brings an open capture window forward with the keyboard in it.
-fn focus_existing(cx: &mut App) -> bool {
+fn focus_existing(listen: bool, cx: &mut App) -> bool {
     for handle in cx.windows() {
         let found = handle
             .update(cx, |root, window, cx| {
@@ -416,7 +473,10 @@ fn focus_existing(cx: &mut App) -> bool {
                 };
                 window.activate_window();
                 capture.update(cx, |capture, cx| {
-                    capture.body.update(cx, |body, cx| body.focus(window, cx))
+                    capture.body.update(cx, |body, cx| body.focus(window, cx));
+                    if listen && capture.voice.phase == crate::voice_state::Phase::Idle {
+                        capture.toggle_mic(window, cx);
+                    }
                 });
                 true
             })

@@ -688,6 +688,7 @@ pub struct SettingsView {
     backing_up: bool,
     /// The quick capture shortcut's control.
     shortcut: Entity<crate::settings_capture::ShortcutRecorder>,
+    voice_shortcut: Entity<crate::settings_capture::ShortcutRecorder>,
     /// The AI agent the Local API page has setup for.
     mcp_agent: crate::mcp_setup::Agent,
     /// Settings › Editor's font pickers, made the first time it shows.
@@ -741,6 +742,7 @@ impl SettingsView {
             leading_inset: px(0.),
             backing_up: false,
             shortcut: cx.new(|_| crate::settings_capture::ShortcutRecorder::new()),
+            voice_shortcut: cx.new(|_| crate::settings_capture::ShortcutRecorder::voice()),
             mcp_agent: crate::mcp_setup::Agent::ClaudeCode,
             fonts: None,
             gallery_search,
@@ -1052,7 +1054,7 @@ impl SettingsView {
             )
         });
         [zoom].into_iter().chain(startup).chain(stickies).chain([
-            crate::settings_capture::capture_section(&self.shortcut, cx),
+            crate::settings_capture::capture_section(&self.shortcut, &self.voice_shortcut, cx),
             crate::settings_capture::journal_section(cx),
             crate::reminders::reminders_section(cx),
             crate::settings_briefs::briefs_section(cx),

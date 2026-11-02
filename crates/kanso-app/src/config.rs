@@ -459,6 +459,9 @@ pub struct CaptureSettings {
     pub enabled: bool,
     /// As GPUI writes keystrokes: `ctrl-alt-space` (see `hotkey`).
     pub shortcut: String,
+    /// A second shortcut that opens the same window already listening
+    /// (issue #193). Empty: not set.
+    pub voice_shortcut: String,
 }
 
 /// ⌃⌥Space.
@@ -469,6 +472,7 @@ impl Default for CaptureSettings {
         CaptureSettings {
             enabled: true,
             shortcut: DEFAULT_CAPTURE_SHORTCUT.to_owned(),
+            voice_shortcut: String::new(),
         }
     }
 }
@@ -565,7 +569,20 @@ pub enum VoiceEngine {
     System,
 }
 
-/// Voice input (Settings › Editor).
+/// Whether a voice note is tidied: given a title, paragraphs and tasks by
+/// the person's own AI (issue #193).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TidyMode {
+    Off,
+    /// A Tidy button is offered each time.
+    #[default]
+    Ask,
+    /// Every voice capture is tidied when AI is set up.
+    Always,
+}
+
+/// Voice input (Settings › Editor) and voice capture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct VoiceSettings {
@@ -573,6 +590,12 @@ pub struct VoiceSettings {
     /// Whether "comma", "new line", "delete that" and the like, said on
     /// their own, act instead of going in as words (`voice_commands.rs`).
     pub spoken_commands: bool,
+    /// Tidy voice notes: Off, Ask each time, Always.
+    pub tidy: TidyMode,
+    /// Treat recordings longer than three minutes as meetings.
+    pub meetings: bool,
+    /// Keep the recording's audio with the note.
+    pub keep_audio: bool,
 }
 
 impl Default for VoiceSettings {
@@ -580,6 +603,9 @@ impl Default for VoiceSettings {
         VoiceSettings {
             engine: VoiceEngine::default(),
             spoken_commands: true,
+            tidy: TidyMode::default(),
+            meetings: true,
+            keep_audio: false,
         }
     }
 }
@@ -962,13 +988,18 @@ mod tests {
                     voice: VoiceSettings {
                         engine,
                         spoken_commands,
+                        ..VoiceSettings::default()
                     },
                     ai,
                     layout,
                     updates: UpdateSettings { auto_install },
                     gallery: GallerySettings::default(),
                     editor,
-                    capture: CaptureSettings { enabled, shortcut },
+                    capture: CaptureSettings {
+                        enabled,
+                        shortcut,
+                        ..CaptureSettings::default()
+                    },
                     discovery: DiscoverySettings {
                         related_notes,
                         image_text,
@@ -1856,6 +1887,11 @@ mod tests {
     /// before there was the setting, which keep their engine.
     #[test]
     fn older_files_take_spoken_commands() {
+        // Issue #193: older files have no tidy, meetings or voice shortcut.
+        let old: AppConfig = serde_json::from_str(r#"{"capture": {"enabled": true}}"#).unwrap();
+        assert!(old.capture.voice_shortcut.is_empty());
+        assert_eq!(old.voice.tidy, TidyMode::Ask);
+        assert!(old.voice.meetings && !old.voice.keep_audio);
         let old: AppConfig = serde_json::from_str(r#"{"voice": {"engine": "onDevice"}}"#).unwrap();
         assert_eq!(old.voice.engine, VoiceEngine::OnDevice);
         assert!(old.voice.spoken_commands);

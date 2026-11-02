@@ -9,6 +9,8 @@
 //! modifiers `ctrl`, `alt`, `shift` and `cmd` (⌘, or the Windows key), then
 //! one key.
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use global_hotkey::hotkey::{Code, HotKey, Modifiers};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use gpui_kit::{App, Global, Keystroke};
@@ -226,8 +228,16 @@ pub enum Status {
 pub struct Hotkeys {
     manager: Option<GlobalHotKeyManager>,
     registered: Option<HotKey>,
+    voice_registered: Option<HotKey>,
     pub status: Status,
+    /// The second shortcut, which opens the capture window already
+    /// listening. `Off` when none is set.
+    pub voice_status: Status,
 }
+
+/// The ID of the registered voice shortcut, 0 for none, for the event
+/// handler (which runs on the system's thread) to tell the two apart.
+static VOICE_HOTKEY_ID: AtomicU32 = AtomicU32::new(0);
 
 impl Global for Hotkeys {}
 
@@ -244,15 +254,22 @@ pub fn is_wayland() -> bool {
 /// Starts listening for the shortcut and registers it as Settings has it.
 /// Each press opens the quick capture window.
 pub fn init(cx: &mut App) {
-    let (tx, rx) = async_channel::unbounded::<()>();
+    let (tx, rx) = async_channel::unbounded::<bool>();
     GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
         if event.state() == HotKeyState::Pressed {
-            tx.try_send(()).ok();
+            let voice = VOICE_HOTKEY_ID.load(Ordering::Relaxed);
+            tx.try_send(voice != 0 && event.id() == voice).ok();
         }
     }));
     cx.spawn(async move |cx| {
-        while rx.recv().await.is_ok() {
-            cx.update(crate::capture::open);
+        while let Ok(voice) = rx.recv().await {
+            cx.update(|cx| {
+                if voice {
+                    crate::capture::open_listening(cx)
+                } else {
+                    crate::capture::open(cx)
+                }
+            });
         }
     })
     .detach();
@@ -268,9 +285,7 @@ pub fn apply(cx: &mut App) {
     }
     let settings = cx.global::<AppState>().config.capture.clone();
     let hotkeys = cx.global_mut::<Hotkeys>();
-    if let (Some(manager), Some(old)) = (&hotkeys.manager, hotkeys.registered.take()) {
-        manager.unregister(old).ok();
-    }
+    unregister_all(hotkeys);
     hotkeys.status = if !settings.enabled {
         Status::Off
     } else if is_wayland() {
@@ -284,6 +299,48 @@ pub fn apply(cx: &mut App) {
     if let Status::Unavailable(why) = &hotkeys.status {
         eprintln!("kanso: the quick capture shortcut isn't available: {why:?}");
     }
+    hotkeys.voice_status = voice_status(hotkeys, &settings);
+    if let Status::Unavailable(why) = &hotkeys.voice_status {
+        eprintln!("kanso: the voice capture shortcut isn't available: {why:?}");
+    }
+}
+
+/// Registers the voice capture shortcut when one is set, on, and not the
+/// same as the quick note one.
+fn voice_status(hotkeys: &mut Hotkeys, settings: &crate::config::CaptureSettings) -> Status {
+    if !settings.enabled || settings.voice_shortcut.trim().is_empty() {
+        return Status::Off;
+    }
+    if is_wayland() {
+        return Status::Unavailable(Unavailable::Wayland);
+    }
+    let Some(shortcut) = Shortcut::parse(&settings.voice_shortcut) else {
+        return Status::Unavailable(Unavailable::Invalid);
+    };
+    if Shortcut::parse(&settings.shortcut).as_ref() == Some(&shortcut) {
+        return Status::Unavailable(Unavailable::Taken(
+            "It is the Quick note shortcut".to_owned(),
+        ));
+    }
+    let status = register_with(hotkeys, shortcut, true);
+    if matches!(status, Status::On(_)) {
+        if let Some(hotkey) = hotkeys.voice_registered {
+            VOICE_HOTKEY_ID.store(hotkey.id(), Ordering::Relaxed);
+        }
+    }
+    status
+}
+
+fn unregister_all(hotkeys: &mut Hotkeys) {
+    VOICE_HOTKEY_ID.store(0, Ordering::Relaxed);
+    if let Some(manager) = &hotkeys.manager {
+        if let Some(old) = hotkeys.registered.take() {
+            manager.unregister(old).ok();
+        }
+        if let Some(old) = hotkeys.voice_registered.take() {
+            manager.unregister(old).ok();
+        }
+    }
 }
 
 /// Lets go of the shortcut until the next [`apply`], so Settings can take
@@ -292,13 +349,14 @@ pub fn suspend(cx: &mut App) {
     if !cx.has_global::<Hotkeys>() {
         return;
     }
-    let hotkeys = cx.global_mut::<Hotkeys>();
-    if let (Some(manager), Some(old)) = (&hotkeys.manager, hotkeys.registered.take()) {
-        manager.unregister(old).ok();
-    }
+    unregister_all(cx.global_mut::<Hotkeys>());
 }
 
 fn register(hotkeys: &mut Hotkeys, shortcut: Shortcut) -> Status {
+    register_with(hotkeys, shortcut, false)
+}
+
+fn register_with(hotkeys: &mut Hotkeys, shortcut: Shortcut, voice: bool) -> Status {
     let Some(hotkey) = shortcut.hotkey() else {
         return Status::Unavailable(Unavailable::Invalid);
     };
@@ -313,7 +371,11 @@ fn register(hotkeys: &mut Hotkeys, shortcut: Shortcut) -> Status {
     };
     match manager.register(hotkey) {
         Ok(()) => {
-            hotkeys.registered = Some(hotkey);
+            if voice {
+                hotkeys.voice_registered = Some(hotkey);
+            } else {
+                hotkeys.registered = Some(hotkey);
+            }
             Status::On(shortcut)
         }
         Err(err) => Status::Unavailable(Unavailable::Taken(err.to_string())),
@@ -331,6 +393,21 @@ pub fn status(cx: &App) -> Status {
         .map(|state| state.config.capture.clone())
         .unwrap_or_default();
     match Shortcut::parse(&settings.shortcut) {
+        Some(shortcut) if settings.enabled => Status::On(shortcut),
+        _ => Status::Off,
+    }
+}
+
+/// The voice capture shortcut's status, for Settings.
+pub fn voice_status_now(cx: &App) -> Status {
+    if let Some(hotkeys) = cx.try_global::<Hotkeys>() {
+        return hotkeys.voice_status.clone();
+    }
+    let settings = cx
+        .try_global::<AppState>()
+        .map(|state| state.config.capture.clone())
+        .unwrap_or_default();
+    match Shortcut::parse(&settings.voice_shortcut) {
         Some(shortcut) if settings.enabled => Status::On(shortcut),
         _ => Status::Off,
     }
