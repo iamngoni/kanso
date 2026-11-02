@@ -429,3 +429,56 @@ fn cards_are_rebuilt_when_the_derived_version_moves() {
         Some(kanso_store::DERIVED_VERSION)
     );
 }
+
+/// The budget: 20,000 cards in the library (200 notes of 100) keep the
+/// sidebar count, a session and an answer fast. The bounds are loose, to
+/// hold on a slow CI machine; they catch a scan that grows with every card.
+#[test]
+fn twenty_thousand_cards_stay_within_budget() {
+    use std::time::Instant;
+
+    let (_dir, store) = open();
+    let b = book(&store);
+    let mut first = String::new();
+    for n in 0..200 {
+        let body: String = (0..100)
+            .map(|i| format!("Question {n}-{i} :: Answer {n}-{i}\n"))
+            .collect();
+        let id = note(&store, &b, &body);
+        if n == 0 {
+            first = id;
+        }
+    }
+    let day = (T0 / DAY) * DAY;
+
+    let started = Instant::now();
+    let waiting = store.cards_waiting(&CardScope::All, T0, day).unwrap();
+    let counts = store.card_counts(&CardScope::All, T0).unwrap();
+    assert_eq!(counts.total, 20_000);
+    assert!(waiting > 0);
+    assert!(
+        started.elapsed().as_millis() < 1_500,
+        "counting took {:?}",
+        started.elapsed()
+    );
+
+    let started = Instant::now();
+    let due = store.due_cards(&CardScope::All, T0, day).unwrap();
+    assert!(!due.is_empty() && due.len() <= 20_000);
+    assert!(
+        started.elapsed().as_millis() < 2_000,
+        "building a session took {:?}",
+        started.elapsed()
+    );
+
+    let started = Instant::now();
+    let card = due.iter().find(|c| c.note_id == first).unwrap_or(&due[0]);
+    store
+        .record_review(&card.note_id, &card.card_key, Grade::Good, "dev", T0)
+        .unwrap();
+    assert!(
+        started.elapsed().as_millis() < 1_000,
+        "one answer took {:?}",
+        started.elapsed()
+    );
+}

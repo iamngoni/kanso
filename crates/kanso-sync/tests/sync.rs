@@ -1402,3 +1402,78 @@ fn plain_view_pushes_as_another_device() {
     a.sync(&server);
     assert_eq!(a.store.books().unwrap()[0].name, "From elsewhere");
 }
+
+#[test]
+fn an_answer_reaches_the_other_device_and_a_document_of_an_unknown_kind_is_skipped() {
+    let server = MemoryServer::new();
+    let a = Mac::new(sign_up(&server, "alice", 1));
+    let b = Mac::new(sign_in(&server, "alice", 2));
+    book(&a.store, "book:b1", "Inbox");
+    note(
+        &a.store,
+        "note:n1",
+        "book:b1",
+        "Capital of France? :: Paris\n",
+        100,
+    );
+    a.sync(&server);
+    b.sync(&server);
+    let key = kanso_core::cards::card_key("note:n1", "Capital of France?");
+    a.store
+        .record_review(
+            "note:n1",
+            &key,
+            kanso_core::srs::Grade::Good,
+            "dA",
+            1_000_000,
+        )
+        .unwrap();
+    a.sync(&server);
+    // A later answer from the other device joins it: the review documents
+    // are merged by union, so neither answer is lost.
+    b.sync(&server);
+    b.store
+        .record_review(
+            "note:n1",
+            &key,
+            kanso_core::srs::Grade::Easy,
+            "dB",
+            2_000_000,
+        )
+        .unwrap();
+    b.sync(&server);
+    a.sync(&server);
+    assert_eq!(
+        a.store.card_intervals(&key, 3_000_000).unwrap(),
+        b.store.card_intervals(&key, 3_000_000).unwrap(),
+        "the two devices agree on the schedule"
+    );
+    assert!(
+        a.store.card_intervals(&key, 3_000_000).unwrap()[2] > 0,
+        "both answers were replayed"
+    );
+
+    // An older Kanso has never heard of the `review` kind: a document whose
+    // kind a device does not know is skipped, the rest still sync, and the
+    // pull moves past it.
+    note(&a.store, "note:n2", "book:b1", "after", 100);
+    a.sync(&server);
+    let view = server.plain_view(&a.session);
+    let unknown = view.wire_id("note:n2");
+    let tap = Tap::new(&server, |event| {
+        if let Event::Page(page) = event {
+            for doc in page.docs.iter_mut().filter(|d| d.id == unknown) {
+                doc.id = format!("zzz:{}", &doc.id["note:".len()..]);
+            }
+        }
+        Ok(())
+    });
+    let report = b.sync(&tap);
+    assert_eq!(report.skipped.len(), 1);
+    assert!(report.skipped[0].starts_with("zzz:"));
+    assert_eq!(
+        body(&b.store, "note:n1").as_deref(),
+        Some("Capital of France? :: Paris\n")
+    );
+    assert_eq!(b.cursor(), view.docs().last().unwrap().seq);
+}

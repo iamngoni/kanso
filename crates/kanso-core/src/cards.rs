@@ -36,6 +36,28 @@ pub struct CardLine {
 /// part of it. A line needs ` :: ` outside code with something on both
 /// sides, neither longer than [`MAX_SIDE`].
 pub fn card_lines(body: &str) -> Vec<CardLine> {
+    scan(body)
+        .into_iter()
+        .map(|(card, _)| card)
+        .collect()
+}
+
+/// Where a card's line and its ` :: ` sit in the note's text, for the
+/// editor to dim the separator and mark the line.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CardMark {
+    /// The byte range of the whole line, without its newline.
+    pub line: Range<usize>,
+    /// The byte range of the `::` itself (without the spaces around it).
+    pub separator: Range<usize>,
+}
+
+/// The marks of the cards in `body`, in order, one per [`card_lines`] entry.
+pub fn card_marks(body: &str) -> Vec<CardMark> {
+    scan(body).into_iter().map(|(_, mark)| mark).collect()
+}
+
+fn scan(body: &str) -> Vec<(CardLine, CardMark)> {
     let code = links::code_ranges(body);
     let comments = comment_ranges(body);
     let start = properties::split(body).map_or(0, |f| f.body_start);
@@ -51,14 +73,20 @@ pub fn card_lines(body: &str) -> Vec<CardLine> {
         if in_any(&comments, line_start) || in_any(&code, line_start) {
             continue;
         }
-        let Some((question, answer)) = split_line(text, line_start, &code) else {
+        let Some((question, answer, at)) = split_line(text, line_start, &code) else {
             continue;
         };
-        out.push(CardLine {
-            line: n as u32,
-            question,
-            answer,
-        });
+        out.push((
+            CardLine {
+                line: n as u32,
+                question,
+                answer,
+            },
+            CardMark {
+                line: line_start..line_start + text.len(),
+                separator: line_start + at + 1..line_start + at + 3,
+            },
+        ));
     }
     out
 }
@@ -113,7 +141,13 @@ fn marker_len(text: &str) -> usize {
     cut
 }
 
-fn split_line(text: &str, line_start: usize, code: &[Range<usize>]) -> Option<(String, String)> {
+/// The question, the answer and the byte offset in `text` of the space
+/// before the `::`.
+fn split_line(
+    text: &str,
+    line_start: usize,
+    code: &[Range<usize>],
+) -> Option<(String, String, usize)> {
     if text.trim_start().starts_with('|') {
         return None;
     }
@@ -141,7 +175,7 @@ fn split_line(text: &str, line_start: usize, code: &[Range<usize>]) -> Option<(S
     {
         return None;
     }
-    Some((question, answer))
+    Some((question, answer, cut + at))
 }
 
 fn is_task(rest: &str) -> bool {
@@ -351,6 +385,17 @@ mod tests {
                 prop_assert!(!c.question.is_empty() && !c.answer.is_empty());
                 prop_assert!(c.question.chars().count() <= MAX_SIDE);
             }
+        }
+    }
+
+    #[test]
+    fn marks_sit_on_the_separator_of_each_card() {
+        let body = "intro\n- Q1 :: A1\n`x :: y`\nQ2 :: A2\n";
+        let marks = card_marks(body);
+        assert_eq!(marks.len(), card_lines(body).len());
+        for mark in &marks {
+            assert_eq!(&body[mark.separator.clone()], "::");
+            assert!(mark.line.contains(&mark.separator.start));
         }
     }
 }

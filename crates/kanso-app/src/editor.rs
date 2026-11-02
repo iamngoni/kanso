@@ -330,6 +330,7 @@ pub struct NoteEditor {
     inline: Option<inline_glue::Suggestion>,
     /// The tints on tasks' due dates in the text.
     due_marks: crate::due::DueMarks,
+    card_marks: crate::card_marks::CardMarks,
     /// The underlines under misspelled words in the text.
     spell_marks: SpellMarks,
     /// Live mode's hidden marks, larger headings and styles in the text.
@@ -516,6 +517,13 @@ impl NoteEditor {
                         |editor: &mut NoteEditor| &mut editor.due_marks,
                         cx,
                     );
+                    let (body, me) = (this.body.clone(), cx.entity().downgrade());
+                    this.card_marks.refresh_soon(
+                        body,
+                        me,
+                        |editor: &mut NoteEditor| &mut editor.card_marks,
+                        cx,
+                    );
                     this.check_spelling(spellcheck::CHECK_DELAY, cx);
                     this.refresh_live(cx);
                 }
@@ -608,6 +616,7 @@ impl NoteEditor {
             vim: None,
             inline: None,
             due_marks: Default::default(),
+            card_marks: Default::default(),
             spell_marks: Default::default(),
             live_marks: Default::default(),
             live_plain: false,
@@ -1119,6 +1128,7 @@ impl NoteEditor {
             }
         });
         self.due_marks.refresh(&self.body, cx);
+        self.card_marks.refresh(&self.body, cx);
         self.check_spelling(Duration::ZERO, cx);
         // The kept line lengths describe the old text, which may have had
         // the same length.
