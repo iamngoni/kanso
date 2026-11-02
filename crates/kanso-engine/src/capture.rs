@@ -147,7 +147,7 @@ fn without_blank_lead(mut text: &str) -> &str {
 
 /// At most [`TITLE_WORDS_LEN`] characters, cut at a space, with "…" when
 /// cut.
-fn cut_title(line: &str) -> String {
+pub(crate) fn cut_title(line: &str) -> String {
     if line.chars().count() <= TITLE_WORDS_LEN {
         return line.to_owned();
     }

@@ -870,6 +870,14 @@ fn union_loops_and_acks(
     if acks != mine {
         merged.insert(ACK_FIELD.into(), acks_value(&acks));
     }
+    // `kansoCapture`'s tidy state only moves forward: the later one wins.
+    if let (Some(mine), Some(theirs)) = (
+        base.get(kanso_core::capture_mark::CAPTURE_FIELD),
+        other.get(kanso_core::capture_mark::CAPTURE_FIELD),
+    ) && let Some(value) = kanso_core::capture_mark::merge_capture(mine, theirs)
+    {
+        merged.insert(kanso_core::capture_mark::CAPTURE_FIELD.into(), value);
+    }
     (merged != *base).then_some(merged)
 }
 
