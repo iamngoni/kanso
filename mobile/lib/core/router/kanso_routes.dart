@@ -73,6 +73,18 @@ abstract final class KansoRoutes {
   /// Inbox Triage: a card for each note waiting in the Inbox.
   static const String triage = '/triage';
 
+  /// Review flashcards, with the cards due.
+  static const String flashcards = '/flashcards';
+
+  /// Settings > Flashcards.
+  static const String flashcardsSettings = '/flashcards/settings';
+
+  /// Quiz Me, with the note IDs as `extra`.
+  static const String quiz = '/quiz';
+
+  /// Draft from notes, with the note IDs as `extra`.
+  static const String draft = '/draft';
+
   /// Settings, a sheet on a tablet and a page on a phone.
   static const String settings = '/settings';
   static const String settingsAi = '/settings/ai';

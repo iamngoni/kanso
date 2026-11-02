@@ -24,6 +24,10 @@ import '../../dictation/views/pages/voice_note_page.dart';
 import '../../digest/views/pages/brief_page.dart';
 import '../../digest/views/pages/open_loops_page.dart';
 import '../../digest/views/pages/review_page.dart';
+import '../../draft/views/pages/draft_page.dart';
+import '../../flashcards/views/pages/quiz_page.dart';
+import '../../flashcards/views/pages/review_page.dart';
+import '../../flashcards/views/pages/review_settings_page.dart';
 import '../../graph/views/pages/graph_page.dart';
 import '../../history/views/pages/history_page.dart';
 import '../../import/views/pages/import_page.dart';
@@ -174,6 +178,38 @@ class KansoRouter {
           pageBuilder: (context, state) => kansoPage<void>(
             key: state.pageKey,
             child: const VoiceNotePage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.flashcards,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const FlashcardReviewPage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.flashcardsSettings,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const ReviewSettingsPage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.quiz,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: QuizPage(
+              noteIds: (state.extra as List<String>?) ?? const <String>[],
+            ),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.draft,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: DraftPage(
+              noteIds: (state.extra as List<String>?) ?? const <String>[],
+            ),
           ),
         ),
         GoRoute(

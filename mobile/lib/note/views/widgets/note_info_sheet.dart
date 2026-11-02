@@ -16,6 +16,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/list_labels.dart';
 import '../../../core/utils/status_label.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
+import '../../../flashcards/views/widgets/learn_note_actions.dart';
 import 'note_discovery_section.dart';
 import 'note_metadata_block.dart';
 
@@ -63,6 +64,7 @@ class NoteInfoSheet extends StatelessWidget {
           NoteDiscoverySection(note: note),
           const SizedBox(height: KansoSpacing.xs),
           SummarizeNoteAction(noteId: note.id),
+          LearnNoteActions(noteId: note.id),
           KansoSettingsRow(
             icon: KansoIcons.clock,
             label: l10n.noteInfoHistory,
