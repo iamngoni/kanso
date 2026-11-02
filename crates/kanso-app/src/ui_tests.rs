@@ -2912,3 +2912,202 @@ fn the_inbox_settings_default_as_specified() {
     assert_eq!(opts.max_tags, 3);
     assert_eq!(opts.inbox_id, "book:inbox");
 }
+
+/// The weekly review takes the list's and the editor's place, and its
+/// header never clips: through every width, each action is on screen
+/// inside the page or in the More menu.
+// no-prop-test: drives one window through widths; the fitting rule is a
+// property in page_chrome.rs.
+#[gpui_kit::test]
+fn page_headers_fit_every_width(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    cx.update(|cx| AppState::update_config(cx, |config| config.ai.enabled = true));
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Review, cx)
+    });
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    for width in [1600., 1100., 820., 700., 600., 520.] {
+        vcx.simulate_resize(gpui_kit::size(gpui_kit::px(width), gpui_kit::px(800.)));
+        vcx.executor().advance_clock(Duration::from_millis(600));
+        for _ in 0..3 {
+            f.draw(&mut vcx);
+        }
+        let pane = vcx
+            .debug_bounds("page-pane")
+            .expect("the review fills the content area");
+        assert_eq!(vcx.debug_bounds("list-pane"), None, "{width}");
+        assert_eq!(vcx.debug_bounds("editor-pane"), None, "{width}");
+        let header = vcx.debug_bounds("page-header").unwrap();
+        assert!(header.right() <= pane.right(), "{width}");
+        let title = vcx.debug_bounds("page-title").expect("the title shows");
+        assert!(
+            f32::from(title.size.width) >= 96.,
+            "title squeezed to {:?} at {width}",
+            title.size.width
+        );
+        let more = vcx.debug_bounds("page-more");
+        if let Some(more) = more {
+            assert!(more.right() <= pane.right(), "{width}");
+        }
+        for id in ["review-themes", "review-save"] {
+            match vcx.debug_bounds(id) {
+                Some(b) => assert!(
+                    b.right() <= pane.right() && b.left() >= pane.left(),
+                    "{id} clipped at {width}"
+                ),
+                None => assert!(more.is_some(), "{id} unreachable at {width}"),
+            }
+        }
+    }
+}
+
+/// Open Loops with nothing in it says what the page is for and what to
+/// do, in place of a grey line.
+// no-prop-test: one render of the empty state.
+#[gpui_kit::test]
+fn an_empty_page_explains_itself(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::OpenLoops, cx)
+    });
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.executor().advance_clock(Duration::from_millis(600));
+    for _ in 0..3 {
+        f.draw(&mut vcx);
+    }
+    assert!(vcx.debug_bounds("page-empty").is_some());
+}
+
+fn settle(f: &Fixture, vcx: &mut gpui_kit::VisualTestContext) {
+    vcx.executor().advance_clock(Duration::from_millis(600));
+    vcx.run_until_parked();
+    for _ in 0..3 {
+        f.draw(vcx);
+    }
+}
+
+/// A note opened any way but a click in the page (the palette, a tab, a
+/// link) brings the editor back from the review.
+// no-prop-test: drives one window through selections.
+#[gpui_kit::test]
+fn opening_a_note_leaves_the_page(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Review, cx)
+    });
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    assert_eq!(vcx.debug_bounds("editor-pane"), None);
+    let other = f.notes[1].clone();
+    library.update(&mut vcx, |library, cx| {
+        library.select(Some(other.clone()), cx)
+    });
+    settle(&f, &mut vcx);
+    assert!(vcx.debug_bounds("editor-pane").is_some(), "the note shows");
+    assert_eq!(vcx.debug_bounds("page-pane"), None);
+    let selected = vcx.read(|cx| library.read(cx).selected.clone());
+    assert_eq!(selected, Some(other), "the note stays selected");
+
+    // A new note too.
+    library.update(&mut vcx, |library, cx| {
+        library.set_filter(crate::library::Filter::Brief, cx)
+    });
+    settle(&f, &mut vcx);
+    assert_eq!(vcx.debug_bounds("editor-pane"), None);
+    vcx.dispatch_action(crate::workspace::NewNote);
+    settle(&f, &mut vcx);
+    assert!(vcx.debug_bounds("editor-pane").is_some(), "new note shows");
+    assert_eq!(vcx.debug_bounds("page-pane"), None);
+}
+
+/// A trashed note opened from a page shows in the Trash and stays the
+/// note selected; Escape leaves a page for the place before it.
+// no-prop-test: drives one window.
+#[gpui_kit::test]
+fn a_trashed_note_stays_selected_and_escape_goes_back(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    let trashed = f.notes[1].clone();
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": trashed, "bookId": kanso_core::model::TRASH_BOOK_ID}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Review, cx)
+    });
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    library.update(&mut vcx, |library, cx| {
+        library.select(Some(trashed.clone()), cx)
+    });
+    settle(&f, &mut vcx);
+    let (filter, selected) = vcx.read(|cx| {
+        let l = library.read(cx);
+        (l.filter.clone(), l.selected.clone())
+    });
+    assert_eq!(filter, crate::library::Filter::Trash);
+    assert_eq!(selected, Some(trashed));
+
+    library.update(&mut vcx, |library, cx| {
+        library.set_filter(crate::library::Filter::All, cx);
+        library.set_filter(crate::library::Filter::Review, cx)
+    });
+    settle(&f, &mut vcx);
+    vcx.simulate_keystrokes("escape");
+    settle(&f, &mut vcx);
+    let filter = vcx.read(|cx| library.read(cx).filter.clone());
+    assert_eq!(filter, crate::library::Filter::All);
+    assert!(vcx.debug_bounds("editor-pane").is_some());
+}
+
+/// Choosing a place in the sidebar while Triage shows closes Triage.
+// no-prop-test: drives one window.
+#[gpui_kit::test]
+fn a_place_chosen_closes_triage(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.dispatch_action(crate::triage_view::ShowTriage);
+    settle(&f, &mut vcx);
+    assert!(f.workspace(&mut vcx, |w, _| w.triage_open));
+    library.update(&mut vcx, |library, cx| {
+        library.set_filter(crate::library::Filter::Brief, cx)
+    });
+    settle(&f, &mut vcx);
+    assert!(!f.workspace(&mut vcx, |w, _| w.triage_open));
+    assert!(vcx.debug_bounds("page-pane").is_some());
+}
+
+/// The error card keeps the raw error behind a Details button.
+// no-prop-test: the status-code rule is a property in page_chrome.rs.
+#[gpui_kit::test]
+fn the_error_card_has_details(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    cx.update(|cx| AppState::update_config(cx, |config| config.ai.enabled = true));
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Review, cx)
+    });
+    let digest = f.workspace(cx, |w, _| w.digest.clone());
+    digest.update(cx, |d, _| d.show_error_for_test("HTTP 401 bad key"));
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    assert!(vcx.debug_bounds("ai-error").is_some());
+    assert_eq!(vcx.debug_bounds("ai-details-text"), None);
+    let at = vcx.debug_bounds("ai-details").unwrap().center();
+    vcx.simulate_click(at, gpui_kit::Modifiers::none());
+    settle(&f, &mut vcx);
+    assert!(vcx.debug_bounds("ai-details-text").is_some());
+}

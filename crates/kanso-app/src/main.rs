@@ -103,6 +103,7 @@ mod notify_support;
 mod ocr;
 mod open_documents;
 mod origin;
+mod page_chrome;
 mod pairing;
 mod palette;
 mod passkey_accounts;

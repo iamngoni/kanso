@@ -6,11 +6,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/repos/abs/ai_repository.dart';
 import '../../../core/models/repos/abs/digest_repository.dart';
+import '../../../core/router/kanso_routes.dart';
+import '../../../core/utils/ai_trouble_text.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
@@ -131,7 +134,38 @@ class DigestAiPanel extends StatelessWidget {
               if (state.message case final message?)
                 Padding(
                   padding: const EdgeInsets.only(top: KansoSpacing.sm),
-                  child: KansoInlineMessage(message: message),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      KansoInlineMessage(message: aiTroubleText(message, l10n)),
+                      const SizedBox(height: KansoSpacing.xs),
+                      Wrap(
+                        spacing: KansoSpacing.xs,
+                        runSpacing: KansoSpacing.xs,
+                        children: <Widget>[
+                          KansoButton(
+                            label: l10n.aiTroubleRetry,
+                            variant: KansoButtonVariant.secondary,
+                            expanded: false,
+                            compact: true,
+                            onPressed: () => unawaited(
+                              summarise
+                                  ? cubit.summarise(review: review, from: from)
+                                  : cubit.findLoops(),
+                            ),
+                          ),
+                          KansoButton(
+                            label: l10n.aiTroubleSettings,
+                            variant: KansoButtonVariant.quiet,
+                            expanded: false,
+                            compact: true,
+                            onPressed: () =>
+                                unawaited(context.push(KansoRoutes.settingsAi)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               if (empty != null)
                 Padding(

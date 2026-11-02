@@ -3238,19 +3238,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 
@@ -4527,7 +4524,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get triageEmpty => 'Inbox is clear.';
+  String get triageEmpty => 'Your Inbox is clear';
 
   @override
   String get triageClose => 'Close';
@@ -4613,7 +4610,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String triageAiUnavailable(String reason) {
-    return 'AI suggestions unavailable: $reason';
+    return '$reason Showing suggestions from your notes.';
   }
 
   @override
@@ -4692,7 +4689,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get digestLoopsEmptyMessage =>
-      'Sentences like “I\'ll send the deck” or “waiting on Rudo” show up here until you close them.';
+      'When you write things like “I\'ll send the deck”, “waiting on Rudo” or “need to check the lease”, Kanso notices and lists them here, so nothing slips.';
 
   @override
   String get digestLoopsOffTitle => 'Open loops are off';
@@ -4735,11 +4732,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get digestBriefTitle => 'Morning brief';
 
   @override
-  String get digestBriefEmptyTitle => 'Nothing due, nothing open';
+  String get digestBriefEmptyTitle => 'You\'re all clear';
 
   @override
   String get digestBriefEmptyMessage =>
-      'Tasks due today and open loops show up here.';
+      'Each morning this page gathers what\'s due, the open loops in your notes, today\'s reminders and notes worth another look. Nothing needs you right now.';
 
   @override
   String get digestBriefDue => 'Due';
@@ -4975,4 +4972,54 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0, $_temp1';
   }
+
+  @override
+  String get triageEmptyMessage =>
+      'Triage files the notes that land in your Inbox. For each one it suggests a notebook, tags, a title and links, and nothing changes until you accept. New captures will wait here.';
+
+  @override
+  String get digestReviewEmptyTitle => 'A quiet week';
+
+  @override
+  String get digestReviewEmptyMessage =>
+      'The weekly review gathers the notes you wrote, the tasks you finished, the loops still open and what\'s due next. Nothing happened this week yet: write something or tick a task off and it shows up here.';
+
+  @override
+  String get aiTroubleKey =>
+      'Your model turned the key down. Check the API key in AI settings.';
+
+  @override
+  String get aiTroubleBusy =>
+      'Your model is busy right now. Wait a moment, then try again.';
+
+  @override
+  String get aiTroubleSlow =>
+      'Your model took too long to answer. Try again, or pick a smaller model.';
+
+  @override
+  String get aiTroubleMissing =>
+      'The model in AI settings isn\'t available. Choose another, then try again.';
+
+  @override
+  String aiTroubleReachLocal(String app) {
+    return 'Couldn\'t reach your model. Is $app running? Start it, then try again.';
+  }
+
+  @override
+  String get aiTroubleReach =>
+      'Couldn\'t reach your model. Check your connection and the address in AI settings.';
+
+  @override
+  String get aiTroubleSetup =>
+      'AI isn\'t set up yet. Choose a model in AI settings to use this.';
+
+  @override
+  String get aiTroubleOther =>
+      'Your model ran into a problem. Try again, or check AI settings.';
+
+  @override
+  String get aiTroubleRetry => 'Try again';
+
+  @override
+  String get aiTroubleSettings => 'AI settings';
 }

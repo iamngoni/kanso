@@ -594,6 +594,17 @@ impl Workspace {
                 // A place asked for: the list shows, whatever hid it. A
                 // locked notebook asks for its password once.
                 LibraryEvent::Shown => {
+                    this.close_triage(window, cx);
+                    // A page takes the keyboard once the filter has changed.
+                    cx.defer_in(window, |this, window, cx| {
+                        if matches!(
+                            this.library.read(cx).filter,
+                            Filter::OpenLoops | Filter::Brief | Filter::Review
+                        ) {
+                            this.digest
+                                .update(cx, |digest, cx| digest.focus_list(window, cx));
+                        }
+                    });
                     this.leave_settings(window, cx);
                     this.set_focus_mode(false, window, cx);
                     if let Filter::Book(id) = this.library.read(cx).filter.clone()
@@ -608,6 +619,11 @@ impl Workspace {
                 // behind Settings.
                 LibraryEvent::Selected { id, asked } => {
                     let id = id.clone();
+                    // A note someone opened (palette, ⌘N, a tab, a link)
+                    // while a page shows brings its notebook back.
+                    if *asked {
+                        this.leave_page_for(id.as_deref(), cx);
+                    }
                     this.accept_selection(id.clone(), *asked, window, cx);
                     AppState::update_config_soon(cx, |config| config.last_note = id);
                 }
@@ -1078,9 +1094,47 @@ impl Workspace {
                 note_id,
                 line,
                 focus,
-            } => self.open_note_at(note_id, *line, *focus, window, cx),
-            DigestEvent::OpenToday => self.open_today(window, cx),
+            } => {
+                self.leave_page_for(Some(note_id), cx);
+                self.open_note_at(note_id, *line, *focus, window, cx);
+            }
+            DigestEvent::OpenToday => {
+                self.open_today(window, cx);
+                self.leave_page_for(None, cx);
+            }
+            DigestEvent::Close => {
+                let back = self.library.read(cx).previous.clone();
+                let selected = self.library.read(cx).selected.clone();
+                self.library.update(cx, |library, cx| {
+                    library.leave_page(back, selected.is_some(), cx)
+                });
+                self.editor
+                    .update(cx, |editor, cx| editor.focus_body(window, cx));
+            }
         }
+    }
+
+    /// A note opened from the brief, the review or open loops opens as any
+    /// other: the page gives way to the note's notebook, with the note in
+    /// the list beside the editor. `note_id` `None` is whatever opened.
+    fn leave_page_for(&mut self, note_id: Option<&str>, cx: &mut Context<Self>) {
+        if !matches!(
+            self.library.read(cx).filter,
+            Filter::OpenLoops | Filter::Brief | Filter::Review
+        ) {
+            return;
+        }
+        let store = self.library.read(cx).store.clone();
+        let note = note_id.and_then(|id| store.note(id).ok().flatten());
+        let keep = note.is_some();
+        // A trashed note lives in the Trash, not in a notebook of that name.
+        let filter = match note {
+            Some(note) if note.is_trashed() => Filter::Trash,
+            Some(note) => Filter::Book(note.book_id),
+            None => Filter::All,
+        };
+        self.library
+            .update(cx, |library, cx| library.leave_page(filter, keep, cx));
     }
 
     /// Opens a task's note at its line, from the Tasks view.
@@ -2322,6 +2376,11 @@ impl Render for Workspace {
             self.library.read(cx).filter,
             Filter::OpenLoops | Filter::Brief | Filter::Review
         );
+        if digest_shown {
+            let page_width = window.viewport_size().width - px(leading);
+            self.digest
+                .update(cx, |digest, cx| digest.set_pane_width(page_width, cx));
+        }
         self.settings.update(cx, |settings, cx| {
             settings.set_leading_inset(list_inset, cx)
         });
@@ -2332,6 +2391,12 @@ impl Render for Workspace {
         // Settings would win if they did.
         let settings_open = self.settings_open();
         let focus_mode = self.focus_mode && !settings_open;
+        if let Some(triage) = self.triage.clone().filter(|_| self.triage_open) {
+            // The overlay starts where the sidebar ends, or at 0 in focus mode.
+            let lead = if focus_mode { 0. } else { leading };
+            let width = window.viewport_size().width - px(lead);
+            triage.update(cx, |triage, cx| triage.set_frame(width, list_inset, cx));
+        }
         self.editor
             .update(cx, |editor, cx| editor.set_focus_mode(focus_mode, cx));
         let widths = self.fitted_widths(window);
@@ -2863,7 +2928,23 @@ impl Render for Workspace {
                                 }),
                         )
                     })
-                    .when(!settings_open, |el| {
+                    // The brief, the review and open loops are pages of
+                    // their own, in the list's and the editor's place.
+                    .when(!settings_open && digest_shown && !focus_mode, |el| {
+                        el.child(
+                            div()
+                                .relative()
+                                .h_full()
+                                .flex_1()
+                                .min_w_0()
+                                .debug_selector(|| "page-pane".into())
+                                .child(self.digest.clone())
+                                .when(self.show_sidebar, |el| {
+                                    el.child(pane_handle(PaneEdge::Sidebar))
+                                }),
+                        )
+                    })
+                    .when(!settings_open && !(digest_shown && !focus_mode), |el| {
                         el.when(!focus_mode, |el| {
                             el.child(
                                 div()
@@ -2875,8 +2956,6 @@ impl Render for Workspace {
                                     .map(|el| {
                                         if tasks_shown {
                                             el.child(self.tasks.clone())
-                                        } else if digest_shown {
-                                            el.child(self.digest.clone())
                                         } else {
                                             el.child(self.note_list.clone())
                                         }
@@ -2927,7 +3006,10 @@ impl Render for Workspace {
             )
             .children(crate::graph_view::overlay(self))
             .children(crate::board_view::overlay(self))
-            .children(crate::triage_view::overlay(self))
+            .children(crate::triage_view::overlay(
+                self,
+                if focus_mode { 0. } else { leading },
+            ))
             // Over everything else when open.
             .child(self.palette.clone())
             // The system draws the real traffic lights above the palette too.
