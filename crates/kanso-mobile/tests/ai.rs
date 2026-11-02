@@ -597,3 +597,107 @@ fn the_test_button_asks_the_server_the_settings_name() {
     };
     assert!(message.contains("API key"), "{message}");
 }
+
+// no-prop-test: one scripted answer with a good and a made-up receipt.
+#[test]
+fn receipts_are_checked_and_a_made_up_one_is_marked_not_found() {
+    let model = Scripted::new(
+        "We decided the yearly plan costs 40 dollars [1:L1]. The price doubles next year [1:L40].",
+    );
+    let (phone, ai) = ai_phone(&model);
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let events = ask(
+        &ai,
+        &ai.conversation(),
+        "What did we decide about the yearly plan pricing?",
+    );
+    let Some(AskEvent::Done {
+        markdown,
+        receipts,
+        unverified,
+        never_wrote,
+        ..
+    }) = events.last()
+    else {
+        panic!("{events:?}");
+    };
+    assert_eq!(receipts.len(), 1, "{markdown}");
+    assert_eq!(receipts[0].note_id, id);
+    assert_eq!((receipts[0].start, receipts[0].end), (0, 0));
+    assert!(markdown.contains("](kanso-cite:1)"), "{markdown}");
+    assert_eq!(*unverified, 1);
+    assert!(markdown.contains("Not found in your notes"), "{markdown}");
+    assert!(!never_wrote);
+}
+
+// no-prop-test: the sentinel is one fixed word.
+#[test]
+fn the_sentinel_says_you_never_wrote_that_down() {
+    let model = Scripted::new("NOT_IN_NOTES");
+    let (phone, ai) = ai_phone(&model);
+    note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let events = ask(&ai, &ai.conversation(), "yearly plan pricing decision");
+    let Some(AskEvent::Done {
+        never_wrote,
+        closest,
+        ..
+    }) = events.last()
+    else {
+        panic!("{events:?}");
+    };
+    assert!(never_wrote);
+    assert!(!closest.is_empty(), "the closest notes are offered");
+}
+
+// no-prop-test: one answer saved once.
+#[test]
+fn saving_an_answer_writes_one_note_with_its_sources() {
+    let model = Scripted::new("The yearly plan costs 40 dollars [1:L1].");
+    let (phone, ai) = ai_phone(&model);
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let conversation = ai.conversation();
+    assert!(conversation.save_last().is_err(), "nothing to save yet");
+    ask(&ai, &conversation, "yearly plan pricing cost");
+    let saved = conversation.save_last().unwrap();
+    let note = phone.library.note(&saved).unwrap();
+    assert_eq!(note.title, "Q: yearly plan pricing cost");
+    assert!(
+        note.body.clone().unwrap_or_default().contains(&format!(
+            "inkdrop://note/{}#L1",
+            id.trim_start_matches("note:")
+        )),
+        "{}",
+        note.body.clone().unwrap_or_default()
+    );
+}
+
+// no-prop-test: settings are a fixed round trip.
+#[test]
+fn the_ask_settings_round_trip_and_state_their_cost() {
+    let model = Scripted::new("never");
+    let (_phone, ai) = ai_phone(&model);
+    let before = ai.settings().unwrap();
+    assert!(before.check_sources && before.use_links);
+    let mut input = custom_settings(true);
+    input.ask_budget = "large".into();
+    input.check_sources = false;
+    let now = ai.set_settings(input).unwrap();
+    assert_eq!(now.ask_budget, "large");
+    assert!(!now.check_sources);
+    assert_eq!(
+        now.budget_words_line,
+        "About 7,500 words of your notes per question."
+    );
+}
