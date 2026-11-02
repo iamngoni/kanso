@@ -32,6 +32,32 @@ use rank::{DUPLICATE_SIMILARITY, merged_body, merged_tags, suggest_tags};
 /// How many of a note's nearest notes its tag suggestions come from.
 const TAG_NEIGHBOURS: usize = 12;
 
+/// The tags `near` (the nearest notes) suggest for note `id`.
+fn tags_from_near(
+    conn: &Connection,
+    id: &str,
+    near: &[RelatedNote],
+    limit: usize,
+) -> Result<Vec<TagSuggestion>> {
+    let neighbours: Vec<(f32, Vec<String>)> = near
+        .iter()
+        .map(|note| Ok((note.score, note_tags(conn, &note.id)?)))
+        .collect::<Result<_>>()?;
+    let own = note_tags(conn, id)?;
+    suggest_tags(&neighbours, &own, limit)
+        .into_iter()
+        .filter_map(|(tag_id, weight)| match tag_name(conn, &tag_id) {
+            Ok(Some(name)) => Some(Ok(TagSuggestion {
+                tag_id,
+                name,
+                weight,
+            })),
+            Ok(None) => None,
+            Err(err) => Some(Err(err)),
+        })
+        .collect()
+}
+
 impl Store {
     /// Lends the store the app's embedding model while it is loaded
     /// (`None` once it isn't), so searches by meaning can turn their words
@@ -86,25 +112,21 @@ impl Store {
             let skip = HashSet::from([id.to_owned()]);
             let candidates = embedded_notes(conn, model, &skip)?;
             let near = nearest(&query, &candidates, TAG_NEIGHBOURS);
-            let neighbours: Vec<(f32, Vec<String>)> = near
-                .iter()
-                .map(|note| Ok((note.score, note_tags(conn, &note.id)?)))
-                .collect::<Result<_>>()?;
-            let own = note_tags(conn, id)?;
-            suggest_tags(&neighbours, &own, limit)
-                .into_iter()
-                .filter_map(|(tag_id, weight)| match tag_name(conn, &tag_id) {
-                    Ok(Some(name)) => Some(Ok(TagSuggestion {
-                        tag_id,
-                        name,
-                        weight,
-                    })),
-                    Ok(None) => None,
-                    Err(err) => Some(Err(err)),
-                })
-                .collect::<Result<Vec<_>>>()
-                .map(Some)
+            tags_from_near(conn, id, &near, limit).map(Some)
         })
+    }
+
+    /// [`Store::tag_suggestions`] from a pool read once for many notes.
+    pub fn pool_tag_suggestions(
+        &self,
+        pool: &crate::triage::TriagePool,
+        id: &str,
+        limit: usize,
+    ) -> Result<Option<Vec<TagSuggestion>>> {
+        let Some(near) = pool.nearest(id, TAG_NEIGHBOURS) else {
+            return Ok(None);
+        };
+        self.read(|conn| tags_from_near(conn, id, &near, limit).map(Some))
     }
 
     /// The note that says nearly the same as note `id` by `model`, at least

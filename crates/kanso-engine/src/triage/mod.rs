@@ -29,9 +29,10 @@ pub mod title;
 
 use std::collections::{HashMap, HashSet};
 
+use kanso_core::Book;
 use kanso_core::Note;
 use kanso_core::model::TRASH_BOOK_ID;
-use kanso_store::{Result, Store};
+use kanso_store::{Result, Store, TriagePool};
 
 pub use model::{
     BECAUSE_MAX, Card, Field, Filed, Filing, Reason, Source, Suggestion, TriageOptions,
@@ -49,33 +50,84 @@ pub const LINK_CANDIDATES: usize = 8;
 /// The score of a title taken from the note's first sentence.
 const TITLE_SCORE: f32 = 0.6;
 
+/// What every card of one pass shares, read once: the embeddings, the
+/// titles that can be linked, the notebooks and the locked ones.
+struct Shared {
+    model: Option<String>,
+    pool: Option<TriagePool>,
+    titles: Vec<(String, String)>,
+    books: Vec<Book>,
+    locked: HashSet<String>,
+}
+
+impl Shared {
+    fn load(store: &Store, opts: &TriageOptions) -> Result<Shared> {
+        let model = store.embedding_model()?;
+        let pool = model
+            .as_deref()
+            .map(|model| store.triage_pool(model))
+            .transpose()?;
+        Ok(Shared {
+            titles: if opts.suggest_links {
+                store.linkable_titles()?
+            } else {
+                Vec::new()
+            },
+            books: store.books()?,
+            locked: store.locked_books()?,
+            model,
+            pool,
+        })
+    }
+}
+
 /// Cards for the notes Triage shows, newest first: the Inbox's notes not
-/// yet triaged since they were last edited. `None` when there is no Inbox
-/// yet.
+/// yet triaged since they were last edited. The embeddings and titles are
+/// read once for all of them.
 pub fn cards(store: &Store, opts: &TriageOptions, limit: usize) -> Result<Vec<Card>> {
     let waiting = store.inbox_waiting(&opts.inbox_id)?;
-    waiting
-        .into_iter()
-        .take(limit)
-        .map(|n| card(store, &n.id, opts))
-        .collect::<Result<Vec<_>>>()
-        .map(|cards| cards.into_iter().flatten().collect())
+    let ids: Vec<String> = waiting.into_iter().take(limit).map(|n| n.id).collect();
+    cards_for(store, &ids, opts)
+}
+
+/// The cards of notes `ids` that can have one, in that order, sharing one
+/// read of the library (for recomputing only the notes that changed).
+pub fn cards_for(store: &Store, ids: &[String], opts: &TriageOptions) -> Result<Vec<Card>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let shared = Shared::load(store, opts)?;
+    let mut out = Vec::with_capacity(ids.len());
+    for id in ids {
+        out.extend(card_with(store, id, opts, &shared)?);
+    }
+    Ok(out)
 }
 
 /// The card for note `id`, if it can have one: it is live, in the Inbox,
 /// outside the trash and not locked.
 pub fn card(store: &Store, id: &str, opts: &TriageOptions) -> Result<Option<Card>> {
+    Ok(cards_for(store, &[id.to_owned()], opts)?.pop())
+}
+
+fn card_with(
+    store: &Store,
+    id: &str,
+    opts: &TriageOptions,
+    shared: &Shared,
+) -> Result<Option<Card>> {
     let Some(note) = store.note(id)? else {
         return Ok(None);
     };
     if note.is_trashed()
         || note.is_locked()
         || note.book_id != opts.inbox_id
+        || shared.locked.contains(&note.book_id)
         || store.note_is_locked(id)?
     {
         return Ok(None);
     }
-    let found = gather(store, &note, opts)?;
+    let found = gather(store, &note, opts, shared)?;
     Ok(Some(Card {
         note_id: note.id.clone(),
         rev: note.rev.clone().unwrap_or_default(),
@@ -94,7 +146,8 @@ pub fn suggest(store: &Store, id: &str, opts: &TriageOptions) -> Result<Vec<Sugg
     if note.is_trashed() || note.is_locked() || store.note_is_locked(id)? {
         return Ok(Vec::new());
     }
-    Ok(confident(&gather(store, &note, opts)?, opts))
+    let shared = Shared::load(store, opts)?;
+    Ok(confident(&gather(store, &note, opts, &shared)?, opts))
 }
 
 /// Remembers a rejection, so `suggest` leaves the suggestion out from now
@@ -111,22 +164,22 @@ pub fn unreject(store: &Store, note_id: &str, s: &Suggestion) -> Result<()> {
 /// Everything the library finds for `note`, strongest first within a
 /// field, without the rejected ones; and why notebooks and tags are
 /// missing, if they are.
-fn gather(store: &Store, note: &Note, opts: &TriageOptions) -> Result<Gathered> {
+fn gather(store: &Store, note: &Note, opts: &TriageOptions, shared: &Shared) -> Result<Gathered> {
     let dismissed: HashSet<(String, String)> =
         store.triage_dismissed(&note.id)?.into_iter().collect();
     let kept =
         |s: &Suggestion| !dismissed.contains(&(s.field.as_str().to_owned(), s.value.clone()));
     let mut out: Vec<Suggestion> = Vec::new();
-    let model = store.embedding_model()?;
+    let model = &shared.model;
     let mut missing = None;
     let mut picked = None;
     let mut near = Vec::new();
-    match &model {
-        None => missing = Some(Reason::RelatedOff),
-        Some(model) => match store.nearest_notes(&note.id, model, NEIGHBOURS)? {
+    match (&model, &shared.pool) {
+        (Some(_), Some(pool)) => match pool.nearest(&note.id, NEIGHBOURS) {
             None => missing = Some(Reason::NotEmbedded),
             Some(found) => near = found,
         },
+        _ => missing = Some(Reason::RelatedOff),
     }
     // The near notes, read once.
     let mut notes: HashMap<String, Note> = HashMap::new();
@@ -135,10 +188,9 @@ fn gather(store: &Store, note: &Note, opts: &TriageOptions) -> Result<Gathered> 
             notes.insert(n.id.clone(), found);
         }
     }
-    if let (Some(model), None) = (&model, missing) {
+    if model.is_some() && missing.is_none() {
         // Notebooks.
-        let locked = store.locked_books()?;
-        let books = store.books()?;
+        let (locked, books) = (&shared.locked, &shared.books);
         let votes: Vec<Vote> = near
             .iter()
             .filter_map(|n| {
@@ -175,9 +227,12 @@ fn gather(store: &Store, note: &Note, opts: &TriageOptions) -> Result<Gathered> 
         }
         // Tags, with the near notes that have each.
         let wanted = TAG_CANDIDATES.max(opts.max_tags);
-        let tags = store
-            .tag_suggestions(&note.id, model, wanted + dismissed.len())?
-            .unwrap_or_default();
+        let tags = match &shared.pool {
+            Some(pool) => store
+                .pool_tag_suggestions(pool, &note.id, wanted + dismissed.len())?
+                .unwrap_or_default(),
+            None => Vec::new(),
+        };
         for tag in tags {
             let mut with: Vec<(&String, f32)> = near
                 .iter()
@@ -220,7 +275,8 @@ fn gather(store: &Store, note: &Note, opts: &TriageOptions) -> Result<Gathered> 
     }
     // Links.
     if opts.suggest_links {
-        let found = links::candidates(store, &note.id, &note.body, model.as_deref())?;
+        let linked = store.links_from(&note.id)?;
+        let found = links::rank(&note.body, &shared.titles, &near, &linked, &note.id);
         for link in found.into_iter().take(LINK_CANDIDATES) {
             out.push(Suggestion {
                 field: Field::Link,

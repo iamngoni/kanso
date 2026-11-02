@@ -114,12 +114,13 @@ pub fn apply(
                     crate::editor::peers::flush_everywhere(cx);
                     // A note deleted since is skipped, and so is what was
                     // changed again after the batch.
+                    let now_ms = kanso_core::now_ms();
                     let undo: Vec<Value> = edits
                         .iter()
                         .filter_map(|edit| {
                             let note = store.note(&edit.id).ok().flatten()?;
                             let current = serde_json::to_value(note).ok()?;
-                            batch::undo_now(&edit.change, &edit.undo, &current)
+                            batch::undo_stamped(&edit.change, &edit.undo, &current, now_ms)
                         })
                         .collect();
                     if undo.is_empty() {

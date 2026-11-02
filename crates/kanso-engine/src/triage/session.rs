@@ -185,26 +185,37 @@ impl CardState {
     }
 
     /// Replaces the chips with `suggestions` (an AI refinement or a
-    /// recomputed card), keeping the marks of those that are still there.
+    /// recomputed card). What the person made or chose stays: an edited or
+    /// accepted chip is kept as it is, in its place. A chip they only
+    /// rejected or left alone is replaced by the new one of the same
+    /// value, with its mark, or dropped when the new list no longer has
+    /// it. New suggestions come after, in their order. Chips never move,
+    /// so a chip with the keys keeps them.
     pub fn replace_suggestions(&mut self, suggestions: Vec<Suggestion>) {
+        let same = |a: &Suggestion, b: &Suggestion| a.field == b.field && a.value == b.value;
         let old = std::mem::take(&mut self.chips);
-        self.chips = suggestions
-            .into_iter()
-            .map(|suggestion| {
-                let mark = old
-                    .iter()
-                    .find(|c| {
-                        c.suggestion.field == suggestion.field
-                            && c.suggestion.value == suggestion.value
-                    })
-                    .map_or(Mark::Untouched, |c| c.mark);
-                Chip {
-                    suggestion,
-                    mark,
+        let mut out: Vec<Chip> = Vec::with_capacity(old.len().max(suggestions.len()));
+        for chip in old {
+            if chip.edited || chip.mark == Mark::Accepted {
+                out.push(chip);
+            } else if let Some(new) = suggestions.iter().find(|n| same(n, &chip.suggestion)) {
+                out.push(Chip {
+                    suggestion: new.clone(),
+                    mark: chip.mark,
                     edited: false,
-                }
-            })
-            .collect();
+                });
+            }
+        }
+        for suggestion in suggestions {
+            if !out.iter().any(|c| same(&c.suggestion, &suggestion)) {
+                out.push(Chip {
+                    suggestion,
+                    mark: Mark::Untouched,
+                    edited: false,
+                });
+            }
+        }
+        self.chips = out;
     }
 
     /// The accepted suggestions, in the card's order.
@@ -314,6 +325,14 @@ impl Session {
             .collect()
     }
 
+    /// Brings notes back (an undone filing): they are no longer done, so a
+    /// reload shows their cards again.
+    pub fn restore(&mut self, ids: &[String]) {
+        for id in ids {
+            self.done.remove(id);
+        }
+    }
+
     /// Takes filed notes off the list.
     pub fn remove(&mut self, ids: &[String]) {
         self.cards.retain(|c| !ids.contains(&c.note_id));
@@ -373,6 +392,48 @@ mod tests {
         let got: Vec<_> = c.accepted().into_iter().map(|s| s.value).collect();
         assert_eq!(got, ["b2", "t1", "l"]);
         assert_eq!(c.chips[0].mark, Mark::Untouched);
+    }
+
+    #[test]
+    fn new_suggestions_keep_accepted_and_edited_chips() {
+        let mut c = CardState::new(card(
+            "n",
+            &[(Field::Tag, "t1"), (Field::Tag, "t2"), (Field::Tag, "t3")],
+        ));
+        c.toggle_accept(0);
+        c.edit(1, s(Field::Tag, "typed"));
+        c.toggle_reject(2);
+        // The AI answers with other tags: t3 stays rejected, the rest of
+        // the old untouched ones are gone, accepted and edited stay.
+        c.replace_suggestions(vec![
+            s(Field::Tag, "t3"),
+            s(Field::Tag, "ai1"),
+            s(Field::Tag, "t1"),
+        ]);
+        let got: Vec<_> = c
+            .chips
+            .iter()
+            .map(|c| (c.suggestion.value.as_str(), c.mark))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("t1", Mark::Accepted),
+                ("typed", Mark::Accepted),
+                ("t3", Mark::Rejected),
+                ("ai1", Mark::Untouched)
+            ]
+        );
+        assert!(c.chips[1].edited);
+    }
+
+    #[test]
+    fn restoring_brings_done_notes_back_into_a_reload() {
+        let mut session = Session::new(vec![card("n", &[(Field::Tag, "t")])]);
+        session.remove(&["n".to_owned()]);
+        assert!(session.done.contains("n"));
+        session.restore(&["n".to_owned()]);
+        assert!(!session.done.contains("n"));
     }
 
     #[test]

@@ -240,6 +240,109 @@ fn settings_turn_titles_links_and_tags_down() {
     assert_eq!(of(&got, Field::Tag).len(), 1);
 }
 
+fn new_tag(note_id: &str, rev: &str, name: &str) -> Filing {
+    Filing {
+        note_id: note_id.into(),
+        rev: rev.into(),
+        accepted: vec![Suggestion {
+            field: Field::Tag,
+            value: name.into(),
+            label: name.into(),
+            score: 0.5,
+            because: vec![],
+            source: Source::Library,
+            is_new: true,
+        }],
+    }
+}
+
+#[test]
+fn undo_stamps_the_time_and_takes_back_the_tags_it_made() {
+    let (l, waiting) = filled();
+    let rev = l.store.note(&waiting).unwrap().unwrap().rev.unwrap();
+    let before = l.store.note(&waiting).unwrap().unwrap().updated_at;
+    let filed = file::file(&l.store, &[new_tag(&waiting, &rev, "freshly-made")], 5_000).unwrap();
+    assert_eq!(filed.new_tags.len(), 1);
+    assert_eq!(l.store.note(&waiting).unwrap().unwrap().updated_at, 5_000);
+    assert_eq!(
+        file::undo(&l.store, &filed.edits, &filed.new_tags, 9_000).unwrap(),
+        1
+    );
+    let back = l.store.note(&waiting).unwrap().unwrap();
+    // Stamped, never restored to the old time.
+    assert_eq!(back.updated_at, 9_000);
+    assert!(back.updated_at > before.min(5_000));
+    assert!(back.tags.is_empty());
+    assert!(
+        l.store
+            .tags()
+            .unwrap()
+            .iter()
+            .all(|t| t.name != "freshly-made")
+    );
+    // The note is waiting in Triage again.
+    assert_eq!(l.store.inbox_waiting(&l.inbox).unwrap().len(), 1);
+}
+
+#[test]
+fn undo_keeps_a_made_tag_another_note_now_uses() {
+    let (l, waiting) = filled();
+    let rev = l.store.note(&waiting).unwrap().unwrap().rev.unwrap();
+    let filed = file::file(&l.store, &[new_tag(&waiting, &rev, "shared-tag")], 5_000).unwrap();
+    let tag = filed.new_tags[0].clone();
+    note(&l.store, &l.work, "Other", "client", &["shared-tag"]);
+    file::undo(&l.store, &filed.edits, &filed.new_tags, 9_000).unwrap();
+    assert!(l.store.tags().unwrap().iter().any(|t| t.id == tag));
+}
+
+#[test]
+fn a_tag_that_already_existed_is_not_removed_by_undo() {
+    let (l, waiting) = filled();
+    let rev = l.store.note(&waiting).unwrap().unwrap().rev.unwrap();
+    let filed = file::file(&l.store, &[new_tag(&waiting, &rev, "house")], 5_000).unwrap();
+    assert!(filed.new_tags.is_empty());
+}
+
+#[test]
+fn filing_refuses_a_note_edited_after_planning() {
+    let (l, waiting) = filled();
+    let rev = l.store.note(&waiting).unwrap().unwrap().rev.unwrap();
+    let planned = file::plan(&l.store, &[new_tag(&waiting, &rev, "x")], 5_000).unwrap();
+    assert!(planned.stale.is_empty());
+    // An edit lands between planning and the write: the revision check
+    // inside the write catches it, and the note is reported stale.
+    l.store
+        .merge_many(
+            DocType::Note,
+            vec![json!({"_id": waiting, "body": "typed since"})],
+            Origin::Ui,
+        )
+        .unwrap();
+    let filed = file::file(&l.store, &[new_tag(&waiting, &rev, "x")], 5_000).unwrap();
+    assert_eq!(filed.stale, vec![waiting.clone()]);
+    assert!(filed.edits.is_empty());
+    assert_eq!(l.store.note(&waiting).unwrap().unwrap().body, "typed since");
+}
+
+#[test]
+fn cards_for_only_computes_the_notes_asked_for() {
+    let (l, waiting) = filled();
+    let second = note(&l.store, &l.inbox, "More", "budget sales client", &[]);
+    index(&l.store);
+    let both = cards(&l.store, &opts(&l), 10).unwrap();
+    assert_eq!(both.len(), 2);
+    let one = cards_for(&l.store, std::slice::from_ref(&second), &opts(&l)).unwrap();
+    assert_eq!(one.len(), 1);
+    assert_eq!(
+        one[0],
+        both.iter().find(|c| c.note_id == second).cloned().unwrap()
+    );
+    assert_eq!(
+        card(&l.store, &waiting, &opts(&l)).unwrap(),
+        both.into_iter().find(|c| c.note_id == waiting)
+    );
+}
+
 #[test]
 fn a_note_outside_the_inbox_or_in_the_trash_has_no_card() {
     let (l, _) = filled();
@@ -279,7 +382,10 @@ fn cards_list_what_waits_and_filing_takes_a_note_off_the_list() {
     assert_eq!(note.extra["kansoTriaged"], json!({"v": 1, "at": 1_000}));
     // Filed notes leave Triage; undo brings the note back as it was.
     assert!(l.store.inbox_waiting(&l.inbox).unwrap().is_empty());
-    assert_eq!(file::undo(&l.store, &filed.edits).unwrap(), 1);
+    assert_eq!(
+        file::undo(&l.store, &filed.edits, &filed.new_tags, 2_000).unwrap(),
+        1
+    );
     let back = l.store.note(&waiting).unwrap().unwrap();
     assert_eq!(back.book_id, l.inbox);
     assert_eq!(back.title, "Untitled");

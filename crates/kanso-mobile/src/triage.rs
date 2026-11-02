@@ -347,7 +347,10 @@ impl Triage {
                 Library {
                     inner: self.ai.inner.clone(),
                 }
-                .keep_undo(Undoable::Fields(filed.edits.clone()))
+                .keep_undo(Undoable::Filing {
+                    edits: filed.edits.clone(),
+                    new_tags: filed.new_tags.clone(),
+                })
             };
             Ok(filed_of(&filed, ticket))
         })

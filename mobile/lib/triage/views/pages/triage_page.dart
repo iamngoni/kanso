@@ -16,7 +16,7 @@ import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
 import '../../../shell/views/widgets/shell_back_button.dart';
 import '../../state/triage/triage_bloc.dart';
-import '../widgets/triage_card_view.dart';
+import '../widgets/triage_pager.dart';
 
 /// Inbox Triage, at `/triage`: a card for each note waiting in the Inbox.
 class TriagePage extends StatelessWidget {
@@ -136,14 +136,7 @@ class _TriagePane extends StatelessWidget {
                           ),
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: KansoSpacing.lg),
-                        itemCount: shown.length,
-                        itemBuilder: (context, i) => TriageCardView(
-                          key: ValueKey<String>(shown[i].noteId),
-                          card: shown[i],
-                        ),
-                      ),
+                    : TriagePager(cards: shown),
               ),
               if (fileable > 0)
                 SafeArea(

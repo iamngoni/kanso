@@ -15,7 +15,7 @@
 //! it; ⌘↩ accepts every chip of the card; F files the card, S skips it, O
 //! opens it; Esc closes. The keys are handled here, not bound globally.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -109,6 +109,9 @@ struct Info {
 
 /// What a background read found.
 struct Loaded {
+    /// The notes waiting, newest first.
+    order: Vec<String>,
+    /// The cards made now: not those of notes in `skip`.
     cards: Vec<triage::Card>,
     infos: HashMap<String, Info>,
 }
@@ -129,7 +132,10 @@ pub struct TriageView {
     ai_task: Option<Task<()>>,
     ai_cancel: Arc<AtomicBool>,
     /// Cards the model is working on, or has finished.
-    ai_done: std::collections::HashSet<String>,
+    ai_done: HashSet<String>,
+    /// Notes that changed since their card was made: only these are made
+    /// again on the next read.
+    dirty: HashSet<String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -156,8 +162,22 @@ fn ai_on(config: &AppConfig) -> bool {
     config.ai.enabled && config.ai.inbox_suggestions
 }
 
-fn read(store: &Store, opts: &TriageOptions) -> Result<Loaded, String> {
-    let cards = triage::cards(store, opts, CARDS).map_err(|e| e.to_string())?;
+/// Reads which notes wait, and the cards of those not in `skip` (cards
+/// already on screen and unchanged), sharing one read of the library.
+fn read(store: &Store, opts: &TriageOptions, skip: &HashSet<String>) -> Result<Loaded, String> {
+    let order: Vec<String> = store
+        .inbox_waiting(&opts.inbox_id)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .take(CARDS)
+        .map(|n| n.id)
+        .collect();
+    let fresh: Vec<String> = order
+        .iter()
+        .filter(|id| !skip.contains(*id))
+        .cloned()
+        .collect();
+    let cards = triage::cards_for(store, &fresh, opts).map_err(|e| e.to_string())?;
     let mut infos = HashMap::new();
     for card in &cards {
         let Some(note) = store.note(&card.note_id).map_err(|e| e.to_string())? else {
@@ -186,7 +206,11 @@ fn read(store: &Store, opts: &TriageOptions) -> Result<Loaded, String> {
             },
         );
     }
-    Ok(Loaded { cards, infos })
+    Ok(Loaded {
+        order,
+        cards,
+        infos,
+    })
 }
 
 impl TriageView {
@@ -205,6 +229,7 @@ impl TriageView {
                 {
                     card.changed = true;
                 }
+                this.dirty.insert(change.id.clone());
                 this.stale = true;
                 if this.visible {
                     this.reload_soon(cx);
@@ -226,6 +251,7 @@ impl TriageView {
             ai_task: None,
             ai_cancel: Arc::new(AtomicBool::new(false)),
             ai_done: Default::default(),
+            dirty: HashSet::new(),
             _subscriptions: subscriptions,
         }
     }
@@ -235,6 +261,7 @@ impl TriageView {
         self.visible = true;
         self.session = Session::default();
         self.ai_done.clear();
+        self.dirty.clear();
         self.reload(cx);
     }
 
@@ -252,9 +279,10 @@ impl TriageView {
         self.loading = true;
         let store = self.store.clone();
         let opts = options(&cx.global::<AppState>().config);
+        let skip = self.unchanged();
         let task = cx
             .background_executor()
-            .spawn(async move { read(&store, &opts) });
+            .spawn(async move { read(&store, &opts, &skip) });
         self.reload_task = Some(cx.spawn(async move |this, cx| {
             let loaded = task.await;
             this.update(cx, |this, cx| {
@@ -269,12 +297,26 @@ impl TriageView {
         }));
     }
 
+    /// The notes whose cards are on screen and whose note has not changed:
+    /// they are not made again. Takes the changed set.
+    fn unchanged(&mut self) -> HashSet<String> {
+        let dirty = std::mem::take(&mut self.dirty);
+        self.session
+            .cards
+            .iter()
+            .map(|c| c.note_id.clone())
+            .filter(|id| !dirty.contains(id))
+            .chain(self.session.done.iter().cloned())
+            .collect()
+    }
+
     /// Reads the cards now, on this thread: for tests.
     #[cfg(test)]
     pub fn reload_now(&mut self, cx: &mut Context<Self>) {
         self.stale = false;
         let opts = options(&cx.global::<AppState>().config);
-        if let Ok(loaded) = read(&self.store, &opts) {
+        let skip = self.unchanged();
+        if let Ok(loaded) = read(&self.store, &opts, &skip) {
             self.apply(loaded, cx);
         }
         cx.notify();
@@ -287,34 +329,36 @@ impl TriageView {
             .map(|ix| self.session.cards[ix].note_id.clone());
         let old = std::mem::take(&mut self.session.cards);
         let done = std::mem::take(&mut self.session.done);
+        let mut made: HashMap<String, triage::Card> = loaded
+            .cards
+            .into_iter()
+            .map(|c| (c.note_id.clone(), c))
+            .collect();
         let mut cards = Vec::new();
-        for card in loaded.cards {
-            if done.contains(&card.note_id) {
+        for id in &loaded.order {
+            if done.contains(id) {
                 continue;
             }
-            let previous = old.iter().find(|c| c.note_id == card.note_id);
-            let state = match previous {
+            let previous = old.iter().find(|c| &c.note_id == id);
+            let state = match (made.remove(id), previous) {
+                // Not made again: exactly as the person left it.
+                (None, Some(prev)) => prev.clone(),
+                (None, None) => continue,
                 // Unchanged: exactly as the person left it.
-                Some(prev) if prev.rev == card.rev => prev.clone(),
-                Some(prev) => {
-                    let mut state = CardState::new(card);
-                    // Marks of chips still suggested, and a skip, stay.
-                    let marks: Vec<(Field, String, Mark)> = prev
-                        .chips
-                        .iter()
-                        .map(|c| (c.suggestion.field, c.suggestion.value.clone(), c.mark))
-                        .collect();
-                    for chip in &mut state.chips {
-                        if let Some((_, _, mark)) = marks.iter().find(|(f, v, _)| {
-                            *f == chip.suggestion.field && *v == chip.suggestion.value
-                        }) {
-                            chip.mark = *mark;
-                        }
-                    }
-                    state.skipped = prev.skipped;
+                (Some(card), Some(prev)) if prev.rev == card.rev => prev.clone(),
+                // Changed elsewhere: what the person accepted or typed
+                // stays, the rest is what the library finds now; a skip
+                // stays too.
+                (Some(card), Some(prev)) => {
+                    let mut state = prev.clone();
+                    state.rev = card.rev;
+                    state.changed = false;
+                    state.candidates = card.candidates;
+                    state.missing = card.missing;
+                    state.replace_suggestions(card.suggestions);
                     state
                 }
-                None => CardState::new(card),
+                (Some(card), None) => CardState::new(card),
             };
             cards.push(state);
         }
@@ -328,7 +372,13 @@ impl TriageView {
         {
             self.session.focus = ix;
         }
-        self.infos = loaded.infos;
+        if let Some(ix) = self.session.focused() {
+            let len = self.session.cards[ix].chips.len();
+            self.chip = self.chip.min(len.saturating_sub(1));
+        }
+        let shown: HashSet<&String> = self.session.cards.iter().map(|c| &c.note_id).collect();
+        self.infos.retain(|id, _| shown.contains(id));
+        self.infos.extend(loaded.infos);
         let config = cx.global::<AppState>().config.clone();
         if ai_on(&config) {
             self.refine_with_ai(cx);
@@ -349,7 +399,6 @@ impl TriageView {
         if waiting.is_empty() {
             return;
         }
-        self.ai_done.extend(waiting.iter().cloned());
         self.ai_cancel.store(true, Ordering::Relaxed);
         let cancel = Arc::new(AtomicBool::new(false));
         self.ai_cancel = cancel.clone();
@@ -381,6 +430,7 @@ impl TriageView {
                 let (maker, store, opts, cancel2) =
                     (maker.clone(), store.clone(), opts.clone(), cancel.clone());
                 let rev = card.rev.clone();
+                let cancel3 = cancel.clone();
                 let result = cx
                     .background_executor()
                     .spawn(async move {
@@ -392,6 +442,11 @@ impl TriageView {
                     })
                     .await;
                 this.update(cx, |this, cx| {
+                    // A newer pass took over, or the view closed: this
+                    // answer is dropped and the card stays to be asked.
+                    if cancel3.load(Ordering::Relaxed) {
+                        return;
+                    }
                     let Some(card) = this
                         .session
                         .cards
@@ -400,12 +455,20 @@ impl TriageView {
                     else {
                         return;
                     };
+                    // Only a card the answer was applied to is done.
+                    this.ai_done.insert(id.clone());
                     match result {
                         Ok(suggestions) => {
                             card.ai_error = None;
                             card.replace_suggestions(suggestions);
                         }
                         Err(reason) => card.ai_error = Some(reason),
+                    }
+                    // Chips keep their places; only a shorter list moves
+                    // the keys, to the last chip.
+                    if let Some(ix) = this.session.focused() {
+                        let len = this.session.cards[ix].chips.len();
+                        this.chip = this.chip.min(len.saturating_sub(1));
                     }
                     cx.notify();
                 })
@@ -642,27 +705,46 @@ impl TriageView {
         let words = crate::text_stats::plural(filed.edits.len(), "note", "notes");
         let store = self.store.clone();
         let edits = filed.edits.clone();
+        let new_tags = filed.new_tags.clone();
+        let view = cx.entity().downgrade();
         let notification = Notification::info(format!("Filed {words}"))
             .id::<Filed>()
             .action(move |_, _, _| {
-                let (store, edits) = (store.clone(), edits.clone());
+                let (store, edits, new_tags, view) =
+                    (store.clone(), edits.clone(), new_tags.clone(), view.clone());
                 Button::new("undo-triage")
                     .label("Undo")
                     .debug_selector(|| "undo-triage".into())
                     .on_click(move |_, window, cx| {
                         crate::editor::peers::flush_everywhere(cx);
-                        if let Err(err) = undo(&store, &edits) {
+                        let now = Clock::now_ms(cx);
+                        if let Err(err) = undo(&store, &edits, &new_tags, now) {
                             window.push_notification(
                                 Notification::error(format!("Couldn't undo: {err}")),
                                 cx,
                             );
+                            return;
                         }
+                        // The notes are no longer done: the view reads
+                        // again and their cards come back.
+                        let ids: Vec<String> = edits.iter().map(|e| e.id.clone()).collect();
+                        view.update(cx, |this, cx| this.undone(&ids, cx)).ok();
                     })
             });
         window.push_notification(notification, cx);
         // The undone notes are back in the Inbox: the view reads again.
         self.reload_soon(cx);
         cx.notify();
+    }
+
+    /// Filed notes were put back by Undo: their cards come back.
+    fn undone(&mut self, ids: &[String], cx: &mut Context<Self>) {
+        self.session.restore(ids);
+        for id in ids {
+            self.ai_done.remove(id);
+        }
+        self.reload_task = None;
+        self.reload(cx);
     }
 
     fn skip(&mut self, cx: &mut Context<Self>) {

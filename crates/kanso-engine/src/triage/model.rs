@@ -123,6 +123,9 @@ pub struct Filed {
     /// The notes dropped because they changed since the card was read, were
     /// locked, or are gone.
     pub stale: Vec<String>,
+    /// The tags this filing made (none existed by that name), so an undo
+    /// can remove them again when nothing else uses them.
+    pub new_tags: Vec<String>,
     pub moved: usize,
     pub tags: usize,
     pub titles: usize,

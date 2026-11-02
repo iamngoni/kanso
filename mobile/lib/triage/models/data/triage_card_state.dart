@@ -146,25 +146,33 @@ abstract class TriageCardState with _$TriageCardState {
   }
 
   /// Replaces the chips with [fresh] (the model's ranking, or the card made
-  /// again), keeping the marks of the chips still there.
-  TriageCardState withChips(List<TriageChip> fresh) => copyWith(
-    chips: <TriageChipState>[
-      for (final chip in fresh)
-        TriageChipState(
-          chip: chip,
-          mark:
-              chips
-                  .where(
-                    (c) =>
-                        c.chip.field == chip.field &&
-                        c.chip.value == chip.value,
-                  )
-                  .map((c) => c.mark)
-                  .firstOrNull ??
-              ChipMark.untouched,
-        ),
-    ],
-  );
+  /// again). What the person made or chose stays: an edited or accepted
+  /// chip is kept as it is, in its place. A chip only rejected or left
+  /// alone is replaced by the fresh one of the same value, with its mark,
+  /// or dropped when [fresh] no longer has it. Fresh chips follow, in
+  /// their order. The same rules as the desktop's
+  /// `CardState::replace_suggestions`.
+  TriageCardState withChips(List<TriageChip> fresh) {
+    bool same(TriageChip a, TriageChip b) =>
+        a.field == b.field && a.value == b.value;
+    final out = <TriageChipState>[];
+    for (final old in chips) {
+      if (old.edited || old.mark == ChipMark.accepted) {
+        out.add(old);
+        continue;
+      }
+      final match = fresh.where((f) => same(f, old.chip)).firstOrNull;
+      if (match != null) {
+        out.add(TriageChipState(chip: match, mark: old.mark));
+      }
+    }
+    for (final chip in fresh) {
+      if (!out.any((c) => same(c.chip, chip))) {
+        out.add(TriageChipState(chip: chip));
+      }
+    }
+    return copyWith(chips: out);
+  }
 
   TriageCardState _withMark(int index, ChipMark mark) => copyWith(
     chips: <TriageChipState>[

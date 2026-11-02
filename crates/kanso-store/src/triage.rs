@@ -13,7 +13,7 @@ use std::collections::HashSet;
 
 use rusqlite::params;
 
-use crate::embed::{embedded_notes, nearest, own_vector};
+use crate::embed::{Embedded, embedded_notes, nearest, nearest_skipping, own_vector};
 use crate::{RelatedNote, Result, Store};
 
 /// The tables, for emptying them with the library.
@@ -31,7 +31,31 @@ pub struct InboxNote {
     pub updated_at: i64,
 }
 
+/// The embeddings of every note Triage may compare against, read once for
+/// a whole batch of cards instead of once per card and per question.
+pub struct TriagePool {
+    embedded: Vec<Embedded>,
+}
+
+impl TriagePool {
+    /// The `k` notes nearest note `id`, leaving out the note itself.
+    /// `None` while the note has no embedding in the pool.
+    pub fn nearest(&self, id: &str, k: usize) -> Option<Vec<RelatedNote>> {
+        let (_, _, query) = self.embedded.iter().find(|(note, _, _)| note == id)?;
+        Some(nearest_skipping(query, &self.embedded, Some(id), k))
+    }
+}
+
 impl Store {
+    /// Reads the embeddings by `model` once.
+    pub fn triage_pool(&self, model: &str) -> Result<TriagePool> {
+        self.read(|conn| {
+            Ok(TriagePool {
+                embedded: embedded_notes(conn, model, &HashSet::new())?,
+            })
+        })
+    }
+
     /// The notes in notebook `inbox` that Triage still shows, newest
     /// first: live, not locked, and not marked triaged since they were
     /// last edited.
@@ -181,6 +205,43 @@ mod tests {
             .put(DocType::Note, body, Put::Upsert, Origin::Ui)
             .unwrap()
             .id
+    }
+
+    #[test]
+    fn the_pool_answers_like_the_store() {
+        let (_d, store) = open();
+        book(&store, "book:a");
+        let ids: Vec<String> = (0..4)
+            .map(|i| note(&store, "book:a", &format!("N{i}"), json!({})))
+            .collect();
+        store.set_embedding_model(Some("m")).unwrap();
+        let queue = store.embedding_queue("m").unwrap();
+        let rows: Vec<_> = queue
+            .pending
+            .into_iter()
+            .enumerate()
+            .map(|(i, p)| (p.id, p.hash, vec![1.0, i as f32 * 0.3, 0.2]))
+            .collect();
+        store.put_embeddings("m", &rows).unwrap();
+        let pool = store.triage_pool("m").unwrap();
+        for id in &ids {
+            let direct = store.nearest_notes(id, "m", 3).unwrap();
+            assert_eq!(pool.nearest(id, 3), direct);
+        }
+        assert_eq!(pool.nearest("note:none", 3), None);
+    }
+
+    #[test]
+    fn deleting_a_note_forgets_its_dismissals() {
+        let (_d, store) = open();
+        book(&store, "book:a");
+        let id = note(&store, "book:a", "Gone", json!({}));
+        let kept = note(&store, "book:a", "Kept", json!({}));
+        store.dismiss_triage(&id, "tag", "t1", 5).unwrap();
+        store.dismiss_triage(&kept, "tag", "t1", 5).unwrap();
+        store.delete(&id, Origin::Ui).unwrap();
+        assert!(store.triage_dismissed(&id).unwrap().is_empty());
+        assert_eq!(store.triage_dismissed(&kept).unwrap().len(), 1);
     }
 
     #[test]

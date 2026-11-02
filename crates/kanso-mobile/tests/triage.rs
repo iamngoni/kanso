@@ -268,8 +268,13 @@ fn filing_writes_only_what_was_accepted_and_undo_puts_it_back() {
     assert!(after.extra.contains_key("kansoTriaged"));
     assert_eq!(triage.status().unwrap().waiting, 0);
 
+    let filed_at = after.updated_at;
     assert_eq!(w.phone.library.undo(filed.undo).unwrap(), 1);
     let back = w.store.note(&w.waiting).unwrap().unwrap();
+    assert!(
+        back.updated_at >= filed_at && back.updated_at > 0,
+        "the undo is a new edit: stamped, not the old time"
+    );
     assert_eq!(back.book_id, w.inbox);
     assert!(back.tags.is_empty());
     assert_eq!(triage.status().unwrap().waiting, 1);

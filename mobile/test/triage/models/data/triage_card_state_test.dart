@@ -26,6 +26,41 @@ TriageCardState card(List<TriageChip> chips) => TriageCardState(
 );
 
 void main() {
+  group('new chips on a card', () {
+    test('accepted and edited chips stay, untouched ones are replaced', () {
+      var c = card(<TriageChip>[
+        chip(TriageField.tag, 't1'),
+        chip(TriageField.tag, 't2'),
+        chip(TriageField.tag, 't3'),
+      ]).toggleAccept(0).edit(1, chip(TriageField.tag, 'typed'));
+      c = c.toggleReject(2);
+      final next = c.withChips(<TriageChip>[
+        chip(TriageField.tag, 't3'),
+        chip(TriageField.tag, 'ai1'),
+        chip(TriageField.tag, 't1'),
+      ]);
+      expect(
+        next.chips.map((x) => (x.chip.value, x.mark, x.edited)).toList(),
+        <(String, ChipMark, bool)>[
+          ('t1', ChipMark.accepted, false),
+          ('typed', ChipMark.accepted, true),
+          ('t3', ChipMark.rejected, false),
+          ('ai1', ChipMark.untouched, false),
+        ],
+      );
+    });
+
+    test('chips never move, so the one in hand stays in hand', () {
+      final c = card(<TriageChip>[
+        chip(TriageField.tag, 'a'),
+        chip(TriageField.tag, 'b'),
+      ]).toggleAccept(1);
+      final next = c.withChips(<TriageChip>[chip(TriageField.tag, 'z')]);
+      expect(next.chips.first.chip.value, 'b');
+      expect(next.chips.first.mark, ChipMark.accepted);
+    });
+  });
+
   group('the marks of a card', () {
     test('accepting a notebook lifts the one accepted before', () {
       final c = card(<TriageChip>[

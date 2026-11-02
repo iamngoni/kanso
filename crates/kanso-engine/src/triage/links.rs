@@ -153,9 +153,20 @@ pub fn candidates(
 
 /// `body` with `titles` linked on its last line: `Related: [[A]], [[B]]`,
 /// added to an existing `Related:` line when the body ends with one. The
-/// body before it is untouched. Pure.
+/// body before it is untouched. A title that can't be written as a link
+/// (it holds `]]`, `|`, `[`, `#` or a line break) and a title given twice
+/// are left out. Pure.
 pub fn with_related_line(body: &str, titles: &[&str]) -> String {
-    let links: Vec<String> = titles.iter().map(|t| format!("[[{t}]]")).collect();
+    let mut seen: Vec<String> = Vec::new();
+    let mut links: Vec<String> = Vec::new();
+    for title in titles {
+        let title = title.trim();
+        if !linkable(title) || seen.contains(&normalize_title(title)) {
+            continue;
+        }
+        seen.push(normalize_title(title));
+        links.push(format!("[[{title}]]"));
+    }
     if links.is_empty() {
         return body.to_owned();
     }
@@ -246,6 +257,16 @@ mod tests {
         let near = [near("note:c", 0.7), near("note:x", 0.9)];
         let linked = HashSet::from(["note:c".to_owned()]);
         assert!(rank("", &titles(), &near, &linked, "note:x").is_empty());
+    }
+
+    #[test]
+    fn the_related_line_skips_titles_that_cannot_be_links() {
+        assert_eq!(
+            with_related_line("Hi", &["A]]b", "C|d", "E\nF", "Good", "good", "Good "]),
+            "Hi\n\nRelated: [[Good]]"
+        );
+        // Nothing usable: the body is untouched.
+        assert_eq!(with_related_line("Hi", &["a]]", "b|c"]), "Hi");
     }
 
     #[test]

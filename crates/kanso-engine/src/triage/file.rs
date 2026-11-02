@@ -10,7 +10,9 @@
 
 use kanso_core::Note;
 use kanso_core::model::TRASH_BOOK_ID;
-use kanso_store::{INBOX_TRIAGED_FIELD, Origin, Result, Store};
+use std::collections::HashSet;
+
+use kanso_store::{INBOX_TRIAGED_FIELD, Origin, Result, Store, StoreError};
 use serde_json::{Map, Value, json};
 
 use super::links::with_related_line;
@@ -80,7 +82,10 @@ pub fn plan_file(
         }
     }
     let body = with_related_line(&note.body, &labels);
-    let links = if body == note.body { 0 } else { labels.len() };
+    let links = body
+        .matches("[[")
+        .count()
+        .saturating_sub(note.body.matches("[[").count());
     if links > 0 {
         set("body", json!(body), json!(note.body));
     }
@@ -92,8 +97,14 @@ pub fn plan_file(
             .cloned()
             .unwrap_or(Value::Null),
     );
-    set("updatedAt", json!(now_ms), json!(note.updated_at));
+    // `updatedAt` is stamped, never restored: an undo is a new edit.
+    change.insert("updatedAt".into(), json!(now_ms));
     change.insert("_id".into(), json!(note.id));
+    // The revision the plan was made on: the write refuses a note that
+    // moved on since, whatever happens between planning and writing.
+    if let Some(rev) = &note.rev {
+        change.insert("_rev".into(), json!(rev));
+    }
     undo.insert("_id".into(), json!(note.id));
     Planned {
         edit: Edit {
@@ -127,6 +138,15 @@ fn book_ok(store: &Store, book: &str) -> bool {
 /// reported in `stale`.
 fn build(store: &Store, filings: &[Filing], now_ms: i64, write: bool) -> Result<Filed> {
     let locked = store.locked_books()?;
+    let known: HashSet<String> = if write {
+        store
+            .tags()?
+            .into_iter()
+            .map(|t| t.name.to_lowercase())
+            .collect()
+    } else {
+        HashSet::new()
+    };
     let mut out = Filed::default();
     for filing in filings {
         let note = store
@@ -146,7 +166,11 @@ fn build(store: &Store, filings: &[Filing], now_ms: i64, write: bool) -> Result<
                     continue;
                 }
                 let id = if write {
-                    store.tag_named(name, Origin::Ui)?
+                    let id = store.tag_named(name, Origin::Ui)?;
+                    if !known.contains(&name.to_lowercase()) && !out.new_tags.contains(&id) {
+                        out.new_tags.push(id.clone());
+                    }
+                    id
                 } else {
                     format!("new:{}", name.to_lowercase())
                 };
@@ -181,32 +205,61 @@ pub fn plan(store: &Store, filings: &[Filing], now_ms: i64) -> Result<Filed> {
 }
 
 /// Files `filings` in one write: every note changes, or none does. Notes
-/// changed since their card was read are skipped (`stale`). The returned
-/// edits are what [`undo`] takes back.
+/// changed since their card was read are skipped (`stale`). The write
+/// itself checks each note's revision, so an edit that lands between the
+/// planning and the write is never overwritten: the batch is planned
+/// again and that note is stale. The returned edits are what [`undo`]
+/// takes back.
 pub fn file(store: &Store, filings: &[Filing], now_ms: i64) -> Result<Filed> {
-    let filed = build(store, filings, now_ms, true)?;
-    let changes: Vec<Value> = filed.edits.iter().map(|e| e.change.clone()).collect();
-    if !changes.is_empty() {
-        store.merge_many(kanso_core::DocType::Note, changes, Origin::Ui)?;
+    let mut made: Vec<String> = Vec::new();
+    for _ in 0..4 {
+        let mut filed = build(store, filings, now_ms, true)?;
+        for tag in std::mem::take(&mut filed.new_tags) {
+            if !made.contains(&tag) {
+                made.push(tag);
+            }
+        }
+        filed.new_tags = made.clone();
+        let changes: Vec<Value> = filed.edits.iter().map(|e| e.change.clone()).collect();
+        if changes.is_empty() {
+            return Ok(filed);
+        }
+        match store.merge_many(kanso_core::DocType::Note, changes, Origin::Ui) {
+            Ok(_) => return Ok(filed),
+            Err(StoreError::Conflict) => {}
+            Err(err) => return Err(err),
+        }
     }
-    Ok(filed)
+    Err(StoreError::Conflict)
 }
 
 /// Takes back a batch from [`file`] in one write: each note gets back what
-/// it had, except a field changed again since. Returns how many notes
-/// changed.
-pub fn undo(store: &Store, edits: &[Edit]) -> Result<usize> {
+/// it had, except a field changed again since. `updatedAt` is stamped
+/// `now_ms`, not restored, so the undo wins in sync. Tags the filing made
+/// (`new_tags`) are removed when no note uses them now. Returns how many
+/// notes changed.
+pub fn undo(store: &Store, edits: &[Edit], new_tags: &[String], now_ms: i64) -> Result<usize> {
     let back: Vec<Value> = edits
         .iter()
         .filter_map(|edit| {
             let note = store.note(&edit.id).ok().flatten()?;
             let current = serde_json::to_value(note).ok()?;
-            batch::undo_now(&edit.change, &edit.undo, &current)
+            batch::undo_stamped(&edit.change, &edit.undo, &current, now_ms)
         })
         .collect();
     let count = back.len();
     if count > 0 {
         store.merge_many(kanso_core::DocType::Note, back, Origin::Ui)?;
+    }
+    if !new_tags.is_empty() {
+        for tag in store.tags()? {
+            if tag.count == 0 && new_tags.contains(&tag.id) {
+                match store.delete(&tag.id, Origin::Ui) {
+                    Ok(_) | Err(StoreError::NotFound) => {}
+                    Err(err) => return Err(err),
+                }
+            }
+        }
     }
     Ok(count)
 }
@@ -317,7 +370,7 @@ mod tests {
             let mut restored = after;
             restored.as_object_mut().unwrap().extend(back.as_object().unwrap().clone());
             let before = serde_json::to_value(&original).unwrap();
-            for key in ["bookId", "tags", "title", "body", "updatedAt"] {
+            for key in ["bookId", "tags", "title", "body"] {
                 prop_assert_eq!(&restored[key], &before[key], "{}", key);
             }
             prop_assert!(

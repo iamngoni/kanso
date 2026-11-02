@@ -50,9 +50,17 @@ class TriageBloc extends Bloc<TriageEvent, TriageState> {
       (event, emit) => _load(emit),
       transformer: debounceRestartable<TriageReloadedEvent>(triageReloadDelay),
     );
-    on<TriageChipAcceptedEvent>(_onAccepted, transformer: sequential());
-    on<TriageChipRejectedEvent>(_onRejected, transformer: sequential());
-    on<TriageChipEditedEvent>(_onEdited, transformer: sequential());
+    // One queue for all three: a `sequential()` of its own for each would
+    // let an accept and a reject of the same chip run side by side.
+    on<TriageChipAcceptedEvent>(
+      (event, emit) => _inOrder(() => _onAccepted(event, emit)),
+    );
+    on<TriageChipRejectedEvent>(
+      (event, emit) => _inOrder(() => _onRejected(event, emit)),
+    );
+    on<TriageChipEditedEvent>(
+      (event, emit) => _inOrder(() => _onEdited(event, emit)),
+    );
     on<TriageCardAcceptedAllEvent>(
       (event, emit) => _update(emit, event.noteId, (c) => c.acceptAll()),
     );
@@ -67,9 +75,10 @@ class TriageBloc extends Bloc<TriageEvent, TriageState> {
       _onFileAllConfirmed,
       transformer: droppable(),
     );
-    on<TriagePlanDismissedEvent>(
-      (event, emit) => emit(state.copyWith(plan: null)),
-    );
+    on<TriagePlanDismissedEvent>((event, emit) {
+      _planned = null;
+      emit(state.copyWith(plan: null));
+    });
     on<TriageRefineRequestedEvent>(_onRefine, transformer: sequential());
     on<TriageRelatedTurnedOnEvent>(
       _onRelatedTurnedOn,
@@ -86,12 +95,27 @@ class TriageBloc extends Bloc<TriageEvent, TriageState> {
   StreamSubscription<List<String>>? _changes;
   final Set<String> _asked = <String>{};
 
+  /// What "File all accepted" asked about, kept from the plan: the answer
+  /// files exactly this, whatever the cards became meanwhile.
+  List<TriageFiling>? _planned;
+
+  /// The end of the chip queue.
+  Future<void> _tail = Future<void>.value();
+
+  /// Runs [work] after everything queued before it, one at a time.
+  Future<void> _inOrder(Future<void> Function() work) {
+    final run = _tail.then((_) => work());
+    _tail = run.then((_) {}, onError: (Object _) {});
+    return run;
+  }
+
   Future<void> _onStarted(
     TriageStartedEvent event,
     Emitter<TriageState> emit,
   ) async {
     emit(const TriageState());
     _asked.clear();
+    _planned = null;
     await _changes?.cancel();
     _changes = _triage.changes().listen(
       (ids) => add(TriageEvent.changesReceived(ids)),
@@ -292,7 +316,10 @@ class TriageBloc extends Bloc<TriageEvent, TriageState> {
     }
     planned.fold(
       (error) => emit(state.copyWith(notice: _words(error))),
-      (plan) => emit(state.copyWith(plan: plan)),
+      (plan) {
+        _planned = filings;
+        emit(state.copyWith(plan: plan));
+      },
     );
   }
 
@@ -300,11 +327,11 @@ class TriageBloc extends Bloc<TriageEvent, TriageState> {
     TriageFileAllConfirmedEvent event,
     Emitter<TriageState> emit,
   ) async {
+    // The filings the question was about, not the cards as they are now.
+    final filings = _planned;
+    _planned = null;
     emit(state.copyWith(plan: null));
-    final filings = <TriageFiling>[
-      for (final c in state.fileable) c.filing!,
-    ];
-    if (filings.isNotEmpty) {
+    if (filings != null && filings.isNotEmpty) {
       await _file(filings, emit);
     }
   }
