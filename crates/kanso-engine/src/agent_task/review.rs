@@ -142,6 +142,7 @@ impl ReviewSheet {
                 .map(|card| card.index)
                 .collect(),
             apply_anyway: Default::default(),
+            keep_sources: Default::default(),
         }
     }
 

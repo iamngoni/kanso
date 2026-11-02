@@ -5,15 +5,17 @@
 //! the cards say comes from `kanso_engine::agent_task::review`. This file
 //! draws them and starts, stops, applies and undoes through the runner.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui_kit::component::WindowExt as _;
+use gpui_kit::assets::IconName as Lucide;
+use gpui_kit::base::text::TextView;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{Disableable as _, Sizable as _, StyledExt as _, h_flex, v_flex};
+use gpui_kit::component::{Icon, WindowExt as _};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::agent_task::review::{
@@ -80,6 +82,8 @@ pub fn respond(cx: &mut App) {
 pub struct AgentTasksPanel {
     tasks: Tasks,
     replies: HashMap<TaskId, Entity<InputState>>,
+    /// Tasks whose "Notes read" list is open.
+    reads_open: HashSet<TaskId>,
     _watch: Task<()>,
     _tick: Task<()>,
 }
@@ -117,6 +121,7 @@ impl AgentTasksPanel {
         AgentTasksPanel {
             tasks,
             replies: HashMap::new(),
+            reads_open: HashSet::new(),
             _watch: watch,
             _tick: tick,
         }
@@ -200,6 +205,9 @@ impl AgentTasksPanel {
             .border_color(colors.divider)
             .child(
                 div()
+                    .min_w_0()
+                    .max_h(px(58.))
+                    .overflow_hidden()
                     .text_size(px(13.5))
                     .line_height(px(19.))
                     .font_semibold()
@@ -208,24 +216,109 @@ impl AgentTasksPanel {
             )
             .child(
                 div()
+                    .min_w_0()
+                    .truncate()
                     .text_size(px(12.))
                     .text_color(colors.text_muted)
                     .child(format!("{} · {}", row.agent, elapsed_label(row.elapsed))),
             )
             .child(
-                div()
-                    .text_size(px(12.5))
-                    .line_height(px(18.))
-                    .text_color(colors.text_secondary)
-                    .child(row.status_line()),
+                h_flex()
+                    .gap(px(6.))
+                    .items_start()
+                    .when(row.is_active(), |el| {
+                        el.child(
+                            div().flex_none().pt(px(2.)).child(
+                                Icon::new(Lucide::RefreshCcw)
+                                    .size(px(13.))
+                                    .text_color(colors.text_muted)
+                                    .with_animation(
+                                        ("agent-task-spin", ix),
+                                        Animation::new(Duration::from_millis(1100)).repeat(),
+                                        |icon, t| {
+                                            icon.transform(Transformation::rotate(percentage(t)))
+                                        },
+                                    ),
+                            ),
+                        )
+                    })
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .text_size(px(12.5))
+                            .line_height(px(18.))
+                            .text_color(colors.text_secondary)
+                            .child(row.status_line()),
+                    ),
             )
-            .when(row.is_active(), |el| {
+            .when(row.is_active() || row.notes_read > 0, |el| {
+                let open = self.reads_open.contains(&id);
+                let titles: Vec<String> = if open {
+                    let store = cx.global::<AppState>().store.clone();
+                    self.tasks
+                        .reads(id)
+                        .into_iter()
+                        .map(|note| {
+                            store
+                                .note(&note)
+                                .ok()
+                                .flatten()
+                                .map(|n| n.title)
+                                .filter(|t| !t.trim().is_empty())
+                                .unwrap_or_else(|| "Untitled".to_owned())
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
+                };
                 el.child(
-                    div()
-                        .text_size(px(12.))
-                        .text_color(colors.text_muted)
-                        .child(row.counts_line()),
+                    h_flex()
+                        .gap(px(6.))
+                        .flex_wrap()
+                        .child(
+                            Button::new(("agent-task-reads", ix))
+                                .ghost()
+                                .xsmall()
+                                .label(format!(
+                                    "Notes read: {}{}",
+                                    row.notes_read,
+                                    if open { " ▾" } else { " ▸" }
+                                ))
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    if !this.reads_open.remove(&id) {
+                                        this.reads_open.insert(id);
+                                    }
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(colors.text_muted)
+                                .child(row.counts_line()),
+                        ),
                 )
+                .when(open, |el| {
+                    el.child(
+                        v_flex()
+                            .id(("agent-task-reads-list", ix))
+                            .max_h(px(140.))
+                            .overflow_y_scroll()
+                            .p(px(8.))
+                            .rounded(px(8.))
+                            .bg(colors.fill)
+                            .gap(px(2.))
+                            .children(titles.into_iter().map(|title| {
+                                div()
+                                    .min_w_0()
+                                    .truncate()
+                                    .text_size(px(12.5))
+                                    .text_color(colors.text)
+                                    .child(title)
+                            })),
+                    )
+                })
             })
             .when(!row.last_message.is_empty() && !row.is_active(), |el| {
                 el.child(
@@ -954,6 +1047,8 @@ pub struct ReviewChanges {
     cards: Cards,
     ticked: BTreeSet<usize>,
     apply_anyway: BTreeSet<usize>,
+    keep_sources: BTreeSet<usize>,
+    queue: Option<Entity<crate::review_queue::ReviewSheet>>,
     shown_all: BTreeSet<usize>,
     error: Option<String>,
 }
@@ -966,6 +1061,8 @@ impl ReviewChanges {
             tasks,
             ticked: selection.ticked,
             apply_anyway: BTreeSet::new(),
+            keep_sources: BTreeSet::new(),
+            queue: None,
             cards,
             shown_all: BTreeSet::new(),
             error: None,
@@ -976,6 +1073,7 @@ impl ReviewChanges {
         Selection {
             ticked: self.ticked.clone(),
             apply_anyway: self.apply_anyway.clone(),
+            keep_sources: self.keep_sources.clone(),
         }
     }
 
@@ -1100,12 +1198,12 @@ impl ReviewChanges {
                         .p(px(8.))
                         .rounded(px(8.))
                         .bg(colors.fill)
-                        .max_h(px(220.))
+                        .max_h(px(260.))
                         .overflow_hidden()
                         .text_size(px(12.5))
                         .line_height(px(18.))
                         .text_color(colors.text)
-                        .child(body.clone()),
+                        .child(TextView::markdown(("agent-new-text", index), body.clone())),
                 )
                 .when(!cites.is_empty(), |el| {
                     el.child(label(
@@ -1175,16 +1273,41 @@ impl ReviewChanges {
                         .child(sources.join(", ")),
                 )
                 .child(Self::render_lines(lines, colors, mono))
+                .child(
+                    Checkbox::new(("agent-review-keep", index))
+                        .label("Keep the original notes")
+                        .checked(self.keep_sources.contains(&index))
+                        .on_click(cx.listener(move |this, on: &bool, _, cx| {
+                            if *on {
+                                this.keep_sources.insert(index);
+                            } else {
+                                this.keep_sources.remove(&index);
+                            }
+                            cx.notify();
+                        })),
+                )
                 .child(label(
-                    format!(
-                        "The {} notes move to the Trash{}.",
-                        sources.len(),
-                        if *target_is_new {
-                            ""
-                        } else {
-                            "; the target note is replaced"
-                        }
-                    ),
+                    if self.keep_sources.contains(&index) {
+                        format!(
+                            "The {} notes stay where they are{}.",
+                            sources.len(),
+                            if *target_is_new {
+                                ""
+                            } else {
+                                "; the target note is replaced"
+                            }
+                        )
+                    } else {
+                        format!(
+                            "The {} notes move to the Trash{}.",
+                            sources.len(),
+                            if *target_is_new {
+                                ""
+                            } else {
+                                "; the target note is replaced"
+                            }
+                        )
+                    },
                     colors.text_muted,
                 ))
                 .into_any_element(),
@@ -1373,7 +1496,8 @@ impl Render for ReviewChanges {
                     .gap(px(10.))
                     .max_h(px(460.))
                     .overflow_y_scroll()
-                    .children(rendered),
+                    .children(rendered)
+                    .when_some(self.queue.clone(), |el, queue| el.child(queue)),
             )
     }
 }
@@ -1390,7 +1514,14 @@ pub fn open_review(task: TaskId, window: &mut Window, cx: &mut App) {
         .map(|row| row.last_message)
         .unwrap_or_default();
     let cards = review::build(&store, &set, &last);
-    let sheet = cx.new(|_| ReviewChanges::new(task, runner, cards));
+    let queue = crate::review_queue::queue(cx);
+    let sheet = cx.new(|cx| {
+        let mut sheet = ReviewChanges::new(task, runner, cards);
+        sheet.queue = queue.map(|queue| {
+            cx.new(|cx| crate::review_queue::ReviewSheet::embedded(queue, store.clone(), cx))
+        });
+        sheet
+    });
     let view = sheet.clone();
     window.open_alert_dialog(cx, move |alert, _, cx| {
         let apply = view.clone();
@@ -1428,6 +1559,7 @@ pub fn open_review(task: TaskId, window: &mut Window, cx: &mut App) {
                             .label(Cards::apply_label(&Selection {
                                 ticked: (0..count).collect(),
                                 apply_anyway: BTreeSet::new(),
+                                keep_sources: BTreeSet::new(),
                             }))
                             .disabled(count == 0)
                             .on_click(move |_, window, cx| {

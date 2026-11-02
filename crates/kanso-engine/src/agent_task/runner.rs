@@ -230,6 +230,11 @@ impl Tasks {
         self.entry(id)?.open.changes()
     }
 
+    /// The IDs of the notes the agent has been shown, in order.
+    pub fn reads(&self, id: TaskId) -> Vec<String> {
+        self.entry(id).map(|e| e.open.reads()).unwrap_or_default()
+    }
+
     /// The task's token (it ends with the task).
     pub fn token(&self, id: TaskId) -> kanso_server::TokenId {
         self.entry(id).expect("the task").open.token

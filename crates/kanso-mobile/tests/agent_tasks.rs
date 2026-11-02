@@ -251,3 +251,40 @@ fn a_task_with_no_changes_has_nothing_to_review() {
     wait_for_end(&tasks);
     assert!(tasks.review(id).is_err() || tasks.review(id).unwrap().cards.is_empty());
 }
+
+// no-prop-test: one scope, two notes; the property over shapes is above.
+#[test]
+fn a_task_started_on_note_ids_can_read_them_but_not_a_locked_one() {
+    let shape = Library {
+        plain: 1,
+        sealed: 1,
+        in_locked_book: 0,
+        in_nested_book: 0,
+        trashed: 0,
+        excluded: 0,
+    };
+    let (phone, seeded, anchor) = library_for(&shape);
+    let plain = &seeded.plain[0];
+    let sealed = &seeded.hidden[0];
+    let calls = vec![
+        ("read_note", json!({"noteId": plain.id}).to_string()),
+        ("read_note", json!({"noteId": sealed.id}).to_string()),
+    ];
+    let model = Scripted::with("Done.", calls, Ending::Complete);
+    let ai = ai_on(&phone.library, &model);
+    let tasks = ai.agent_tasks();
+    tasks
+        .start(
+            "Tidy",
+            vec![plain.id.clone(), sealed.id.clone(), anchor.id.clone()],
+            "",
+        )
+        .unwrap();
+    wait_for_end(&tasks);
+    let sent = model.everything_sent();
+    assert!(
+        sent.contains(&plain.body),
+        "the named note is readable: {sent}"
+    );
+    assert!(!sent.contains(&sealed.body) && !sent.contains(&anchor.body));
+}

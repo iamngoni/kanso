@@ -583,7 +583,7 @@ proptest! {
         }
         let set = t.set();
         let ticked: BTreeSet<usize> = (0..set.ops.len()).filter(|i| mask[*i % mask.len()]).collect();
-        let (edits, creates) = set.lower(&ticked, &BTreeSet::new(), &|_| None);
+        let (edits, creates) = set.lower(&ticked, &BTreeSet::new(), &BTreeSet::new(), &|_| None);
         for e in &edits {
             prop_assert!(!ChangeSet::is_temp(&e.id));
         }
@@ -607,7 +607,7 @@ proptest! {
         }
         let set = t.set();
         let ticked: BTreeSet<usize> = (0..set.ops.len()).filter(|i| mask[*i % mask.len()]).collect();
-        let (edits, creates) = set.lower(&ticked, &BTreeSet::new(), &|_| None);
+        let (edits, creates) = set.lower(&ticked, &BTreeSet::new(), &BTreeSet::new(), &|_| None);
         let touched: HashSet<String> = ticked.iter()
             .flat_map(|i| set.ops[*i].touched().into_iter().map(|(id, _)| id.to_owned()))
             .collect();
@@ -615,7 +615,7 @@ proptest! {
             prop_assert!(touched.contains(&e.id));
         }
         let created_before = t.store.counts().unwrap().get(&DocType::Note).copied().unwrap_or(0);
-        let result = set.apply(&t.store, &Selection { ticked: ticked.clone(), apply_anyway: BTreeSet::new() }, 5);
+        let result = set.apply(&t.store, &Selection { ticked: ticked.clone(), apply_anyway: BTreeSet::new(), keep_sources: BTreeSet::new() }, 5);
         let created_after = t.store.counts().unwrap().get(&DocType::Note).copied().unwrap_or(0);
         if result.is_ok() {
             prop_assert_eq!(created_after - created_before, creates.len());

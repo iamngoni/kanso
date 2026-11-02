@@ -122,8 +122,14 @@ impl KansoAgentTasks {
     }
 
     /// Applies the ticked cards in one step; returns the sentence to show.
-    pub fn apply(&self, id: u64, ticked: Vec<u32>, now_ms: i64) -> Result<String, KansoError> {
-        self.0.apply(id, ticked, now_ms)
+    pub fn apply(
+        &self,
+        id: u64,
+        ticked: Vec<u32>,
+        keep: Vec<u32>,
+        now_ms: i64,
+    ) -> Result<String, KansoError> {
+        self.0.apply(id, ticked, keep, now_ms)
     }
 
     pub fn undo(&self, id: u64, now_ms: i64) -> Result<String, KansoError> {

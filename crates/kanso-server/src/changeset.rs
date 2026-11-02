@@ -251,6 +251,9 @@ pub struct Selection {
     pub ticked: BTreeSet<usize>,
     /// The ticked ops whose conflict the person chose to override.
     pub apply_anyway: BTreeSet<usize>,
+    /// The ticked merges whose source notes stay where they are instead of
+    /// moving to the Trash ("Keep the original notes").
+    pub keep_sources: BTreeSet<usize>,
 }
 
 impl Selection {
@@ -258,6 +261,7 @@ impl Selection {
         Selection {
             ticked: (0..count).collect(),
             apply_anyway: BTreeSet::new(),
+            keep_sources: BTreeSet::new(),
         }
     }
 }
@@ -740,6 +744,7 @@ impl ChangeSet {
         &self,
         ticked: &BTreeSet<usize>,
         apply_anyway: &BTreeSet<usize>,
+        keep_sources: &BTreeSet<usize>,
         current_rev: &dyn Fn(&str) -> Option<String>,
     ) -> (Vec<PluginEdit>, Vec<PluginCreate>) {
         let mut edits: BTreeMap<String, PluginEdit> = BTreeMap::new();
@@ -821,7 +826,7 @@ impl ChangeSet {
                             edit.body = Some(body.clone());
                         }
                     }
-                    for (id, rev) in sources {
+                    for (id, rev) in sources.iter().filter(|_| !keep_sources.contains(&index)) {
                         edit_of(&mut edits, id, rev_for(index, id, rev));
                         edits.get_mut(id).expect("just inserted").book_id =
                             Some(TRASH_BOOK_ID.to_owned());
@@ -865,7 +870,12 @@ impl ChangeSet {
             }
         }
         let current_rev = |id: &str| store.get(id).ok().flatten().map(|doc| doc.rev);
-        let (edits, creates) = self.lower(&ticked, &selection.apply_anyway, &current_rev);
+        let (edits, creates) = self.lower(
+            &ticked,
+            &selection.apply_anyway,
+            &selection.keep_sources,
+            &current_rev,
+        );
         if edits.is_empty() && creates.is_empty() {
             return Err(ApplyFailure::NothingToApply);
         }

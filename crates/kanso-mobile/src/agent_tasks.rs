@@ -72,7 +72,7 @@ impl AgentTasks {
         let read = if note_ids.is_empty() {
             ReadScope::Everything
         } else {
-            ReadScope::Allowed(note_ids)
+            ReadScope::Notes(note_ids)
         };
         let spec = TaskSpec::new(goal, read, new_note_book);
         let runtime = self.runtime();
@@ -152,11 +152,18 @@ impl AgentTasks {
 
     /// Writes the ticked cards in one transaction. Returns the sentence to
     /// show ("Applied 12 changes from Kanso AI.").
-    pub fn apply(&self, id: u64, ticked: Vec<u32>, now_ms: i64) -> Result<String, KansoError> {
+    pub fn apply(
+        &self,
+        id: u64,
+        ticked: Vec<u32>,
+        keep: Vec<u32>,
+        now_ms: i64,
+    ) -> Result<String, KansoError> {
         let runtime = self.runtime();
         let selection = Selection {
             ticked: ticked.iter().map(|i| *i as usize).collect(),
             apply_anyway: Default::default(),
+            keep_sources: keep.iter().map(|i| *i as usize).collect(),
         };
         runtime
             .tasks
