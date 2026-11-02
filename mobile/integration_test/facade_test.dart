@@ -37,6 +37,7 @@ import '../test/core/bridge/suites/shortcuts_suite.dart';
 import '../test/core/bridge/suites/sync_suite.dart';
 import '../test/core/bridge/suites/templates_suite.dart';
 import '../test/core/bridge/suites/themes_suite.dart';
+import '../test/core/bridge/suites/cards_suite.dart';
 import '../test/core/bridge/suites/triage_suite.dart';
 import '../test/core/bridge/suites/voice_suite.dart';
 import '../test/helpers/biometric_answer.dart';
@@ -63,6 +64,7 @@ void main() {
 
   librarySuite(openDeviceLibrary);
   linkingSuite(openDeviceLibrary);
+  cardsSuite(openDeviceLibrary);
   triageSuite(openDeviceLibrary);
   metricsSuite(openDeviceLibrary);
   locksSuite(

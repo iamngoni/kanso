@@ -12,7 +12,10 @@ class Answered {
   final int dueMs;
   final int waiting;
 
-  const Answered({required this.dueMs, required this.waiting});
+  const Answered({
+    required this.dueMs,
+    required this.waiting,
+  });
 
   @override
   int get hashCode => dueMs.hashCode ^ waiting.hashCode;
@@ -30,7 +33,10 @@ class CardPair {
   final String question;
   final String answer;
 
-  const CardPair({required this.question, required this.answer});
+  const CardPair({
+    required this.question,
+    required this.answer,
+  });
 
   @override
   int get hashCode => question.hashCode ^ answer.hashCode;
@@ -48,7 +54,10 @@ class CardScopeArg {
   final CardScopeKind kind;
   final String id;
 
-  const CardScopeArg({required this.kind, required this.id});
+  const CardScopeArg({
+    required this.kind,
+    required this.id,
+  });
 
   @override
   int get hashCode => kind.hashCode ^ id.hashCode;
@@ -62,7 +71,12 @@ class CardScopeArg {
           id == other.id;
 }
 
-enum CardScopeKind { all, notebook, tag, note }
+enum CardScopeKind {
+  all,
+  notebook,
+  tag,
+  note,
+}
 
 class CardSettingsView {
   final int newPerDay;
@@ -108,8 +122,9 @@ sealed class GradeEvent with _$GradeEvent {
     required String label,
     required String comment,
   }) = GradeEvent_Graded;
-  const factory GradeEvent.failed({required String message}) =
-      GradeEvent_Failed;
+  const factory GradeEvent.failed({
+    required String message,
+  }) = GradeEvent_Failed;
   const factory GradeEvent.stopped() = GradeEvent_Stopped;
 }
 
@@ -195,10 +210,15 @@ class NoteCardView {
 sealed class QuizEvent with _$QuizEvent {
   const QuizEvent._();
 
-  const factory QuizEvent.status({required String line}) = QuizEvent_Status;
-  const factory QuizEvent.questions({required List<QuizItem> items}) =
-      QuizEvent_Questions;
-  const factory QuizEvent.failed({required String message}) = QuizEvent_Failed;
+  const factory QuizEvent.status({
+    required String line,
+  }) = QuizEvent_Status;
+  const factory QuizEvent.questions({
+    required List<QuizItem> items,
+  }) = QuizEvent_Questions;
+  const factory QuizEvent.failed({
+    required String message,
+  }) = QuizEvent_Failed;
   const factory QuizEvent.stopped() = QuizEvent_Stopped;
 }
 
@@ -233,7 +253,11 @@ class QuizItem {
           source == other.source;
 }
 
-enum QuizVerdict { right, partly, wrong }
+enum QuizVerdict {
+  right,
+  partly,
+  wrong,
+}
 
 class ReviewCard {
   final String cardKey;
@@ -356,12 +380,15 @@ class ReviewStats {
 sealed class SuggestEvent with _$SuggestEvent {
   const SuggestEvent._();
 
-  const factory SuggestEvent.status({required String line}) =
-      SuggestEvent_Status;
-  const factory SuggestEvent.done({required List<SuggestedCard> cards}) =
-      SuggestEvent_Done;
-  const factory SuggestEvent.failed({required String message}) =
-      SuggestEvent_Failed;
+  const factory SuggestEvent.status({
+    required String line,
+  }) = SuggestEvent_Status;
+  const factory SuggestEvent.done({
+    required List<SuggestedCard> cards,
+  }) = SuggestEvent_Done;
+  const factory SuggestEvent.failed({
+    required String message,
+  }) = SuggestEvent_Failed;
   const factory SuggestEvent.stopped() = SuggestEvent_Stopped;
 }
 
