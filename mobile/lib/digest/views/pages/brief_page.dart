@@ -22,6 +22,7 @@ import '../../../injection.dart';
 import '../../../tasks/views/widgets/task_row.dart';
 import '../../utils/close_loop.dart';
 import '../../utils/open_digest_note.dart';
+import '../widgets/digest_ai_panel.dart';
 import '../widgets/digest_loader.dart';
 import '../widgets/loop_row.dart';
 
@@ -34,145 +35,151 @@ class BriefPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return DigestLoader<BriefView>(
-      title: l10n.digestBriefTitle,
-      subtitle: (brief) => brief.dateLabel,
-      load: getIt<DigestRepository>().brief,
-      builder: (context, brief, reload) {
-        if (brief.isEmpty && brief.relevant.isEmpty) {
-          return KansoEmptyState(
-            title: l10n.digestBriefEmptyTitle,
-            message: l10n.digestBriefEmptyMessage,
-          );
-        }
-        final typography = context.typography;
-        final colors = context.colors;
-        return KansoSwipeHost(
-          child: ListView(
-            padding: digestListPadding,
-            children: <Widget>[
-              if (brief.due.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestBriefDue),
-                for (final task in brief.due)
-                  TaskRow(
-                    task: task,
-                    onTick: () => unawaited(_tick(task)),
-                    onOpen: () =>
-                        openDigestNote(context, task.noteId, line: task.line),
-                  ),
-              ],
-              if (brief.laterToday.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestBriefLater),
-                for (final later in brief.laterToday)
-                  KansoPressable(
-                    onTap: () =>
-                        openDigestNote(context, later.noteId, line: later.line),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KansoSpacing.md,
-                        vertical: KansoSpacing.sm,
+    return DigestAiScope(
+      child: DigestLoader<BriefView>(
+        title: l10n.digestBriefTitle,
+        subtitle: (brief) => brief.dateLabel,
+        load: getIt<DigestRepository>().brief,
+        builder: (context, brief, reload) {
+          if (brief.isEmpty && brief.relevant.isEmpty) {
+            return KansoEmptyState(
+              title: l10n.digestBriefEmptyTitle,
+              message: l10n.digestBriefEmptyMessage,
+            );
+          }
+          final typography = context.typography;
+          final colors = context.colors;
+          return KansoSwipeHost(
+            child: ListView(
+              padding: digestListPadding,
+              children: <Widget>[
+                const DigestAiPanel(summarise: true),
+                if (brief.due.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestBriefDue),
+                  for (final task in brief.due)
+                    TaskRow(
+                      task: task,
+                      onTick: () => unawaited(_tick(task)),
+                      onOpen: () =>
+                          openDigestNote(context, task.noteId, line: task.line),
+                    ),
+                ],
+                if (brief.laterToday.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestBriefLater),
+                  for (final later in brief.laterToday)
+                    KansoPressable(
+                      onTap: () => openDigestNote(
+                        context,
+                        later.noteId,
+                        line: later.line,
                       ),
-                      child: Row(
-                        children: <Widget>[
-                          Text(
-                            later.timeLabel,
-                            style: typography.meta.copyWith(
-                              color: colors.accent,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: KansoSpacing.md,
+                          vertical: KansoSpacing.sm,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Text(
+                              later.timeLabel,
+                              style: typography.meta.copyWith(
+                                color: colors.accent,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: KansoSpacing.sm),
-                          Expanded(
-                            child: Text(
-                              later.text,
-                              maxLines: 2,
+                            const SizedBox(width: KansoSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                later.text,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: typography.body.copyWith(
+                                  color: colors.text,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+                if (brief.loops.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestBriefLoops),
+                  for (final item in brief.loops)
+                    LoopRow(
+                      key: ValueKey<String>('${item.noteId}/${item.key}'),
+                      item: item,
+                      onAction: (action) => closeLoop(context, item, action),
+                      onOpen: () =>
+                          openDigestNote(context, item.noteId, line: item.line),
+                    ),
+                  if (brief.loopsTotal > brief.loops.length)
+                    Padding(
+                      padding: const EdgeInsets.all(KansoSpacing.md),
+                      child: KansoButton(
+                        label: l10n.digestBriefMoreLoops(brief.loopsTotal),
+                        variant: KansoButtonVariant.secondary,
+                        onPressed: () => context.push(KansoRoutes.loops),
+                      ),
+                    ),
+                ],
+                if (brief.relevant.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestBriefRelevant),
+                  for (final note in brief.relevant)
+                    KansoPressable(
+                      onTap: () => openDigestNote(context, note.noteId),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: KansoSpacing.md,
+                          vertical: KansoSpacing.sm,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Text(
+                              note.title.trim().isEmpty
+                                  ? l10n.noteUntitled
+                                  : note.title,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: typography.body.copyWith(
                                 color: colors.text,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-              if (brief.loops.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestBriefLoops),
-                for (final item in brief.loops)
-                  LoopRow(
-                    key: ValueKey<String>('${item.noteId}/${item.key}'),
-                    item: item,
-                    onAction: (action) => closeLoop(context, item, action),
-                    onOpen: () =>
-                        openDigestNote(context, item.noteId, line: item.line),
-                  ),
-                if (brief.loopsTotal > brief.loops.length)
-                  Padding(
-                    padding: const EdgeInsets.all(KansoSpacing.md),
-                    child: KansoButton(
-                      label: l10n.digestBriefMoreLoops(brief.loopsTotal),
-                      variant: KansoButtonVariant.secondary,
-                      onPressed: () => context.push(KansoRoutes.loops),
-                    ),
-                  ),
-              ],
-              if (brief.relevant.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestBriefRelevant),
-                for (final note in brief.relevant)
-                  KansoPressable(
-                    onTap: () => openDigestNote(context, note.noteId),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KansoSpacing.md,
-                        vertical: KansoSpacing.sm,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          Text(
-                            note.title.trim().isEmpty
-                                ? l10n.noteUntitled
-                                : note.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: typography.body.copyWith(
-                              color: colors.text,
-                            ),
-                          ),
-                          Text(
-                            note.why,
-                            style: typography.meta.copyWith(
-                              color: colors.accent,
-                            ),
-                          ),
-                          if (note.excerpt.trim().isNotEmpty)
                             Text(
-                              note.excerpt,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                              note.why,
                               style: typography.meta.copyWith(
-                                color: colors.textMuted,
+                                color: colors.accent,
                               ),
                             ),
-                        ],
+                            if (note.excerpt.trim().isNotEmpty)
+                              Text(
+                                note.excerpt,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: typography.meta.copyWith(
+                                  color: colors.textMuted,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
+                ],
+                Padding(
+                  padding: const EdgeInsets.all(KansoSpacing.md),
+                  child: Text(
+                    l10n.digestBriefYesterday(
+                      brief.wroteYesterday,
+                      brief.finishedYesterday,
+                    ),
+                    style: typography.meta.copyWith(color: colors.textMuted),
                   ),
-              ],
-              Padding(
-                padding: const EdgeInsets.all(KansoSpacing.md),
-                child: Text(
-                  l10n.digestBriefYesterday(
-                    brief.wroteYesterday,
-                    brief.finishedYesterday,
-                  ),
-                  style: typography.meta.copyWith(color: colors.textMuted),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

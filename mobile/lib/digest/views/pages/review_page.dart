@@ -23,6 +23,7 @@ import '../../../injection.dart';
 import '../../../tasks/views/widgets/task_row.dart';
 import '../../utils/close_loop.dart';
 import '../../utils/open_digest_note.dart';
+import '../widgets/digest_ai_panel.dart';
 import '../widgets/digest_loader.dart';
 import '../widgets/loop_row.dart';
 
@@ -101,180 +102,185 @@ class _ReviewPageState extends State<ReviewPage> {
     final l10n = context.l10n;
     final colors = context.colors;
     final typography = context.typography;
-    return DigestLoader<ReviewView>(
-      title: l10n.digestReviewTitle,
-      subtitle: (review) => review.rangeLabel,
-      reloadKey: from,
-      load: () async {
-        final result = await getIt<DigestRepository>().review(from: from);
-        result.fold((_) {}, (it) => shown = it);
-        return result;
-      },
-      trailing: <Widget>[
-        KansoIconButton(
-          icon: KansoIcons.chevronLeft,
-          semanticLabel: l10n.digestReviewPrevious,
-          onPressed: () => unawaited(step(-1)),
-        ),
-        KansoIconButton(
-          icon: KansoIcons.chevronRight,
-          semanticLabel: l10n.digestReviewNext,
-          onPressed: (shown?.isThisWeek ?? true)
-              ? null
-              : () => unawaited(step(1)),
-        ),
-      ],
-      builder: (context, review, reload) {
-        final empty =
-            review.written.isEmpty &&
-            review.finished.isEmpty &&
-            review.stillOpen.isEmpty &&
-            review.overdue.isEmpty &&
-            review.next.isEmpty;
-        Widget meta(String text) => Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KansoSpacing.md,
-            vertical: KansoSpacing.xxs,
+    // A new week starts with no summary: the scope is made again for it.
+    return DigestAiScope(
+      key: ValueKey<String?>(from),
+      child: DigestLoader<ReviewView>(
+        title: l10n.digestReviewTitle,
+        subtitle: (review) => review.rangeLabel,
+        reloadKey: from,
+        load: () async {
+          final result = await getIt<DigestRepository>().review(from: from);
+          result.fold((_) {}, (it) => shown = it);
+          return result;
+        },
+        trailing: <Widget>[
+          KansoIconButton(
+            icon: KansoIcons.chevronLeft,
+            semanticLabel: l10n.digestReviewPrevious,
+            onPressed: () => unawaited(step(-1)),
           ),
-          child: Text(
-            text,
-            style: typography.body.copyWith(color: colors.text),
+          KansoIconButton(
+            icon: KansoIcons.chevronRight,
+            semanticLabel: l10n.digestReviewNext,
+            onPressed: (shown?.isThisWeek ?? true)
+                ? null
+                : () => unawaited(step(1)),
           ),
-        );
-        return KansoSwipeHost(
-          child: ListView(
-            padding: digestListPadding,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  KansoSpacing.md,
-                  KansoSpacing.sm,
-                  KansoSpacing.md,
-                  0,
-                ),
-                child: Text(
-                  '${l10n.digestReviewWeek(review.weekLabel)} · '
-                  '${review.countsText}',
-                  style: typography.meta.copyWith(color: colors.textMuted),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(KansoSpacing.md),
-                child: KansoButton(
-                  label: l10n.digestReviewSave,
-                  variant: KansoButtonVariant.secondary,
-                  icon: KansoIcons.fileText,
-                  onPressed: () => unawaited(save(review)),
-                ),
-              ),
-              if (review.savedNoteId case final saved?)
+        ],
+        builder: (context, review, reload) {
+          final empty =
+              review.written.isEmpty &&
+              review.finished.isEmpty &&
+              review.stillOpen.isEmpty &&
+              review.overdue.isEmpty &&
+              review.next.isEmpty;
+          Widget meta(String text) => Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: KansoSpacing.md,
+              vertical: KansoSpacing.xxs,
+            ),
+            child: Text(
+              text,
+              style: typography.body.copyWith(color: colors.text),
+            ),
+          );
+          return KansoSwipeHost(
+            child: ListView(
+              padding: digestListPadding,
+              children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     KansoSpacing.md,
-                    0,
-                    KansoSpacing.md,
                     KansoSpacing.sm,
+                    KansoSpacing.md,
+                    0,
                   ),
-                  child: KansoPressable(
-                    onTap: () => openDigestNote(context, saved),
-                    child: Text(
-                      l10n.digestReviewOpenSaved,
-                      style: typography.body.copyWith(color: colors.accent),
-                    ),
+                  child: Text(
+                    '${l10n.digestReviewWeek(review.weekLabel)} · '
+                    '${review.countsText}',
+                    style: typography.meta.copyWith(color: colors.textMuted),
                   ),
                 ),
-              if (empty) meta(l10n.digestReviewNothing),
-              if (review.written.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestReviewWritten),
-                for (final note in review.written)
-                  KansoPressable(
-                    onTap: () => openDigestNote(context, note.noteId),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KansoSpacing.md,
-                        vertical: KansoSpacing.xs,
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(
-                              note.title.trim().isEmpty
-                                  ? l10n.noteUntitled
-                                  : note.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: typography.body.copyWith(
-                                color: colors.text,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            note.notebookName,
-                            style: typography.meta.copyWith(
-                              color: colors.textMuted,
-                            ),
-                          ),
-                        ],
+                Padding(
+                  padding: const EdgeInsets.all(KansoSpacing.md),
+                  child: KansoButton(
+                    label: l10n.digestReviewSave,
+                    variant: KansoButtonVariant.secondary,
+                    icon: KansoIcons.fileText,
+                    onPressed: () => unawaited(save(review)),
+                  ),
+                ),
+                DigestAiPanel(summarise: true, review: true, from: review.from),
+                if (review.savedNoteId case final saved?)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      KansoSpacing.md,
+                      0,
+                      KansoSpacing.md,
+                      KansoSpacing.sm,
+                    ),
+                    child: KansoPressable(
+                      onTap: () => openDigestNote(context, saved),
+                      child: Text(
+                        l10n.digestReviewOpenSaved,
+                        style: typography.body.copyWith(color: colors.accent),
                       ),
                     ),
                   ),
-              ],
-              if (review.finished.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestReviewFinished),
-                for (final done in review.finished)
-                  KansoPressable(
-                    onTap: () => openDigestNote(context, done.noteId),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KansoSpacing.md,
-                        vertical: KansoSpacing.xs,
-                      ),
-                      child: Text(
-                        done.text,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: typography.body.copyWith(
-                          color: colors.textMuted,
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: colors.textMuted,
+                if (empty) meta(l10n.digestReviewNothing),
+                if (review.written.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestReviewWritten),
+                  for (final note in review.written)
+                    KansoPressable(
+                      onTap: () => openDigestNote(context, note.noteId),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: KansoSpacing.md,
+                          vertical: KansoSpacing.xs,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                note.title.trim().isEmpty
+                                    ? l10n.noteUntitled
+                                    : note.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: typography.body.copyWith(
+                                  color: colors.text,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              note.notebookName,
+                              style: typography.meta.copyWith(
+                                color: colors.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-              ],
-              if (review.stillOpen.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestReviewStillOpen),
-                for (final item in review.stillOpen)
-                  LoopRow(
-                    key: ValueKey<String>('${item.noteId}/${item.key}'),
-                    item: item,
-                    onAction: (action) => closeLoop(context, item, action),
-                    onOpen: () =>
-                        openDigestNote(context, item.noteId, line: item.line),
-                  ),
-              ],
-              if (review.overdue.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestReviewOverdue),
-                for (final task in review.overdue) _task(context, task),
-              ],
-              if (review.themes.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestReviewThemes),
-                for (final theme in review.themes)
-                  meta(
-                    l10n.digestReviewThemeNotes(
-                      theme.isTag ? '#${theme.term}' : theme.term,
-                      theme.notes,
+                ],
+                if (review.finished.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestReviewFinished),
+                  for (final done in review.finished)
+                    KansoPressable(
+                      onTap: () => openDigestNote(context, done.noteId),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: KansoSpacing.md,
+                          vertical: KansoSpacing.xs,
+                        ),
+                        child: Text(
+                          done.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: typography.body.copyWith(
+                            color: colors.textMuted,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: colors.textMuted,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                ],
+                if (review.stillOpen.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestReviewStillOpen),
+                  for (final item in review.stillOpen)
+                    LoopRow(
+                      key: ValueKey<String>('${item.noteId}/${item.key}'),
+                      item: item,
+                      onAction: (action) => closeLoop(context, item, action),
+                      onOpen: () =>
+                          openDigestNote(context, item.noteId, line: item.line),
+                    ),
+                ],
+                if (review.overdue.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestReviewOverdue),
+                  for (final task in review.overdue) _task(context, task),
+                ],
+                if (review.themes.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestReviewThemes),
+                  for (final theme in review.themes)
+                    meta(
+                      l10n.digestReviewThemeNotes(
+                        theme.isTag ? '#${theme.term}' : theme.term,
+                        theme.notes,
+                      ),
+                    ),
+                ],
+                if (review.next.isNotEmpty) ...<Widget>[
+                  KansoSectionHeader(label: l10n.digestReviewNextWeek),
+                  for (final task in review.next) _task(context, task),
+                ],
               ],
-              if (review.next.isNotEmpty) ...<Widget>[
-                KansoSectionHeader(label: l10n.digestReviewNextWeek),
-                for (final task in review.next) _task(context, task),
-              ],
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 

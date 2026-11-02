@@ -42,4 +42,21 @@ abstract interface class DigestRepository {
   Future<Either<ApplicationError, List<PlannedNotice>>> plan({
     required bool canNotify,
   });
+
+  /// Reads the recent notes with the model for open loops the rules missed.
+  /// Slow (a network request): it runs off the UI isolate, and
+  /// [stopAi] stops it. Nothing is saved until [keepLoops].
+  Future<Either<ApplicationError, LoopScan>> findLoops();
+
+  /// Keeps the proposals the person chose; how many were added.
+  Future<Either<ApplicationError, int>> keepLoops(List<LoopProposal> picks);
+
+  /// A short paragraph over today's brief.
+  Future<Either<ApplicationError, AiSummary>> summariseBrief();
+
+  /// A short paragraph over the week from [from], or this week.
+  Future<Either<ApplicationError, AiSummary>> summariseReview({String? from});
+
+  /// Stops the AI request in flight, if any.
+  void stopAi();
 }

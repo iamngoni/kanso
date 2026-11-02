@@ -190,3 +190,33 @@ pub struct PlannedNotice {
     pub hour: u32,
     pub minute: u32,
 }
+
+/// A loop the model proposed that checked out against its note: shown in
+/// the review sheet, kept only if the person ticks it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LoopProposal {
+    pub note_id: String,
+    pub note_title: String,
+    /// The line (0-based) the sentence is on now.
+    pub line: u32,
+    pub text: String,
+    pub kind: OpenLoopKind,
+}
+
+/// What "Find more open loops" found. Nothing in it is saved.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LoopScan {
+    pub proposals: Vec<LoopProposal>,
+    /// "Read 37 of 120 notes" when the run stopped early.
+    pub coverage: Option<String>,
+    /// "2 suggestions no longer match their notes".
+    pub dropped_text: Option<String>,
+}
+
+/// A paragraph the model wrote over the brief or the review.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AiSummary {
+    pub text: String,
+    /// Set when it names a note that wasn't in what it was given.
+    pub warning: Option<String>,
+}

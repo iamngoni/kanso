@@ -422,14 +422,20 @@ pub fn loop_items(body: &str) -> Vec<LoopItem> {
         let parts = sentences(prose);
         for (n, (_, sentence)) in parts.iter().copied().enumerate() {
             // "Call Bob. ✓": the mark is a sentence of its own.
-            if parts.get(n + 1).is_some_and(|(_, next)| next.trim() == DONE_MARK.trim()) {
+            if parts
+                .get(n + 1)
+                .is_some_and(|(_, next)| next.trim() == DONE_MARK.trim())
+            {
                 continue;
             }
             let Some((kind, begin, len)) = classify(sentence, prose.len()) else {
                 continue;
             };
             let text = clip(sentence[begin..].trim()).trim_end_matches(['*', '_']);
-            if text.trim_end_matches(['.', '!', ',', ';']).ends_with('\u{2713}') {
+            if text
+                .trim_end_matches(['.', '!', ',', ';'])
+                .ends_with('\u{2713}')
+            {
                 continue;
             }
             let mut end = len.min(text.len());

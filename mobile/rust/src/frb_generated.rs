@@ -56,7 +56,11 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
+<<<<<<< HEAD
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -476304358;
+=======
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1153029896;
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
 
 // Section: executor
 
@@ -2037,6 +2041,67 @@ fn wire__crate__api__ai__KansoAi_conversation_impl(
         },
     )
 }
+fn wire__crate__api__ai__KansoAi_find_open_loops_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoAi_find_open_loops",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAi>,
+            >>::sse_decode(&mut deserializer);
+            let api_run = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let mut api_run_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_run, 1, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let api_run_guard = api_run_guard.unwrap();
+                    let output_ok = crate::api::ai::KansoAi::find_open_loops(
+                        &*api_that_guard,
+                        &*api_run_guard,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__ai__KansoAi_new_run_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -2377,6 +2442,130 @@ fn wire__crate__api__ai__KansoAi_settings_impl(
                     }
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok = crate::api::ai::KansoAi::settings(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__ai__KansoAi_summarise_brief_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoAi_summarise_brief",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAi>,
+            >>::sse_decode(&mut deserializer);
+            let api_run = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let mut api_run_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_run, 1, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let api_run_guard = api_run_guard.unwrap();
+                    let output_ok = crate::api::ai::KansoAi::summarise_brief(
+                        &*api_that_guard,
+                        &*api_run_guard,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__ai__KansoAi_summarise_review_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoAi_summarise_review",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAi>,
+            >>::sse_decode(&mut deserializer);
+            let api_from = <Option<String>>::sse_decode(&mut deserializer);
+            let api_run = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAiRun>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let mut api_run_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_run, 1, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            1 => api_run_guard = Some(api_run.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let api_run_guard = api_run_guard.unwrap();
+                    let output_ok = crate::api::ai::KansoAi::summarise_review(
+                        &*api_that_guard,
+                        api_from,
+                        &*api_run_guard,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -5696,6 +5885,59 @@ fn wire__crate__api__library__KansoLibrary_approvals_impl(
                 ))?;
                 std::result::Result::Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__library__KansoLibrary_approve_ai_loops_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_approve_ai_loops",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_picks = <Vec<crate::api::types::LoopProposal>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::library::KansoLibrary::approve_ai_loops(
+                        &*api_that_guard,
+                        api_picks,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -17578,6 +17820,11 @@ const _: fn() = || {
             let _: crate::api::types::BindingQuestion = field0;
         }
     }
+    {
+        let AiSummary = None::<crate::api::types::AiSummary>.unwrap();
+        let _: String = AiSummary.text;
+        let _: Option<String> = AiSummary.warning;
+    }
     match None::<crate::api::types::ApprovalPhase>.unwrap() {
         crate::api::types::ApprovalPhase::Requesting => {}
         crate::api::types::ApprovalPhase::Waiting => {}
@@ -18288,6 +18535,20 @@ const _: fn() = || {
         let _: bool = LockedInfo.approval_pending;
     }
     {
+        let LoopProposal = None::<crate::api::types::LoopProposal>.unwrap();
+        let _: String = LoopProposal.note_id;
+        let _: String = LoopProposal.note_title;
+        let _: u32 = LoopProposal.line;
+        let _: String = LoopProposal.text;
+        let _: crate::api::types::OpenLoopKind = LoopProposal.kind;
+    }
+    {
+        let LoopScan = None::<crate::api::types::LoopScan>.unwrap();
+        let _: Vec<crate::api::types::LoopProposal> = LoopScan.proposals;
+        let _: Option<String> = LoopScan.coverage;
+        let _: Option<String> = LoopScan.dropped_text;
+    }
+    {
         let MadeNote = None::<crate::api::types::MadeNote>.unwrap();
         let _: String = MadeNote.id;
         let _: Option<u32> = MadeNote.cursor16;
@@ -18853,6 +19114,7 @@ const _: fn() = || {
         let _: String = ReminderNote.title;
         let _: String = ReminderNote.body;
         let _: crate::api::types::LocalTime = ReminderNote.fire_at;
+        let _: bool = ReminderNote.actions;
     }
     {
         let ReminderPlan = None::<crate::api::types::ReminderPlan>.unwrap();
@@ -20053,6 +20315,18 @@ impl SseDecode for crate::api::ai::AiSettingsView {
             has_key: var_hasKey,
             host: var_host,
             is_remote: var_isRemote,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::AiSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_warning = <Option<String>>::sse_decode(deserializer);
+        return crate::api::types::AiSummary {
+            text: var_text,
+            warning: var_warning,
         };
     }
 }
@@ -22169,6 +22443,18 @@ impl SseDecode for Vec<crate::api::types::LiveRun> {
     }
 }
 
+impl SseDecode for Vec<crate::api::types::LoopProposal> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::LoopProposal>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::types::MemberRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -23348,6 +23634,54 @@ impl SseDecode for crate::api::types::LockedInfo {
     }
 }
 
+<<<<<<< HEAD
+=======
+impl SseDecode for crate::api::types::LoopAction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::types::LoopAction::Done,
+            1 => crate::api::types::LoopAction::NotALoop,
+            2 => crate::api::types::LoopAction::MakeTask,
+            _ => unreachable!("Invalid variant for LoopAction: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::LoopProposal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_noteId = <String>::sse_decode(deserializer);
+        let mut var_noteTitle = <String>::sse_decode(deserializer);
+        let mut var_line = <u32>::sse_decode(deserializer);
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_kind = <crate::api::types::OpenLoopKind>::sse_decode(deserializer);
+        return crate::api::types::LoopProposal {
+            note_id: var_noteId,
+            note_title: var_noteTitle,
+            line: var_line,
+            text: var_text,
+            kind: var_kind,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::LoopScan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_proposals = <Vec<crate::api::types::LoopProposal>>::sse_decode(deserializer);
+        let mut var_coverage = <Option<String>>::sse_decode(deserializer);
+        let mut var_droppedText = <Option<String>>::sse_decode(deserializer);
+        return crate::api::types::LoopScan {
+            proposals: var_proposals,
+            coverage: var_coverage,
+            dropped_text: var_droppedText,
+        };
+    }
+}
+
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
 impl SseDecode for crate::api::types::MadeNote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -25248,6 +25582,7 @@ impl SseDecode for crate::api::types::ReminderNote {
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_body = <String>::sse_decode(deserializer);
         let mut var_fireAt = <crate::api::types::LocalTime>::sse_decode(deserializer);
+        let mut var_actions = <bool>::sse_decode(deserializer);
         return crate::api::types::ReminderNote {
             key: var_key,
             note_id: var_noteId,
@@ -25255,6 +25590,7 @@ impl SseDecode for crate::api::types::ReminderNote {
             title: var_title,
             body: var_body,
             fire_at: var_fireAt,
+            actions: var_actions,
         };
     }
 }
@@ -26772,136 +27108,208 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         35 => wire__crate__api__ai__KansoAi_assist_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__ai__KansoAi_note_allowed_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__ai__KansoAi_privacy_line_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__ai__KansoAi_set_key_impl(port, ptr, rust_vec_len, data_len),
-        42 => wire__crate__api__ai__KansoAi_set_settings_impl(port, ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__ai__KansoAi_settings_impl(port, ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__ai__KansoAi_summarize_impl(port, ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__ai__KansoAi_test_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__approvals__KansoApprovals_approve_impl(
+        37 => wire__crate__api__ai__KansoAi_find_open_loops_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__ai__KansoAi_note_allowed_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__ai__KansoAi_privacy_line_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__ai__KansoAi_set_key_impl(port, ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__ai__KansoAi_set_settings_impl(port, ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__ai__KansoAi_settings_impl(port, ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__ai__KansoAi_summarise_brief_impl(port, ptr, rust_vec_len, data_len),
+        46 => {
+            wire__crate__api__ai__KansoAi_summarise_review_impl(port, ptr, rust_vec_len, data_len)
+        }
+        47 => wire__crate__api__ai__KansoAi_summarize_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__ai__KansoAi_test_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__approvals__KansoApprovals_approve_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        47 => wire__crate__api__approvals__KansoApprovals_decline_impl(
+        50 => wire__crate__api__approvals__KansoApprovals_decline_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => wire__crate__api__approvals__KansoApprovals_refresh_impl(
+        51 => wire__crate__api__approvals__KansoApprovals_refresh_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        49 => wire__crate__api__approvals__KansoApprovals_watch_impl(
+        52 => wire__crate__api__approvals__KansoApprovals_watch_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => {
+        53 => {
             wire__crate__api__ai__KansoAskConversation_ask_impl(port, ptr, rust_vec_len, data_len)
         }
+<<<<<<< HEAD
         54 => wire__crate__api__discovery__KansoDiscovery_dismiss_related_impl(
+=======
+        57 => wire__crate__api__discovery__KansoDiscovery_dismiss_twin_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         55 => wire__crate__api__discovery__KansoDiscovery_dismiss_twin_impl(
+=======
+        58 => wire__crate__api__discovery__KansoDiscovery_graph_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         56 => wire__crate__api__discovery__KansoDiscovery_graph_impl(
+=======
+        59 => wire__crate__api__discovery__KansoDiscovery_measure_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         57 => wire__crate__api__discovery__KansoDiscovery_measure_impl(
+=======
+        60 => wire__crate__api__discovery__KansoDiscovery_merge_notes_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         58 => wire__crate__api__discovery__KansoDiscovery_merge_notes_impl(
+=======
+        62 => wire__crate__api__discovery__KansoDiscovery_note_meaning_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         60 => wire__crate__api__discovery__KansoDiscovery_note_meaning_impl(
+=======
+        63 => wire__crate__api__discovery__KansoDiscovery_ocr_keep_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         61 => wire__crate__api__discovery__KansoDiscovery_ocr_keep_impl(
+=======
+        64 => wire__crate__api__discovery__KansoDiscovery_ocr_next_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         62 => wire__crate__api__discovery__KansoDiscovery_ocr_next_impl(
+=======
+        65 => wire__crate__api__discovery__KansoDiscovery_ocr_waiting_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         63 => wire__crate__api__discovery__KansoDiscovery_ocr_waiting_impl(
+=======
+        66 => wire__crate__api__discovery__KansoDiscovery_related_enabled_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         64 => wire__crate__api__discovery__KansoDiscovery_on_this_day_impl(
+=======
+        67 => wire__crate__api__discovery__KansoDiscovery_related_notes_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         65 => wire__crate__api__discovery__KansoDiscovery_related_enabled_impl(
+=======
+        68 => wire__crate__api__discovery__KansoDiscovery_related_state_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         66 => wire__crate__api__discovery__KansoDiscovery_related_notes_impl(
+=======
+        69 => wire__crate__api__discovery__KansoDiscovery_related_stream_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         67 => wire__crate__api__discovery__KansoDiscovery_related_state_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        68 => wire__crate__api__discovery__KansoDiscovery_related_stream_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        69 => wire__crate__api__discovery__KansoDiscovery_resurface_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
+=======
         70 => wire__crate__api__discovery__KansoDiscovery_search_by_meaning_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
+        68 => wire__crate__api__discovery__KansoDiscovery_related_stream_impl(
+=======
+        71 => wire__crate__api__discovery__KansoDiscovery_set_related_notes_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+<<<<<<< HEAD
+        69 => wire__crate__api__discovery__KansoDiscovery_resurface_impl(
+=======
+        73 => wire__crate__api__editor__KansoEditor_attach_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__editor__KansoEditor_close_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__editor__KansoEditor_comment_marks_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+<<<<<<< HEAD
+        70 => wire__crate__api__discovery__KansoDiscovery_search_by_meaning_impl(
+=======
+        77 => wire__crate__api__editor__KansoEditor_comment_on_selection_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+<<<<<<< HEAD
         71 => wire__crate__api__discovery__KansoDiscovery_set_related_notes_impl(
             port,
             ptr,
@@ -26922,6 +27330,8 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
+=======
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
         78 => {
             wire__crate__api__editor__KansoEditor_completion_impl(port, ptr, rust_vec_len, data_len)
         }
@@ -27019,24 +27429,37 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         108 => wire__crate__api__library__KansoLibrary_attachment_impl(
+=======
+        108 => wire__crate__api__library__KansoLibrary_approve_ai_loops_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         109 => wire__crate__api__library__KansoLibrary_back_up_now_impl(
+=======
+        109 => wire__crate__api__library__KansoLibrary_attachment_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         110 => wire__crate__api__library__KansoLibrary_backup_if_due_impl(
+=======
+        110 => wire__crate__api__library__KansoLibrary_back_up_now_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         111 => {
             wire__crate__api__library__KansoLibrary_backups_impl(port, ptr, rust_vec_len, data_len)
         }
@@ -27056,408 +27479,753 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__library__KansoLibrary_create_impl(port, ptr, rust_vec_len, data_len)
         }
         117 => wire__crate__api__library__KansoLibrary_create_linked_note_impl(
+=======
+        111 => wire__crate__api__library__KansoLibrary_backup_if_due_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+        112 => {
+            wire__crate__api__library__KansoLibrary_backups_impl(port, ptr, rust_vec_len, data_len)
+        }
+        113 => {
+            wire__crate__api__library__KansoLibrary_board_impl(port, ptr, rust_vec_len, data_len)
+        }
+        114 => {
+            wire__crate__api__library__KansoLibrary_brief_impl(port, ptr, rust_vec_len, data_len)
+        }
+        115 => wire__crate__api__library__KansoLibrary_brief_plan_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        116 => wire__crate__api__library__KansoLibrary_brief_prefs_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        117 => {
+            wire__crate__api__library__KansoLibrary_capture_impl(port, ptr, rust_vec_len, data_len)
+        }
+        118 => {
+            wire__crate__api__library__KansoLibrary_change_impl(port, ptr, rust_vec_len, data_len)
+        }
+        119 => {
+            wire__crate__api__library__KansoLibrary_changes_impl(port, ptr, rust_vec_len, data_len)
+        }
+        120 => wire__crate__api__library__KansoLibrary_close_loop_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        121 => {
+            wire__crate__api__library__KansoLibrary_create_impl(port, ptr, rust_vec_len, data_len)
+        }
+        122 => wire__crate__api__library__KansoLibrary_create_linked_note_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+<<<<<<< HEAD
         118 => wire__crate__api__library__KansoLibrary_create_notebook_impl(
+=======
+        123 => wire__crate__api__library__KansoLibrary_create_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         119 => wire__crate__api__library__KansoLibrary_create_tag_impl(
+=======
+        124 => wire__crate__api__library__KansoLibrary_create_tag_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         121 => wire__crate__api__library__KansoLibrary_daily_template_impl(
+=======
+        126 => wire__crate__api__library__KansoLibrary_daily_template_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         122 => wire__crate__api__library__KansoLibrary_default_word_goal_impl(
+=======
+        127 => wire__crate__api__library__KansoLibrary_default_word_goal_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         123 => wire__crate__api__library__KansoLibrary_delete_backup_impl(
+=======
+        128 => wire__crate__api__library__KansoLibrary_delete_backup_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         124 => wire__crate__api__library__KansoLibrary_delete_notebook_impl(
+=======
+        129 => wire__crate__api__library__KansoLibrary_delete_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         125 => wire__crate__api__library__KansoLibrary_delete_tag_impl(
+=======
+        130 => wire__crate__api__library__KansoLibrary_delete_tag_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         128 => wire__crate__api__library__KansoLibrary_duplicate_impl(
+=======
+        133 => wire__crate__api__library__KansoLibrary_duplicate_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         129 => wire__crate__api__library__KansoLibrary_edit_impl(port, ptr, rust_vec_len, data_len),
         130 => wire__crate__api__library__KansoLibrary_empty_trash_impl(
+=======
+        134 => wire__crate__api__library__KansoLibrary_edit_impl(port, ptr, rust_vec_len, data_len),
+        135 => wire__crate__api__library__KansoLibrary_empty_trash_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         132 => {
             wire__crate__api__library__KansoLibrary_history_impl(port, ptr, rust_vec_len, data_len)
         }
         133 => wire__crate__api__library__KansoLibrary_history_diff_impl(
+=======
+        137 => {
+            wire__crate__api__library__KansoLibrary_history_impl(port, ptr, rust_vec_len, data_len)
+        }
+        138 => wire__crate__api__library__KansoLibrary_history_diff_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         134 => {
             wire__crate__api__library__KansoLibrary_import_impl(port, ptr, rust_vec_len, data_len)
         }
         135 => wire__crate__api__library__KansoLibrary_import_plan_impl(
+=======
+        139 => {
+            wire__crate__api__library__KansoLibrary_import_impl(port, ptr, rust_vec_len, data_len)
+        }
+        140 => wire__crate__api__library__KansoLibrary_import_plan_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         136 => wire__crate__api__library__KansoLibrary_journal_month_impl(
+=======
+        141 => wire__crate__api__library__KansoLibrary_journal_month_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         137 => wire__crate__api__library__KansoLibrary_journal_open_day_impl(
+=======
+        142 => wire__crate__api__library__KansoLibrary_journal_open_day_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         138 => wire__crate__api__library__KansoLibrary_journal_step_impl(
+=======
+        143 => wire__crate__api__library__KansoLibrary_journal_step_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         139 => wire__crate__api__library__KansoLibrary_journal_today_impl(
+=======
+        144 => wire__crate__api__library__KansoLibrary_journal_today_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         142 => wire__crate__api__library__KansoLibrary_list_impl(port, ptr, rust_vec_len, data_len),
         145 => wire__crate__api__library__KansoLibrary_move_card_impl(
+=======
+        147 => wire__crate__api__library__KansoLibrary_list_impl(port, ptr, rust_vec_len, data_len),
+        150 => wire__crate__api__library__KansoLibrary_move_card_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         146 => wire__crate__api__library__KansoLibrary_new_from_template_impl(
+=======
+        151 => wire__crate__api__library__KansoLibrary_new_from_template_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         147 => wire__crate__api__library__KansoLibrary_new_template_impl(
+=======
+        152 => wire__crate__api__library__KansoLibrary_new_template_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         148 => wire__crate__api__library__KansoLibrary_note_impl(port, ptr, rust_vec_len, data_len),
         149 => wire__crate__api__library__KansoLibrary_note_link_impl(
+=======
+        153 => wire__crate__api__library__KansoLibrary_note_impl(port, ptr, rust_vec_len, data_len),
+        154 => wire__crate__api__library__KansoLibrary_note_link_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         150 => wire__crate__api__library__KansoLibrary_note_word_goal_impl(
+=======
+        155 => wire__crate__api__library__KansoLibrary_note_word_goal_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         153 => wire__crate__api__library__KansoLibrary_notebooks_impl(
+=======
+        158 => wire__crate__api__library__KansoLibrary_notebooks_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         154 => wire__crate__api__library__KansoLibrary_open_impl(port, ptr, rust_vec_len, data_len),
         155 => wire__crate__api__library__KansoLibrary_open_documents_impl(
+=======
+        159 => wire__crate__api__library__KansoLibrary_open_impl(port, ptr, rust_vec_len, data_len),
+        160 => wire__crate__api__library__KansoLibrary_open_documents_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         156 => wire__crate__api__library__KansoLibrary_overdue_tasks_impl(
+=======
+        161 => wire__crate__api__library__KansoLibrary_open_loops_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         157 => {
             wire__crate__api__library__KansoLibrary_overview_impl(port, ptr, rust_vec_len, data_len)
         }
         159 => wire__crate__api__library__KansoLibrary_properties_impl(
+=======
+        162 => wire__crate__api__library__KansoLibrary_overdue_tasks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+        163 => {
+            wire__crate__api__library__KansoLibrary_overview_impl(port, ptr, rust_vec_len, data_len)
+        }
+        165 => wire__crate__api__library__KansoLibrary_properties_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+<<<<<<< HEAD
         160 => wire__crate__api__library__KansoLibrary_publisher_impl(
+=======
+        166 => wire__crate__api__library__KansoLibrary_publisher_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         161 => wire__crate__api__library__KansoLibrary_query_view_impl(
+=======
+        167 => wire__crate__api__library__KansoLibrary_query_view_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         162 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
+=======
+        168 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         163 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
+=======
+        169 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         164 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
+=======
+        170 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         165 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
+=======
+        171 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         166 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
+=======
+        172 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         167 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
+=======
+        173 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         169 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
+=======
+        175 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         170 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
+=======
+        176 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         171 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
+=======
+        177 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         172 => wire__crate__api__library__KansoLibrary_restore_version_impl(
+=======
+        178 => wire__crate__api__library__KansoLibrary_restore_version_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         173 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
         174 => wire__crate__api__library__KansoLibrary_save_drops_impl(
+=======
+        179 => {
+            wire__crate__api__library__KansoLibrary_review_impl(port, ptr, rust_vec_len, data_len)
+        }
+        180 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
+        181 => wire__crate__api__library__KansoLibrary_save_drops_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         175 => {
             wire__crate__api__library__KansoLibrary_search_impl(port, ptr, rust_vec_len, data_len)
         }
         176 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
+=======
+        182 => wire__crate__api__library__KansoLibrary_save_review_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+        183 => {
+            wire__crate__api__library__KansoLibrary_search_impl(port, ptr, rust_vec_len, data_len)
+        }
+        184 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+<<<<<<< HEAD
         177 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
+=======
+        185 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         178 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
+=======
+        186 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         179 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
+=======
+        187 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         180 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
+=======
+        188 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         181 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
+=======
+        189 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         182 => {
             wire__crate__api__library__KansoLibrary_set_task_impl(port, ptr, rust_vec_len, data_len)
         }
         183 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
+=======
+        190 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+        191 => {
+            wire__crate__api__library__KansoLibrary_set_task_impl(port, ptr, rust_vec_len, data_len)
+        }
+        192 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+<<<<<<< HEAD
         188 => wire__crate__api__library__KansoLibrary_tag_places_impl(
+=======
+        197 => wire__crate__api__library__KansoLibrary_tag_places_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         189 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
         190 => {
             wire__crate__api__library__KansoLibrary_tasks_impl(port, ptr, rust_vec_len, data_len)
         }
         191 => wire__crate__api__library__KansoLibrary_templates_impl(
+=======
+        198 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
+        199 => {
+            wire__crate__api__library__KansoLibrary_tasks_impl(port, ptr, rust_vec_len, data_len)
+        }
+        200 => wire__crate__api__library__KansoLibrary_templates_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         193 => wire__crate__api__library__KansoLibrary_today_note_impl(
+=======
+        202 => wire__crate__api__library__KansoLibrary_today_note_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         194 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
+=======
+        203 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         195 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
+=======
+        204 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         196 => {
             wire__crate__api__library__KansoLibrary_trash_impl(port, ptr, rust_vec_len, data_len)
         }
         198 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
         199 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
+=======
+        205 => {
+            wire__crate__api__library__KansoLibrary_trash_impl(port, ptr, rust_vec_len, data_len)
+        }
+        206 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
+        207 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         200 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
+=======
+        208 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         201 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
+=======
+        209 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         202 => wire__crate__api__linking__KansoLinking_backlinks_impl(
+=======
+        210 => wire__crate__api__linking__KansoLinking_backlinks_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         204 => wire__crate__api__linking__KansoLinking_link_mention_impl(
+=======
+        212 => wire__crate__api__linking__KansoLinking_link_mention_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         206 => {
             wire__crate__api__linking__KansoLinking_palette_impl(port, ptr, rust_vec_len, data_len)
         }
         207 => wire__crate__api__linking__KansoLinking_quick_open_impl(
+=======
+        214 => {
+            wire__crate__api__linking__KansoLinking_palette_impl(port, ptr, rust_vec_len, data_len)
+        }
+        215 => wire__crate__api__linking__KansoLinking_quick_open_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         208 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
+=======
+        216 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         209 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
+=======
+        217 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         210 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
+=======
+        218 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         211 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
+=======
+        219 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         212 => wire__crate__api__locks__KansoLocks_change_password_impl(
+=======
+        220 => wire__crate__api__locks__KansoLocks_change_password_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         213 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
+=======
+        221 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         214 => {
             wire__crate__api__locks__KansoLocks_is_unlocked_impl(port, ptr, rust_vec_len, data_len)
         }
@@ -27469,84 +28237,151 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__locks__KansoLocks_lock_events_impl(port, ptr, rust_vec_len, data_len)
         }
         218 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
+=======
+        222 => {
+            wire__crate__api__locks__KansoLocks_is_unlocked_impl(port, ptr, rust_vec_len, data_len)
+        }
+        223 => {
+            wire__crate__api__locks__KansoLocks_library_id_impl(port, ptr, rust_vec_len, data_len)
+        }
+        224 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
+        225 => {
+            wire__crate__api__locks__KansoLocks_lock_events_impl(port, ptr, rust_vec_len, data_len)
+        }
+        226 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         219 => {
             wire__crate__api__locks__KansoLocks_lock_note_impl(port, ptr, rust_vec_len, data_len)
         }
         220 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
+=======
+        227 => {
+            wire__crate__api__locks__KansoLocks_lock_note_impl(port, ptr, rust_vec_len, data_len)
+        }
+        228 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         221 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
+=======
+        229 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         222 => {
             wire__crate__api__locks__KansoLocks_lock_status_impl(port, ptr, rust_vec_len, data_len)
         }
         223 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
+=======
+        230 => {
+            wire__crate__api__locks__KansoLocks_lock_status_impl(port, ptr, rust_vec_len, data_len)
+        }
+        231 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         224 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
+=======
+        232 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         225 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
+=======
+        233 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         226 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
+=======
+        234 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         227 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
         228 => {
             wire__crate__api__locks__KansoLocks_unlock_note_impl(port, ptr, rust_vec_len, data_len)
         }
         229 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
+=======
+        235 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
+        236 => {
+            wire__crate__api__locks__KansoLocks_unlock_note_impl(port, ptr, rust_vec_len, data_len)
+        }
+        237 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         230 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
+=======
+        238 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         231 => {
             wire__crate__api__metrics__KansoMetrics_launched_impl(port, ptr, rust_vec_len, data_len)
         }
         232 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
+=======
+        239 => {
+            wire__crate__api__metrics__KansoMetrics_launched_impl(port, ptr, rust_vec_len, data_len)
+        }
+        240 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         233 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
+=======
+        241 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         234 => {
             wire__crate__api__metrics__KansoMetrics_record_impl(port, ptr, rust_vec_len, data_len)
         }
@@ -27554,192 +28389,325 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__metrics__KansoMetrics_send_due_impl(port, ptr, rust_vec_len, data_len)
         }
         236 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
+=======
+        242 => {
+            wire__crate__api__metrics__KansoMetrics_record_impl(port, ptr, rust_vec_len, data_len)
+        }
+        243 => {
+            wire__crate__api__metrics__KansoMetrics_send_due_impl(port, ptr, rust_vec_len, data_len)
+        }
+        244 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         237 => {
             wire__crate__api__publish__KansoPublisher_note_impl(port, ptr, rust_vec_len, data_len)
         }
         238 => wire__crate__api__publish__KansoPublisher_notebook_impl(
+=======
+        245 => {
+            wire__crate__api__publish__KansoPublisher_note_impl(port, ptr, rust_vec_len, data_len)
+        }
+        246 => wire__crate__api__publish__KansoPublisher_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         239 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
+=======
+        247 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         240 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
+=======
+        248 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         241 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
+=======
+        249 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         242 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
+=======
+        250 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         243 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
+=======
+        251 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         244 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
+=======
+        252 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         245 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
+=======
+        253 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         246 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
+=======
+        254 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         247 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
+=======
+        255 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         248 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
+=======
+        256 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         249 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
+=======
+        257 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         250 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
+=======
+        258 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         251 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
+=======
+        259 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         252 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
+=======
+        260 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         253 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
+=======
+        261 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         254 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
+=======
+        262 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         255 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
+=======
+        263 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         256 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
+=======
+        264 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         257 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
+=======
+        265 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         258 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
+=======
+        266 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         259 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
+=======
+        267 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         260 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
+=======
+        268 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         261 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
+=======
+        269 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         262 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
+=======
+        270 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         263 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
         264 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
+=======
+        271 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
+        272 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         265 => wire__crate__api__shared__KansoShared_add_comment_impl(
+=======
+        273 => wire__crate__api__shared__KansoShared_add_comment_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         266 => wire__crate__api__shared__KansoShared_approve_request_impl(
+=======
+        274 => wire__crate__api__shared__KansoShared_approve_request_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         267 => {
             wire__crate__api__shared__KansoShared_can_share_impl(port, ptr, rust_vec_len, data_len)
         }
         268 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+=======
+        275 => {
+            wire__crate__api__shared__KansoShared_can_share_impl(port, ptr, rust_vec_len, data_len)
+        }
+        276 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         269 => {
             wire__crate__api__shared__KansoShared_close_live_impl(port, ptr, rust_vec_len, data_len)
         }
@@ -27747,100 +28715,175 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__shared__KansoShared_comments_impl(port, ptr, rust_vec_len, data_len)
         }
         271 => wire__crate__api__shared__KansoShared_comments_band_impl(
+=======
+        277 => {
+            wire__crate__api__shared__KansoShared_close_live_impl(port, ptr, rust_vec_len, data_len)
+        }
+        278 => {
+            wire__crate__api__shared__KansoShared_comments_impl(port, ptr, rust_vec_len, data_len)
+        }
+        279 => wire__crate__api__shared__KansoShared_comments_band_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         272 => wire__crate__api__shared__KansoShared_create_link_impl(
+=======
+        280 => wire__crate__api__shared__KansoShared_create_link_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         273 => {
             wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
         }
         274 => wire__crate__api__shared__KansoShared_decline_request_impl(
+=======
+        281 => {
+            wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
+        }
+        282 => wire__crate__api__shared__KansoShared_decline_request_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         275 => wire__crate__api__shared__KansoShared_delete_comment_impl(
+=======
+        283 => wire__crate__api__shared__KansoShared_delete_comment_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         276 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
+=======
+        284 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         277 => wire__crate__api__shared__KansoShared_edit_comment_impl(
+=======
+        285 => wire__crate__api__shared__KansoShared_edit_comment_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         278 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
         279 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
         280 => wire__crate__api__shared__KansoShared_invitations_impl(
+=======
+        286 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
+        287 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
+        288 => wire__crate__api__shared__KansoShared_invitations_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         281 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
         282 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
         283 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
         284 => wire__crate__api__shared__KansoShared_live_status_impl(
+=======
+        289 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
+        290 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
+        291 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
+        292 => wire__crate__api__shared__KansoShared_live_status_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         285 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+=======
+        293 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         286 => wire__crate__api__shared__KansoShared_open_comments_impl(
+=======
+        294 => wire__crate__api__shared__KansoShared_open_comments_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         287 => {
             wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
         }
         288 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
         289 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+=======
+        295 => {
+            wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
+        }
+        296 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
+        297 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         290 => {
             wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
         }
         291 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
         292 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
         293 => wire__crate__api__shared__KansoShared_sync_shared_impl(
+=======
+        298 => {
+            wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
+        }
+        299 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
+        300 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
+        301 => wire__crate__api__shared__KansoShared_sync_shared_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         294 => wire__crate__api__shared__KansoShared_verify_person_impl(
+=======
+        302 => wire__crate__api__shared__KansoShared_verify_person_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         295 => {
             wire__crate__api__sync__KansoSync_check_server_impl(port, ptr, rust_vec_len, data_len)
         }
@@ -27857,11 +28900,30 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__sync__KansoSync_set_foreground_impl(port, ptr, rust_vec_len, data_len)
         }
         303 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
+=======
+        303 => {
+            wire__crate__api__sync__KansoSync_check_server_impl(port, ptr, rust_vec_len, data_len)
+        }
+        304 => {
+            wire__crate__api__sync__KansoSync_default_server_impl(port, ptr, rust_vec_len, data_len)
+        }
+        308 => {
+            wire__crate__api__sync__KansoSync_push_enabled_impl(port, ptr, rust_vec_len, data_len)
+        }
+        309 => {
+            wire__crate__api__sync__KansoSync_refresh_push_impl(port, ptr, rust_vec_len, data_len)
+        }
+        310 => {
+            wire__crate__api__sync__KansoSync_set_foreground_impl(port, ptr, rust_vec_len, data_len)
+        }
+        311 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         304 => {
             wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
         }
@@ -27870,11 +28932,22 @@ fn pde_ffi_dispatcher_primary_impl(
         }
         306 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
         307 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
+=======
+        312 => {
+            wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
+        }
+        313 => {
+            wire__crate__api__sync__KansoSync_set_settings_impl(port, ptr, rust_vec_len, data_len)
+        }
+        314 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
+        315 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         308 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
         309 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
         311 => {
@@ -27883,28 +28956,52 @@ fn pde_ffi_dispatcher_primary_impl(
         312 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
         313 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
         314 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
+=======
+        316 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
+        317 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
+        319 => {
+            wire__crate__api__sync__KansoSync_status_stream_impl(port, ptr, rust_vec_len, data_len)
+        }
+        320 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
+        321 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
+        322 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         315 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
         316 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
+=======
+        323 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
+        324 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         317 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
         318 => {
             wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
         }
         319 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
+=======
+        325 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
+        326 => {
+            wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
+        }
+        327 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         320 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
         321 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
         322 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
@@ -27934,6 +29031,15 @@ fn pde_ffi_dispatcher_primary_impl(
         340 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
         342 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
         343 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+=======
+        328 => {
+            wire__crate__api__diagnostics__backup_excluded_impl(port, ptr, rust_vec_len, data_len)
+        }
+        335 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
+        337 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
+        339 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
+        340 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
         _ => unreachable!(),
     }
 }
@@ -27949,14 +29055,18 @@ fn pde_ffi_dispatcher_sync_impl(
         33 => wire__crate__api__ai__KansoAiRun_stop_impl(ptr, rust_vec_len, data_len),
         34 => wire__crate__api__ai__KansoAi_actions_impl(ptr, rust_vec_len, data_len),
         36 => wire__crate__api__ai__KansoAi_conversation_impl(ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__ai__KansoAi_new_run_impl(ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__ai__KansoAi_providers_impl(ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__ai__KansoAskConversation_clear_impl(ptr, rust_vec_len, data_len),
-        52 => wire__crate__api__ai__KansoAskConversation_stop_impl(ptr, rust_vec_len, data_len),
-        53 => {
+        38 => wire__crate__api__ai__KansoAi_new_run_impl(ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__ai__KansoAi_providers_impl(ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__ai__KansoAskConversation_clear_impl(ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__ai__KansoAskConversation_stop_impl(ptr, rust_vec_len, data_len),
+        56 => {
             wire__crate__api__ai__KansoAskConversation_turn_count_impl(ptr, rust_vec_len, data_len)
         }
+<<<<<<< HEAD
         59 => {
+=======
+        61 => {
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             wire__crate__api__discovery__KansoDiscovery_model_dir_impl(ptr, rust_vec_len, data_len)
         }
         72 => wire__crate__api__editor__KansoEditor_apply_impl(ptr, rust_vec_len, data_len),
@@ -27973,6 +29083,7 @@ fn pde_ffi_dispatcher_sync_impl(
         ),
         106 => wire__crate__api__library__KansoLibrary_ai_impl(ptr, rust_vec_len, data_len),
         107 => wire__crate__api__library__KansoLibrary_approvals_impl(ptr, rust_vec_len, data_len),
+<<<<<<< HEAD
         120 => {
             wire__crate__api__library__KansoLibrary_daily_date_of_impl(ptr, rust_vec_len, data_len)
         }
@@ -27980,18 +29091,35 @@ fn pde_ffi_dispatcher_sync_impl(
         127 => wire__crate__api__library__KansoLibrary_due_chip_impl(ptr, rust_vec_len, data_len),
         131 => wire__crate__api__library__KansoLibrary_gallery_impl(ptr, rust_vec_len, data_len),
         140 => wire__crate__api__library__KansoLibrary_journal_week_start_impl(
+=======
+        125 => {
+            wire__crate__api__library__KansoLibrary_daily_date_of_impl(ptr, rust_vec_len, data_len)
+        }
+        131 => wire__crate__api__library__KansoLibrary_discovery_impl(ptr, rust_vec_len, data_len),
+        132 => wire__crate__api__library__KansoLibrary_due_chip_impl(ptr, rust_vec_len, data_len),
+        136 => wire__crate__api__library__KansoLibrary_gallery_impl(ptr, rust_vec_len, data_len),
+        145 => wire__crate__api__library__KansoLibrary_journal_week_start_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         141 => wire__crate__api__library__KansoLibrary_linking_impl(ptr, rust_vec_len, data_len),
         143 => wire__crate__api__library__KansoLibrary_locks_impl(ptr, rust_vec_len, data_len),
         144 => wire__crate__api__library__KansoLibrary_metrics_impl(ptr, rust_vec_len, data_len),
         151 => wire__crate__api__library__KansoLibrary_notebook_colors_impl(
+=======
+        146 => wire__crate__api__library__KansoLibrary_linking_impl(ptr, rust_vec_len, data_len),
+        148 => wire__crate__api__library__KansoLibrary_locks_impl(ptr, rust_vec_len, data_len),
+        149 => wire__crate__api__library__KansoLibrary_metrics_impl(ptr, rust_vec_len, data_len),
+        156 => wire__crate__api__library__KansoLibrary_notebook_colors_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         152 => {
             wire__crate__api__library__KansoLibrary_notebook_icons_impl(ptr, rust_vec_len, data_len)
         }
@@ -28006,10 +29134,26 @@ fn pde_ffi_dispatcher_sync_impl(
         192 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
         197 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
         203 => wire__crate__api__linking__KansoLinking_current_heading_impl(
+=======
+        157 => {
+            wire__crate__api__library__KansoLibrary_notebook_icons_impl(ptr, rust_vec_len, data_len)
+        }
+        164 => {
+            wire__crate__api__library__KansoLibrary_parse_color_impl(ptr, rust_vec_len, data_len)
+        }
+        174 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
+        193 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
+        194 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
+        195 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
+        196 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
+        201 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
+        211 => wire__crate__api__linking__KansoLinking_current_heading_impl(
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
             ptr,
             rust_vec_len,
             data_len,
         ),
+<<<<<<< HEAD
         205 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
         297 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
         298 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
@@ -28031,6 +29175,29 @@ fn pde_ffi_dispatcher_sync_impl(
         347 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
         348 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
         349 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+=======
+        213 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
+        305 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
+        306 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
+        307 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
+        318 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
+        329 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
+        330 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
+        331 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
+        332 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
+        333 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
+        334 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
+        336 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
+        338 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
+        341 => {
+            wire__crate__api__word_goal__word_goal_format_count_impl(ptr, rust_vec_len, data_len)
+        }
+        342 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
+        343 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
+        344 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
+        345 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
+        346 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
         _ => unreachable!(),
     }
 }
@@ -28506,6 +29673,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::ai::AiSettingsView>
 {
     fn into_into_dart(self) -> crate::api::ai::AiSettingsView {
         self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::AiSummary> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.text.into_into_dart().into_dart(),
+            self.0.warning.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::AiSummary>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::AiSummary>>
+    for crate::api::types::AiSummary
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::AiSummary> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -31139,6 +32327,77 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::LockedInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+<<<<<<< HEAD
+=======
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::LoopAction> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::types::LoopAction::Done => 0.into_dart(),
+            crate::api::types::LoopAction::NotALoop => 1.into_dart(),
+            crate::api::types::LoopAction::MakeTask => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::LoopAction>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::LoopAction>>
+    for crate::api::types::LoopAction
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::LoopAction> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::LoopProposal> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.note_id.into_into_dart().into_dart(),
+            self.0.note_title.into_into_dart().into_dart(),
+            self.0.line.into_into_dart().into_dart(),
+            self.0.text.into_into_dart().into_dart(),
+            self.0.kind.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::LoopProposal>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::LoopProposal>>
+    for crate::api::types::LoopProposal
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::LoopProposal> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::LoopScan> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.proposals.into_into_dart().into_dart(),
+            self.0.coverage.into_into_dart().into_dart(),
+            self.0.dropped_text.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::LoopScan>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::LoopScan>>
+    for crate::api::types::LoopScan
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::LoopScan> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::MadeNote> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -32954,6 +34213,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::ReminderNot
             self.0.title.into_into_dart().into_dart(),
             self.0.body.into_into_dart().into_dart(),
             self.0.fire_at.into_into_dart().into_dart(),
+            self.0.actions.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -35369,6 +36629,14 @@ impl SseEncode for crate::api::ai::AiSettingsView {
     }
 }
 
+impl SseEncode for crate::api::types::AiSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.text, serializer);
+        <Option<String>>::sse_encode(self.warning, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::ApprovalPhase {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -37008,6 +38276,16 @@ impl SseEncode for Vec<crate::api::types::LiveRun> {
     }
 }
 
+impl SseEncode for Vec<crate::api::types::LoopProposal> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::LoopProposal>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::types::MemberRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -37955,6 +39233,46 @@ impl SseEncode for crate::api::types::LockedInfo {
     }
 }
 
+<<<<<<< HEAD
+=======
+impl SseEncode for crate::api::types::LoopAction {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::types::LoopAction::Done => 0,
+                crate::api::types::LoopAction::NotALoop => 1,
+                crate::api::types::LoopAction::MakeTask => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::types::LoopProposal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.note_id, serializer);
+        <String>::sse_encode(self.note_title, serializer);
+        <u32>::sse_encode(self.line, serializer);
+        <String>::sse_encode(self.text, serializer);
+        <crate::api::types::OpenLoopKind>::sse_encode(self.kind, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::LoopScan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::types::LoopProposal>>::sse_encode(self.proposals, serializer);
+        <Option<String>>::sse_encode(self.coverage, serializer);
+        <Option<String>>::sse_encode(self.dropped_text, serializer);
+    }
+}
+
+>>>>>>> 6433c694 (feat(mobile): AI loops and summaries, brief card, action-less digest notifications; review fixes)
 impl SseEncode for crate::api::types::MadeNote {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -39508,6 +40826,7 @@ impl SseEncode for crate::api::types::ReminderNote {
         <String>::sse_encode(self.title, serializer);
         <String>::sse_encode(self.body, serializer);
         <crate::api::types::LocalTime>::sse_encode(self.fire_at, serializer);
+        <bool>::sse_encode(self.actions, serializer);
     }
 }
 

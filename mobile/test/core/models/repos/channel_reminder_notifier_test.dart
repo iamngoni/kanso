@@ -23,6 +23,7 @@ const _reminder = ReminderNote(
     minute: 0,
     second: 0,
   ),
+  actions: true,
 );
 
 void main() {
@@ -90,6 +91,7 @@ void main() {
       'day',
       'hour',
       'minute',
+      'actions',
     });
   });
 

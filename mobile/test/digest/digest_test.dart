@@ -5,12 +5,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glados/glados.dart' show Glados2, IntAnys, any;
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/models/repos/abs/ai_repository.dart';
 import 'package:kanso/core/models/repos/abs/digest_repository.dart';
 import 'package:kanso/core/models/repos/abs/library_repository.dart';
 import 'package:kanso/digest/views/pages/open_loops_page.dart';
 import 'package:kanso/digest/views/widgets/brief_section.dart';
 import 'package:kanso/injection.dart';
 
+import '../helpers/fixture_ai_repository.dart';
 import '../helpers/fixture_digest_repository.dart';
 import '../helpers/fixture_library_repository.dart';
 import '../helpers/property.dart';
@@ -70,6 +72,7 @@ void main() {
       library = FixtureLibraryRepository();
       getIt
         ..registerSingleton<DigestRepository>(digest)
+        ..registerSingleton<AiRepository>(FixtureAiRepository())
         ..registerSingleton<LibraryRepository>(library);
       addTearDown(library.close);
       addTearDown(getIt.reset);

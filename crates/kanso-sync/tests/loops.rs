@@ -18,13 +18,24 @@ fn close(mac: &Mac, id: &str, text_start: &str, now: i64) {
         .find(|i| i.text.starts_with(text_start))
         .unwrap();
     mac.store
-        .close_loop(id, &loop_key(id, &item.text), item.line, LoopClose::Done { mark_in_note: false }, now, Origin::Ui)
+        .close_loop(
+            id,
+            &loop_key(id, &item.text),
+            item.line,
+            LoopClose::Done {
+                mark_in_note: false,
+            },
+            now,
+            Origin::Ui,
+        )
         .unwrap();
 }
 
 fn closed(mac: &Mac, id: &str) -> usize {
     let doc = mac.store.get_api(id, None, false).unwrap();
-    doc["kansoLoops"]["closed"].as_object().map_or(0, |m| m.len())
+    doc["kansoLoops"]["closed"]
+        .as_object()
+        .map_or(0, |m| m.len())
 }
 
 #[test]

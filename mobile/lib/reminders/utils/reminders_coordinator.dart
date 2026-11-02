@@ -21,6 +21,19 @@ import '../../core/utils/debounce.dart';
 /// What the keys of the brief and review notifications start with.
 const String digestKeyPrefix = 'digest:';
 
+/// The key of the review's notifications; the brief's start with
+/// [digestBriefKeyPrefix].
+const String digestReviewKeyPrefix = '${digestKeyPrefix}review:';
+
+/// The key of the brief's notifications.
+const String digestBriefKeyPrefix = '${digestKeyPrefix}brief:';
+
+/// The key a brief or review notification is scheduled under, so an answer
+/// to it tells which page to open.
+String digestKeyOf(PlannedNotice notice) =>
+    '${notice.isReview ? digestReviewKeyPrefix : digestBriefKeyPrefix}'
+    '${notice.id}';
+
 /// How long the library must be quiet before the reminders are planned
 /// again.
 const Duration remindersDebounce = Duration(milliseconds: 500);
@@ -187,6 +200,9 @@ class RemindersCoordinator {
     await planned.fold(
       (error) async {
         _report(error, StackTrace.current, 'planning task reminders');
+        // The brief and review don't depend on the tasks' plan.
+        await _scheduleDigestOnly();
+        _scheduledKeys.clear();
       },
       (plan) async {
         try {
@@ -234,11 +250,13 @@ class RemindersCoordinator {
       (notices) => <ReminderNote>[
         for (final notice in notices)
           ReminderNote(
-            key: '$digestKeyPrefix${notice.id}',
+            key: digestKeyOf(notice),
             noteId: '',
             line: 0,
             title: notice.title,
             body: notice.body,
+            // A tap opens the page; there is nothing to mark done.
+            actions: false,
             fireAt: LocalTime(
               year: notice.year,
               month: notice.month,
@@ -273,7 +291,7 @@ class RemindersCoordinator {
     if (response.key.startsWith(digestKeyPrefix)) {
       // A tap opens the brief or the review; the buttons do nothing.
       if (response.action == ReminderAnswer.open && !_digestOpened.isClosed) {
-        _digestOpened.add(response.key.contains('review-'));
+        _digestOpened.add(response.key.startsWith(digestReviewKeyPrefix));
       }
       return;
     }

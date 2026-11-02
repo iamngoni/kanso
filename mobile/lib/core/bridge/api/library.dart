@@ -47,6 +47,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   KansoApprovals approvals();
 
+  /// Keeps the proposals the person ticked; how many were added.
+  Future<int> approveAiLoops({required List<LoopProposal> picks});
+
   Future<AttachmentFile> attachment({required String id});
 
   Future<BackupFile> backUpNow();

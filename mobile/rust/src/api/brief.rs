@@ -1,8 +1,8 @@
 //! Open loops, the morning brief and the weekly review.
 
 use kanso_mobile::{
-    BriefPrefs, BriefView, KansoError, LoopAction, OpenLoopsBoard, PlannedNotice, ReviewSaved,
-    ReviewView,
+    BriefPrefs, BriefView, KansoError, LoopAction, LoopProposal, OpenLoopsBoard, PlannedNotice,
+    ReviewSaved, ReviewView,
 };
 
 use super::library::KansoLibrary;
@@ -20,6 +20,11 @@ impl KansoLibrary {
         action: LoopAction,
     ) -> Result<bool, KansoError> {
         self.0.close_loop(&note_id, &key, line, action)
+    }
+
+    /// Keeps the proposals the person ticked; how many were added.
+    pub fn approve_ai_loops(&self, picks: Vec<LoopProposal>) -> Result<u32, KansoError> {
+        self.0.approve_ai_loops(picks)
     }
 
     pub fn brief(&self) -> Result<BriefView, KansoError> {

@@ -476,7 +476,10 @@ fn done_mark_without_punctuation_keeps_the_key_and_closes_the_loop() {
     assert!(marked.ends_with(DONE_MARK));
     assert!(loop_items(&marked).is_empty());
     assert_eq!(loop_key("n", &format!("Waiting on Tendai{DONE_MARK}")), key);
-    assert_eq!(loop_key("n", &format!("Waiting on Tendai{DONE_MARK}.")), key);
+    assert_eq!(
+        loop_key("n", &format!("Waiting on Tendai{DONE_MARK}.")),
+        key
+    );
 }
 
 proptest! {

@@ -35,6 +35,7 @@ const _reminder = ReminderNote(
     minute: 0,
     second: 0,
   ),
+  actions: true,
 );
 const _futureReminder = ReminderNote(
   key: 'note:a#4',
@@ -50,6 +51,7 @@ const _futureReminder = ReminderNote(
     minute: 0,
     second: 0,
   ),
+  actions: true,
 );
 
 void main() {
@@ -406,9 +408,49 @@ void main() {
       await atTen(coordinator.refresh);
       final scheduled = notifier.scheduled.single;
       expect(scheduled.first, _reminder);
-      expect(scheduled.last.key, 'digest:brief-2026-10-28');
+      expect(scheduled.last.key, 'digest:brief:brief-2026-10-28');
       expect(scheduled.last.noteId, isEmpty);
       expect(scheduled.last.fireAt.hour, 8);
+      // The brief has no Mark Done or Dismiss; a task has both.
+      expect(scheduled.last.actions, isFalse);
+      expect(scheduled.first.actions, isTrue);
+    });
+
+    test('a failed task plan still schedules the brief and review', () async {
+      when(
+        () => reminders.plan(
+          nowUtcMs: any(named: 'nowUtcMs'),
+          offsetMs: any(named: 'offsetMs'),
+          canNotify: any(named: 'canNotify'),
+        ),
+      ).thenAnswer(
+        (_) async => const Left<ApplicationError, ReminderPlan>(
+          ApplicationError.unexpected(message: 'no'),
+        ),
+      );
+      digest.planned = const <PlannedNotice>[
+        PlannedNotice(
+          id: 'brief-2026-10-28',
+          isReview: false,
+          title: 'Your morning brief',
+          body: 'Open Kanso to see what is due.',
+          year: 2026,
+          month: 10,
+          day: 28,
+          hour: 8,
+          minute: 0,
+        ),
+      ];
+      final errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      addTearDown(() => FlutterError.onError = previous);
+      await atTen(coordinator.refresh);
+      expect(errors, hasLength(1));
+      expect(
+        notifier.scheduled.single.single.key,
+        'digest:brief:brief-2026-10-28',
+      );
     });
 
     test('with task reminders off the notices are still scheduled', () async {
@@ -428,7 +470,10 @@ void main() {
       ];
       await coordinator.refresh();
       expect(notifier.cancels, 1);
-      expect(notifier.scheduled.single.single.key, 'digest:review-2026-11-01');
+      expect(
+        notifier.scheduled.single.single.key,
+        'digest:review:review-2026-11-01',
+      );
     });
 
     test('a tap on a notice opens the page and answers no task', () async {
@@ -439,7 +484,7 @@ void main() {
       notifier.live
         ..add(
           const ReminderResponse(
-            key: 'digest:review-2026-11-01',
+            key: 'digest:review:review-2026-11-01',
             noteId: '',
             line: 0,
             action: ReminderAnswer.open,
@@ -447,7 +492,7 @@ void main() {
         )
         ..add(
           const ReminderResponse(
-            key: 'digest:brief-2026-11-02',
+            key: 'digest:brief:brief-2026-11-02',
             noteId: '',
             line: 0,
             action: ReminderAnswer.open,
@@ -517,6 +562,7 @@ void main() {
         'day': 27,
         'hour': 9,
         'minute': 0,
+        'actions': true,
       });
     });
 

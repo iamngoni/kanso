@@ -485,9 +485,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i636.IconThemesBloc>(
       () => _i636.IconThemesBloc(gh<_i732.RendererRepository>()),
     );
-    gh.lazySingleton<_i622.DigestRepository>(
-      () => _i472.RustDigestRepository(gh<_i455.KansoLibrary>()),
-    );
     gh.lazySingleton<_i465.ApprovalsRepository>(
       () => _i99.RustApprovalsRepository(gh<_i283.KansoApprovals>()),
     );
@@ -558,6 +555,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i38.LibraryRepository>(),
         gh<_i732.RendererRepository>(),
         gh<_i930.NotePlaceRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i622.DigestRepository>(
+      () => _i472.RustDigestRepository(
+        gh<_i455.KansoLibrary>(),
+        gh<_i35.KansoAi>(),
       ),
     );
     gh.factory<_i553.BoardBloc>(

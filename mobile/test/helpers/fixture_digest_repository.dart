@@ -34,6 +34,16 @@ class FixtureDigestRepository implements DigestRepository {
   /// The open loops.
   List<OpenLoopItem> loops = <OpenLoopItem>[];
 
+  /// What "Find more open loops" finds, and what was kept.
+  LoopScan scan = const LoopScan(proposals: <LoopProposal>[]);
+  final List<List<LoopProposal>> kept = <List<LoopProposal>>[];
+
+  /// What the summaries say.
+  AiSummary summary = const AiSummary(text: 'A calm day.');
+
+  /// How many AI requests were stopped.
+  int stops = 0;
+
   /// The loops closed, as they were closed.
   final List<(String, LoopAction)> closed = <(String, LoopAction)>[];
 
@@ -52,21 +62,29 @@ class FixtureDigestRepository implements DigestRepository {
     return const Right<ApplicationError, bool>(true);
   }
 
+  /// The brief, when a test wants one that isn't empty.
+  BriefView? briefView;
+
   @override
-  Future<Either<ApplicationError, BriefView>> brief() async =>
-      const Right<ApplicationError, BriefView>(
-        BriefView(
-          dateLabel: 'Monday 2 November',
-          due: <TaskItem>[],
-          loops: <OpenLoopItem>[],
-          loopsTotal: 0,
-          laterToday: <BriefReminder>[],
-          relevant: <BriefNote>[],
-          wroteYesterday: 0,
-          finishedYesterday: 0,
-          isEmpty: true,
-        ),
-      );
+  Future<Either<ApplicationError, BriefView>> brief() async {
+    final set = briefView;
+    if (set != null) {
+      return Right<ApplicationError, BriefView>(set);
+    }
+    return const Right<ApplicationError, BriefView>(
+      BriefView(
+        dateLabel: 'Monday 2 November',
+        due: <TaskItem>[],
+        loops: <OpenLoopItem>[],
+        loopsTotal: 0,
+        laterToday: <BriefReminder>[],
+        relevant: <BriefNote>[],
+        wroteYesterday: 0,
+        finishedYesterday: 0,
+        isEmpty: true,
+      ),
+    );
+  }
 
   @override
   Future<Either<ApplicationError, ReviewView>> review({String? from}) async =>
@@ -112,4 +130,28 @@ class FixtureDigestRepository implements DigestRepository {
   }) async => Right<ApplicationError, List<PlannedNotice>>(
     canNotify ? planned : const <PlannedNotice>[],
   );
+
+  @override
+  Future<Either<ApplicationError, LoopScan>> findLoops() async =>
+      Right<ApplicationError, LoopScan>(scan);
+
+  @override
+  Future<Either<ApplicationError, int>> keepLoops(
+    List<LoopProposal> picks,
+  ) async {
+    kept.add(picks);
+    return Right<ApplicationError, int>(picks.length);
+  }
+
+  @override
+  Future<Either<ApplicationError, AiSummary>> summariseBrief() async =>
+      Right<ApplicationError, AiSummary>(summary);
+
+  @override
+  Future<Either<ApplicationError, AiSummary>> summariseReview({
+    String? from,
+  }) async => Right<ApplicationError, AiSummary>(summary);
+
+  @override
+  void stopAi() => stops++;
 }

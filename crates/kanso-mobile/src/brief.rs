@@ -17,14 +17,16 @@ use kanso_core::loops::{LoopKind, age_label};
 use kanso_core::now_ms;
 use kanso_core::tasks::Due;
 use kanso_engine::brief::{self, BriefSettings, Now, ThemeKind};
+use kanso_engine::loops_ai;
 use kanso_engine::tasks::chip_label;
 use kanso_store::{LoopClose, LoopQuery, LoopRow, Origin, TaskRow};
 
+use crate::ai::{AiHandle, AiRun, ai_error};
 use crate::boundary::guard;
 use crate::brief_model::{
-    BriefNote, BriefPrefs, BriefReminder, BriefView, LoopAction, OpenLoopItem, OpenLoopKind,
-    OpenLoopsBoard, PlannedNotice, ReviewFinished, ReviewSaved, ReviewTheme, ReviewView,
-    ReviewWritten,
+    AiSummary, BriefNote, BriefPrefs, BriefReminder, BriefView, LoopAction, LoopProposal, LoopScan,
+    OpenLoopItem, OpenLoopKind, OpenLoopsBoard, PlannedNotice, ReviewFinished, ReviewSaved,
+    ReviewTheme, ReviewView, ReviewWritten,
 };
 use crate::errors::KansoError;
 use crate::library::Library;
@@ -86,6 +88,29 @@ impl Library {
                     .store
                     .close_loop(note_id, key, line, how, now_ms(), Origin::Ui)?;
             Ok(!matches!(outcome, kanso_store::CheckOff::Missing))
+        })
+    }
+
+    /// Keeps the proposals the person ticked as approved AI loops, each
+    /// only if its sentence is still in its note. Returns how many were
+    /// added.
+    pub fn approve_ai_loops(&self, picks: Vec<LoopProposal>) -> Result<u32, KansoError> {
+        guard(|| {
+            let now = now_ms();
+            let mut kept = 0;
+            for pick in picks {
+                let ai = kanso_core::loops::AiLoop {
+                    key: String::new(),
+                    text: pick.text,
+                    kind: kind_of(pick.kind),
+                    approved_at: now,
+                };
+                kept += self
+                    .inner
+                    .store
+                    .approve_ai_loops(&pick.note_id, &[ai], Origin::Ui)?;
+            }
+            Ok(u32::try_from(kept).unwrap_or(u32::MAX))
         })
     }
 
@@ -366,6 +391,112 @@ fn settings_of(p: &BriefPrefs) -> BriefSettings {
         notify_brief: p.notify_brief,
         notify_review: p.notify_review,
         mark_done_in_note: p.mark_done_in_note,
+    }
+}
+
+fn kind_of(kind: OpenLoopKind) -> LoopKind {
+    match kind {
+        OpenLoopKind::Mine => LoopKind::Mine,
+        OpenLoopKind::Waiting => LoopKind::Waiting,
+        OpenLoopKind::Question => LoopKind::Question,
+    }
+}
+
+/// The AI parts of the brief and review: the desktop's `loops_ai`, run
+/// here on the calling thread (the bridge calls these off the UI isolate).
+/// `run` stops a request; each one is for one request. Locked notes and
+/// notes tagged `#ai-exclude` are never sent.
+impl AiHandle {
+    /// Reads the notes of the last [`loops_ai::DEFAULT_DAYS`] days with the
+    /// model and returns the loops it found that the notes really say.
+    /// Writes nothing; `Library::approve_ai_loops` keeps the ones chosen.
+    pub fn find_open_loops(&self, run: &AiRun) -> Result<LoopScan, KansoError> {
+        guard(|| {
+            let settings = self.enabled()?;
+            let provider = self.provider_for(&settings)?;
+            self.inner.metrics().count(crate::metrics::Feature::Ai);
+            let provider = crate::boundary::held(&provider);
+            let scan = loops_ai::find_more(
+                &self.inner.store,
+                provider.as_ref(),
+                loops_ai::DEFAULT_DAYS,
+                now_ms(),
+                &|| run.stopped(),
+            )
+            .map_err(|err| ai_error(err, settings.api_key.as_deref()))?;
+            Ok(LoopScan {
+                coverage: scan.coverage(),
+                dropped_text: scan.dropped_text(),
+                proposals: scan
+                    .proposals
+                    .into_iter()
+                    .map(|p| LoopProposal {
+                        note_id: p.note_id,
+                        note_title: p.note_title,
+                        line: p.line,
+                        text: p.text,
+                        kind: match p.kind {
+                            LoopKind::Mine => OpenLoopKind::Mine,
+                            LoopKind::Waiting => OpenLoopKind::Waiting,
+                            LoopKind::Question => OpenLoopKind::Question,
+                        },
+                    })
+                    .collect(),
+            })
+        })
+    }
+
+    /// A short paragraph over today's brief.
+    pub fn summarise_brief(&self, run: &AiRun) -> Result<AiSummary, KansoError> {
+        guard(|| {
+            let brief = brief::morning_brief(&self.inner.store, now_here(), None)?;
+            let (prompt, allowed) = loops_ai::brief_prompt(&self.inner.store, &brief);
+            self.summarise(&prompt, &allowed, "brief", run)
+        })
+    }
+
+    /// A short paragraph over the themes of the week from `from`
+    /// (`YYYY-MM-DD`), or this week.
+    pub fn summarise_review(
+        &self,
+        from: Option<String>,
+        run: &AiRun,
+    ) -> Result<AiSummary, KansoError> {
+        guard(|| {
+            let now = now_here();
+            let start = match from.as_deref() {
+                Some(text) => brief::week_start(
+                    Date::parse_iso(text)
+                        .ok_or_else(|| KansoError::invalid("That isn't a date."))?,
+                ),
+                None => brief::week_start(now.today()),
+            };
+            let review = brief::weekly_review(&self.inner.store, start, now)?;
+            let (prompt, allowed) = loops_ai::themes_prompt(&self.inner.store, &review);
+            self.summarise(&prompt, &allowed, "review", run)
+        })
+    }
+
+    fn summarise(
+        &self,
+        prompt: &kanso_ai::Prompt,
+        allowed: &[String],
+        what: &str,
+        run: &AiRun,
+    ) -> Result<AiSummary, KansoError> {
+        let settings = self.enabled()?;
+        let provider = self.provider_for(&settings)?;
+        if run.stopped() {
+            return Err(KansoError::invalid("Stopped."));
+        }
+        self.inner.metrics().count(crate::metrics::Feature::Ai);
+        let provider = crate::boundary::held(&provider);
+        let summary = loops_ai::summarise(provider.as_ref(), prompt, allowed)
+            .map_err(|err| ai_error(err, settings.api_key.as_deref()))?;
+        Ok(AiSummary {
+            warning: summary.warning(what),
+            text: summary.text,
+        })
     }
 }
 

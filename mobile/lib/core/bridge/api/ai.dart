@@ -29,6 +29,11 @@ abstract class KansoAi implements RustOpaqueInterface {
 
   KansoAskConversation conversation();
 
+  /// Reads the recent notes with the model for open loops the rules
+  /// missed. Blocks until it is done, on a worker thread; `run` (from
+  /// `new_run`) stops it. Saves nothing.
+  Future<LoopScan> findOpenLoops({required KansoAiRun run});
+
   /// A request to stop, for one `assist` or `summarize`.
   KansoAiRun newRun();
 
@@ -46,6 +51,13 @@ abstract class KansoAi implements RustOpaqueInterface {
   Future<AiSettingsView> setSettings({required AiSettingsInput input});
 
   Future<AiSettingsView> settings();
+
+  /// A short paragraph over today's brief.
+  Future<AiSummary> summariseBrief({required KansoAiRun run});
+
+  /// A short paragraph over the week from `from` (`YYYY-MM-DD`), or this
+  /// week.
+  Future<AiSummary> summariseReview({String? from, required KansoAiRun run});
 
   Stream<AssistEvent> summarize({required String id, required KansoAiRun run});
 

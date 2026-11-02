@@ -36,6 +36,7 @@ Map<String, Object> reminderToChannel(ReminderNote reminder) =>
       'day': reminder.fireAt.day,
       'hour': reminder.fireAt.hour,
       'minute': reminder.fireAt.minute,
+      'actions': reminder.actions,
     };
 
 /// The response a native map describes; null for one that is not.

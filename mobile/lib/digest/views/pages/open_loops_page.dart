@@ -13,6 +13,7 @@ import '../../../core/views/widgets/kanso_swipe_host.dart';
 import '../../../injection.dart';
 import '../../utils/close_loop.dart';
 import '../../utils/open_digest_note.dart';
+import '../widgets/digest_ai_panel.dart';
 import '../widgets/digest_loader.dart';
 import '../widgets/loop_row.dart';
 
@@ -24,34 +25,44 @@ class OpenLoopsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return DigestLoader<OpenLoopsBoard>(
-      title: l10n.digestLoopsTitle,
-      subtitle: (board) =>
-          board.enabled ? l10n.digestLoopsCount(board.total) : null,
-      load: getIt<DigestRepository>().openLoops,
-      builder: (context, board, reload) {
-        if (!board.enabled) {
-          return KansoEmptyState(
-            title: l10n.digestLoopsOffTitle,
-            message: l10n.digestLoopsOffMessage,
+    return DigestAiScope(
+      child: DigestLoader<OpenLoopsBoard>(
+        title: l10n.digestLoopsTitle,
+        subtitle: (board) =>
+            board.enabled ? l10n.digestLoopsCount(board.total) : null,
+        load: getIt<DigestRepository>().openLoops,
+        builder: (context, board, reload) {
+          if (!board.enabled) {
+            return KansoEmptyState(
+              title: l10n.digestLoopsOffTitle,
+              message: l10n.digestLoopsOffMessage,
+            );
+          }
+          if (board.items.isEmpty) {
+            return Column(
+              children: <Widget>[
+                Expanded(
+                  child: KansoEmptyState(
+                    title: l10n.digestLoopsEmptyTitle,
+                    message: l10n.digestLoopsEmptyMessage,
+                  ),
+                ),
+                const DigestAiPanel(find: true),
+              ],
+            );
+          }
+          return KansoSwipeHost(
+            child: ListView(
+              padding: digestListPadding,
+              children: <Widget>[
+                for (final kind in OpenLoopKind.values)
+                  ..._group(context, board, kind),
+                const DigestAiPanel(find: true),
+              ],
+            ),
           );
-        }
-        if (board.items.isEmpty) {
-          return KansoEmptyState(
-            title: l10n.digestLoopsEmptyTitle,
-            message: l10n.digestLoopsEmptyMessage,
-          );
-        }
-        return KansoSwipeHost(
-          child: ListView(
-            padding: digestListPadding,
-            children: <Widget>[
-              for (final kind in OpenLoopKind.values)
-                ..._group(context, board, kind),
-            ],
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 

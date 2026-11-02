@@ -219,5 +219,6 @@ fn note_of(task: &ReminderTask, day: Date, at: DateTime) -> ReminderNote {
         title: said.title,
         body: said.body,
         fire_at: local_time_of(at),
+        actions: true,
     }
 }

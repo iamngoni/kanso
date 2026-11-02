@@ -19,6 +19,9 @@ final class KansoReminders: NSObject {
 
   static let channelName = "app.kanso/reminders"
   static let category = "kanso-reminder"
+  /// The brief and review: a tap opens the page, and there is nothing to
+  /// mark done or dismiss, so no buttons.
+  static let digestCategory = "kanso-digest"
   static let identifierPrefix = "kanso-reminder:"
   static let markDone = "mark-done"
   static let dismiss = "dismiss"
@@ -96,11 +99,18 @@ final class KansoReminders: NSObject {
       intentIdentifiers: [],
       options: []
     )
+    let digest = UNNotificationCategory(
+      identifier: KansoReminders.digestCategory,
+      actions: [],
+      intentIdentifiers: [],
+      options: []
+    )
+    let ours: Set<String> = [KansoReminders.category, KansoReminders.digestCategory]
     let center = UNUserNotificationCenter.current()
     center.getNotificationCategories { existing in
       center.setNotificationCategories(
-        existing.filter { $0.identifier != KansoReminders.category }
-          .union([category])
+        existing.filter { !ours.contains($0.identifier) }
+          .union([category, digest])
       )
     }
   }
@@ -129,7 +139,8 @@ final class KansoReminders: NSObject {
       content.title = reminder.title
       content.body = reminder.body
       content.sound = .default
-      content.categoryIdentifier = KansoReminders.category
+      content.categoryIdentifier =
+        reminder.actions ? KansoReminders.category : KansoReminders.digestCategory
       content.userInfo = reminder.userInfo
       let trigger: UNNotificationTrigger? =
         scheduled
@@ -282,6 +293,8 @@ struct Reminder {
   let title: String
   let body: String
   let dateComponents: DateComponents
+  /// Whether it shows Mark Done and Dismiss (a task does, the brief does not).
+  let actions: Bool
 
   init?(_ map: [String: Any]) {
     func int(_ name: String) -> Int? { (map[name] as? NSNumber)?.intValue }
@@ -297,6 +310,7 @@ struct Reminder {
     self.line = line
     self.title = map["title"] as? String ?? ""
     self.body = map["body"] as? String ?? ""
+    self.actions = map["actions"] as? Bool ?? true
     self.dateComponents = DateComponents(
       year: year,
       month: month,
