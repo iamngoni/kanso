@@ -301,7 +301,7 @@ is saved until you approve it. Locked notes and `#ai-exclude` notes are never se
 on the brief and the review (AI on only) writes a short paragraph from the same view, with its sources.
 
 In the local API, `kanso-list-open-loops` (MCP) and `GET /loops` (REST) list the open loops, with the
-same exclusions as everywhere else. Which loops you have closed or hidden syncs with the note (the
+same exclusions as everywhere else (locked, trashed and `#ai-exclude` notes have none there). Which loops you have closed or hidden syncs with the note (the
 `kansoLoops` field); if two devices close different loops of the same note at once, the later write
 wins, as with `kansoReminderAck`.
 

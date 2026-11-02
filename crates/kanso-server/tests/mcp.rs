@@ -1098,7 +1098,8 @@ async fn locked_and_excluded_notes_have_no_open_loops_for_agents() {
     assert_eq!(seen.as_array().unwrap().len(), 1);
     assert!(!seen.to_string().contains("excludedcanary"));
     let (_, rest) = get(&app.router, "/loops").await;
-    assert!(!rest.to_string().contains("sealed"));
+    assert!(!rest.to_string().contains("excludedcanary"));
+    assert_eq!(rest.as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]

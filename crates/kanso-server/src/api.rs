@@ -75,6 +75,7 @@ pub(crate) fn list_loops(
         book_id,
         kind,
         limit,
+        ai_visible: true,
         ..kanso_store::LoopQuery::default()
     })?;
     Ok(rows.into_iter().map(loop_json).collect())

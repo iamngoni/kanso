@@ -15,7 +15,7 @@ use rusqlite::params;
 use rusqlite::types::Value as SqlValue;
 use serde_json::Value;
 
-use crate::schema::{discoverable, note_locked, readable_body};
+use crate::schema::{ai_excluded, discoverable, note_locked, readable_body};
 use crate::tasks::CheckOff;
 use crate::write::{load_row, rewrite_note};
 use crate::{Origin, Result, Store, StoreError};
@@ -64,6 +64,9 @@ pub struct LoopQuery {
     pub since: Option<i64>,
     /// Only loops in notes changed before this time (ms).
     pub before: Option<i64>,
+    /// Leave out notes tagged `#ai-exclude`: for what is handed to agents
+    /// and the local API, rather than shown to the person.
+    pub ai_visible: bool,
     pub limit: Option<usize>,
 }
 
@@ -157,6 +160,9 @@ fn filter(query: &LoopQuery) -> (String, Vec<SqlValue>) {
     if let Some(before) = query.before {
         sql.push_str(" AND d.updated_at < ?");
         values.push(SqlValue::Integer(before));
+    }
+    if query.ai_visible {
+        sql.push_str(concat!(" AND NOT ", ai_excluded!("d.")));
     }
     (sql, values)
 }

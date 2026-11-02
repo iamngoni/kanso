@@ -906,14 +906,16 @@ fn list_open_loops(store: &Store, vis: Option<&Visibility>, args: &Args) -> Tool
         .open_loops(&kanso_store::LoopQuery {
             book_id,
             kind,
+            // Locked, trashed and `#ai-exclude` notes are left out in SQL;
+            // the limit goes down with it unless an agent's scope has to
+            // drop more first.
+            ai_visible: true,
+            limit: if vis.is_none() { Some(limit) } else { None },
             ..kanso_store::LoopQuery::default()
         })
         .map_err(|err| ToolError(err.to_string()))?
         .into_iter()
-        .filter(|l| {
-            native_note_is_visible(store, &l.note_id)
-                && vis.is_none_or(|vis| vis.allows(&l.note_id))
-        })
+        .filter(|l| vis.is_none_or(|vis| vis.allows(&l.note_id)))
         .take(limit)
         .inspect(|l| {
             if let Some(vis) = vis {
