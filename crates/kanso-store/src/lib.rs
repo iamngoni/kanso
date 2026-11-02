@@ -159,6 +159,7 @@ impl Store {
         schema::migrate(&writer)?;
         derived::rebuild_if_stale(&mut writer)?;
         ocr::rebuild_if_stale(&mut writer)?;
+        write::repair_search_if_corrupt(&mut writer)?;
         Ok(Store {
             path,
             writer: Mutex::new(writer),
