@@ -8,10 +8,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRef } from "react";
+import { AppStoreBadge } from "../components/AppStoreBadge";
 import { DownloadCta } from "../components/DownloadCta";
 import { Logo } from "../components/Logo";
 import { Shot, type ShotSource } from "../components/Shot";
 import { KansoWindow } from "../components/app/KansoWindow";
+import { APP_STORE_URL } from "../lib/stores";
 import { getSiteData } from "../server/fns";
 
 export const Route = createFileRoute("/")({
@@ -63,6 +65,12 @@ function Home() {
               between your devices end-to-end encrypted.
             </p>
             <DownloadCta release={release} platform={platform} className="fade-up mt-8 [--step:2]" />
+            <p className="fade-up mt-4 text-[0.875rem] text-fg-3 [--step:2]">
+              Also on iPhone and iPad:{" "}
+              <a href={APP_STORE_URL} className="ink-link text-fg-2 hover:text-fg">
+                Kanso Pocket on the App Store
+              </a>
+            </p>
           </div>
           <p className="fade-up hidden max-w-[15rem] pb-2 text-[0.875rem] leading-snug text-fg-3 lg:block [--step:3]">
             Below is Kanso itself, sketched in your browser. Type, tick a box, follow a link, or press{" "}
@@ -88,6 +96,10 @@ function Home() {
         </h2>
         <p className="mt-3 max-w-[32rem] text-fg-2">Kanso works offline, updates itself, and costs nothing.</p>
         <DownloadCta release={release} platform={platform} className="mt-7" />
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <AppStoreBadge />
+          <p className="text-[0.875rem] text-fg-3">Kanso Pocket, for iPhone and iPad</p>
+        </div>
       </section>
     </>
   );

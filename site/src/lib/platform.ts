@@ -53,3 +53,22 @@ function fromHintValue(hint: string): Platform | null | undefined {
       return undefined;
   }
 }
+
+/** The phone systems Kanso Pocket is offered on. */
+export type MobileOs = "ios" | "android";
+
+/**
+ * Whether the visitor is on an iPhone/iPad or an Android device, or null for
+ * everything else (desktops included). iPadOS Safari reports itself as a Mac,
+ * so those iPads can't be told apart here and see the desktop order.
+ */
+export function detectMobileOs(userAgent: string | null | undefined, hint?: string | null): MobileOs | null {
+  const value = hint?.trim().replace(/^"|"$/g, "").toLowerCase();
+  if (value === "ios") return "ios";
+  if (value === "android") return "android";
+  if (value) return null;
+  const ua = userAgent ?? "";
+  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+  if (/android/i.test(ua)) return "android";
+  return null;
+}
