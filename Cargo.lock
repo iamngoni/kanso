@@ -4422,6 +4422,7 @@ dependencies = [
  "async-trait",
  "futures-util",
  "kanso-acp",
+ "kanso-core",
  "kanso-tls",
  "proptest",
  "reqwest",
