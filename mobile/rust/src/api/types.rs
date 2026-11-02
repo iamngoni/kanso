@@ -9,6 +9,7 @@
 use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
+    BriefNote, BriefPrefs, BriefReminder, BriefView, LoopAction, OpenLoopItem, OpenLoopKind, OpenLoopsBoard, PlannedNotice, ReviewFinished, ReviewSaved, ReviewTheme, ReviewView, ReviewWritten,
     AccountDetails, AccountState, AccountStep, ApprovalPhase, ApprovalPrompt, ApprovalWait,
     AttachmentFile, BindingAnswer, BindingQuestion, BoardCard, BoardColumn, BoardKind, BoardLane,
     BoardView, BuiltinTheme, CalendarDay, CaptureOutcome, CardKey, CardMoved, Changed, ColorChoice,
@@ -2086,4 +2087,143 @@ pub struct _DiscoveryMeasure {
     pub resident_after: Option<u64>,
     pub notes: u32,
     pub notes_per_second: f64,
+}
+
+#[frb(mirror(OpenLoopKind))]
+pub enum _OpenLoopKind {
+    Mine,
+    Waiting,
+    Question,
+}
+
+#[frb(mirror(LoopAction))]
+pub enum _LoopAction {
+    Done,
+    NotALoop,
+    MakeTask,
+}
+
+#[frb(mirror(OpenLoopItem))]
+pub struct _OpenLoopItem {
+    pub key: String,
+    pub note_id: String,
+    pub note_title: String,
+    pub notebook_id: String,
+    pub line: u32,
+    pub kind: OpenLoopKind,
+    pub text: String,
+    pub due_label: Option<String>,
+    pub age_label: String,
+    pub from_ai: bool,
+}
+
+#[frb(mirror(OpenLoopsBoard))]
+pub struct _OpenLoopsBoard {
+    pub items: Vec<OpenLoopItem>,
+    pub total: u32,
+    pub enabled: bool,
+}
+
+#[frb(mirror(BriefReminder))]
+pub struct _BriefReminder {
+    pub note_id: String,
+    pub note_title: String,
+    pub line: u32,
+    pub text: String,
+    pub time_label: String,
+}
+
+#[frb(mirror(BriefNote))]
+pub struct _BriefNote {
+    pub note_id: String,
+    pub title: String,
+    pub why: String,
+    pub excerpt: String,
+}
+
+#[frb(mirror(BriefView))]
+pub struct _BriefView {
+    pub date_label: String,
+    pub due: Vec<TaskItem>,
+    pub loops: Vec<OpenLoopItem>,
+    pub loops_total: u32,
+    pub later_today: Vec<BriefReminder>,
+    pub relevant: Vec<BriefNote>,
+    pub wrote_yesterday: u32,
+    pub finished_yesterday: u32,
+    pub is_empty: bool,
+}
+
+#[frb(mirror(ReviewWritten))]
+pub struct _ReviewWritten {
+    pub note_id: String,
+    pub title: String,
+    pub notebook_name: String,
+    pub created: bool,
+}
+
+#[frb(mirror(ReviewFinished))]
+pub struct _ReviewFinished {
+    pub note_id: String,
+    pub note_title: String,
+    pub text: String,
+    pub was_loop: bool,
+}
+
+#[frb(mirror(ReviewTheme))]
+pub struct _ReviewTheme {
+    pub term: String,
+    pub notes: u32,
+    pub is_tag: bool,
+}
+
+#[frb(mirror(ReviewView))]
+pub struct _ReviewView {
+    pub from: String,
+    pub week_label: String,
+    pub range_label: String,
+    pub counts_text: String,
+    pub written: Vec<ReviewWritten>,
+    pub finished: Vec<ReviewFinished>,
+    pub still_open: Vec<OpenLoopItem>,
+    pub overdue: Vec<TaskItem>,
+    pub themes: Vec<ReviewTheme>,
+    pub next: Vec<TaskItem>,
+    pub saved_note_id: Option<String>,
+    pub is_this_week: bool,
+}
+
+#[frb(mirror(ReviewSaved))]
+pub struct _ReviewSaved {
+    pub note_id: String,
+    pub exists: bool,
+}
+
+#[frb(mirror(BriefPrefs))]
+pub struct _BriefPrefs {
+    pub loops: bool,
+    pub brief: bool,
+    pub brief_hour: u32,
+    pub brief_minute: u32,
+    pub brief_weekdays_only: bool,
+    pub review: bool,
+    pub review_day: u32,
+    pub review_hour: u32,
+    pub review_minute: u32,
+    pub notify_brief: bool,
+    pub notify_review: bool,
+    pub mark_done_in_note: bool,
+}
+
+#[frb(mirror(PlannedNotice))]
+pub struct _PlannedNotice {
+    pub id: String,
+    pub is_review: bool,
+    pub title: String,
+    pub body: String,
+    pub year: i32,
+    pub month: u32,
+    pub day: u32,
+    pub hour: u32,
+    pub minute: u32,
 }
