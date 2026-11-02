@@ -1034,7 +1034,10 @@ async fn open_loops_through_kanso_list_open_loops_and_the_rest_api() {
         .collect();
     assert_eq!(
         texts,
-        ["I'll send Tendai the deck @2026-11-01.", "Waiting on Rudo for the quote"]
+        [
+            "I'll send Tendai the deck @2026-11-01.",
+            "Waiting on Rudo for the quote"
+        ]
     );
     let bare = plan.strip_prefix("note:").unwrap();
     assert_eq!(
@@ -1052,10 +1055,20 @@ async fn open_loops_through_kanso_list_open_loops_and_the_rest_api() {
         })
     );
     let waiting = tool_json(
-        &tool(&app.router, "kanso-list-open-loops", json!({ "kind": "waiting" })).await,
+        &tool(
+            &app.router,
+            "kanso-list-open-loops",
+            json!({ "kind": "waiting" }),
+        )
+        .await,
     );
     assert_eq!(waiting.as_array().unwrap().len(), 1);
-    let bad = tool(&app.router, "kanso-list-open-loops", json!({ "kind": "later" })).await;
+    let bad = tool(
+        &app.router,
+        "kanso-list-open-loops",
+        json!({ "kind": "later" }),
+    )
+    .await;
     assert_eq!(bad["isError"], true);
     let (status, rest) = get(&app.router, "/loops?kind=mine&limit=5").await;
     assert_eq!(status, StatusCode::OK);

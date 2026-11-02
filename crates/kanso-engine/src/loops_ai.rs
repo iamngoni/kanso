@@ -11,9 +11,7 @@
 
 use std::collections::HashSet;
 
-use kanso_ai::prompt::{
-    EXCERPT_CLOSE, Excerpt, DEFAULT_BUDGET, escape_excerpt, label, truncate,
-};
+use kanso_ai::prompt::{DEFAULT_BUDGET, EXCERPT_CLOSE, Excerpt, escape_excerpt, label, truncate};
 use kanso_ai::{AiError, ChatProvider, Event, Prompt};
 use kanso_core::loops::{LoopKind, locate, loop_items, loop_key, normalize, read_loops};
 use kanso_store::Store;
@@ -161,7 +159,11 @@ pub fn batches(sources: &[Source], budget: usize, max: usize) -> Vec<(Prompt, Ve
                 text: numbered(&s.body),
             })
             .collect();
-        let (user, taken) = pack(&excerpts, header, budget.saturating_sub(SYSTEM.chars().count() + 2));
+        let (user, taken) = pack(
+            &excerpts,
+            header,
+            budget.saturating_sub(SYSTEM.chars().count() + 2),
+        );
         if taken == 0 {
             break;
         }
@@ -232,7 +234,8 @@ pub fn verify(
             continue;
         };
         let words = normalize(&claim.text);
-        if words.chars().count() < 8 || claim.text.chars().count() > kanso_core::loops::MAX_TEXT_CHARS
+        if words.chars().count() < 8
+            || claim.text.chars().count() > kanso_core::loops::MAX_TEXT_CHARS
         {
             dropped += 1;
             continue;
@@ -318,10 +321,7 @@ pub fn find_more(
         }
         let reply = ask(provider, &prompt)?;
         scan.notes_read += sent.len();
-        let known: HashSet<String> = sent
-            .iter()
-            .flat_map(|s| known_keys(store, &s.id))
-            .collect();
+        let known: HashSet<String> = sent.iter().flat_map(|s| known_keys(store, &s.id)).collect();
         let (found, dropped) = verify(&parse_reply(&reply), &sent, &known);
         scan.dropped += dropped;
         for proposal in found {
@@ -377,7 +377,9 @@ pub fn unknown_citations(text: &str, allowed: &[String]) -> Vec<String> {
         let after = &rest[start + 2..];
         let Some(end) = after.find("]]") else { break };
         let title = after[..end].split('|').next().unwrap_or("").trim();
-        if !title.is_empty() && !allowed.contains(&normalize(title)) && !out.iter().any(|t| t == title)
+        if !title.is_empty()
+            && !allowed.contains(&normalize(title))
+            && !out.iter().any(|t| t == title)
         {
             out.push(title.to_owned());
         }
@@ -412,7 +414,11 @@ fn excerpts_of(items: Vec<(String, String, String)>) -> Vec<Excerpt> {
 pub fn brief_prompt(store: &Store, brief: &Brief) -> (Prompt, Vec<String>) {
     let mut items: Vec<(String, String, String)> = Vec::new();
     for t in &brief.due {
-        items.push((t.note_id.clone(), t.note_title.clone(), format!("Due: {}", t.text)));
+        items.push((
+            t.note_id.clone(),
+            t.note_title.clone(),
+            format!("Due: {}", t.text),
+        ));
     }
     for l in &brief.loops {
         items.push((
@@ -435,13 +441,25 @@ pub fn brief_prompt(store: &Store, brief: &Brief) -> (Prompt, Vec<String>) {
 pub fn themes_prompt(store: &Store, review: &Review) -> (Prompt, Vec<String>) {
     let mut items: Vec<(String, String, String)> = Vec::new();
     for n in &review.written {
-        items.push((n.id.clone(), n.title.clone(), "Written or changed this week".to_owned()));
+        items.push((
+            n.id.clone(),
+            n.title.clone(),
+            "Written or changed this week".to_owned(),
+        ));
     }
     for f in &review.finished {
-        items.push((f.note_id.clone(), f.note_title.clone(), format!("Finished: {}", f.text)));
+        items.push((
+            f.note_id.clone(),
+            f.note_title.clone(),
+            format!("Finished: {}", f.text),
+        ));
     }
     for l in &review.still_open {
-        items.push((l.note_id.clone(), l.note_title.clone(), format!("Open: {}", l.text)));
+        items.push((
+            l.note_id.clone(),
+            l.note_title.clone(),
+            format!("Open: {}", l.text),
+        ));
     }
     let themes: Vec<String> = review
         .themes

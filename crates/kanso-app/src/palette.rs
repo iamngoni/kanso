@@ -1037,21 +1037,21 @@ impl Palette {
             place(
                 Filter::OpenLoops,
                 "Open Loops".into(),
-                NotebookIcon::Choice(IconName::CircleDashed),
+                NotebookIcon::Choice(IconName::CircleDot),
                 library.open_loops,
                 &["promises", "waiting", "follow up", "commitments", "loops"],
             ),
             place(
                 Filter::Brief,
                 "Morning Brief".into(),
-                NotebookIcon::Choice(IconName::Sunrise),
+                NotebookIcon::Choice(IconName::Clock),
                 0,
                 &["today", "digest", "agenda", "open morning brief"],
             ),
             place(
                 Filter::Review,
                 "Weekly Review".into(),
-                NotebookIcon::Choice(IconName::CalendarRange),
+                NotebookIcon::Choice(IconName::CalendarDays),
                 0,
                 &["week", "retrospective", "open weekly review"],
             ),
@@ -1698,7 +1698,7 @@ impl Palette {
                 } else if *filter == Filter::OpenLoops {
                     if let Some(count) = &item.hint {
                         detail.meta.push((
-                            Icon::new(IconName::CircleDashed),
+                            Icon::new(IconName::CircleDot),
                             format!("{count} open").into(),
                         ));
                     }

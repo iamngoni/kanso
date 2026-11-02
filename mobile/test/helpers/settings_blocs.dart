@@ -32,6 +32,7 @@ import 'close_bloc_later.dart';
 import 'fixture_about_repository.dart';
 import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
+import 'fixture_digest_repository.dart';
 import 'fixture_discovery_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_push_repository.dart';
@@ -169,6 +170,7 @@ class SettingsBlocs {
       FixtureRemindersRepository(),
       page.notifier,
       fixture,
+      FixtureDigestRepository(),
     );
     addTearDown(() => unawaited(coordinator.dispose()));
     final reminders = RemindersSettingsBloc(

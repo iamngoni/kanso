@@ -120,6 +120,15 @@ abstract final class KansoRoutes {
   /// A note's saved versions: `/history/:noteId`.
   static const String history = '/history';
 
+  /// The open loops found in the notes.
+  static const String loops = '/loops';
+
+  /// The morning brief.
+  static const String brief = '/brief';
+
+  /// The weekly review.
+  static const String review = '/review';
+
   /// Replace text across the library.
   static const String replace = '/replace';
 

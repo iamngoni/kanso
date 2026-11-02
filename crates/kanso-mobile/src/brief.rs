@@ -211,16 +211,18 @@ impl Library {
                 Date::parse_iso(&from).ok_or_else(|| KansoError::invalid("That isn't a date."))?,
             );
             let review = brief::weekly_review(store, start, now_here())?;
-            Ok(match brief::save_review(store, &review, replace, Origin::Ui)? {
-                brief::Saved::Written { id } => ReviewSaved {
-                    note_id: id,
-                    exists: false,
+            Ok(
+                match brief::save_review(store, &review, replace, Origin::Ui)? {
+                    brief::Saved::Written { id } => ReviewSaved {
+                        note_id: id,
+                        exists: false,
+                    },
+                    brief::Saved::Exists { id } => ReviewSaved {
+                        note_id: id,
+                        exists: true,
+                    },
                 },
-                brief::Saved::Exists { id } => ReviewSaved {
-                    note_id: id,
-                    exists: true,
-                },
-            })
+            )
         })
     }
 

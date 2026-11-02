@@ -154,10 +154,49 @@ const NEGATING: &[&str] = &["not", "never", "no", "have", "be", "been", "had"];
 
 /// Capitalised words that start sentences without being names.
 const NOT_NAMES: &[&str] = &[
-    "I", "We", "You", "They", "He", "She", "It", "This", "That", "The", "There", "These", "Those",
-    "What", "When", "Where", "Why", "How", "Who", "Which", "My", "Our", "Your", "Their", "His",
-    "Her", "Its", "If", "But", "And", "Or", "So", "Then", "Also", "Maybe", "Today", "Tomorrow",
-    "Nobody", "Everyone", "Someone", "Anyone", "Nothing", "Everything",
+    "I",
+    "We",
+    "You",
+    "They",
+    "He",
+    "She",
+    "It",
+    "This",
+    "That",
+    "The",
+    "There",
+    "These",
+    "Those",
+    "What",
+    "When",
+    "Where",
+    "Why",
+    "How",
+    "Who",
+    "Which",
+    "My",
+    "Our",
+    "Your",
+    "Their",
+    "His",
+    "Her",
+    "Its",
+    "If",
+    "But",
+    "And",
+    "Or",
+    "So",
+    "Then",
+    "Also",
+    "Maybe",
+    "Today",
+    "Tomorrow",
+    "Nobody",
+    "Everyone",
+    "Someone",
+    "Anyone",
+    "Nothing",
+    "Everything",
 ];
 
 /// Verbs that make `<Name> will|to <verb>` a thing awaited.
@@ -198,10 +237,11 @@ fn sentences(line: &str) -> Vec<(usize, &str)> {
             && chars.peek().is_none_or(|&(_, next)| {
                 next.is_whitespace() || matches!(next, '"' | '”' | ')' | '*' | '_')
             });
-        if ends && let Some((start, hidden)) = begun.take() {
-            if !hidden {
-                out.push((start, &line[start..at + c.len_utf8()]));
-            }
+        if ends
+            && let Some((start, hidden)) = begun.take()
+            && !hidden
+        {
+            out.push((start, &line[start..at + c.len_utf8()]));
         }
     }
     if let Some((start, false)) = begun {
@@ -221,9 +261,9 @@ fn classify(sentence: &str, line_len: usize) -> Option<(LoopKind, usize, usize)>
         let trimmed = rest.trim_start_matches([' ', '\t', '-', '*', '_', '+']);
         begin += rest.len() - trimmed.len();
         let rest = &sentence[begin..];
-        let joiner = ["and ", "also ", "then "]
-            .iter()
-            .find(|j| rest.len() >= j.len() && rest.is_char_boundary(j.len()) && fold(&rest[..j.len()]) == **j);
+        let joiner = ["and ", "also ", "then "].iter().find(|j| {
+            rest.len() >= j.len() && rest.is_char_boundary(j.len()) && fold(&rest[..j.len()]) == **j
+        });
         match joiner {
             Some(j) => begin += j.len(),
             None => break,
@@ -558,8 +598,8 @@ pub fn merge_loops(a: &Loops, b: &Loops) -> Loops {
     for (key, other) in &b.ai {
         ai.entry(key.clone())
             .and_modify(|mine| {
-                let mine_first =
-                    (mine.approved_at, &mine.text, mine.kind) <= (other.approved_at, &other.text, other.kind);
+                let mine_first = (mine.approved_at, &mine.text, mine.kind)
+                    <= (other.approved_at, &other.text, other.kind);
                 if !mine_first {
                     *mine = other.clone();
                 }

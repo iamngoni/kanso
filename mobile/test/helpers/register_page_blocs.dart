@@ -51,6 +51,7 @@ import 'fake_editor_repository.dart';
 import 'fake_media_picker_repository.dart';
 import 'fake_web_link_repository.dart';
 import 'fixture_about_repository.dart';
+import 'fixture_digest_repository.dart';
 import 'fixture_discovery_repository.dart';
 import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
@@ -313,6 +314,7 @@ void _registerPageBlocs({
     FixtureRemindersRepository(),
     page.notifier,
     library,
+    FixtureDigestRepository(),
   );
   register<RemindersSettingsBloc>(
     () => RemindersSettingsBloc(preferences, page.notifier, coordinator),

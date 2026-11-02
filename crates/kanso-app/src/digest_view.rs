@@ -16,15 +16,14 @@ use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{ContextMenuExt as _, PopupMenuItem};
 use gpui_kit::component::{
-    Disableable as _, Icon, Sizable as _, StyledExt as _, VirtualListScrollHandle, h_flex, v_flex, v_virtual_list,
+    Disableable as _, Icon, Sizable as _, StyledExt as _, VirtualListScrollHandle, h_flex, v_flex,
+    v_virtual_list,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::dates::{Date, DateTime};
 use kanso_core::loops::{AiLoop, LoopKind, age_label};
-use kanso_engine::brief::{
-    self, Brief, Now, Review, ThemeKind, Why, morning_brief, weekly_review,
-};
+use kanso_engine::brief::{self, Brief, Now, Review, ThemeKind, Why, morning_brief, weekly_review};
 use kanso_engine::loops_ai::{self, Proposal, Scan, Summary};
 use kanso_store::{CheckOff, LoopClose, LoopQuery, LoopRow, Origin, Store, TaskRow};
 
@@ -47,7 +46,12 @@ const TICK: Duration = Duration::from_secs(60);
 
 actions!(
     digest,
-    [OpenMorningBrief, OpenWeeklyReview, OpenOpenLoops, FindMoreOpenLoops]
+    [
+        OpenMorningBrief,
+        OpenWeeklyReview,
+        OpenOpenLoops,
+        FindMoreOpenLoops
+    ]
 );
 
 /// The workspace's actions for the three pages.
@@ -293,12 +297,12 @@ impl DigestView {
         let model = store.embedding_model().ok().flatten();
         let task = cx.background_executor().spawn(async move {
             Ok::<_, kanso_store::StoreError>(match mode {
-                Mode::Loops => (
-                    Some(store.open_loops(&LoopQuery::default())?),
+                Mode::Loops => (Some(store.open_loops(&LoopQuery::default())?), None, None),
+                Mode::Brief => (
                     None,
+                    Some(morning_brief(&store, now, model.as_deref())?),
                     None,
                 ),
-                Mode::Brief => (None, Some(morning_brief(&store, now, model.as_deref())?), None),
                 Mode::Review => (None, None, Some(weekly_review(&store, week, now)?)),
             })
         });
@@ -368,7 +372,8 @@ impl DigestView {
             ))),
         }
         // Gone at once; the reload confirms it.
-        self.loops.retain(|l| !(l.note_id == row.note_id && l.key == row.key));
+        self.loops
+            .retain(|l| !(l.note_id == row.note_id && l.key == row.key));
         self.reload(cx);
         cx.notify();
     }
@@ -492,9 +497,13 @@ impl DigestView {
             let provider = shared
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            loops_ai::find_more(&store, provider.as_ref(), loops_ai::DEFAULT_DAYS, now, &|| {
-                cancel.load(Ordering::SeqCst)
-            })
+            loops_ai::find_more(
+                &store,
+                provider.as_ref(),
+                loops_ai::DEFAULT_DAYS,
+                now,
+                &|| cancel.load(Ordering::SeqCst),
+            )
             .map_err(|e| e.to_string())
         });
         self.ai_task = Some(cx.spawn(async move |this, cx| {
@@ -709,7 +718,11 @@ impl DigestView {
         Button::new(id)
             .ghost()
             .small()
-            .icon(Icon::new(icon).size(px(15.)).text_color(colors.text_secondary))
+            .icon(
+                Icon::new(icon)
+                    .size(px(15.))
+                    .text_color(colors.text_secondary),
+            )
             .tooltip(tooltip)
     }
 
@@ -803,22 +816,25 @@ impl DigestView {
         };
         let done = {
             let row = row.clone();
-            action(format!("loop-done-{}", row.key), Lucide::Check, "Done").on_click(
-                cx.listener(move |this, _, _, cx| {
+            action(format!("loop-done-{}", row.key), Lucide::Check, "Done").on_click(cx.listener(
+                move |this, _, _, cx| {
                     cx.stop_propagation();
                     let mark = Self::mark_in_note(cx);
                     this.close(&row, LoopClose::Done { mark_in_note: mark }, cx);
-                }),
-            )
+                },
+            ))
         };
         let make_task = {
             let row = row.clone();
-            action(format!("loop-task-{}", row.key), Lucide::ListPlus, "Make Task").on_click(
-                cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    this.close(&row, LoopClose::MakeTask, cx);
-                }),
+            action(
+                format!("loop-task-{}", row.key),
+                Lucide::ListPlus,
+                "Make Task",
             )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.close(&row, LoopClose::MakeTask, cx);
+            }))
         };
         let dismiss = {
             let row = row.clone();
@@ -830,7 +846,10 @@ impl DigestView {
             )
         };
         div()
-            .id(SharedString::from(format!("loop-{}-{}", row.note_id, row.key)))
+            .id(SharedString::from(format!(
+                "loop-{}-{}",
+                row.note_id, row.key
+            )))
             .group(group.clone())
             .h(px(ROW_HEIGHT))
             .w_full()
@@ -930,16 +949,12 @@ impl DigestView {
                     .into_any_element(),
             );
         }
-        let off = !cx
-            .global::<AppState>()
-            .config
-            .briefs
-            .loops;
+        let off = !cx.global::<AppState>().config.briefs.loops;
         let body = if let Some(found) = &self.found {
             self.found_sheet(found, cx)
         } else if off {
             quiet_empty(
-                Lucide::CircleDashed,
+                Lucide::CircleDot,
                 "Open loops are off".into(),
                 Some("Turn them on in Settings › General.".into()),
                 colors,
@@ -948,7 +963,7 @@ impl DigestView {
         } else if list.is_empty() {
             if self.loaded {
                 quiet_empty(
-                    Lucide::CircleDashed,
+                    Lucide::CircleDot,
                     "No open loops".into(),
                     Some(
                         "When you write things like “I'll send the deck” or “need to check the lease”, they show up here."
@@ -1036,7 +1051,11 @@ impl DigestView {
                                     Lucide::Square
                                 })
                                 .size(px(16.))
-                                .text_color(if on { colors.accent } else { colors.text_muted }),
+                                .text_color(if on {
+                                    colors.accent
+                                } else {
+                                    colors.text_muted
+                                }),
                             )
                             .child(
                                 v_flex()
@@ -1148,7 +1167,10 @@ impl DigestView {
         let tick_row = row.clone();
         let open = row.clone();
         h_flex()
-            .id(SharedString::from(format!("due-{}-{}", row.note_id, row.line)))
+            .id(SharedString::from(format!(
+                "due-{}-{}",
+                row.note_id, row.line
+            )))
             .w_full()
             .px(px(ROW_INSET_X))
             .py(px(1.))
@@ -1201,9 +1223,9 @@ impl DigestView {
                             ),
                     ),
             )
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.open(&open.note_id, open.line, false, cx)
-            }))
+            .on_click(
+                cx.listener(move |this, _, _, cx| this.open(&open.note_id, open.line, false, cx)),
+            )
             .into_any_element()
     }
 
@@ -1232,7 +1254,7 @@ impl DigestView {
                         .gap(px(12.))
                         .pt(px(60.))
                         .child(
-                            Icon::new(Lucide::Sunrise)
+                            Icon::new(Lucide::Clock)
                                 .size(px(22.))
                                 .text_color(colors.text_muted),
                         )
@@ -1247,7 +1269,9 @@ impl DigestView {
                                 .outline()
                                 .small()
                                 .label("Open Today's Note")
-                                .on_click(cx.listener(|_, _, _, cx| cx.emit(DigestEvent::OpenToday))),
+                                .on_click(
+                                    cx.listener(|_, _, _, cx| cx.emit(DigestEvent::OpenToday)),
+                                ),
                         ),
                 );
             } else {
@@ -1270,7 +1294,7 @@ impl DigestView {
                         let open = l.clone();
                         page = page.child(self.page_row(
                             SharedString::from(format!("brief-loop-{}", l.key)),
-                            Icon::new(Lucide::CircleDashed),
+                            Icon::new(Lucide::CircleDot),
                             l.text.clone(),
                             Some(sub),
                             move |this, _, cx| this.open(&open.note_id, open.line, false, cx),
@@ -1285,8 +1309,9 @@ impl DigestView {
                             format!("See all ({total})"),
                             None,
                             |this, _, cx| {
-                                this.library
-                                    .update(cx, |library, cx| library.set_filter(Filter::OpenLoops, cx));
+                                this.library.update(cx, |library, cx| {
+                                    library.set_filter(Filter::OpenLoops, cx)
+                                });
                             },
                             cx,
                         ));
@@ -1314,23 +1339,21 @@ impl DigestView {
                         let when = Clock::local_ms(cx, r.updated_at);
                         let date = DateTime::from_local_ms(when).date.long_label();
                         let sub = format!("{} · {date}", r.why.label());
-                        page = page.child(
-                            self.page_row(
-                                SharedString::from(format!("brief-note-{}", r.id)),
-                                Icon::new(match r.why {
-                                    Why::Similar => Lucide::Sparkles,
-                                    _ => Lucide::FileText,
-                                }),
-                                r.title.clone(),
-                                Some(if r.excerpt.is_empty() {
-                                    sub
-                                } else {
-                                    format!("{sub}\n{}", r.excerpt)
-                                }),
-                                move |this, _, cx| this.open(&id, 0, false, cx),
-                                cx,
-                            ),
-                        );
+                        page = page.child(self.page_row(
+                            SharedString::from(format!("brief-note-{}", r.id)),
+                            Icon::new(match r.why {
+                                Why::Similar => Lucide::Sparkles,
+                                _ => Lucide::FileText,
+                            }),
+                            r.title.clone(),
+                            Some(if r.excerpt.is_empty() {
+                                sub
+                            } else {
+                                format!("{sub}\n{}", r.excerpt)
+                            }),
+                            move |this, _, cx| this.open(&id, 0, false, cx),
+                            cx,
+                        ));
                     }
                 }
             }
@@ -1412,10 +1435,8 @@ impl DigestView {
         if let Some(review) = self.review.clone() {
             page = page.children(self.working_line(cx));
             page = page.children(self.summary_block("review", cx));
-            page = page.child(self.heading(
-                format!("What you wrote · {}", review.counts_text()),
-                cx,
-            ));
+            page =
+                page.child(self.heading(format!("What you wrote · {}", review.counts_text()), cx));
             let mut by_book: Vec<(String, Vec<&brief::WrittenNote>)> = Vec::new();
             for note in &review.written {
                 match by_book.iter_mut().find(|(b, _)| *b == note.book_name) {
@@ -1427,7 +1448,11 @@ impl DigestView {
                 page = page.child(self.muted_line("Nothing this week.", cx));
             }
             for (book, notes) in by_book {
-                let name = if book.is_empty() { "No notebook".to_owned() } else { book };
+                let name = if book.is_empty() {
+                    "No notebook".to_owned()
+                } else {
+                    book
+                };
                 page = page.child(self.muted_line(&name, cx));
                 for note in notes {
                     let id = note.id.clone();
@@ -1439,7 +1464,11 @@ impl DigestView {
                         } else {
                             note.title.clone()
                         },
-                        Some(if note.created { "New".to_owned() } else { "Changed".to_owned() }),
+                        Some(if note.created {
+                            "New".to_owned()
+                        } else {
+                            "Changed".to_owned()
+                        }),
                         move |this, _, cx| this.open(&id, 0, false, cx),
                         cx,
                     ));
@@ -1471,7 +1500,7 @@ impl DigestView {
                 let open = l.clone();
                 page = page.child(self.page_row(
                     SharedString::from(format!("review-open-{}", l.key)),
-                    Icon::new(Lucide::CircleDashed),
+                    Icon::new(Lucide::CircleDot),
                     l.text.clone(),
                     Some(format!(
                         "{} · {}",

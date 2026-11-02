@@ -41,7 +41,12 @@ impl ChatProvider for Fake {
             .lock()
             .unwrap()
             .push(format!("{}\n{}", prompt.system, prompt.user));
-        let reply = self.replies.lock().unwrap().pop().unwrap_or_else(|| "[]".into());
+        let reply = self
+            .replies
+            .lock()
+            .unwrap()
+            .pop()
+            .unwrap_or_else(|| "[]".into());
         Ok(Box::new(vec![Event::Text(reply), Event::Done].into_iter()))
     }
 }
@@ -82,11 +87,41 @@ fn ineligible_notes_are_never_sent() {
     let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "A"}));
     let private = put(&store, DocType::Book, json!({"_id": "book:p", "name": "P"}));
     let exclude = put(&store, DocType::Tag, json!({"name": "ai-exclude"}));
-    note(&store, "note:plain", "Plain", "plainmarker I'll call Rudo about the lease.", &b);
-    note(&store, "note:locked", "Locked", "lockedcanary I'll hide this.", &b);
-    note(&store, "note:excluded", "Excluded", "excludedcanary I'll hide this.", &b);
-    note(&store, "note:trashed", "Trashed", "trashedcanary I'll hide this.", &b);
-    note(&store, "note:inbook", "In book", "bookcanary I'll hide this.", &private);
+    note(
+        &store,
+        "note:plain",
+        "Plain",
+        "plainmarker I'll call Rudo about the lease.",
+        &b,
+    );
+    note(
+        &store,
+        "note:locked",
+        "Locked",
+        "lockedcanary I'll hide this.",
+        &b,
+    );
+    note(
+        &store,
+        "note:excluded",
+        "Excluded",
+        "excludedcanary I'll hide this.",
+        &b,
+    );
+    note(
+        &store,
+        "note:trashed",
+        "Trashed",
+        "trashedcanary I'll hide this.",
+        &b,
+    );
+    note(
+        &store,
+        "note:inbook",
+        "In book",
+        "bookcanary I'll hide this.",
+        &private,
+    );
     let mut sealed = store.get_api("note:locked", None, false).unwrap();
     sealed["body"] = "".into();
     sealed["kansoLock"] = lock();
@@ -120,7 +155,12 @@ fn ineligible_notes_are_never_sent() {
     assert_eq!(scan.notes_total, 1);
     let prompts = seen.lock().unwrap().join("\n");
     assert!(prompts.contains("plainmarker"));
-    for canary in ["lockedcanary", "excludedcanary", "trashedcanary", "bookcanary"] {
+    for canary in [
+        "lockedcanary",
+        "excludedcanary",
+        "trashedcanary",
+        "bookcanary",
+    ] {
         assert!(!prompts.contains(canary), "{canary} was sent");
     }
 }
@@ -155,7 +195,10 @@ fn nothing_is_written_before_approval() {
     );
     // Not stored: the note and the list are as they were.
     assert_eq!(store.note("note:one").unwrap().unwrap().rev, rev);
-    assert_eq!(store.open_loop_count(&LoopQuery::default()).unwrap(), before);
+    assert_eq!(
+        store.open_loop_count(&LoopQuery::default()).unwrap(),
+        before
+    );
     // Approving stores it.
     let p = &scan.proposals[0];
     let added = store
@@ -171,7 +214,10 @@ fn nothing_is_written_before_approval() {
         )
         .unwrap();
     assert_eq!(added, 1);
-    assert_eq!(store.open_loop_count(&LoopQuery::default()).unwrap(), before + 1);
+    assert_eq!(
+        store.open_loop_count(&LoopQuery::default()).unwrap(),
+        before + 1
+    );
     // The next run doesn't propose it again.
     let (fake, _) = Fake::new(&[
         r#"[{"note": 1, "line": 0, "text": "Lease renewal is due next month.", "kind": "mine"}]"#,
@@ -185,7 +231,13 @@ fn a_long_library_stops_at_the_request_cap_and_says_how_far_it_got() {
     let (_dir, store) = open();
     let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "A"}));
     for i in 0..25 {
-        note(&store, &format!("note:n{i}"), &format!("N{i}"), &"filler words here. ".repeat(1500), &b);
+        note(
+            &store,
+            &format!("note:n{i}"),
+            &format!("N{i}"),
+            &"filler words here. ".repeat(1500),
+            &b,
+        );
     }
     let (fake, seen) = Fake::new(&[]);
     let scan = find_more(&store, &fake, 14, kanso_core::now_ms(), &never).unwrap();
@@ -231,7 +283,13 @@ fn summary_citations_are_checked_and_ineligible_notes_stay_out() {
         offset_ms: 0,
     };
     note(&store, "note:a", "Rent", "- [ ] pay rent @2026-11-01\n", &b);
-    note(&store, "note:x", "Secret", "- [ ] secretcanary @2026-11-01\n", &b);
+    note(
+        &store,
+        "note:x",
+        "Secret",
+        "- [ ] secretcanary @2026-11-01\n",
+        &b,
+    );
     store
         .put(
             DocType::Note,
@@ -252,7 +310,10 @@ fn summary_citations_are_checked_and_ineligible_notes_stay_out() {
         summary.warning("brief").as_deref(),
         Some("This summary mentions notes that weren't in the brief.")
     );
-    assert_eq!(loops_ai::unknown_citations("[[rent]] [[Rent|alias]]", &allowed), Vec::<String>::new());
+    assert_eq!(
+        loops_ai::unknown_citations("[[rent]] [[Rent|alias]]", &allowed),
+        Vec::<String>::new()
+    );
 }
 
 fn claim() -> impl Strategy<Value = Claim> {
@@ -265,9 +326,18 @@ fn claim() -> impl Strategy<Value = Claim> {
             Just("Need to pay the electricity bill".to_owned()),
             "[a-z ]{0,40}",
         ],
-        prop_oneof![Just(LoopKind::Mine), Just(LoopKind::Waiting), Just(LoopKind::Question)],
+        prop_oneof![
+            Just(LoopKind::Mine),
+            Just(LoopKind::Waiting),
+            Just(LoopKind::Question)
+        ],
     )
-        .prop_map(|(note, line, text, kind)| Claim { note, line, text, kind })
+        .prop_map(|(note, line, text, kind)| Claim {
+            note,
+            line,
+            text,
+            kind,
+        })
 }
 
 proptest! {

@@ -155,12 +155,13 @@ async fn list_loops(State(state): State<AppState>, params: Params) -> JsonResult
     let params = QueryParams::parse(params)?;
     let limit = params.count("limit")?;
     let book_id = params.get("bookId").map(str::to_owned);
-    let kind = match params.get("kind") {
-        None => None,
-        Some(raw) => Some(kanso_core::loops::LoopKind::parse(raw).ok_or_else(|| {
-            ApiError::bad_request("'kind' must be mine, waiting or question.")
-        })?),
-    };
+    let kind =
+        match params.get("kind") {
+            None => None,
+            Some(raw) => Some(kanso_core::loops::LoopKind::parse(raw).ok_or_else(|| {
+                ApiError::bad_request("'kind' must be mine, waiting or question.")
+            })?),
+        };
     let loops = blocking(&state, move |store| {
         api::list_loops(store, book_id, kind, limit)
     })

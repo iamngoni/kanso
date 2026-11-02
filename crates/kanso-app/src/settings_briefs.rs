@@ -105,10 +105,8 @@ pub fn briefs_section(cx: &App) -> AnyElement {
         .try_global::<AppState>()
         .map(|state| state.config.briefs.clone())
         .unwrap_or_default();
-    let permission = notify_support::settings_note(
-        notify_support::availability(),
-        crate::flavour::CURRENT.name,
-    );
+    let permission =
+        notify_support::settings_note(notify_support::availability(), crate::flavour::CURRENT.name);
     let day = s.review_day.min(6) as usize;
     let review_day = Button::new("review-day")
         .outline()
@@ -149,10 +147,10 @@ pub fn briefs_section(cx: &App) -> AnyElement {
     section(
         "Brief and review",
         vec![
-            Row::new(Lucide::CircleDashed, "Open loops")
+            Row::new(Lucide::CircleDot, "Open loops")
                 .detail("Finds things your notes say you will do, wait for or check, like “I'll send the deck” or “waiting on Rudo”. Nothing leaves this Mac.")
                 .trailing(switch("loops", s.loops, |s, on| s.loops = on)),
-            Row::new(Lucide::Sunrise, "Morning brief")
+            Row::new(Lucide::Clock, "Morning brief")
                 .detail(
                     permission
                         .clone()
@@ -170,7 +168,7 @@ pub fn briefs_section(cx: &App) -> AnyElement {
                     },
                 ))
                 .trailing(switch("brief", s.brief, |s, on| s.brief = on)),
-            Row::new(Lucide::CalendarRange, "Weekly review")
+            Row::new(Lucide::CalendarDays, "Weekly review")
                 .detail("A notification once a week. Clicking it opens the review of the last seven days.")
                 .trailing(review_day)
                 .trailing(stepper(

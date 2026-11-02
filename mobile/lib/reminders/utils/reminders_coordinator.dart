@@ -11,11 +11,15 @@ import 'package:injectable/injectable.dart';
 import '../../core/bridge/api/types.dart';
 import '../../core/models/data/reminder_permission.dart';
 import '../../core/models/data/reminder_response.dart';
+import '../../core/models/repos/abs/digest_repository.dart';
 import '../../core/models/repos/abs/library_repository.dart';
 import '../../core/models/repos/abs/preferences_repository.dart';
 import '../../core/models/repos/abs/reminder_notifier.dart';
 import '../../core/models/repos/abs/reminders_repository.dart';
 import '../../core/utils/debounce.dart';
+
+/// What the keys of the brief and review notifications start with.
+const String digestKeyPrefix = 'digest:';
 
 /// How long the library must be quiet before the reminders are planned
 /// again.
@@ -41,12 +45,14 @@ class RemindersCoordinator {
     this._reminders,
     this._notifier,
     this._library,
+    this._digest,
   );
 
   final PreferencesRepository _preferences;
   final RemindersRepository _reminders;
   final ReminderNotifier _notifier;
   final LibraryRepository _library;
+  final DigestRepository _digest;
 
   // Single-subscription: a tap that launched the app is kept until the
   // app's host listens.
@@ -59,6 +65,15 @@ class RemindersCoordinator {
 
   /// The tasks the person asked to open from a notification.
   Stream<TaskPlace> get opened => _opened.stream;
+
+  // The morning brief's and the weekly review's notifications share the
+  // system's reminders channel, under keys that start with this. A tap on
+  // one opens the page; it is not a task to answer.
+  final StreamController<bool> _digestOpened = StreamController<bool>();
+
+  /// The brief (false) or the review (true) the person asked to open from
+  /// a notification.
+  Stream<bool> get digestOpened => _digestOpened.stream;
 
   /// Starts listening, then answers what was waiting and plans.
   Future<void> start() async {
@@ -116,6 +131,7 @@ class RemindersCoordinator {
     // done future only completes once its stream is listened to and drained,
     // so closing is not awaited: it would never return.
     unawaited(_opened.close());
+    unawaited(_digestOpened.close());
   }
 
   Future<void> _serialised(Future<void> Function() action) {
@@ -135,6 +151,7 @@ class RemindersCoordinator {
       }
       await _forgetFuture(nowUtcMs);
       _scheduledKeys.clear();
+      await _scheduleDigestOnly();
       return;
     }
     ReminderPermission permission;
@@ -187,7 +204,10 @@ class RemindersCoordinator {
           return;
         }
         try {
-          await _notifier.schedule(plan.schedule);
+          await _notifier.schedule(<ReminderNote>[
+            ...plan.schedule,
+            ...await _digestNotes(),
+          ]);
           _scheduledKeys = plan.schedule
               .map((reminder) => reminder.key)
               .toSet();
@@ -202,7 +222,61 @@ class RemindersCoordinator {
     );
   }
 
+  /// The brief and review notifications for the next week, as the
+  /// reminders channel takes them. Their text is fixed.
+  Future<List<ReminderNote>> _digestNotes() async {
+    final planned = await _digest.plan(canNotify: true);
+    return planned.fold(
+      (error) {
+        _report(error, StackTrace.current, 'planning the brief notifications');
+        return const <ReminderNote>[];
+      },
+      (notices) => <ReminderNote>[
+        for (final notice in notices)
+          ReminderNote(
+            key: '$digestKeyPrefix${notice.id}',
+            noteId: '',
+            line: 0,
+            title: notice.title,
+            body: notice.body,
+            fireAt: LocalTime(
+              year: notice.year,
+              month: notice.month,
+              day: notice.day,
+              hour: notice.hour,
+              minute: notice.minute,
+              second: 0,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// With task reminders off, the brief and review still notify (when the
+  /// system allows it) as their own settings say.
+  Future<void> _scheduleDigestOnly() async {
+    try {
+      final permission = await _notifier.permission();
+      if (permission != ReminderPermission.granted) {
+        return;
+      }
+      final notes = await _digestNotes();
+      if (notes.isNotEmpty) {
+        await _notifier.schedule(notes);
+      }
+    } on Object catch (error, stack) {
+      _report(error, stack, 'scheduling the brief notifications');
+    }
+  }
+
   Future<void> _apply(ReminderResponse response) async {
+    if (response.key.startsWith(digestKeyPrefix)) {
+      // A tap opens the brief or the review; the buttons do nothing.
+      if (response.action == ReminderAnswer.open && !_digestOpened.isClosed) {
+        _digestOpened.add(response.key.contains('review-'));
+      }
+      return;
+    }
     final answered = await _reminders.answer(
       key: response.key,
       action: response.action,

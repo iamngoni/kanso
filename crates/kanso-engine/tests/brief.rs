@@ -64,7 +64,11 @@ fn day(offset: i64) -> Date {
 #[test]
 fn the_brief_lists_what_is_due_open_and_relevant() {
     let (_dir, store) = open();
-    let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let b = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     let today = day(0);
     note(
         &store,
@@ -82,7 +86,14 @@ fn the_brief_lists_what_is_due_open_and_relevant() {
         &b,
         noon(today.add_days(-365)),
     );
-    note(&store, "note:plans", "Plans", "The plans\nfor the quarter", &b, noon(day(-3)));
+    note(
+        &store,
+        "note:plans",
+        "Plans",
+        "The plans\nfor the quarter",
+        &b,
+        noon(day(-3)),
+    );
     note(
         &store,
         "note:tasks",
@@ -106,8 +117,15 @@ fn the_brief_lists_what_is_due_open_and_relevant() {
     assert_eq!(brief.later_today[0].text, "standup @2026-11-02T14:00");
     assert_eq!(brief.loops_total, 2);
     assert_eq!(brief.loops.len(), 2);
-    let relevant: Vec<_> = brief.relevant.iter().map(|r| (r.title.as_str(), r.why)).collect();
-    assert_eq!(relevant, [("Plans", Why::Linked), ("A year ago", Why::YearAgo)]);
+    let relevant: Vec<_> = brief
+        .relevant
+        .iter()
+        .map(|r| (r.title.as_str(), r.why))
+        .collect();
+    assert_eq!(
+        relevant,
+        [("Plans", Why::Linked), ("A year ago", Why::YearAgo)]
+    );
     assert_eq!(brief.relevant[0].excerpt, "The plans for the quarter");
     assert!(!brief.is_empty());
     assert_eq!(brief.notification_text(), "3 due, 2 open loops");
@@ -116,11 +134,22 @@ fn the_brief_lists_what_is_due_open_and_relevant() {
 #[test]
 fn yesterdays_counts_and_the_empty_brief() {
     let (_dir, store) = open();
-    let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let b = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     let empty = morning_brief(&store, now(), None).unwrap();
     assert!(empty.is_empty());
     assert_eq!(empty.notification_text(), "Nothing due today");
-    note(&store, "note:one", "One", "- [ ] a\n- [ ] b\n", &b, noon(day(-1)));
+    note(
+        &store,
+        "note:one",
+        "One",
+        "- [ ] a\n- [ ] b\n",
+        &b,
+        noon(day(-1)),
+    );
     note(&store, "note:two", "Two", "text", &b, noon(day(-1)));
     note(&store, "note:old", "Old", "text", &b, noon(day(-5)));
     // Ticking a task finishes it (at the store's clock, which is now: the
@@ -149,7 +178,11 @@ fn yesterdays_counts_and_the_empty_brief() {
 #[test]
 fn old_loops_are_still_open_from_last_week_and_the_brief_is_capped() {
     let (_dir, store) = open();
-    let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let b = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     for i in 0..9 {
         note(
             &store,
@@ -184,10 +217,21 @@ fn old_loops_are_still_open_from_last_week_and_the_brief_is_capped() {
 #[test]
 fn the_weekly_review_covers_the_week() {
     let (_dir, store) = open();
-    let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let b = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     let monday = week_start(day(3));
     assert_eq!(monday, day(0));
-    note(&store, "note:new", "New", "I'll call Rudo.", &b, noon(day(1)));
+    note(
+        &store,
+        "note:new",
+        "New",
+        "I'll call Rudo.",
+        &b,
+        noon(day(1)),
+    );
     // Created last week, changed this week.
     put(
         &store,
@@ -223,7 +267,11 @@ fn the_weekly_review_covers_the_week() {
 #[test]
 fn saving_a_review_writes_one_journal_note_per_week_and_asks_before_replacing() {
     let (_dir, store) = open();
-    let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let b = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     note(&store, "note:new", "New", "text", &b, noon(day(1)));
     let review = weekly_review(&store, day(0), now()).unwrap();
     assert_eq!(brief::saved_review(&store, day(0)).unwrap(), None);
@@ -417,7 +465,11 @@ fn the_brief_and_the_review_are_fast_on_a_large_library() {
         .and_then(|v| v.parse().ok())
         .unwrap_or(5000);
     let (_dir, store) = open();
-    let b = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let b = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     let docs: Vec<Value> = (0..n)
         .map(|i| {
             let day_offset = -((i % 400) as i64);
@@ -429,20 +481,27 @@ fn the_brief_and_the_review_are_fast_on_a_large_library() {
         })
         .collect();
     for doc in docs {
-        store.put(DocType::Note, doc, Put::Upsert, Origin::Import).unwrap();
+        store
+            .put(DocType::Note, doc, Put::Upsert, Origin::Import)
+            .unwrap();
     }
     let t = Instant::now();
     let brief = morning_brief(&store, now(), None).unwrap();
     let brief_ms = t.elapsed().as_millis();
     let t = Instant::now();
-    let loops = store.open_loops(&kanso_store::LoopQuery::default()).unwrap();
+    let loops = store
+        .open_loops(&kanso_store::LoopQuery::default())
+        .unwrap();
     let loops_ms = t.elapsed().as_millis();
     let t = Instant::now();
     let review = weekly_review(&store, week_start(day(0)), now()).unwrap();
     let review_ms = t.elapsed().as_millis();
     eprintln!(
         "{n} notes: brief {brief_ms} ms ({} due, {} loops), open_loops {loops_ms} ms ({}), review {review_ms} ms ({} written)",
-        brief.due.len(), brief.loops_total, loops.len(), review.written.len()
+        brief.due.len(),
+        brief.loops_total,
+        loops.len(),
+        review.written.len()
     );
     let scale = (n as u128).max(5000) as f64 / 50_000.0;
     assert!((brief_ms as f64) < 100.0 * scale.max(1.0) * 10.0);

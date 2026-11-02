@@ -136,7 +136,9 @@ pub fn check(cx: &mut App) -> Duration {
                 .ok();
             let tag = format!("{TAG_PREFIX}{}-{}", kind.as_str(), today.iso());
             let body = body_of(&store, kind, now);
-            cx.global_mut::<Briefs>().on_screen.insert(tag.clone(), kind);
+            cx.global_mut::<Briefs>()
+                .on_screen
+                .insert(tag.clone(), kind);
             cx.show_system_notification(SystemNotification {
                 tag: tag.into(),
                 title: kind.title().into(),
@@ -147,8 +149,7 @@ pub fn check(cx: &mut App) -> Duration {
         crate::notify_support::refresh_permission();
     }
     match brief::next_wake(&settings, now_local) {
-        Some(at) => Duration::from_millis((at - now_local).max(0) as u64)
-            .clamp(MIN_WAIT, MAX_WAIT),
+        Some(at) => Duration::from_millis((at - now_local).max(0) as u64).clamp(MIN_WAIT, MAX_WAIT),
         None => MAX_WAIT,
     }
 }
@@ -171,14 +172,12 @@ pub fn respond(response: SystemNotificationResponse, cx: &mut App) {
     for handle in cx.windows() {
         let opened = handle
             .update(cx, |_, window, cx| match kind {
-                NoticeKind::Brief => window.dispatch_action(
-                    Box::new(crate::digest_view::OpenMorningBrief),
-                    cx,
-                ),
-                NoticeKind::Review => window.dispatch_action(
-                    Box::new(crate::digest_view::OpenWeeklyReview),
-                    cx,
-                ),
+                NoticeKind::Brief => {
+                    window.dispatch_action(Box::new(crate::digest_view::OpenMorningBrief), cx)
+                }
+                NoticeKind::Review => {
+                    window.dispatch_action(Box::new(crate::digest_view::OpenWeeklyReview), cx)
+                }
             })
             .is_ok();
         if opened {
@@ -196,12 +195,12 @@ mod tests {
     use super::{Briefs, check};
     use crate::clock::Clock;
     use gpui_kit::{App, TestAppContext};
-    use kanso_store::Store;
-    use std::collections::HashMap;
-    use std::sync::Arc;
     use kanso_core::DocType;
+    use kanso_store::Store;
     use kanso_store::{Origin, Put};
     use serde_json::json;
+    use std::collections::HashMap;
+    use std::sync::Arc;
 
     // Monday 2 November 2026, 08:30:00 UTC.
     const NOW: i64 = 1_793_608_200_000;

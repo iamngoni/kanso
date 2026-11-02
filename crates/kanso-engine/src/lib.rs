@@ -88,9 +88,9 @@ pub mod icons;
 pub mod links;
 pub mod list;
 pub mod live;
+pub mod lock;
 #[cfg(feature = "ai")]
 pub mod loops_ai;
-pub mod lock;
 pub mod navigate;
 pub mod notes;
 pub mod outline;

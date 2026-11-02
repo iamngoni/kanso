@@ -2,15 +2,21 @@
 // Created 2026-10-27.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/types.dart';
+import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_check_row.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
+import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../state/tasks/tasks_bloc.dart';
 
@@ -91,6 +97,38 @@ class TasksFilterSheet extends StatelessWidget {
                         TasksEvent.showDoneChanged(showDone: !state.showDone),
                       ),
                     ),
+                  ],
+                ),
+                KansoSheetGroup(
+                  children: <Widget>[
+                    for (final (icon, label, route)
+                        in <(KansoIcons, String, String)>[
+                          (
+                            KansoIcons.circleHelp,
+                            l10n.digestLoopsTitle,
+                            KansoRoutes.loops,
+                          ),
+                          (
+                            KansoIcons.clock,
+                            l10n.digestBriefTitle,
+                            KansoRoutes.brief,
+                          ),
+                          (
+                            KansoIcons.calendarDays,
+                            l10n.digestReviewTitle,
+                            KansoRoutes.review,
+                          ),
+                        ])
+                      KansoSettingsRow(
+                        icon: icon,
+                        label: label,
+                        chevron: true,
+                        onTap: () {
+                          final router = GoRouter.of(context);
+                          Navigator.of(context).maybePop();
+                          unawaited(router.push<void>(route));
+                        },
+                      ),
                   ],
                 ),
               ],

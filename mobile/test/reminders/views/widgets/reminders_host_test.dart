@@ -19,6 +19,9 @@ void main() {
     final opened = StreamController<TaskPlace>();
     final coordinator = _MockRemindersCoordinator();
     when(() => coordinator.opened).thenAnswer((_) => opened.stream);
+    when(
+      () => coordinator.digestOpened,
+    ).thenAnswer((_) => const Stream<bool>.empty());
     when(coordinator.start).thenAnswer((_) async {});
 
     final router = GoRouter(

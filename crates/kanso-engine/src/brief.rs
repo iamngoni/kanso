@@ -316,7 +316,11 @@ impl Review {
         format!(
             "{} {} written, {} finished",
             self.written.len(),
-            if self.written.len() == 1 { "note" } else { "notes" },
+            if self.written.len() == 1 {
+                "note"
+            } else {
+                "notes"
+            },
             self.finished.len()
         )
     }
@@ -338,7 +342,11 @@ pub fn weekly_review(store: &Store, week_start: Date, now: Now) -> Result<Review
     for note in store.notes_changed_between(from, to)? {
         let book_name = store
             .get(&note.book_id)?
-            .and_then(|d| d.fields.get("name").and_then(|n| n.as_str().map(str::to_owned)))
+            .and_then(|d| {
+                d.fields
+                    .get("name")
+                    .and_then(|n| n.as_str().map(str::to_owned))
+            })
             .unwrap_or_default();
         written.push(WrittenNote {
             created: note.created_at >= from && note.created_at < to,

@@ -16,8 +16,8 @@ use rusqlite::types::Value as SqlValue;
 use serde_json::Value;
 
 use crate::schema::{discoverable, note_locked, readable_body};
-use crate::write::{load_row, rewrite_note};
 use crate::tasks::CheckOff;
+use crate::write::{load_row, rewrite_note};
 use crate::{Origin, Result, Store, StoreError};
 
 /// Where a loop came from.
@@ -239,7 +239,11 @@ impl Store {
                 .into_iter()
                 .map(|item| (loop_key(id, &item.text), item.line, item.text))
                 .chain(loops.ai.values().filter_map(|ai| {
-                    Some((ai.key.clone(), locate(body, &ai.text, Some(line))?, ai.text.clone()))
+                    Some((
+                        ai.key.clone(),
+                        locate(body, &ai.text, Some(line))?,
+                        ai.text.clone(),
+                    ))
                 }))
                 .collect::<Vec<_>>();
             let Some((_, at, text)) = found.iter().find(|(k, ..)| k == key).cloned() else {
@@ -472,7 +476,10 @@ impl Store {
                 "SELECT target_id, target_title FROM note_links WHERE note_id = ? ORDER BY ord",
             )?;
             let rows = stmt.query_map([id], |row| {
-                Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?))
+                Ok((
+                    row.get::<_, Option<String>>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                ))
             })?;
             Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
         })?;

@@ -5227,20 +5227,28 @@
   "editorWordGoalWords": "{words} words",
   "@editorWordGoalWords": {
     "placeholders": {
-      "words": { "type": "String" }
+      "words": {
+        "type": "String"
+      }
     }
   },
   "editorWordGoalAim": "Aim for {words}",
   "@editorWordGoalAim": {
     "placeholders": {
-      "words": { "type": "String" }
+      "words": {
+        "type": "String"
+      }
     }
   },
   "editorWordGoalProgress": "{current} of {goal} words",
   "@editorWordGoalProgress": {
     "placeholders": {
-      "current": { "type": "String" },
-      "goal": { "type": "String" }
+      "current": {
+        "type": "String"
+      },
+      "goal": {
+        "type": "String"
+      }
     }
   },
   "editorWordGoalSet": "Set word goal",
@@ -5248,7 +5256,9 @@
   "editorWordGoalDefault": "Default ({words} words)",
   "@editorWordGoalDefault": {
     "placeholders": {
-      "words": { "type": "String" }
+      "words": {
+        "type": "String"
+      }
     }
   },
   "editorWordGoalNoGoalForNote": "No goal for this note",
@@ -5699,15 +5709,26 @@
   "@dictationSettingsMicDenied": {
     "description": "The label of the row shown when the microphone or speech recognition is refused."
   },
+<<<<<<< HEAD
   "triageBarCount": "{count, plural, =1{1 note to file} other{{count} notes to file}}",
   "@triageBarCount": {
     "description": "The bar above the Inbox's notes: how many wait to be filed.",
+=======
+  "digestLoopsTitle": "Open loops",
+  "@digestLoopsTitle": {
+    "description": "The title of the page that lists open loops: promises found in the notes."
+  },
+  "digestLoopsCount": "{count, plural, =1{1 open loop} other{{count} open loops}}",
+  "@digestLoopsCount": {
+    "description": "How many open loops the list holds.",
+>>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
+<<<<<<< HEAD
   "triageBarOpen": "Triage",
   "@triageBarOpen": {
     "description": "The button on that bar that opens the Triage pager."
@@ -5719,12 +5740,98 @@
   "triageSubtitle": "{count, plural, =1{1 to file} other{{count} to file}}",
   "@triageSubtitle": {
     "description": "The line under the Triage title: how many notes are left.",
+=======
+  "digestLoopsEmptyTitle": "No open loops",
+  "@digestLoopsEmptyTitle": {
+    "description": "The title of the empty list of open loops."
+  },
+  "digestLoopsEmptyMessage": "Sentences like “I'll send the deck” or “waiting on Rudo” show up here until you close them.",
+  "@digestLoopsEmptyMessage": {
+    "description": "What the empty list of open loops says will appear in it."
+  },
+  "digestLoopsOffTitle": "Open loops are off",
+  "@digestLoopsOffTitle": {
+    "description": "The title shown when the open loops detector is turned off."
+  },
+  "digestLoopsOffMessage": "Turn them on in Settings, under Brief and review.",
+  "@digestLoopsOffMessage": {
+    "description": "How to turn the open loops detector back on."
+  },
+  "digestKindMine": "I will",
+  "@digestKindMine": {
+    "description": "The heading of open loops that the writer will do."
+  },
+  "digestKindWaiting": "Waiting on",
+  "@digestKindWaiting": {
+    "description": "The heading of open loops that somebody else owes the writer."
+  },
+  "digestKindQuestion": "To find out",
+  "@digestKindQuestion": {
+    "description": "The heading of open loops that are questions to answer."
+  },
+  "digestLoopDone": "Done",
+  "@digestLoopDone": {
+    "description": "The action that closes an open loop as done."
+  },
+  "digestLoopNotALoop": "Not a loop",
+  "@digestLoopNotALoop": {
+    "description": "The action that hides a sentence that was wrongly taken for an open loop."
+  },
+  "digestLoopMakeTask": "Make task",
+  "@digestLoopMakeTask": {
+    "description": "The action that turns an open loop into a task in its note."
+  },
+  "digestLoopOpenNote": "Open note",
+  "@digestLoopOpenNote": {
+    "description": "The action that opens the note an open loop is in."
+  },
+  "digestLoopFromAi": "Found by AI",
+  "@digestLoopFromAi": {
+    "description": "The label of an open loop an AI pass found and the person approved."
+  },
+  "digestLoopGone": "That sentence is not in the note any more.",
+  "@digestLoopGone": {
+    "description": "What is said when an open loop was already gone from its note."
+  },
+  "digestLoopsRefresh": "Refresh",
+  "@digestLoopsRefresh": {
+    "description": "The button that reads a page of open loops again."
+  },
+  "digestBriefTitle": "Morning brief",
+  "@digestBriefTitle": {
+    "description": "The title of the page that shows what is due today and what is open."
+  },
+  "digestBriefEmptyTitle": "Nothing due, nothing open",
+  "@digestBriefEmptyTitle": {
+    "description": "The title shown when the morning brief has nothing in it."
+  },
+  "digestBriefEmptyMessage": "Tasks due today and open loops show up here.",
+  "@digestBriefEmptyMessage": {
+    "description": "What the empty morning brief says will appear in it."
+  },
+  "digestBriefDue": "Due",
+  "@digestBriefDue": {
+    "description": "The heading of tasks due today or earlier in the morning brief."
+  },
+  "digestBriefLater": "Later today",
+  "@digestBriefLater": {
+    "description": "The heading of timed tasks due later today in the morning brief."
+  },
+  "digestBriefLoops": "Open loops",
+  "@digestBriefLoops": {
+    "description": "The heading of open loops in the morning brief."
+  },
+  "digestBriefMoreLoops": "See all {count} open loops",
+  "@digestBriefMoreLoops": {
+    "description": "The button that opens every open loop from the morning brief.",
+>>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
+<<<<<<< HEAD
   "triageEmpty": "Inbox is clear.",
   "@triageEmpty": {
     "description": "Said when no note is left to file."
@@ -5769,11 +5876,78 @@
   "@triageFileAllAccepted": {
     "description": "The button that files every card with something accepted.",
     "placeholders": {
+=======
+  "digestBriefRelevant": "From your notes",
+  "@digestBriefRelevant": {
+    "description": "The heading of past notes the morning brief suggests."
+  },
+  "digestBriefYesterday": "Yesterday: {wrote, plural, =1{1 note written} other{{wrote} notes written}}, {finished} finished",
+  "@digestBriefYesterday": {
+    "description": "A line of counts for yesterday in the morning brief.",
+    "placeholders": {
+      "wrote": {
+        "type": "int"
+      },
+      "finished": {
+        "type": "int"
+      }
+    }
+  },
+  "digestReviewTitle": "Weekly review",
+  "@digestReviewTitle": {
+    "description": "The title of the page that reviews the last seven days."
+  },
+  "digestReviewWeek": "Week {week}",
+  "@digestReviewWeek": {
+    "description": "The name of a week in the weekly review, like Week 2026-W45.",
+    "placeholders": {
+      "week": {
+        "type": "String"
+      }
+    }
+  },
+  "digestReviewPrevious": "Previous week",
+  "@digestReviewPrevious": {
+    "description": "The button that shows the review of the week before."
+  },
+  "digestReviewNext": "Next week",
+  "@digestReviewNext": {
+    "description": "The button that shows the review of the week after."
+  },
+  "digestReviewWritten": "Written",
+  "@digestReviewWritten": {
+    "description": "The heading of notes written or changed in the reviewed week."
+  },
+  "digestReviewFinished": "Finished",
+  "@digestReviewFinished": {
+    "description": "The heading of tasks and loops finished in the reviewed week."
+  },
+  "digestReviewStillOpen": "Still open",
+  "@digestReviewStillOpen": {
+    "description": "The heading of open loops still open in the weekly review."
+  },
+  "digestReviewOverdue": "Overdue",
+  "@digestReviewOverdue": {
+    "description": "The heading of overdue tasks in the weekly review."
+  },
+  "digestReviewThemes": "Themes",
+  "@digestReviewThemes": {
+    "description": "The heading of recurring words and tags in the weekly review."
+  },
+  "digestReviewThemeNotes": "{term} · {count, plural, =1{1 note} other{{count} notes}}",
+  "@digestReviewThemeNotes": {
+    "description": "A recurring theme and how many notes it was in.",
+    "placeholders": {
+      "term": {
+        "type": "String"
+      },
+>>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
       "count": {
         "type": "int"
       }
     }
   },
+<<<<<<< HEAD
   "triageFile": "File",
   "@triageFile": {
     "description": "The button that files a card with what is accepted on it."
@@ -5919,5 +6093,130 @@
   "triageSettingsOpen": "Inbox",
   "@triageSettingsOpen": {
     "description": "The settings row that opens the Inbox settings."
+=======
+  "digestReviewNextWeek": "Next up",
+  "@digestReviewNextWeek": {
+    "description": "The heading of tasks due in the week after the reviewed one."
+  },
+  "digestReviewNothing": "Nothing to show for this week.",
+  "@digestReviewNothing": {
+    "description": "What the weekly review says when the week has nothing in it."
+  },
+  "digestReviewSave": "Save as note",
+  "@digestReviewSave": {
+    "description": "The button that saves the weekly review as a note in the Journal."
+  },
+  "digestReviewSaved": "Saved to the Journal",
+  "@digestReviewSaved": {
+    "description": "What is said after the weekly review was saved as a note."
+  },
+  "digestReviewOpenSaved": "Open saved note",
+  "@digestReviewOpenSaved": {
+    "description": "The button that opens the note the weekly review was saved as."
+  },
+  "digestReviewReplaceTitle": "Replace the saved review?",
+  "@digestReviewReplaceTitle": {
+    "description": "The title of the question asked when this week's review is already saved."
+  },
+  "digestReviewReplaceMessage": "This week's review is already saved in the Journal. Replacing it writes the current review over that note.",
+  "@digestReviewReplaceMessage": {
+    "description": "What replacing a saved weekly review does."
+  },
+  "digestReviewReplace": "Replace",
+  "@digestReviewReplace": {
+    "description": "The button that replaces a saved weekly review."
+  },
+  "digestReviewError": "Couldn't read the review. Try again.",
+  "@digestReviewError": {
+    "description": "What is said when the review could not be read."
+  },
+  "digestError": "Couldn't read this. Try again.",
+  "@digestError": {
+    "description": "What is said when a page of the brief or the loops could not be read."
+  },
+  "digestRetry": "Try again",
+  "@digestRetry": {
+    "description": "The button that retries after a failure."
+  },
+  "settingsBrief": "Brief and review",
+  "@settingsBrief": {
+    "description": "A section of settings."
+  },
+  "settingsBriefLoops": "Find open loops",
+  "@settingsBriefLoops": {
+    "description": "The settings row that turns the open loops detector on and off."
+  },
+  "settingsBriefMorning": "Morning brief",
+  "@settingsBriefMorning": {
+    "description": "The settings row that turns the morning brief notification on and off."
+  },
+  "settingsBriefMorningWeekdays": "Weekdays only",
+  "@settingsBriefMorningWeekdays": {
+    "description": "The settings row that limits the morning brief to Monday to Friday."
+  },
+  "settingsBriefReview": "Weekly review",
+  "@settingsBriefReview": {
+    "description": "The settings row that turns the weekly review notification on and off."
+  },
+  "settingsBriefDay": "Review day",
+  "@settingsBriefDay": {
+    "description": "The settings row that chooses the day of the weekly review."
+  },
+  "settingsBriefTime": "Time",
+  "@settingsBriefTime": {
+    "description": "The label of a time in the brief settings."
+  },
+  "settingsBriefMarkDone": "Mark done loops in the note",
+  "@settingsBriefMarkDone": {
+    "description": "The settings row that adds a tick after a sentence when its loop is done."
+  },
+  "settingsBriefDetail": "Finds things your notes say you will do, wait for or check, like “I'll send the deck”. Nothing leaves this phone. The notifications say only how much is due and open.",
+  "@settingsBriefDetail": {
+    "description": "What the brief and review settings do."
+  },
+  "settingsBriefMarkDoneDetail": "Adds a tick after a sentence when you mark its loop done. Off, Kanso remembers it without touching your text.",
+  "@settingsBriefMarkDoneDetail": {
+    "description": "What marking done loops in the note does."
+  },
+  "settingsBriefEarlier": "15 minutes earlier",
+  "@settingsBriefEarlier": {
+    "description": "The button that moves a time 15 minutes earlier."
+  },
+  "settingsBriefLater": "15 minutes later",
+  "@settingsBriefLater": {
+    "description": "The button that moves a time 15 minutes later."
+  },
+  "briefNotificationOpen": "Open",
+  "@briefNotificationOpen": {
+    "description": "The name of a brief notification's tap."
+  },
+  "weekdayMonday": "Monday",
+  "@weekdayMonday": {
+    "description": "A day of the week."
+  },
+  "weekdayTuesday": "Tuesday",
+  "@weekdayTuesday": {
+    "description": "A day of the week."
+  },
+  "weekdayWednesday": "Wednesday",
+  "@weekdayWednesday": {
+    "description": "A day of the week."
+  },
+  "weekdayThursday": "Thursday",
+  "@weekdayThursday": {
+    "description": "A day of the week."
+  },
+  "weekdayFriday": "Friday",
+  "@weekdayFriday": {
+    "description": "A day of the week."
+  },
+  "weekdaySaturday": "Saturday",
+  "@weekdaySaturday": {
+    "description": "A day of the week."
+  },
+  "weekdaySunday": "Sunday",
+  "@weekdaySunday": {
+    "description": "A day of the week."
+>>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
   }
 }

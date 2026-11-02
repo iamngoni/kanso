@@ -7738,6 +7738,7 @@ abstract class AppLocalizations {
   /// **'Kanso can\'t use the microphone'**
   String get dictationSettingsMicDenied;
 
+<<<<<<< HEAD
   /// The bar above the Inbox's notes: how many wait to be filed.
   ///
   /// In en, this message translates to:
@@ -8001,6 +8002,403 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Inbox'**
   String get triageSettingsOpen;
+=======
+  /// The title of the page that lists open loops: promises found in the notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Open loops'**
+  String get digestLoopsTitle;
+
+  /// How many open loops the list holds.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 open loop} other{{count} open loops}}'**
+  String digestLoopsCount(int count);
+
+  /// The title of the empty list of open loops.
+  ///
+  /// In en, this message translates to:
+  /// **'No open loops'**
+  String get digestLoopsEmptyTitle;
+
+  /// What the empty list of open loops says will appear in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentences like “I\'ll send the deck” or “waiting on Rudo” show up here until you close them.'**
+  String get digestLoopsEmptyMessage;
+
+  /// The title shown when the open loops detector is turned off.
+  ///
+  /// In en, this message translates to:
+  /// **'Open loops are off'**
+  String get digestLoopsOffTitle;
+
+  /// How to turn the open loops detector back on.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn them on in Settings, under Brief and review.'**
+  String get digestLoopsOffMessage;
+
+  /// The heading of open loops that the writer will do.
+  ///
+  /// In en, this message translates to:
+  /// **'I will'**
+  String get digestKindMine;
+
+  /// The heading of open loops that somebody else owes the writer.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting on'**
+  String get digestKindWaiting;
+
+  /// The heading of open loops that are questions to answer.
+  ///
+  /// In en, this message translates to:
+  /// **'To find out'**
+  String get digestKindQuestion;
+
+  /// The action that closes an open loop as done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get digestLoopDone;
+
+  /// The action that hides a sentence that was wrongly taken for an open loop.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a loop'**
+  String get digestLoopNotALoop;
+
+  /// The action that turns an open loop into a task in its note.
+  ///
+  /// In en, this message translates to:
+  /// **'Make task'**
+  String get digestLoopMakeTask;
+
+  /// The action that opens the note an open loop is in.
+  ///
+  /// In en, this message translates to:
+  /// **'Open note'**
+  String get digestLoopOpenNote;
+
+  /// The label of an open loop an AI pass found and the person approved.
+  ///
+  /// In en, this message translates to:
+  /// **'Found by AI'**
+  String get digestLoopFromAi;
+
+  /// What is said when an open loop was already gone from its note.
+  ///
+  /// In en, this message translates to:
+  /// **'That sentence is not in the note any more.'**
+  String get digestLoopGone;
+
+  /// The button that reads a page of open loops again.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get digestLoopsRefresh;
+
+  /// The title of the page that shows what is due today and what is open.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning brief'**
+  String get digestBriefTitle;
+
+  /// The title shown when the morning brief has nothing in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing due, nothing open'**
+  String get digestBriefEmptyTitle;
+
+  /// What the empty morning brief says will appear in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks due today and open loops show up here.'**
+  String get digestBriefEmptyMessage;
+
+  /// The heading of tasks due today or earlier in the morning brief.
+  ///
+  /// In en, this message translates to:
+  /// **'Due'**
+  String get digestBriefDue;
+
+  /// The heading of timed tasks due later today in the morning brief.
+  ///
+  /// In en, this message translates to:
+  /// **'Later today'**
+  String get digestBriefLater;
+
+  /// The heading of open loops in the morning brief.
+  ///
+  /// In en, this message translates to:
+  /// **'Open loops'**
+  String get digestBriefLoops;
+
+  /// The button that opens every open loop from the morning brief.
+  ///
+  /// In en, this message translates to:
+  /// **'See all {count} open loops'**
+  String digestBriefMoreLoops(int count);
+
+  /// The heading of past notes the morning brief suggests.
+  ///
+  /// In en, this message translates to:
+  /// **'From your notes'**
+  String get digestBriefRelevant;
+
+  /// A line of counts for yesterday in the morning brief.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday: {wrote, plural, =1{1 note written} other{{wrote} notes written}}, {finished} finished'**
+  String digestBriefYesterday(int wrote, int finished);
+
+  /// The title of the page that reviews the last seven days.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly review'**
+  String get digestReviewTitle;
+
+  /// The name of a week in the weekly review, like Week 2026-W45.
+  ///
+  /// In en, this message translates to:
+  /// **'Week {week}'**
+  String digestReviewWeek(String week);
+
+  /// The button that shows the review of the week before.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous week'**
+  String get digestReviewPrevious;
+
+  /// The button that shows the review of the week after.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get digestReviewNext;
+
+  /// The heading of notes written or changed in the reviewed week.
+  ///
+  /// In en, this message translates to:
+  /// **'Written'**
+  String get digestReviewWritten;
+
+  /// The heading of tasks and loops finished in the reviewed week.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get digestReviewFinished;
+
+  /// The heading of open loops still open in the weekly review.
+  ///
+  /// In en, this message translates to:
+  /// **'Still open'**
+  String get digestReviewStillOpen;
+
+  /// The heading of overdue tasks in the weekly review.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get digestReviewOverdue;
+
+  /// The heading of recurring words and tags in the weekly review.
+  ///
+  /// In en, this message translates to:
+  /// **'Themes'**
+  String get digestReviewThemes;
+
+  /// A recurring theme and how many notes it was in.
+  ///
+  /// In en, this message translates to:
+  /// **'{term} · {count, plural, =1{1 note} other{{count} notes}}'**
+  String digestReviewThemeNotes(String term, int count);
+
+  /// The heading of tasks due in the week after the reviewed one.
+  ///
+  /// In en, this message translates to:
+  /// **'Next up'**
+  String get digestReviewNextWeek;
+
+  /// What the weekly review says when the week has nothing in it.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to show for this week.'**
+  String get digestReviewNothing;
+
+  /// The button that saves the weekly review as a note in the Journal.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as note'**
+  String get digestReviewSave;
+
+  /// What is said after the weekly review was saved as a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to the Journal'**
+  String get digestReviewSaved;
+
+  /// The button that opens the note the weekly review was saved as.
+  ///
+  /// In en, this message translates to:
+  /// **'Open saved note'**
+  String get digestReviewOpenSaved;
+
+  /// The title of the question asked when this week's review is already saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the saved review?'**
+  String get digestReviewReplaceTitle;
+
+  /// What replacing a saved weekly review does.
+  ///
+  /// In en, this message translates to:
+  /// **'This week\'s review is already saved in the Journal. Replacing it writes the current review over that note.'**
+  String get digestReviewReplaceMessage;
+
+  /// The button that replaces a saved weekly review.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get digestReviewReplace;
+
+  /// What is said when the review could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the review. Try again.'**
+  String get digestReviewError;
+
+  /// What is said when a page of the brief or the loops could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read this. Try again.'**
+  String get digestError;
+
+  /// The button that retries after a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get digestRetry;
+
+  /// A section of settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Brief and review'**
+  String get settingsBrief;
+
+  /// The settings row that turns the open loops detector on and off.
+  ///
+  /// In en, this message translates to:
+  /// **'Find open loops'**
+  String get settingsBriefLoops;
+
+  /// The settings row that turns the morning brief notification on and off.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning brief'**
+  String get settingsBriefMorning;
+
+  /// The settings row that limits the morning brief to Monday to Friday.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekdays only'**
+  String get settingsBriefMorningWeekdays;
+
+  /// The settings row that turns the weekly review notification on and off.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly review'**
+  String get settingsBriefReview;
+
+  /// The settings row that chooses the day of the weekly review.
+  ///
+  /// In en, this message translates to:
+  /// **'Review day'**
+  String get settingsBriefDay;
+
+  /// The label of a time in the brief settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get settingsBriefTime;
+
+  /// The settings row that adds a tick after a sentence when its loop is done.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark done loops in the note'**
+  String get settingsBriefMarkDone;
+
+  /// What the brief and review settings do.
+  ///
+  /// In en, this message translates to:
+  /// **'Finds things your notes say you will do, wait for or check, like “I\'ll send the deck”. Nothing leaves this phone. The notifications say only how much is due and open.'**
+  String get settingsBriefDetail;
+
+  /// What marking done loops in the note does.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds a tick after a sentence when you mark its loop done. Off, Kanso remembers it without touching your text.'**
+  String get settingsBriefMarkDoneDetail;
+
+  /// The button that moves a time 15 minutes earlier.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes earlier'**
+  String get settingsBriefEarlier;
+
+  /// The button that moves a time 15 minutes later.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes later'**
+  String get settingsBriefLater;
+
+  /// The name of a brief notification's tap.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get briefNotificationOpen;
+
+  /// A day of the week.
+  ///
+  /// In en, this message translates to:
+  /// **'Monday'**
+  String get weekdayMonday;
+
+  /// A day of the week.
+  ///
+  /// In en, this message translates to:
+  /// **'Tuesday'**
+  String get weekdayTuesday;
+
+  /// A day of the week.
+  ///
+  /// In en, this message translates to:
+  /// **'Wednesday'**
+  String get weekdayWednesday;
+
+  /// A day of the week.
+  ///
+  /// In en, this message translates to:
+  /// **'Thursday'**
+  String get weekdayThursday;
+
+  /// A day of the week.
+  ///
+  /// In en, this message translates to:
+  /// **'Friday'**
+  String get weekdayFriday;
+
+  /// A day of the week.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturday'**
+  String get weekdaySaturday;
+
+  /// A day of the week.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunday'**
+  String get weekdaySunday;
+>>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
 }
 
 class _AppLocalizationsDelegate

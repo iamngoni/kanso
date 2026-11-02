@@ -35,21 +35,150 @@ pub struct Theme {
 }
 
 const STOP_WORDS: &[&str] = &[
-    "about", "above", "after", "again", "against", "also", "always", "among", "another", "because",
-    "been", "before", "being", "below", "between", "both", "cannot", "could", "didn't", "does",
-    "doesn't", "doing", "don't", "done", "down", "during", "each", "either", "else", "even",
-    "ever", "every", "from", "further", "gets", "getting", "going", "gone", "have", "haven't",
-    "having", "here", "hers", "herself", "himself", "into", "isn't", "itself", "just", "keep",
-    "kind", "know", "last", "later", "less", "like", "little", "look", "looks", "made", "make",
-    "makes", "many", "maybe", "might", "more", "most", "much", "must", "myself", "need", "needs",
-    "never", "next", "nothing", "once", "only", "other", "ours", "ourselves", "over", "same",
-    "should", "since", "some", "something", "still", "such", "take", "than", "that", "that's",
-    "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they're",
-    "thing", "things", "think", "this", "those", "though", "through", "today", "together",
-    "tomorrow", "under", "until", "upon", "very", "want", "wants", "well", "were", "what",
-    "what's", "when", "where", "whether", "which", "while", "will", "with", "within", "without",
-    "would", "wouldn't", "yesterday", "your", "yours", "yourself", "yourselves", "note", "notes",
-    "todo", "https", "http", "www",
+    "about",
+    "above",
+    "after",
+    "again",
+    "against",
+    "also",
+    "always",
+    "among",
+    "another",
+    "because",
+    "been",
+    "before",
+    "being",
+    "below",
+    "between",
+    "both",
+    "cannot",
+    "could",
+    "didn't",
+    "does",
+    "doesn't",
+    "doing",
+    "don't",
+    "done",
+    "down",
+    "during",
+    "each",
+    "either",
+    "else",
+    "even",
+    "ever",
+    "every",
+    "from",
+    "further",
+    "gets",
+    "getting",
+    "going",
+    "gone",
+    "have",
+    "haven't",
+    "having",
+    "here",
+    "hers",
+    "herself",
+    "himself",
+    "into",
+    "isn't",
+    "itself",
+    "just",
+    "keep",
+    "kind",
+    "know",
+    "last",
+    "later",
+    "less",
+    "like",
+    "little",
+    "look",
+    "looks",
+    "made",
+    "make",
+    "makes",
+    "many",
+    "maybe",
+    "might",
+    "more",
+    "most",
+    "much",
+    "must",
+    "myself",
+    "need",
+    "needs",
+    "never",
+    "next",
+    "nothing",
+    "once",
+    "only",
+    "other",
+    "ours",
+    "ourselves",
+    "over",
+    "same",
+    "should",
+    "since",
+    "some",
+    "something",
+    "still",
+    "such",
+    "take",
+    "than",
+    "that",
+    "that's",
+    "their",
+    "theirs",
+    "them",
+    "themselves",
+    "then",
+    "there",
+    "there's",
+    "these",
+    "they",
+    "they're",
+    "thing",
+    "things",
+    "think",
+    "this",
+    "those",
+    "though",
+    "through",
+    "today",
+    "together",
+    "tomorrow",
+    "under",
+    "until",
+    "upon",
+    "very",
+    "want",
+    "wants",
+    "well",
+    "were",
+    "what",
+    "what's",
+    "when",
+    "where",
+    "whether",
+    "which",
+    "while",
+    "will",
+    "with",
+    "within",
+    "without",
+    "would",
+    "wouldn't",
+    "yesterday",
+    "your",
+    "yours",
+    "yourself",
+    "yourselves",
+    "note",
+    "notes",
+    "todo",
+    "https",
+    "http",
+    "www",
 ];
 
 fn is_stop(word: &str) -> bool {
@@ -86,7 +215,10 @@ fn words(text: &str) -> Vec<Option<String>> {
             } else {
                 flush(&mut word, &mut out);
                 // Punctuation inside a sentence ends a phrase.
-                if matches!(c, '.' | ',' | ';' | ':' | '!' | '?' | '(' | ')' | '[' | ']' | '|') {
+                if matches!(
+                    c,
+                    '.' | ',' | ';' | ':' | '!' | '?' | '(' | ')' | '[' | ']' | '|'
+                ) {
                     out.push(None);
                 }
             }
@@ -150,10 +282,7 @@ pub fn themes(notes: &[ThemeNote]) -> Vec<Theme> {
         .collect();
     phrases.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
     phrases.truncate(MAX_TERMS);
-    let covered: BTreeSet<&str> = phrases
-        .iter()
-        .flat_map(|(p, _)| p.split(' '))
-        .collect();
+    let covered: BTreeSet<&str> = phrases.iter().flat_map(|(p, _)| p.split(' ')).collect();
     let mut words: Vec<(String, u32)> = singles
         .into_iter()
         .filter(|(w, n)| *n as usize >= MIN_NOTES && !covered.contains(w.as_str()))
@@ -215,7 +344,12 @@ mod tests {
     fn phrases_are_preferred_over_their_words() {
         let notes = vec![
             note("a", "x", "The product roadmap needs work", &["planning"]),
-            note("b", "y", "Reviewed product roadmap again", &["planning", "work"]),
+            note(
+                "b",
+                "y",
+                "Reviewed product roadmap again",
+                &["planning", "work"],
+            ),
             note("c", "z", "A product roadmap draft", &[]),
         ];
         let got = themes(&notes);
@@ -248,7 +382,14 @@ mod tests {
     #[test]
     fn phrases_dont_cross_punctuation() {
         let notes: Vec<_> = (0..3)
-            .map(|i| note(&format!("n{i}"), "t", "budget meeting. planning session", &[]))
+            .map(|i| {
+                note(
+                    &format!("n{i}"),
+                    "t",
+                    "budget meeting. planning session",
+                    &[],
+                )
+            })
             .collect();
         let got = themes(&notes);
         assert!(got.iter().all(|t| t.term != "meeting planning"));

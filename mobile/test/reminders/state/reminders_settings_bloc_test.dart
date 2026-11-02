@@ -13,6 +13,7 @@ import 'package:kanso/reminders/state/reminders_settings/reminders_settings_bloc
 import 'package:kanso/reminders/utils/reminders_coordinator.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../helpers/fixture_digest_repository.dart';
 import '../../helpers/fixture_library_repository.dart';
 import '../../helpers/fixture_reminder_notifier.dart';
 import '../../helpers/mock_repositories.dart';
@@ -71,6 +72,7 @@ void main() {
       reminders,
       notifier,
       library,
+      FixtureDigestRepository(),
     );
   });
 

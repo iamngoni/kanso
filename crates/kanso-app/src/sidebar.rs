@@ -1517,7 +1517,7 @@ impl Render for Sidebar {
         list = list.child(self.tasks_row(cx));
         let briefs = cx.global::<AppState>().config.briefs.clone();
         if briefs.loops {
-            let icon = self.icon(Icon::new(Lucide::CircleDashed), cx);
+            let icon = self.icon(Icon::new(Lucide::CircleDot), cx);
             let open = self.library.read(cx).open_loops;
             list = list.child(self.row(
                 "open-loops",
@@ -1532,7 +1532,7 @@ impl Render for Sidebar {
                 cx,
             ));
         }
-        let icon = self.icon(Icon::new(Lucide::Sunrise), cx);
+        let icon = self.icon(Icon::new(Lucide::Clock), cx);
         list = list.child(self.row(
             "morning-brief",
             Filter::Brief,
@@ -1545,7 +1545,7 @@ impl Render for Sidebar {
             },
             cx,
         ));
-        let icon = self.icon(Icon::new(Lucide::CalendarRange), cx);
+        let icon = self.icon(Icon::new(Lucide::CalendarDays), cx);
         list = list.child(self.row(
             "weekly-review",
             Filter::Review,

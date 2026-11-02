@@ -164,7 +164,9 @@ impl Library {
             self.overdue = overdue;
             cx.notify();
         }
-        if let Ok(open) = self.store.open_loop_count(&kanso_store::LoopQuery::default())
+        if let Ok(open) = self
+            .store
+            .open_loop_count(&kanso_store::LoopQuery::default())
             && open != self.open_loops
         {
             self.open_loops = open;

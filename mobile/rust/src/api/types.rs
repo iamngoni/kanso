@@ -9,9 +9,9 @@
 use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
-    BriefNote, BriefPrefs, BriefReminder, BriefView, LoopAction, OpenLoopItem, OpenLoopKind, OpenLoopsBoard, PlannedNotice, ReviewFinished, ReviewSaved, ReviewTheme, ReviewView, ReviewWritten,
     AccountDetails, AccountState, AccountStep, ApprovalPhase, ApprovalPrompt, ApprovalWait,
     AttachmentFile, BindingAnswer, BindingQuestion, BoardCard, BoardColumn, BoardKind, BoardLane,
+<<<<<<< HEAD
     BoardView, BuiltinTheme, CalendarDay, CaptureOutcome, CardKey, CardMoved, Changed, ColorChoice,
     ColorRow, CommentPlacement, CommentRow, Completion, CompletionItem, CompletionKind, CopiedLink,
     CursorMark, DateField, DayDate, DeviceRow, DiagramKind, DiagramRenderer, DiscoveryMeasure,
@@ -40,6 +40,38 @@ pub use kanso_mobile::{
     SyncStatusLine, SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow,
     TaskBoard, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow,
     TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
+=======
+    BoardView, BriefNote, BriefPrefs, BriefReminder, BriefView, BuiltinTheme, CalendarDay,
+    CaptureOutcome, CardKey, CardMoved, Changed, ColorChoice, ColorRow, CommentPlacement,
+    CommentRow, Completion, CompletionItem, CompletionKind, CopiedLink, CursorMark, DateField,
+    DayDate, DeviceRow, DiagramKind, DiagramRenderer, DiscoveryMeasure, DropsSaved, DueChipRow,
+    DueTone, EditCommand, EditOutcome, EditorContext, EditorEvent, EditorRun, EditorSnapshot,
+    ExportedPage, FoldState, FormatKind, GalleryColors, GalleryItem, GalleryKind, GoalSetting,
+    GraphEdgeRow, GraphFilter, GraphLayout, GraphNodeRow, GraphRequest, HistoryState, Hit,
+    IconChoice, IconThemeRow, ImageToRead, ImportEvent, ImportFound, ImportPhase, ImportProgress,
+    ImportSource, ImportSummary, InvitationRow, JoinRow, KansoError, LibraryOverview, LinkTarget,
+    LinkedProviderRow, ListPlace, ListQuery, ListShape, LiveBatch, LiveDocBlock, LiveDocBlockKind,
+    LiveDocLink, LiveDocLinkKind, LiveDocMarker, LiveDocMarkerKind, LiveDocStyle, LiveDocStyleKind,
+    LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime, LockEvent,
+    LockReason, LockState, LockStatus, LockedInfo, LoopAction, MadeNote, MeaningResult, MemberRow,
+    MentionSpan, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning, NoteRow, NoteView,
+    NotebookRole, NotebookRow, OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments,
+    OpenedFile, PaletteDto, PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow,
+    PersonLookup, PersonRow, PlannedNotice, PreviewAlign, PreviewBlock, PreviewCell,
+    PreviewCodeRun, PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem, PreviewOptions,
+    PreviewQueryRow, PreviewRow, PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState,
+    Property, PropertyKind, ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind,
+    QuotaLimit, Range16, RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer,
+    ReminderNote, ReminderPlan, Replacement, ReviewFinished, ReviewSaved, ReviewTheme, ReviewView,
+    ReviewWritten, RunBatch, SaveState, Saved, SearchScope, ServerInfo, ServerMethods, Share,
+    ShareFile, ShareInfo, ShareLinkRow, ShareRole, SharedEvent, ShortcutEntry, ShortcutPlace,
+    ShortcutSection, SignOutReasonKind, SignedUp, SortKey, SpanRow, StatusChoice, StatusCount,
+    StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind,
+    SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine, SyncTone, SyntaxStyleRow, Table,
+    TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard, TaskGroupKind, TaskItem, TaskListQuery,
+    TaskPlace, TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow,
+    VisibleNotebook,
+>>>>>>> ecad6546 (feat(mobile): Open loops, the morning brief and the weekly review screens)
 };
 pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,

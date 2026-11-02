@@ -911,7 +911,8 @@ fn list_open_loops(store: &Store, vis: Option<&Visibility>, args: &Args) -> Tool
         .map_err(|err| ToolError(err.to_string()))?
         .into_iter()
         .filter(|l| {
-            native_note_is_visible(store, &l.note_id) && vis.is_none_or(|vis| vis.allows(&l.note_id))
+            native_note_is_visible(store, &l.note_id)
+                && vis.is_none_or(|vis| vis.allows(&l.note_id))
         })
         .take(limit)
         .inspect(|l| {

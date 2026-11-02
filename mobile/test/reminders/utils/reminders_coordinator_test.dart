@@ -15,6 +15,7 @@ import 'package:kanso/core/utils/reminder_channel.dart';
 import 'package:kanso/reminders/utils/reminders_coordinator.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../helpers/fixture_digest_repository.dart';
 import '../../helpers/fixture_library_repository.dart';
 import '../../helpers/fixture_reminder_notifier.dart';
 import '../../helpers/mock_repositories.dart';
@@ -56,6 +57,7 @@ void main() {
   late MockRemindersRepository reminders;
   late FixtureReminderNotifier notifier;
   late FixtureLibraryRepository library;
+  late FixtureDigestRepository digest;
   late RemindersCoordinator coordinator;
   var enabled = true;
 
@@ -69,6 +71,7 @@ void main() {
     reminders = MockRemindersRepository();
     notifier = FixtureReminderNotifier()..current = ReminderPermission.granted;
     library = FixtureLibraryRepository();
+    digest = FixtureDigestRepository();
     addTearDown(library.close);
     addTearDown(notifier.live.close);
     when(() => preferences.load()).thenAnswer(
@@ -119,6 +122,7 @@ void main() {
       reminders,
       notifier,
       library,
+      digest,
     );
     addTearDown(coordinator.dispose);
   });
@@ -383,6 +387,81 @@ void main() {
       await coordinator.resumed();
       await Future<void>.delayed(Duration.zero);
       expect(places.single, const TaskPlace(noteId: 'note:b', line: 9));
+    });
+
+    test('the brief and review notices ride the schedule', () async {
+      digest.planned = const <PlannedNotice>[
+        PlannedNotice(
+          id: 'brief-2026-10-28',
+          isReview: false,
+          title: 'Your morning brief',
+          body: 'Open Kanso to see what is due.',
+          year: 2026,
+          month: 10,
+          day: 28,
+          hour: 8,
+          minute: 0,
+        ),
+      ];
+      await atTen(coordinator.refresh);
+      final scheduled = notifier.scheduled.single;
+      expect(scheduled.first, _reminder);
+      expect(scheduled.last.key, 'digest:brief-2026-10-28');
+      expect(scheduled.last.noteId, isEmpty);
+      expect(scheduled.last.fireAt.hour, 8);
+    });
+
+    test('with task reminders off the notices are still scheduled', () async {
+      enabled = false;
+      digest.planned = const <PlannedNotice>[
+        PlannedNotice(
+          id: 'review-2026-11-01',
+          isReview: true,
+          title: 'Your weekly review',
+          body: 'Open Kanso to review the week.',
+          year: 2026,
+          month: 11,
+          day: 1,
+          hour: 18,
+          minute: 0,
+        ),
+      ];
+      await coordinator.refresh();
+      expect(notifier.cancels, 1);
+      expect(notifier.scheduled.single.single.key, 'digest:review-2026-11-01');
+    });
+
+    test('a tap on a notice opens the page and answers no task', () async {
+      final opened = <bool>[];
+      final subscription = coordinator.digestOpened.listen(opened.add);
+      addTearDown(subscription.cancel);
+      await coordinator.start();
+      notifier.live
+        ..add(
+          const ReminderResponse(
+            key: 'digest:review-2026-11-01',
+            noteId: '',
+            line: 0,
+            action: ReminderAnswer.open,
+          ),
+        )
+        ..add(
+          const ReminderResponse(
+            key: 'digest:brief-2026-11-02',
+            noteId: '',
+            line: 0,
+            action: ReminderAnswer.open,
+          ),
+        );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(opened, <bool>[true, false]);
+      verifyNever(
+        () => reminders.answer(
+          key: any(named: 'key'),
+          action: any(named: 'action'),
+          nowUtcMs: any(named: 'nowUtcMs'),
+        ),
+      );
     });
 
     test('answers given while it runs are applied once each', () async {

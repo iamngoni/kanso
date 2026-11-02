@@ -13,8 +13,8 @@ use kanso_core::links::{
     LinkTarget, line_text, mention_lines, normalize_title, note_links, plain_line,
     retitle_wiki_links,
 };
-use kanso_core::model::{LOCK_FIELD, note_files_from_extra};
 use kanso_core::loops::{Loops, locate, loop_items, loop_key, read_loops};
+use kanso_core::model::{LOCK_FIELD, note_files_from_extra};
 use kanso_core::now_ms;
 use kanso_core::outline::{Heading, headings};
 use kanso_core::reminders::task_key;
@@ -78,8 +78,7 @@ pub(crate) fn write_note(
     ownership_fields: Option<&Map<String, Value>>,
     in_locked_notebook: bool,
 ) -> Result<()> {
-    let locked =
-        in_locked_notebook || ownership_fields.is_some_and(|f| f.contains_key(LOCK_FIELD));
+    let locked = in_locked_notebook || ownership_fields.is_some_and(|f| f.contains_key(LOCK_FIELD));
     let before: HashSet<String> = if fields.is_some() && !locked {
         let mut stmt =
             conn.prepare_cached("SELECT text FROM note_tasks WHERE note_id = ? AND checked = 0")?;

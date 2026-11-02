@@ -120,7 +120,7 @@ fn done_and_dismissed_hide_a_loop_without_touching_the_text() {
         "I'll call Rudo.\nNeed to pay the rent.",
         &b,
     );
-    let before = store.note(&"note:one".to_string()).unwrap().unwrap();
+    let before = store.note("note:one").unwrap().unwrap();
     let rows = store.open_loops(&LoopQuery::default()).unwrap();
     let (a, c) = (&rows[0], &rows[1]);
     let done = store
@@ -128,7 +128,9 @@ fn done_and_dismissed_hide_a_loop_without_touching_the_text() {
             "note:one",
             &a.key,
             a.line,
-            LoopClose::Done { mark_in_note: false },
+            LoopClose::Done {
+                mark_in_note: false,
+            },
             5000,
             Origin::Ui,
         )
@@ -143,7 +145,9 @@ fn done_and_dismissed_hide_a_loop_without_touching_the_text() {
                 "note:one",
                 &a.key,
                 a.line,
-                LoopClose::Done { mark_in_note: false },
+                LoopClose::Done {
+                    mark_in_note: false
+                },
                 6000,
                 Origin::Ui,
             )
@@ -151,7 +155,14 @@ fn done_and_dismissed_hide_a_loop_without_touching_the_text() {
         CheckOff::Unchanged
     );
     store
-        .close_loop("note:one", &c.key, c.line, LoopClose::Dismissed, 5000, Origin::Ui)
+        .close_loop(
+            "note:one",
+            &c.key,
+            c.line,
+            LoopClose::Dismissed,
+            5000,
+            Origin::Ui,
+        )
         .unwrap();
     assert!(keys(&store).is_empty());
     // The edit time stays: an ack isn't an edit.
@@ -167,7 +178,14 @@ fn done_and_dismissed_hide_a_loop_without_touching_the_text() {
     // A missing loop is reported.
     assert_eq!(
         store
-            .close_loop("note:one", "note:one~nope", 0, LoopClose::Dismissed, 1, Origin::Ui)
+            .close_loop(
+                "note:one",
+                "note:one~nope",
+                0,
+                LoopClose::Dismissed,
+                1,
+                Origin::Ui
+            )
             .unwrap(),
         CheckOff::Missing
     );
@@ -201,9 +219,19 @@ fn make_task_rewrites_one_line_and_undoes() {
     note(&store, "note:one", original, &b);
     let row = store.open_loops(&LoopQuery::default()).unwrap().remove(0);
     store
-        .close_loop("note:one", &row.key, row.line, LoopClose::MakeTask, 5000, Origin::Api)
+        .close_loop(
+            "note:one",
+            &row.key,
+            row.line,
+            LoopClose::MakeTask,
+            5000,
+            Origin::Api,
+        )
         .unwrap();
-    assert_eq!(body(&store, "note:one"), "intro\n- [ ] I'll call Rudo.\nend\n");
+    assert_eq!(
+        body(&store, "note:one"),
+        "intro\n- [ ] I'll call Rudo.\nend\n"
+    );
     // It is a task now and no longer a loop.
     assert!(keys(&store).is_empty());
     assert_eq!(store.tasks(&Default::default()).unwrap().len(), 1);
@@ -217,7 +245,12 @@ fn make_task_rewrites_one_line_and_undoes() {
 fn approved_ai_loops_are_stored_checked_and_follow_their_sentence() {
     let (_dir, store) = temp_store();
     let b = book(&store, "book:a");
-    note(&store, "note:one", "Lease renewal is due.\nI'll call Rudo.\n", &b);
+    note(
+        &store,
+        "note:one",
+        "Lease renewal is due.\nI'll call Rudo.\n",
+        &b,
+    );
     let ai = |text: &str| AiLoop {
         key: String::new(),
         text: text.to_owned(),
@@ -241,12 +274,20 @@ fn approved_ai_loops_are_stored_checked_and_follow_their_sentence() {
     assert_eq!(rows[1].source, kanso_store::LoopSource::Ai);
     assert_eq!(rows[1].line, 0);
     // Moved: found again at its new line. Edited away: dropped.
-    edit(&store, "note:one", "x\nLease renewal is due.\nI'll call Rudo.\n");
+    edit(
+        &store,
+        "note:one",
+        "x\nLease renewal is due.\nI'll call Rudo.\n",
+    );
     assert_eq!(store.open_loops(&LoopQuery::default()).unwrap()[1].line, 1);
     edit(&store, "note:one", "I'll call Rudo.\n");
     assert_eq!(keys(&store).len(), 1);
     // Nothing is stored twice.
-    edit(&store, "note:one", "Lease renewal is due.\nI'll call Rudo.\n");
+    edit(
+        &store,
+        "note:one",
+        "Lease renewal is due.\nI'll call Rudo.\n",
+    );
     assert_eq!(keys(&store).len(), 2);
 }
 
@@ -259,7 +300,10 @@ fn ticking_then_unticking_leaves_no_history_and_a_tick_is_recorded() {
     note(&store, "note:one", "- [x] pay rent\n- [ ] call Rudo\n", &b);
     let done = store.finished_between(0, i64::MAX).unwrap();
     assert_eq!(done.len(), 1);
-    assert_eq!((done[0].kind.as_str(), done[0].text.as_str()), ("task", "pay rent"));
+    assert_eq!(
+        (done[0].kind.as_str(), done[0].text.as_str()),
+        ("task", "pay rent")
+    );
     note(&store, "note:one", "- [ ] pay rent\n- [ ] call Rudo\n", &b);
     assert!(store.finished_between(0, i64::MAX).unwrap().is_empty());
     // A task that was done when first written isn't a tick.
@@ -316,7 +360,12 @@ fn a_locked_note_and_a_locked_notebook_produce_no_loops() {
     let (_dir, store) = temp_store();
     let plain = book(&store, "book:plain");
     let secret = book(&store, "book:secret");
-    note(&store, "note:plain", &format!("I'll call {CANARY}."), &plain);
+    note(
+        &store,
+        "note:plain",
+        &format!("I'll call {CANARY}."),
+        &plain,
+    );
     note(&store, "note:own", &format!("I'll call {CANARY}."), &plain);
     note(&store, "note:in", &format!("I'll call {CANARY}."), &secret);
     assert_eq!(keys(&store).len(), 3);
@@ -374,10 +423,7 @@ fn locking_clears_kanso_loops() {
     doc["kansoLock"] = lock();
     store.lock_note(doc).unwrap();
     let raw = store.get("note:one").unwrap().unwrap();
-    assert!(
-        !raw.fields.contains_key(LOOPS_FIELD),
-        "the field is gone",
-    );
+    assert!(!raw.fields.contains_key(LOOPS_FIELD), "the field is gone",);
 }
 
 // MARK: Properties

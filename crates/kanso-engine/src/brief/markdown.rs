@@ -26,7 +26,13 @@ pub fn iso_week_label(date: Date) -> String {
 fn link(title: &str) -> String {
     let clean: String = title
         .chars()
-        .map(|c| if matches!(c, '[' | ']' | '|' | '\n') { ' ' } else { c })
+        .map(|c| {
+            if matches!(c, '[' | ']' | '|' | '\n') {
+                ' '
+            } else {
+                c
+            }
+        })
         .collect();
     let clean = clean.split_whitespace().collect::<Vec<_>>().join(" ");
     if clean.is_empty() {
@@ -69,7 +75,10 @@ pub fn review_markdown(review: &Review) -> String {
         let _ = writeln!(out, "{}\n", review.counts_text());
         let mut by_book: BTreeMap<&str, Vec<&super::WrittenNote>> = BTreeMap::new();
         for note in &review.written {
-            by_book.entry(note.book_name.as_str()).or_default().push(note);
+            by_book
+                .entry(note.book_name.as_str())
+                .or_default()
+                .push(note);
         }
         for (book, notes) in by_book {
             let name = if book.is_empty() { "No notebook" } else { book };

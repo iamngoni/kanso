@@ -126,7 +126,9 @@ fn applies(settings: &BriefSettings, kind: NoticeKind, date: Date) -> bool {
                 && (!settings.brief_weekdays_only || date.weekday() < 5)
         }
         NoticeKind::Review => {
-            settings.review && settings.notify_review && date.weekday() as u32 == settings.review_day
+            settings.review
+                && settings.notify_review
+                && date.weekday() as u32 == settings.review_day
         }
     }
 }
@@ -287,7 +289,10 @@ mod tests {
             }
             at += 5 * MINUTE_MS;
         }
-        assert_eq!(fired, 1, "the brief fires once, the review isn't on a Monday");
+        assert_eq!(
+            fired, 1,
+            "the brief fires once, the review isn't on a Monday"
+        );
     }
 
     #[test]
@@ -361,7 +366,10 @@ mod tests {
         assert_eq!(days[0], date(2026, 11, 8));
         assert_eq!(days[6], date(2026, 11, 14));
         // The fallback instant uses today's offset.
-        assert_eq!(planned[0].utc_ms, local(date(2026, 11, 8), 8, 0) + 4 * 3_600_000);
+        assert_eq!(
+            planned[0].utc_ms,
+            local(date(2026, 11, 8), 8, 0) + 4 * 3_600_000
+        );
     }
 
     #[test]
