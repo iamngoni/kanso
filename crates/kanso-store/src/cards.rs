@@ -620,10 +620,11 @@ impl Store {
     pub fn reset_review_history_at(&self, now_ms: i64) -> Result<usize> {
         self.write(|tx, changes| {
             let notes: Vec<String> = tx
-                .prepare(
-                    "SELECT DISTINCT note_id FROM note_cards \
-                     UNION SELECT DISTINCT note_id FROM card_state ORDER BY 1",
-                )?
+                .prepare(&format!(
+                    "SELECT DISTINCT nc.note_id FROM note_cards nc \
+                     JOIN docs d ON d.id = nc.note_id WHERE {ELIGIBLE} \
+                     UNION SELECT DISTINCT note_id FROM card_state ORDER BY 1"
+                ))?
                 .query_map([], |row| row.get(0))?
                 .collect::<rusqlite::Result<_>>()?;
             for note in &notes {
