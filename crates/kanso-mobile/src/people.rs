@@ -31,8 +31,7 @@ use crate::errors::KansoError;
 use crate::library::Library;
 use crate::people_model::{
     PageHeaderInfo, PageHidden, PageItem, PagePanel, PageSection, PageSectionState, PageSource,
-    PageTask, PeopleKind, PeopleMerged, PeoplePage, PeopleSettings, PeopleStatus,
-    PeopleSuggestion,
+    PageTask, PeopleKind, PeopleMerged, PeoplePage, PeopleSettings, PeopleStatus, PeopleSuggestion,
 };
 
 /// The file the settings are in, next to the library's database.
@@ -173,8 +172,8 @@ impl People {
 
     fn save(&self, file: &SettingsFile) -> Result<(), KansoError> {
         let path = self.settings_path();
-        let bytes = serde_json::to_vec_pretty(file)
-            .map_err(|err| KansoError::storage(err.to_string()))?;
+        let bytes =
+            serde_json::to_vec_pretty(file).map_err(|err| KansoError::storage(err.to_string()))?;
         let part = path.with_extension("json.part");
         std::fs::write(&part, bytes)
             .and_then(|()| std::fs::rename(&part, &path))
@@ -357,7 +356,13 @@ impl People {
             else {
                 return Ok(());
             };
-            Ok(suggest::dismiss(self.store(), &file, &found, never, now_ms())?)
+            Ok(suggest::dismiss(
+                self.store(),
+                &file,
+                &found,
+                never,
+                now_ms(),
+            )?)
         })
     }
 
@@ -378,7 +383,12 @@ impl People {
     pub fn suggest_again(&self, name: String) -> Result<(), KansoError> {
         guard(|| {
             let file = self.load().entities;
-            Ok(suggest::suggest_again(self.store(), &file, &name, now_ms())?)
+            Ok(suggest::suggest_again(
+                self.store(),
+                &file,
+                &name,
+                now_ms(),
+            )?)
         })
     }
 
@@ -441,7 +451,10 @@ impl People {
         let header = page.header(self.store())?;
         let mut line = String::new();
         if !header.aliases.is_empty() {
-            line.push_str(&format!("Also known as {} \u{b7} ", header.aliases.join(", ")));
+            line.push_str(&format!(
+                "Also known as {} \u{b7} ",
+                header.aliases.join(", ")
+            ));
         }
         line.push_str(&format!(
             "{} {}",

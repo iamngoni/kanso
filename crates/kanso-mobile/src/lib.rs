@@ -199,14 +199,14 @@ pub use kanso_engine::word_goal::{
     MAX_GOAL, PRESETS, effective_goal, goal_label, note_goal, parse_goal, progress, set_note_goal,
 };
 pub use library::Library;
-pub use people::People;
-pub use people_model::*;
 pub use linking::Linking;
 pub use linking_model::*;
 pub use locks::LockSession;
 pub use metrics::MobileMetrics;
 pub use model::*;
 pub use model_history::*;
+pub use people::People;
+pub use people_model::*;
 pub use publish::Publisher;
 pub use publish_model::*;
 pub use reminders::SCHEDULE_LIMIT;

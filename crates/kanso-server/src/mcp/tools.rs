@@ -414,7 +414,7 @@ fn list_mentions(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolRe
         wanted.trim().to_owned()
     } else {
         let mut named = store
-            .entities_named(&wanted)
+            .entities_named(wanted)
             .map_err(|err| ToolError(err.to_string()))?;
         match named.len() {
             0 => return Err(ToolError("No person or project page has that name.".into())),

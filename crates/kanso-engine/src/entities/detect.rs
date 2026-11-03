@@ -13,7 +13,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use kanso_core::entities::{EntityKind, at_mentions, normalize_name};
-use kanso_core::links::{wiki_links, code_ranges};
+use kanso_core::links::{code_ranges, wiki_links};
 use kanso_core::properties::{self, Value};
 use kanso_store::CandidateRow;
 
@@ -34,45 +34,308 @@ pub const SNOOZE_EXTRA: u32 = 5;
 /// Words that start sentences and titles, and say nothing about who or
 /// what a note is about.
 const STOP: &[&str] = &[
-    "the", "a", "an", "this", "that", "these", "those", "i", "we", "you", "he", "she", "it",
-    "they", "my", "our", "your", "his", "her", "their", "and", "but", "or", "if", "when", "then",
-    "also", "here", "there", "what", "why", "how", "who", "where", "which", "should", "could",
-    "would", "can", "will", "do", "does", "did", "not", "no", "yes", "ok", "okay", "please",
-    "thanks", "thank", "hi", "hello", "dear", "mr", "mrs", "ms", "dr", "for", "from", "with",
-    "about", "after", "before", "during", "just", "maybe", "check", "send", "call", "email",
-    "read", "write", "buy", "fix", "add", "make", "get", "set", "see", "try", "ask", "need",
-    "want", "remember", "look", "talk", "todo", "note", "notes", "meeting", "meetings", "action",
-    "items", "item", "next", "steps", "step", "summary", "agenda", "review", "weekly", "daily",
-    "monthly", "plan", "plans", "idea", "ideas", "draft", "update", "updates", "reminder",
-    "question", "questions", "follow", "up", "team", "today", "tomorrow", "yesterday", "tonight",
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january",
-    "february", "march", "april", "may", "june", "july", "august", "september", "october",
-    "november", "december", "mon", "tue", "wed", "thu", "fri", "sat", "sun", "jan", "feb",
-    "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec", "all", "some",
-    "any", "each", "every", "both", "one", "two", "three", "first", "second", "third", "last",
-    "new", "old", "good", "great", "so", "as", "at", "by", "in", "of", "on", "to", "is", "are",
-    "was", "were", "be", "been", "have", "has", "had", "let", "like", "now", "still", "again",
-    "done", "key", "main", "open", "close", "start", "stop", "end", "goal", "goals", "risk",
-    "risks", "decision", "decisions", "status", "context", "background", "details", "overview",
-    "attendees", "present", "people", "participants", "project", "projects", "owner", "tasks",
-    "task", "list", "lists", "title", "tags", "tag", "date", "time", "link", "links", "more",
-    "less", "other", "another", "something", "nothing", "everything", "anything", "someone",
-    "everyone", "anyone", "none", "our", "off", "out", "over", "under", "until", "while",
-    "since", "because", "though", "although", "unless", "whether", "either", "neither",
+    "the",
+    "a",
+    "an",
+    "this",
+    "that",
+    "these",
+    "those",
+    "i",
+    "we",
+    "you",
+    "he",
+    "she",
+    "it",
+    "they",
+    "my",
+    "our",
+    "your",
+    "his",
+    "her",
+    "their",
+    "and",
+    "but",
+    "or",
+    "if",
+    "when",
+    "then",
+    "also",
+    "here",
+    "there",
+    "what",
+    "why",
+    "how",
+    "who",
+    "where",
+    "which",
+    "should",
+    "could",
+    "would",
+    "can",
+    "will",
+    "do",
+    "does",
+    "did",
+    "not",
+    "no",
+    "yes",
+    "ok",
+    "okay",
+    "please",
+    "thanks",
+    "thank",
+    "hi",
+    "hello",
+    "dear",
+    "mr",
+    "mrs",
+    "ms",
+    "dr",
+    "for",
+    "from",
+    "with",
+    "about",
+    "after",
+    "before",
+    "during",
+    "just",
+    "maybe",
+    "check",
+    "send",
+    "call",
+    "email",
+    "read",
+    "write",
+    "buy",
+    "fix",
+    "add",
+    "make",
+    "get",
+    "set",
+    "see",
+    "try",
+    "ask",
+    "need",
+    "want",
+    "remember",
+    "look",
+    "talk",
+    "todo",
+    "note",
+    "notes",
+    "meeting",
+    "meetings",
+    "action",
+    "items",
+    "item",
+    "next",
+    "steps",
+    "step",
+    "summary",
+    "agenda",
+    "review",
+    "weekly",
+    "daily",
+    "monthly",
+    "plan",
+    "plans",
+    "idea",
+    "ideas",
+    "draft",
+    "update",
+    "updates",
+    "reminder",
+    "question",
+    "questions",
+    "follow",
+    "up",
+    "team",
+    "today",
+    "tomorrow",
+    "yesterday",
+    "tonight",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+    "mon",
+    "tue",
+    "wed",
+    "thu",
+    "fri",
+    "sat",
+    "sun",
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "sept",
+    "oct",
+    "nov",
+    "dec",
+    "all",
+    "some",
+    "any",
+    "each",
+    "every",
+    "both",
+    "one",
+    "two",
+    "three",
+    "first",
+    "second",
+    "third",
+    "last",
+    "new",
+    "old",
+    "good",
+    "great",
+    "so",
+    "as",
+    "at",
+    "by",
+    "in",
+    "of",
+    "on",
+    "to",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "have",
+    "has",
+    "had",
+    "let",
+    "like",
+    "now",
+    "still",
+    "again",
+    "done",
+    "key",
+    "main",
+    "open",
+    "close",
+    "start",
+    "stop",
+    "end",
+    "goal",
+    "goals",
+    "risk",
+    "risks",
+    "decision",
+    "decisions",
+    "status",
+    "context",
+    "background",
+    "details",
+    "overview",
+    "attendees",
+    "present",
+    "people",
+    "participants",
+    "project",
+    "projects",
+    "owner",
+    "tasks",
+    "task",
+    "list",
+    "lists",
+    "title",
+    "tags",
+    "tag",
+    "date",
+    "time",
+    "link",
+    "links",
+    "more",
+    "less",
+    "other",
+    "another",
+    "something",
+    "nothing",
+    "everything",
+    "anything",
+    "someone",
+    "everyone",
+    "anyone",
+    "none",
+    "our",
+    "off",
+    "out",
+    "over",
+    "under",
+    "until",
+    "while",
+    "since",
+    "because",
+    "though",
+    "although",
+    "unless",
+    "whether",
+    "either",
+    "neither",
 ];
 
 /// Words that follow a person's name when they speak or act.
 const SPEECH: &[&str] = &[
-    "said", "says", "thinks", "wants", "promised", "asked", "told", "suggested", "mentioned",
-    "agreed", "replied", "emailed", "called", "wrote", "needs", "will", "prefers", "likes",
-    "owes", "sent",
+    "said",
+    "says",
+    "thinks",
+    "wants",
+    "promised",
+    "asked",
+    "told",
+    "suggested",
+    "mentioned",
+    "agreed",
+    "replied",
+    "emailed",
+    "called",
+    "wrote",
+    "needs",
+    "will",
+    "prefers",
+    "likes",
+    "owes",
+    "sent",
 ];
 
 /// Words that, before a name, say a person is meant.
-const PERSON_BEFORE: &[&str] = &["ask", "tell", "email", "call", "ping", "cc", "thanks", "ring"];
+const PERSON_BEFORE: &[&str] = &[
+    "ask", "tell", "email", "call", "ping", "cc", "thanks", "ring",
+];
 
 /// Words on a line that say a project is meant.
-const PROJECT_WORDS: &[&str] = &["launch", "milestone", "release", "roadmap", "sprint", "deadline"];
+const PROJECT_WORDS: &[&str] = &[
+    "launch",
+    "milestone",
+    "release",
+    "roadmap",
+    "sprint",
+    "deadline",
+];
 
 /// What detection knows besides the notes.
 #[derive(Clone, Debug, Default)]
@@ -140,7 +403,9 @@ fn capitalised(word: &str) -> bool {
     };
     first.is_uppercase()
         && word.chars().count() >= 2
-        && word.chars().all(|c| c.is_alphabetic() || matches!(c, '\'' | '-' | '\u{2019}'))
+        && word
+            .chars()
+            .all(|c| c.is_alphabetic() || matches!(c, '\'' | '-' | '\u{2019}'))
         && word.chars().any(char::is_lowercase)
         && !word.ends_with(['-', '\''])
 }
@@ -203,7 +468,10 @@ fn line_body(line: &str) -> &str {
     loop {
         let before = text;
         text = text.trim_start_matches(['-', '*', '+', '>', ' ']);
-        if let Some(rest) = text.strip_prefix("[ ] ").or_else(|| text.strip_prefix("[x] ")) {
+        if let Some(rest) = text
+            .strip_prefix("[ ] ")
+            .or_else(|| text.strip_prefix("[x] "))
+        {
             text = rest;
         }
         text = text.trim_start_matches("**").trim_start_matches("__");
@@ -233,9 +501,9 @@ fn name_like(text: &str) -> bool {
     let words = text.split_whitespace().count();
     (1..=4).contains(&words)
         && text.chars().any(char::is_alphabetic)
-        && text
-            .chars()
-            .all(|c| c.is_alphabetic() || matches!(c, ' ' | '-' | '\'' | '.' | '\u{2019}' | '@' | '_'))
+        && text.chars().all(|c| {
+            c.is_alphabetic() || matches!(c, ' ' | '-' | '\'' | '.' | '\u{2019}' | '@' | '_')
+        })
         && !is_stop(text.trim_start_matches('@'))
 }
 
@@ -259,7 +527,7 @@ impl Detector {
         key.is_empty()
             || self.ctx.excluded.contains(key)
             || self.ctx.entity_names.contains_key(key)
-            || key.split(' ').all(|w| is_stop(w))
+            || key.split(' ').all(is_stop)
     }
 
     fn add(&mut self, form: &str, ordinal: u32, seen: i64, edit: impl FnOnce(&mut Acc)) {
@@ -343,8 +611,10 @@ impl Detector {
         // Wiki-links to titles no note has.
         for link in wiki_links(body) {
             let key = normalize_name(&link.title);
-            let dateish = kanso_core::dates::Date::parse_iso(link.title.trim().get(..10).unwrap_or("")).is_some()
-                || link.title.chars().any(|c| c.is_ascii_digit());
+            let dateish =
+                kanso_core::dates::Date::parse_iso(link.title.trim().get(..10).unwrap_or(""))
+                    .is_some()
+                    || link.title.chars().any(|c| c.is_ascii_digit());
             if key.is_empty()
                 || dateish
                 || self.ctx.known_titles.contains(&key)
@@ -374,7 +644,11 @@ impl Detector {
                 in_fence = !in_fence;
                 continue;
             }
-            if in_fence || code.iter().any(|r| r.start <= line_start && line_start < r.end) {
+            if in_fence
+                || code
+                    .iter()
+                    .any(|r| r.start <= line_start && line_start < r.end)
+            {
                 continue;
             }
             let text = line_body(raw);
@@ -399,7 +673,14 @@ impl Detector {
     fn line(&mut self, text: &str, ordinal: u32, seen: i64) {
         let lower = text.to_lowercase();
         // `Attendees: A, B and C`.
-        for label in ["attendees:", "present:", "with:", "people:", "participants:", "owner:"] {
+        for label in [
+            "attendees:",
+            "present:",
+            "with:",
+            "people:",
+            "participants:",
+            "owner:",
+        ] {
             if let Some(list) = lower.strip_prefix(label) {
                 let skip = text.len() - list.len();
                 let list = &text[skip..];
@@ -426,7 +707,11 @@ impl Detector {
         while let Some(at) = lower[search..].find("project ") {
             let begin = search + at;
             search = begin + "project ".len();
-            let before_ok = begin == 0 || !lower[..begin].chars().next_back().is_some_and(char::is_alphanumeric);
+            let before_ok = begin == 0
+                || !lower[..begin]
+                    .chars()
+                    .next_back()
+                    .is_some_and(char::is_alphanumeric);
             if !before_ok {
                 continue;
             }
@@ -455,7 +740,11 @@ impl Detector {
                 continue;
             }
             let mut end = ix + 1;
-            while end < toks.len() && toks[end - 1].joined && capitalised(toks[end].text) && !toks[end].sentence_start {
+            while end < toks.len()
+                && toks[end - 1].joined
+                && capitalised(toks[end].text)
+                && !toks[end].sentence_start
+            {
                 end += 1;
             }
             let mut run: Vec<&Token> = toks[ix..end].iter().collect();
@@ -463,7 +752,11 @@ impl Detector {
             if first_start && is_stop(run[0].text) {
                 run.remove(0);
             }
-            let before = if ix > 0 { Some(toks[ix - 1].text.to_lowercase()) } else { None };
+            let before = if ix > 0 {
+                Some(toks[ix - 1].text.to_lowercase())
+            } else {
+                None
+            };
             ix = end;
             if run.is_empty() || run.len() > MAX_WORDS || run.iter().any(|t| is_stop(t.text)) {
                 continue;
@@ -471,7 +764,9 @@ impl Detector {
             let form = run.iter().map(|t| t.text).collect::<Vec<_>>().join(" ");
             let after = run.last().and_then(|t| t.after).map(str::to_lowercase);
             let speaks = after.as_deref().is_some_and(|w| SPEECH.contains(&w));
-            let asked = before.as_deref().is_some_and(|w| PERSON_BEFORE.contains(&w));
+            let asked = before
+                .as_deref()
+                .is_some_and(|w| PERSON_BEFORE.contains(&w));
             let single = run.len() == 1;
             // A lone word that opens a sentence is just a capital.
             if single && first_start {
@@ -497,7 +792,9 @@ impl Detector {
 
     /// The suggestions, best first, at most [`MAX_CANDIDATES`].
     pub fn finish(self) -> Vec<CandidateRow> {
-        let Detector { ctx, accs, tracked, .. } = self;
+        let Detector {
+            ctx, accs, tracked, ..
+        } = self;
         let newest = accs.values().map(|a| a.last_seen).max().unwrap_or(0);
         let mut rows: Vec<CandidateRow> = Vec::new();
         for (key, acc) in &accs {
@@ -617,9 +914,16 @@ mod tests {
         assert_eq!(found[0].name, "sam");
         assert_eq!(found[0].kind, EntityKind::Person);
         // A pair of capitalised words in two notes is not enough, in three it is.
-        let two = ["Lunch with Tendai Chirwa went well", "We asked Tendai Chirwa about it"];
+        let two = [
+            "Lunch with Tendai Chirwa went well",
+            "We asked Tendai Chirwa about it",
+        ];
         assert!(run(&two, Context::default()).is_empty());
-        let three = ["Lunch with Tendai Chirwa went well", "We asked Tendai Chirwa about it", "Tendai Chirwa said no"];
+        let three = [
+            "Lunch with Tendai Chirwa went well",
+            "We asked Tendai Chirwa about it",
+            "Tendai Chirwa said no",
+        ];
         let found = run(&three, Context::default());
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].name, "tendai chirwa");
@@ -628,7 +932,15 @@ mod tests {
 
     #[test]
     fn single_capitalised_words_and_sentence_starts_do_not_count() {
-        let bodies = ["Monday we met Tendai", "Tuesday we met Tendai", "Today we met Tendai", "Next Steps are clear", "Action Items follow", "Next Steps again", "Next Steps once more"];
+        let bodies = [
+            "Monday we met Tendai",
+            "Tuesday we met Tendai",
+            "Today we met Tendai",
+            "Next Steps are clear",
+            "Action Items follow",
+            "Next Steps again",
+            "Next Steps once more",
+        ];
         assert!(run(&bodies, Context::default()).is_empty());
     }
 
@@ -640,19 +952,31 @@ mod tests {
             "Working on project Atlas migration this week\n",
             "Another note about project Atlas migration\n",
         ];
-        let names: Vec<String> = run(&bodies, Context::default()).into_iter().map(|c| c.name).collect();
+        let names: Vec<String> = run(&bodies, Context::default())
+            .into_iter()
+            .map(|c| c.name)
+            .collect();
         assert!(names.contains(&"ana pereira".to_owned()));
         assert!(names.contains(&"kofi mensah".to_owned()));
         assert!(names.contains(&"atlas migration".to_owned()), "{names:?}");
-        assert!(!names.contains(&"lina haddad".to_owned()), "one note is not enough in a list");
+        assert!(
+            !names.contains(&"lina haddad".to_owned()),
+            "one note is not enough in a list"
+        );
     }
 
     #[test]
     fn unresolved_wiki_links_suggest_and_resolved_ones_do_not() {
         let mut ctx = Context::default();
         ctx.known_titles.insert("pricing".into());
-        let found = run(&["See [[Sam Moyo]] and [[Pricing]] and [[2026-11-04]]"], ctx);
-        assert_eq!(found.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), vec!["sam moyo"]);
+        let found = run(
+            &["See [[Sam Moyo]] and [[Pricing]] and [[2026-11-04]]"],
+            ctx,
+        );
+        assert_eq!(
+            found.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(),
+            vec!["sam moyo"]
+        );
     }
 
     #[test]
@@ -669,9 +993,14 @@ mod tests {
     #[test]
     fn a_first_name_that_goes_with_a_page_is_proposed_as_its_alias() {
         let mut ctx = Context::default();
-        ctx.entity_names.insert("sam moyo".into(), "note:sam".into());
+        ctx.entity_names
+            .insert("sam moyo".into(), "note:sam".into());
         ctx.entity_names.insert("samuel".into(), "note:sam".into());
-        let bodies = ["@sam asked Sam Moyo about it", "Sam Moyo and @sam again", "Sam Moyo alone"];
+        let bodies = [
+            "@sam asked Sam Moyo about it",
+            "Sam Moyo and @sam again",
+            "Sam Moyo alone",
+        ];
         let found = run(&bodies, ctx);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].name, "sam");
@@ -680,7 +1009,11 @@ mod tests {
 
     #[test]
     fn code_and_headings_are_ignored() {
-        let bodies = ["# Tendai Chirwa Notes\n```\nTendai Chirwa Tendai Chirwa\n```\n`Tendai Chirwa`", "# Tendai Chirwa", "# Tendai Chirwa"];
+        let bodies = [
+            "# Tendai Chirwa Notes\n```\nTendai Chirwa Tendai Chirwa\n```\n`Tendai Chirwa`",
+            "# Tendai Chirwa",
+            "# Tendai Chirwa",
+        ];
         assert!(run(&bodies, Context::default()).is_empty());
     }
 
@@ -688,8 +1021,20 @@ mod tests {
     /// Precision at the default threshold is recorded here and held at 0.8.
     #[test]
     fn precision_on_a_labelled_fixture_of_two_hundred_notes() {
-        let people = ["Sam Moyo", "Tendai Chirwa", "Ana Pereira", "Rudo Dube", "Kofi Mensah", "Lina Haddad"];
-        let projects = ["Atlas migration", "Lusaka office", "Mobile revamp", "Billing rewrite"];
+        let people = [
+            "Sam Moyo",
+            "Tendai Chirwa",
+            "Ana Pereira",
+            "Rudo Dube",
+            "Kofi Mensah",
+            "Lina Haddad",
+        ];
+        let projects = [
+            "Atlas migration",
+            "Lusaka office",
+            "Mobile revamp",
+            "Billing rewrite",
+        ];
         let noise = ["Google Docs", "New York", "Black Friday"];
         let filler = [
             "Remember to water the plants",
@@ -709,7 +1054,10 @@ mod tests {
             match ix % 5 {
                 0 => lines.push(format!("Lunch with {person} about the plan")),
                 1 => lines.push(format!("{person} said the numbers look fine")),
-                2 => lines.push(format!("Attendees: {person}, {}", people[(ix + 1) % people.len()])),
+                2 => lines.push(format!(
+                    "Attendees: {person}, {}",
+                    people[(ix + 1) % people.len()]
+                )),
                 3 => lines.push(format!("Update on project {project} this week")),
                 _ => lines.push(format!("We asked {person} for help")),
             }
@@ -721,7 +1069,10 @@ mod tests {
             }
             bodies.push(lines.join("\n"));
         }
-        let found = run(&bodies.iter().map(String::as_str).collect::<Vec<_>>(), Context::default());
+        let found = run(
+            &bodies.iter().map(String::as_str).collect::<Vec<_>>(),
+            Context::default(),
+        );
         let truth: HashSet<String> = people
             .iter()
             .chain(projects.iter())
@@ -729,8 +1080,15 @@ mod tests {
             .collect();
         let right = found.iter().filter(|c| truth.contains(&c.name)).count();
         let precision = right as f64 / found.len().max(1) as f64;
-        eprintln!("detection precision {precision:.2} ({right} of {})", found.len());
-        assert!(precision >= 0.8, "precision {precision} on {:?}", found.iter().map(|c| &c.name).collect::<Vec<_>>());
+        eprintln!(
+            "detection precision {precision:.2} ({right} of {})",
+            found.len()
+        );
+        assert!(
+            precision >= 0.8,
+            "precision {precision} on {:?}",
+            found.iter().map(|c| &c.name).collect::<Vec<_>>()
+        );
         // And it finds what is there.
         assert!(right >= 8, "found only {right}");
     }

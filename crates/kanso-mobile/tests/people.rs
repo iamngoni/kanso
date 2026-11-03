@@ -49,7 +49,10 @@ fn settings_default_on_and_round_trip() {
     let people = phone.library.people();
     let settings = people.settings();
     assert!(settings.suggest && settings.write_with_ai && !settings.detect_with_ai);
-    assert_eq!((settings.refresh.as_str(), settings.keep_in.as_str()), ("auto", ""));
+    assert_eq!(
+        (settings.refresh.as_str(), settings.keep_in.as_str()),
+        ("auto", "")
+    );
     let saved = people
         .set_settings(PeopleSettings {
             refresh: "press".into(),
@@ -70,17 +73,30 @@ fn a_page_shows_computed_sections_and_off_lines_without_ai() {
     let people = phone.library.people();
     assert_eq!(people.status().unwrap().pages, 1);
     let listed = people.pages().unwrap();
-    assert_eq!((listed[0].title.as_str(), listed[0].kind), ("Sam Moyo", PeopleKind::Person));
+    assert_eq!(
+        (listed[0].title.as_str(), listed[0].kind),
+        ("Sam Moyo", PeopleKind::Person)
+    );
     assert_eq!(listed[0].notes, 2);
     assert!(listed[0].detail.starts_with("2 notes"));
 
-    assert!(people.page(&weekly).unwrap().is_none(), "an ordinary note has no panel");
+    assert!(
+        people.page(&weekly).unwrap().is_none(),
+        "an ordinary note has no panel"
+    );
     let panel = people.page(&sam).unwrap().unwrap();
     assert_eq!(panel.header.title, "Sam Moyo");
-    assert!(panel.header.line.contains("Also known as Sam"), "{}", panel.header.line);
+    assert!(
+        panel.header.line.contains("Also known as Sam"),
+        "{}",
+        panel.header.line
+    );
     assert!(!panel.ai_on);
     let keys: Vec<&str> = panel.sections.iter().map(|s| s.key.as_str()).collect();
-    assert_eq!(keys, vec!["open_items", "promises", "discussed", "timeline", "related"]);
+    assert_eq!(
+        keys,
+        vec!["open_items", "promises", "discussed", "timeline", "related"]
+    );
     let open = &panel.sections[0];
     assert_eq!(open.items.len(), 1);
     assert!(open.items[0].task.is_some());
@@ -97,7 +113,9 @@ fn a_page_shows_computed_sections_and_off_lines_without_ai() {
 // no-prop-test: one scripted model reply, checked against the lines it was sent.
 #[test]
 fn ai_sections_cite_lines_and_can_be_kept_hidden_copied_and_marked_wrong() {
-    let model = Scripted::new("- YOU: I promised Sam the revised contract by Friday [1:L1]\n- THEM: made-up [4:L9]\n");
+    let model = Scripted::new(
+        "- YOU: I promised Sam the revised contract by Friday [1:L1]\n- THEM: made-up [4:L9]\n",
+    );
     let (phone, ai) = ai_phone(&model);
     let (sam, weekly, store) = world(&phone);
     // An excluded and a locked note never reach the model.
@@ -112,8 +130,10 @@ fn ai_sections_cite_lines_and_can_be_kept_hidden_copied_and_marked_wrong() {
     );
     let rev = store.get(&locked).unwrap().unwrap().rev;
     store
-        .lock_note(json!({"_id": locked, "_rev": rev, "title": "Locked", "body": "",
-            "bookId": store.get(&locked).unwrap().unwrap().fields["bookId"], "kansoLock": lock()}))
+        .lock_note(
+            json!({"_id": locked, "_rev": rev, "title": "Locked", "body": "",
+            "bookId": store.get(&locked).unwrap().unwrap().fields["bookId"], "kansoLock": lock()}),
+        )
         .unwrap();
     let people = phone.library.people_with_ai(ai);
     assert!(people.page(&sam).unwrap().unwrap().ai_on);
@@ -123,8 +143,15 @@ fn ai_sections_cite_lines_and_can_be_kept_hidden_copied_and_marked_wrong() {
     assert_eq!(promises.items[0].who, "you");
     assert_eq!(promises.items[0].sources[0].note_id, weekly);
     assert_eq!(promises.state, PageSectionState::Fresh);
-    assert!(!model.everything_sent().contains(CANARY), "kept-out notes are not sent");
-    let discussed = panel.sections.iter().find(|s| s.key == "discussed").unwrap();
+    assert!(
+        !model.everything_sent().contains(CANARY),
+        "kept-out notes are not sent"
+    );
+    let discussed = panel
+        .sections
+        .iter()
+        .find(|s| s.key == "discussed")
+        .unwrap();
     assert_eq!(discussed.state, PageSectionState::Unwritten);
 
     // Keep it, hide another, copy it into the note, mark a bullet wrong.
@@ -135,10 +162,18 @@ fn ai_sections_cite_lines_and_can_be_kept_hidden_copied_and_marked_wrong() {
     assert_eq!(panel.hidden[0].title, "Timeline");
     let panel = people.show_hidden(&sam).unwrap().unwrap();
     assert!(panel.hidden.is_empty());
-    assert!(people.section_markdown(&sam, "promises").unwrap().contains("inkdrop://note/"));
+    assert!(
+        people
+            .section_markdown(&sam, "promises")
+            .unwrap()
+            .contains("inkdrop://note/")
+    );
     assert!(people.copy_into_note(&sam, "promises").unwrap());
     let body = store.note(&sam).unwrap().unwrap().body;
-    assert!(body.contains("## Promises") && body.contains("inkdrop://note/"), "{body}");
+    assert!(
+        body.contains("## Promises") && body.contains("inkdrop://note/"),
+        "{body}"
+    );
     let panel = people.not_right(&sam, "promises", 0).unwrap().unwrap();
     assert!(panel.sections[1].items.is_empty());
     // Refresh All leaves a kept section alone.
@@ -173,8 +208,12 @@ fn suggestions_come_from_signals_and_pages_merge() {
     people.detect(true).unwrap();
     assert_eq!(people.suggestions().unwrap().len(), 2);
 
-    let a = people.create(PeopleKind::Person, "Tendai Chirwa".into(), vec![]).unwrap();
-    let b = people.create(PeopleKind::Person, "T. Chirwa".into(), vec![]).unwrap();
+    let a = people
+        .create(PeopleKind::Person, "Tendai Chirwa".into(), vec![])
+        .unwrap();
+    let b = people
+        .create(PeopleKind::Person, "T. Chirwa".into(), vec![])
+        .unwrap();
     assert!(people.add_alias(a.clone(), "Tendai".into()).unwrap());
     let done = people.merge(a.clone(), b).unwrap();
     assert_eq!(done.into, a);
@@ -192,8 +231,10 @@ fn a_locked_page_has_no_live_sections() {
     let rev = store.get(&sam).unwrap().unwrap().rev;
     let book = store.get(&sam).unwrap().unwrap().fields["bookId"].clone();
     store
-        .lock_note(json!({"_id": sam, "_rev": rev, "title": "Sam Moyo", "body": "", "bookId": book,
-            "kansoLock": lock()}))
+        .lock_note(
+            json!({"_id": sam, "_rev": rev, "title": "Sam Moyo", "body": "", "bookId": book,
+            "kansoLock": lock()}),
+        )
         .unwrap();
     assert!(people.page(&sam).unwrap().is_none());
     assert!(people.pages().unwrap().is_empty());

@@ -165,6 +165,9 @@ pub enum EditorEvent {
     /// A note picked in the margin of related notes: the workspace opens
     /// it, in a new tab for a ⌘-click.
     OpenNote { id: String, new_tab: bool },
+    /// A line a page's section cites: the workspace opens the note with
+    /// those lines (0-based, inclusive) marked.
+    OpenLines { id: String, first: u32, last: u32 },
     /// The editor let go of a note deleted elsewhere, after the reader
     /// chose the version from elsewhere: its tab goes with it.
     Closed(String),
@@ -251,6 +254,8 @@ pub struct NoteEditor {
     body: Entity<EditorState>,
     preview: Entity<Preview>,
     footer: Entity<EditorFooter>,
+    /// The live sections below a person's or project's note (`page_view.rs`).
+    page_panel: Entity<crate::page_view::PagePanel>,
     pub view_mode: ViewMode,
     pub editor_font: EditorFont,
     pub font_size: f32,
@@ -277,6 +282,8 @@ pub struct NoteEditor {
     backlinks_task: Option<Task<()>>,
     /// The titles wiki-links resolve against, shared with autocomplete.
     wiki: SharedIndex,
+    /// The names `@mentions` can mean, for the preview's links.
+    mentions: Rc<RefCell<Arc<crate::people_data::MentionMap>>>,
     wiki_task: Option<Task<()>>,
     /// A line to show once note `.0` opens, as a backlink or heading asks.
     pending_reveal: Option<(String, u32)>,
@@ -421,8 +428,10 @@ impl NoteEditor {
                 .auto_close(false)
         });
         let wiki: SharedIndex = Rc::new(RefCell::new(Arc::new(WikiIndex::default())));
+        let mentions: Rc<RefCell<Arc<crate::people_data::MentionMap>>> = Rc::default();
         let meaning = cx.new(|cx| NoteMeaning::new(store.clone(), cx));
         let resurface = cx.new(|cx| Resurface::new(store.clone(), body.clone(), title.clone(), cx));
+        let page_panel = cx.new(|cx| crate::page_view::PagePanel::new(library.clone(), cx));
         body.update(cx, |state, _| {
             // `#tags` beside `[[` wiki-links: the editor takes one provider.
             state.lsp_mut().completion_provider =
@@ -480,6 +489,28 @@ impl NoteEditor {
                     }),
                     ResurfaceEvent::Leave => {
                         this.body.update(cx, |body, cx| body.focus(window, cx))
+                    }
+                },
+            ),
+            cx.subscribe(
+                &page_panel,
+                |_, _, event: &crate::page_view::PageEvent, cx| {
+                    use crate::page_view::PageEvent;
+                    match event {
+                        PageEvent::OpenLines { id, first, last } => {
+                            cx.emit(EditorEvent::OpenLines {
+                                id: id.clone(),
+                                first: *first,
+                                last: *last,
+                            })
+                        }
+                        PageEvent::OpenNote(id) | PageEvent::Merged(id) => {
+                            cx.emit(EditorEvent::OpenNote {
+                                id: id.clone(),
+                                new_tab: false,
+                            })
+                        }
+                        PageEvent::Notice(message) => cx.emit(EditorEvent::Notice(message.clone())),
                     }
                 },
             ),
@@ -585,6 +616,7 @@ impl NoteEditor {
             body,
             preview,
             footer,
+            page_panel,
             view_mode,
             editor_font,
             font_size,
@@ -600,6 +632,7 @@ impl NoteEditor {
             backlinks: Vec::new(),
             backlinks_task: None,
             wiki,
+            mentions,
             wiki_task: None,
             pending_reveal: None,
             pending_highlight: None,
@@ -694,11 +727,15 @@ impl NoteEditor {
             return;
         }
         let wiki = self.wiki.borrow().clone();
+        let mentions = self.mentions.borrow().clone();
         let preview_source = |markdown: &str| -> String {
-            crate::due::rewrite_for_preview(&rewrite_for_preview(
-                &SharedString::from(markdown.to_owned()),
-                &wiki,
-            ))
+            crate::people_data::rewrite_mentions(
+                &crate::due::rewrite_for_preview(&rewrite_for_preview(
+                    &SharedString::from(markdown.to_owned()),
+                    &wiki,
+                )),
+                &mentions,
+            )
             .to_string()
         };
         let resolved = |title: &str| wiki.resolve(title).is_some();
@@ -1179,6 +1216,9 @@ impl NoteEditor {
         self.resurface.update(cx, |resurface, cx| {
             resurface.follow(margin_for.as_deref(), cx)
         });
+        // A person's or project's live sections follow the same rule.
+        self.page_panel
+            .update(cx, |panel, cx| panel.set_note(margin_for.clone(), cx));
         let has_note = self.note.is_some();
         self.footer
             .update(cx, |footer, cx| footer.note_opened(has_note, cx));
@@ -1401,7 +1441,10 @@ impl NoteEditor {
     /// What the preview is handed for `text`: wiki-links written as
     /// ordinary links (see [`crate::wikilinks`]).
     fn preview_source(&self, text: SharedString) -> SharedString {
-        crate::due::rewrite_for_preview(&rewrite_for_preview(&text, &self.wiki.borrow()))
+        crate::people_data::rewrite_mentions(
+            &crate::due::rewrite_for_preview(&rewrite_for_preview(&text, &self.wiki.borrow())),
+            &self.mentions.borrow(),
+        )
     }
 
     /// Reads the titles wiki-links resolve against again, in the background
@@ -1410,15 +1453,21 @@ impl NoteEditor {
         let store = self.store.clone();
         self.wiki_task = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(WIKI_REFRESH_DELAY).await;
-            let titles = cx
+            let (titles, mentions) = cx
                 .background_executor()
-                .spawn(async move { store.note_titles().unwrap_or_default() })
+                .spawn(async move {
+                    (
+                        store.note_titles().unwrap_or_default(),
+                        crate::people_data::mention_map(&store),
+                    )
+                })
                 .await;
             this.update(cx, |this, cx| {
                 this.wiki_task = None;
-                if this.wiki.borrow().titles == titles {
+                if this.wiki.borrow().titles == titles && **this.mentions.borrow() == mentions {
                     return;
                 }
+                *this.mentions.borrow_mut() = Arc::new(mentions);
                 *this.wiki.borrow_mut() = Arc::new(WikiIndex::new(titles));
                 if this.view_mode.shows_preview() && this.note.is_some() {
                     this.refresh_preview(cx);
@@ -3987,6 +4036,77 @@ impl NoteEditor {
         )
     }
 
+    /// "Create a page for Tendai Chirwa": offered while the text selected
+    /// is a name Kanso suggests a page for. Nothing is made until it is
+    /// pressed.
+    // no-prop-test: drawing; `people_data::offer_for` has the tests.
+    fn render_page_offer(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if self.note.is_none() || self.text_read_only || self.lock != LockView::Plain {
+            return None;
+        }
+        let library = self.library.read(cx);
+        if library.people_offers.is_empty() {
+            return None;
+        }
+        let selected = self.selected_text(cx)?;
+        let (_, name, kind) =
+            crate::people_data::offer_for(&selected, &library.people_offers)?.clone();
+        let colors = Colors::get(cx);
+        let kind_word = match kind {
+            kanso_core::entities::EntityKind::Person => "person",
+            kanso_core::entities::EntityKind::Project => "project",
+        };
+        let store = self.store.clone();
+        let made = name.clone();
+        Some(
+            h_flex()
+                .flex_none()
+                .gap_2()
+                .mx(px(TEXT_INSET - 12.))
+                .my_1()
+                .px(px(12.))
+                .py(px(5.))
+                .rounded(px(6.))
+                .bg(colors.fill)
+                .text_size(px(12.5))
+                .text_color(colors.text_secondary)
+                .debug_selector(|| "page-offer".into())
+                .child(
+                    Icon::new(Lucide::UserPlus)
+                        .size(px(13.))
+                        .text_color(colors.text_muted),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .child(format!("Create a page for \u{201c}{name}\u{201d}?")),
+                )
+                .child(
+                    Button::new("page-offer-create")
+                        .ghost()
+                        .xsmall()
+                        .label(format!("Create {kind_word} page"))
+                        .on_click(cx.listener(move |_, _, _, cx| {
+                            let settings = cx.global::<AppState>().config.people_projects.clone();
+                            match kanso_engine::entities::create_page(
+                                &store,
+                                &settings,
+                                kind,
+                                &made,
+                                &[],
+                                kanso_core::now_ms(),
+                            ) {
+                                Ok(id) => cx.emit(EditorEvent::OpenNote { id, new_tab: false }),
+                                Err(err) => cx.emit(EditorEvent::Notice(err.to_string())),
+                            }
+                        })),
+                )
+                .into_any_element(),
+        )
+    }
+
     fn render_transcribing(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let shown = crate::transcribe::shown_for(self.note_id()?, cx)?;
         let colors = Colors::get(cx);
@@ -4818,6 +4938,7 @@ impl Render for NoteEditor {
             })
             .children(self.render_transcribing(cx))
             .children(self.render_tidy_strip(cx))
+            .children(self.render_page_offer(cx))
             .children(self.render_suggestion(cx))
             .when(self.shared.as_ref().is_some_and(|s| s.ended), |el| {
                 el.child(self.banner(
@@ -4836,6 +4957,7 @@ impl Render for NoteEditor {
                     .child(body)
                     .child(measure_pane),
             )
+            .when(!compact && !trashed, |el| el.child(self.page_panel.clone()))
             // Redrawn only when the cursor or the counts change.
             .when(!compact, |el| {
                 el.child(

@@ -29,12 +29,12 @@ use super::gallery::KansoGallery;
 use super::linking::KansoLinking;
 use super::locks::KansoLocks;
 use super::metrics::KansoMetrics;
+use super::people::KansoPeople;
 use super::publish::KansoPublisher;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
 use super::themes::KansoThemes;
-use super::people::KansoPeople;
 use super::triage::KansoTriage;
 use super::voice_capture::KansoVoiceCapture;
 

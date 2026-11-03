@@ -39,7 +39,11 @@ impl Suggestion {
     pub fn detail(&self) -> String {
         let notes = format!(
             "{} {} {}",
-            if self.alias_of.is_some() { "in" } else { "mentioned in" },
+            if self.alias_of.is_some() {
+                "in"
+            } else {
+                "mentioned in"
+            },
             self.notes,
             if self.notes == 1 { "note" } else { "notes" }
         );
@@ -83,7 +87,11 @@ pub fn dismissal_book(store: &Store, settings: &EntitySettings) -> Option<String
 /// away on another device arrive, and names turned away here that the
 /// notebook lacks are written to it. Until the notebook exists, they stay
 /// local.
-pub fn sync_dismissals(store: &Store, settings: &EntitySettings, now: i64) -> kanso_store::Result<()> {
+pub fn sync_dismissals(
+    store: &Store,
+    settings: &EntitySettings,
+    now: i64,
+) -> kanso_store::Result<()> {
     let Some(book) = dismissal_book(store, settings) else {
         return Ok(());
     };
@@ -168,7 +176,10 @@ pub fn refresh(
 
 /// The suggestions to offer now: stored candidates minus anything since
 /// turned away, named by a page, or snoozed and not yet grown.
-pub fn suggestions(store: &Store, settings: &EntitySettings) -> kanso_store::Result<Vec<Suggestion>> {
+pub fn suggestions(
+    store: &Store,
+    settings: &EntitySettings,
+) -> kanso_store::Result<Vec<Suggestion>> {
     if !settings.suggest {
         return Ok(Vec::new());
     }

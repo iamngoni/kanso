@@ -79,8 +79,15 @@ pub fn prompt_for(store: &Store, rows: &[CandidateRow]) -> kanso_store::Result<P
     })?;
     let mut user = String::from("Names and where they appear:\n\n");
     for row in rows {
-        let shown = row.forms.first().cloned().unwrap_or_else(|| row.name.clone());
-        user.push_str(&format!("Name: {}\n", escape_excerpt(&shown.replace('\n', " "))));
+        let shown = row
+            .forms
+            .first()
+            .cloned()
+            .unwrap_or_else(|| row.name.clone());
+        user.push_str(&format!(
+            "Name: {}\n",
+            escape_excerpt(&shown.replace('\n', " "))
+        ));
         for line in lines.get(&row.name).into_iter().flatten() {
             user.push_str(&format!("  | {}\n", escape_excerpt(line)));
         }
@@ -193,8 +200,13 @@ mod tests {
         ];
         let next = apply(&rows, &labels);
         assert_eq!(
-            next.iter().map(|r| (r.name.as_str(), r.kind)).collect::<Vec<_>>(),
-            vec![("sam moyo", EntityKind::Person), ("atlas", EntityKind::Person)]
+            next.iter()
+                .map(|r| (r.name.as_str(), r.kind))
+                .collect::<Vec<_>>(),
+            vec![
+                ("sam moyo", EntityKind::Person),
+                ("atlas", EntityKind::Person)
+            ]
         );
     }
 

@@ -92,7 +92,11 @@ impl KansoPeople {
         self.0.show_all(&id, &key)
     }
 
-    pub fn refresh_section(&self, id: String, key: String) -> Result<Option<PagePanel>, KansoError> {
+    pub fn refresh_section(
+        &self,
+        id: String,
+        key: String,
+    ) -> Result<Option<PagePanel>, KansoError> {
         self.0.refresh_section(&id, &key)
     }
 

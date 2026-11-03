@@ -6,8 +6,7 @@ use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
     PageHeaderInfo, PageHidden, PageItem, PagePanel, PageSection, PageSectionState, PageSource,
-    PageTask, PeopleKind, PeopleMerged, PeoplePage, PeopleSettings, PeopleStatus,
-    PeopleSuggestion,
+    PageTask, PeopleKind, PeopleMerged, PeoplePage, PeopleSettings, PeopleStatus, PeopleSuggestion,
 };
 
 #[frb(mirror(PeopleKind))]

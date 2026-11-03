@@ -132,11 +132,20 @@ pub struct Mention {
     pub name: String,
 }
 
-/// The `@name` mentions in a body, as `(0-based line, name)` with the `@`
-/// off and the case kept: an `@` at a line start or after whitespace or `(`,
-/// then a letter, then letters, digits, `-`, `_` or `.`. Not inside code or
-/// a link, never an e-mail address or a date.
-pub fn at_mentions(body: &str) -> Vec<(u32, String)> {
+/// An `@name` in a body: its 0-based line, the byte range of the `@` and the
+/// name in the body, and the name with the `@` off and the case kept.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AtSpan {
+    pub line: u32,
+    pub range: std::ops::Range<usize>,
+    pub name: String,
+}
+
+/// The `@name` mentions in a body, with where each is: an `@` at a line
+/// start or after whitespace or `(`, then a letter, then letters, digits,
+/// `-`, `_` or `.`. Not inside code or a link, never an e-mail address or
+/// a date.
+pub fn at_mention_spans(body: &str) -> Vec<AtSpan> {
     let code = code_ranges(body);
     let mut out = Vec::new();
     let mut offset = 0usize;
@@ -169,11 +178,56 @@ pub fn at_mentions(body: &str) -> Vec<(u32, String)> {
             // `name@host.tld` was already rejected by the `before` rule; a
             // name that is itself `a@b` can't reach here.
             if !name.is_empty() {
-                out.push((line_no as u32, name.to_owned()));
+                out.push(AtSpan {
+                    line: line_no as u32,
+                    range: abs..abs + 1 + name.len(),
+                    name: name.to_owned(),
+                });
             }
         }
     }
     out
+}
+
+/// The `@name` mentions in a body, as `(0-based line, name)` with the `@`
+/// off and the case kept (see [`at_mention_spans`]).
+pub fn at_mentions(body: &str) -> Vec<(u32, String)> {
+    at_mention_spans(body)
+        .into_iter()
+        .map(|span| (span.line, span.name))
+        .collect()
+}
+
+/// The body with each `@name` that `resolve` knows (given the normalized
+/// name, answering a note ID) written as an ordinary link to that note, for
+/// the preview: `@sam` becomes `[@sam](inkdrop://note/ID)`. Text with
+/// nothing to rewrite comes back as it is.
+pub fn rewrite_at_mentions<'a>(
+    body: &'a str,
+    resolve: &dyn Fn(&str) -> Option<String>,
+) -> std::borrow::Cow<'a, str> {
+    if !body.contains('@') {
+        return std::borrow::Cow::Borrowed(body);
+    }
+    let mut out = String::new();
+    let mut done = 0usize;
+    for span in at_mention_spans(body) {
+        let Some(id) = resolve(&normalize_name(&span.name)) else {
+            continue;
+        };
+        out.push_str(&body[done..span.range.start]);
+        out.push_str(&format!(
+            "[{}]({}{id})",
+            &body[span.range.clone()],
+            crate::links::NOTE_LINK_PREFIX
+        ));
+        done = span.range.end;
+    }
+    if done == 0 {
+        return std::borrow::Cow::Borrowed(body);
+    }
+    out.push_str(&body[done..]);
+    std::borrow::Cow::Owned(out)
 }
 
 /// Every mention in `body` of the entities named in `names`, a map from a
@@ -387,6 +441,17 @@ mod tests {
             let body = format!("{lead} @{name} hi");
             let found = at_mentions(&body);
             prop_assert_eq!(found, vec![(0, name)]);
+        }
+
+        /// Nothing resolving leaves the text as it is; everything resolving
+        /// only wraps the mentions, so unwrapping them gives the text back.
+        #[test]
+        fn prop_rewrite_at_mentions_only_wraps(body in "[a-zA-Z@ \n`.-]{0,80}") {
+            let none = rewrite_at_mentions(&body, &|_| None);
+            prop_assert_eq!(none.as_ref(), body.as_str());
+            let all = rewrite_at_mentions(&body, &|_| Some("ID".to_owned())).into_owned();
+            let unwrapped = all.replace("](inkdrop://note/ID)", "").replace("[@", "@");
+            prop_assert_eq!(unwrapped, body);
         }
 
         /// Scanning never reports a line the body doesn't have, or an

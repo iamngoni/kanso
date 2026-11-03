@@ -130,7 +130,11 @@ pub fn copy_into_note(
     }
     let body = store
         .get(id)?
-        .and_then(|d| d.fields.get("body").and_then(|b| b.as_str().map(str::to_owned)))
+        .and_then(|d| {
+            d.fields
+                .get("body")
+                .and_then(|b| b.as_str().map(str::to_owned))
+        })
         .unwrap_or_default();
     if markdown.trim().is_empty() {
         return Ok(false);
@@ -139,7 +143,11 @@ pub fn copy_into_note(
     if !next.ends_with('\n') {
         next.push('\n');
     }
-    next.push_str(&format!("\n## {}\n\n{}", heading.trim(), markdown.trim_end()));
+    next.push_str(&format!(
+        "\n## {}\n\n{}",
+        heading.trim(),
+        markdown.trim_end()
+    ));
     next.push('\n');
     store.put(
         DocType::Note,
@@ -177,7 +185,11 @@ pub fn merge(store: &Store, into: &str, from: &str, now: i64) -> Result<Merged, 
     let body_of = |id: &str| -> Result<String, ActionError> {
         Ok(store
             .get(id)?
-            .and_then(|d| d.fields.get("body").and_then(|b| b.as_str().map(str::to_owned)))
+            .and_then(|d| {
+                d.fields
+                    .get("body")
+                    .and_then(|b| b.as_str().map(str::to_owned))
+            })
             .unwrap_or_default())
     };
     let (target_body, other_body) = (body_of(into)?, body_of(from)?);
@@ -231,7 +243,15 @@ mod tests {
         let sam = create_page(&store, &settings, EntityKind::Person, "Sam Moyo", &[], 10).unwrap();
         // Asking again returns the same page.
         assert_eq!(
-            create_page(&store, &settings, EntityKind::Person, " sam   moyo ", &[], 11).unwrap(),
+            create_page(
+                &store,
+                &settings,
+                EntityKind::Person,
+                " sam   moyo ",
+                &[],
+                11
+            )
+            .unwrap(),
             sam
         );
         let book = store.get(&sam).unwrap().unwrap().fields["bookId"].clone();
@@ -280,16 +300,31 @@ mod tests {
         assert!(kept.contains("Likes tea."));
         let names = store.entity(&sam).unwrap().unwrap().names;
         assert!(names.contains(&"s. moyo".to_owned()) && names.contains(&"sammy".to_owned()));
-        assert_eq!(store.note(&linker).unwrap().unwrap().body, "see [[Sam Moyo]]\n");
+        assert_eq!(
+            store.note(&linker).unwrap().unwrap().body,
+            "see [[Sam Moyo]]\n"
+        );
         // The other page is in the trash, not gone.
         assert_eq!(
             store.get(&other).unwrap().unwrap().fields["bookId"],
             kanso_core::TRASH_BOOK_ID
         );
         assert!(store.entity(&other).unwrap().is_none());
-        assert!(copy_into_note(&store, &sam, "Promises", "- Send the deck [Linker](inkdrop://note/x#L1)\n", 17).unwrap());
+        assert!(
+            copy_into_note(
+                &store,
+                &sam,
+                "Promises",
+                "- Send the deck [Linker](inkdrop://note/x#L1)\n",
+                17
+            )
+            .unwrap()
+        );
         let copied = store.note(&sam).unwrap().unwrap().body;
-        assert!(copied.contains("## Promises\n\n- Send the deck"), "{copied}");
+        assert!(
+            copied.contains("## Promises\n\n- Send the deck"),
+            "{copied}"
+        );
         assert!(!copy_into_note(&store, &sam, "Promises", "  ", 18).unwrap());
         assert!(matches!(
             merge(&store, &sam, &sam, 16),

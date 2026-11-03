@@ -90,7 +90,11 @@ pub fn fingerprint(inputs: &[(String, String)]) -> String {
         hasher.update(hash.as_bytes());
         hasher.update([1]);
     }
-    let hex: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    let hex: String = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
     format!("sha256:{hex}")
 }
 
@@ -129,7 +133,11 @@ pub fn inputs_of(
         }
         let body = store
             .get(&excerpt.id)?
-            .and_then(|doc| doc.fields.get("body").and_then(|b| b.as_str().map(str::to_owned)))
+            .and_then(|doc| {
+                doc.fields
+                    .get("body")
+                    .and_then(|b| b.as_str().map(str::to_owned))
+            })
             .unwrap_or_default();
         out.push((excerpt.id.clone(), note_hash(&body)));
     }
@@ -186,13 +194,17 @@ pub fn open(
     let mut allowed: HashMap<String, bool> = HashMap::new();
     for spec in source.sections() {
         if cache.is_hidden(spec.key) {
-            view.hidden.push((spec.key.to_owned(), spec.title.to_owned()));
+            view.hidden
+                .push((spec.key.to_owned(), spec.title.to_owned()));
             continue;
         }
         match spec.kind {
             SectionKind::Computed => {
-                view.sections
-                    .push(source.compute(store, spec.key, show_all.contains(&spec.key))?);
+                view.sections.push(source.compute(
+                    store,
+                    spec.key,
+                    show_all.contains(&spec.key),
+                )?);
             }
             SectionKind::Ai => {
                 let Some(cached) = cache.sections.get_mut(spec.key) else {
@@ -504,8 +516,14 @@ mod tests {
     // no-prop-test: three literal lists with known counts.
     #[test]
     fn changed_counts_added_removed_and_edited() {
-        let old = vec![("a".to_owned(), "1".to_owned()), ("b".to_owned(), "1".to_owned())];
-        let new = vec![("a".to_owned(), "2".to_owned()), ("c".to_owned(), "1".to_owned())];
+        let old = vec![
+            ("a".to_owned(), "1".to_owned()),
+            ("b".to_owned(), "1".to_owned()),
+        ];
+        let new = vec![
+            ("a".to_owned(), "2".to_owned()),
+            ("c".to_owned(), "1".to_owned()),
+        ];
         assert_eq!(changed_between(&old, &new), 3);
         assert_eq!(changed_between(&old, &old), 0);
     }

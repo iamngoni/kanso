@@ -1444,37 +1444,67 @@ async fn mcp_never_returns_sealed_attachment_bytes_or_exports_them() {
 async fn list_mentions_serves_only_visible_notes_and_never_the_page_cache() {
     let app = app();
     app.store
-        .put(DocType::Book, json!({"_id":"book:m","name":"M"}), Put::Upsert, Origin::Api)
+        .put(
+            DocType::Book,
+            json!({"_id":"book:m","name":"M"}),
+            Put::Upsert,
+            Origin::Api,
+        )
         .unwrap();
     let put = |body: Value| {
         app.store
             .put(DocType::Note, body, Put::Upsert, Origin::Api)
             .unwrap()
     };
-    put(json!({"_id":"note:sam","title":"Sam Moyo","bookId":"book:m",
-        "body":"---\nkanso: person\naliases: [Sam]\n---\nOwn words.\n"}));
+    put(
+        json!({"_id":"note:sam","title":"Sam Moyo","bookId":"book:m",
+        "body":"---\nkanso: person\naliases: [Sam]\n---\nOwn words.\n"}),
+    );
     put(json!({"_id":"note:seen","title":"Seen","bookId":"book:m","body":"met Sam Moyo today\n"}));
-    put(json!({"_id":"note:hidden","title":"Hidden","bookId":"book:m","body":"mcp-mention-canary Sam Moyo\n"}));
+    put(
+        json!({"_id":"note:hidden","title":"Hidden","bookId":"book:m","body":"mcp-mention-canary Sam Moyo\n"}),
+    );
     let hidden = app.store.get("note:hidden").unwrap().unwrap().rev;
     app.store
-        .lock_note(json!({"_id":"note:hidden","_rev":hidden,"title":"Hidden","bookId":"book:m",
-            "body":"","kansoLock":{"v":1,"salt":"c2FsdA","m":64,"t":1,"p":1,"data":"sealed"}}))
+        .lock_note(
+            json!({"_id":"note:hidden","_rev":hidden,"title":"Hidden","bookId":"book:m",
+            "body":"","kansoLock":{"v":1,"salt":"c2FsdA","m":64,"t":1,"p":1,"data":"sealed"}}),
+        )
         .unwrap();
     let mut cache = kanso_core::page_cache::PageCache::default();
     cache.hidden.insert(
         "mcp-cache-canary".into(),
-        kanso_core::page_cache::HiddenMark { at: 1, hidden: true },
+        kanso_core::page_cache::HiddenMark {
+            at: 1,
+            hidden: true,
+        },
     );
     app.store.set_page_cache("note:sam", &cache).unwrap();
     for entity in ["note:sam", "Sam", "sam moyo"] {
-        let answer = tool(&app.router, "kanso-list-mentions", json!({"entity": entity})).await;
+        let answer = tool(
+            &app.router,
+            "kanso-list-mentions",
+            json!({"entity": entity}),
+        )
+        .await;
         let out = text(&answer, 0);
         assert!(out.contains("note:seen"), "{out}");
-        assert!(!out.contains("note:hidden") && !out.contains("mcp-mention-canary"), "{out}");
+        assert!(
+            !out.contains("note:hidden") && !out.contains("mcp-mention-canary"),
+            "{out}"
+        );
         assert!(!out.contains("mcp-cache-canary"));
     }
     let read = tool(&app.router, "read-note", json!({"noteId": "note:sam"})).await;
-    assert!(!read.to_string().contains("mcp-cache-canary"), "kansoPage is not served");
-    let none = tool(&app.router, "kanso-list-mentions", json!({"entity": "note:seen"})).await;
+    assert!(
+        !read.to_string().contains("mcp-cache-canary"),
+        "kansoPage is not served"
+    );
+    let none = tool(
+        &app.router,
+        "kanso-list-mentions",
+        json!({"entity": "note:seen"}),
+    )
+    .await;
     assert!(text(&none, 0).contains("isn't a person or project page"));
 }

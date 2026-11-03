@@ -78,9 +78,7 @@ pub fn write_section(
     let mut instruction = source.ai_instruction(spec.key);
     let wrong = not_right_words(not_right);
     if !wrong.is_empty() {
-        instruction.push_str(
-            "\nThe user said these are wrong; do not repeat them: ",
-        );
+        instruction.push_str("\nThe user said these are wrong; do not repeat them: ");
         instruction.push_str(
             &wrong
                 .iter()
@@ -97,7 +95,11 @@ pub fn write_section(
     let items: Vec<CachedItem> = parsed
         .items
         .into_iter()
-        .filter(|item| item.sources.iter().all(|s| note_is_eligible(store, &s.note)))
+        .filter(|item| {
+            item.sources
+                .iter()
+                .all(|s| note_is_eligible(store, &s.note))
+        })
         .collect();
     Ok(CachedSection {
         none: items.is_empty(),
@@ -271,7 +273,10 @@ mod tests {
     #[test]
     fn none_and_the_sentinel_give_nothing() {
         for reply in ["NONE", "none.", "NOT_IN_NOTES", " NOT_IN_NOTES \n"] {
-            assert_eq!(parse_reply(reply, &shown(), &BTreeSet::new()), Parsed::default());
+            assert_eq!(
+                parse_reply(reply, &shown(), &BTreeSet::new()),
+                Parsed::default()
+            );
         }
     }
 
@@ -292,7 +297,9 @@ mod tests {
     #[test]
     fn cite_links_come_out_cleanly() {
         assert_eq!(
-            strip_cites("Sends the deck [1](kanso-cite:1) and a note [2](kanso-cite:2). See [x](http://a)."),
+            strip_cites(
+                "Sends the deck [1](kanso-cite:1) and a note [2](kanso-cite:2). See [x](http://a)."
+            ),
             "Sends the deck and a note. See [x](http://a)."
         );
     }

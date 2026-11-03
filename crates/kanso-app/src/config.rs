@@ -752,6 +752,9 @@ pub struct AppConfig {
     pub briefs: kanso_engine::brief::BriefSettings,
     pub discovery: DiscoverySettings,
     pub inbox: InboxSettings,
+    /// People & Projects (Settings › General): suggestions, where pages are
+    /// kept and when AI summaries are written.
+    pub people_projects: kanso_engine::entities::EntitySettings,
     pub voice: VoiceSettings,
     pub locked: LockedSettings,
     pub ai: AiSettings,
@@ -800,6 +803,7 @@ impl Default for AppConfig {
             briefs: Default::default(),
             discovery: DiscoverySettings::default(),
             inbox: InboxSettings::default(),
+            people_projects: Default::default(),
             voice: VoiceSettings::default(),
             locked: LockedSettings::default(),
             ai: AiSettings::default(),
@@ -1271,6 +1275,7 @@ mod tests {
                     briefs: Default::default(),
                     discovery: DiscoverySettings::default(),
                     inbox: super::InboxSettings::default(),
+                    people_projects: Default::default(),
                     voice: VoiceSettings::default(),
                     locked: LockedSettings::default(),
                     ai: AiSettings::default(),

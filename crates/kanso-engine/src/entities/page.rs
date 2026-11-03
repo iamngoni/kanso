@@ -125,7 +125,11 @@ impl EntityPage {
     pub fn header(&self, store: &Store) -> kanso_store::Result<PageHeader> {
         let body = store
             .get(&self.id)?
-            .and_then(|d| d.fields.get("body").and_then(|b| b.as_str().map(str::to_owned)))
+            .and_then(|d| {
+                d.fields
+                    .get("body")
+                    .and_then(|b| b.as_str().map(str::to_owned))
+            })
             .unwrap_or_default();
         let (notes, last) = store.entity_mention_stats(&self.id)?;
         Ok(PageHeader {
@@ -210,7 +214,11 @@ impl<'a> Bodies<'a> {
                 .get(id)
                 .ok()
                 .flatten()
-                .and_then(|d| d.fields.get("body").and_then(|b| b.as_str().map(str::to_owned)))
+                .and_then(|d| {
+                    d.fields
+                        .get("body")
+                        .and_then(|b| b.as_str().map(str::to_owned))
+                })
                 .unwrap_or_default();
             self.cache.insert(id.to_owned(), body);
         }
@@ -223,7 +231,14 @@ impl<'a> Bodies<'a> {
 }
 
 /// A receipt for one line of a note, as it reads now.
-fn receipt(n: usize, note_id: &str, title: &str, updated: Option<String>, line: u32, text: &str) -> Receipt {
+fn receipt(
+    n: usize,
+    note_id: &str,
+    title: &str,
+    updated: Option<String>,
+    line: u32,
+    text: &str,
+) -> Receipt {
     Receipt {
         n,
         note_id: note_id.to_owned(),
@@ -295,7 +310,9 @@ impl PageSource for EntityPage {
                 order.push(m.note_id.clone());
                 Vec::new()
             });
-            by_note.get_mut(&m.note_id).map(|v| v.push(m));
+            if let Some(v) = by_note.get_mut(&m.note_id) {
+                v.push(m);
+            }
         }
         let mut excerpts = Vec::new();
         let mut used = 0usize;
@@ -315,7 +332,9 @@ impl PageSource for EntityPage {
             let lines: Vec<&str> = body.split('\n').collect();
             let mut chosen: Vec<&kanso_core::passages::Passage> = Vec::new();
             for row in rows {
-                if let Some(p) = all.iter().find(|p| p.start <= row.line && row.line <= p.end)
+                if let Some(p) = all
+                    .iter()
+                    .find(|p| p.start <= row.line && row.line <= p.end)
                     && !chosen.iter().any(|c| c.start == p.start)
                 {
                     chosen.push(p);
@@ -336,7 +355,11 @@ impl PageSource for EntityPage {
                     }
                 }
             }
-            let cost: usize = numbered.iter().map(|(_, t)| t.chars().count() + 8).sum::<usize>() + 160;
+            let cost: usize = numbered
+                .iter()
+                .map(|(_, t)| t.chars().count() + 8)
+                .sum::<usize>()
+                + 160;
             if used + cost > budget && !excerpts.is_empty() {
                 break 'notes;
             }
@@ -351,7 +374,8 @@ impl PageSource for EntityPage {
                 notebook: None,
             });
         }
-        let based_on = (total >= MANY_MENTIONS && taken_mentions < total).then_some(taken_mentions as u32);
+        let based_on =
+            (total >= MANY_MENTIONS && taken_mentions < total).then_some(taken_mentions as u32);
         Ok(Passages { excerpts, based_on })
     }
 
@@ -411,7 +435,11 @@ impl PageSource for EntityPage {
                     .into_iter()
                     .map(|m| (note_date(&m.title, m.created_at), m))
                     .collect();
-                rows.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.note_id.cmp(&b.1.note_id)).then(a.1.line.cmp(&b.1.line)));
+                rows.sort_by(|a, b| {
+                    b.0.cmp(&a.0)
+                        .then(a.1.note_id.cmp(&b.1.note_id))
+                        .then(a.1.line.cmp(&b.1.line))
+                });
                 let limit = if all { MAX_LINES } else { FIRST_LINES };
                 let items: Vec<Item> = rows
                     .into_iter()
@@ -421,7 +449,11 @@ impl PageSource for EntityPage {
                         Item {
                             text: format!(
                                 "{} \u{2014} \u{201c}{}\u{201d}",
-                                if m.title.trim().is_empty() { "Untitled" } else { m.title.trim() },
+                                if m.title.trim().is_empty() {
+                                    "Untitled"
+                                } else {
+                                    m.title.trim()
+                                },
                                 shorten(&line)
                             ),
                             meta: short_date(&date.iso()),
@@ -443,14 +475,15 @@ impl PageSource for EntityPage {
                         }
                     })
                     .collect();
-                Ok(Section::computed(&spec, items, total.max(0)))
+                Ok(Section::computed(&spec, items, total))
             }
             "related" => {
                 let mut items = Vec::new();
                 let people = store.co_entities(&self.id, MAX_RELATED * 2)?;
-                let (mut first, mut second): (Vec<_>, Vec<_>) = people
-                    .into_iter()
-                    .partition(|(e, _)| (e.kind == EntityKind::Person) == (self.kind == EntityKind::Project));
+                let (mut first, mut second): (Vec<_>, Vec<_>) =
+                    people.into_iter().partition(|(e, _)| {
+                        (e.kind == EntityKind::Person) == (self.kind == EntityKind::Project)
+                    });
                 // A project lists its people first; a person its projects.
                 first.truncate(MAX_RELATED);
                 second.truncate(MAX_RELATED);
@@ -466,7 +499,11 @@ impl PageSource for EntityPage {
                 for (id, title) in store.entity_related_notes(&self.id, MAX_RELATED)? {
                     let page = store.entity(&id)?;
                     items.push(Item {
-                        text: if title.trim().is_empty() { "Untitled".into() } else { title },
+                        text: if title.trim().is_empty() {
+                            "Untitled".into()
+                        } else {
+                            title
+                        },
                         target: Some(id),
                         tag: page.map(|p| p.kind.as_str().to_owned()),
                         ..Item::default()

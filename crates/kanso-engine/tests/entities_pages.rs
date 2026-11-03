@@ -9,9 +9,7 @@ use kanso_ai::{AiError, ChatProvider, Event, Prompt};
 use kanso_core::DocType;
 use kanso_core::entities::EntityKind;
 use kanso_engine::entities::detect::Context;
-use kanso_engine::entities::{
-    self, EntityPage, EntitySettings, actions, ai_detect, suggest,
-};
+use kanso_engine::entities::{self, EntityPage, EntitySettings, actions, ai_detect, suggest};
 use kanso_engine::pages::{
     self, OpenOptions, PageSource, RefreshPolicy, SectionKind, SectionState, write::WriteContext,
 };
@@ -106,7 +104,11 @@ const T0: i64 = 1_761_600_000_000;
 /// A library with a person page and a handful of notes about them.
 fn library() -> (tempfile::TempDir, Store, String, String) {
     let (dir, store) = open_store();
-    let book = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let book = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     let page = "---\nkanso: person\naliases: [Sam]\n---\nSam runs the Lusaka office.\n";
     note_at(&store, "note:sam", "Sam Moyo", page, &book, T0);
     note_at(
@@ -153,14 +155,20 @@ fn the_fixture_library_gives_open_items_timeline_and_related() {
     let page = EntityPage::load(&store, &id).unwrap().unwrap();
     let view = pages::open(&store, &page, options(false), &[]).unwrap();
     let keys: Vec<&str> = view.sections.iter().map(|s| s.key.as_str()).collect();
-    assert_eq!(keys, vec!["open_items", "promises", "discussed", "timeline", "related"]);
+    assert_eq!(
+        keys,
+        vec!["open_items", "promises", "discussed", "timeline", "related"]
+    );
 
     // Open items: a task on a line that mentions Sam, and a task in a note that
     // links to... the atlas task is on a line that mentions Sam too.
     let open_items = find(&view, "open_items");
     let texts: Vec<&str> = open_items.items.iter().map(|i| i.text.as_str()).collect();
     assert_eq!(texts.len(), 2, "{texts:?}");
-    assert!(texts[0].starts_with("Send Sam the pricing deck"), "soonest due first: {texts:?}");
+    assert!(
+        texts[0].starts_with("Send Sam the pricing deck"),
+        "soonest due first: {texts:?}"
+    );
     assert!(open_items.items[0].task.is_some());
     assert_eq!(open_items.items[0].sources[0].note_id, "note:weekly");
 
@@ -169,7 +177,12 @@ fn the_fixture_library_gives_open_items_timeline_and_related() {
     assert_eq!(timeline.items[0].sources[0].note_id, "note:lusaka");
     assert!(timeline.items[0].text.starts_with("Lusaka trip"));
     assert!(timeline.items.len() >= 4);
-    assert!(timeline.items.iter().all(|i| i.group.is_some() && i.meta.is_some()));
+    assert!(
+        timeline
+            .items
+            .iter()
+            .all(|i| i.group.is_some() && i.meta.is_some())
+    );
 
     // Related: the project page that shares notes.
     let related = find(&view, "related");
@@ -177,7 +190,8 @@ fn the_fixture_library_gives_open_items_timeline_and_related() {
         related
             .items
             .iter()
-            .any(|i| i.target.as_deref() == Some("note:atlas") && i.tag.as_deref() == Some("project")),
+            .any(|i| i.target.as_deref() == Some("note:atlas")
+                && i.tag.as_deref() == Some("project")),
         "{related:?}"
     );
 
@@ -193,16 +207,35 @@ fn the_fixture_library_gives_open_items_timeline_and_related() {
     assert_eq!(header.notes, 3);
     assert_eq!(header.aliases, vec!["Sam".to_owned()]);
     assert!(header.last_mentioned.is_some());
-    assert_eq!(page.own_text(&store).unwrap(), "Sam runs the Lusaka office.\n");
+    assert_eq!(
+        page.own_text(&store).unwrap(),
+        "Sam runs the Lusaka office.\n"
+    );
 }
 
 #[test]
 fn a_project_page_has_decisions_and_lists_people_first() {
     let (_dir, store, book, _) = library();
-    note_at(&store, "note:b", "B", "Atlas kickoff with Sam Moyo\n", &book, T0);
+    note_at(
+        &store,
+        "note:b",
+        "B",
+        "Atlas kickoff with Sam Moyo\n",
+        &book,
+        T0,
+    );
     let project = EntityPage::load(&store, "note:atlas").unwrap().unwrap();
     let keys: Vec<&str> = project.sections().iter().map(|s| s.key).collect();
-    assert_eq!(keys, vec!["open_items", "decisions", "discussed", "timeline", "related"]);
+    assert_eq!(
+        keys,
+        vec![
+            "open_items",
+            "decisions",
+            "discussed",
+            "timeline",
+            "related"
+        ]
+    );
     let _ = (store, project);
 }
 
@@ -214,8 +247,16 @@ fn ai_sections_are_written_with_receipts_and_cached_then_go_stale() {
     let ctx = WriteContext::new(&provider, "test/model", T0 + 10 * DAY);
     let written = pages::refresh_section(&store, &page, "promises", &ctx).unwrap();
     assert_eq!(written.items.len(), 2, "{written:?}");
-    assert!(written.items.iter().all(|i| i.who.as_deref() == Some("you") && !i.sources.is_empty()));
-    assert!(seen.lock().unwrap()[0].contains("Sam Moyo"), "the instruction names the person");
+    assert!(
+        written
+            .items
+            .iter()
+            .all(|i| i.who.as_deref() == Some("you") && !i.sources.is_empty())
+    );
+    assert!(
+        seen.lock().unwrap()[0].contains("Sam Moyo"),
+        "the instruction names the person"
+    );
 
     let view = pages::open(&store, &page, options(true), &[]).unwrap();
     let promises = find(&view, "promises");
@@ -223,7 +264,10 @@ fn ai_sections_are_written_with_receipts_and_cached_then_go_stale() {
     assert_eq!(promises.items.len(), 2);
     let receipt = &promises.items[0].sources[0];
     let body = store.note(&receipt.note_id).unwrap().unwrap().body;
-    assert!(kanso_engine::ask::relocate(&body, receipt).is_some(), "the line is found again");
+    assert!(
+        kanso_engine::ask::relocate(&body, receipt).is_some(),
+        "the line is found again"
+    );
     // `discussed` was never written.
     assert_eq!(find(&view, "discussed").state, SectionState::Unwritten);
 
@@ -239,17 +283,39 @@ fn ai_sections_are_written_with_receipts_and_cached_then_go_stale() {
     let view = pages::open(&store, &page, options(true), &[]).unwrap();
     let promises = find(&view, "promises");
     assert_eq!(promises.state, SectionState::Stale { changed: 1 });
-    assert_eq!(promises.stale_line().unwrap(), "Out of date \u{b7} 1 note changed");
+    assert_eq!(
+        promises.stale_line().unwrap(),
+        "Out of date \u{b7} 1 note changed"
+    );
     // Policy: on open it would be rewritten; on press it would not; never
     // within the hour of its last write.
     let due = pages::due_for_refresh(&view, RefreshPolicy::OnOpen, options(true));
     assert!(due.contains(&"discussed".to_owned()));
-    assert!(!due.contains(&"promises".to_owned()), "written an hour ago or less");
-    let later = OpenOptions { ai_on: true, now: T0 + 10 * DAY + 2 * 60 * 60 * 1000 };
+    assert!(
+        !due.contains(&"promises".to_owned()),
+        "written an hour ago or less"
+    );
+    let later = OpenOptions {
+        ai_on: true,
+        now: T0 + 10 * DAY + 2 * 60 * 60 * 1000,
+    };
     let view_later = pages::open(&store, &page, later, &[]).unwrap();
-    assert!(pages::due_for_refresh(&view_later, RefreshPolicy::OnOpen, later).contains(&"promises".to_owned()));
+    assert!(
+        pages::due_for_refresh(&view_later, RefreshPolicy::OnOpen, later)
+            .contains(&"promises".to_owned())
+    );
     assert!(pages::due_for_refresh(&view_later, RefreshPolicy::OnPress, later).is_empty());
-    assert!(pages::due_for_refresh(&view_later, RefreshPolicy::OnOpen, OpenOptions { ai_on: false, ..later }).is_empty());
+    assert!(
+        pages::due_for_refresh(
+            &view_later,
+            RefreshPolicy::OnOpen,
+            OpenOptions {
+                ai_on: false,
+                ..later
+            }
+        )
+        .is_empty()
+    );
 }
 
 #[test]
@@ -260,32 +326,73 @@ fn fabricated_replies_leave_nothing() {
     provider.extra = "\n- YOU: Promised a pony [1:L2]\n- THEM: Promised the moon [9:L9]\n- uncited line about Sam\n".into();
     let ctx = WriteContext::new(&provider, "m", T0);
     let written = pages::refresh_section(&store, &page, "promises", &ctx).unwrap();
-    assert_eq!(written.items.len(), 2, "only the two real ones: {written:?}");
-    assert!(written.items.iter().all(|i| !i.text.contains("pony") && !i.text.contains("moon")));
+    assert_eq!(
+        written.items.len(),
+        2,
+        "only the two real ones: {written:?}"
+    );
+    assert!(
+        written
+            .items
+            .iter()
+            .all(|i| !i.text.contains("pony") && !i.text.contains("moon"))
+    );
 }
 
 #[test]
 fn locked_excluded_and_trashed_notes_are_never_sent_or_cached() {
     let (_dir, store, book, id) = library();
     let exclude = put(&store, DocType::Tag, json!({"name": "ai-exclude"}));
-    note_at(&store, "note:ex", "Excluded", &format!("{CANARY} Sam promised excluded things\n"), &book, T0 + 5 * DAY);
+    note_at(
+        &store,
+        "note:ex",
+        "Excluded",
+        &format!("{CANARY} Sam promised excluded things\n"),
+        &book,
+        T0 + 5 * DAY,
+    );
     let rev = store.get("note:ex").unwrap().unwrap().rev;
-    put(&store, DocType::Note, json!({"_id": "note:ex", "_rev": rev, "title": "Excluded",
+    put(
+        &store,
+        DocType::Note,
+        json!({"_id": "note:ex", "_rev": rev, "title": "Excluded",
         "body": format!("{CANARY} Sam promised excluded things\n"), "bookId": book, "tags": [exclude],
-        "createdAt": T0 + 5 * DAY, "updatedAt": T0 + 5 * DAY}));
-    note_at(&store, "note:tr", "Trashed", &format!("{CANARY} Sam promised trashed things\n"), "trash", T0 + 5 * DAY);
-    note_at(&store, "note:lk", "Locked", &format!("{CANARY} Sam promised locked things\n"), &book, T0 + 5 * DAY);
+        "createdAt": T0 + 5 * DAY, "updatedAt": T0 + 5 * DAY}),
+    );
+    note_at(
+        &store,
+        "note:tr",
+        "Trashed",
+        &format!("{CANARY} Sam promised trashed things\n"),
+        "trash",
+        T0 + 5 * DAY,
+    );
+    note_at(
+        &store,
+        "note:lk",
+        "Locked",
+        &format!("{CANARY} Sam promised locked things\n"),
+        &book,
+        T0 + 5 * DAY,
+    );
     let rev = store.get("note:lk").unwrap().unwrap().rev;
     store
-        .lock_note(json!({"_id": "note:lk", "_rev": rev, "title": "Locked", "body": "", "bookId": book,
-            "kansoLock": lock()}))
+        .lock_note(
+            json!({"_id": "note:lk", "_rev": rev, "title": "Locked", "body": "", "bookId": book,
+            "kansoLock": lock()}),
+        )
         .unwrap();
     let page = EntityPage::load(&store, &id).unwrap().unwrap();
     // Computed sections are local, so they may show the excluded note (but
     // never the locked or trashed ones).
     let view = pages::open(&store, &page, options(false), &[]).unwrap();
     let timeline = find(&view, "timeline");
-    assert!(timeline.items.iter().all(|i| i.sources[0].note_id != "note:lk" && i.sources[0].note_id != "note:tr"));
+    assert!(
+        timeline
+            .items
+            .iter()
+            .all(|i| i.sources[0].note_id != "note:lk" && i.sources[0].note_id != "note:tr")
+    );
     let (provider, seen) = Cites::new();
     let ctx = WriteContext::new(&provider, "m", T0 + 10 * DAY);
     pages::refresh_section(&store, &page, "promises", &ctx).unwrap();
@@ -312,9 +419,19 @@ fn locking_a_source_drops_its_lines_at_once() {
     let view = pages::open(&store, &page, options(true), &[]).unwrap();
     let promises = find(&view, "promises");
     assert_eq!(promises.items.len(), 1);
-    assert!(promises.items.iter().all(|i| i.sources.iter().all(|s| s.note_id != "note:weekly")));
+    assert!(
+        promises
+            .items
+            .iter()
+            .all(|i| i.sources.iter().all(|s| s.note_id != "note:weekly"))
+    );
     // The cache was rewritten without it.
-    assert_eq!(store.page_cache(&id).unwrap().sections["promises"].items.len(), 1);
+    assert_eq!(
+        store.page_cache(&id).unwrap().sections["promises"]
+            .items
+            .len(),
+        1
+    );
 }
 
 #[test]
@@ -325,17 +442,30 @@ fn pin_hide_copy_and_not_right() {
     let ctx = WriteContext::new(&provider, "m", T0);
     pages::refresh_section(&store, &page, "promises", &ctx).unwrap();
     assert!(pages::pin(&store, &page, "promises", true).unwrap());
-    assert!(!pages::pin(&store, &page, "discussed", true).unwrap(), "nothing written to keep");
+    assert!(
+        !pages::pin(&store, &page, "discussed", true).unwrap(),
+        "nothing written to keep"
+    );
     let view = pages::open(&store, &page, options(true), &[]).unwrap();
-    assert!(matches!(find(&view, "promises").state, SectionState::Pinned { changed: 0, .. }));
+    assert!(matches!(
+        find(&view, "promises").state,
+        SectionState::Pinned { changed: 0, .. }
+    ));
 
     // Refresh all never touches a kept section.
     let before = store.page_cache(&id).unwrap().sections["promises"].clone();
-    let done = pages::refresh_all(&store, &page, &WriteContext::new(&provider, "m", T0 + 1000)).unwrap();
+    let done =
+        pages::refresh_all(&store, &page, &WriteContext::new(&provider, "m", T0 + 1000)).unwrap();
     assert_eq!(done, vec!["discussed".to_owned()]);
     assert_eq!(store.page_cache(&id).unwrap().sections["promises"], before);
     // Its own Refresh rewrites it, and it stays kept.
-    pages::refresh_section(&store, &page, "promises", &WriteContext::new(&provider, "m", T0 + 2000)).unwrap();
+    pages::refresh_section(
+        &store,
+        &page,
+        "promises",
+        &WriteContext::new(&provider, "m", T0 + 2000),
+    )
+    .unwrap();
     let after = store.page_cache(&id).unwrap().sections["promises"].clone();
     assert!(after.pinned && after.written_at == T0 + 2000);
 
@@ -347,22 +477,50 @@ fn pin_hide_copy_and_not_right() {
 
     // Not right: the bullet goes and the next prompt says so.
     assert!(pages::not_right(&store, &page, "promises", 0).unwrap());
-    assert_eq!(store.page_cache(&id).unwrap().sections["promises"].items.len(), 1);
-    pages::refresh_section(&store, &page, "promises", &WriteContext::new(&provider, "m", T0 + 3000)).unwrap();
+    assert_eq!(
+        store.page_cache(&id).unwrap().sections["promises"]
+            .items
+            .len(),
+        1
+    );
+    pages::refresh_section(
+        &store,
+        &page,
+        "promises",
+        &WriteContext::new(&provider, "m", T0 + 3000),
+    )
+    .unwrap();
     let last = seen.lock().unwrap().last().unwrap().clone();
     assert!(last.contains("do not repeat them"), "{last}");
-    assert_eq!(store.page_cache(&id).unwrap().sections["promises"].items.len(), 1, "the wrong one is not back");
+    assert_eq!(
+        store.page_cache(&id).unwrap().sections["promises"]
+            .items
+            .len(),
+        1,
+        "the wrong one is not back"
+    );
 
     // Hide, and show again.
     assert!(pages::hide(&store, &page, "timeline", true, T0).unwrap());
     let view = pages::open(&store, &page, options(true), &[]).unwrap();
     assert!(view.sections.iter().all(|s| s.key != "timeline"));
-    assert_eq!(view.hidden, vec![("timeline".to_owned(), "Timeline".to_owned())]);
+    assert_eq!(
+        view.hidden,
+        vec![("timeline".to_owned(), "Timeline".to_owned())]
+    );
     assert!(pages::show_hidden(&store, &page, T0 + 1).unwrap());
-    assert!(pages::open(&store, &page, options(true), &[]).unwrap().hidden.is_empty());
+    assert!(
+        pages::open(&store, &page, options(true), &[])
+            .unwrap()
+            .hidden
+            .is_empty()
+    );
 
     // The person's own text was never touched, and no edit or version was made by any of it.
-    assert_eq!(page.own_text(&store).unwrap(), "Sam runs the Lusaka office.\n");
+    assert_eq!(
+        page.own_text(&store).unwrap(),
+        "Sam runs the Lusaka office.\n"
+    );
 }
 
 proptest! {
@@ -441,7 +599,11 @@ proptest! {
 #[test]
 fn suggestions_come_from_signals_and_nothing_is_created() {
     let (_dir, store) = open_store();
-    let book = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let book = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     for ix in 0..4 {
         note_at(
             &store,
@@ -457,28 +619,59 @@ fn suggestions_come_from_signals_and_nothing_is_created() {
     let count = suggest::refresh(&store, &settings, T0, &mut last, false).unwrap();
     assert_eq!(count, Some(2));
     // Too soon: it does not run again.
-    assert_eq!(suggest::refresh(&store, &settings, T0 + 1000, &mut last, false).unwrap(), None);
+    assert_eq!(
+        suggest::refresh(&store, &settings, T0 + 1000, &mut last, false).unwrap(),
+        None
+    );
     let found = suggest::suggestions(&store, &settings).unwrap();
     let names: Vec<&str> = found.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.contains(&"Tendai Chirwa") && names.contains(&"rudo"), "{names:?}");
+    assert!(
+        names.contains(&"Tendai Chirwa") && names.contains(&"rudo"),
+        "{names:?}"
+    );
     assert!(store.entities().unwrap().is_empty(), "no page was made");
     assert!(found[0].detail().contains("notes"));
     // Not now hides it until it gains five notes; Not a person hides it for good.
-    let tendai = found.iter().find(|s| s.name == "Tendai Chirwa").unwrap().clone();
+    let tendai = found
+        .iter()
+        .find(|s| s.name == "Tendai Chirwa")
+        .unwrap()
+        .clone();
     suggest::dismiss(&store, &settings, &tendai, false, T0).unwrap();
-    assert!(suggest::suggestions(&store, &settings).unwrap().iter().all(|s| s.name != "Tendai Chirwa"));
+    assert!(
+        suggest::suggestions(&store, &settings)
+            .unwrap()
+            .iter()
+            .all(|s| s.name != "Tendai Chirwa")
+    );
     let rudo = found.iter().find(|s| s.name == "rudo").unwrap().clone();
     suggest::dismiss(&store, &settings, &rudo, true, T0).unwrap();
     suggest::refresh(&store, &settings, T0 + 10 * DAY, &mut last, true).unwrap();
-    assert!(suggest::suggestions(&store, &settings).unwrap().iter().all(|s| s.name != "rudo"));
+    assert!(
+        suggest::suggestions(&store, &settings)
+            .unwrap()
+            .iter()
+            .all(|s| s.name != "rudo")
+    );
     assert_eq!(store.dismissed().unwrap().len(), 2);
     suggest::suggest_again(&store, &settings, "rudo", T0).unwrap();
     suggest::refresh(&store, &settings, T0 + 20 * DAY, &mut last, true).unwrap();
-    assert!(suggest::suggestions(&store, &settings).unwrap().iter().any(|s| s.name == "rudo"));
+    assert!(
+        suggest::suggestions(&store, &settings)
+            .unwrap()
+            .iter()
+            .any(|s| s.name == "rudo")
+    );
     // Turned off, there are none.
-    let off = EntitySettings { suggest: false, ..EntitySettings::default() };
+    let off = EntitySettings {
+        suggest: false,
+        ..EntitySettings::default()
+    };
     assert!(suggest::suggestions(&store, &off).unwrap().is_empty());
-    assert_eq!(suggest::refresh(&store, &off, T0, &mut 0, true).unwrap(), None);
+    assert_eq!(
+        suggest::refresh(&store, &off, T0, &mut 0, true).unwrap(),
+        None
+    );
     let _ = (Context::default(), ai_detect::MAX_NAMES);
 }
 
@@ -497,14 +690,23 @@ fn dismissals_wait_for_the_notebook_then_ride_in_it() {
     };
     suggest::dismiss(&store, &settings, &s, true, T0).unwrap();
     assert_eq!(store.dismissed().unwrap().len(), 1);
-    assert!(suggest::dismissal_book(&store, &settings).is_none(), "no notebook was made for it");
+    assert!(
+        suggest::dismissal_book(&store, &settings).is_none(),
+        "no notebook was made for it"
+    );
     // The first page makes the notebook; the dismissals move into it.
-    let sam = actions::create_page(&store, &settings, EntityKind::Person, "Sam Moyo", &[], T0).unwrap();
+    let sam =
+        actions::create_page(&store, &settings, EntityKind::Person, "Sam Moyo", &[], T0).unwrap();
     suggest::sync_dismissals(&store, &settings, T0).unwrap();
     let book = suggest::dismissal_book(&store, &settings).unwrap();
-    assert_eq!(store.book_dismissed(&book).unwrap(), vec!["monday standup".to_owned()]);
+    assert_eq!(
+        store.book_dismissed(&book).unwrap(),
+        vec!["monday standup".to_owned()]
+    );
     // A name turned away on another device arrives.
-    store.set_book_dismissed(&book, &["monday standup".into(), "tuesday".into()]).unwrap();
+    store
+        .set_book_dismissed(&book, &["monday standup".into(), "tuesday".into()])
+        .unwrap();
     suggest::sync_dismissals(&store, &settings, T0).unwrap();
     assert_eq!(store.dismissed().unwrap().len(), 2);
     assert!(store.entity(&sam).unwrap().is_some());
@@ -571,9 +773,20 @@ proptest! {
 #[test]
 fn the_ai_pass_relabels_but_never_creates_a_page() {
     let (_dir, store) = open_store();
-    let book = put(&store, DocType::Book, json!({"_id": "book:a", "name": "Work"}));
+    let book = put(
+        &store,
+        DocType::Book,
+        json!({"_id": "book:a", "name": "Work"}),
+    );
     for ix in 0..3 {
-        note_at(&store, &format!("note:n{ix}"), "N", "visited Lake Placid and met Tendai Chirwa\n", &book, T0);
+        note_at(
+            &store,
+            &format!("note:n{ix}"),
+            "N",
+            "visited Lake Placid and met Tendai Chirwa\n",
+            &book,
+            T0,
+        );
     }
     let settings = EntitySettings::default();
     suggest::refresh(&store, &settings, T0, &mut 0, true).unwrap();
@@ -581,7 +794,9 @@ fn the_ai_pass_relabels_but_never_creates_a_page() {
     struct Says(&'static str);
     impl ChatProvider for Says {
         fn stream(&self, _: &Prompt) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
-            Ok(Box::new(vec![Event::Text(self.0.to_owned()), Event::Done].into_iter()))
+            Ok(Box::new(
+                vec![Event::Text(self.0.to_owned()), Event::Done].into_iter(),
+            ))
         }
     }
     // A reply that isn't JSON changes nothing.
@@ -589,7 +804,9 @@ fn the_ai_pass_relabels_but_never_creates_a_page() {
     assert_eq!(store.candidates().unwrap().len(), 2);
     let left = ai_detect::run(
         &store,
-        &Says(r#"[{"name":"Lake Placid","kind":"neither"},{"name":"Tendai Chirwa","kind":"person"}]"#),
+        &Says(
+            r#"[{"name":"Lake Placid","kind":"neither"},{"name":"Tendai Chirwa","kind":"person"}]"#,
+        ),
     )
     .unwrap();
     assert_eq!(left, 1);

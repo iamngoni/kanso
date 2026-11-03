@@ -96,6 +96,8 @@ pub struct Sidebar {
     status_filter: bool,
     /// Whether every tag shows, rather than the most used.
     all_tags: bool,
+    /// Whether the People & Projects group is open; it starts closed.
+    people_open: bool,
     /// The levels of the tag tree opened, by their paths in lowercase.
     open_tags: HashSet<String>,
     /// The notebooks opened to show the ones inside them, and those folded
@@ -170,6 +172,7 @@ impl Sidebar {
             status_choice,
             status_filter: false,
             all_tags: false,
+            people_open: false,
             open_tags: HashSet::new(),
             folds: BookFolds::with_open(open_books),
             collapsed: false,
@@ -774,6 +777,103 @@ impl Sidebar {
                     .tooltip_with_action("New note", &NewNote, None)
                     .on_click(cx.listener(|_, _, _, cx| cx.emit(SidebarEvent::NewNote))),
             )
+    }
+
+    /// People & Projects: a closed group under Tags, with the pages inside
+    /// and "3 new" for the suggestions. Nothing is drawn while there are
+    /// neither pages nor suggestions.
+    // no-prop-test: drawing; `people_label` has the test.
+    fn render_people(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let library = self.library.read(cx);
+        let pages = library.people.clone();
+        let new = library.people_new;
+        if pages.is_empty() && new == 0 {
+            return None;
+        }
+        let colors = Colors::get(cx);
+        let open = self.people_open;
+        let new_label = people_new_label(new);
+        let header = h_flex()
+            .id("people-group")
+            .flex_none()
+            .mt(px(14.))
+            .mb_0p5()
+            .mx_2()
+            .pl(px(10.))
+            .pr_1()
+            .h(px(26.))
+            .gap(px(6.))
+            .cursor_pointer()
+            .map(|el| section_label(el, colors))
+            .child(
+                Icon::new(if open {
+                    Lucide::ChevronDown
+                } else {
+                    Lucide::ChevronRight
+                })
+                .size(px(11.))
+                .text_color(colors.text_muted),
+            )
+            .child(div().flex_1().child("People & Projects"))
+            .children(new_label.map(|label| {
+                Button::new("people-new")
+                    .ghost()
+                    .xsmall()
+                    .label(label)
+                    .tooltip("Names Kanso suggests pages for")
+                    .on_click(|_, window, cx| {
+                        window.dispatch_action(Box::new(crate::people_view::ShowPeople), cx)
+                    })
+            }))
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.people_open = !this.people_open;
+                cx.notify();
+            }));
+        let rows = open.then(|| {
+            v_flex()
+                .flex_none()
+                .children(
+                    pages
+                        .into_iter()
+                        .enumerate()
+                        .map(|(ix, (id, title, kind))| {
+                            let library = self.library.clone();
+                            h_flex()
+                                .id(("people-page", ix))
+                                .h(px(ROW_HEIGHT))
+                                .flex_none()
+                                .items_center()
+                                .gap(px(10.))
+                                .mx_2()
+                                .pl(px(10.))
+                                .pr(px(8.))
+                                .rounded(px(6.))
+                                .text_size(px(13.5))
+                                .cursor_pointer()
+                                .hover(|el| el.bg(colors.sidebar_hover))
+                                .child(
+                                    Icon::new(match kind {
+                                        kanso_core::entities::EntityKind::Person => Lucide::User,
+                                        kanso_core::entities::EntityKind::Project => Lucide::Folder,
+                                    })
+                                    .size(px(15.))
+                                    .text_color(colors.text_secondary),
+                                )
+                                .child(div().flex_1().min_w_0().truncate().child(title))
+                                .on_click(move |_, _, cx| {
+                                    let id = id.clone();
+                                    library.update(cx, |library, cx| library.select(Some(id), cx));
+                                })
+                        }),
+                )
+        });
+        Some(
+            v_flex()
+                .flex_none()
+                .child(header)
+                .children(rows)
+                .into_any_element(),
+        )
     }
 
     fn render_tags(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -1810,6 +1910,7 @@ impl Render for Sidebar {
         list = list
             .child(self.heading("Tags", Some(add_tag), cx))
             .child(self.render_tags(cx))
+            .children(self.render_people(cx))
             .child(self.render_status(cx))
             .child(div().h(px(10.)));
 
@@ -2300,5 +2401,22 @@ mod tests {
         assert_eq!(initials("ngoni mangudya"), "NM");
         assert_eq!(initials("jane.q.public"), "JQ");
         assert_eq!(initials(" -- "), "");
+    }
+}
+
+/// "3 new" for the suggestions waiting, or nothing.
+pub fn people_new_label(count: u32) -> Option<String> {
+    (count > 0).then(|| format!("{count} new"))
+}
+
+#[cfg(test)]
+mod people_tests {
+    use super::people_new_label;
+
+    // no-prop-test: one word over a number.
+    #[test]
+    fn the_group_counts_suggestions_only_when_there_are_some() {
+        assert_eq!(people_new_label(0), None);
+        assert_eq!(people_new_label(3).as_deref(), Some("3 new"));
     }
 }
