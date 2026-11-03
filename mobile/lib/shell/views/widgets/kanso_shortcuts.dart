@@ -66,6 +66,7 @@ class KansoShortcuts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final focus = _maybeReadBloc<FocusModeBloc>(context);
+    final notices = _maybeReadBloc<UndoNoticeBloc>(context);
     final focusActive = focus?.state.active ?? false;
     final activeContexts = <ShortcutContext>{
       ...contexts,
@@ -131,9 +132,8 @@ class KansoShortcuts extends StatelessWidget {
               return null;
             },
           ),
-          UndoLastChangeIntent: UndoLastChangeAction(
-            context.read<UndoNoticeBloc>(),
-          ),
+          if (notices != null)
+            UndoLastChangeIntent: UndoLastChangeAction(notices),
           ToggleFocusModeIntent: CallbackAction<ToggleFocusModeIntent>(
             onInvoke: (_) {
               focus?.add(const FocusModeEvent.toggled());
