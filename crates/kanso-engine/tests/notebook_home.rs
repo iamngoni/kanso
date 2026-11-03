@@ -801,12 +801,15 @@ fn bench_homepage_of_fifty_thousand_notes() {
     use std::time::Instant;
     let (_dir, store) = open_store();
     book(&store, "book:big", "Big", None);
+    // Parts 0-3 sit inside "Ten": a subtree of 10,000 notes, the size the
+    // budgets are set for.
+    book(&store, "book:ten", "Ten", Some("book:big"));
     for n in 0..20 {
         book(
             &store,
             &format!("book:big{n}"),
             &format!("Part {n}"),
-            Some("book:big"),
+            Some(if n < 4 { "book:ten" } else { "book:big" }),
         );
     }
     for n in 0..50_000 {
@@ -831,6 +834,11 @@ fn bench_homepage_of_fifty_thousand_notes() {
         let start = Instant::now();
         let _ = NotebookPage::load(&store, id, NOW).unwrap().unwrap();
         let fingerprints = start.elapsed();
+        for key in kanso_core::home::SECTION_KEYS {
+            let start = Instant::now();
+            let _ = kanso_engine::pages::PageSource::compute(&big, &store, key, false);
+            println!("    {key} {:?}", start.elapsed());
+        }
         let start = Instant::now();
         let _ = big.map(&store).unwrap();
         let map = start.elapsed();
@@ -848,7 +856,7 @@ fn bench_homepage_of_fifty_thousand_notes() {
             r
         }};
     }
-    let b = "book:big0";
+    let b = "book:ten";
     t!("subtree", store.book_subtree(b, false).unwrap());
     t!("stats", store.home_stats(b).unwrap());
     t!("recent", store.home_recent(b, 8).unwrap());
@@ -859,6 +867,7 @@ fn bench_homepage_of_fifty_thousand_notes() {
     t!("entities", store.home_entities(b, 8).unwrap());
     t!("home_note", store.home_note(b).unwrap());
     t!("edited", store.home_edited_since(b, 0, 16).unwrap());
+    t!("all_notes", store.home_all_notes(b).unwrap());
     t!("graph", store.home_graph_rows(b).unwrap());
     t!(
         "tasks",
@@ -872,14 +881,19 @@ fn bench_homepage_of_fifty_thousand_notes() {
     );
     // The whole library as one notebook: reported, the worst case.
     measure("book:big");
-    // A notebook of 2,500 notes in a library of 50,000: the budgets.
-    let (computed, fingerprints, map) = measure("book:big0");
-    // The budget is 60 ms; 70 ms measured (the map's graph rows are a third
-    // of it). The guard is looser so a regression, not the gap, fails it.
-    assert!(computed.as_millis() < 100, "computed sections {computed:?}");
+    measure("book:big0");
+    // A notebook of 10,000 notes in a library of 50,000: the budgets. Run
+    // with `--features discovery` (as the apps are built) for the map.
+    // Measured on an M1 Pro: 30 ms with kanso-core, kanso-store and
+    // kanso-engine optimised (`--config 'profile.dev.package.kanso-store.opt-level=2'`
+    // and the same for the other two), 75 ms unoptimised. The guard is for
+    // the unoptimised build, so a regression, not the build, fails it.
+    let (computed, fingerprints, map) = measure("book:ten");
+    assert!(computed.as_millis() < 120, "computed sections {computed:?}");
     assert!(
         fingerprints.as_millis() < 20,
         "fingerprints {fingerprints:?}"
     );
-    assert!(map.as_millis() < 100, "map layout {map:?}");
+    // The map's budget is 100 ms: 53 ms optimised, 95 ms unoptimised.
+    assert!(map.as_millis() < 150, "map layout {map:?}");
 }

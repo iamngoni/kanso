@@ -60,3 +60,28 @@ pub struct HomeNoteMark {
     pub title: String,
     pub updated_at: i64,
 }
+
+/// A notebook of a homepage's subtree.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HomeBook {
+    pub id: String,
+    pub name: String,
+    /// The notebook it is in; `None` for the homepage's own notebook when
+    /// it is at the top.
+    pub parent: Option<String>,
+}
+
+/// One read of a notebook's subtree: the unlocked notebooks in it and
+/// every readable note of them, first created first. Every computed
+/// section is shaped from this and from the tables kept per note (links,
+/// tasks, mentions, revisions), read by note ID, so a homepage walks the
+/// notebook's documents once. Empty when the notebook is gone or locked.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct HomeScan {
+    /// The notebook the scan is of.
+    pub id: String,
+    /// The notebook itself first, then the unlocked ones inside it.
+    pub books: Vec<HomeBook>,
+    /// `revisions` is 0 here: it is counted when asked for.
+    pub notes: Vec<HomeNoteRow>,
+}

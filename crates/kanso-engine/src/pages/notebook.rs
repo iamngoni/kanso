@@ -9,15 +9,18 @@
 //! walked into: not even a count includes them.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
 use kanso_ai::Excerpt;
 use kanso_core::dates::Date;
 use kanso_core::home::{SECTION_KEYS, decision_lines, home_text};
 use kanso_core::links::plain_line;
 use kanso_core::passages::{Passage, passages};
-use kanso_store::{HomeNoteRow, Store, TaskQuery};
+use kanso_store::{HomeNoteMark, HomeNoteRow, HomeScan, Store};
 
-use super::notebook_model::{AI_OFF_LINE, HomeHeader, HomeView, MapNode, MapView, NO_OPEN_TASKS};
+#[cfg(feature = "discovery")]
+use super::notebook_model::MapNode;
+use super::notebook_model::{AI_OFF_LINE, HomeHeader, HomeView, MapView, NO_OPEN_TASKS};
 use super::{
     Item, OpenOptions, PASSAGES_PER_NOTE, PageSource, Passages, Section, SectionKind, SectionSpec,
     SectionState, SourceNote, open,
@@ -106,6 +109,12 @@ pub fn title_of(key: &str) -> Option<&'static str> {
 }
 
 /// A notebook's homepage.
+///
+/// A page reads its notebook once: the first section that needs the
+/// notebook's notes keeps them (and their task counts and the Home note)
+/// for the others, so opening a homepage walks the notebook one time. Make
+/// a new page ([`NotebookPage::load`]) to read the notebook again;
+/// [`open_home`] always does.
 #[derive(Clone, Debug)]
 pub struct NotebookPage {
     pub id: String,
@@ -113,6 +122,29 @@ pub struct NotebookPage {
     /// When the page is opened (ms since the epoch), for "Today" and the
     /// 90-day window.
     pub now: i64,
+    memo: Arc<Memo>,
+}
+
+/// What a page has read of its notebook (see [`NotebookPage`]).
+#[derive(Debug, Default)]
+struct Memo {
+    scan: Mutex<Option<Arc<HomeScan>>>,
+    tasks: Mutex<Option<Arc<HashMap<String, (u32, u32)>>>>,
+    home: Mutex<Option<Option<HomeNoteMark>>>,
+}
+
+/// `slot`'s value, read with `read` the first time.
+fn kept<T: Clone>(
+    slot: &Mutex<Option<T>>,
+    read: impl FnOnce() -> kanso_store::Result<T>,
+) -> kanso_store::Result<T> {
+    let mut slot = slot.lock().unwrap_or_else(|p| p.into_inner());
+    if let Some(value) = slot.as_ref() {
+        return Ok(value.clone());
+    }
+    let value = read()?;
+    *slot = Some(value.clone());
+    Ok(value)
 }
 
 /// "today", "yesterday" or "28 Oct" for a time, as of `now`.
@@ -172,7 +204,26 @@ impl NotebookPage {
             id: id.to_owned(),
             name: name.to_owned(),
             now,
+            memo: Arc::default(),
         }
+    }
+
+    /// The notebook's unlocked notebooks and readable notes, read once.
+    fn scan(&self, store: &Store) -> kanso_store::Result<Arc<HomeScan>> {
+        kept(&self.memo.scan, || store.home_scan(&self.id).map(Arc::new))
+    }
+
+    /// Each note's `(unchecked, all)` tasks, read once.
+    fn task_counts(&self, store: &Store) -> kanso_store::Result<Arc<HashMap<String, (u32, u32)>>> {
+        let scan = self.scan(store)?;
+        kept(&self.memo.tasks, || {
+            store.home_task_counts_in(&scan).map(Arc::new)
+        })
+    }
+
+    /// The notebook's Home note, read once.
+    fn home_mark(&self, store: &Store) -> kanso_store::Result<Option<HomeNoteMark>> {
+        kept(&self.memo.home, || store.home_note(&self.id))
     }
 
     /// The page of notebook `id`, or `None` when it is gone or locked
@@ -194,7 +245,7 @@ impl NotebookPage {
 
     /// The header line.
     pub fn header(&self, store: &Store) -> kanso_store::Result<HomeHeader> {
-        let stats = store.home_stats(&self.id)?;
+        let stats = self.scan(store)?.stats();
         let last = stats
             .last_edited
             .map(|ms| relative_day(self.now, ms))
@@ -215,7 +266,7 @@ impl NotebookPage {
             notebooks_inside: stats.notebooks_inside,
             last_edited: last,
             line,
-            has_home_note: store.home_note(&self.id)?.is_some(),
+            has_home_note: self.home_mark(store)?.is_some(),
         })
     }
 
@@ -228,14 +279,17 @@ impl NotebookPage {
     pub fn key_note_items(&self, store: &Store) -> kanso_store::Result<Vec<Item>> {
         let mut seen: HashSet<String> = HashSet::new();
         let mut items: Vec<Item> = Vec::new();
-        let linked = store.home_linked(&self.id, 64)?;
+        let scan = self.scan(store)?;
+        let linked = store.home_linked_in(&scan, 64)?;
+        let by_id: HashMap<&str, &HomeNoteRow> =
+            scan.notes.iter().map(|n| (n.id.as_str(), n)).collect();
         let counts: HashMap<&str, u32> = linked
             .iter()
             .map(|l| (l.note_id.as_str(), l.linked_from))
             .collect();
         let edited = |ms: i64| format!("edited {}", relative_day(self.now, ms));
         let linked_from = |n: u32| format!("Linked from {}", plural(n, "note", "notes"));
-        for note in store.home_pinned(&self.id, KEY_NOTES)? {
+        for note in scan.pinned(KEY_NOTES) {
             let mut why = vec!["Pinned".to_owned()];
             if let Some(n) = counts.get(note.id.as_str()) {
                 why.push(linked_from(*n));
@@ -251,26 +305,15 @@ impl NotebookPage {
             if !seen.insert(link.note_id.clone()) {
                 continue;
             }
-            let Some(doc) = store.get(&link.note_id)? else {
+            let Some(note) = by_id.get(link.note_id.as_str()) else {
                 continue;
             };
-            let title = doc
-                .fields
-                .get("title")
-                .and_then(|t| t.as_str())
-                .unwrap_or_default()
-                .to_owned();
-            let updated = doc
-                .fields
-                .get("updatedAt")
-                .and_then(|t| t.as_i64())
-                .unwrap_or(0);
             items.push(Item {
-                text: title_or_untitled(&title),
+                text: title_or_untitled(&note.title),
                 meta: Some(format!(
                     "{} \u{b7} {}",
                     linked_from(link.linked_from),
-                    edited(updated)
+                    edited(note.updated_at)
                 )),
                 target: Some(link.note_id.clone()),
                 ..Item::default()
@@ -278,7 +321,7 @@ impl NotebookPage {
         }
         if items.len() < KEY_NOTES {
             let since = self.now - RECENT_DAYS * DAY_MS;
-            for note in store.home_edited_since(&self.id, since, KEY_NOTES * 2)? {
+            for note in store.home_edited_since_in(&scan, since, KEY_NOTES * 2)? {
                 if items.len() >= KEY_NOTES {
                     break;
                 }
@@ -327,13 +370,10 @@ impl NotebookPage {
 
     fn task_section(&self, store: &Store, all: bool) -> kanso_store::Result<Section> {
         let spec = SPECS[4];
-        let subtree = store.book_subtree(&self.id, false)?;
-        let total = store.home_open_task_count(&self.id)? as usize;
-        let rows = store.tasks(&TaskQuery {
-            book_ids: Some(subtree),
-            limit: Some(if all { MAX_TASKS } else { FIRST_TASKS }),
-            ..TaskQuery::default()
-        })?;
+        let scan = self.scan(store)?;
+        let counts = self.task_counts(store)?;
+        let total = counts.values().map(|c| c.0).sum::<u32>() as usize;
+        let rows = store.home_open_tasks_in(&scan, if all { MAX_TASKS } else { FIRST_TASKS })?;
         let items = rows
             .into_iter()
             .map(|t| {
@@ -361,7 +401,7 @@ impl NotebookPage {
             })
             .collect();
         let mut section = Section::computed(&spec, items, total);
-        if total == 0 && store.home_task_count(&self.id)? > 0 {
+        if total == 0 && counts.values().any(|c| c.1 > 0) {
             section.note = Some(NO_OPEN_TASKS.to_owned());
         }
         Ok(section)
@@ -457,26 +497,18 @@ impl NotebookPage {
         })
     }
 
-    fn map_items(&self, store: &Store) -> kanso_store::Result<Vec<Item>> {
-        // The section lists the map's notes, most linked first; the picture
-        // is [`NotebookPage::map`].
-        let map = self.map(store)?;
-        let mut nodes = map.nodes;
-        nodes.sort_by(|a, b| b.degree.cmp(&a.degree).then_with(|| a.id.cmp(&b.id)));
-        Ok(nodes
-            .into_iter()
-            .map(|n| Item {
-                text: n.title,
-                meta: Some(plural(n.degree, "link", "links")),
-                target: Some(n.id),
-                ..Item::default()
-            })
-            .collect())
+    /// Whether the notebook has a map: any readable note to draw. The
+    /// picture is [`NotebookPage::map`], laid out off the main thread by
+    /// whoever draws it, so opening the page never waits on the layout.
+    fn has_map(&self, store: &Store) -> kanso_store::Result<bool> {
+        Ok(cfg!(feature = "discovery") && !self.scan(store)?.notes.is_empty())
     }
 
     fn inside_items(&self, store: &Store) -> kanso_store::Result<Vec<Item>> {
+        let scan = self.scan(store)?;
+        let counts = self.task_counts(store)?;
         Ok(store
-            .home_children(&self.id)?
+            .home_children_in(&scan, &counts)?
             .into_iter()
             .map(|c| {
                 if c.locked {
@@ -506,7 +538,7 @@ impl NotebookPage {
 
     fn people_items(&self, store: &Store) -> kanso_store::Result<Vec<Item>> {
         Ok(store
-            .home_entities(&self.id, MAX_PEOPLE)?
+            .home_entities_in(&*self.scan(store)?, MAX_PEOPLE)?
             .into_iter()
             .map(|e| Item {
                 text: title_or_untitled(&e.title),
@@ -639,7 +671,7 @@ impl PageSource for NotebookPage {
             "about" => {
                 // The Home note first, then the opening of each key note,
                 // then the opening of the most recently edited notes.
-                if let Some(mark) = store.home_note(&self.id)?
+                if let Some(mark) = self.home_mark(store)?
                     && let Some(c) = eligible_note(store, &mark.id)?
                 {
                     let all = passages(&c.body);
@@ -717,7 +749,7 @@ impl PageSource for NotebookPage {
             .copied()
             .unwrap_or(SPECS[2]);
         let items = match section {
-            "home_note" => match store.home_note(&self.id)? {
+            "home_note" => match self.home_mark(store)? {
                 Some(mark) => {
                     let body = store
                         .get(&mark.id)?
@@ -740,7 +772,9 @@ impl PageSource for NotebookPage {
             "recent" => self.recent_items(store)?,
             "open_tasks" => return self.task_section(store, all),
             "people" => self.people_items(store)?,
-            "map" => self.map_items(store)?,
+            // Drawn from [`NotebookPage::map`]; `open_home` keeps the
+            // section when there is something to draw.
+            "map" => Vec::new(),
             "inside" => self.inside_items(store)?,
             _ => Vec::new(),
         };
@@ -793,6 +827,9 @@ pub fn open_home(
             ..HomeView::default()
         });
     }
+    // Read the notebook afresh, once for every section.
+    let page = &NotebookPage::new(&page.id, &page.name, page.now);
+    let has_map = page.has_map(store)?;
     let mut view = open(
         store,
         page,
@@ -809,7 +846,9 @@ pub fn open_home(
             ai_off |= off;
             !off
         }
-        SectionKind::Computed => !s.items.is_empty() || s.note.is_some(),
+        SectionKind::Computed => {
+            !s.items.is_empty() || s.note.is_some() || (s.key == "map" && has_map)
+        }
     });
     let layout = store.page_cache(&page.id)?.layout;
     if let Some(layout) = layout {

@@ -470,3 +470,65 @@ fn key_note_inputs_count_each_linking_note_once_and_skip_self_links() {
         "x and y; not itself, not z outside"
     );
 }
+
+/// The homepage lists a subtree's open tasks in the order `Store::tasks`
+/// does (dated first, soonest first, then newest note, each note's in
+/// order), reading the words only of the ones it keeps; it counts children
+/// from the same read.
+#[test]
+fn open_tasks_of_a_scan_match_the_task_list_and_children_count_them() {
+    let (_dir, store) = temp_store();
+    book(&store, "book:top", None);
+    book(&store, "book:kid", Some("book:top"));
+    book(&store, "book:grand", Some("book:kid"));
+    note(
+        &store,
+        "note:a",
+        "A",
+        "- [ ] undated a\n- [ ] due late @2026-12-01\n- [x] done",
+        "book:top",
+        10,
+    );
+    note(
+        &store,
+        "note:b",
+        "B",
+        "- [ ] due soon @2026-11-05\n- [ ] undated b",
+        "book:kid",
+        30,
+    );
+    note(
+        &store,
+        "note:c",
+        "C",
+        "- [ ] undated c1\n- [ ] undated c2\n- [ ] due soon too @2026-11-05",
+        "book:grand",
+        20,
+    );
+    let subtree = store.book_subtree("book:top", false).unwrap();
+    let expected: Vec<(String, u32)> = store
+        .tasks(&TaskQuery {
+            book_ids: Some(subtree),
+            ..TaskQuery::default()
+        })
+        .unwrap()
+        .into_iter()
+        .map(|t| (t.note_id, t.line))
+        .collect();
+    let scan = store.home_scan("book:top").unwrap();
+    for limit in 0..=expected.len() + 1 {
+        let got: Vec<(String, u32)> = store
+            .home_open_tasks_in(&scan, limit)
+            .unwrap()
+            .into_iter()
+            .map(|t| (t.note_id, t.line))
+            .collect();
+        assert_eq!(got, expected[..limit.min(expected.len())], "limit {limit}");
+    }
+    let kids = store.home_children("book:top").unwrap();
+    assert_eq!(kids.len(), 1);
+    assert_eq!((kids[0].notes, kids[0].open_tasks), (2, 5));
+    assert_eq!(kids[0].last_edited, Some(30));
+    assert_eq!(store.home_open_task_count("book:top").unwrap(), 7);
+    assert_eq!(store.home_task_count("book:top").unwrap(), 8);
+}
