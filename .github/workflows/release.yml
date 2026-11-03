@@ -342,6 +342,7 @@ jobs:
     environment: release
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -351,6 +352,15 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      # The download has finished without every file before (a missing
+      # Windows zip, a truncated dmg whose SHA256SUMS then came out wrong):
+      # check each file is there and whole, download again if not, and fail
+      # here rather than sign a feed over a short set.
+      - name: Verify the download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/verify-artifacts.sh dist "${GITHUB_REF_NAME#v}" '^(Kanso-.*|apt-metadata)$'
 
       - name: Rust
         run: scripts/ci-rust.sh
@@ -468,6 +478,7 @@ jobs:
     runs-on: [self-hosted, Linux]
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -487,6 +498,22 @@ jobs:
         with:
           name: apt-metadata
           path: dist
+
+      # This job runs no code from the repository, so the check is inline: a
+      # download that finished without every file, or with an empty one,
+      # fails here by name. A truncated file is caught by SHA256SUMS below.
+      - name: Check every platform's files are there
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          missing=0
+          for f in "Kanso-$v-macos-arm64.dmg" "Kanso-$v-macos-arm64.app.tar.gz" \
+            "Kanso-$v-windows-x64.zip" "Kanso-$v-linux-x64.tar.gz" "Kanso-$v-linux-arm64.tar.gz"; do
+            if [ ! -s "dist/$f" ]; then
+              echo "::error::dist/$f is missing or empty after the download"
+              missing=1
+            fi
+          done
+          [ "$missing" = 0 ] || exit 1
 
       - name: Check every file against SHA256SUMS
         run: |

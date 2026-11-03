@@ -20,6 +20,19 @@ const DAY: i64 = 86_400_000;
 const T0: i64 = 1_761_600_000_000;
 const NOW: i64 = T0 + 9 * DAY + 3_600_000;
 
+/// The sections of a homepage in order. The map is drawn only by builds with
+/// the `discovery` graph (the app and the phone have it, a bare engine
+/// does not), so it is listed only there.
+fn sections(keys: &[&'static str]) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    for &k in keys {
+        if k != "map" || cfg!(feature = "discovery") {
+            out.push(k);
+        }
+    }
+    out
+}
+
 /// Answers every prompt by citing each excerpt line that contains the
 /// needle, and remembers the prompts.
 struct Cites {
@@ -196,7 +209,10 @@ fn a_nested_notebook_gets_its_computed_sections() {
         "4 notes \u{b7} 2 notebooks inside \u{b7} last edited today"
     );
     let keys: Vec<&str> = view.page.sections.iter().map(|s| s.key.as_str()).collect();
-    assert_eq!(keys, ["key_notes", "recent", "open_tasks", "map", "inside"]);
+    assert_eq!(
+        keys,
+        sections(&["key_notes", "recent", "open_tasks", "map", "inside"])
+    );
     // AI is off: the AI sections are left out and one line says why.
     assert_eq!(
         view.footer.as_deref(),
@@ -664,6 +680,7 @@ fn copy_into_home_note_creates_it_when_missing_and_appends_with_links() {
 }
 
 #[test]
+#[cfg(feature = "discovery")]
 fn the_same_library_draws_the_same_map_twice_and_caps_it() {
     let (_dir, store) = open_store();
     book(&store, "book:a", "Wiki", None);
@@ -699,6 +716,7 @@ fn the_same_library_draws_the_same_map_twice_and_caps_it() {
 }
 
 #[test]
+#[cfg(feature = "discovery")]
 fn links_to_notes_outside_the_notebook_are_stubs() {
     let (_dir, store) = library();
     book(&store, "book:o", "Elsewhere", None);
@@ -738,7 +756,7 @@ fn customising_orders_and_hides_sections_and_the_later_write_wins() {
     .unwrap();
     let view = open_home(&store, &p, on(false), &[]).unwrap();
     let keys: Vec<&str> = view.page.sections.iter().map(|s| s.key.as_str()).collect();
-    assert_eq!(keys, ["inside", "recent", "open_tasks", "map"]);
+    assert_eq!(keys, sections(&["inside", "recent", "open_tasks", "map"]));
     assert_eq!(
         view.page.hidden,
         vec![("key_notes".into(), "Key notes".into())]
@@ -747,7 +765,10 @@ fn customising_orders_and_hides_sections_and_the_later_write_wins() {
     actions::reset_layout(&store, &p, NOW + 1).unwrap();
     let view = open_home(&store, &p, on(false), &[]).unwrap();
     let keys: Vec<&str> = view.page.sections.iter().map(|s| s.key.as_str()).collect();
-    assert_eq!(keys, ["key_notes", "recent", "open_tasks", "map", "inside"]);
+    assert_eq!(
+        keys,
+        sections(&["key_notes", "recent", "open_tasks", "map", "inside"])
+    );
 }
 
 proptest! {
