@@ -288,6 +288,10 @@ impl AskPanel {
         );
         request.scope = scope;
         request.utc_offset_ms = offset_ms;
+        let zone = Clock::zone(cx);
+        request.zone = Some(ask::ZoneOffsets(std::sync::Arc::new(move |at_ms| {
+            i64::from(zone(at_ms)) * 1000
+        })));
         request.budget = ai.ask.budget_for(ai.provider, &ai.base_url);
         request.use_links = ai.ask.use_links;
         request.ignore_time = ignore_time;

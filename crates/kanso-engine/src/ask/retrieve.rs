@@ -463,13 +463,13 @@ fn daily_date(id: &str) -> Option<Date> {
     Date::parse_iso(day.get(..10)?)
 }
 
-fn day_of(ms: i64, offset: i64) -> Date {
-    Date::from_local_ms(ms + offset)
+fn day_of(ms: i64, offset: &dyn Fn(i64) -> i64) -> Date {
+    Date::from_local_ms(ms + offset(ms))
 }
 
 /// Whether the note was written in `range`: made or changed in it, or a
 /// daily note whose date is in it.
-fn written_in(c: &Candidate, range: &DateRange, offset: i64) -> bool {
+fn written_in(c: &Candidate, range: &DateRange, offset: &dyn Fn(i64) -> i64) -> bool {
     range.contains(day_of(c.updated_at, offset))
         || range.contains(day_of(c.created_at, offset))
         || daily_date(&c.id).is_some_and(|d| range.contains(d))
@@ -480,7 +480,7 @@ fn about_in(c: &Candidate, range: &DateRange) -> bool {
     when::dates_in(&c.body).iter().any(|d| range.contains(*d))
 }
 
-fn matches_time(c: &Candidate, intent: &TimeIntent, offset: i64) -> bool {
+fn matches_time(c: &Candidate, intent: &TimeIntent, offset: &dyn Fn(i64) -> i64) -> bool {
     match intent {
         TimeIntent::Written(range) => written_in(c, range, offset),
         TimeIntent::About(range) => about_in(c, range),
@@ -541,7 +541,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
     if terms.is_empty() && time.is_none() {
         return Ok(Retrieval::default());
     }
-    let offset = request.utc_offset_ms;
+    let offset = |ms: i64| request.offset_at(ms);
     let mut pool = Pool::new(store, scope)?;
     let mut seeds: HashMap<String, Vec<(u32, u32)>> = HashMap::new();
     let mut meaning_scores: HashMap<String, f32> = HashMap::new();
@@ -559,7 +559,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
 
     let strict_bounds = match time {
         Some(TimeIntent::Written(range)) => {
-            let (after, before) = range.bounds_ms(offset);
+            let (after, before) = request.bounds_ms(range);
             Some(Bounds { after, before })
         }
         _ => None,
@@ -617,7 +617,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
         let mut kept = 0;
         for id in &text_ids {
             if let Some(c) = pool.get(id)?
-                && matches_time(&c, intent, offset)
+                && matches_time(&c, intent, &offset)
             {
                 kept += 1;
             }
@@ -644,7 +644,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
         let range = intent.range();
         let mut found: Vec<String> = Vec::new();
         if !matches!(intent, TimeIntent::About(_)) && terms.is_empty() {
-            let (after, before) = range.bounds_ms(offset);
+            let (after, before) = request.bounds_ms(&range);
             let params = SearchParams {
                 updated_after: after,
                 updated_before: before,
@@ -796,7 +796,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
     if let Some(intent) = time {
         let matching: Vec<Rc<Candidate>> = candidates
             .iter()
-            .filter(|c| matches_time(c, intent, offset))
+            .filter(|c| matches_time(c, intent, &offset))
             .cloned()
             .collect();
         match intent {
@@ -804,7 +804,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
                 // Either kind of time ranks the notes that have it first.
                 let (mut first, later): (Vec<_>, Vec<_>) = candidates
                     .into_iter()
-                    .partition(|c| matches_time(c, intent, offset));
+                    .partition(|c| matches_time(c, intent, &offset));
                 first.extend(later);
                 candidates = first;
             }
@@ -818,7 +818,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
                 relaxed = true;
                 let (mut first, later): (Vec<_>, Vec<_>) = candidates
                     .into_iter()
-                    .partition(|c| matches_time(c, intent, offset));
+                    .partition(|c| matches_time(c, intent, &offset));
                 first.extend(later);
                 candidates = first;
             }
@@ -856,7 +856,7 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
     let books = book_paths(store);
     let excerpts: Vec<Excerpt> = picks
         .iter()
-        .map(|pick| excerpt_of(&owned[pick.index], &pick.passages, offset, &books))
+        .map(|pick| excerpt_of(&owned[pick.index], &pick.passages, request.utc_offset_ms, &books))
         .collect();
     let mut ranked: Vec<&Pick> = picks.iter().collect();
     ranked.sort_by(|a, b| b.best.total_cmp(&a.best));

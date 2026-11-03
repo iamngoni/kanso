@@ -56,10 +56,25 @@ impl DateRange {
     /// open ends as `None`. `offset_ms` is the zone's offset from UTC, so a
     /// local day is cut where the person's day is.
     pub fn bounds_ms(&self, offset_ms: i64) -> (Option<i64>, Option<i64>) {
+        self.bounds_ms_by(&|_| offset_ms)
+    }
+
+    /// [`bounds_ms`](Self::bounds_ms) for a zone whose offset changes (a
+    /// daylight-saving change): `offset_at` gives the offset from UTC in
+    /// milliseconds at an instant in milliseconds since the epoch, and each
+    /// end is cut with the offset in force at that end's own midnight.
+    pub fn bounds_ms_by(&self, offset_at: &dyn Fn(i64) -> i64) -> (Option<i64>, Option<i64>) {
         const DAY: i64 = 86_400_000;
+        // The UTC instant at which local time reads `local_ms`: guess with
+        // the offset at the local reading taken as UTC, then again with the
+        // offset at the guess.
+        let utc_of = |local_ms: i64| {
+            let guess = local_ms - offset_at(local_ms);
+            local_ms - offset_at(guess)
+        };
         (
-            self.start.map(|d| d.to_days() * DAY - offset_ms),
-            self.end.map(|d| (d.to_days() + 1) * DAY - 1 - offset_ms),
+            self.start.map(|d| utc_of(d.to_days() * DAY)),
+            self.end.map(|d| utc_of((d.to_days() + 1) * DAY) - 1),
         )
     }
 
@@ -260,16 +275,27 @@ fn iso_month(word: &str) -> Option<(i32, u32)> {
 /// returned in `today`'s year by the caller; here `None` unless `need_year`.
 fn written_date(tokens: &[Token], i: usize, need_year: bool) -> Option<(Date, usize)> {
     let word = |ix: usize| tokens.get(ix).map(|t| t.word.as_str());
+    let after_preposition = i > 0 && PREPOSITIONS.contains(&tokens[i - 1].word.as_str());
+    let ordinal = |w: &str| ["st", "nd", "rd", "th"].iter().any(|s| w.ends_with(s));
     // 3 [of] March [2026]
     if let Some(day) = word(i).and_then(day_number) {
         let mut at = i + 1;
+        let mut with_of = false;
         if word(at) == Some("of") {
             at += 1;
+            with_of = true;
         }
         if let Some(month) = word(at).and_then(month_number) {
+            let month_word = word(at).unwrap_or_default();
             at += 1;
             if let Some(year) = word(at).and_then(year_number) {
                 return Date::new(year, month, day).map(|d| (d, at + 1 - i));
+            }
+            // "chapter 3 may" is not the third of May.
+            if AMBIGUOUS_MONTHS.contains(&month_word)
+                && !(after_preposition || with_of || ordinal(word(i).unwrap_or_default()))
+            {
+                return None;
             }
             if !need_year {
                 // Year filled in by the caller: 1900 marks "no year".
@@ -285,12 +311,35 @@ fn written_date(tokens: &[Token], i: usize, need_year: bool) -> Option<(Date, us
         if let Some(year) = word(i + 2).and_then(year_number) {
             return Date::new(year, month, day).map(|d| (d, 3));
         }
+        // "may 3 times" is not a date either.
+        if AMBIGUOUS_MONTHS.contains(&word(i).unwrap_or_default())
+            && !(after_preposition || ordinal(word(i + 1).unwrap_or_default()))
+        {
+            return None;
+        }
         if !need_year {
             return Date::new(2000, month, day).map(|d| (d, 2));
         }
     }
     None
 }
+
+/// The date of `day` `month` nearest `today` in the direction the question
+/// looks (`ahead`, or back): this year's, or the closest year that has the
+/// day (29 February is in leap years only). Never silently none for a day
+/// that exists in some year.
+fn nearest_year(month: u32, day: u32, today: Date, ahead: bool) -> Option<Date> {
+    let mut candidates = (today.year - 8..=today.year + 8).filter_map(|y| Date::new(y, month, day));
+    if ahead {
+        candidates.find(|d| *d >= today)
+    } else {
+        candidates.rfind(|d| *d <= today)
+    }
+}
+
+/// Words that are also months. Without a year they are dates only when
+/// something says so: a preposition before, an ordinal (`3rd`), or `of`.
+const AMBIGUOUS_MONTHS: &[&str] = &["may", "march"];
 
 const PREPOSITIONS: &[&str] = &[
     "in", "during", "of", "since", "before", "after", "from", "until", "till", "by", "last",
@@ -345,6 +394,20 @@ fn phrase_at(
                 "next" => 1,
                 _ => 0,
             };
+            // "past week" is the seven days up to today, "past year" the 365:
+            // rolling, where "last week" is the calendar week before this.
+            if w == "past" {
+                let rolling = match unit {
+                    "day" => Some(1),
+                    "week" => Some(7),
+                    "month" => Some(30),
+                    "year" => Some(365),
+                    _ => None,
+                };
+                if let Some(days) = rolling {
+                    return Some((DateRange::new(today.add_days(-days), today), 2));
+                }
+            }
             let kind = match unit {
                 "week" => Some(Unit::Week),
                 "month" => Some(Unit::Month),
@@ -414,14 +477,7 @@ fn phrase_at(
         let date = if has_year {
             date
         } else {
-            let this_year = Date::new(today.year, date.month, date.day)?;
-            if ahead && this_year < today {
-                Date::new(today.year + 1, date.month, date.day).unwrap_or(this_year)
-            } else if !ahead && this_year > today {
-                Date::new(today.year - 1, date.month, date.day)?
-            } else {
-                this_year
-            }
+            nearest_year(date.month, date.day, today, ahead)?
         };
         return Some((day(date), used));
     }
@@ -892,5 +948,102 @@ mod tests {
             }
             let _ = dates_in(&text);
         }
+    }
+}
+
+#[cfg(test)]
+mod review_tests {
+    use super::*;
+
+    /// Tuesday 20 October 2026.
+    fn today() -> Date {
+        Date::new(2026, 10, 20).unwrap()
+    }
+
+    fn d(y: i32, m: u32, day: u32) -> Date {
+        Date::new(y, m, day).unwrap()
+    }
+
+    fn range(q: &str) -> Option<(Option<Date>, Option<Date>)> {
+        time_in(q, today(), 0).map(|(intent, _)| {
+            let r = intent.range();
+            (r.start, r.end)
+        })
+    }
+
+    // no-prop-test: a table, as the main table is.
+    #[test]
+    fn a_table_of_the_phrases_review_found() {
+        let cases: &[(&str, Option<(Option<Date>, Option<Date>)>)] = &[
+            // "past" is rolling, "last" is the calendar.
+            (
+                "notes from the past week",
+                Some((Some(d(2026, 10, 13)), Some(d(2026, 10, 20)))),
+            ),
+            (
+                "what did I write in the past year",
+                Some((Some(d(2025, 10, 20)), Some(d(2026, 10, 20)))),
+            ),
+            (
+                "notes from last week",
+                Some((Some(d(2026, 10, 12)), Some(d(2026, 10, 18)))),
+            ),
+            (
+                "what did I write last year",
+                Some((Some(d(2025, 1, 1)), Some(d(2025, 12, 31)))),
+            ),
+            // 29 February with no year goes to the nearest leap year.
+            (
+                "what happened on 29 February",
+                Some((Some(d(2024, 2, 29)), Some(d(2024, 2, 29)))),
+            ),
+            (
+                "what is due on 29 Feb",
+                Some((Some(d(2028, 2, 29)), Some(d(2028, 2, 29)))),
+            ),
+            // "may" and "march" are dates only with something to say so.
+            ("chapter 3 may need work", None),
+            ("see chapter 3 may", None),
+            ("it may 3 times", None),
+            (
+                "what happened on 3 may",
+                Some((Some(d(2026, 5, 3)), Some(d(2026, 5, 3)))),
+            ),
+            (
+                "the 3rd may",
+                Some((Some(d(2026, 5, 3)), Some(d(2026, 5, 3)))),
+            ),
+            (
+                "notes from 3 May 2025",
+                Some((Some(d(2025, 5, 3)), Some(d(2025, 5, 3)))),
+            ),
+            (
+                "what did I do on may 3",
+                Some((Some(d(2026, 5, 3)), Some(d(2026, 5, 3)))),
+            ),
+        ];
+        for (question, expected) in cases {
+            assert_eq!(&range(question), expected, "{question}");
+        }
+    }
+
+    // no-prop-test: one fixed zone with a spring-forward change.
+    #[test]
+    fn a_range_across_a_daylight_saving_change_uses_each_ends_own_offset() {
+        const HOUR: i64 = 3_600_000;
+        const DAY: i64 = 86_400_000;
+        // New York, 2026: clocks go forward at 07:00 UTC on 8 March.
+        let change = d(2026, 3, 8).to_days() * DAY + 7 * HOUR;
+        let zone = |at: i64| if at < change { -5 * HOUR } else { -4 * HOUR };
+        let r = DateRange::new(d(2026, 3, 7), d(2026, 3, 9));
+        let (from, to) = r.bounds_ms_by(&zone);
+        // 7 March 00:00 EST is 05:00 UTC; the end of 9 March EDT is 04:00 UTC
+        // on 10 March, less a millisecond.
+        assert_eq!(from, Some(d(2026, 3, 7).to_days() * DAY + 5 * HOUR));
+        assert_eq!(to, Some(d(2026, 3, 10).to_days() * DAY + 4 * HOUR - 1));
+        // One fixed offset would have put the end an hour out.
+        assert_ne!(to, r.bounds_ms(-5 * HOUR).1);
+        // The fixed form is the same as a zone that never changes.
+        assert_eq!(r.bounds_ms(HOUR), r.bounds_ms_by(&|_| HOUR));
     }
 }

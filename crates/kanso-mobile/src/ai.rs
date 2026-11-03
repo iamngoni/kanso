@@ -566,6 +566,7 @@ impl AskConversation {
             );
             request.scope = scope.clone();
             request.utc_offset_ms = offset_ms;
+            request.zone = device_zone(utc_offset_minutes);
             request.budget = ask_settings.budget_for(settings.provider, &settings.base_url);
             request.use_links = ask_settings.use_links;
             request.ignore_time = ignore_time;
@@ -1000,4 +1001,21 @@ fn describe(provider: Provider) -> &'static str {
             "Another OpenAI-compatible server, such as LM Studio, at an address you type. A key is optional."
         }
     }
+}
+
+/// The device's zone as a function of an instant, when it is the zone the
+/// phone said it is in (its offset now is `utc_offset_minutes`): then a
+/// range that crosses a daylight-saving change is cut with each end's own
+/// offset. Otherwise the one offset the phone sent is used.
+fn device_zone(utc_offset_minutes: i32) -> Option<ask::ZoneOffsets> {
+    use chrono::{Local, TimeZone};
+    let now = Local::now().offset().local_minus_utc();
+    (now == utc_offset_minutes * 60).then(|| {
+        ask::ZoneOffsets(Arc::new(|at_ms| {
+            Local
+                .timestamp_millis_opt(at_ms)
+                .earliest()
+                .map_or(0, |time| i64::from(time.offset().local_minus_utc()) * 1000)
+        }))
+    })
 }

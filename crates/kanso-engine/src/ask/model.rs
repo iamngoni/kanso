@@ -61,6 +61,17 @@ pub struct Previous {
     pub cited: Vec<(String, u32, u32)>,
 }
 
+/// The zone as a function of an instant (milliseconds since the epoch) to its
+/// offset from UTC in milliseconds, for a zone whose offset changes.
+#[derive(Clone)]
+pub struct ZoneOffsets(pub std::sync::Arc<dyn Fn(i64) -> i64 + Send + Sync>);
+
+impl std::fmt::Debug for ZoneOffsets {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ZoneOffsets")
+    }
+}
+
 /// One question, with everything it is asked under.
 #[derive(Clone, Debug)]
 pub struct AskRequest {
@@ -73,6 +84,10 @@ pub struct AskRequest {
     /// The zone's offset from UTC in milliseconds, so a local day is cut
     /// where the person's day is.
     pub utc_offset_ms: i64,
+    /// The zone's offset at any instant, when it can change (daylight
+    /// saving) between the ends of a range. Without it `utc_offset_ms` is
+    /// used throughout.
+    pub zone: Option<ZoneOffsets>,
     pub budget: Budget,
     /// Whether links and backlinks of the best notes are looked up too.
     pub use_links: bool,
@@ -85,6 +100,23 @@ pub struct AskRequest {
 }
 
 impl AskRequest {
+    /// The zone's offset from UTC in milliseconds at an instant.
+    pub fn offset_at(&self, at_ms: i64) -> i64 {
+        match &self.zone {
+            Some(zone) => (zone.0)(at_ms),
+            None => self.utc_offset_ms,
+        }
+    }
+
+    /// `range` in milliseconds since the epoch, cut where the person's days
+    /// are, with the zone's offset at each end when it is known.
+    pub fn bounds_ms(&self, range: &kanso_core::when::DateRange) -> (Option<i64>, Option<i64>) {
+        match &self.zone {
+            Some(zone) => range.bounds_ms_by(&*zone.0),
+            None => range.bounds_ms(self.utc_offset_ms),
+        }
+    }
+
     /// A request for `question` over all notes, today (UTC), with the
     /// standard budget.
     pub fn new(question: &str, today: Date) -> Self {
@@ -94,6 +126,7 @@ impl AskRequest {
             today,
             week_start: 0,
             utc_offset_ms: 0,
+            zone: None,
             budget: Budget::default(),
             use_links: true,
             ignore_time: false,
