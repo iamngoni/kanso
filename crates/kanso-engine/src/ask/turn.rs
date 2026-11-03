@@ -438,10 +438,9 @@ pub fn run(turn: Turn, mut on_event: impl FnMut(TurnEvent)) {
             let read = read_since_prompt(&numbered, &shown);
             if let Some(better) =
                 repair(&provider, &numbered, &read, &raw, &request.budget, &cancel)
+                && prefer_repair(&check(&raw, &shown.sent()), &check(&better, &shown.sent()))
             {
-                if prefer_repair(&check(&raw, &shown.sent()), &check(&better, &shown.sent())) {
-                    raw = better;
-                }
+                raw = better;
             }
             if stopped() {
                 on_event(TurnEvent::Stopped);

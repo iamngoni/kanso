@@ -357,7 +357,10 @@ mod tests {
         let mut conversation = Conversation::default();
         assert!(!conversation.begin("local|http://a|m", &store).ended());
         conversation.finish("q".into(), "a".into(), vec![note]);
-        assert!(!conversation.begin("local|http://a|m", &store));
+        assert_eq!(
+            conversation.begin("local|http://a|m", &store),
+            Began::Continued
+        );
         assert_eq!(conversation.history().len(), 1);
         assert_eq!(
             conversation.begin("openai|http://a|m", &store),

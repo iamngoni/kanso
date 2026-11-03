@@ -974,7 +974,8 @@ mod review_tests {
     // no-prop-test: a table, as the main table is.
     #[test]
     fn a_table_of_the_phrases_review_found() {
-        let cases: &[(&str, Option<(Option<Date>, Option<Date>)>)] = &[
+        type Bounds = Option<(Option<Date>, Option<Date>)>;
+        let cases: &[(&str, Bounds)] = &[
             // "past" is rolling, "last" is the calendar.
             (
                 "notes from the past week",
