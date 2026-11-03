@@ -816,12 +816,15 @@ impl Store {
     /// moment with the notebook locked and a note's plain text readable.
     /// Refused unless `book` and every note in `notes` carry a lock.
     pub fn lock_book(&self, book: Value, notes: Vec<Value>) -> Result<WriteResult> {
-        let Value::Object(book) = book else {
+        let Value::Object(mut book) = book else {
             return Err(StoreError::Invalid("Expected a JSON object.".into()));
         };
         if !book.contains_key(LOCK_FIELD) {
             return Err(StoreError::Invalid("The notebook isn't locked.".into()));
         }
+        // The homepage's cache quotes the notebook's notes: it goes in the
+        // same transaction that seals them.
+        book.remove(kanso_core::page_cache::PAGE_FIELD);
         let mut sealed = Vec::with_capacity(notes.len());
         for note in notes {
             match note {
@@ -1399,13 +1402,26 @@ pub(crate) fn rewrite_note(
     changes: &mut Vec<Change>,
     edit: impl FnOnce(&mut Map<String, Value>),
 ) -> Result<()> {
+    rewrite_doc(tx, id, DocType::Note, origin, changes, edit)
+}
+
+/// [`rewrite_note`] for any live document of `doc_type` (a notebook's
+/// page cache is written through here).
+pub(crate) fn rewrite_doc(
+    tx: &Transaction,
+    id: &str,
+    doc_type: DocType,
+    origin: Origin,
+    changes: &mut Vec<Change>,
+    edit: impl FnOnce(&mut Map<String, Value>),
+) -> Result<()> {
     let Some(prev) = load_row(tx, id)?.filter(|p| !p.deleted) else {
         return Ok(());
     };
     let mut fields = prev.fields.clone();
     edit(&mut fields);
     let fields = normalize(
-        DocType::Note,
+        doc_type,
         id,
         fields,
         Some(&prev.fields),
@@ -1416,7 +1432,7 @@ pub(crate) fn rewrite_note(
     store_row(
         tx,
         id,
-        DocType::Note,
+        doc_type,
         &rev,
         false,
         &fields,

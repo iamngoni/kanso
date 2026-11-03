@@ -14,7 +14,7 @@ use rusqlite::params;
 use serde_json::Value;
 
 use crate::schema::{ai_excluded, note_locked};
-use crate::write::{load_row, rewrite_note};
+use crate::write::load_row;
 use crate::{Origin, Result, Store};
 
 /// The tables emptied with the library.
@@ -330,12 +330,19 @@ impl Store {
             {
                 return Ok(false);
             }
+            // A notebook inside a locked one holds nothing either: its cache
+            // would quote notes sealed with the others.
+            if prev.doc_type == kanso_core::DocType::Book
+                && crate::write::locked_book_ids(tx)?.contains(id)
+            {
+                return Ok(false);
+            }
             let known: i64 = tx.query_row(
                 "SELECT COUNT(*) FROM revisions WHERE doc_id = ?1 AND rev = ?2",
                 params![id, prev.rev],
                 |row| row.get(0),
             )?;
-            rewrite_note(tx, id, Origin::Api, changes, |fields| match &value {
+            crate::write::rewrite_doc(tx, id, prev.doc_type, Origin::Api, changes, |fields| match &value {
                 Some(value) => {
                     fields.insert(PAGE_FIELD.into(), value.clone());
                 }

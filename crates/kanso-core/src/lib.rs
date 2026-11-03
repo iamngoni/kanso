@@ -8,6 +8,7 @@ pub mod capture_mark;
 pub mod cards;
 pub mod dates;
 pub mod entities;
+pub mod home;
 pub mod excerpt;
 pub mod id;
 pub mod links;
