@@ -538,6 +538,15 @@ pub const SHORTCUTS: &[Shortcut] = &[
         on_mobile: true,
     },
     Shortcut {
+        id: "go_notebook_home",
+        mac: "secondary-alt-h",
+        other: "secondary-alt-h",
+        context: ShortcutContext::Global,
+        label: "Open Notebook Home",
+        group: ShortcutGroup::Go,
+        on_mobile: true,
+    },
+    Shortcut {
         id: "next_note",
         mac: "secondary-alt-down",
         other: "secondary-alt-down",

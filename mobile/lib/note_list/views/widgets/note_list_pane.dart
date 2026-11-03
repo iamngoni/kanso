@@ -164,6 +164,7 @@ class NoteListPane extends StatelessWidget {
                                   Expanded(
                                     child: NoteListBody(
                                       largeTitle: floating,
+                                      beside: beside,
                                       state: state,
                                       index: index,
                                       openNoteId: openNoteId,

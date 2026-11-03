@@ -10137,6 +10137,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The notebook new person and project pages go in. The default is made when the first page is.'**
   String get peopleSettingsKeepInHelp;
+
+  /// No description provided for @notebookHomeChooseHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Home note…'**
+  String get notebookHomeChooseHome;
+
+  /// No description provided for @notebookHomeNewHome.
+  ///
+  /// In en, this message translates to:
+  /// **'New Home note'**
+  String get notebookHomeNewHome;
+
+  /// No description provided for @notebookHomeCustomise.
+  ///
+  /// In en, this message translates to:
+  /// **'Customise home…'**
+  String get notebookHomeCustomise;
+
+  /// No description provided for @notebookHomeCopyInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy into Home note'**
+  String get notebookHomeCopyInto;
+
+  /// No description provided for @notebookHomeCopiedInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied into the Home note'**
+  String get notebookHomeCopiedInto;
+
+  /// No description provided for @notebookHomeEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get notebookHomeEdit;
+
+  /// No description provided for @notebookHomeChooseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Home note'**
+  String get notebookHomeChooseTitle;
+
+  /// No description provided for @notebookHomeChooseNone.
+  ///
+  /// In en, this message translates to:
+  /// **'This notebook has no notes to choose from yet.'**
+  String get notebookHomeChooseNone;
+
+  /// No description provided for @notebookHomeCustomiseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customise home'**
+  String get notebookHomeCustomiseTitle;
+
+  /// No description provided for @notebookHomeResetLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset layout'**
+  String get notebookHomeResetLayout;
+
+  /// No description provided for @notebookHomeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get notebookHomeDone;
+
+  /// No description provided for @notebookHomeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read this homepage.'**
+  String get notebookHomeFailed;
+
+  /// Spoken label of the map on a notebook homepage.
+  ///
+  /// In en, this message translates to:
+  /// **'Map of the notes in {name}'**
+  String notebookHomeMapLabel(String name);
+
+  /// No description provided for @notebookHomeSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebook homepages'**
+  String get notebookHomeSettingsTitle;
+
+  /// No description provided for @notebookHomeSettingsShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show notebook homepages'**
+  String get notebookHomeSettingsShow;
+
+  /// No description provided for @notebookHomeSettingsShowHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A card above a notebook\'s notes opens its homepage. Off hides the card and the page.'**
+  String get notebookHomeSettingsShowHelp;
+
+  /// No description provided for @notebookHomeSettingsAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Write notebook summaries with AI'**
+  String get notebookHomeSettingsAi;
+
+  /// No description provided for @notebookHomeSettingsAiHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above.'**
+  String get notebookHomeSettingsAiHelp;
 }
 
 class _AppLocalizationsDelegate

@@ -14,6 +14,8 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/place_labels.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
+import '../../../gen/l10n/app_localizations.dart';
+import '../../../notebook_home/views/widgets/parent_only_home.dart';
 import '../../models/data/note_list_status.dart';
 import '../../state/note_list/note_list_bloc.dart';
 import 'empty_place_pane.dart';
@@ -29,6 +31,7 @@ class NoteListBody extends StatelessWidget {
     this.openNoteId,
     this.bottomClearance = 0,
     this.largeTitle = false,
+    this.beside = false,
     super.key,
   });
 
@@ -43,6 +46,9 @@ class NoteListBody extends StatelessWidget {
 
   /// Whether the notes start with the list's title, large (a phone's list).
   final bool largeTitle;
+
+  /// Whether the list is beside the note it opens, in a wide window.
+  final bool beside;
 
   /// Whether a body in [state] starts with the large title, so the bar
   /// waits for it to scroll away before it shows its own.
@@ -73,16 +79,10 @@ class NoteListBody extends StatelessWidget {
           ),
         ),
       ),
-      NoteListStatus.ready when state.rows.isEmpty => EmptyPlacePane(
-        place: place,
-        name: switch (place) {
-          ListPlace_Notebook(:final id) =>
-            index.notebookName(id) ?? placeTitle(l10n, place, index),
-          ListPlace_Tag(:final id) =>
-            index.tag(id)?.name ?? placeTitle(l10n, place, index),
-          _ => placeTitle(l10n, place, index),
-        },
-        narrowed: state.options.narrowed,
+      NoteListStatus.ready when state.rows.isEmpty => _empty(
+        place,
+        index,
+        l10n,
       ),
       NoteListStatus.ready => NoteListView(
         state: state,
@@ -94,7 +94,33 @@ class NoteListBody extends StatelessWidget {
         largeSubtitle: largeTitle
             ? l10n.noteListCount(state.rows.length)
             : null,
+        beside: beside,
       ),
+    };
+  }
+
+  /// The empty list. A notebook that only has notebooks inside it opens its
+  /// homepage instead, when it has one to open.
+  Widget _empty(
+    ListPlace place,
+    LibraryIndexState index,
+    AppLocalizations l10n,
+  ) {
+    final pane = EmptyPlacePane(
+      place: place,
+      name: switch (place) {
+        ListPlace_Notebook(:final id) =>
+          index.notebookName(id) ?? placeTitle(l10n, place, index),
+        ListPlace_Tag(:final id) =>
+          index.tag(id)?.name ?? placeTitle(l10n, place, index),
+        _ => placeTitle(l10n, place, index),
+      },
+      narrowed: state.options.narrowed,
+    );
+    return switch (place) {
+      ListPlace_Notebook(:final id) when !state.options.narrowed =>
+        ParentOnlyHome(bookId: id, empty: pane, beside: beside),
+      _ => pane,
     };
   }
 }

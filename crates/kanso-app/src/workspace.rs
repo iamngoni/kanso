@@ -101,7 +101,16 @@ actions!(kanso, [NewDrawing]);
 
 // Back and forward between the notes a window opened (`nav_history`), and
 // the open note's link to paste elsewhere (`note_link`).
-actions!(kanso, [GoBack, GoForward, CopyNoteLink, CopyKansoLink]);
+actions!(
+    kanso,
+    [
+        GoBack,
+        GoForward,
+        GoNotebookHome,
+        CopyNoteLink,
+        CopyKansoLink
+    ]
+);
 
 /// Process-wide state: the store, the data folder and the settings.
 pub struct AppState {
@@ -344,6 +353,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Previous Note", PreviousNote),
             MenuItem::action("Go Back", GoBack),
             MenuItem::action("Go Forward", GoForward),
+            MenuItem::action("Notebook Home", GoNotebookHome),
             MenuItem::separator(),
             MenuItem::action("Copy Note Link", CopyNoteLink),
             MenuItem::action("Copy Kanso Link", CopyKansoLink),
@@ -430,6 +440,9 @@ pub struct Workspace {
     pub(crate) note_list: Entity<NoteList>,
     /// The tasks across the notes, in the list's place while Tasks shows.
     pub(crate) tasks: Entity<crate::tasks_view::TasksView>,
+    /// A notebook's homepage, in the editor's place while it shows
+    /// (`home_view.rs`).
+    pub(crate) home: Entity<crate::home_view::NotebookHomeView>,
     /// Open loops, the morning brief and the weekly review, in the list's
     /// place.
     pub(crate) digest: Entity<crate::digest_view::DigestView>,
@@ -502,6 +515,9 @@ pub struct Workspace {
     pending_tab_closes: std::collections::BTreeSet<String>,
     /// [`Workspace::nav_reach`] until a visit or a change to the notes.
     pub(crate) nav_reach: Option<(bool, bool)>,
+    /// A Home note opened from its notebook's homepage, in a tab of its
+    /// own: `(note, notebook)`. Closing that tab shows the homepage again.
+    pub(crate) home_return: Option<(String, String)>,
     /// Draws stand-ins for the traffic lights, which the system draws over
     /// the window and a headless snapshot can't show.
     #[cfg(test)]
@@ -594,6 +610,7 @@ impl Workspace {
             cx.new(|cx| crate::tasks_view::TasksView::new(library.clone(), editor.clone(), cx));
         let digest =
             cx.new(|cx| crate::digest_view::DigestView::new(library.clone(), editor.clone(), cx));
+        let home = cx.new(|cx| crate::home_view::NotebookHomeView::new(library.clone(), cx));
         // Looks for names that keep coming up, in the background.
         crate::people_view::start_detection(library.clone(), store.clone(), cx);
         let focus = cx.focus_handle();
@@ -667,6 +684,7 @@ impl Workspace {
                     this.accept_selection(id.clone(), *asked, window, cx);
                     AppState::update_config_soon(cx, |config| config.last_note = id);
                 }
+                LibraryEvent::Home => this.sync_home(cx),
                 LibraryEvent::Changed(change) => {
                     this.nav_reach = None;
                     let change = change.clone();
@@ -694,6 +712,9 @@ impl Workspace {
             }),
             cx.subscribe_in(&tasks, window, |this, _, event, window, cx| {
                 this.on_tasks_event(event, window, cx);
+            }),
+            cx.subscribe_in(&home, window, |this, _, event, window, cx| {
+                this.on_home_event(event, window, cx);
             }),
             cx.subscribe_in(&digest, window, |this, _, event, window, cx| {
                 this.on_digest_event(event, window, cx);
@@ -833,6 +854,7 @@ impl Workspace {
             sidebar,
             note_list,
             tasks,
+            home,
             digest,
             editor,
             palette,
@@ -870,6 +892,7 @@ impl Workspace {
             pending_open: OpenIntent::Current,
             pending_tab_closes: Default::default(),
             nav_reach: None,
+            home_return: None,
             #[cfg(test)]
             placeholder_traffic_lights: false,
             title_bar: crate::title_bar::SHOWN
@@ -1218,6 +1241,92 @@ impl Workspace {
         };
         self.library
             .update(cx, |library, cx| library.leave_page(filter, keep, cx));
+    }
+
+    /// Points the homepage at the notebook whose homepage shows, and records
+    /// the visit, so Back returns to it.
+    pub(crate) fn sync_home(&mut self, cx: &mut Context<Self>) {
+        self.nav_reach = None;
+        let book = self.library.read(cx).home_book(cx).map(str::to_owned);
+        let opened = book.is_some() && self.home.read(cx).book() != book.as_deref();
+        self.home
+            .update(cx, |home, cx| home.set_book(book.clone(), cx));
+        if opened
+            && let Some(book) = book
+            && let Some(nav) = self.tabs.nav_mut()
+        {
+            nav.visit(&book);
+        }
+        cx.notify();
+    }
+
+    /// Go › Notebook Home (⌥⌘H): the homepage of the selected notebook, or of
+    /// the open note's.
+    pub(crate) fn open_notebook_home(&mut self, cx: &mut Context<Self>) {
+        let book = match self.library.read(cx).filter.clone() {
+            Filter::Book(id) => Some(id),
+            _ => self
+                .editor
+                .read(cx)
+                .note_id()
+                .and_then(|id| self.store.note(id).ok().flatten())
+                .map(|note| note.book_id)
+                .filter(|book| book != kanso_core::model::TRASH_BOOK_ID),
+        };
+        self.open_home_of(book, cx);
+    }
+
+    /// Shows the homepage of notebook `book`.
+    pub(crate) fn open_home_of(&mut self, book: Option<String>, cx: &mut Context<Self>) {
+        let Some(book) = book else { return };
+        if !crate::library::homepages_on(cx) {
+            return;
+        }
+        self.library.update(cx, |library, cx| {
+            if library.filter != Filter::Book(book.clone()) {
+                library.set_filter(Filter::Book(book.clone()), cx);
+            }
+            library.set_home(true, cx);
+        });
+    }
+
+    fn on_home_event(
+        &mut self,
+        event: &crate::home_view::HomeEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::home_view::HomeEvent;
+        match event {
+            HomeEvent::Notice(message) => {
+                window.push_notification(Notification::info(message.clone()), cx);
+            }
+            HomeEvent::OpenNote(id) => {
+                self.select_note(id, OpenIntent::Current, cx);
+            }
+            // The Home note opens in a tab of its own; closing it comes back
+            // to the homepage (`close_tab`).
+            HomeEvent::EditHome(id) => {
+                let book = self.home.read(cx).book().map(str::to_owned);
+                self.select_note(id, OpenIntent::NewTab, cx);
+                self.home_return = book.map(|book| (id.clone(), book));
+            }
+            HomeEvent::OpenLines { id, first } => {
+                self.open_note_at(id, *first, false, window, cx);
+            }
+            HomeEvent::OpenBook(id) => self.open_home_of(Some(id.clone()), cx),
+            HomeEvent::Ask(id) => {
+                self.on_sidebar_event(&SidebarEvent::AskBook(id.clone()), window, cx);
+            }
+            HomeEvent::Graph(id) => {
+                self.show_graph(window, cx);
+                if let Some(graph) = self.graph.clone() {
+                    graph.update(cx, |graph, cx| {
+                        graph.set_filter(crate::graph_view::GraphFilter::Book(id.clone()), cx)
+                    });
+                }
+            }
+        }
     }
 
     /// Opens a task's note at its line, from the Tasks view.
@@ -2305,12 +2414,21 @@ impl Workspace {
 
     pub(crate) fn close_tab(&mut self, index: usize, _window: &mut Window, cx: &mut Context<Self>) {
         let was_active = self.tabs.active_index() == index;
+        let closing = self.tabs.get(index).map(|tab| tab.meta.id.clone());
         if !self.tabs.close(index) {
             return;
         }
         self.save_tabs(cx);
         if was_active && !self.tabs.is_empty() {
             self.show_tab(self.tabs.active_index(), cx);
+        }
+        // The Home note opened from a homepage: back to the homepage.
+        if let Some((note, book)) = self.home_return.take() {
+            if closing.as_deref() == Some(note.as_str()) {
+                self.open_home_of(Some(book), cx);
+            } else {
+                self.home_return = Some((note, book));
+            }
         }
         cx.notify();
     }
@@ -2534,6 +2652,7 @@ impl Render for Workspace {
         self.digest
             .update(cx, |digest, cx| digest.set_leading_inset(list_inset, cx));
         let tasks_shown = self.library.read(cx).filter == Filter::Tasks;
+        let home_shown = self.library.read(cx).home_book(cx).is_some();
         let digest_shown = matches!(
             self.library.read(cx).filter,
             Filter::OpenLoops | Filter::Brief | Filter::Review
@@ -3047,6 +3166,7 @@ impl Render for Workspace {
             .when(can_go_forward, |el| {
                 el.on_action(cx.listener(|this, _: &GoForward, _, cx| this.go_forward(cx)))
             })
+            .on_action(cx.listener(|this, _: &GoNotebookHome, _, cx| this.open_notebook_home(cx)))
             .on_action(cx.listener(|this, _: &CopyNoteLink, window, cx| {
                 this.copy_note_link(false, window, cx)
             }))
@@ -3199,12 +3319,13 @@ impl Render for Workspace {
                                         .when(show_tabs, |el| {
                                             el.child(self.tab_bar.clone())
                                         })
-                                        .child(
-                                            div()
-                                                .flex_1()
-                                                .min_h_0()
-                                                .child(self.editor.clone()),
-                                        ),
+                                        .child(div().flex_1().min_h_0().map(|el| {
+                                            if home_shown {
+                                                el.child(self.home.clone())
+                                            } else {
+                                                el.child(self.editor.clone())
+                                            }
+                                        })),
                                 )
                                 .when(!focus_mode, |el| el.child(pane_handle(PaneEdge::NoteList))),
                         )

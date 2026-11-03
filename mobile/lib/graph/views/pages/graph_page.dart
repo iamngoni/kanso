@@ -25,15 +25,22 @@ import '../widgets/graph_filter_picker.dart';
 
 /// The full library graph or a note's two-hop neighbourhood.
 class GraphPage extends StatelessWidget {
-  const GraphPage({this.centerId, this.hops = 2, super.key});
+  const GraphPage({this.centerId, this.hops = 2, this.bookId, super.key});
 
   final String? centerId;
+
+  /// The notebook the library graph starts narrowed to.
+  final String? bookId;
   final int hops;
 
   @override
   Widget build(BuildContext context) {
     final request = centerId == null
-        ? const GraphRequest.library_(filter: GraphFilter.all())
+        ? GraphRequest.library_(
+            filter: bookId == null
+                ? const GraphFilter.all()
+                : GraphFilter.book(id: bookId!),
+          )
         : GraphRequest.local(center: centerId!, hops: hops);
     return BlocProvider<GraphBloc>(
       create: (_) {

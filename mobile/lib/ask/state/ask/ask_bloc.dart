@@ -70,14 +70,15 @@ class AskBloc extends Bloc<AskEvent, AskState> {
     Emitter<AskState> emit,
   ) async {
     await _settingsChanges?.cancel();
-    emit(const AskState());
+    final scope = event.scope ?? AskScope.everything;
+    emit(AskState(scope: scope));
     final result = await _ai.settings();
     if (emit.isDone) {
       return;
     }
     final settings = result.toOption().fold(() => null, (found) => found);
     if (settings == null) {
-      emit(const AskState(status: LoadStatus.failed));
+      emit(AskState(status: LoadStatus.failed, scope: scope));
       return;
     }
     emit(
@@ -85,6 +86,7 @@ class AskBloc extends Bloc<AskEvent, AskState> {
         status: LoadStatus.ready,
         aiEnabled: settings.enabled,
         privacy: settings.privacy,
+        scope: scope,
       ),
     );
     // AI turned on from here, in Settings, is seen on coming back.

@@ -84,6 +84,14 @@ pub struct HiddenMark {
     pub hidden: bool,
 }
 
+/// The order a page's sections are shown in, as of when it was set (ms).
+/// The later write wins, so reordering on one device holds on the other.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Layout {
+    pub order: Vec<String>,
+    pub at: i64,
+}
+
 /// A page's cache.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PageCache {
@@ -96,11 +104,17 @@ pub struct PageCache {
     /// Bullets the person said were wrong: `note#line:words`.
     #[serde(default, rename = "notRight")]
     pub not_right: BTreeSet<String>,
+    /// A notebook homepage's section order (people's pages have none).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout: Option<Layout>,
 }
 
 impl PageCache {
     pub fn is_empty(&self) -> bool {
-        self.sections.is_empty() && self.hidden.is_empty() && self.not_right.is_empty()
+        self.sections.is_empty()
+            && self.hidden.is_empty()
+            && self.not_right.is_empty()
+            && self.layout.is_none()
     }
 
     /// Whether `key` is hidden for this page.
@@ -233,6 +247,15 @@ pub fn merge(a: &PageCache, b: &PageCache) -> PageCache {
         merged.hidden.insert(key.clone(), mark);
     }
     merged.not_right = a.not_right.union(&b.not_right).cloned().collect();
+    merged.layout = match (&a.layout, &b.layout) {
+        (Some(x), Some(y)) => Some(if (x.at, &x.order) >= (y.at, &y.order) {
+            x.clone()
+        } else {
+            y.clone()
+        }),
+        (Some(x), None) => Some(x.clone()),
+        (None, y) => y.clone(),
+    };
     fit(&mut merged);
     merged
 }
@@ -285,11 +308,18 @@ mod tests {
             0..2,
         );
         let not_right = proptest::collection::btree_set("[a-c]{1,3}", 0..3);
-        (sections, hidden, not_right).prop_map(|(sections, hidden, not_right)| PageCache {
-            v: VERSION,
-            sections,
-            hidden,
-            not_right,
+        let layout = proptest::option::of(
+            (0i64..4, proptest::collection::vec("[a-c]", 0..3))
+                .prop_map(|(at, order)| Layout { order, at }),
+        );
+        (sections, hidden, not_right, layout).prop_map(|(sections, hidden, not_right, layout)| {
+            PageCache {
+                v: VERSION,
+                sections,
+                hidden,
+                not_right,
+                layout,
+            }
         })
     }
 

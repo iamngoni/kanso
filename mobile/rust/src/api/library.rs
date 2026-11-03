@@ -29,6 +29,7 @@ use super::gallery::KansoGallery;
 use super::linking::KansoLinking;
 use super::locks::KansoLocks;
 use super::metrics::KansoMetrics;
+use super::notebook_home::KansoNotebookHome;
 use super::people::KansoPeople;
 use super::publish::KansoPublisher;
 use super::renderer::KansoRenderer;
@@ -500,6 +501,11 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn people(&self) -> KansoPeople {
         KansoPeople::new(self.0.people())
+    }
+
+    #[frb(sync)]
+    pub fn notebook_home(&self) -> KansoNotebookHome {
+        KansoNotebookHome::new(self.0.notebook_home())
     }
 
     #[frb(sync)]

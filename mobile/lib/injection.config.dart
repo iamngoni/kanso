@@ -196,9 +196,15 @@ import 'note/state/word_goal_intent/word_goal_intent_bloc.dart' as _i304;
 import 'note_links/models/repos/abs/note_links_repository.dart' as _i393;
 import 'note_links/models/repos/impl/rust_note_links_repository.dart' as _i199;
 import 'note_list/state/note_list/note_list_bloc.dart' as _i351;
+import 'notebook_home/models/repos/abs/notebook_home_repository.dart' as _i257;
+import 'notebook_home/models/repos/impl/rust_notebook_home_repository.dart'
+    as _i826;
+import 'notebook_home/state/notebook_home/notebook_home_bloc.dart' as _i343;
 import 'palette/models/repos/abs/palette_repository.dart' as _i704;
 import 'palette/models/repos/impl/rust_palette_repository.dart' as _i97;
 import 'palette/state/palette/palette_bloc.dart' as _i204;
+import 'people/models/repos/abs/people_repository.dart' as _i755;
+import 'people/models/repos/impl/rust_people_repository.dart' as _i1053;
 import 'publish/models/repos/abs/publish_repository.dart' as _i1047;
 import 'publish/models/repos/impl/rust_publish_repository.dart' as _i99;
 import 'publish/state/publish/publish_bloc.dart' as _i614;
@@ -239,8 +245,6 @@ import 'templates/state/template_picker/template_picker_bloc.dart' as _i828;
 import 'themes/state/icon_themes/icon_themes_bloc.dart' as _i778;
 import 'themes/state/theme_gallery/theme_gallery_bloc.dart' as _i569;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
-import 'people/models/repos/abs/people_repository.dart' as _i9101;
-import 'people/models/repos/impl/rust_people_repository.dart' as _i9102;
 import 'triage/models/repos/abs/triage_repository.dart' as _i731;
 import 'triage/models/repos/impl/rust_triage_repository.dart' as _i975;
 import 'triage/state/triage/triage_bloc.dart' as _i1007;
@@ -440,6 +444,9 @@ extension GetItInjectableX on _i174.GetIt {
       () => coreModule.library(gh<_i72.LibraryFolder>()),
       preResolve: true,
     );
+    gh.lazySingleton<_i257.NotebookHomeRepository>(
+      () => _i826.RustNotebookHomeRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.lazySingleton<_i38.LibraryRepository>(
       () => _i152.RustLibraryRepository(
         gh<_i455.KansoLibrary>(),
@@ -457,9 +464,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i815.CrashReportsBloc>(
       () => _i815.CrashReportsBloc(gh<_i288.CrashReportRepository>()),
-    );
-    gh.lazySingleton<_i9101.PeopleRepository>(
-      () => _i9102.RustPeopleRepository(gh<_i455.KansoLibrary>()),
     );
     gh.lazySingleton<_i731.TriageRepository>(
       () => _i975.RustTriageRepository(gh<_i455.KansoLibrary>()),
@@ -724,12 +728,18 @@ extension GetItInjectableX on _i174.GetIt {
           _i450.RustAccountRepository(gh<_i578.KansoAccount>())
             ..startRelayingPasskeys(),
     );
+    gh.factory<_i343.NotebookHomeBloc>(
+      () => _i343.NotebookHomeBloc(gh<_i257.NotebookHomeRepository>()),
+    );
     gh.factory<_i470.TasksBloc>(
       () => _i470.TasksBloc(
         gh<_i38.LibraryRepository>(),
         gh<_i1056.HapticsRepository>(),
         gh<_i985.UndoNoticeBloc>(),
       ),
+    );
+    gh.lazySingleton<_i755.PeopleRepository>(
+      () => _i1053.RustPeopleRepository(gh<_i455.KansoLibrary>()),
     );
     gh.lazySingleton<_i1027.VoiceSettingsRepository>(
       () => _i759.RustVoiceSettingsRepository(gh<_i455.KansoLibrary>()),

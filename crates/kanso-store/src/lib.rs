@@ -16,6 +16,8 @@ mod entities;
 mod entity_index;
 mod graph;
 mod history;
+mod home;
+mod home_model;
 mod loops;
 mod meaning;
 mod ocr;
@@ -57,6 +59,9 @@ pub use entities::{
     MentionRow,
 };
 pub use graph::{GraphLink, GraphNote};
+pub use home_model::{
+    HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,
+};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };

@@ -34,6 +34,7 @@ import '../../import/views/pages/import_page.dart';
 import '../../note/views/pages/note_page.dart';
 import '../../note/views/widgets/no_note_selected_pane.dart';
 import '../../note_list/views/pages/note_list_page.dart';
+import '../../notebook_home/views/pages/notebook_home_page.dart';
 import '../../people/views/pages/people_list_page.dart';
 import '../../people/views/pages/people_settings_page.dart';
 import '../../replace/views/pages/replace_page.dart';
@@ -53,6 +54,7 @@ import '../../triage/views/pages/triage_page.dart';
 import '../../triage/views/pages/triage_settings_page.dart';
 import '../../voice_settings/views/pages/voice_settings_page.dart';
 import '../bridge/api/types.dart';
+import '../models/data/ask_scope.dart';
 import '../models/data/browse_location.dart';
 import '../models/data/design_gallery_access.dart';
 import '../models/data/layout_class.dart';
@@ -143,6 +145,7 @@ class KansoRouter {
             key: state.pageKey,
             child: GraphPage(
               centerId: state.uri.queryParameters['center'],
+              bookId: state.uri.queryParameters[KansoRoutes.graphBookParameter],
               hops: int.tryParse(state.uri.queryParameters['hops'] ?? '') ?? 2,
             ),
           ),
@@ -241,15 +244,24 @@ class KansoRouter {
         ),
         GoRoute(
           path: KansoRoutes.ask,
-          pageBuilder: (context, state) => layoutClass.tabletDevice
-              ? KansoSheetPage<void>(
-                  key: state.pageKey,
-                  child: const AskPage(inSheet: true),
-                )
-              : kansoPage<void>(
-                  key: state.pageKey,
-                  child: const AskPage(),
-                ),
+          pageBuilder: (context, state) {
+            final book =
+                state.uri.queryParameters[KansoRoutes.askBookParameter];
+            final label =
+                state.uri.queryParameters[KansoRoutes.askLabelParameter] ?? '';
+            final scope = book == null || book.isEmpty
+                ? null
+                : AskScope(kind: 'book', value: book, label: label);
+            return layoutClass.tabletDevice
+                ? KansoSheetPage<void>(
+                    key: state.pageKey,
+                    child: AskPage(inSheet: true, scope: scope),
+                  )
+                : kansoPage<void>(
+                    key: state.pageKey,
+                    child: AskPage(scope: scope),
+                  );
+          },
         ),
         ShellRoute(
           navigatorKey: _browseKey,
@@ -288,6 +300,7 @@ class KansoRouter {
               '${KansoRoutes.notebooks}/:notebookId',
               (state) =>
                   ListPlace.notebook(id: state.pathParameters['notebookId']!),
+              withHome: true,
             ),
             _placeRoute(
               '${KansoRoutes.tags}/:tagId',
@@ -510,12 +523,39 @@ class KansoRouter {
     );
   }
 
-  GoRoute _placeRoute(String path, ListPlace Function(GoRouterState) place) {
+  GoRoute _placeRoute(
+    String path,
+    ListPlace Function(GoRouterState) place, {
+    bool withHome = false,
+  }) {
     return GoRoute(
       path: path,
       pageBuilder: (context, state) =>
           _listPage(state, single: NoteListPage(place: place(state))),
-      routes: <RouteBase>[_noteRoute(), _boardRoute(place)],
+      routes: <RouteBase>[
+        _noteRoute(),
+        _boardRoute(place),
+        if (withHome) _homeRoute(),
+      ],
+    );
+  }
+
+  /// A notebook's homepage, as its phone page or its tablet note pane.
+  GoRoute _homeRoute() {
+    return GoRoute(
+      path: KansoRoutes.notebookHome,
+      pageBuilder: (context, state) {
+        final id = state.pathParameters['notebookId']!;
+        return layoutClass.value == LayoutClass.single
+            ? kansoPage<void>(
+                key: state.pageKey,
+                child: NotebookHomePage(bookId: id),
+              )
+            : NoTransitionPage<void>(
+                key: state.pageKey,
+                child: NotebookHomePage(bookId: id, inPane: true),
+              );
+      },
     );
   }
 

@@ -127,17 +127,23 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("cmd-]", GoForward, None),
         KeyBinding::new("cmd-[", GoBack, Some("Input")),
         KeyBinding::new("cmd-]", GoForward, Some("Input")),
+        KeyBinding::new("alt-cmd-h", crate::workspace::GoNotebookHome, None),
     ]);
     #[cfg(not(target_os = "macos"))]
     cx.bind_keys([
         KeyBinding::new("alt-left", GoBack, None),
         KeyBinding::new("alt-right", GoForward, None),
+        KeyBinding::new("ctrl-alt-h", crate::workspace::GoNotebookHome, None),
     ]);
 }
 
 /// Whether note `id` can still be gone back to: it exists and isn't in the
-/// trash.
+/// trash. A visit to a notebook's homepage (its ID) is live while the
+/// notebook is there and not locked.
 fn live(store: &Store, id: &str) -> bool {
+    if id.starts_with("book:") {
+        return matches!(store.book_subtree(id, false), Ok(books) if !books.is_empty());
+    }
     matches!(store.note(id), Ok(Some(note)) if note.book_id != TRASH_BOOK_ID)
 }
 
@@ -196,6 +202,11 @@ impl Workspace {
             let id = visit.id.clone();
             self.editor
                 .update(cx, |editor, _| editor.place_after_open(id, place));
+        }
+        // A notebook's homepage is a visit too.
+        if visit.id.starts_with("book:") {
+            self.open_home_of(Some(visit.id.clone()), cx);
+            return;
         }
         // In the tab it started in, as a browser goes back: another tab
         // holding the same note is not switched to.

@@ -3540,3 +3540,139 @@ fn people_view_offers_a_name_and_makes_nothing_unasked(cx: &mut TestAppContext) 
     f.draw(&mut vcx);
     assert!(!f.workspace(&mut vcx, |w, _| w.people_open));
 }
+
+/// A notebook with notes in it shows its homepage when asked, and picking a
+/// note closes the homepage.
+// no-prop-test: drives one window; the homepage's content is properties in
+// `kanso_engine::pages::notebook` and `kanso_store`'s home tests.
+#[gpui_kit::test]
+fn a_notebook_opens_to_its_homepage_and_a_note_closes_it(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |l, cx| {
+        l.set_filter(crate::library::Filter::Book(book), cx)
+    });
+    cx.run_until_parked();
+    library.update(cx, |l, cx| l.set_home(true, cx));
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    wait_until(&f, &mut vcx, |vcx| {
+        vcx.debug_bounds("notebook-home").is_some()
+    });
+    assert!(vcx.debug_bounds("notebook-home").is_some());
+    let home = f.workspace(&mut vcx, |w, _| w.home.clone());
+    let (loaded, keys, titles, first) = vcx.read(|cx| {
+        let h = home.read(cx);
+        (
+            h.is_loaded(),
+            h.section_keys(),
+            h.section_titles(),
+            h.first_visit(),
+        )
+    });
+    assert!(loaded);
+    assert_eq!(keys.len(), titles.len());
+    // The words and order are the engine's, which the phones draw too.
+    assert!(
+        keys.iter().any(|k| k == "key_notes"),
+        "key_notes in {keys:?}"
+    );
+    assert!(
+        !keys.iter().any(|k| k == "about"),
+        "no AI section with AI off"
+    );
+    assert!(!first, "AI is off in a bare window");
+
+    f.select(&mut vcx, &f.notes[1]);
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notebook-home").is_none());
+}
+
+/// A Home note moved into a notebook that has a Home note of its own loses
+/// its mark (issue #201); the other notebook's stays. The editor takes the
+/// note without the mark, so typing on saves with no conflict.
+// no-prop-test: one move through the real editor; the rule itself is
+// `notebook_actions::after_move`'s, tested in kanso-engine.
+#[gpui_kit::test]
+fn a_home_note_moved_into_a_notebook_with_one_loses_its_mark(cx: &mut TestAppContext) {
+    use kanso_core::home::{is_home, mark_home};
+    let f = setup(cx);
+    let other = f
+        .store
+        .put(DocType::Book, json!({"name": "C"}), Put::Upsert, Origin::Ui)
+        .unwrap()
+        .id;
+    let theirs = f
+        .store
+        .put(
+            DocType::Note,
+            json!({"title": "About C", "body": mark_home("C's own words."), "bookId": other}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let mine = f.notes[0].clone();
+    f.edit_elsewhere(cx, &mine, &mark_home("start"));
+    f.select(cx, &mine);
+    assert!(is_home(&f.editor(cx, |e, cx| e.body_text(cx).to_string())));
+    f.update_editor(cx, |editor, _, cx| editor.set_book(other.clone(), cx));
+    cx.run_until_parked();
+    assert_eq!(f.store.note(&mine).unwrap().unwrap().book_id, other);
+    assert!(
+        !is_home(&note_body(&f.store, &mine)),
+        "the moved one is ordinary"
+    );
+    assert!(
+        is_home(&note_body(&f.store, &theirs)),
+        "C keeps its Home note"
+    );
+    let text = f.editor(cx, |e, cx| e.body_text(cx).to_string());
+    assert!(!is_home(&text), "the editor took the note without the mark");
+    f.type_body(cx, &format!("{text}\nmore"));
+    f.update_editor(cx, |editor, _, cx| editor.flush(cx));
+    assert_eq!(note_body(&f.store, &mine), format!("{text}\nmore"));
+    assert!(!is_home(&note_body(&f.store, &mine)));
+}
+
+/// New Home note opens the note in a tab of its own; closing that tab
+/// shows the notebook's homepage again (issue #201).
+// no-prop-test: one window's tabs; nothing to vary.
+#[gpui_kit::test]
+fn a_new_home_note_returns_to_the_homepage_when_its_tab_closes(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    let (library, home) = f.workspace(cx, |w, _| (w.library.clone(), w.home.clone()));
+    library.update(cx, |l, cx| {
+        l.set_filter(crate::library::Filter::Book(book.clone()), cx)
+    });
+    cx.run_until_parked();
+    library.update(cx, |l, cx| l.set_home(true, cx));
+    cx.run_until_parked();
+    assert_eq!(
+        library.read_with(cx, |l, cx| l.home_book(cx).map(str::to_owned)),
+        Some(book.clone())
+    );
+    home.update(cx, |home, cx| home.new_home(cx));
+    cx.run_until_parked();
+    let made = f.open_note(cx).expect("the Home note opens");
+    assert!(kanso_core::home::is_home(&note_body(&f.store, &made)));
+    assert_eq!(
+        library.read_with(cx, |l, cx| l.home_book(cx).map(str::to_owned)),
+        None
+    );
+    let (tabs, active) = f.workspace(cx, |w, _| (w.tabs.len(), w.tabs.active_index()));
+    assert_eq!(tabs, 2, "in a tab of its own");
+    let workspace = f.workspace.clone();
+    f.window
+        .update(cx, |_, window, cx| {
+            workspace.update(cx, |w, cx| w.close_tab(active, window, cx))
+        })
+        .unwrap();
+    cx.run_until_parked();
+    assert_eq!(
+        library.read_with(cx, |l, cx| l.home_book(cx).map(str::to_owned)),
+        Some(book),
+        "back on the homepage"
+    );
+}

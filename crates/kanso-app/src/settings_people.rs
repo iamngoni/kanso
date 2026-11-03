@@ -176,3 +176,84 @@ pub fn people_section(cx: &App) -> AnyElement {
     }
     section("People & Projects", rows, colors)
 }
+
+/// What the notebook refresh menu offers: the setting's value and its words
+/// (the setting is the one people's pages use).
+const NOTEBOOK_REFRESH_CHOICES: [(Option<&str>, &str); 3] = [
+    (None, "What suits your model"),
+    (Some("open"), "When I open a notebook, if out of date"),
+    (Some("press"), "Only when I press Refresh"),
+];
+
+/// The words for the notebook refresh setting `value`.
+pub fn notebook_refresh_label(value: Option<&str>) -> &'static str {
+    NOTEBOOK_REFRESH_CHOICES
+        .iter()
+        .find(|(v, _)| *v == value)
+        .map_or(NOTEBOOK_REFRESH_CHOICES[0].1, |(_, label)| label)
+}
+
+/// The Notebooks section, for the General page: whether notebooks show a
+/// homepage, whether AI writes its summary and decisions, and when they
+/// are written again.
+// no-prop-test: layout and switches over plain settings; the decisions they
+// make are `home_data`'s and the engine's.
+pub fn notebooks_section(cx: &App) -> AnyElement {
+    let colors = Colors::get(cx);
+    let settings = cx.global::<AppState>().config.people_projects.clone();
+    let refresh_menu = Button::new("notebook-refresh")
+        .debug_selector(|| "notebook-refresh".into())
+        .outline()
+        .small()
+        .label(notebook_refresh_label(settings.refresh.as_deref()))
+        .dropdown_caret(true)
+        .dropdown_menu({
+            let current = settings.refresh.clone();
+            move |mut menu, _, _| {
+                for (value, label) in NOTEBOOK_REFRESH_CHOICES {
+                    menu = menu.item(
+                        PopupMenuItem::new(label)
+                            .checked(current.as_deref() == value)
+                            .on_click(move |_, _, cx| {
+                                AppState::update_config(cx, |config| {
+                                    config.people_projects.refresh = value.map(str::to_owned)
+                                });
+                            }),
+                    );
+                }
+                menu
+            }
+        });
+    section(
+        "Notebooks",
+        vec![
+            Row::new(Lucide::House, "Show notebook homepages")
+                .detail("A notebook opens to what it is about, its key notes, recent activity and open tasks. Off keeps the plain note list.")
+                .trailing(div().debug_selector(|| "notebook-homepages".into()).child(
+                    Switch::new("notebook-homepages")
+                        .checked(settings.notebook_homepages)
+                        .on_click(|on, _, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.people_projects.notebook_homepages = *on
+                            });
+                            cx.refresh_windows();
+                        }),
+                )),
+            Row::new(Lucide::Sparkles, "Write notebook summaries with AI")
+                .detail("A summary and the decisions in a notebook, every line citing the notes it came from. Never for locked notebooks.")
+                .trailing(div().debug_selector(|| "notebook-summaries".into()).child(
+                    Switch::new("notebook-summaries")
+                        .checked(settings.notebook_summaries)
+                        .on_click(|on, _, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.people_projects.notebook_summaries = *on
+                            });
+                        }),
+                )),
+            Row::new(Lucide::RefreshCw, "Refresh summaries")
+                .detail("When summaries are written again. The same setting as for people and projects.")
+                .trailing(refresh_menu),
+        ],
+        colors,
+    )
+}

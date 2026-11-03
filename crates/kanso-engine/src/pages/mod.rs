@@ -12,7 +12,11 @@
 //! fingerprint of the notes they were written from, so an out-of-date
 //! section can say so. Nothing here reads a clock: the caller passes `now`.
 
+pub mod locked_home;
 pub mod model;
+pub mod notebook;
+pub mod notebook_actions;
+pub mod notebook_model;
 pub mod write;
 
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -63,6 +67,10 @@ pub trait PageSource {
     fn compute(&self, store: &Store, section: &str, all: bool) -> kanso_store::Result<Section>;
     /// The instruction for one AI section.
     fn ai_instruction(&self, section: &str) -> String;
+    /// The most lines an AI section keeps, when it has a limit.
+    fn max_items(&self, _section: &str) -> Option<usize> {
+        None
+    }
 }
 
 fn spec_of<'a>(source: &'a dyn PageSource, key: &str) -> Option<&'a SectionSpec> {

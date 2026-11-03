@@ -9,6 +9,7 @@ pub mod cards;
 pub mod dates;
 pub mod entities;
 pub mod excerpt;
+pub mod home;
 pub mod id;
 pub mod links;
 pub mod loops;

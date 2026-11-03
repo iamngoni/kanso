@@ -24,11 +24,11 @@ use crate::tabs::{
 use crate::workspace::{
     AskYourNotes, ChangePassword, CopyKansoLink, CopyNoteLink, Dictate, ExportHtml, ExportLibrary,
     ExportNote, ExportPdf, FocusNoteList, FocusSearch, FormatTable, GoBack, GoForward,
-    ImportLibrary, NewAgentTask, NewNote, NewNotebook, NewRecoveryKey, NextNote, OpenFile,
-    OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes, ShowBacklinks,
-    ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview, ShowSignIn,
-    ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode, ToggleInspector,
-    TogglePinned, ToggleSidebar, TrashNote, UndoLastChange,
+    GoNotebookHome, ImportLibrary, NewAgentTask, NewNote, NewNotebook, NewRecoveryKey, NextNote,
+    OpenFile, OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes,
+    ShowBacklinks, ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview,
+    ShowSignIn, ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode,
+    ToggleInspector, TogglePinned, ToggleSidebar, TrashNote, UndoLastChange,
 };
 
 /// The palette's sections, in the order they appear with nothing typed.
@@ -1419,6 +1419,17 @@ static COMMANDS: &[Command] = &[
         keywords: &["history", "next", "redo"],
         group: Group::GoTo,
         run: action!(GoForward),
+        needs: Needs::Nothing,
+    },
+    Command {
+        id: "open-notebook-home",
+        label: "Open Notebook Home",
+        label_when_pinned: None,
+        description: "Opens the homepage of the selected notebook: what it is about, its key notes, recent activity, open tasks and more.",
+        icon: IconName::House,
+        keywords: &["homepage", "notebook", "overview", "summary"],
+        group: Group::GoTo,
+        run: action!(GoNotebookHome),
         needs: Needs::Nothing,
     },
     // App.

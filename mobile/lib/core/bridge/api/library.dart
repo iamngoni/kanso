@@ -16,6 +16,7 @@ import 'gallery.dart';
 import 'linking.dart';
 import 'locks.dart';
 import 'metrics.dart';
+import 'notebook_home.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'people.dart';
 import 'publish.dart';
@@ -223,6 +224,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// The notebook colours the desktop offers.
   static List<ColorChoice> notebookColors() =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryNotebookColors();
+
+  KansoNotebookHome notebookHome();
 
   /// The notebook icons matching `query`, in the catalogue's order.
   static List<IconChoice> notebookIcons({required String query}) => KansoCore

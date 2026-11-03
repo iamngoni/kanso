@@ -43,6 +43,17 @@ pub enum LibraryEvent {
     Shown,
     /// A document changed in the store.
     Changed(Change),
+    /// The notebook homepage was opened or closed, or the place it belongs
+    /// to changed.
+    Home,
+}
+
+/// Whether notebook homepages are on (Settings › Notebooks): a notebook then
+/// offers its Home row and opens its homepage when it has nothing else to
+/// show. Off in a window without settings.
+pub fn homepages_on(cx: &App) -> bool {
+    cx.try_global::<crate::workspace::AppState>()
+        .is_some_and(|state| state.config.people_projects.notebook_homepages)
 }
 
 pub struct Library {
@@ -85,6 +96,8 @@ pub struct Library {
     /// The notes selected in the list: `selected` alone, unless ⇧- or
     /// ⌘-click or ⌘A selected more. Its focus is always `selected`.
     pub selection: Selection,
+    /// The selected notebook's homepage shows in the editor's place.
+    pub home: bool,
     pub load_error: Option<String>,
     generation: u64,
     /// After a filter or search change, select the first note when the
@@ -160,6 +173,7 @@ impl Library {
             pinned_only: false,
             selected: None,
             selection: Selection::default(),
+            home: false,
             load_error: None,
             generation: 0,
             reselect: true,
@@ -334,7 +348,62 @@ impl Library {
             self.filter = filter;
             self.status_only = None;
             self.pinned_only = false;
+            self.home = false;
+            self.open_home_if_due(homepages_on(cx));
+            cx.emit(LibraryEvent::Home);
             self.reload(cx);
+        }
+    }
+
+    /// Opens the selected notebook's homepage on its own when homepages
+    /// are on and the notebook has nothing else to show: it has no notes
+    /// directly in it but has notebooks inside it, or no note of it is the
+    /// open one. Otherwise the open note stays open.
+    fn open_home_if_due(&mut self, homepages: bool) {
+        let Filter::Book(id) = &self.filter else {
+            return;
+        };
+        if !homepages || self.is_book_locked(id) || self.book(id).is_none() {
+            return;
+        }
+        let direct = self.book(id).map_or(0, |b| b.count);
+        let parent_only = direct == 0 && self.has_notes_inside(id);
+        let note_open = self.selected.as_deref().is_some_and(|note| {
+            self.store
+                .get(note)
+                .ok()
+                .flatten()
+                .and_then(|doc| {
+                    doc.fields
+                        .get("bookId")
+                        .and_then(|b| b.as_str().map(str::to_owned))
+                })
+                .is_some_and(|book| &book == id)
+        });
+        // A notebook with nothing in it keeps the editor's own empty block.
+        let empty = direct == 0 && !parent_only;
+        if parent_only || (!note_open && !empty) {
+            self.home = true;
+            self.reselect = false;
+        }
+    }
+
+    /// Shows (or closes) the selected notebook's homepage. Does nothing
+    /// unless a notebook is selected and homepages are on.
+    pub fn set_home(&mut self, on: bool, cx: &mut Context<Self>) {
+        let on = on && homepages_on(cx) && matches!(self.filter, Filter::Book(_));
+        if self.home != on {
+            self.home = on;
+            cx.emit(LibraryEvent::Home);
+            cx.notify();
+        }
+    }
+
+    /// The notebook whose homepage shows, if one does.
+    pub fn home_book(&self, cx: &App) -> Option<&str> {
+        match &self.filter {
+            Filter::Book(id) if self.home && homepages_on(cx) => Some(id),
+            _ => None,
         }
     }
 
@@ -415,6 +484,11 @@ impl Library {
     /// Shows `id` in the editor, leaving the selection as it is.
     fn show_focus(&mut self, id: Option<String>, asked: bool, cx: &mut Context<Self>) {
         let changed = self.selected != id;
+        if asked && id.is_some() && self.home {
+            // Someone picked a note: it takes the editor back.
+            self.home = false;
+            cx.emit(LibraryEvent::Home);
+        }
         if changed || asked {
             self.selected = id.clone();
             cx.emit(LibraryEvent::Selected { id, asked });

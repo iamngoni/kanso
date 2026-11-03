@@ -5971,4 +5971,63 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get peopleSettingsKeepInHelp =>
       'The notebook new person and project pages go in. The default is made when the first page is.';
+
+  @override
+  String get notebookHomeChooseHome => 'Choose Home note…';
+
+  @override
+  String get notebookHomeNewHome => 'New Home note';
+
+  @override
+  String get notebookHomeCustomise => 'Customise home…';
+
+  @override
+  String get notebookHomeCopyInto => 'Copy into Home note';
+
+  @override
+  String get notebookHomeCopiedInto => 'Copied into the Home note';
+
+  @override
+  String get notebookHomeEdit => 'Edit';
+
+  @override
+  String get notebookHomeChooseTitle => 'Home note';
+
+  @override
+  String get notebookHomeChooseNone =>
+      'This notebook has no notes to choose from yet.';
+
+  @override
+  String get notebookHomeCustomiseTitle => 'Customise home';
+
+  @override
+  String get notebookHomeResetLayout => 'Reset layout';
+
+  @override
+  String get notebookHomeDone => 'Done';
+
+  @override
+  String get notebookHomeFailed => 'Couldn\'t read this homepage.';
+
+  @override
+  String notebookHomeMapLabel(String name) {
+    return 'Map of the notes in $name';
+  }
+
+  @override
+  String get notebookHomeSettingsTitle => 'Notebook homepages';
+
+  @override
+  String get notebookHomeSettingsShow => 'Show notebook homepages';
+
+  @override
+  String get notebookHomeSettingsShowHelp =>
+      'A card above a notebook\'s notes opens its homepage. Off hides the card and the page.';
+
+  @override
+  String get notebookHomeSettingsAi => 'Write notebook summaries with AI';
+
+  @override
+  String get notebookHomeSettingsAiHelp =>
+      'Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above.';
 }

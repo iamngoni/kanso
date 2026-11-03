@@ -58,6 +58,19 @@ Future<(AskBloc, FixtureAiRepository)> _open({bool enabled = true}) async {
 
 void main() {
   group('AskBloc', () {
+    test(
+      'opened from a notebook, it starts limited to that notebook',
+      () async {
+        const scope = AskScope(kind: 'book', value: 'b1', label: 'Work');
+        final ai = FixtureAiRepository(settings: aiSettings(enabled: true));
+        addTearDown(ai.close);
+        final bloc = AskBloc(ai)..add(const AskEvent.started(scope: scope));
+        addTearDown(bloc.close);
+        await bloc.stream.firstWhere((s) => s.status == LoadStatus.ready);
+        expect(bloc.state.scope, scope);
+      },
+    );
+
     test('opens knowing whether AI is on and where questions go', () async {
       final (bloc, _) = await _open();
       expect(bloc.state.aiEnabled, isTrue);

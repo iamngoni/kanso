@@ -26,6 +26,12 @@ pub struct EntitySettings {
     pub detect_with_ai: bool,
     /// When AI last re-ranked the suggestions (ms since the epoch).
     pub last_ai_detect: i64,
+    /// "Show notebook homepages" (issue #201). Off restores the plain note
+    /// list and its empty-state line.
+    pub notebook_homepages: bool,
+    /// "Write notebook summaries with AI". The refresh setting above is
+    /// shared with people's pages.
+    pub notebook_summaries: bool,
 }
 
 impl Default for EntitySettings {
@@ -37,6 +43,8 @@ impl Default for EntitySettings {
             refresh: None,
             detect_with_ai: false,
             last_ai_detect: 0,
+            notebook_homepages: true,
+            notebook_summaries: true,
         }
     }
 }
@@ -70,6 +78,11 @@ impl EntitySettings {
     /// wants summaries.
     pub fn ai_sections(&self, ai_on: bool) -> bool {
         ai_on && self.write_with_ai
+    }
+
+    /// Whether a notebook homepage's AI sections are written.
+    pub fn notebook_ai(&self, ai_on: bool) -> bool {
+        ai_on && self.notebook_summaries
     }
 }
 

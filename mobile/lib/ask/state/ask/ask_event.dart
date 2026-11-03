@@ -6,8 +6,10 @@ part of 'ask_bloc.dart';
 
 @freezed
 sealed class AskEvent with _$AskEvent {
-  /// The screen opened: see whether AI is on and where questions go.
-  const factory AskEvent.started() = AskStartedEvent;
+  /// The screen opened: see whether AI is on and where questions go. [scope]
+  /// is what the first question searches, when it was opened from a
+  /// notebook; all notes when null.
+  const factory AskEvent.started({AskScope? scope}) = AskStartedEvent;
 
   /// The settings changed while this conversation was open.
   const factory AskEvent.settingsChanged(AiSettings settings) =

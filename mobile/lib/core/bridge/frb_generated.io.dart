@@ -22,6 +22,8 @@ import 'api/linking.dart';
 import 'api/linking_types.dart';
 import 'api/locks.dart';
 import 'api/metrics.dart';
+import 'api/notebook_home.dart';
+import 'api/notebook_home_types.dart';
 import 'api/people.dart';
 import 'api/people_types.dart';
 import 'api/publish.dart';
@@ -114,6 +116,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoMetricsPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetricsPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoNotebookHomePtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHomePtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoPeoplePtr => wire
@@ -243,6 +249,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoMetrics
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics(
+    dynamic raw,
+  );
+
+  @protected
+  KansoNotebookHome
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
     dynamic raw,
   );
 
@@ -387,6 +399,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoMetrics
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics(
+    dynamic raw,
+  );
+
+  @protected
+  KansoNotebookHome
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
     dynamic raw,
   );
 
@@ -537,6 +555,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoMetrics
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics(
+    dynamic raw,
+  );
+
+  @protected
+  KansoNotebookHome
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
     dynamic raw,
   );
 
@@ -856,6 +880,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   GraphRequest dco_decode_box_autoadd_graph_request(dynamic raw);
+
+  @protected
+  HomePanel dco_decode_box_autoadd_home_panel(dynamic raw);
+
+  @protected
+  HomeSettings dco_decode_box_autoadd_home_settings(dynamic raw);
 
   @protected
   ImageToRead dco_decode_box_autoadd_image_to_read(dynamic raw);
@@ -1224,6 +1254,36 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Hit dco_decode_hit(dynamic raw);
 
   @protected
+  HomeCandidate dco_decode_home_candidate(dynamic raw);
+
+  @protected
+  HomeCard dco_decode_home_card(dynamic raw);
+
+  @protected
+  HomeHeaderInfo dco_decode_home_header_info(dynamic raw);
+
+  @protected
+  HomeMap dco_decode_home_map(dynamic raw);
+
+  @protected
+  HomeMapEdge dco_decode_home_map_edge(dynamic raw);
+
+  @protected
+  HomeMapNode dco_decode_home_map_node(dynamic raw);
+
+  @protected
+  HomePanel dco_decode_home_panel(dynamic raw);
+
+  @protected
+  HomeSectionSetting dco_decode_home_section_setting(dynamic raw);
+
+  @protected
+  HomeSettings dco_decode_home_settings(dynamic raw);
+
+  @protected
+  HomeWords dco_decode_home_words(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -1387,6 +1447,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<Hit> dco_decode_list_hit(dynamic raw);
+
+  @protected
+  List<HomeCandidate> dco_decode_list_home_candidate(dynamic raw);
+
+  @protected
+  List<HomeMapEdge> dco_decode_list_home_map_edge(dynamic raw);
+
+  @protected
+  List<HomeMapNode> dco_decode_list_home_map_node(dynamic raw);
+
+  @protected
+  List<HomeSectionSetting> dco_decode_list_home_section_setting(dynamic raw);
 
   @protected
   List<IconChoice> dco_decode_list_icon_choice(dynamic raw);
@@ -1874,6 +1946,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   GalleryColors? dco_decode_opt_box_autoadd_gallery_colors(dynamic raw);
+
+  @protected
+  HomePanel? dco_decode_opt_box_autoadd_home_panel(dynamic raw);
 
   @protected
   ImageToRead? dco_decode_opt_box_autoadd_image_to_read(dynamic raw);
@@ -2574,6 +2649,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoNotebookHome
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoPeople
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
     SseDeserializer deserializer,
@@ -2714,6 +2795,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoMetrics
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoNotebookHome
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
     SseDeserializer deserializer,
   );
 
@@ -2864,6 +2951,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoMetrics
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoNotebookHome
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
     SseDeserializer deserializer,
   );
 
@@ -3215,6 +3308,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   GraphRequest sse_decode_box_autoadd_graph_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HomePanel sse_decode_box_autoadd_home_panel(SseDeserializer deserializer);
+
+  @protected
+  HomeSettings sse_decode_box_autoadd_home_settings(
     SseDeserializer deserializer,
   );
 
@@ -3625,6 +3726,38 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Hit sse_decode_hit(SseDeserializer deserializer);
 
   @protected
+  HomeCandidate sse_decode_home_candidate(SseDeserializer deserializer);
+
+  @protected
+  HomeCard sse_decode_home_card(SseDeserializer deserializer);
+
+  @protected
+  HomeHeaderInfo sse_decode_home_header_info(SseDeserializer deserializer);
+
+  @protected
+  HomeMap sse_decode_home_map(SseDeserializer deserializer);
+
+  @protected
+  HomeMapEdge sse_decode_home_map_edge(SseDeserializer deserializer);
+
+  @protected
+  HomeMapNode sse_decode_home_map_node(SseDeserializer deserializer);
+
+  @protected
+  HomePanel sse_decode_home_panel(SseDeserializer deserializer);
+
+  @protected
+  HomeSectionSetting sse_decode_home_section_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HomeSettings sse_decode_home_settings(SseDeserializer deserializer);
+
+  @protected
+  HomeWords sse_decode_home_words(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -3816,6 +3949,22 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<Hit> sse_decode_list_hit(SseDeserializer deserializer);
+
+  @protected
+  List<HomeCandidate> sse_decode_list_home_candidate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<HomeMapEdge> sse_decode_list_home_map_edge(SseDeserializer deserializer);
+
+  @protected
+  List<HomeMapNode> sse_decode_list_home_map_node(SseDeserializer deserializer);
+
+  @protected
+  List<HomeSectionSetting> sse_decode_list_home_section_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<IconChoice> sse_decode_list_icon_choice(SseDeserializer deserializer);
@@ -4401,6 +4550,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   GalleryColors? sse_decode_opt_box_autoadd_gallery_colors(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HomePanel? sse_decode_opt_box_autoadd_home_panel(
     SseDeserializer deserializer,
   );
 
@@ -5187,6 +5341,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    KansoNotebookHome self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
     KansoPeople self,
     SseSerializer serializer,
@@ -5350,6 +5511,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics(
     KansoMetrics self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    KansoNotebookHome self,
     SseSerializer serializer,
   );
 
@@ -5524,6 +5692,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics(
     KansoMetrics self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    KansoNotebookHome self,
     SseSerializer serializer,
   );
 
@@ -5976,6 +6151,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_graph_request(
     GraphRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_home_panel(
+    HomePanel self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_home_settings(
+    HomeSettings self,
     SseSerializer serializer,
   );
 
@@ -6511,6 +6698,42 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_hit(Hit self, SseSerializer serializer);
 
   @protected
+  void sse_encode_home_candidate(HomeCandidate self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_home_card(HomeCard self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_home_header_info(
+    HomeHeaderInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_home_map(HomeMap self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_home_map_edge(HomeMapEdge self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_home_map_node(HomeMapNode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_home_panel(HomePanel self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_home_section_setting(
+    HomeSectionSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_home_settings(HomeSettings self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_home_words(HomeWords self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -6770,6 +6993,30 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_list_hit(List<Hit> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_home_candidate(
+    List<HomeCandidate> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_home_map_edge(
+    List<HomeMapEdge> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_home_map_node(
+    List<HomeMapNode> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_home_section_setting(
+    List<HomeSectionSetting> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_icon_choice(
@@ -7539,6 +7786,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_gallery_colors(
     GalleryColors? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_home_panel(
+    HomePanel? self,
     SseSerializer serializer,
   );
 
@@ -8897,6 +9150,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetrics =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoMetricsPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHomePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHomePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHomePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHomePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

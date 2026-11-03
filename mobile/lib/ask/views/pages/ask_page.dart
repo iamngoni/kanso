@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/models/data/ask_scope.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../injection.dart';
@@ -15,14 +16,18 @@ import '../widgets/ask_pane.dart';
 /// the panes on a tablet ([inSheet]). What is asked is not kept after it
 /// closes.
 class AskPage extends StatelessWidget {
-  const AskPage({this.inSheet = false, super.key});
+  const AskPage({this.inSheet = false, this.scope, super.key});
 
   final bool inSheet;
+
+  /// What the first question searches, when Ask was opened from a notebook.
+  final AskScope? scope;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AskBloc>(
-      create: (context) => getIt<AskBloc>()..add(const AskEvent.started()),
+      create: (context) =>
+          getIt<AskBloc>()..add(AskEvent.started(scope: scope)),
       child: KansoPage(
         // The question field rises with the keyboard.
         backgroundColor: context.colors.app,

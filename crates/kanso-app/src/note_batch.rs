@@ -111,13 +111,23 @@ pub fn apply(
     for (feature, n) in tally {
         crate::metrics::record_n(cx, feature, n);
     }
+    // Home notes that went into a notebook with one of its own lose their
+    // mark, and the notice says so.
+    let mut words = summary(&change, count, &place, on);
+    if matches!(change, Change::Move(_)) {
+        let moved: Vec<String> = edits.iter().map(|edit| edit.id.clone()).collect();
+        if crate::home_data::settle_moved(&store, &moved) > 0 {
+            words.push(' ');
+            words.push_str(kanso_engine::pages::notebook_model::HOME_MOVED_LINE);
+        }
+    }
     let serial = remember(&store, &edits, cx);
     let notification =
         // Each batch's notice takes the place of the one before, so its
         // Undo is always for the latest change. A notice with an action
         // never hides by itself: Cmd/Ctrl+Z works for exactly as long as
         // it is up, and forgets the change when it closes.
-        Notification::info(summary(&change, count, &place, on))
+        Notification::info(words)
             .id::<Edit>()
             .on_close(move |_, cx| forget(serial, cx))
             .action(move |_, _, _| {

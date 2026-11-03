@@ -13,7 +13,8 @@ part 'browse_location.freezed.dart';
 /// in it, if any. It is what the app's address (`/notes/note/n1`,
 /// `/search?q=tea`) says, and [location] and [BrowseLocation.parse] turn it
 /// into that address and back. A place can show its notes as a board
-/// (`/notes/board?kind=tasks`) instead of a note.
+/// (`/notes/board?kind=tasks`) instead of a note, and a notebook as its
+/// homepage (`/notebooks/n1/home`).
 ///
 /// Ids are written with `Uri.encodeComponent`: note ids contain `:`.
 @freezed
@@ -25,6 +26,9 @@ sealed class BrowseLocation with _$BrowseLocation {
 
     /// The board of the place's notes shown instead of a note.
     BoardKind? board,
+
+    /// The notebook's homepage shown instead of a note.
+    @Default(false) bool home,
   }) = PlaceLocation;
 
   /// A search for [query] in [scope]. [notebookId] is the notebook it was
@@ -45,8 +49,10 @@ sealed class BrowseLocation with _$BrowseLocation {
   String get location {
     final note = noteId == null ? '' : '/note/${Uri.encodeComponent(noteId!)}';
     return switch (this) {
-      PlaceLocation(:final place, :final board) =>
-        board == null
+      PlaceLocation(:final place, :final board, :final home) =>
+        home
+            ? '${_placePath(place)}/home'
+            : board == null
             ? '${_placePath(place)}$note'
             : '${_placePath(place)}/board${_boardQuery(board)}',
       SearchLocation(:final query, :final scope, :final notebookId) =>
@@ -57,14 +63,22 @@ sealed class BrowseLocation with _$BrowseLocation {
 
   /// This location with the note [id] open.
   BrowseLocation withNote(String id) => switch (this) {
-    final PlaceLocation here => here.copyWith(noteId: id, board: null),
+    final PlaceLocation here => here.copyWith(
+      noteId: id,
+      board: null,
+      home: false,
+    ),
     final SearchLocation here => here.copyWith(noteId: id),
     final TasksLocation here => here.copyWith(noteId: id),
   };
 
   /// This location with no note open: the list alone.
   BrowseLocation get withoutNote => switch (this) {
-    final PlaceLocation here => here.copyWith(noteId: null, board: null),
+    final PlaceLocation here => here.copyWith(
+      noteId: null,
+      board: null,
+      home: false,
+    ),
     final SearchLocation here => here.copyWith(noteId: null),
     final TasksLocation here => here.copyWith(noteId: null),
   };
@@ -140,6 +154,11 @@ sealed class BrowseLocation with _$BrowseLocation {
             ? BoardKind.tasks
             : BoardKind.notes,
       );
+    }
+    if (tail.length == 1 &&
+        tail.first == 'home' &&
+        place is ListPlace_Notebook) {
+      return BrowseLocation.place(place, home: true);
     }
     final noteId = _noteIdOf(tail);
     if (tail.isNotEmpty && noteId == null) {

@@ -41,17 +41,17 @@ const SETTINGS_FILE: &str = "people.json";
 /// older or newer build still reads.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
-struct SettingsFile {
+pub(crate) struct SettingsFile {
     #[serde(flatten)]
-    entities: EntitySettings,
+    pub(crate) entities: EntitySettings,
     /// When detection last ran (ms since the epoch).
-    last_detect: i64,
+    pub(crate) last_detect: i64,
 }
 
 /// The People & Projects calls of one library.
 #[derive(Clone)]
 pub struct People {
-    ai: AiHandle,
+    pub(crate) ai: AiHandle,
 }
 
 impl Library {
@@ -82,7 +82,7 @@ fn engine_kind(kind: PeopleKind) -> EntityKind {
     }
 }
 
-fn source_of(receipt: &Receipt) -> PageSource {
+pub(crate) fn source_of(receipt: &Receipt) -> PageSource {
     PageSource {
         note_id: receipt.note_id.clone(),
         title: receipt.title.clone(),
@@ -94,7 +94,7 @@ fn source_of(receipt: &Receipt) -> PageSource {
     }
 }
 
-fn section_of(section: &Section) -> PageSection {
+pub(crate) fn section_of(section: &Section) -> PageSection {
     let (state, changed) = match section.state {
         SectionState::Fresh => (PageSectionState::Fresh, 0),
         SectionState::Stale { changed } => (PageSectionState::Stale, changed),
@@ -149,11 +149,11 @@ fn suggestion_of(s: &Suggestion) -> PeopleSuggestion {
 }
 
 impl People {
-    fn store(&self) -> &Store {
+    pub(crate) fn store(&self) -> &Store {
         &self.ai.inner.store
     }
 
-    fn settings_path(&self) -> PathBuf {
+    pub(crate) fn settings_path(&self) -> PathBuf {
         self.ai
             .inner
             .path
@@ -163,14 +163,14 @@ impl People {
             .join(SETTINGS_FILE)
     }
 
-    fn load(&self) -> SettingsFile {
+    pub(crate) fn load(&self) -> SettingsFile {
         std::fs::read(self.settings_path())
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default()
     }
 
-    fn save(&self, file: &SettingsFile) -> Result<(), KansoError> {
+    pub(crate) fn save(&self, file: &SettingsFile) -> Result<(), KansoError> {
         let path = self.settings_path();
         let bytes =
             serde_json::to_vec_pretty(file).map_err(|err| KansoError::storage(err.to_string()))?;
@@ -181,7 +181,7 @@ impl People {
     }
 
     /// The provider and address AI is set to, whether or not it is on.
-    fn provider_info(&self) -> Result<(Provider, String, bool), KansoError> {
+    pub(crate) fn provider_info(&self) -> Result<(Provider, String, bool), KansoError> {
         let view = self.ai.settings()?;
         let provider = Provider::ALL
             .into_iter()
@@ -190,7 +190,7 @@ impl People {
         Ok((provider, view.base_url, view.enabled))
     }
 
-    fn ai_on(&self, settings: &EntitySettings) -> bool {
+    pub(crate) fn ai_on(&self, settings: &EntitySettings) -> bool {
         self.provider_info()
             .map(|(_, _, enabled)| settings.ai_sections(enabled))
             .unwrap_or(false)
@@ -437,7 +437,7 @@ impl People {
         }
     }
 
-    fn policy(&self, file: &EntitySettings) -> RefreshPolicy {
+    pub(crate) fn policy(&self, file: &EntitySettings) -> RefreshPolicy {
         match self.provider_info() {
             Ok((provider, base_url, _)) => file.policy(provider, &base_url),
             Err(_) => RefreshPolicy::OnPress,
