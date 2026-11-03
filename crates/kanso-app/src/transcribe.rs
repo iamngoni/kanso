@@ -22,6 +22,7 @@ use gpui_kit::*;
 use kanso_core::links::{FILE_LINK_PREFIX, LINK_SCHEME};
 use kanso_core::model::MAX_ATTACHMENT_SIZE;
 use kanso_core::{DocType, Note};
+use kanso_engine::recording_note::{self, Segment};
 use kanso_store::{Origin, Put, Store};
 use kanso_voice::VoiceError;
 use kanso_voice::file::{self, Progress};
@@ -88,6 +89,28 @@ pub fn transcript_edit(
     let words = transcript.trim();
     if words.is_empty() {
         return None;
+    }
+    // A marked transcript replaces the marked one already in the note.
+    let marked = words.starts_with(recording_note::TRANSCRIPT_OPEN);
+    let replaced = file_id
+        .filter(|_| marked)
+        .and_then(|id| recording_note::transcript_range(text, id));
+    if let Some(range) = replaced {
+        let shift = |offset: usize| {
+            let offset = offset.min(text.len());
+            if offset <= range.start {
+                offset
+            } else if offset <= range.end {
+                range.start
+            } else {
+                offset - range.len() + words.len()
+            }
+        };
+        return Some(Edit {
+            selection: shift(selection.start)..shift(selection.end),
+            range,
+            text: words.to_owned(),
+        });
     }
     let below = file_id.and_then(|id| {
         let mut start = 0;
@@ -376,7 +399,7 @@ fn run(mut job: Job, cx: &mut App) {
         .name("kanso-transcribe".into())
         .spawn(move || {
             let result = read_source(&store, &source).and_then(|(media, ext)| {
-                file::transcribe(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
+                file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
                     *progress.lock().unwrap() = at;
                 })
             });
@@ -408,7 +431,7 @@ fn run(mut job: Job, cx: &mut App) {
                 return;
             };
             match result {
-                Ok(text) => insert(&job, &text, cx),
+                Ok(pieces) => insert(&job, &transcript_text(job.source.file_id(), &pieces), cx),
                 Err(err) => {
                     if let Some(words) = voice::error_words(&err) {
                         notify(&job, Notification::error(words), cx);
@@ -420,6 +443,23 @@ fn run(mut job: Job, cx: &mut App) {
     });
     job._task = Some(task);
     cx.default_global::<Transcription>().job = Some(job);
+}
+
+/// What goes in the note for `pieces`: the timestamped, marked transcript
+/// when the recording is attached (so each paragraph can seek it), else
+/// plain words. Pure.
+pub fn transcript_text(file_id: Option<&str>, pieces: &[file::Timed]) -> String {
+    let segments: Vec<Segment> = pieces
+        .iter()
+        .map(|p| Segment {
+            start_secs: p.start.as_secs() as u32,
+            text: p.text.clone(),
+        })
+        .collect();
+    match file_id.and_then(|id| recording_note::render_transcript(id, &segments)) {
+        Some(block) => block,
+        None => kanso_voice::text::join_pieces(pieces.iter().map(|p| p.text.as_str())),
+    }
 }
 
 /// The recording to read, and its extension as a hint.
@@ -665,6 +705,34 @@ mod tests {
         let (content_type, _) = store.attachment(&file_id).unwrap().unwrap();
         assert_eq!(content_type, "audio/wav");
         assert!(is_audio(&wav) && !is_audio(std::path::Path::new("a.png")));
+    }
+
+    #[test]
+    fn a_marked_transcript_replaces_the_old_one_and_only_it() {
+        use super::{file::Timed, transcript_text};
+        use std::time::Duration;
+        let piece = |secs, text: &str| Timed {
+            start: Duration::from_secs(secs),
+            text: text.into(),
+        };
+        let first = transcript_text(Some("file:m1"), &[piece(0, "One."), piece(20, "Two.")]);
+        assert!(first.contains("[00:20](kanso-audio://file:m1?t=20) Two."));
+        let text = format!("[a](inkdrop://file:m1)\n\nMine\n\n{first}\n\nTail");
+        let second = transcript_text(Some("file:m1"), &[piece(0, "New.")]);
+        let edit = transcript_edit(&text, Some("file:m1"), &second, 0..0).unwrap();
+        assert_eq!(
+            apply(&text, &edit),
+            format!("[a](inkdrop://file:m1)\n\nMine\n\n{second}\n\nTail")
+        );
+        // Without a recording linked there are no timestamps.
+        assert_eq!(
+            transcript_text(None, &[piece(0, "A."), piece(9, "B.")]),
+            "A. B."
+        );
+        // Without markers in the note, a marked one goes under the link.
+        let edit =
+            transcript_edit("[a](inkdrop://file:m1)", Some("file:m1"), &second, 0..0).unwrap();
+        assert!(apply("[a](inkdrop://file:m1)", &edit).ends_with(&second));
     }
 
     fn check_placement(

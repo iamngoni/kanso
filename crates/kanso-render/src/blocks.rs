@@ -95,6 +95,25 @@ pub enum Block {
     },
 }
 
+/// Whether raw HTML is nothing but whole `<!-- … -->` comments and
+/// whitespace. Pure.
+fn only_comments(raw: &str) -> bool {
+    let mut rest = raw.trim();
+    if rest.is_empty() {
+        return false;
+    }
+    while !rest.is_empty() {
+        let Some(after) = rest.strip_prefix("<!--") else {
+            return false;
+        };
+        let Some(end) = after.find("-->") else {
+            return false;
+        };
+        rest = after[end + 3..].trim_start();
+    }
+    true
+}
+
 /// An item of a list: its task box, if it is a task, and its blocks.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ListItem {
@@ -572,6 +591,9 @@ impl<'a> Walk<'a> {
                     rows: body,
                 });
             }
+            // A comment (such as a recording's transcript markers) is
+            // hidden, as in a browser.
+            Node::Html(raw) if only_comments(&raw.value) => {}
             Node::Html(raw) => match self.html_image(&raw.value) {
                 Some(image) => out.push(Block::Paragraph {
                     inlines: vec![image],
@@ -796,6 +818,7 @@ impl<'a> Walk<'a> {
             Node::ImageReference(image) => out.push(Inline::Missing {
                 text: image.alt.clone(),
             }),
+            Node::Html(raw) if only_comments(&raw.value) => {}
             Node::Html(raw) => match self.html_image(&raw.value) {
                 Some(image) => out.push(image),
                 None => push_text(&raw.value, style, out),

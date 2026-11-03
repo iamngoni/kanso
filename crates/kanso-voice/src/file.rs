@@ -182,11 +182,55 @@ pub fn decode_pieces(
     Ok(())
 }
 
+/// One transcribed piece and where in the recording it starts.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Timed {
+    /// Time from the start of the recording.
+    pub start: Duration,
+    pub text: String,
+}
+
+/// The time `samples` 16 kHz samples into a recording. Pure.
+pub fn time_at(samples: usize) -> Duration {
+    Duration::from_secs_f64(samples as f64 / f64::from(MODEL_RATE))
+}
+
+/// Transcribes the audio in `source` with the model in `model_dir`, a
+/// piece at a time with where each starts, telling `progress` how far it
+/// has got after each piece. Pieces with no words are left out; nothing
+/// heard at all is [`VoiceError::NothingHeard`].
+// no-prop-test: runs the real model; `time_at` and `decode_pieces`
+// have the properties.
+pub fn transcribe_timed(
+    source: Box<dyn MediaSource>,
+    extension: Option<&str>,
+    model_dir: &std::path::Path,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<Vec<Timed>, VoiceError> {
+    let mut model = Parakeet::load(model_dir)?;
+    let mut pieces = Vec::new();
+    let mut samples_before = 0usize;
+    decode_pieces(source, extension, cancel, &mut |samples, at| {
+        let start = time_at(samples_before);
+        samples_before += samples.len();
+        let text = model.transcribe(samples, cancel)?;
+        if !text.trim().is_empty() {
+            pieces.push(Timed { start, text });
+        }
+        progress(at);
+        Ok(())
+    })?;
+    if pieces.is_empty() {
+        return Err(VoiceError::NothingHeard);
+    }
+    Ok(pieces)
+}
+
 /// Transcribes the audio in `source` with the model in `model_dir`,
 /// telling `progress` how far it has got after each piece. Nothing heard
 /// is [`VoiceError::NothingHeard`].
-// no-prop-test: runs the real model; `decode_pieces`, `plan_cut` and
-// `join_pieces` have the properties.
+// no-prop-test: wraps `transcribe_timed`; `join_pieces` has the properties.
 pub fn transcribe(
     source: Box<dyn MediaSource>,
     extension: Option<&str>,
@@ -194,14 +238,8 @@ pub fn transcribe(
     cancel: &AtomicBool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<String, VoiceError> {
-    let mut model = Parakeet::load(model_dir)?;
-    let mut texts = Vec::new();
-    decode_pieces(source, extension, cancel, &mut |samples, at| {
-        texts.push(model.transcribe(samples, cancel)?);
-        progress(at);
-        Ok(())
-    })?;
-    let text = join_pieces(texts.iter().map(String::as_str));
+    let pieces = transcribe_timed(source, extension, model_dir, cancel, progress)?;
+    let text = join_pieces(pieces.iter().map(|p| p.text.as_str()));
     if text.trim().is_empty() {
         return Err(VoiceError::NothingHeard);
     }
@@ -339,6 +377,14 @@ mod tests {
             }
             let last = progress.last().unwrap();
             prop_assert_eq!(last.share(), Some(1.));
+        }
+
+        /// Time is samples over 16 kHz, in step as pieces add up.
+        #[test]
+        fn prop_time_at_adds_up(a in 0usize..10_000_000, b in 0usize..10_000_000) {
+            let sum = time_at(a).as_secs_f64() + time_at(b).as_secs_f64();
+            prop_assert!((time_at(a + b).as_secs_f64() - sum).abs() < 1e-6);
+            prop_assert_eq!(time_at(0), Duration::ZERO);
         }
 
         /// The share done stays within 0 to 1.
