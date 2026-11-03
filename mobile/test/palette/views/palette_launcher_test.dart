@@ -412,6 +412,29 @@ void main() {
     expect(app.where, contains('/notes/note/'));
   });
 
+  testWidgets('trash moves the route note to the Trash with an Undo notice, '
+      'and Undo takes it back', (tester) async {
+    final library = _Library()
+      ..notes[_noteId] = _routeNote()
+      ..changeResult = const Right<ApplicationError, Changed>(
+        Changed(count: 1, undo: 9, message: 'Moved 1 note to Trash.'),
+      );
+    final app = await _pump(tester, command: 'trash', library: library);
+
+    await _run(tester, 'trash');
+    await tester.pumpAndSettle();
+
+    expect(library.changesMade.single.$1, <String>[_noteId]);
+    expect(library.changesMade.single.$2, const NoteChange.trash());
+    expect(app.blocs.undoNotice.state.notice?.ticket, 9);
+    expect(find.text('Undo'), findsOneWidget);
+    expect(app.where, '/notes');
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(library.undone, <int>[9]);
+  });
+
   testWidgets('outline receives the route note body', (
     tester,
   ) async {

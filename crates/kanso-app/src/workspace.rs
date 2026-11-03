@@ -175,9 +175,8 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("secondary-4", ShowLive, None),
         KeyBinding::new("secondary-s", SaveNote, None),
         KeyBinding::new("secondary-shift-p", TogglePinned, None),
-        // Under the note text's and the task list's own Undo: it acts
-        // where focus is not in text.
-        KeyBinding::new("secondary-z", UndoLastChange, Some("!Input")),
+        // Never in text or the task list, which have their own Undo.
+        KeyBinding::new("secondary-z", UndoLastChange, Some("!Input && !TasksView")),
         KeyBinding::new("secondary-shift-a", AskYourNotes, None),
         KeyBinding::new("secondary-shift-m", Dictate, None),
         KeyBinding::new("secondary-alt-down", NextNote, None),
@@ -2782,7 +2781,11 @@ impl Render for Workspace {
                 }
             }))
             .on_action(cx.listener(|_, _: &UndoLastChange, window, cx| {
-                crate::note_batch::undo_latest(window, cx);
+                // Nothing to take back: the key goes on to whatever else
+                // binds it.
+                if !crate::note_batch::undo_latest(window, cx) {
+                    cx.propagate();
+                }
             }))
             .on_action(
                 cx.listener(|this, _: &crate::transcribe::TranscribeAudio, window, cx| {

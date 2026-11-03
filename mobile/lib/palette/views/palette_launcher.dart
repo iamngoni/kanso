@@ -408,10 +408,11 @@ abstract final class PaletteLauncher {
       case 'trash':
         if (open != null) {
           // The same change as the list's swipe, so it gets the same Undo.
+          final notices = _maybeRead<UndoNoticeBloc>(context);
           (await library.change(<String>[open], const NoteChange.trash())).fold(
             (error) => _say(context, error.message),
             (changed) {
-              _offerUndo(context, changed);
+              _offerUndo(context, notices, changed);
               router.go(KansoRoutes.notes);
             },
           );
@@ -675,22 +676,26 @@ abstract final class PaletteLauncher {
     String id,
   ) async {
     final library = getIt<LibraryRepository>();
+    final notices = _maybeRead<UndoNoticeBloc>(context);
     (await library.change(<String>[id], change)).fold(
       (error) => _say(context, error.message),
-      (changed) => _offerUndo(context, changed),
+      (changed) => _offerUndo(context, notices, changed),
     );
   }
 
   /// Says what changed, with Undo when the change can be taken back.
-  static void _offerUndo(BuildContext context, Changed changed) {
+  /// [notices] is read before the change: the palette may be gone by now.
+  static void _offerUndo(
+    BuildContext context,
+    UndoNoticeBloc? notices,
+    Changed changed,
+  ) {
     final ticket = changed.undo;
-    if (ticket == null) {
+    if (ticket == null || notices == null) {
       _say(context, changed.message);
       return;
     }
-    context.read<UndoNoticeBloc>().add(
-      UndoNoticeEvent.shown(ticket, changed.message),
-    );
+    notices.add(UndoNoticeEvent.shown(ticket, changed.message));
   }
 
   static Future<void> _copyLink(

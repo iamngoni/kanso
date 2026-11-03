@@ -37,7 +37,7 @@ use crate::workspace::{
     AppState, CopyKansoLink, CopyNoteLink, Dictate, ExportNote, FocusEditor, FormatTable,
     NewDrawing, NewNote, OpenCommandPalette, OpenNotePicker, PastePlainText, SaveNote,
     SearchAllNotes, ShowBacklinks, ShowEditor, ShowHistory, ShowLive, ShowPreview, ShowSplit,
-    TogglePinned, TrashNote, Workspace,
+    TogglePinned, TrashNote, UndoLastChange, Workspace,
 };
 
 actions!(kanso, [OpenInNewWindow, OpenAsSticky, CloseNoteWindow]);
@@ -949,6 +949,11 @@ impl Render for NoteWindow {
             }))
             .on_action(cx.listener(|this, _: &TrashNote, window, cx| {
                 this.trash(window, cx);
+            }))
+            .on_action(cx.listener(|_, _: &UndoLastChange, window, cx| {
+                if !crate::note_batch::undo_latest(window, cx) {
+                    cx.propagate();
+                }
             }))
             .on_action(cx.listener(|this, _: &ShowHistory, window, cx| {
                 this.show_history(window, cx);

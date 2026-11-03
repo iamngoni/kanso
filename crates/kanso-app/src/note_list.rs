@@ -2475,6 +2475,7 @@ mod tests {
             use crate::workspace::{TrashNote, UndoLastChange};
 
             let f = setup(cx);
+            cx.update(crate::workspace::bind_keys);
             f.window
                 .update(cx, |_, window, _| window.activate_window())
                 .unwrap();
@@ -2488,12 +2489,30 @@ mod tests {
 
             cx.dispatch_action(f.window, TrashNote);
             assert_eq!(note(cx, &ids[0]).book_id, TRASH_BOOK_ID);
-
             // Cmd/Ctrl+Z, outside the note's text, brings it back, stamped now.
-            cx.dispatch_action(f.window, UndoLastChange);
+            cx.simulate_keystrokes(f.window, "cmd-z");
             let after = note(cx, &ids[0]);
             assert_eq!(after.book_id, before.book_id);
             assert!(after.updated_at >= before.updated_at);
+
+            // Once its notice is closed, Cmd/Ctrl+Z no longer takes it back.
+            click(&f, cx, &ids[0], Modifiers::none());
+            cx.dispatch_action(f.window, TrashNote);
+            assert_eq!(note(cx, &ids[0]).book_id, TRASH_BOOK_ID);
+            f.window
+                .update(cx, |_, window, cx| {
+                    gpui_kit::component::WindowExt::remove_notification::<kanso_engine::batch::Edit>(
+                        window, cx,
+                    )
+                })
+                .unwrap();
+            // The notice closes once its exit has played.
+            cx.background_executor
+                .advance_clock(std::time::Duration::from_secs(1));
+            f.draw(cx);
+            cx.run_until_parked();
+            cx.dispatch_action(f.window, UndoLastChange);
+            assert_eq!(note(cx, &ids[0]).book_id, TRASH_BOOK_ID);
         }
 
         // no-prop-test: drives the window with drags; the batch's properties

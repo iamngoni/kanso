@@ -131,13 +131,8 @@ class KansoShortcuts extends StatelessWidget {
               return null;
             },
           ),
-          UndoLastChangeIntent: CallbackAction<UndoLastChangeIntent>(
-            onInvoke: (_) {
-              context.read<UndoNoticeBloc>().add(
-                const UndoNoticeEvent.undoPressed(),
-              );
-              return null;
-            },
+          UndoLastChangeIntent: UndoLastChangeAction(
+            context.read<UndoNoticeBloc>(),
           ),
           ToggleFocusModeIntent: CallbackAction<ToggleFocusModeIntent>(
             onInvoke: (_) {
@@ -294,4 +289,36 @@ T? _maybeReadBloc<T>(BuildContext context) {
   } on ProviderNotFoundException {
     return null;
   }
+}
+
+/// Cmd/Ctrl+Z outside text: takes back the change whose Undo notice is up.
+///
+/// It stands aside (so the key goes on to the text's own Undo) while a
+/// text field has the keyboard, and when no notice is up.
+class UndoLastChangeAction extends Action<UndoLastChangeIntent> {
+  UndoLastChangeAction(this._notices);
+
+  final UndoNoticeBloc _notices;
+
+  @override
+  bool isEnabled(UndoLastChangeIntent intent, [BuildContext? context]) =>
+      _notices.state.notice != null && !textHasFocus();
+
+  @override
+  Object? invoke(UndoLastChangeIntent intent) {
+    _notices.add(const UndoNoticeEvent.undoPressed());
+    return null;
+  }
+}
+
+/// Whether the keyboard is in text with its own Undo: any field, the
+/// Markdown editor, the live editor (they all answer [UndoTextIntent]).
+bool textHasFocus() {
+  final focused = FocusManager.instance.primaryFocus?.context;
+  if (focused == null || !focused.mounted) {
+    return false;
+  }
+  return focused.widget is EditableText ||
+      focused.findAncestorStateOfType<EditableTextState>() != null ||
+      Actions.maybeFind<UndoTextIntent>(focused) != null;
 }

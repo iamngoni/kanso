@@ -14,7 +14,6 @@ use kanso_store::Store;
 use kanso_store::{NoteSummary, Origin};
 use serde_json::Value;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use crate::library::Library;
 
@@ -112,58 +111,67 @@ pub fn apply(
     for (feature, n) in tally {
         crate::metrics::record_n(cx, feature, n);
     }
-    remember(&store, &edits, cx);
+    let serial = remember(&store, &edits, cx);
     let notification =
         // Each batch's notice takes the place of the one before, so its
-        // Undo is always for the latest change.
+        // Undo is always for the latest change. A notice with an action
+        // never hides by itself: Cmd/Ctrl+Z works for exactly as long as
+        // it is up, and forgets the change when it closes.
         Notification::info(summary(&change, count, &place, on))
             .id::<Edit>()
+            .on_close(move |_, cx| forget(serial, cx))
             .action(move |_, _, _| {
                 let (store, edits) = (store.clone(), edits.clone());
                 Button::new("undo-notes")
                     .label("Undo")
                     .debug_selector(|| "undo-notes".into())
                     .on_click(move |_, window, cx| {
-                        cx.set_global(Latest(None));
+                        forget(serial, cx);
                         undo_edits(&store, &edits, window, cx);
                     })
             });
     window.push_notification(notification, cx);
 }
 
-/// How long a change's notice stays up, and so how long Cmd/Ctrl+Z outside
-/// the note's text still takes it back.
-pub const NOTICE_SECS: u64 = 5;
-
-/// The latest batch change whose notice is up.
-struct Latest(Option<(Instant, Arc<Store>, Vec<Edit>)>);
+/// The latest batch change whose notice is up, with its serial.
+#[derive(Default)]
+struct Latest {
+    serial: u64,
+    change: Option<(Arc<Store>, Vec<Edit>)>,
+}
 
 impl Global for Latest {}
 
-fn remember(store: &Arc<Store>, edits: &[Edit], cx: &mut App) {
-    cx.set_global(Latest(Some((
-        Instant::now(),
-        store.clone(),
-        edits.to_vec(),
-    ))));
+/// Keeps the change for Cmd/Ctrl+Z; its serial.
+fn remember(store: &Arc<Store>, edits: &[Edit], cx: &mut App) -> u64 {
+    let latest = cx.default_global::<Latest>();
+    latest.serial += 1;
+    latest.change = Some((store.clone(), edits.to_vec()));
+    latest.serial
 }
 
-/// Whether a change `since` ago still has its notice up. Pure.
-pub fn notice_is_up(since: Duration) -> bool {
-    since < Duration::from_secs(NOTICE_SECS)
+/// Drops change `serial`, unless a later one has taken its place (the
+/// notice it replaced closes after the new change is kept).
+fn forget(serial: u64, cx: &mut App) {
+    let latest = cx.default_global::<Latest>();
+    if is_current(latest.serial, serial) {
+        latest.change = None;
+    }
+}
+
+/// Whether the notice of change `serial` is the latest one. Pure.
+pub fn is_current(latest: u64, serial: u64) -> bool {
+    latest == serial
 }
 
 /// Takes back the latest change (a trash, a move, any batch) while its
 /// notice is up. Whether there was one.
 pub fn undo_latest(window: &mut Window, cx: &mut App) -> bool {
-    let latest = cx.try_global::<Latest>().and_then(|l| l.0.clone());
-    let Some((at, store, edits)) = latest else {
+    let Some((store, edits)) = cx.default_global::<Latest>().change.take() else {
         return false;
     };
-    cx.set_global(Latest(None));
-    if !notice_is_up(at.elapsed()) {
-        return false;
-    }
+    // Cmd/Ctrl+Z took it back: its notice goes too.
+    window.remove_notification::<Edit>(cx);
     undo_edits(&store, &edits, window, cx);
     true
 }
@@ -213,19 +221,15 @@ fn summary_of(note: &kanso_core::Note) -> NoteSummary {
 mod tests {
     use proptest::prelude::*;
 
-    use super::{NOTICE_SECS, notice_is_up};
-    use std::time::Duration;
+    use super::is_current;
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
-        /// The notice is up for exactly `NOTICE_SECS`, whatever the time.
+        /// Closing an older notice never forgets a newer change.
         #[test]
-        fn notice_is_up_only_within_its_time(ms in 0u64..20_000) {
-            prop_assert_eq!(
-                notice_is_up(Duration::from_millis(ms)),
-                ms < NOTICE_SECS * 1000
-            );
+        fn only_the_latest_notice_forgets(latest in 0u64..1000, serial in 0u64..1000) {
+            prop_assert_eq!(is_current(latest, serial), latest == serial);
         }
     }
 }
