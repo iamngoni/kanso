@@ -125,11 +125,14 @@ pub struct NotebookPage {
     memo: Arc<Memo>,
 }
 
+/// Each note's `(unchecked, all)` tasks, by note ID.
+type TaskCounts = HashMap<String, (u32, u32)>;
+
 /// What a page has read of its notebook (see [`NotebookPage`]).
 #[derive(Debug, Default)]
 struct Memo {
     scan: Mutex<Option<Arc<HomeScan>>>,
-    tasks: Mutex<Option<Arc<HashMap<String, (u32, u32)>>>>,
+    tasks: Mutex<Option<Arc<TaskCounts>>>,
     home: Mutex<Option<Option<HomeNoteMark>>>,
 }
 
@@ -214,7 +217,7 @@ impl NotebookPage {
     }
 
     /// Each note's `(unchecked, all)` tasks, read once.
-    fn task_counts(&self, store: &Store) -> kanso_store::Result<Arc<HashMap<String, (u32, u32)>>> {
+    fn task_counts(&self, store: &Store) -> kanso_store::Result<Arc<TaskCounts>> {
         let scan = self.scan(store)?;
         kept(&self.memo.tasks, || {
             store.home_task_counts_in(&scan).map(Arc::new)

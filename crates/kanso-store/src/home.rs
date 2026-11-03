@@ -278,10 +278,7 @@ impl Store {
 
     /// The links the subtree's notes make: `(from, target ID, wiki-link
     /// title)`, each note's in order.
-    fn home_links_in(
-        &self,
-        scan: &HomeScan,
-    ) -> Result<Vec<(String, Option<String>, Option<String>)>> {
+    fn home_links_in(&self, scan: &HomeScan) -> Result<Vec<HomeLink>> {
         if scan.notes.is_empty() {
             return Ok(Vec::new());
         }
@@ -659,3 +656,6 @@ impl Store {
         })
     }
 }
+
+/// One link a subtree note makes: `(from, target ID, wiki-link title)`.
+type HomeLink = (String, Option<String>, Option<String>);

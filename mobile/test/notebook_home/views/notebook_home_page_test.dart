@@ -375,7 +375,7 @@ void main() {
       expect(find.text(english), findsNothing, reason: english);
     }
     expect(find.text('Schreib das'), findsOneWidget);
-    expect(find.text('Frag das Notizbuch'), findsOneWidget);
+    expect(find.bySemanticsLabel('Frag das Notizbuch'), findsOneWidget);
   });
 
   testWidgets('the menu chooses a Home note and customises the layout', (
