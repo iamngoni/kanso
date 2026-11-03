@@ -104,6 +104,27 @@ pub fn previous_of(turns: &[AskedTurn]) -> Option<Previous> {
     })
 }
 
+/// What [`Conversation::begin`] did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Began {
+    /// The conversation goes on.
+    Continued,
+    /// It was asked under something else (another provider, URL or model)
+    /// and started over.
+    Restarted,
+    /// A note it drew on was locked, trashed or tagged `#ai-exclude` since:
+    /// the whole conversation ended, as a lock ends it, so nothing that was
+    /// said with that note in it is resent.
+    KeptOut,
+}
+
+impl Began {
+    /// Whether the earlier exchanges are gone.
+    pub fn ended(self) -> bool {
+        self != Began::Continued
+    }
+}
+
 /// An Ask conversation: the exchanges so far, the notes they drew on, and
 /// what it was asked under.
 #[derive(Debug, Default)]
@@ -120,8 +141,8 @@ impl Conversation {
     /// Gets the conversation ready for a question asked under `identity`. A
     /// different identity forgets every exchange; then exchanges whose notes
     /// may no longer be sent are dropped and the history is capped. Returns
-    /// whether the conversation was started over.
-    pub fn begin(&mut self, identity: &str, store: &Store) -> bool {
+    /// how it went: a note it drew on that may no longer be sent ends it.
+    pub fn begin(&mut self, identity: &str, store: &Store) -> Began {
         let restarted = self
             .identity
             .as_deref()
@@ -130,11 +151,24 @@ impl Conversation {
             self.clear();
         }
         self.identity = Some(identity.to_owned());
+        let before = self.turns.len();
         self.turns = eligible_turns(std::mem::take(&mut self.turns), store);
+        let kept_out = self.turns.len() != before
+            || self
+                .used
+                .iter()
+                .any(|excerpt| !note_is_eligible(store, &excerpt.id));
+        if kept_out {
+            self.clear();
+            self.identity = Some(identity.to_owned());
+            return Began::KeptOut;
+        }
         self.turns = cap_history(std::mem::take(&mut self.turns), HISTORY_BUDGET);
-        self.used
-            .retain(|excerpt| note_is_eligible(store, &excerpt.id));
-        restarted
+        if restarted {
+            Began::Restarted
+        } else {
+            Began::Continued
+        }
     }
 
     /// The exchanges to resend with the next question.
@@ -321,11 +355,14 @@ mod tests {
     fn a_different_identity_starts_the_conversation_over() {
         let (_dir, store, note) = pricing();
         let mut conversation = Conversation::default();
-        assert!(!conversation.begin("local|http://a|m", &store));
+        assert!(!conversation.begin("local|http://a|m", &store).ended());
         conversation.finish("q".into(), "a".into(), vec![note]);
         assert!(!conversation.begin("local|http://a|m", &store));
         assert_eq!(conversation.history().len(), 1);
-        assert!(conversation.begin("openai|http://a|m", &store));
+        assert_eq!(
+            conversation.begin("openai|http://a|m", &store),
+            Began::Restarted
+        );
         assert!(conversation.history().is_empty());
     }
 
@@ -353,8 +390,62 @@ mod tests {
                 Origin::Sync,
             )
             .unwrap();
-        conversation.begin("x", &store);
+        assert_eq!(conversation.begin("x", &store), Began::KeptOut);
         assert!(conversation.turns().is_empty());
         assert!(conversation.used().is_empty());
+    }
+
+    // no-prop-test: a tag changes eligibility; one fixed library.
+    #[test]
+    fn a_note_tagged_ai_exclude_ends_the_conversation_that_used_it() {
+        let (_dir, store, note) = pricing();
+        let other = store
+            .put(
+                DocType::Note,
+                json!({"title": "Other", "body": "text"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let mut conversation = Conversation::default();
+        assert_eq!(conversation.begin("x", &store), Began::Continued);
+        for (question, id) in [("one", &note), ("two", &other)] {
+            let mut notes = Vec::new();
+            conversation.note_used(
+                &mut notes,
+                vec![Excerpt {
+                    id: id.clone(),
+                    title: "T".into(),
+                    text: "t".into(),
+                    ..Excerpt::default()
+                }],
+            );
+            conversation.finish(question.into(), "a".into(), notes);
+        }
+        let tag = store
+            .put(
+                DocType::Tag,
+                json!({"name": "AI-Exclude"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": note, "tags": [tag]}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+        // Not just that turn: the whole conversation, and what it linked.
+        assert_eq!(conversation.begin("x", &store), Began::KeptOut);
+        assert!(conversation.turns().is_empty());
+        assert!(conversation.history().is_empty());
+        assert!(conversation.used().is_empty());
+        // And a new one starts clean.
+        assert_eq!(conversation.begin("x", &store), Began::Continued);
     }
 }

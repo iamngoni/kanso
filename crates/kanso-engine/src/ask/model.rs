@@ -270,6 +270,10 @@ pub const CHECKING: &str = "Checking the sources…";
 pub const SEARCHING: &str = "Searching your notes…";
 /// While the model writes.
 pub const WRITING: &str = "Writing the answer…";
+/// Said when a conversation ended because a note it used is now kept out of
+/// AI (locked, in the trash or tagged `#ai-exclude`).
+pub const KEPT_OUT_ENDED: &str =
+    "A note this conversation used is now kept out of AI, so the conversation started over.";
 /// The notes quietly changed since the answer.
 pub const LINES_CHANGED: &str = "These lines have changed since the answer was written.";
 

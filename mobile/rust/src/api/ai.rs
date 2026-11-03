@@ -209,6 +209,13 @@ impl From<CoreAskClosest> for AskClosest {
     }
 }
 
+/// Where a receipt's lines are now, 0-based and inclusive.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AskLines {
+    pub start: u32,
+    pub end: u32,
+}
+
 /// The time a question was understood to be about.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AskTime {
@@ -259,6 +266,9 @@ pub enum AskEvent {
     Time {
         time: AskTime,
     },
+    Restarted {
+        line: String,
+    },
     Done {
         markdown: String,
         notes: Vec<AskNote>,
@@ -266,6 +276,7 @@ pub enum AskEvent {
         also_read: Vec<AskNote>,
         banner: String,
         unverified: u32,
+        no_source: u32,
         never_wrote: bool,
         closest: Vec<AskClosest>,
         time: Option<AskTime>,
@@ -293,6 +304,7 @@ impl From<CoreAskEvent> for AskEvent {
             CoreAskEvent::Status { line } => AskEvent::Status { line },
             CoreAskEvent::Answer { markdown } => AskEvent::Answer { markdown },
             CoreAskEvent::Time { time } => AskEvent::Time { time: time.into() },
+            CoreAskEvent::Restarted { line } => AskEvent::Restarted { line },
             CoreAskEvent::Done {
                 markdown,
                 notes,
@@ -300,6 +312,7 @@ impl From<CoreAskEvent> for AskEvent {
                 also_read,
                 banner,
                 unverified,
+                no_source,
                 never_wrote,
                 closest,
                 time,
@@ -310,6 +323,7 @@ impl From<CoreAskEvent> for AskEvent {
                 also_read: also_read.into_iter().map(AskNote::from).collect(),
                 banner,
                 unverified,
+                no_source,
                 never_wrote,
                 closest: closest.into_iter().map(AskClosest::from).collect(),
                 time: time.map(AskTime::from),
@@ -396,6 +410,25 @@ impl KansoAi {
 
     pub fn note_allowed(&self, id: String) -> Result<bool, KansoError> {
         self.0.note_allowed(&id)
+    }
+
+    /// Where the lines a receipt pointed at are now, or `None` when they
+    /// are gone.
+    pub fn relocate_receipt(
+        &self,
+        note_id: String,
+        start: u32,
+        end: u32,
+        quote: String,
+    ) -> Result<Option<AskLines>, KansoError> {
+        self.0
+            .relocate_receipt(&note_id, start, end, &quote)
+            .map(|found| {
+                found.map(|lines| AskLines {
+                    start: lines.start,
+                    end: lines.end,
+                })
+            })
     }
 
     /// What a question can be limited to: all notes, notebooks, tags.

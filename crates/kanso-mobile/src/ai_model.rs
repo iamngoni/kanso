@@ -107,6 +107,13 @@ pub struct AskTime {
     pub relaxed_line: String,
 }
 
+/// Where a receipt's lines are now, 0-based and inclusive.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AskLines {
+    pub start: u32,
+    pub end: u32,
+}
+
 /// A provider to choose from, as the desktop's Settings › AI describes it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AiProviderInfo {
@@ -166,6 +173,9 @@ pub enum AskEvent {
     Answer { markdown: String },
     /// The time the question was understood to be about.
     Time { time: AskTime },
+    /// A note the earlier exchanges used is now kept out of AI, so they were
+    /// forgotten: drop them from the screen and say `line`.
+    Restarted { line: String },
     /// The answer is complete and its receipts were checked. `notes` are all
     /// the notes it drew on; `also_read` the ones it did not cite.
     Done {
@@ -177,6 +187,8 @@ pub enum AskEvent {
         banner: String,
         /// How many sentences are marked as not found.
         unverified: u32,
+        /// How many sentences cite nothing in an answer that cites elsewhere.
+        no_source: u32,
         /// The notes do not hold the answer: "You never wrote that down."
         never_wrote: bool,
         closest: Vec<AskClosest>,

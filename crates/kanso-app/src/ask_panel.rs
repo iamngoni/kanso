@@ -257,13 +257,13 @@ impl AskPanel {
         if self.editor.read(cx).lock_view() != crate::locked::LockView::Plain {
             self.clear_conversation();
         }
-        self.begin_conversation(&ai);
+        let ended = self.begin_conversation(&ai);
 
         self.asked = true;
         self.answer.clear();
         self.nothing = None;
         self.error = None;
-        self.notice = None;
+        self.notice = ended.then(|| ask::KEPT_OUT_ENDED.to_owned());
         self.cut_off = false;
         self.searching = true;
         self.time = None;
@@ -395,13 +395,21 @@ impl AskPanel {
     /// Starts the conversation, or carries it on: another provider, URL or
     /// model begins a new one, and an exchange whose notes can no longer be
     /// sent is dropped.
-    fn begin_conversation(&mut self, ai: &crate::config::AiSettings) {
+    fn begin_conversation(&mut self, ai: &crate::config::AiSettings) -> bool {
         let key = ConversationKey::of(ai);
         if self.key.as_ref().is_some_and(|last| last != &key) {
             self.clear_conversation();
         }
+        let mut ended = false;
         let before = self.conversation.turns().len();
-        self.conversation.begin(&key.identity(), &self.store);
+        let began = self.conversation.begin(&key.identity(), &self.store);
+        if began == ask::Began::KeptOut {
+            // A note it used was kept out since: the conversation ends, with
+            // its agent session and what is shown.
+            self.clear_conversation();
+            self.conversation.begin(&key.identity(), &self.store);
+            ended = true;
+        }
         if self.conversation.turns().len() != before {
             // The agent's session holds what those turns said: it ends, and
             // the next question starts one with only what is still allowed.
@@ -420,6 +428,7 @@ impl AskPanel {
             self.exchanges
                 .retain(|exchange| questions.contains(&exchange.question.as_str()));
         }
+        ended
     }
 
     /// Carries what the worker says into the panel until the request is
@@ -576,7 +585,7 @@ impl AskPanel {
         };
         // The same conversation rules as a question: another backend or model
         // starts afresh, and what can no longer be sent is dropped.
-        self.begin_conversation(&ai);
+        let _ = self.begin_conversation(&ai);
         self.asked = true;
         self.answer.clear();
         self.nothing = None;

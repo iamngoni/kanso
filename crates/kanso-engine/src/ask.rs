@@ -18,7 +18,7 @@ mod tools;
 mod turn;
 
 pub use conversation::{
-    AskedTurn, Conversation, HISTORY_BUDGET, cap_history, eligible_turns, record_turn_notes,
+    AskedTurn, Began, Conversation, HISTORY_BUDGET, cap_history, eligible_turns, record_turn_notes,
 };
 pub use model::*;
 pub use receipts::{check, relocate};

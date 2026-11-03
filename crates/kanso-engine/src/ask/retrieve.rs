@@ -856,7 +856,14 @@ pub fn retrieve_with(store: &Store, request: &AskRequest) -> Result<Retrieval, A
     let books = book_paths(store);
     let excerpts: Vec<Excerpt> = picks
         .iter()
-        .map(|pick| excerpt_of(&owned[pick.index], &pick.passages, request.utc_offset_ms, &books))
+        .map(|pick| {
+            excerpt_of(
+                &owned[pick.index],
+                &pick.passages,
+                request.utc_offset_ms,
+                &books,
+            )
+        })
         .collect();
     let mut ranked: Vec<&Pick> = picks.iter().collect();
     ranked.sort_by(|a, b| b.best.total_cmp(&a.best));

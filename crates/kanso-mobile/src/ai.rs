@@ -27,6 +27,8 @@
 //! notes with their titles.
 
 use std::path::PathBuf;
+
+use crate::AskLines;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -299,6 +301,38 @@ impl AiHandle {
         })
     }
 
+    /// Where the lines a receipt pointed at are now, when the note has
+    /// changed since the answer: at the same lines, else found again by what
+    /// they said. `None` when they are gone, or the note can't be read (a
+    /// locked note reads as empty).
+    pub fn relocate_receipt(
+        &self,
+        note_id: &str,
+        start: u32,
+        end: u32,
+        quote: &str,
+    ) -> Result<Option<AskLines>, KansoError> {
+        guard(|| {
+            let body = self
+                .inner
+                .store
+                .note(note_id)
+                .map_err(|err| KansoError::storage(err.to_string()))?
+                .map(|note| note.body)
+                .unwrap_or_default();
+            let receipt = ask::Receipt {
+                n: 1,
+                note_id: note_id.to_owned(),
+                title: String::new(),
+                updated: None,
+                start,
+                end,
+                quote: quote.to_owned(),
+            };
+            Ok(ask::relocate(&body, &receipt).map(|(start, end)| AskLines { start, end }))
+        })
+    }
+
     /// Whether note `id` may be sent to AI: it isn't locked (even if the lock
     /// is open), isn't in the trash and isn't tagged `#ai-exclude`. The shell
     /// uses it to show or hide the AI actions.
@@ -554,11 +588,15 @@ impl AskConversation {
             self.stop();
             // A different provider, address or model is a different
             // conversation; what can no longer be sent is dropped.
-            let (history, previous) = {
+            let (history, previous, began) = {
                 let mut turns = held(&self.turns);
-                turns.begin(&identity(&settings), &self.ai.inner.store);
-                (turns.history(), turns.previous())
+                let began = turns.begin(&identity(&settings), &self.ai.inner.store);
+                (turns.history(), turns.previous(), began)
             };
+            if began == ask::Began::KeptOut {
+                // The earlier exchanges used a note that is now kept out.
+                *held(&self.last) = None;
+            }
             let offset_ms = i64::from(utc_offset_minutes) * 60_000;
             let mut request = ask::AskRequest::new(
                 &question,
@@ -574,6 +612,11 @@ impl AskConversation {
             let cancel = Arc::new(AtomicBool::new(false));
             *held(&self.running) = Some(cancel.clone());
             let emitter = Arc::new(Emitter::new(sink, cancel.clone()));
+            if began == ask::Began::KeptOut {
+                emitter.send(AskEvent::Restarted {
+                    line: ask::KEPT_OUT_ENDED.to_owned(),
+                });
+            }
             let worker = Question {
                 emitter: emitter.clone(),
                 cancel,
@@ -747,6 +790,7 @@ impl Question {
                         also_read: notes_of(&done.also_read),
                         banner: done.banner.map(|b| b.text().to_owned()).unwrap_or_default(),
                         unverified: done.unverified as u32,
+                        no_source: done.no_source as u32,
                         never_wrote: done.not_in_notes,
                         closest: done
                             .closest

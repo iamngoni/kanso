@@ -411,7 +411,13 @@ fn an_exchange_whose_note_gets_locked_is_forgotten() {
         .unwrap();
     // The next question (about something else) drops the exchange first.
     note(&phone.library, "Garden", "Tomatoes need staking in July.");
-    ask(&ai, &conversation, "tomatoes staking");
+    let events = ask(&ai, &conversation, "tomatoes staking");
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, AskEvent::Restarted { .. })),
+        "{events:?}"
+    );
     assert_eq!(conversation.turn_count(), 1);
     let sent = model.sent.lock().unwrap().last().cloned().unwrap();
     assert!(!sent.contains("The plan costs 40 dollars, see"), "{sent}");
@@ -700,4 +706,110 @@ fn the_ask_settings_round_trip_and_state_their_cost() {
         now.budget_words_line,
         "About 7,500 words of your notes per question."
     );
+}
+
+/// Writes a note's body straight into the store.
+fn set_body(phone: &Phone, id: &str, body: &str) {
+    Store::open(phone.path())
+        .unwrap()
+        .put(
+            DocType::Note,
+            json!({"_id": id, "body": body}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+}
+
+// no-prop-test: one scripted answer with a cited and an uncited sentence.
+#[test]
+fn a_sentence_with_no_source_is_counted_in_an_answer_that_cites() {
+    let model = Scripted::new(
+        "We decided the yearly plan costs 40 dollars [1:L1]. It will probably go up someday.",
+    );
+    let (phone, ai) = ai_phone(&model);
+    note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let events = ask(&ai, &ai.conversation(), "yearly plan pricing decision");
+    let Some(AskEvent::Done {
+        markdown,
+        no_source,
+        unverified,
+        ..
+    }) = events.last()
+    else {
+        panic!("{events:?}");
+    };
+    assert_eq!((*no_source, *unverified), (1, 0), "{markdown}");
+    assert!(markdown.contains("kanso-nosource:"), "{markdown}");
+}
+
+// no-prop-test: a note gets #ai-exclude between two questions.
+#[test]
+fn a_note_that_gets_ai_exclude_ends_the_conversation_that_used_it() {
+    let model = Scripted::new("The plan costs 40 dollars, see [[Pricing]].");
+    let (phone, ai) = ai_phone(&model);
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "The yearly plan costs 40 dollars.",
+    );
+    note(&phone.library, "Garden", "Tomatoes need staking in July.");
+    let conversation = ai.conversation();
+    let first = ask(&ai, &conversation, "yearly plan pricing");
+    assert!(
+        !first
+            .iter()
+            .any(|e| matches!(e, AskEvent::Restarted { .. }))
+    );
+    let store = Store::open(phone.path()).unwrap();
+    let exclude = tag(&store, "AI-Exclude");
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "tags": [exclude]}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let second = ask(&ai, &conversation, "tomatoes staking");
+    assert!(
+        second
+            .iter()
+            .any(|e| matches!(e, AskEvent::Restarted { .. })),
+        "{second:?}"
+    );
+    assert_eq!(conversation.turn_count(), 1, "only the new exchange");
+    let sent = model.sent.lock().unwrap().last().cloned().unwrap();
+    assert!(!sent.contains("The plan costs 40 dollars, see"), "{sent}");
+}
+
+// no-prop-test: lines that moved, and lines that are gone.
+#[test]
+fn a_receipts_lines_are_found_again_after_the_note_changes() {
+    let phone = lone_phone();
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "We chose the yearly plan.\n40 dollars a year.\nBilled once.",
+    );
+    let ai = phone.library.ai();
+    let quote = "40 dollars a year.";
+    // Unchanged: the same lines.
+    let same = ai.relocate_receipt(&id, 1, 1, quote).unwrap().unwrap();
+    assert_eq!((same.start, same.end), (1, 1));
+    // Lines added above: found where they are now.
+    set_body(
+        &phone,
+        &id,
+        "Intro line.\nAnother.\nWe chose the yearly plan.\n40 dollars a year.\nBilled once.",
+    );
+    let moved = ai.relocate_receipt(&id, 1, 1, quote).unwrap().unwrap();
+    assert_eq!((moved.start, moved.end), (3, 3));
+    // Gone.
+    set_body(&phone, &id, "Nothing about money here.");
+    assert_eq!(ai.relocate_receipt(&id, 1, 1, quote).unwrap(), None);
 }
