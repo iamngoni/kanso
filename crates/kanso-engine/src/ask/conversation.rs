@@ -402,10 +402,19 @@ mod tests {
     #[test]
     fn a_note_tagged_ai_exclude_ends_the_conversation_that_used_it() {
         let (_dir, store, note) = pricing();
+        let book = store
+            .put(
+                DocType::Book,
+                json!({"name": "Other notes"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
         let other = store
             .put(
                 DocType::Note,
-                json!({"title": "Other", "body": "text"}),
+                json!({"title": "Other", "body": "text", "bookId": book}),
                 Put::Upsert,
                 Origin::Ui,
             )
