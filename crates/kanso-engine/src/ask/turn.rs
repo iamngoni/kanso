@@ -67,6 +67,8 @@ pub struct Finished {
     pub time: Option<TimeNote>,
     /// How many sentences are marked as not found.
     pub unverified: usize,
+    /// How many sentences cite nothing in an answer that cites elsewhere.
+    pub no_source: usize,
     /// The model's words as they came, markers included.
     pub raw: String,
     /// Receipts were not checked (the setting is off).
@@ -171,6 +173,7 @@ pub fn finalize(raw: &str, shown: &Shown, check_sources: bool, retrieval: &Retri
         closest: retrieval.closest.clone(),
         time: retrieval.time.clone(),
         unverified: checked.unsupported.len(),
+        no_source: checked.uncited.len(),
         raw: raw.to_owned(),
         unchecked: false,
     }

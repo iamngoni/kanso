@@ -16,7 +16,8 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
 use super::model::{
-    CITE_PREFIX, Checked, NOT_FOUND_LABEL, Receipt, ShownExcerpt, UNVERIFIED_PREFIX,
+    CITE_PREFIX, Checked, NO_SOURCE_PREFIX, NOT_FOUND_LABEL, Receipt, ShownExcerpt,
+    UNVERIFIED_PREFIX,
 };
 use super::{content_words, stem};
 
@@ -69,6 +70,7 @@ pub fn check(answer: &str, shown: &[ShownExcerpt]) -> Checked {
     let mut out = String::with_capacity(answer.len() + 32);
     let mut receipts: Vec<Receipt> = Vec::new();
     let mut unsupported = Vec::new();
+    let mut uncited = Vec::new();
     let mut claims = 0;
     let mut numbers: HashMap<(String, u32, u32), usize> = HashMap::new();
 
@@ -117,6 +119,14 @@ pub fn check(answer: &str, shown: &[ShownExcerpt]) -> Checked {
                 }
             }
         }
+        if !had_marker {
+            // A candidate for "no source": judged once the whole answer is
+            // known to carry receipts.
+            let text = &out[text_start..];
+            if let Some(range) = uncited_range(text, !words.is_empty()) {
+                uncited.push(text_start + range.start..text_start + range.end);
+            }
+        }
         if had_marker {
             claims += 1;
             if survivors == 0 {
@@ -133,18 +143,57 @@ pub fn check(answer: &str, shown: &[ShownExcerpt]) -> Checked {
     let markdown = neutralise_markers(&out);
     // Neutralising only inserts backslashes, which moves nothing before a
     // range's start by more than the insertions before it.
-    let unsupported = if markdown.len() == out.len() {
-        unsupported
+    // Only an answer that cites something is held to citing everything.
+    let uncited = if claims == 0 { Vec::new() } else { uncited };
+    let (unsupported, uncited) = if markdown.len() == out.len() {
+        (unsupported, uncited)
     } else {
-        remap(&out, &markdown, unsupported)
+        let both = unsupported.len();
+        let mut all = unsupported;
+        all.extend(uncited);
+        let mut all = remap(&out, &markdown, all);
+        let uncited = all.split_off(both);
+        (all, uncited)
     };
     Checked {
         markdown,
         receipts,
         unsupported,
+        uncited,
         not_in_notes: false,
         claims,
     }
+}
+
+/// The part of `text` (one sentence, with its spaces) that should carry a
+/// "no source" mark if the answer cites elsewhere, or `None` for what is not
+/// a claim: a heading, a list's lead-in ending in a colon, a table row, a
+/// code fence, or a line with no word of substance. A list bullet or number
+/// is left out of the range.
+fn uncited_range(text: &str, has_words: bool) -> Option<Range<usize>> {
+    let lead = text.len() - text.trim_start().len();
+    let trail = text.trim_end().len();
+    if trail <= lead || !has_words {
+        return None;
+    }
+    let body = &text[lead..trail];
+    if body.starts_with(['#', '|', '>']) || body.starts_with("```") || body.ends_with(':') {
+        return None;
+    }
+    // Leave a list marker (`- `, `* `, `1. `) outside the range.
+    let marker = {
+        let rest = body.trim_start_matches(|c: char| c.is_ascii_digit());
+        let digits = body.len() - rest.len();
+        if digits > 0 && rest.starts_with(". ") {
+            digits + 2
+        } else if body.starts_with("- ") || body.starts_with("* ") || body.starts_with("+ ") {
+            2
+        } else {
+            0
+        }
+    };
+    let start = lead + marker;
+    (trail > start).then_some(start..trail)
 }
 
 /// Whether the whole answer is the sentinel, in any case and with the quotes,
@@ -384,26 +433,21 @@ fn clear(marker: &Marker, shown: &[ShownExcerpt]) -> Option<Cleared> {
     let excerpt = shown.iter().find(|s| s.number == marker.excerpt)?;
     // The prompt counts from 1; notes count from 0.
     let (first, last) = (marker.first - 1, marker.last - 1);
+    // A longer range is cut to its first lines; the cut range is then held
+    // to the same rule as any other.
+    let last = last.min(first + MAX_RANGE - 1);
     let wanted: Vec<&(u32, String)> = excerpt
         .lines
         .iter()
         .filter(|(n, _)| (first..=last).contains(n))
         .collect();
     let span = last - first + 1;
-    let lines: Vec<(u32, String)> = if span <= MAX_RANGE {
-        // Every line of a short range must have been shown: a gap or a line
-        // past the end makes it invalid.
-        if wanted.len() as u32 != span {
-            return None;
-        }
-        wanted.into_iter().cloned().collect()
-    } else {
-        wanted
-            .into_iter()
-            .take(MAX_RANGE as usize)
-            .cloned()
-            .collect()
-    };
+    // Every line of the range must have been shown: a gap or a line past
+    // the end makes it invalid.
+    if wanted.len() as u32 != span {
+        return None;
+    }
+    let lines: Vec<(u32, String)> = wanted.into_iter().cloned().collect();
     let (start, end) = (lines.first()?.0, lines.last()?.0);
     Some(Cleared {
         excerpt: marker.excerpt,
@@ -579,20 +623,34 @@ impl Checked {
     pub fn display_markdown(&self) -> String {
         let mut out = String::with_capacity(self.markdown.len() + 64);
         let mut at = 0;
-        for (k, range) in self.unsupported.iter().enumerate() {
+        // Both kinds of mark, in the order they sit in the answer.
+        let mut marks: Vec<(&Range<usize>, bool)> = self
+            .unsupported
+            .iter()
+            .map(|r| (r, true))
+            .chain(self.uncited.iter().map(|r| (r, false)))
+            .collect();
+        marks.sort_by_key(|(range, _)| range.start);
+        for (k, (range, failed)) in marks.into_iter().enumerate() {
+            if range.start < at {
+                continue;
+            }
             let sentence = &self.markdown[range.clone()];
             out.push_str(&self.markdown[at..range.start]);
             let plain = !sentence.contains(['[', ']', '`', '\n', '\\', '*', '_', '<', '>', '|']);
+            let prefix = if failed {
+                UNVERIFIED_PREFIX
+            } else {
+                NO_SOURCE_PREFIX
+            };
             if plain {
-                out.push_str(&format!(
-                    "[{}]({UNVERIFIED_PREFIX}{})",
-                    sentence.trim(),
-                    k + 1
-                ));
+                out.push_str(&format!("[{}]({prefix}{})", sentence.trim(), k + 1));
             } else {
                 out.push_str(sentence);
             }
-            out.push_str(&format!(" *{NOT_FOUND_LABEL}*"));
+            if failed {
+                out.push_str(&format!(" *{NOT_FOUND_LABEL}*"));
+            }
             at = range.end;
         }
         out.push_str(&self.markdown[at..]);
@@ -913,6 +971,120 @@ mod tests {
             let at = found.0 as usize;
             prop_assert_eq!(found.1 as usize, at + width - 1);
             prop_assert_eq!(&moved[at..at + width], &quoted[..]);
+        }
+    }
+}
+
+#[cfg(test)]
+mod uncited_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn notes() -> Vec<ShownExcerpt> {
+        vec![ShownExcerpt {
+            number: 1,
+            id: "note:pricing".into(),
+            title: "Pricing".into(),
+            updated: None,
+            lines: vec![
+                (0, "We chose the yearly plan.".into()),
+                (1, "40 dollars a year.".into()),
+            ],
+        }]
+    }
+
+    fn text_of(checked: &Checked, ranges: &[Range<usize>]) -> Vec<String> {
+        ranges
+            .iter()
+            .map(|r| checked.markdown[r.clone()].trim().to_owned())
+            .collect()
+    }
+
+    // no-prop-test: the property for ranges is below; this pins the cases.
+    #[test]
+    fn a_sentence_without_a_marker_in_a_cited_answer_has_no_source() {
+        let checked = check(
+            "We chose the yearly plan [1:L1]. It will probably rise someday.",
+            &notes(),
+        );
+        assert_eq!(
+            text_of(&checked, &checked.uncited),
+            vec!["It will probably rise someday."]
+        );
+        let shown = checked.display_markdown();
+        assert!(
+            shown.contains("[It will probably rise someday.](kanso-nosource:1)"),
+            "{shown}"
+        );
+        // No label: it is lighter than a failed sentence.
+        assert!(!shown.contains(NOT_FOUND_LABEL));
+    }
+
+    // no-prop-test: fixed shapes of what is not a claim.
+    #[test]
+    fn headings_lead_ins_and_tables_are_not_claims() {
+        let checked = check(
+            "# What we chose\n\nWe chose the yearly plan [1:L1].\n\nThe reasons:\n\n- It is cheaper per month\n\n| a | b |\n",
+            &notes(),
+        );
+        assert_eq!(
+            text_of(&checked, &checked.uncited),
+            vec!["It is cheaper per month"],
+            "the bullet is a claim, its marker is not part of it"
+        );
+    }
+
+    // no-prop-test: an answer with no receipt at all is the repair's case.
+    #[test]
+    fn an_answer_with_no_marker_marks_nothing() {
+        let checked = check("The plan is yearly. It costs forty dollars.", &notes());
+        assert!(checked.uncited.is_empty());
+        assert!(checked.has_no_sources());
+    }
+
+    // no-prop-test: the gap rule on a cut range, fixed.
+    #[test]
+    fn a_long_range_with_a_gap_in_its_first_lines_is_invalid() {
+        let lines: Vec<(u32, String)> = (0..10).map(|n| (n, format!("plan {n}"))).collect();
+        let excerpt = ShownExcerpt {
+            number: 1,
+            id: "note:x".into(),
+            title: "X".into(),
+            updated: None,
+            lines,
+        };
+        // Cut to lines 1-15, of which only 1-10 were shown.
+        let checked = check(
+            "The plan is here [1:L1-30].",
+            std::slice::from_ref(&excerpt),
+        );
+        assert!(checked.receipts.is_empty());
+        assert_eq!(checked.unsupported.len(), 1);
+        // A range inside what was shown still stands.
+        let ok = check("The plan is here [1:L1-10].", &[excerpt]);
+        assert_eq!(ok.receipts.len(), 1);
+    }
+
+    proptest! {
+        /// Every uncited range is real text of the answer, outside any
+        /// unsupported range, and none is found when nothing is cited.
+        #[test]
+        fn prop_uncited_ranges_are_sentences_of_a_cited_answer(
+            a in "[A-Za-z ]{8,40}", b in "[A-Za-z ]{8,40}", cite in proptest::bool::ANY,
+        ) {
+            let answer = if cite {
+                format!("We chose the yearly plan [1:L1]. {a}. {b}.")
+            } else {
+                format!("{a}. {b}.")
+            };
+            let checked = check(&answer, &notes());
+            for range in &checked.uncited {
+                prop_assert!(checked.markdown.get(range.clone()).is_some());
+                prop_assert!(checked.unsupported.iter().all(|u| u.end <= range.start || range.end <= u.start));
+            }
+            if !cite {
+                prop_assert!(checked.uncited.is_empty());
+            }
         }
     }
 }

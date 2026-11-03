@@ -10,7 +10,7 @@ use kanso_core::links::{NOTE_LINK_PREFIX, line_anchor_text};
 use kanso_core::roles::Role;
 use kanso_store::{Origin, Put, Store};
 
-use super::model::{AskScope, NOT_FOUND_LABEL, UNVERIFIED_PREFIX};
+use super::model::{AskScope, NO_SOURCE_PREFIX, NOT_FOUND_LABEL, UNVERIFIED_PREFIX};
 use super::turn::Finished;
 
 /// The most characters of the question in the title.
@@ -40,15 +40,17 @@ pub fn saved_note(question: &str, finished: &Finished) -> SavedAnswer {
     }
     // A sentence that was not found keeps its words and its label, without
     // the marker that drew it.
-    while let Some(at) = text.find(&format!("]({UNVERIFIED_PREFIX}")) {
-        let Some(open) = text[..at].rfind('[') else {
-            break;
-        };
-        let Some(close) = text[at..].find(')') else {
-            break;
-        };
-        let sentence = text[open + 1..at].to_owned();
-        text.replace_range(open..at + close + 1, &sentence);
+    for prefix in [UNVERIFIED_PREFIX, NO_SOURCE_PREFIX] {
+        while let Some(at) = text.find(&format!("]({prefix}")) {
+            let Some(open) = text[..at].rfind('[') else {
+                break;
+            };
+            let Some(close) = text[at..].find(')') else {
+                break;
+            };
+            let sentence = text[open + 1..at].to_owned();
+            text.replace_range(open..at + close + 1, &sentence);
+        }
     }
     let mut body = text.trim().to_owned();
     if !finished.receipts.is_empty() {

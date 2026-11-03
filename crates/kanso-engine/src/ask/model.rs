@@ -185,6 +185,10 @@ pub struct Checked {
     pub receipts: Vec<Receipt>,
     /// The sentences, as byte ranges of `markdown`, whose receipts failed.
     pub unsupported: Vec<Range<usize>>,
+    /// In an answer that cites something: the sentences, as byte ranges of
+    /// `markdown`, that cite nothing. Headings and list lead-ins are not
+    /// among them.
+    pub uncited: Vec<Range<usize>>,
     /// The answer was exactly the sentinel: the notes do not answer.
     pub not_in_notes: bool,
     /// Sentences that stated something from the notes, to judge the share
@@ -210,6 +214,11 @@ impl Checked {
 pub const CITE_PREFIX: &str = "kanso-cite:";
 /// The link scheme that marks a sentence whose receipts failed.
 pub const UNVERIFIED_PREFIX: &str = "kanso-unverified:";
+/// The link scheme that marks a sentence with no source in an answer that
+/// otherwise cites its lines.
+pub const NO_SOURCE_PREFIX: &str = "kanso-nosource:";
+/// What a sentence with no source is called, with the count before it.
+pub const NO_SOURCE_HINT: &str = "This sentence cites no lines of your notes.";
 /// What an unverified sentence is labelled with.
 pub const NOT_FOUND_LABEL: &str = "Not found in your notes";
 /// What hovering an unverified sentence explains.
