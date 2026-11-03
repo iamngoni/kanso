@@ -341,7 +341,7 @@ impl PeopleView {
             .tooltip("Make a page for a person"),
             HeaderAction::new(
                 "people-new-project",
-                Lucide::FolderPlus,
+                Lucide::Briefcase,
                 "New project",
                 |window, cx| window.dispatch_action(Box::new(NewProject), cx),
             )
@@ -878,6 +878,37 @@ mod tests {
         assert_eq!(page_detail(1, Some("28 Oct")), "1 note \u{b7} last 28 Oct");
         assert_eq!(page_detail(14, None), "14 notes");
         assert_eq!(page_detail(0, Some("28 Oct")), "0 notes");
+    }
+
+    // no-prop-test: a fixed list of the icons these views draw.
+    #[test]
+    fn every_icon_the_people_views_draw_is_bundled() {
+        use gpui_kit::AssetSource as _;
+        use gpui_kit::assets::IconName as Lucide;
+        let icons = [
+            Lucide::ChevronDown,
+            Lucide::ChevronRight,
+            Lucide::Close,
+            Lucide::Ellipsis,
+            Lucide::EyeOff,
+            Lucide::Folder,
+            Lucide::FolderOpen,
+            Lucide::Briefcase,
+            Lucide::Pin,
+            Lucide::RefreshCw,
+            Lucide::Sparkles,
+            Lucide::ThumbsDown,
+            Lucide::User,
+            Lucide::UserPlus,
+            Lucide::Users,
+        ];
+        for icon in icons {
+            let path = icon.path();
+            assert!(
+                matches!(crate::assets::KansoAssets.load(&path), Ok(Some(_))),
+                "{path}"
+            );
+        }
     }
 
     // no-prop-test: two labels.

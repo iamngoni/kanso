@@ -1098,7 +1098,7 @@ static COMMANDS: &[Command] = &[
         label: "New Project…",
         label_when_pinned: None,
         description: "Makes a page for a project: open items, decisions, discussions and a timeline, drawn from your notes.",
-        icon: IconName::FolderPlus,
+        icon: IconName::Briefcase,
         keywords: &["project", "page", "mention", "decisions"],
         group: Group::Note,
         run: action!(crate::people_view::NewProject),

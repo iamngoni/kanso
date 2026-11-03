@@ -175,7 +175,11 @@ impl PagePanel {
             return;
         };
         let store = self.store.clone();
-        let config = cx.global::<AppState>().config.clone();
+        // A window without settings (a test's editor) shows the defaults.
+        let config = cx
+            .try_global::<AppState>()
+            .map(|state| state.config.clone())
+            .unwrap_or_default();
         let shown: Vec<String> = self.shown_all.iter().cloned().collect();
         let task = cx.background_executor().spawn({
             let id = id.clone();
