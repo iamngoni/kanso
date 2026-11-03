@@ -431,7 +431,7 @@ impl NotebookHome {
             let Some(page) = self.page(book_id)? else {
                 return Ok(None);
             };
-            pages::pin(self.store(), &page, key, on)?;
+            pages::pin(self.store(), &page, key, on, now_ms())?;
             self.open_with(book_id, &[])
         })
     }

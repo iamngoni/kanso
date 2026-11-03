@@ -469,7 +469,7 @@ impl NotebookHomeView {
                     .iter()
                     .flat_map(|l| &l.view.page.sections)
                     .any(|s| s.key == key && matches!(s.state, SectionState::Pinned { .. }));
-                pages::pin(&self.store, &page, key, !pinned).map(|_| ())
+                pages::pin(&self.store, &page, key, !pinned, now_ms()).map(|_| ())
             }
             SectionAction::Hide => pages::hide(&self.store, &page, key, true, now_ms()).map(|_| ()),
             SectionAction::CopyIntoHome => {

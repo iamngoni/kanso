@@ -137,7 +137,10 @@ class HomeMapEdge {
   final int a;
   final int b;
 
-  const HomeMapEdge({required this.a, required this.b});
+  const HomeMapEdge({
+    required this.a,
+    required this.b,
+  });
 
   @override
   int get hashCode => a.hashCode ^ b.hashCode;

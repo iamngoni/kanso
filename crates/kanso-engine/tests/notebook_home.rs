@@ -376,7 +376,7 @@ fn about_and_decisions_are_written_with_receipts_cached_and_go_stale_only_for_no
     ));
 
     // Kept: pinned stays through a change.
-    pages::pin(&store, &p, "decisions", true).unwrap();
+    pages::pin(&store, &p, "decisions", true, NOW).unwrap();
     let view = open_home(&store, &p, on(true), &[]).unwrap();
     assert!(matches!(
         find(&view.page, "decisions").state,
