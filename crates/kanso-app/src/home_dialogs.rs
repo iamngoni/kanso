@@ -66,52 +66,55 @@ impl Render for CustomiseDialog {
             .debug_selector(|| "home-customise".into())
             .w_full()
             .gap(px(2.))
-            .children(self.rows.iter().enumerate().map(|(ix, (_, title, hidden))| {
-                let (up, down, toggle) = (view.clone(), view.clone(), view.clone());
-                h_flex()
-                    .h(px(34.))
-                    .gap(px(8.))
-                    .items_center()
-                    .child(
-                        div()
-                            .flex_1()
-                            .text_size(px(13.5))
-                            .text_color(if *hidden {
-                                colors.text_muted
-                            } else {
-                                colors.text
-                            })
-                            .child(title.clone()),
-                    )
-                    .child(
-                        Button::new(("home-up", ix))
-                            .ghost()
-                            .xsmall()
-                            .icon(Lucide::ChevronUp)
-                            .disabled(ix == 0)
-                            .on_click(move |_, _, cx| {
-                                up.update(cx, |this, cx| this.move_row(ix, -1, cx)).ok();
-                            }),
-                    )
-                    .child(
-                        Button::new(("home-down", ix))
-                            .ghost()
-                            .xsmall()
-                            .icon(Lucide::ChevronDown)
-                            .disabled(ix == last)
-                            .on_click(move |_, _, cx| {
-                                down.update(cx, |this, cx| this.move_row(ix, 1, cx)).ok();
-                            }),
-                    )
-                    .child(
-                        Switch::new(("home-shown", ix))
-                            .checked(!*hidden)
-                            .on_click(move |on, _, cx| {
-                                let on = *on;
-                                toggle.update(cx, |this, cx| this.show(ix, on, cx)).ok();
-                            }),
-                    )
-            }))
+            .children(
+                self.rows
+                    .iter()
+                    .enumerate()
+                    .map(|(ix, (_, title, hidden))| {
+                        let (up, down, toggle) = (view.clone(), view.clone(), view.clone());
+                        h_flex()
+                            .h(px(34.))
+                            .gap(px(8.))
+                            .items_center()
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_size(px(13.5))
+                                    .text_color(if *hidden {
+                                        colors.text_muted
+                                    } else {
+                                        colors.text
+                                    })
+                                    .child(title.clone()),
+                            )
+                            .child(
+                                Button::new(("home-up", ix))
+                                    .ghost()
+                                    .xsmall()
+                                    .icon(Lucide::ChevronUp)
+                                    .disabled(ix == 0)
+                                    .on_click(move |_, _, cx| {
+                                        up.update(cx, |this, cx| this.move_row(ix, -1, cx)).ok();
+                                    }),
+                            )
+                            .child(
+                                Button::new(("home-down", ix))
+                                    .ghost()
+                                    .xsmall()
+                                    .icon(Lucide::ChevronDown)
+                                    .disabled(ix == last)
+                                    .on_click(move |_, _, cx| {
+                                        down.update(cx, |this, cx| this.move_row(ix, 1, cx)).ok();
+                                    }),
+                            )
+                            .child(Switch::new(("home-shown", ix)).checked(!*hidden).on_click(
+                                move |on, _, cx| {
+                                    let on = *on;
+                                    toggle.update(cx, |this, cx| this.show(ix, on, cx)).ok();
+                                },
+                            ))
+                    }),
+            )
     }
 }
 
@@ -143,7 +146,9 @@ pub fn open_customise(home: WeakEntity<NotebookHomeView>, window: &mut Window, c
                             .on_click(move |_, window, cx| {
                                 let _ = &reset;
                                 home_reset
-                                    .update(cx, |home, cx| home.customise(Vec::new(), Vec::new(), cx))
+                                    .update(cx, |home, cx| {
+                                        home.customise(Vec::new(), Vec::new(), cx)
+                                    })
                                     .ok();
                                 window.close_dialog(cx);
                             }),
@@ -166,7 +171,9 @@ pub fn open_customise(home: WeakEntity<NotebookHomeView>, window: &mut Window, c
                                     .on_click(move |_, window, cx| {
                                         let (order, hidden) = done.read(cx).result();
                                         home_done
-                                            .update(cx, |home, cx| home.customise(order, hidden, cx))
+                                            .update(cx, |home, cx| {
+                                                home.customise(order, hidden, cx)
+                                            })
                                             .ok();
                                         window.close_dialog(cx);
                                     }),

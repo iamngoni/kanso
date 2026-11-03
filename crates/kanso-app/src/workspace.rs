@@ -103,7 +103,13 @@ actions!(kanso, [NewDrawing]);
 // the open note's link to paste elsewhere (`note_link`).
 actions!(
     kanso,
-    [GoBack, GoForward, GoNotebookHome, CopyNoteLink, CopyKansoLink]
+    [
+        GoBack,
+        GoForward,
+        GoNotebookHome,
+        CopyNoteLink,
+        CopyKansoLink
+    ]
 );
 
 /// Process-wide state: the store, the data folder and the settings.
@@ -1239,11 +1245,13 @@ impl Workspace {
         self.nav_reach = None;
         let book = self.library.read(cx).home_book(cx).map(str::to_owned);
         let opened = book.is_some() && self.home.read(cx).book() != book.as_deref();
-        self.home.update(cx, |home, cx| home.set_book(book.clone(), cx));
-        if opened && let Some(book) = book {
-            if let Some(nav) = self.tabs.nav_mut() {
-                nav.visit(&book);
-            }
+        self.home
+            .update(cx, |home, cx| home.set_book(book.clone(), cx));
+        if opened
+            && let Some(book) = book
+            && let Some(nav) = self.tabs.nav_mut()
+        {
+            nav.visit(&book);
         }
         cx.notify();
     }

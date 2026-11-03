@@ -176,7 +176,12 @@ fn find<'a>(view: &'a pages::PageView, key: &str) -> &'a pages::Section {
     view.sections
         .iter()
         .find(|s| s.key == key)
-        .unwrap_or_else(|| panic!("no {key} in {:?}", view.sections.iter().map(|s| &s.key).collect::<Vec<_>>()))
+        .unwrap_or_else(|| {
+            panic!(
+                "no {key} in {:?}",
+                view.sections.iter().map(|s| &s.key).collect::<Vec<_>>()
+            )
+        })
 }
 
 #[test]
@@ -193,12 +198,21 @@ fn a_nested_notebook_gets_its_computed_sections() {
     let keys: Vec<&str> = view.page.sections.iter().map(|s| s.key.as_str()).collect();
     assert_eq!(keys, ["key_notes", "recent", "open_tasks", "map", "inside"]);
     // AI is off: the AI sections are left out and one line says why.
-    assert_eq!(view.footer.as_deref(), Some(pages::notebook_model::AI_OFF_LINE));
+    assert_eq!(
+        view.footer.as_deref(),
+        Some(pages::notebook_model::AI_OFF_LINE)
+    );
 
     // Key notes: nothing pinned, so the one both notes link to, first.
     let key = find(&view.page, "key_notes");
     assert_eq!(key.items[0].text, "Chapter plan");
-    assert!(key.items[0].meta.as_deref().unwrap().starts_with("Linked from 2 notes"));
+    assert!(
+        key.items[0]
+            .meta
+            .as_deref()
+            .unwrap()
+            .starts_with("Linked from 2 notes")
+    );
 
     // Recent activity: newest first, sub-notebook names in front, grouped by day.
     let recent = find(&view.page, "recent");
@@ -217,7 +231,13 @@ fn a_nested_notebook_gets_its_computed_sections() {
     let inside = find(&view.page, "inside");
     assert_eq!(inside.items.len(), 2);
     let drafts = inside.items.iter().find(|i| i.text == "Drafts").unwrap();
-    assert!(drafts.meta.as_deref().unwrap().starts_with("1 note \u{b7} edited "));
+    assert!(
+        drafts
+            .meta
+            .as_deref()
+            .unwrap()
+            .starts_with("1 note \u{b7} edited ")
+    );
     assert!(drafts.meta.as_deref().unwrap().contains("2 open"));
 }
 
@@ -230,7 +250,12 @@ fn a_notebook_with_all_tasks_done_says_so_and_empty_sections_are_left_out() {
     let tasks = find(&view.page, "open_tasks");
     assert!(tasks.items.is_empty());
     assert_eq!(tasks.note.as_deref(), Some("No open tasks"));
-    assert!(view.page.sections.iter().all(|s| s.key != "inside" && s.key != "people"));
+    assert!(
+        view.page
+            .sections
+            .iter()
+            .all(|s| s.key != "inside" && s.key != "people")
+    );
     // A notebook with no tasks at all has no such section.
     let (_d2, empty) = open_store();
     book(&empty, "book:e", "Empty", None);
@@ -261,13 +286,30 @@ fn people_and_projects_are_listed_by_number_of_notes() {
 fn locked_notes_and_notebooks_contribute_nothing_not_even_counts() {
     let (_dir, store) = library();
     book(&store, "book:vault", "Vault", Some("book:r"));
-    note_at(&store, "note:s1", "Secret one", &format!("{CANARY}\n- [ ] hidden task\n"), "book:vault", T0 + 9 * DAY);
-    note_at(&store, "note:s2", "Secret two", &format!("{CANARY} [[Chapter plan]]\n- [ ] sealed task\n"), "book:r", T0 + 9 * DAY);
+    note_at(
+        &store,
+        "note:s1",
+        "Secret one",
+        &format!("{CANARY}\n- [ ] hidden task\n"),
+        "book:vault",
+        T0 + 9 * DAY,
+    );
+    note_at(
+        &store,
+        "note:s2",
+        "Secret two",
+        &format!("{CANARY} [[Chapter plan]]\n- [ ] sealed task\n"),
+        "book:r",
+        T0 + 9 * DAY,
+    );
     seal(&store, "note:s2");
     lock_book_by_sync(&store, "book:vault");
     let view = open_home(&store, &page(&store, "book:r"), on(false), &[]).unwrap();
     assert_eq!(view.header.notes, 4, "neither locked note is counted");
-    assert_eq!(view.header.notebooks_inside, 2, "the locked notebook is not counted");
+    assert_eq!(
+        view.header.notebooks_inside, 2,
+        "the locked notebook is not counted"
+    );
     let whole = format!("{view:?}");
     assert!(!whole.contains("Secret"));
     assert!(!whole.contains("hidden task"));
@@ -278,7 +320,11 @@ fn locked_notes_and_notebooks_contribute_nothing_not_even_counts() {
     assert_eq!(vault.tag.as_deref(), Some("locked"));
     assert!(vault.meta.is_none());
     // A locked notebook has no homepage on disk.
-    assert!(NotebookPage::load(&store, "book:vault", NOW).unwrap().is_none());
+    assert!(
+        NotebookPage::load(&store, "book:vault", NOW)
+            .unwrap()
+            .is_none()
+    );
     let map = page(&store, "book:r").map(&store).unwrap();
     assert!(map.nodes.iter().all(|n| !n.title.contains("Secret")));
 }
@@ -296,7 +342,10 @@ fn about_and_decisions_are_written_with_receipts_cached_and_go_stale_only_for_no
     let about = pages::refresh_section(&store, &p, "about", &ctx).unwrap();
     assert_eq!(about.items.len(), 1, "{about:?}");
     assert!(!about.items[0].sources.is_empty());
-    assert!(seen.lock().unwrap()[0].contains("Research"), "the instruction names the notebook");
+    assert!(
+        seen.lock().unwrap()[0].contains("Research"),
+        "the instruction names the notebook"
+    );
 
     let (provider, _) = Cites::new("decided");
     let ctx = WriteContext::new(&provider, "test/model", NOW);
@@ -321,12 +370,18 @@ fn about_and_decisions_are_written_with_receipts_cached_and_go_stale_only_for_no
         T0 + 11 * DAY,
     );
     let view = open_home(&store, &p, on(true), &[]).unwrap();
-    assert!(matches!(find(&view.page, "decisions").state, SectionState::Stale { .. }));
+    assert!(matches!(
+        find(&view.page, "decisions").state,
+        SectionState::Stale { .. }
+    ));
 
     // Kept: pinned stays through a change.
     pages::pin(&store, &p, "decisions", true).unwrap();
     let view = open_home(&store, &p, on(true), &[]).unwrap();
-    assert!(matches!(find(&view.page, "decisions").state, SectionState::Pinned { .. }));
+    assert!(matches!(
+        find(&view.page, "decisions").state,
+        SectionState::Pinned { .. }
+    ));
 }
 
 #[test]
@@ -348,13 +403,30 @@ fn a_change_to_a_note_the_section_never_read_leaves_it_fresh() {
     let ctx = WriteContext::new(&provider, "m", NOW);
     pages::refresh_section(&store, &p, "about", &ctx).unwrap();
     // The oldest note is beyond the ten most recent: not read by About.
-    note_at(&store, "note:n00", "Note 0", "rewritten entirely\n", "book:a", T0 + 99 * DAY);
+    note_at(
+        &store,
+        "note:n00",
+        "Note 0",
+        "rewritten entirely\n",
+        "book:a",
+        T0 + 99 * DAY,
+    );
     let view = open_home(&store, &p, on(true), &[]).unwrap();
     // It is now the newest, so it is read.
-    assert!(matches!(find(&view.page, "about").state, SectionState::Stale { .. }));
+    assert!(matches!(
+        find(&view.page, "about").state,
+        SectionState::Stale { .. }
+    ));
     // But an edit to one in the middle that stays out of the ten recent is not.
     pages::refresh_section(&store, &p, "about", &ctx).unwrap();
-    note_at(&store, "note:n05", "Note 5", "edited but old\n", "book:a", T0 + 5000);
+    note_at(
+        &store,
+        "note:n05",
+        "Note 5",
+        "edited but old\n",
+        "book:a",
+        T0 + 5000,
+    );
     let view = open_home(&store, &p, on(true), &[]).unwrap();
     assert_eq!(find(&view.page, "about").state, SectionState::Fresh);
 }
@@ -364,17 +436,29 @@ fn fabricated_replies_leave_nothing() {
     let (_dir, store) = library();
     let p = page(&store, "book:r");
     let (mut provider, _) = Cites::new("decided");
-    provider.extra = "\n- Decided on a pony [1:L2]\n- Decided on the moon [9:L9]\n- uncited decision\n".into();
+    provider.extra =
+        "\n- Decided on a pony [1:L2]\n- Decided on the moon [9:L9]\n- uncited decision\n".into();
     let ctx = WriteContext::new(&provider, "m", NOW);
     let written = pages::refresh_section(&store, &p, "decisions", &ctx).unwrap();
-    assert_eq!(written.items.len(), 1, "only the real line survives: {written:?}");
+    assert_eq!(
+        written.items.len(),
+        1,
+        "only the real line survives: {written:?}"
+    );
 }
 
 #[test]
 fn decisions_reads_the_cue_lines_of_an_old_note_among_many() {
     let (_dir, store) = open_store();
     book(&store, "book:a", "Log", None);
-    note_at(&store, "note:old", "Old", "intro\nWe settled on Postgres for the store\n", "book:a", T0);
+    note_at(
+        &store,
+        "note:old",
+        "Old",
+        "intro\nWe settled on Postgres for the store\n",
+        "book:a",
+        T0,
+    );
     for i in 0..30 {
         note_at(
             &store,
@@ -412,7 +496,14 @@ fn locked_ai_excluded_and_trashed_notes_never_reach_a_prompt_or_the_cache() {
         json!({"_id": "note:private", "_rev": rev, "title": "Private", "body": format!("{CANARY} decided against it\n"),
                "bookId": "book:r", "tags": [exclude], "createdAt": T0, "updatedAt": T0 + 9 * DAY}),
     );
-    note_at(&store, "note:sealed", "Sealed", &format!("{CANARY} decided\n"), "book:r", T0 + 9 * DAY);
+    note_at(
+        &store,
+        "note:sealed",
+        "Sealed",
+        &format!("{CANARY} decided\n"),
+        "book:r",
+        T0 + 9 * DAY,
+    );
     seal(&store, "note:sealed");
     let p = page(&store, "book:r");
     let (provider, seen) = Cites::new("decided");
@@ -424,7 +515,12 @@ fn locked_ai_excluded_and_trashed_notes_never_reach_a_prompt_or_the_cache() {
     assert!(!cache.contains(CANARY));
     // The excluded note is local: it still shows in computed sections.
     let view = open_home(&store, &p, on(true), &[]).unwrap();
-    assert!(find(&view.page, "recent").items.iter().any(|i| i.text == "Private"));
+    assert!(
+        find(&view.page, "recent")
+            .items
+            .iter()
+            .any(|i| i.text == "Private")
+    );
 }
 
 #[test]
@@ -439,17 +535,35 @@ fn locking_a_notebook_removes_its_page_cache_and_its_homepage() {
     sealed_book.as_object_mut().unwrap().remove("count");
     sealed_book["kansoLock"] = lock();
     let mut sealed = Vec::new();
-    for id in store.home_all_notes("book:r").unwrap().into_iter().map(|n| n.id) {
+    for id in store
+        .home_all_notes("book:r")
+        .unwrap()
+        .into_iter()
+        .map(|n| n.id)
+    {
         let mut n = store.get_api(&id, None, false).unwrap();
         n["body"] = "".into();
         n["kansoLock"] = lock();
         sealed.push(n);
     }
     store.lock_book(sealed_book, sealed).unwrap();
-    assert!(!store.get("book:r").unwrap().unwrap().fields.contains_key("kansoPage"));
+    assert!(
+        !store
+            .get("book:r")
+            .unwrap()
+            .unwrap()
+            .fields
+            .contains_key("kansoPage")
+    );
     assert!(store.page_cache("book:r").unwrap().is_empty());
     assert!(NotebookPage::load(&store, "book:r", NOW).unwrap().is_none());
-    let view = open_home(&store, &NotebookPage::new("book:r", "Research", NOW), on(true), &[]).unwrap();
+    let view = open_home(
+        &store,
+        &NotebookPage::new("book:r", "Research", NOW),
+        on(true),
+        &[],
+    )
+    .unwrap();
     assert!(view.locked);
     assert!(view.page.sections.is_empty());
 }
@@ -458,16 +572,29 @@ fn locking_a_notebook_removes_its_page_cache_and_its_homepage() {
 fn the_home_note_is_chosen_made_and_moved_by_the_rule() {
     let (_dir, store) = library();
     let p = page(&store, "book:r");
-    assert!(!open_home(&store, &p, on(false), &[]).unwrap().header.has_home_note);
+    assert!(
+        !open_home(&store, &p, on(false), &[])
+            .unwrap()
+            .header
+            .has_home_note
+    );
     actions::choose_home(&store, "book:r", "note:plan", NOW).unwrap();
     let view = open_home(&store, &p, on(false), &[]).unwrap();
     assert!(view.header.has_home_note);
     let home = find(&view.page, "home_note");
     assert_eq!(home.items[0].target.as_deref(), Some("note:plan"));
-    assert!(!home.items[0].text.contains("kanso: home"), "front matter is not shown");
+    assert!(
+        !home.items[0].text.contains("kanso: home"),
+        "front matter is not shown"
+    );
     // Choosing another takes the mark off the first.
     actions::choose_home(&store, "book:r", "note:top", NOW + 5).unwrap();
-    let marked: Vec<String> = store.home_notes_marked("book:r").unwrap().into_iter().map(|m| m.id).collect();
+    let marked: Vec<String> = store
+        .home_notes_marked("book:r")
+        .unwrap()
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
     assert_eq!(marked, ["note:top"]);
     // A note of another notebook can't be chosen.
     assert!(actions::choose_home(&store, "book:r", "note:lal", NOW).is_err());
@@ -475,8 +602,13 @@ fn the_home_note_is_chosen_made_and_moved_by_the_rule() {
     let made = actions::new_home(&store, "book:r", "Research", NOW + 10).unwrap();
     let doc = store.get(&made).unwrap().unwrap();
     assert_eq!(doc.fields["title"], "About Research");
-    let marked: Vec<String> = store.home_notes_marked("book:r").unwrap().into_iter().map(|m| m.id).collect();
-    assert_eq!(marked, [made.clone()]);
+    let marked: Vec<String> = store
+        .home_notes_marked("book:r")
+        .unwrap()
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    assert_eq!(marked, std::slice::from_ref(&made));
     // Moving it into a notebook that has a Home note removes its mark.
     actions::choose_home(&store, "book:d", "note:ch3", NOW + 20).unwrap();
     store
@@ -489,10 +621,19 @@ fn the_home_note_is_chosen_made_and_moved_by_the_rule() {
         .unwrap();
     assert!(actions::after_move(&store, &made, NOW + 30).unwrap());
     assert!(!kanso_core::home::is_home(
-        store.get(&made).unwrap().unwrap().fields["body"].as_str().unwrap()
+        store.get(&made).unwrap().unwrap().fields["body"]
+            .as_str()
+            .unwrap()
     ));
     // A person page can't be a Home note.
-    note_at(&store, "note:sam", "Sam", "---\nkanso: person\n---\nSam\n", "book:r", T0);
+    note_at(
+        &store,
+        "note:sam",
+        "Sam",
+        "---\nkanso: person\n---\nSam\n",
+        "book:r",
+        T0,
+    );
     assert!(actions::choose_home(&store, "book:r", "note:sam", NOW).is_err());
 }
 
@@ -508,7 +649,10 @@ fn copy_into_home_note_creates_it_when_missing_and_appends_with_links() {
     let id = actions::copy_into_home(&store, "book:r", "Research", "Decisions", &md, NOW)
         .unwrap()
         .unwrap();
-    let body = store.get(&id).unwrap().unwrap().fields["body"].as_str().unwrap().to_owned();
+    let body = store.get(&id).unwrap().unwrap().fields["body"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(kanso_core::home::is_home(&body));
     assert!(body.contains("## Decisions"));
     assert!(body.contains("inkdrop://note/plan#"), "{body}");
@@ -528,7 +672,11 @@ fn the_same_library_draws_the_same_map_twice_and_caps_it() {
             &store,
             &format!("note:n{i:02}"),
             &format!("Note {i:02}"),
-            &format!("links [[Note {:02}]] and [[Note {:02}]]\n", (i + 1) % 60, (i + 7) % 60),
+            &format!(
+                "links [[Note {:02}]] and [[Note {:02}]]\n",
+                (i + 1) % 60,
+                (i + 7) % 60
+            ),
             "book:a",
             T0 + i as i64,
         );
@@ -538,16 +686,38 @@ fn the_same_library_draws_the_same_map_twice_and_caps_it() {
     let two = p.map(&store).unwrap();
     assert_eq!(one, two);
     assert_eq!(one.nodes.len(), 40);
-    assert!(one.nodes.iter().all(|n| n.x >= 0. && n.x <= one.width && n.y >= 0. && n.y <= one.height));
-    assert!(one.edges.iter().all(|&(a, b)| a <= b && (b as usize) < one.nodes.len()));
+    assert!(
+        one.nodes
+            .iter()
+            .all(|n| n.x >= 0. && n.x <= one.width && n.y >= 0. && n.y <= one.height)
+    );
+    assert!(
+        one.edges
+            .iter()
+            .all(|&(a, b)| a <= b && (b as usize) < one.nodes.len())
+    );
 }
 
 #[test]
 fn links_to_notes_outside_the_notebook_are_stubs() {
     let (_dir, store) = library();
     book(&store, "book:o", "Elsewhere", None);
-    note_at(&store, "note:out", "Outside note", "elsewhere\n", "book:o", T0);
-    note_at(&store, "note:in", "Inside note", "points at [[Outside note]]\n", "book:r", T0 + DAY);
+    note_at(
+        &store,
+        "note:out",
+        "Outside note",
+        "elsewhere\n",
+        "book:o",
+        T0,
+    );
+    note_at(
+        &store,
+        "note:in",
+        "Inside note",
+        "points at [[Outside note]]\n",
+        "book:r",
+        T0 + DAY,
+    );
     let map = page(&store, "book:r").map(&store).unwrap();
     let node = map.nodes.iter().find(|n| n.id == "note:in").unwrap();
     assert_eq!(node.stubs, 1);
@@ -569,7 +739,10 @@ fn customising_orders_and_hides_sections_and_the_later_write_wins() {
     let view = open_home(&store, &p, on(false), &[]).unwrap();
     let keys: Vec<&str> = view.page.sections.iter().map(|s| s.key.as_str()).collect();
     assert_eq!(keys, ["inside", "recent", "open_tasks", "map"]);
-    assert_eq!(view.page.hidden, vec![("key_notes".into(), "Key notes".into())]);
+    assert_eq!(
+        view.page.hidden,
+        vec![("key_notes".into(), "Key notes".into())]
+    );
     assert!(actions::customise(&store, &p, &["nope".into()], &[], NOW).is_err());
     actions::reset_layout(&store, &p, NOW + 1).unwrap();
     let view = open_home(&store, &p, on(false), &[]).unwrap();

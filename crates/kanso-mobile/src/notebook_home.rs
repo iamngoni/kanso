@@ -12,17 +12,13 @@
 
 use kanso_core::home::SECTION_KEYS;
 use kanso_core::now_ms;
-use kanso_engine::pages::notebook::{
-    FIRST_TASKS, HomeOptions, NotebookPage, open_home, title_of,
-};
+use kanso_engine::pages::notebook::{FIRST_TASKS, HomeOptions, NotebookPage, open_home, title_of};
 use kanso_engine::pages::notebook_actions as actions;
 use kanso_engine::pages::notebook_model::{
     ADD_HOME_NOTE, AI_OFF_LINE, ASK_BUTTON, FIRST_VISIT_BUTTON, HOME_MOVED_LINE, HOME_ROW,
     LOCKED_LINE, NO_OPEN_TASKS, OPEN_HOME, OpenedNote,
 };
-use kanso_engine::pages::{
-    self, RefreshPolicy, locked_home::locked_home, write::WriteContext,
-};
+use kanso_engine::pages::{self, RefreshPolicy, locked_home::locked_home, write::WriteContext};
 use kanso_store::Store;
 
 use crate::boundary::{guard, held};
@@ -291,7 +287,13 @@ impl NotebookHome {
                 }));
             };
             let name = self.name_of(book_id)?;
-            let view = locked_home(&name, book_id, &notes, options.now, all.contains(&"open_tasks"));
+            let view = locked_home(
+                &name,
+                book_id,
+                &notes,
+                options.now,
+                all.contains(&"open_tasks"),
+            );
             return Ok(Some(self.panel_of(view, options, policy, true)?));
         }
         let Some(page) = self.page(book_id)? else {
@@ -367,7 +369,10 @@ impl NotebookHome {
     fn write_with<T>(
         &self,
         book_id: &str,
-        run: impl FnOnce(&NotebookPage, &WriteContext) -> Result<T, kanso_engine::pages::write::WriteError>,
+        run: impl FnOnce(
+            &NotebookPage,
+            &WriteContext,
+        ) -> Result<T, kanso_engine::pages::write::WriteError>,
     ) -> Result<Option<T>, KansoError> {
         let Some(page) = self.page(book_id)? else {
             return Ok(None);
@@ -387,7 +392,11 @@ impl NotebookHome {
     }
 
     /// Writes one AI section again and returns the page as it is now.
-    pub fn refresh_section(&self, book_id: &str, key: &str) -> Result<Option<HomePanel>, KansoError> {
+    pub fn refresh_section(
+        &self,
+        book_id: &str,
+        key: &str,
+    ) -> Result<Option<HomePanel>, KansoError> {
         guard(|| {
             if self
                 .write_with(book_id, |page, ctx| {
@@ -505,18 +514,16 @@ impl NotebookHome {
             };
             let markdown = self.section_markdown(book_id, key)?;
             let title = title_of(key).unwrap_or("Section");
-            Ok(
-                actions::copy_into_home(
-                    self.store(),
-                    book_id,
-                    &page.name,
-                    title,
-                    &markdown,
-                    now_ms(),
-                )
-                .map_err(|err| KansoError::invalid(err.to_string()))?
-                .unwrap_or_default(),
+            Ok(actions::copy_into_home(
+                self.store(),
+                book_id,
+                &page.name,
+                title,
+                &markdown,
+                now_ms(),
             )
+            .map_err(|err| KansoError::invalid(err.to_string()))?
+            .unwrap_or_default())
         })
     }
 
@@ -533,7 +540,8 @@ impl NotebookHome {
             notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then(a.id.cmp(&b.id)));
             let mut out = Vec::new();
             for note in notes {
-                if note.is_trashed() || note.is_locked() || self.store().entity(&note.id)?.is_some() {
+                if note.is_trashed() || note.is_locked() || self.store().entity(&note.id)?.is_some()
+                {
                     continue;
                 }
                 out.push(HomeCandidate {
@@ -589,11 +597,10 @@ impl NotebookHome {
             let mut keys: Vec<&str> = SECTION_KEYS.to_vec();
             if let Some(layout) = &cache.layout {
                 keys.sort_by_key(|key| {
-                    layout
-                        .order
-                        .iter()
-                        .position(|k| k == key)
-                        .unwrap_or(layout.order.len() + SECTION_KEYS.iter().position(|k| k == key).unwrap_or(0))
+                    layout.order.iter().position(|k| k == key).unwrap_or(
+                        layout.order.len()
+                            + SECTION_KEYS.iter().position(|k| k == key).unwrap_or(0),
+                    )
                 });
             }
             Ok(keys

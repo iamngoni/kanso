@@ -59,9 +59,7 @@ pub use entities::{
     MentionRow,
 };
 pub use graph::{GraphLink, GraphNote};
-pub use home_model::{
-    HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeStats,
-};
+pub use home_model::{HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeStats};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };

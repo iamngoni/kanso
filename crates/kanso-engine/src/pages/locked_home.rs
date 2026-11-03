@@ -82,7 +82,11 @@ pub fn locked_home(
         .iter()
         .filter(|n| n.book_id == book_id && is_home(&n.body))
         .collect();
-    marked.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then_with(|| a.id.cmp(&b.id)));
+    marked.sort_by(|a, b| {
+        b.updated_at
+            .cmp(&a.updated_at)
+            .then_with(|| a.id.cmp(&b.id))
+    });
     if let Some(home) = marked.first() {
         sections.push(Section::computed(
             &spec("home_note", "Home note"),
@@ -100,7 +104,11 @@ pub fn locked_home(
     let mut seen: HashSet<&str> = HashSet::new();
     let mut key: Vec<Item> = Vec::new();
     let mut pinned: Vec<&OpenedNote> = notes.iter().filter(|n| n.pinned).collect();
-    pinned.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then_with(|| a.id.cmp(&b.id)));
+    pinned.sort_by(|a, b| {
+        b.updated_at
+            .cmp(&a.updated_at)
+            .then_with(|| a.id.cmp(&b.id))
+    });
     let edited = |n: &OpenedNote| format!("edited {}", relative_day(now, n.updated_at));
     for n in pinned.into_iter().take(KEY_NOTES) {
         seen.insert(n.id.as_str());
@@ -142,7 +150,11 @@ pub fn locked_home(
         .iter()
         .filter(|n| n.updated_at >= now - RECENT_DAYS * DAY_MS)
         .collect();
-    latest.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then_with(|| a.id.cmp(&b.id)));
+    latest.sort_by(|a, b| {
+        b.updated_at
+            .cmp(&a.updated_at)
+            .then_with(|| a.id.cmp(&b.id))
+    });
     for n in &latest {
         if key.len() >= KEY_NOTES {
             break;
@@ -157,10 +169,18 @@ pub fn locked_home(
         }
     }
     let total = key.len();
-    sections.push(Section::computed(&spec("key_notes", "Key notes"), key, total));
+    sections.push(Section::computed(
+        &spec("key_notes", "Key notes"),
+        key,
+        total,
+    ));
     // Recent activity.
     let mut newest: Vec<&OpenedNote> = notes.iter().collect();
-    newest.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then_with(|| a.id.cmp(&b.id)));
+    newest.sort_by(|a, b| {
+        b.updated_at
+            .cmp(&a.updated_at)
+            .then_with(|| a.id.cmp(&b.id))
+    });
     let recent: Vec<Item> = newest
         .iter()
         .take(RECENT)
@@ -182,7 +202,11 @@ pub fn locked_home(
         })
         .collect();
     let total = recent.len();
-    sections.push(Section::computed(&spec("recent", "Recent activity"), recent, total));
+    sections.push(Section::computed(
+        &spec("recent", "Recent activity"),
+        recent,
+        total,
+    ));
     // Open tasks: dated first, soonest first.
     let mut tasks: Vec<(Option<String>, &OpenedNote, kanso_core::tasks::TaskItem)> = notes
         .iter()
@@ -195,13 +219,20 @@ pub fn locked_home(
         .collect();
     let any_tasks = notes.iter().any(|n| !task_items(&n.body).is_empty());
     tasks.sort_by(|a, b| {
-        (a.0.is_none(), &a.0, std::cmp::Reverse(a.1.updated_at), &a.1.id, a.2.line).cmp(&(
-            b.0.is_none(),
-            &b.0,
-            std::cmp::Reverse(b.1.updated_at),
-            &b.1.id,
-            b.2.line,
-        ))
+        (
+            a.0.is_none(),
+            &a.0,
+            std::cmp::Reverse(a.1.updated_at),
+            &a.1.id,
+            a.2.line,
+        )
+            .cmp(&(
+                b.0.is_none(),
+                &b.0,
+                std::cmp::Reverse(b.1.updated_at),
+                &b.1.id,
+                b.2.line,
+            ))
     });
     let open_total = tasks.len();
     let items: Vec<Item> = tasks

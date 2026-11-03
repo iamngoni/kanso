@@ -1070,7 +1070,9 @@ impl NoteList {
         match &library.filter {
             // Its notes are a level or more down: its homepage shows beside
             // the Home row, in place of this line.
-            Filter::Book(id) if crate::library::homepages_on(cx) && library.has_notes_inside(id) => {
+            Filter::Book(id)
+                if crate::library::homepages_on(cx) && library.has_notes_inside(id) =>
+            {
                 div().into_any_element()
             }
             // Its notes are a level or more down: not a notebook to start.

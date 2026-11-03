@@ -253,7 +253,11 @@ impl NotebookHomeView {
 
     /// The notes a locked notebook has open this session, revealed. `None`
     /// when the notebook is not locked, or is locked and not open.
-    fn opened_notes(&self, id: &str, cx: &mut Context<Self>) -> Option<Option<Vec<kanso_engine::pages::notebook_model::OpenedNote>>> {
+    fn opened_notes(
+        &self,
+        id: &str,
+        cx: &mut Context<Self>,
+    ) -> Option<Option<Vec<kanso_engine::pages::notebook_model::OpenedNote>>> {
         if !self.library.read(cx).is_book_locked(id) {
             return Some(None);
         }
@@ -280,7 +284,11 @@ impl NotebookHomeView {
                 }),
             }
         }
-        if out.is_empty() { None } else { Some(Some(out)) }
+        if out.is_empty() {
+            None
+        } else {
+            Some(Some(out))
+        }
     }
 
     /// Reads the page off the main thread. `opened` is a page just shown:
@@ -489,7 +497,9 @@ impl NotebookHomeView {
             }
         };
         if let Err(err) = outcome {
-            cx.emit(HomeEvent::Notice(format!("Couldn't change the page: {err}")));
+            cx.emit(HomeEvent::Notice(format!(
+                "Couldn't change the page: {err}"
+            )));
         }
         self.reload(false, cx);
     }
@@ -515,7 +525,9 @@ impl NotebookHomeView {
 
     /// Makes `note` the Home note.
     pub fn choose_home(&mut self, note: &str, cx: &mut Context<Self>) {
-        let Some(book) = self.book.clone() else { return };
+        let Some(book) = self.book.clone() else {
+            return;
+        };
         match actions::choose_home(&self.store, &book, note, now_ms()) {
             Ok(()) => self.reload(false, cx),
             Err(err) => cx.emit(HomeEvent::Notice(err.to_string())),
@@ -598,7 +610,9 @@ impl NotebookHomeView {
                 "That task changed in its note. The page is up to date now.".into(),
             )),
             Ok(_) => {}
-            Err(err) => cx.emit(HomeEvent::Notice(format!("Couldn't change the task: {err}"))),
+            Err(err) => cx.emit(HomeEvent::Notice(format!(
+                "Couldn't change the task: {err}"
+            ))),
         }
         self.reload(false, cx);
     }
@@ -631,7 +645,13 @@ impl NotebookHomeView {
 // MARK: Drawing
 
 impl NotebookHomeView {
-    fn render_item(&self, section: &Section, index: usize, item: &Item, cx: &mut Context<Self>) -> AnyElement {
+    fn render_item(
+        &self,
+        section: &Section,
+        index: usize,
+        item: &Item,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let colors = Colors::get(cx);
         let view = cx.entity().downgrade();
         let key = section.key.clone();
@@ -691,7 +711,9 @@ impl NotebookHomeView {
                             .text_size(px(13.5))
                             .line_height(px(19.))
                             .text_color(colors.text)
-                            .when(first.is_some() || target.is_some(), |el| el.cursor_pointer())
+                            .when(first.is_some() || target.is_some(), |el| {
+                                el.cursor_pointer()
+                            })
                             .on_click(move |_, _, cx| {
                                 opener
                                     .update(cx, |this, cx| {
@@ -907,7 +929,8 @@ impl NotebookHomeView {
                         .label("Open in graph \u{203a}")
                         .on_click(move |_, _, cx| {
                             let book = book.clone();
-                            view.update(cx, |_, cx| cx.emit(HomeEvent::Graph(book))).ok();
+                            view.update(cx, |_, cx| cx.emit(HomeEvent::Graph(book)))
+                                .ok();
                         }),
                 ),
             )
@@ -940,14 +963,13 @@ impl NotebookHomeView {
                 .dropdown_menu(move |mut menu, _, _| {
                     for action in choices.iter().copied() {
                         let (view, key) = (menu_view.clone(), menu_key.clone());
-                        menu = menu.item(
-                            PopupMenuItem::new(action_label(action, pinned)).on_click(
+                        menu =
+                            menu.item(PopupMenuItem::new(action_label(action, pinned)).on_click(
                                 move |_, _, cx| {
                                     let key = key.clone();
                                     view.update(cx, |this, cx| this.run(&key, action, cx)).ok();
                                 },
-                            ),
-                        );
+                            ));
                     }
                     menu
                 })
@@ -1232,21 +1254,28 @@ impl NotebookHomeView {
                     }
                     let items = candidates.clone();
                     let chooser = home.clone();
-                    menu = menu.submenu("Choose Home note\u{2026}", window, cx, move |mut sub, _, _| {
-                        for (id, title) in items.clone() {
-                            let view = chooser.clone();
-                            let label = if title.trim().is_empty() {
-                                "Untitled".to_owned()
-                            } else {
-                                title
-                            };
-                            sub = sub.item(PopupMenuItem::new(label).on_click(move |_, _, cx| {
-                                let id = id.clone();
-                                view.update(cx, |this, cx| this.choose_home(&id, cx)).ok();
-                            }));
-                        }
-                        sub
-                    });
+                    menu = menu.submenu(
+                        "Choose Home note\u{2026}",
+                        window,
+                        cx,
+                        move |mut sub, _, _| {
+                            for (id, title) in items.clone() {
+                                let view = chooser.clone();
+                                let label = if title.trim().is_empty() {
+                                    "Untitled".to_owned()
+                                } else {
+                                    title
+                                };
+                                sub = sub.item(PopupMenuItem::new(label).on_click(
+                                    move |_, _, cx| {
+                                        let id = id.clone();
+                                        view.update(cx, |this, cx| this.choose_home(&id, cx)).ok();
+                                    },
+                                ));
+                            }
+                            sub
+                        },
+                    );
                     let view = home.clone();
                     menu = menu.item(PopupMenuItem::new("New Home note").on_click(
                         move |_, _, cx| {
@@ -1262,11 +1291,12 @@ impl NotebookHomeView {
                         ));
                     }
                     let view = customiser.clone();
-                    menu.separator().item(PopupMenuItem::new("Customise home\u{2026}").on_click(
-                        move |_, window, cx| {
-                            crate::home_dialogs::open_customise(view.clone(), window, cx);
-                        },
-                    ))
+                    menu.separator()
+                        .item(PopupMenuItem::new("Customise home\u{2026}").on_click(
+                            move |_, window, cx| {
+                                crate::home_dialogs::open_customise(view.clone(), window, cx);
+                            },
+                        ))
                 })
         };
 
@@ -1315,7 +1345,9 @@ impl NotebookHomeView {
                         .label(ASK_BUTTON)
                         .on_click(move |_, _, cx| {
                             let book = ask_book.clone();
-                            ask_view.update(cx, |_, cx| cx.emit(HomeEvent::Ask(book))).ok();
+                            ask_view
+                                .update(cx, |_, cx| cx.emit(HomeEvent::Ask(book)))
+                                .ok();
                         }),
                 )
             })
@@ -1420,7 +1452,8 @@ impl Render for NotebookHomeView {
                     let width = crate::zoom::unscaled(bounds.size.width);
                     let view = view.clone();
                     window.defer(cx, move |_, cx| {
-                        view.update(cx, |this, cx| this.set_pane_width(width, cx)).ok();
+                        view.update(cx, |this, cx| this.set_pane_width(width, cx))
+                            .ok();
                     });
                 },
             )
@@ -1439,7 +1472,13 @@ impl Render for NotebookHomeView {
         };
         let ai_on = loaded.view.ai_on;
         let two = self.pane_width >= TWO_COLUMNS;
-        let keys: Vec<String> = loaded.view.page.sections.iter().map(|s| s.key.clone()).collect();
+        let keys: Vec<String> = loaded
+            .view
+            .page
+            .sections
+            .iter()
+            .map(|s| s.key.clone())
+            .collect();
         let rows = rows_of(&keys, two);
         let hidden = loaded.view.page.hidden.len();
         let mut body = v_flex()
@@ -1452,7 +1491,12 @@ impl Render for NotebookHomeView {
             let mut line = h_flex().w_full().gap(px(32.)).items_start();
             let alone = row.len() == 1 && two && !full_width(&keys[row[0]]);
             for ix in &row {
-                line = line.child(self.render_section(&loaded.view.page.sections[*ix], ai_on, window, cx));
+                line = line.child(self.render_section(
+                    &loaded.view.page.sections[*ix],
+                    ai_on,
+                    window,
+                    cx,
+                ));
             }
             if alone {
                 line = line.child(div().flex_1());
@@ -1515,5 +1559,89 @@ impl Render for NotebookHomeView {
             )
             .child(measure)
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::prelude::v1::test;
+    use proptest::prelude::*;
+    use proptest::test_runner::FileFailurePersistence;
+
+    fn keys(n: usize, wide_at: &[usize]) -> Vec<String> {
+        (0..n)
+            .map(|i| {
+                if wide_at.contains(&i) {
+                    "about".to_owned()
+                } else {
+                    format!("s{i}")
+                }
+            })
+            .collect()
+    }
+
+    fn check_rows(n: usize, wide: &[usize], two: bool) -> Result<(), TestCaseError> {
+        let keys = keys(n, wide);
+        let rows = rows_of(&keys, two);
+        let flat: Vec<usize> = rows.iter().flatten().copied().collect();
+        prop_assert_eq!(flat, (0..n).collect::<Vec<_>>());
+        let per_row = if two { 2 } else { 1 };
+        for row in &rows {
+            prop_assert!(row.len() <= per_row);
+            if row.len() == 2 {
+                prop_assert!(row.iter().all(|&i| !full_width(&keys[i])));
+            }
+        }
+        Ok(())
+    }
+
+    /// Every section is in exactly one row, in order, a wide one is alone,
+    /// and a row holds at most two (one in one column).
+    #[test]
+    fn rows_hold_each_section_once_in_order() {
+        let mut runner = proptest::test_runner::TestRunner::new(ProptestConfig {
+            cases: 64,
+            failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
+            ..ProptestConfig::default()
+        });
+        let strategy = (
+            0usize..20,
+            proptest::collection::vec(0usize..20, 0..4),
+            any::<bool>(),
+        );
+        runner
+            .run(&strategy, |(n, wide, two)| check_rows(n, &wide, two))
+            .unwrap();
+    }
+
+    #[test]
+    fn the_menu_offers_only_what_applies() {
+        let section = |key: &str, kind| Section {
+            key: key.to_owned(),
+            title: key.to_owned(),
+            kind,
+            items: Vec::new(),
+            state: SectionState::Fresh,
+            written_at: None,
+            total: 0,
+            note: None,
+            none: false,
+        };
+        let ai = section("about", SectionKind::Ai);
+        assert_eq!(
+            section_actions(&ai, true),
+            vec![
+                SectionAction::Refresh,
+                SectionAction::Keep,
+                SectionAction::Hide
+            ]
+        );
+        assert_eq!(
+            section_actions(&ai, false),
+            vec![SectionAction::Keep, SectionAction::Hide]
+        );
+        let note = section("home_note", SectionKind::Computed);
+        assert!(section_actions(&note, true).is_empty());
     }
 }

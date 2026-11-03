@@ -12,9 +12,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use rusqlite::{Connection, params};
 
-use crate::home_model::{
-    HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeStats,
-};
+use crate::home_model::{HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeStats};
 use crate::schema::note_locked;
 use crate::{GraphLink, GraphNote, Result, Store};
 

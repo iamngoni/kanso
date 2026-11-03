@@ -86,7 +86,10 @@ fn forest() -> impl Strategy<Value = (Vec<Option<usize>>, Vec<bool>)> {
                 }
             })
             .collect();
-        (parents, proptest::collection::vec(proptest::bool::weighted(0.3), n))
+        (
+            parents,
+            proptest::collection::vec(proptest::bool::weighted(0.3), n),
+        )
     })
 }
 
@@ -348,7 +351,14 @@ fn locking_a_notebook_removes_its_page_cache_and_a_locked_one_takes_none() {
     note(&store, "note:a", "Plans", &format!("{CANARY}\n"), &outer, 5);
     store.set_page_cache(&outer, &cache(CANARY, 5)).unwrap();
     store.set_page_cache(&inner, &cache(CANARY, 5)).unwrap();
-    assert!(store.get(&outer).unwrap().unwrap().fields.contains_key(PAGE_FIELD));
+    assert!(
+        store
+            .get(&outer)
+            .unwrap()
+            .unwrap()
+            .fields
+            .contains_key(PAGE_FIELD)
+    );
 
     let mut sealed_book = store.get_api(&outer, None, false).unwrap();
     sealed_book.as_object_mut().unwrap().remove("count");
@@ -358,7 +368,14 @@ fn locking_a_notebook_removes_its_page_cache_and_a_locked_one_takes_none() {
     sealed_note["kansoLock"] = lock_value();
     store.lock_book(sealed_book, vec![sealed_note]).unwrap();
 
-    assert!(!store.get(&outer).unwrap().unwrap().fields.contains_key(PAGE_FIELD));
+    assert!(
+        !store
+            .get(&outer)
+            .unwrap()
+            .unwrap()
+            .fields
+            .contains_key(PAGE_FIELD)
+    );
     // The notebook inside it is locked now: it can't take a cache.
     assert!(!store.set_page_cache(&inner, &cache(CANARY, 6)).unwrap());
     assert!(!store.set_page_cache(&outer, &cache(CANARY, 6)).unwrap());
@@ -386,9 +403,30 @@ fn the_layout_and_the_cache_of_two_devices_merge_by_time() {
 fn a_notebook_with_two_marked_notes_shows_the_newest() {
     let (_dir, store) = temp_store();
     let b = book(&store, "book:a", None);
-    note(&store, "note:one", "One", "---\nkanso: home\n---\nfirst\n", &b, 10);
-    note(&store, "note:two", "Two", "---\nkanso: home\n---\nsecond\n", &b, 20);
-    note(&store, "note:plain", "Plain", "kanso: home but not front matter\n", &b, 30);
+    note(
+        &store,
+        "note:one",
+        "One",
+        "---\nkanso: home\n---\nfirst\n",
+        &b,
+        10,
+    );
+    note(
+        &store,
+        "note:two",
+        "Two",
+        "---\nkanso: home\n---\nsecond\n",
+        &b,
+        20,
+    );
+    note(
+        &store,
+        "note:plain",
+        "Plain",
+        "kanso: home but not front matter\n",
+        &b,
+        30,
+    );
     let marked = store.home_notes_marked(&b).unwrap();
     assert_eq!(
         marked.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
@@ -407,11 +445,28 @@ fn key_note_inputs_count_each_linking_note_once_and_skip_self_links() {
     let inner = book(&store, "book:in", Some(&a));
     let out = book(&store, "book:out", None);
     note(&store, "note:plan", "Plan", "Plan\n[[Plan]]\n", &a, 1);
-    note(&store, "note:x", "X", "[[Plan]] and [[Plan]] again\n", &inner, 2);
-    note(&store, "note:y", "Y", &format!("[Plan]({}plan)\n", kanso_core::links::NOTE_LINK_PREFIX), &a, 3);
+    note(
+        &store,
+        "note:x",
+        "X",
+        "[[Plan]] and [[Plan]] again\n",
+        &inner,
+        2,
+    );
+    note(
+        &store,
+        "note:y",
+        "Y",
+        &format!("[Plan]({}plan)\n", kanso_core::links::NOTE_LINK_PREFIX),
+        &a,
+        3,
+    );
     note(&store, "note:z", "Z", "[[Plan]]\n", &out, 4);
     let linked = store.home_linked(&a, 10).unwrap();
     assert_eq!(linked.len(), 1);
     assert_eq!(linked[0].note_id, "note:plan");
-    assert_eq!(linked[0].linked_from, 2, "x and y; not itself, not z outside");
+    assert_eq!(
+        linked[0].linked_from, 2,
+        "x and y; not itself, not z outside"
+    );
 }

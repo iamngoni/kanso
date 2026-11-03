@@ -5,9 +5,7 @@
 //! note's own words, except to append a section the person copied.
 
 use kanso_core::DocType;
-use kanso_core::home::{
-    SECTION_KEYS, home_text, is_home, mark_home, new_home_title, unmark_home,
-};
+use kanso_core::home::{SECTION_KEYS, home_text, is_home, mark_home, new_home_title, unmark_home};
 use kanso_core::page_cache::Layout;
 use kanso_store::{Origin, Put, Store};
 use serde_json::json;
@@ -212,7 +210,10 @@ pub fn customise(
         if cache.is_hidden(key) != want {
             cache.hidden.insert(
                 key.to_owned(),
-                kanso_core::page_cache::HiddenMark { at: now, hidden: want },
+                kanso_core::page_cache::HiddenMark {
+                    at: now,
+                    hidden: want,
+                },
             );
         }
     }

@@ -10,7 +10,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-
 use kanso_ai::Excerpt;
 use kanso_core::dates::Date;
 use kanso_core::home::{SECTION_KEYS, decision_lines, home_text};
@@ -18,12 +17,10 @@ use kanso_core::links::plain_line;
 use kanso_core::passages::{Passage, passages};
 use kanso_store::{HomeNoteRow, Store, TaskQuery};
 
-use super::notebook_model::{
-    AI_OFF_LINE, HomeHeader, HomeView, MapNode, MapView, NO_OPEN_TASKS,
-};
+use super::notebook_model::{AI_OFF_LINE, HomeHeader, HomeView, MapNode, MapView, NO_OPEN_TASKS};
 use super::{
-    Item, OpenOptions, PASSAGES_PER_NOTE, PageSource, Passages, Section, SectionKind,
-    SectionSpec, SectionState, SourceNote, open,
+    Item, OpenOptions, PASSAGES_PER_NOTE, PageSource, Passages, Section, SectionKind, SectionSpec,
+    SectionState, SourceNote, open,
 };
 use crate::ask::receipts::{MAX_RANGE, short_date};
 use crate::ask::{Candidate, Receipt, eligible_note};
@@ -150,7 +147,14 @@ fn title_or_untitled(title: &str) -> String {
     }
 }
 
-fn receipt(n: usize, note_id: &str, title: &str, updated: Option<String>, line: u32, text: &str) -> Receipt {
+fn receipt(
+    n: usize,
+    note_id: &str,
+    title: &str,
+    updated: Option<String>,
+    line: u32,
+    text: &str,
+) -> Receipt {
     Receipt {
         n,
         note_id: note_id.to_owned(),
@@ -179,7 +183,11 @@ impl NotebookPage {
         }
         let name = store
             .get(id)?
-            .and_then(|d| d.fields.get("name").and_then(|n| n.as_str().map(str::to_owned)))
+            .and_then(|d| {
+                d.fields
+                    .get("name")
+                    .and_then(|n| n.as_str().map(str::to_owned))
+            })
             .unwrap_or_default();
         Ok(Some(NotebookPage::new(id, &name, now)))
     }
@@ -713,7 +721,11 @@ impl PageSource for NotebookPage {
                 Some(mark) => {
                     let body = store
                         .get(&mark.id)?
-                        .and_then(|d| d.fields.get("body").and_then(|b| b.as_str().map(str::to_owned)))
+                        .and_then(|d| {
+                            d.fields
+                                .get("body")
+                                .and_then(|b| b.as_str().map(str::to_owned))
+                        })
                         .unwrap_or_default();
                     vec![Item {
                         text: home_text(&body).trim().to_owned(),

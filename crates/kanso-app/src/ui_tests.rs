@@ -3540,3 +3540,50 @@ fn people_view_offers_a_name_and_makes_nothing_unasked(cx: &mut TestAppContext) 
     f.draw(&mut vcx);
     assert!(!f.workspace(&mut vcx, |w, _| w.people_open));
 }
+
+/// A notebook with notes in it shows its homepage when asked, and picking a
+/// note closes the homepage.
+// no-prop-test: drives one window; the homepage's content is properties in
+// `kanso_engine::pages::notebook` and `kanso_store`'s home tests.
+#[gpui_kit::test]
+fn a_notebook_opens_to_its_homepage_and_a_note_closes_it(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |l, cx| {
+        l.set_filter(crate::library::Filter::Book(book), cx)
+    });
+    cx.run_until_parked();
+    library.update(cx, |l, cx| l.set_home(true, cx));
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    wait_until(&f, &mut vcx, |vcx| {
+        vcx.debug_bounds("notebook-home").is_some()
+    });
+    assert!(vcx.debug_bounds("notebook-home").is_some());
+    let home = f.workspace(&mut vcx, |w, _| w.home.clone());
+    let (loaded, keys, titles, first) = vcx.read(|cx| {
+        let h = home.read(cx);
+        (
+            h.is_loaded(),
+            h.section_keys(),
+            h.section_titles(),
+            h.first_visit(),
+        )
+    });
+    assert!(loaded);
+    assert_eq!(keys.len(), titles.len());
+    // The words and order are the engine's, which the phones draw too.
+    assert!(
+        keys.iter().any(|k| k == "key_notes"),
+        "key_notes in {keys:?}"
+    );
+    assert!(
+        !keys.iter().any(|k| k == "about"),
+        "no AI section with AI off"
+    );
+    assert!(!first, "AI is off in a bare window");
+
+    f.select(&mut vcx, &f.notes[1]);
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notebook-home").is_none());
+}

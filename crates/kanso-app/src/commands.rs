@@ -24,12 +24,11 @@ use crate::tabs::{
 use crate::workspace::{
     AskYourNotes, ChangePassword, CopyKansoLink, CopyNoteLink, Dictate, ExportHtml, ExportLibrary,
     ExportNote, ExportPdf, FocusNoteList, FocusSearch, FormatTable, GoBack, GoForward,
-    GoNotebookHome,
-    ImportLibrary, NewAgentTask, NewNote, NewNotebook, NewRecoveryKey, NextNote, OpenFile,
-    OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes, ShowBacklinks,
-    ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview, ShowSignIn,
-    ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode, ToggleInspector,
-    TogglePinned, ToggleSidebar, TrashNote, UndoLastChange,
+    GoNotebookHome, ImportLibrary, NewAgentTask, NewNote, NewNotebook, NewRecoveryKey, NextNote,
+    OpenFile, OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes,
+    ShowBacklinks, ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview,
+    ShowSignIn, ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode,
+    ToggleInspector, TogglePinned, ToggleSidebar, TrashNote, UndoLastChange,
 };
 
 /// The palette's sections, in the order they appear with nothing typed.

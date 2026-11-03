@@ -342,12 +342,14 @@ impl Store {
                 params![id, prev.rev],
                 |row| row.get(0),
             )?;
-            crate::write::rewrite_doc(tx, id, prev.doc_type, Origin::Api, changes, |fields| match &value {
-                Some(value) => {
-                    fields.insert(PAGE_FIELD.into(), value.clone());
-                }
-                None => {
-                    fields.remove(PAGE_FIELD);
+            crate::write::rewrite_doc(tx, id, prev.doc_type, Origin::Api, changes, |fields| {
+                match &value {
+                    Some(value) => {
+                        fields.insert(PAGE_FIELD.into(), value.clone());
+                    }
+                    None => {
+                        fields.remove(PAGE_FIELD);
+                    }
                 }
             })?;
             if known == 0 {
