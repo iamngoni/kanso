@@ -5,12 +5,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/library.dart';
 import '../../../core/bridge/api/people_types.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/router/kanso_routes.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
@@ -172,6 +174,18 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
                 child: ListView(
                   padding: const EdgeInsets.all(KansoSpacing.md),
                   children: <Widget>[
+                    KansoGroupedSection(
+                      dividerIndent: 48,
+                      children: <Widget>[
+                        KansoSettingsRow(
+                          icon: KansoIcons.users,
+                          label: l10n.peopleTitle,
+                          chevron: true,
+                          onTap: () => context.push(KansoRoutes.people),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: KansoSpacing.lg),
                     KansoGroupedSection(
                       footer: l10n.peopleSettingsSuggestHelp,
                       dividerIndent: 48,

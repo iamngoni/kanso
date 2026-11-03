@@ -86,5 +86,52 @@ void peopleSuite(OpenLibrary open) {
         isA<String>(),
       );
     });
+    test(
+      'detection runs, a suggestion is turned away, a section is kept',
+      () async {
+        final library = await open();
+        final people = library.people();
+        final book = await makeNote(
+          library,
+          'Lunch',
+          'Lunch with Tendai Chirwa went well\n@rudo follows up\n',
+        );
+        expect(book, isNotEmpty);
+        expect(await people.detect(force: true), greaterThanOrEqualTo(0));
+        final found = await people.suggestions();
+        for (final s in found) {
+          await people.dismiss(key: s.key, never: true);
+        }
+        expect(await people.suggestions(), isEmpty);
+
+        final id = await people.create(
+          kind: PeopleKind.person,
+          name: 'Sam Moyo',
+          aliases: <String>[],
+        );
+        await people.confirmAlias(key: 'nobody', pageId: id);
+        final kept = await people.pin(id: id, key: 'promises', on_: true);
+        expect(kept, isNotNull);
+        expect(await people.copyIntoNote(id: id, key: 'timeline'), isA<bool>());
+        final marked = await people.notRight(id: id, key: 'promises', index: 0);
+        expect(marked, isNotNull);
+        final all = await people.showAll(id: id, key: 'timeline');
+        expect(all, isNotNull);
+      },
+    );
+
+    test('writing a section is refused while AI is off', () async {
+      final people = (await open()).people();
+      final id = await people.create(
+        kind: PeopleKind.project,
+        name: 'Lake Placid',
+        aliases: <String>[],
+      );
+      await expectLater(
+        people.refreshSection(id: id, key: 'discussed'),
+        throwsA(anything),
+      );
+      await expectLater(people.refreshAll(id: id), throwsA(anything));
+    });
   });
 }

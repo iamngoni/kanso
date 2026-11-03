@@ -16,7 +16,8 @@ import '../../../injection.dart';
 import '../../models/repos/abs/people_repository.dart';
 
 /// The library's People & Projects row, with the number of suggestions
-/// waiting.
+/// waiting. It is drawn only while there are pages or suggestions, so the
+/// drawer is as it was without them.
 class PeopleLibraryRow extends StatefulWidget {
   const PeopleLibraryRow({super.key});
 
@@ -26,6 +27,7 @@ class PeopleLibraryRow extends StatefulWidget {
 
 class _PeopleLibraryRowState extends State<PeopleLibraryRow> {
   int _suggestions = 0;
+  int _pages = 0;
 
   @override
   void initState() {
@@ -38,7 +40,10 @@ class _PeopleLibraryRowState extends State<PeopleLibraryRow> {
       final status = await getIt<PeopleRepository>().status();
       final read = status.toOption().toNullable();
       if (read != null && mounted) {
-        setState(() => _suggestions = read.suggestions);
+        setState(() {
+          _suggestions = read.suggestions;
+          _pages = read.pages;
+        });
       }
     } on Object {
       // No library to ask (a preview): the row shows no count.
@@ -47,6 +52,9 @@ class _PeopleLibraryRowState extends State<PeopleLibraryRow> {
 
   @override
   Widget build(BuildContext context) {
+    if (_pages == 0 && _suggestions == 0) {
+      return const SizedBox.shrink();
+    }
     return KansoSidebarRow(
       icon: KansoIcons.users,
       label: context.l10n.peopleTitle,
