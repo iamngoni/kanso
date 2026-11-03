@@ -32,7 +32,10 @@ pub const WINDOW_MIN_SIZE: (f32, f32) = (520., 420.);
 /// In a window this narrow the editor keeps only its compact minimum and
 /// the list may narrow below its usual range, so the panes still fit.
 pub const EDITOR_COMPACT_MIN: f32 = 260.;
-pub const NOTE_LIST_COMPACT_MIN: f32 = 200.;
+/// The list's compact floor leaves room for the widest rail (macOS keeps
+/// the traffic lights in it, 76 points) beside the editor's compact minimum
+/// at the window's minimum width: 76 + 184 + 260 = 520.
+pub const NOTE_LIST_COMPACT_MIN: f32 = 184.;
 /// Below this window width the sidebar folds to the icon rail whatever the
 /// user chose, so the list and the editor keep their room.
 pub const SIDEBAR_FOLD_BELOW: f32 = 820.;
@@ -193,7 +196,8 @@ impl PaneWidths {
         // Still short (a window near its minimum, beside a rail): the list
         // narrows below its range, down to a compact floor, so the editor
         // keeps at least its compact minimum.
-        // (Without a rail the sidebar has folded to one long before this.)
+        // (Without a rail the sidebar has folded to one long before this,
+        // unless opened by hand in a narrow window: then the editor is short.)
         let left = rail.unwrap_or(sidebar);
         let short = EDITOR_COMPACT_MIN - (window - left - list);
         let list = if rail.is_some() && short > 1e-3 {
@@ -669,7 +673,7 @@ mod tests {
             let (lo, hi) = if a < b { (a, b) } else { (b, a) };
             prop_assert!(!sidebar_folds(hi) || sidebar_folds(lo) == (lo < SIDEBAR_FOLD_BELOW));
             prop_assert!(sidebar_folds(WINDOW_MIN_SIZE.0));
-            prop_assert!(RAIL_MIN_WIDTH + NOTE_LIST_COMPACT_MIN + EDITOR_COMPACT_MIN <= WINDOW_MIN_SIZE.0);
+            prop_assert!(rail_width(false) + NOTE_LIST_COMPACT_MIN + EDITOR_COMPACT_MIN <= WINDOW_MIN_SIZE.0);
         }
     }
 

@@ -38,6 +38,7 @@ pub fn render(menus: &Entity<AppMenuBar>, colors: &Colors) -> impl IntoElement {
             // menus: the rest of the bar still drags.
             div()
                 .id("menus")
+                .debug_selector(|| "title-menus".into())
                 .h_full()
                 .flex()
                 .items_center()

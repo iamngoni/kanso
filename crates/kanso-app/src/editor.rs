@@ -391,6 +391,10 @@ pub struct NoteEditor {
 
 impl EventEmitter<EditorEvent> for NoteEditor {}
 
+/// Below this pane width, in points, the note's toolbar keeps only the
+/// title, the view mode (as a menu), More and the inspector toggle.
+const TOOLBAR_COMPACT_BELOW: f32 = 600.;
+
 impl NoteEditor {
     pub fn new(
         store: Arc<Store>,
@@ -3375,6 +3379,42 @@ impl NoteEditor {
             ("mode-preview", "Preview", ViewMode::Preview),
             ("mode-split", "Split", ViewMode::Split),
         ];
+        // A pane too narrow for the whole toolbar (a half-screen window)
+        // keeps the title, the view mode as a menu, More and the inspector;
+        // pin, history and backlinks are in More or the inspector, and voice
+        // input keeps its shortcut.
+        let compact = self.pane_width > 0. && self.pane_width < TOOLBAR_COMPACT_BELOW;
+        let mode_label = modes
+            .iter()
+            .find(|(_, _, option)| *option == mode)
+            .map_or("Edit", |(_, label, _)| *label);
+        let mode_menu = {
+            let view = view.clone();
+            Button::new("mode-menu")
+                .ghost()
+                .small()
+                .tab_stop(tab_stop)
+                .debug_selector(|| "mode-menu".into())
+                .child(
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(colors.text_secondary)
+                        .child(mode_label),
+                )
+                .tooltip("View mode")
+                .dropdown_menu(move |mut menu, _, _| {
+                    for (_, label, option) in modes {
+                        let view = view.clone();
+                        menu =
+                            menu.item(PopupMenuItem::new(label).checked(option == mode).on_click(
+                                move |_, _, cx| {
+                                    view.update(cx, |this, cx| this.choose_view_mode(option, cx));
+                                },
+                            ));
+                    }
+                    menu
+                })
+        };
         let mode_group = ButtonGroup::new("view-mode")
             .outline()
             .small()
@@ -3450,8 +3490,14 @@ impl NoteEditor {
                             .child(saved),
                     ),
             )
-            .children(backlinks)
-            .child(div().flex_none().mx_1().child(mode_group))
+            .when(!compact, |el| el.children(backlinks))
+            .map(|el| {
+                if compact {
+                    el.child(div().flex_none().child(mode_menu))
+                } else {
+                    el.child(div().flex_none().mx_1().child(mode_group))
+                }
+            })
             // An open locked note shows its lock open, and a click locks
             // every note again. Not a listener: `lock_now` updates this
             // editor.
@@ -3470,55 +3516,61 @@ impl NoteEditor {
                         }),
                 )
             })
-            .child(
-                Button::new("pin")
-                    .ghost()
-                    .small()
-                    .tab_stop(tab_stop)
-                    .icon(Icon::new(Lucide::Pin).text_color(if pinned {
-                        colors.text
-                    } else {
-                        colors.text_secondary
-                    }))
-                    .selected(pinned)
-                    .tooltip(if pinned { "Unpin note" } else { "Pin note" })
-                    .on_click(cx.listener(|this, _, _, cx| this.toggle_pinned(cx))),
-            )
+            .when(!compact, |el| {
+                el.child(
+                    Button::new("pin")
+                        .ghost()
+                        .small()
+                        .tab_stop(tab_stop)
+                        .icon(Icon::new(Lucide::Pin).text_color(if pinned {
+                            colors.text
+                        } else {
+                            colors.text_secondary
+                        }))
+                        .selected(pinned)
+                        .tooltip(if pinned { "Unpin note" } else { "Pin note" })
+                        .on_click(cx.listener(|this, _, _, cx| this.toggle_pinned(cx))),
+                )
+            })
             .children(self.voice_pill(colors, cx))
-            .child(
-                Button::new("dictate")
-                    .debug_selector(|| "dictate".into())
-                    .ghost()
-                    .small()
-                    .tab_stop(tab_stop)
-                    .icon(Icon::new(Lucide::Mic).text_color(if listening {
-                        colors.danger
-                    } else {
-                        colors.text_secondary
-                    }))
-                    .selected(listening)
-                    .tooltip(if listening {
-                        "Stop and write it down"
-                    } else {
-                        "Voice input"
-                    })
-                    // Not a listener: `press` updates this editor (System
-                    // Dictation puts the keyboard in the note), which can't be
-                    // done while a listener of its own is updating it.
-                    .on_click({
-                        let editor = cx.entity();
-                        move |_, window, cx| crate::voice::press(editor.clone(), window, cx)
-                    }),
-            )
-            .child(
-                Button::new("history")
-                    .ghost()
-                    .small()
-                    .tab_stop(tab_stop)
-                    .icon(Icon::new(Lucide::Clock).text_color(colors.text_secondary))
-                    .tooltip("Show history")
-                    .on_click(cx.listener(|_, _, _, cx| cx.emit(EditorEvent::ShowHistory))),
-            )
+            .when(!compact || listening, |el| {
+                el.child(
+                    Button::new("dictate")
+                        .debug_selector(|| "dictate".into())
+                        .ghost()
+                        .small()
+                        .tab_stop(tab_stop)
+                        .icon(Icon::new(Lucide::Mic).text_color(if listening {
+                            colors.danger
+                        } else {
+                            colors.text_secondary
+                        }))
+                        .selected(listening)
+                        .tooltip(if listening {
+                            "Stop and write it down"
+                        } else {
+                            "Voice input"
+                        })
+                        // Not a listener: `press` updates this editor (System
+                        // Dictation puts the keyboard in the note), which can't be
+                        // done while a listener of its own is updating it.
+                        .on_click({
+                            let editor = cx.entity();
+                            move |_, window, cx| crate::voice::press(editor.clone(), window, cx)
+                        }),
+                )
+            })
+            .when(!compact, |el| {
+                el.child(
+                    Button::new("history")
+                        .ghost()
+                        .small()
+                        .tab_stop(tab_stop)
+                        .icon(Icon::new(Lucide::Clock).text_color(colors.text_secondary))
+                        .tooltip("Show history")
+                        .on_click(cx.listener(|_, _, _, cx| cx.emit(EditorEvent::ShowHistory))),
+                )
+            })
             .child(
                 Button::new("note-menu")
                     .ghost()

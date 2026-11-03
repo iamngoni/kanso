@@ -1588,6 +1588,158 @@ fn the_smallest_window_holds_the_workspace(cx: &mut TestAppContext) {
     }
 }
 
+/// In a window too narrow for the full sidebar, Toggle Sidebar opens it for
+/// now and folds it again, never flipping the saved choice; once the window
+/// is wide again, the saved choice is back.
+// no-prop-test: drives one window through keystrokes; `sidebar_folds` has
+// the property.
+#[gpui_kit::test]
+fn the_sidebar_toggle_works_in_a_narrow_window(cx: &mut TestAppContext) {
+    use crate::layout::WINDOW_MIN_SIZE;
+    use gpui_kit::{px, size};
+
+    let f = setup(cx);
+    cx.update(crate::workspace::bind_keys);
+    f.select(cx, &f.notes[0]);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let sidebar = f.workspace(&mut vcx, |w, _| w.sidebar.clone());
+    let narrow = size(px(WINDOW_MIN_SIZE.0), px(WINDOW_MIN_SIZE.1));
+    vcx.simulate_resize(narrow);
+    f.draw(&mut vcx);
+    assert!(vcx.read(|cx| sidebar.read(cx).is_collapsed()));
+
+    vcx.simulate_keystrokes("cmd-\\");
+    f.draw(&mut vcx);
+    assert!(
+        !vcx.read(|cx| sidebar.read(cx).is_collapsed()),
+        "opens for now"
+    );
+    assert!(f.saved_config().appearance.show_sidebar);
+    for name in ["sidebar-pane", "list-pane", "editor-pane"] {
+        let b = vcx.debug_bounds(name).unwrap();
+        assert!(f32::from(b.right()) <= WINDOW_MIN_SIZE.0 + 0.5, "{name}");
+    }
+    vcx.simulate_keystrokes("cmd-\\");
+    f.draw(&mut vcx);
+    assert!(vcx.read(|cx| sidebar.read(cx).is_collapsed()));
+    assert!(
+        f.saved_config().appearance.show_sidebar,
+        "the saved choice stays"
+    );
+
+    // Opened by hand, then widened and narrowed again: it folds, as saved.
+    vcx.simulate_keystrokes("cmd-\\");
+    vcx.simulate_resize(size(px(1400.), px(800.)));
+    f.draw(&mut vcx);
+    assert!(!vcx.read(|cx| sidebar.read(cx).is_collapsed()));
+    vcx.simulate_resize(narrow);
+    f.draw(&mut vcx);
+    assert!(vcx.read(|cx| sidebar.read(cx).is_collapsed()));
+}
+
+/// At the window's minimum the editor's toolbar, title and tab bar, the
+/// inspector (with Ask) and Settings all stay inside the window, and an
+/// open inspector with no room beside the list takes the list's place.
+// no-prop-test: drives one window; the fitting rules are properties in
+// layout.rs.
+#[gpui_kit::test]
+fn the_smallest_window_holds_the_editor_inspector_and_settings(cx: &mut TestAppContext) {
+    use crate::config::InspectorTab;
+    use crate::layout::{EDITOR_COMPACT_MIN, WINDOW_MIN_SIZE};
+    use crate::note_menu::NoteCommand;
+    use gpui_kit::{px, size};
+
+    let f = setup(cx);
+    cx.update(crate::workspace::bind_keys);
+    cx.update(|cx| AppState::update_config(cx, |config| config.ai.enabled = true));
+    f.select(cx, &f.notes[0]);
+    let workspace = f.workspace.clone();
+    let id = f.notes[1].clone();
+    f.window
+        .update(cx, |_, window, cx| {
+            workspace.update(cx, |w, cx| {
+                w.run_note_command(&id, NoteCommand::OpenInNewTab, window, cx)
+            })
+        })
+        .unwrap();
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let width = WINDOW_MIN_SIZE.0;
+    vcx.simulate_resize(size(px(width), px(WINDOW_MIN_SIZE.1)));
+    for _ in 0..3 {
+        f.draw(&mut vcx);
+    }
+    let editor = vcx.debug_bounds("editor-pane").unwrap();
+    let dbg = |vcx: &mut gpui_kit::VisualTestContext| {
+        ["sidebar-pane", "list-pane", "editor-pane", "inspector-pane"]
+            .map(|n| (n, vcx.debug_bounds(n).map(|b| (b.left(), b.right()))))
+    };
+    assert!(
+        f32::from(editor.size.width) >= EDITOR_COMPACT_MIN - 0.5,
+        "{:?}",
+        dbg(&mut vcx)
+    );
+    for name in ["tab-bar", "note-title", "inspector-toggle"] {
+        let b = vcx
+            .debug_bounds(name)
+            .unwrap_or_else(|| panic!("{name} is drawn"));
+        assert!(
+            b.right() <= editor.right() + px(0.5) && b.left() >= editor.left() - px(0.5),
+            "{name} spans {:?}..{:?}, the editor {:?}..{:?}",
+            b.left(),
+            b.right(),
+            editor.left(),
+            editor.right()
+        );
+    }
+
+    // Ask opens in the inspector, which takes the list's place.
+    workspace.update(&mut vcx, |w, cx| {
+        w.show_inspector(Some(InspectorTab::Ask), cx)
+    });
+    for _ in 0..3 {
+        f.draw(&mut vcx);
+    }
+    let inspector = vcx
+        .debug_bounds("inspector-pane")
+        .expect("the inspector shows in a narrow window");
+    assert_eq!(vcx.debug_bounds("list-pane"), None);
+    assert!(f32::from(inspector.right()) <= width + 0.5);
+    let editor = vcx.debug_bounds("editor-pane").unwrap();
+    assert!(editor.right() <= inspector.left() + px(0.5));
+    assert!(f32::from(editor.size.width) >= EDITOR_COMPACT_MIN - 0.5);
+    workspace.update(&mut vcx, |w, cx| w.toggle_inspector(cx));
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("list-pane").is_some());
+
+    // Off macOS the menus in Kanso's own title bar fit beside the window's
+    // three buttons (34 points each).
+    workspace.update(&mut vcx, |w, cx| {
+        crate::workspace::set_menus(cx);
+        crate::title_bar::publish_menus(cx);
+        w.title_bar = Some(gpui_kit::component::menu::AppMenuBar::new(cx));
+    });
+    for _ in 0..3 {
+        f.draw(&mut vcx);
+    }
+    let menus = vcx
+        .debug_bounds("title-menus")
+        .expect("the menus are drawn");
+    assert!(
+        f32::from(menus.right()) + 3. * 34. <= width,
+        "the menus end at {:?}",
+        menus.right()
+    );
+
+    // Settings fill the window beside the rail.
+    vcx.simulate_keystrokes("cmd-,");
+    for _ in 0..3 {
+        f.draw(&mut vcx);
+    }
+    let settings = vcx.debug_bounds("settings-pane").expect("Settings open");
+    assert!(f32::from(settings.right()) <= width + 0.5);
+    assert!(f32::from(settings.size.width) >= width - 100.);
+}
+
 /// Another note opens at its top in the preview too, whether the preview
 /// was scrolled alone (Preview) or beside a source left at its top (Split).
 // no-prop-test: drives one window; the scroll mapping is a property in

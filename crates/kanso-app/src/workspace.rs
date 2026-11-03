@@ -473,6 +473,10 @@ pub struct Workspace {
     pub(crate) settings_return: Option<SettingsReturn>,
     /// The full sidebar, or the icon rail it collapses to.
     pub(crate) show_sidebar: bool,
+    /// The full sidebar opened by hand in a window too narrow for it (where
+    /// it otherwise folds to the rail). Not saved: it only lasts while the
+    /// window stays narrow, so the saved choice is never flipped by width.
+    pub(crate) sidebar_peek: bool,
     /// Only the note, centred: no sidebar and no list.
     pub(crate) focus_mode: bool,
     /// The sidebar's and the list's widths; the editor takes the rest.
@@ -853,6 +857,7 @@ impl Workspace {
             settings,
             settings_return: None,
             show_sidebar: appearance.show_sidebar,
+            sidebar_peek: false,
             focus_mode,
             pane_widths: PaneWidths::default(),
             focus,
@@ -2038,9 +2043,19 @@ impl Workspace {
     /// Whether the full sidebar is drawn: as the user set it, and the
     /// window wide enough for it (below that it folds to the rail, so a
     /// half-screen window keeps room for the list and the editor).
+    /// In a narrow window, Toggle Sidebar opens or folds it for now
+    /// (`sidebar_peek`) and leaves the saved choice alone.
     fn sidebar_shown(&self, window: &Window) -> bool {
-        let width = crate::zoom::unscaled(window.viewport_size().width);
-        self.show_sidebar && !sidebar_folds(width)
+        if self.width_folds_sidebar(window) {
+            self.sidebar_peek
+        } else {
+            self.show_sidebar
+        }
+    }
+
+    /// Whether the window is too narrow for the full sidebar.
+    fn width_folds_sidebar(&self, window: &Window) -> bool {
+        sidebar_folds(crate::zoom::unscaled(window.viewport_size().width))
     }
 
     /// The panes' widths as drawn: as set, or narrower when the window
@@ -2050,15 +2065,29 @@ impl Workspace {
         self.pane_widths.fitted(width, self.rail(window))
     }
 
-    /// The inspector's width as drawn, or `None` while it is closed or the
-    /// window has no room for it.
+    /// The inspector's width as drawn, or `None` while it is closed. In a
+    /// window with no room for it beside the list and the editor, it takes
+    /// the list's place and width (see `inspector_takes_list`), so opening
+    /// it (or Ask) always shows something.
     pub(crate) fn inspector_shown(&self, window: &Window) -> Option<f32> {
         if !self.inspector_open || self.focus_mode || self.settings_open() {
             return None;
         }
         let width = crate::zoom::unscaled(window.viewport_size().width);
+        let list = self.fitted_widths(window).list;
+        let before = self.leading_width(window) + list;
+        inspector_fitted(self.inspector_width, width, before).or(Some(list))
+    }
+
+    /// Whether the open inspector has no room beside the list and the editor,
+    /// so it is drawn in the list's place.
+    pub(crate) fn inspector_takes_list(&self, window: &Window) -> bool {
+        if !self.inspector_open || self.focus_mode || self.settings_open() {
+            return false;
+        }
+        let width = crate::zoom::unscaled(window.viewport_size().width);
         let before = self.leading_width(window) + self.fitted_widths(window).list;
-        inspector_fitted(self.inspector_width, width, before)
+        inspector_fitted(self.inspector_width, width, before).is_none()
     }
 
     /// The width of what is left of the note list: the sidebar or its rail.
@@ -2491,6 +2520,11 @@ pub fn tag_color_name(color: TagColor) -> String {
 impl Render for Workspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
+        // A sidebar opened by hand in a narrow window lasts while it is
+        // narrow; once wide, the saved choice is back in charge.
+        if !self.width_folds_sidebar(window) {
+            self.sidebar_peek = false;
+        }
         let sidebar_shown = self.sidebar_shown(window);
         // The sidebar or its rail is leftmost and keeps the traffic lights'
         // room; the list's top band leaves whatever is left of it free.
@@ -2547,6 +2581,7 @@ impl Render for Workspace {
             .update(cx, |editor, cx| editor.set_focus_mode(focus_mode, cx));
         let widths = self.fitted_widths(window);
         let inspector = self.inspector_shown(window);
+        let inspector_takes_list = self.inspector_takes_list(window);
         self.inspector.update(cx, |inspector_view, _| {
             inspector_view.visible = inspector.is_some();
         });
@@ -2658,6 +2693,14 @@ impl Render for Workspace {
             }))
             .on_action(cx.listener(|this, _: &ToggleSidebar, window, cx| {
                 // In focus mode there is no sidebar to toggle: it comes back.
+                // In a window too narrow for it, the toggle opens or folds
+                // the sidebar for now, without touching the saved choice
+                // (which the width overrides there anyway).
+                if !this.focus_mode && this.width_folds_sidebar(window) {
+                    this.sidebar_peek = !this.sidebar_peek;
+                    cx.notify();
+                    return;
+                }
                 let show = this.focus_mode || !this.show_sidebar;
                 this.set_focus_mode(false, window, cx);
                 this.show_sidebar = show;
@@ -3112,7 +3155,7 @@ impl Render for Workspace {
                         )
                     })
                     .when(!settings_open && !(digest_shown && !focus_mode), |el| {
-                        el.when(!focus_mode, |el| {
+                        el.when(!focus_mode && !inspector_takes_list, |el| {
                             el.child(
                                 div()
                                     .relative()
