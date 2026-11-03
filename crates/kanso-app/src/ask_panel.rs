@@ -1126,7 +1126,7 @@ impl AskPanel {
         } else if !finished.markdown.trim().is_empty() {
             let open = view.clone();
             let receipts = finished.receipts.clone();
-            let markdown = with_superscripts(&finished.markdown);
+            let markdown = with_marked_sentences(&with_superscripts(&finished.markdown));
             column = column.child(
                 TextView::markdown(("ask-finished-text", index), markdown)
                     .selectable(true)
@@ -1157,6 +1157,14 @@ impl AskPanel {
                     .text_size(px(11.5))
                     .text_color(colors.text_muted)
                     .child(ask::NOT_FOUND_HINT),
+            );
+        }
+        if finished.no_source > 0 {
+            column = column.child(
+                div()
+                    .text_size(px(11.5))
+                    .text_color(colors.text_muted)
+                    .child(no_source_line(finished.no_source)),
             );
         }
         if !finished.receipts.is_empty() {
@@ -1470,6 +1478,50 @@ fn with_superscripts(markdown: &str) -> String {
     out
 }
 
+/// "2 sentences cite no lines of your notes."
+fn no_source_line(count: usize) -> String {
+    if count == 1 {
+        "1 sentence cites no lines of your notes (shown in italics).".to_owned()
+    } else {
+        format!("{count} sentences cite no lines of your notes (shown in italics).")
+    }
+}
+
+/// `markdown` with the sentences that need a second look drawn so they read
+/// so without a click: a sentence whose receipts failed gets a warning sign
+/// before it (it stays a link that explains itself), and a sentence with no
+/// source is set in italics, lighter than the cited ones.
+fn with_marked_sentences(markdown: &str) -> String {
+    const FAILED: &str = "](kanso-unverified:";
+    const NO_SOURCE: &str = "](kanso-nosource:";
+    let mut text = markdown.to_owned();
+    let mut from = 0;
+    while let Some(found) = text[from..].find(NO_SOURCE) {
+        let at = from + found;
+        let (Some(open), Some(close)) = (text[..at].rfind('['), text[at..].find(')')) else {
+            break;
+        };
+        let sentence = text[open + 1..at].to_owned();
+        text.replace_range(open..at + close + 1, &format!("*{sentence}*"));
+        from = open + sentence.len() + 2;
+    }
+    let mut out = String::with_capacity(text.len() + 8);
+    let mut rest = text.as_str();
+    while let Some(at) = rest.find(FAILED) {
+        match rest[..at].rfind('[') {
+            Some(open) => {
+                out.push_str(&rest[..open]);
+                out.push_str("\u{26a0} ");
+                out.push_str(&rest[open..at + FAILED.len()]);
+            }
+            None => out.push_str(&rest[..at + FAILED.len()]),
+        }
+        rest = &rest[at + FAILED.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
 impl Render for AskPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
@@ -1692,7 +1744,7 @@ impl Render for AskPanel {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConversationKey, superscript, with_superscripts};
+    use super::{ConversationKey, superscript, with_marked_sentences, with_superscripts};
     use crate::config::AiSettings;
     use kanso_ai::Provider;
     use proptest::prelude::*;
@@ -1752,6 +1804,29 @@ mod tests {
         assert_eq!(
             with_superscripts("[Pricing](inkdrop://note/a) [x](kanso-cite:x)"),
             "[Pricing](inkdrop://note/a) [x](kanso-cite:x)"
+        );
+    }
+
+    #[test]
+    fn failed_and_unsourced_sentences_are_drawn_apart_before_any_click() {
+        let shown = with_marked_sentences(
+            "Fine [\u{b9}](kanso-cite:1) [Made up.](kanso-unverified:1) *Not found in your notes* [Maybe.](kanso-nosource:2) End.",
+        );
+        // A failed sentence has a warning sign and stays a link that explains.
+        assert!(
+            shown.contains("\u{26a0} [Made up.](kanso-unverified:1)"),
+            "{shown}"
+        );
+        // An unsourced one is italic and no longer a link.
+        assert!(shown.contains("*Maybe.*"), "{shown}");
+        assert!(!shown.contains("kanso-nosource"), "{shown}");
+        // Nothing else moves.
+        assert!(shown.starts_with("Fine [\u{b9}](kanso-cite:1) "), "{shown}");
+        assert!(shown.ends_with(" End."), "{shown}");
+        // An answer with neither is untouched.
+        assert_eq!(
+            with_marked_sentences("Plain [x](kanso-cite:1)."),
+            "Plain [x](kanso-cite:1)."
         );
     }
 
