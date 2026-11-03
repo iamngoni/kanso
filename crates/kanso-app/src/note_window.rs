@@ -633,6 +633,13 @@ impl NoteWindow {
                     workspace.open_note_in_new_tab(&id, window, cx)
                 });
             }
+            // A cited line of a page opens in the main window.
+            EditorEvent::OpenLines { id, first, last } => {
+                let (id, first, last) = (id.clone(), *first, *last);
+                in_main_window(cx, move |workspace, window, cx| {
+                    workspace.open_note_lines(&id, first, last, window, cx)
+                });
+            }
             // This window's note is its own; nothing else shows it.
             EditorEvent::Closed(_) => {}
             EditorEvent::Renamed {

@@ -38,6 +38,7 @@ serde.workspace = true
 # (theme/file.rs), which a map keeps only with `preserve_order`.
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha2.workspace = true
+thiserror.workspace = true
 # Shared assistant providers and prompt rules, without the desktop agent.
 kanso-ai = { path = "../kanso-ai", optional = true, default-features = false }
 kanso-server = { workspace = true, optional = true }

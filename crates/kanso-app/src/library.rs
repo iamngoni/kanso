@@ -62,6 +62,13 @@ pub struct Library {
     pub open_loops: u32,
     /// How many notes others shared with this account.
     pub shared: u32,
+    /// The person and project pages: `(note ID, name, kind)`.
+    pub people: Vec<(String, String, kanso_core::entities::EntityKind)>,
+    /// How many names Kanso suggests a page for, for the sidebar's count.
+    pub people_new: u32,
+    /// The suggestions: `(key, name, kind)`, for "Create a page for X" in
+    /// the editor.
+    pub people_offers: Vec<(String, String, kanso_core::entities::EntityKind)>,
     pub filter: Filter,
     pub search: String,
     pub sort: Sort,
@@ -102,6 +109,9 @@ struct Loaded {
     overdue: u32,
     open_loops: u32,
     shared: u32,
+    people: Vec<(String, String, kanso_core::entities::EntityKind)>,
+    people_new: u32,
+    people_offers: Vec<(String, String, kanso_core::entities::EntityKind)>,
     /// `None` while the Tasks view shows: the list keeps its notes.
     notes: Option<Vec<NoteSummary>>,
 }
@@ -137,6 +147,9 @@ impl Library {
             overdue: 0,
             open_loops: 0,
             shared: 0,
+            people: Vec::new(),
+            people_new: 0,
+            people_offers: Vec::new(),
             filter: Filter::All,
             search: String::new(),
             sort: Sort::UpdatedAt,
@@ -206,6 +219,10 @@ impl Library {
         let recent_since = Clock::now_ms(cx) - RECENT_DAYS * DAY_MS;
         let now =
             kanso_core::dates::DateTime::from_local_ms(Clock::local_ms(cx, Clock::now_ms(cx)));
+        let people_settings = cx
+            .try_global::<crate::workspace::AppState>()
+            .map(|state| state.config.people_projects.clone())
+            .unwrap_or_default();
         let task = cx.background_executor().spawn(async move {
             let notes = match filter {
                 Filter::Tasks | Filter::OpenLoops | Filter::Brief | Filter::Review => None,
@@ -230,6 +247,12 @@ impl Library {
                     name: tag.name.clone(),
                 })
                 .collect();
+            let people_offers: Vec<_> =
+                kanso_engine::entities::suggest::suggestions(&store, &people_settings)?
+                    .into_iter()
+                    .filter(|s| s.alias_of.is_none())
+                    .map(|s| (s.key, s.name, s.kind))
+                    .collect();
             Ok::<_, StoreError>(Loaded {
                 book_counts: book_total_counts(&books),
                 books,
@@ -240,6 +263,13 @@ impl Library {
                 overdue: store.overdue_count(now)?,
                 open_loops: store.open_loop_count(&kanso_store::LoopQuery::default())?,
                 shared: u32::try_from(store.shared_with_me()?.len()).unwrap_or(u32::MAX),
+                people: store
+                    .entities()?
+                    .into_iter()
+                    .map(|page| (page.id, page.title, page.kind))
+                    .collect(),
+                people_new: u32::try_from(people_offers.len()).unwrap_or(u32::MAX),
+                people_offers,
                 notes,
             })
         });
@@ -260,6 +290,9 @@ impl Library {
                         this.overdue = loaded.overdue;
                         this.open_loops = loaded.open_loops;
                         this.shared = loaded.shared;
+                        this.people = loaded.people;
+                        this.people_new = loaded.people_new;
+                        this.people_offers = loaded.people_offers;
                         if let Some(notes) = loaded.notes {
                             this.notes = notes;
                             this.notes_version += 1;

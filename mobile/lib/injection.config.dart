@@ -239,6 +239,8 @@ import 'templates/state/template_picker/template_picker_bloc.dart' as _i828;
 import 'themes/state/icon_themes/icon_themes_bloc.dart' as _i778;
 import 'themes/state/theme_gallery/theme_gallery_bloc.dart' as _i569;
 import 'themes/state/theme_picker/theme_picker_bloc.dart' as _i149;
+import 'people/models/repos/abs/people_repository.dart' as _i9101;
+import 'people/models/repos/impl/rust_people_repository.dart' as _i9102;
 import 'triage/models/repos/abs/triage_repository.dart' as _i731;
 import 'triage/models/repos/impl/rust_triage_repository.dart' as _i975;
 import 'triage/state/triage/triage_bloc.dart' as _i1007;
@@ -455,6 +457,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i815.CrashReportsBloc>(
       () => _i815.CrashReportsBloc(gh<_i288.CrashReportRepository>()),
+    );
+    gh.lazySingleton<_i9101.PeopleRepository>(
+      () => _i9102.RustPeopleRepository(gh<_i455.KansoLibrary>()),
     );
     gh.lazySingleton<_i731.TriageRepository>(
       () => _i975.RustTriageRepository(gh<_i455.KansoLibrary>()),

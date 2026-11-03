@@ -71,6 +71,12 @@ impl Doc {
             if self.doc_type == DocType::Note {
                 fields.remove(kanso_core::model::KANSO_FILES_FIELD);
             }
+            // A generated page's cache of AI sections, and the names turned
+            // away from suggestions, are the app's own.
+            if matches!(self.doc_type, DocType::Note | DocType::Book) {
+                fields.remove(kanso_core::page_cache::PAGE_FIELD);
+                fields.remove(crate::DISMISSED_FIELD);
+            }
             let sealed = fields.remove(kanso_core::model::LOCK_FIELD).is_some();
             if self.doc_type == DocType::Note && (sealed || self.in_locked_notebook) {
                 fields.insert("body".into(), Value::String(String::new()));

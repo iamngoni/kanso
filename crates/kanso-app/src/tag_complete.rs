@@ -41,6 +41,8 @@ pub struct NoteCompletion {
     in_tag: Cell<bool>,
     /// Whether the caret was after a task's `@` at the last keystroke.
     in_date: Cell<bool>,
+    /// Whether the caret was after an `@name` at the last keystroke.
+    in_mention: Cell<bool>,
 }
 
 impl NoteCompletion {
@@ -55,7 +57,44 @@ impl NoteCompletion {
             meaning,
             in_tag: Cell::new(false),
             in_date: Cell::new(false),
+            in_mention: Cell::new(false),
         }
+    }
+
+    /// `@name` autocomplete: the one-word names of the library's people
+    /// and project pages (`people_data::mention_choices`).
+    fn mentions(&self, text: &Rope, offset: usize, cx: &App) -> Option<Vec<CompletionItem>> {
+        let offset = offset.min(text.len());
+        let position = text.offset_to_position(offset);
+        let line_start = text.line_start_offset(position.line as usize);
+        let before = text.slice(line_start..offset).to_string();
+        let (at, query) = crate::people_data::at_query(&before)?;
+        let store = self.library.read(cx).store.clone();
+        let pages: Vec<(String, Vec<String>)> = store
+            .entities()
+            .ok()?
+            .into_iter()
+            .map(|page| (page.title, page.names))
+            .collect();
+        let range = lsp_types::Range {
+            start: text.offset_to_position(line_start + at),
+            end: text.offset_to_position(offset),
+        };
+        let items: Vec<CompletionItem> = crate::people_data::mention_choices(&pages, query)
+            .into_iter()
+            .map(|choice| CompletionItem {
+                label: format!("@{}", choice.handle),
+                detail: Some(choice.title),
+                kind: Some(CompletionItemKind::REFERENCE),
+                filter_text: Some(String::new()),
+                text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                    range,
+                    new_text: format!("@{}", choice.handle),
+                })),
+                ..Default::default()
+            })
+            .collect();
+        (!items.is_empty()).then_some(items)
     }
 
     /// The `#tag` at `offset` of `text`: where its `#` is and the query.
@@ -90,6 +129,12 @@ impl CompletionProvider for NoteCompletion {
         let dates = crate::due::completions(text, offset, cx);
         self.in_date.set(dates.is_some());
         if let Some(items) = dates {
+            self.in_tag.set(false);
+            return Task::ready(Ok(CompletionResponse::Array(items)));
+        }
+        let mentions = self.mentions(text, offset, cx);
+        self.in_mention.set(mentions.is_some());
+        if let Some(items) = mentions {
             self.in_tag.set(false);
             return Task::ready(Ok(CompletionResponse::Array(items)));
         }
@@ -130,9 +175,13 @@ impl CompletionProvider for NoteCompletion {
         if new_text.contains('\n') {
             self.in_tag.set(false);
             self.in_date.set(false);
+            self.in_mention.set(false);
         }
         (!new_text.contains('\n')
-            && (new_text.contains(['#', '@']) || self.in_tag.get() || self.in_date.get()))
+            && (new_text.contains(['#', '@'])
+                || self.in_tag.get()
+                || self.in_date.get()
+                || self.in_mention.get()))
             || self.wiki.is_completion_trigger(offset, new_text, cx)
     }
 }

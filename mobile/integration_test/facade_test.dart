@@ -30,6 +30,7 @@ import '../test/core/bridge/suites/library_suite.dart';
 import '../test/core/bridge/suites/linking_suite.dart';
 import '../test/core/bridge/suites/locks_suite.dart';
 import '../test/core/bridge/suites/metrics_suite.dart';
+import '../test/core/bridge/suites/people_suite.dart';
 import '../test/core/bridge/suites/publish_suite.dart';
 import '../test/core/bridge/suites/reminders_suite.dart';
 import '../test/core/bridge/suites/renderer_suite.dart';
@@ -65,6 +66,7 @@ void main() {
   librarySuite(openDeviceLibrary);
   linkingSuite(openDeviceLibrary);
   cardsSuite(openDeviceLibrary);
+  peopleSuite(openDeviceLibrary);
   triageSuite(openDeviceLibrary);
   metricsSuite(openDeviceLibrary);
   locksSuite(

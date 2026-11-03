@@ -29,6 +29,7 @@ use super::gallery::KansoGallery;
 use super::linking::KansoLinking;
 use super::locks::KansoLocks;
 use super::metrics::KansoMetrics;
+use super::people::KansoPeople;
 use super::publish::KansoPublisher;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
@@ -494,6 +495,11 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn triage(&self) -> KansoTriage {
         KansoTriage::new(self.0.triage())
+    }
+
+    #[frb(sync)]
+    pub fn people(&self) -> KansoPeople {
+        KansoPeople::new(self.0.people())
     }
 
     #[frb(sync)]

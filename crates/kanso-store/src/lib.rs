@@ -12,6 +12,8 @@ pub mod collab;
 mod derived;
 mod doc;
 mod embed;
+mod entities;
+mod entity_index;
 mod graph;
 mod history;
 mod loops;
@@ -49,6 +51,10 @@ pub use doc::{Attachment, Doc};
 pub use embed::{
     EmbeddedNote, EmbeddedPassage, Embedder, EmbeddingQueue, MODEL_KEY as EMBED_MODEL_KEY,
     PendingEmbedding, RelatedNote, content_hash, cosine, embed_text, top_k,
+};
+pub use entities::{
+    CandidateRow, DISMISSED_FIELD, DetectNote, DismissedRow, EntityRow, EntityTask, MAX_DISMISSED,
+    MentionRow,
 };
 pub use graph::{GraphLink, GraphNote};
 pub use loops::{

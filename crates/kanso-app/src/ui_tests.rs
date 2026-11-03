@@ -3232,3 +3232,108 @@ fn quiz_me_tells_a_failed_model_in_words(cx: &mut TestAppContext) {
     assert!(vcx.debug_bounds("ai-details").is_some());
     assert_eq!(vcx.debug_bounds("ai-details-text"), None);
 }
+
+/// A person's page shows its live sections under the note, and a note that
+/// is not a page shows none. The panel's rules are the engine's.
+// no-prop-test: drives one window; the sections are properties in
+// `kanso_engine::pages` and `kanso_store`'s entity tests.
+#[gpui_kit::test]
+fn a_people_page_shows_live_sections_below_its_note(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    let page = kanso_engine::entities::create_page(
+        &f.store,
+        &Default::default(),
+        kanso_core::entities::EntityKind::Person,
+        "Sam Moyo",
+        &["Sam".to_owned()],
+        1_700_000_000_000,
+    )
+    .unwrap();
+    f.store
+        .put(
+            DocType::Note,
+            json!({"title": "Weekly", "bookId": book,
+                   "body": "Sam said the office opens in March\n- [ ] Send Sam the deck\n"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    f.select(cx, &f.notes[0]);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    f.draw(&mut vcx);
+    assert!(
+        vcx.debug_bounds("page-panel").is_none(),
+        "an ordinary note has no panel"
+    );
+
+    f.select(&mut vcx, &page);
+    wait_until(&f, &mut vcx, |vcx| vcx.debug_bounds("page-panel").is_some());
+    assert!(vcx.debug_bounds("page-panel").is_some());
+    assert!(vcx.debug_bounds("page-section-0").is_some());
+}
+
+/// People & Projects opens over the window, offers a name that keeps coming
+/// up, and makes nothing until Create page is pressed.
+// no-prop-test: drives one window through an action; detection is
+// properties in `kanso_engine::entities::detect`.
+#[gpui_kit::test]
+fn people_view_offers_a_name_and_makes_nothing_unasked(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    for ix in 0..3 {
+        f.store
+            .put(
+                DocType::Note,
+                json!({"title": format!("Lunch {ix}"), "bookId": book,
+                       "body": "Lunch with Tendai Chirwa went well\n"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+    }
+    let settings = kanso_engine::entities::EntitySettings::default();
+    let mut last = 0;
+    kanso_engine::entities::suggest::refresh(
+        &f.store,
+        &settings,
+        1_700_000_000_000,
+        &mut last,
+        true,
+    )
+    .unwrap();
+    assert!(f.store.entities().unwrap().is_empty());
+
+    cx.update(crate::workspace::bind_keys);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.dispatch_action(crate::people_view::ShowPeople);
+    f.draw(&mut vcx);
+    assert!(f.workspace(&mut vcx, |w, _| w.people_open));
+    let people = f.workspace(&mut vcx, |w, _| w.people.clone().unwrap());
+    vcx.update(|_, cx| people.update(cx, |p, cx| p.reload_now(cx)));
+    f.draw(&mut vcx);
+    assert_eq!(
+        vcx.read(|cx| people.read(cx).suggestions().len()),
+        1,
+        "one name keeps coming up"
+    );
+    assert!(vcx.debug_bounds("people-suggestion-0").is_some());
+    assert!(
+        f.store.entities().unwrap().is_empty(),
+        "showing the suggestion made nothing"
+    );
+
+    vcx.update(|_, cx| {
+        people.update(cx, |p, cx| {
+            let s = p.suggestions()[0].clone();
+            p.dismiss_for_test(&s, true, cx)
+        })
+    });
+    assert!(f.store.entities().unwrap().is_empty());
+    vcx.update(|_, cx| people.update(cx, |p, cx| p.reload_now(cx)));
+    assert_eq!(vcx.read(|cx| people.read(cx).suggestions().len()), 0);
+
+    vcx.simulate_keystrokes("escape");
+    f.draw(&mut vcx);
+    assert!(!f.workspace(&mut vcx, |w, _| w.people_open));
+}

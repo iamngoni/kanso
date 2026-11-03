@@ -128,6 +128,7 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
             kanso_core::model::PUBLISH_FIELD,
             kanso_core::reminders::ACK_FIELD,
             kanso_core::loops::LOOPS_FIELD,
+            kanso_core::page_cache::PAGE_FIELD,
             kanso_core::model::LOCK_FIELD,
             kanso_core::model::SHARE_FIELD,
             kanso_core::model::KANSO_FILES_FIELD,
@@ -136,6 +137,8 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
         DocType::Book => &[
             kanso_core::model::LOCK_FIELD,
             kanso_core::model::PUBLISH_FIELD,
+            kanso_core::page_cache::PAGE_FIELD,
+            "kansoDismissed",
         ],
         // The words the app read in an image: a write of the file keeps them.
         // And a sealed file's marker: only the app seals a file, so a

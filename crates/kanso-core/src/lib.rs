@@ -7,12 +7,14 @@
 pub mod capture_mark;
 pub mod cards;
 pub mod dates;
+pub mod entities;
 pub mod excerpt;
 pub mod id;
 pub mod links;
 pub mod loops;
 pub mod model;
 pub mod outline;
+pub mod page_cache;
 pub mod passages;
 pub mod properties;
 pub mod query;

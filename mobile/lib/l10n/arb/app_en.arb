@@ -7258,5 +7258,119 @@
         "type": "int"
       }
     }
-  }
+  },
+  "peopleTitle": "People & Projects",
+  "peopleSubtitle": "{count, plural, =0{No pages yet} =1{1 page} other{{count} pages}}",
+  "@peopleSubtitle": {
+    "description": "The line under the People & Projects title.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "peopleNewBadge": "{count} new",
+  "@peopleNewBadge": {
+    "description": "The count of suggestions beside People & Projects.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "peopleNewPerson": "New person…",
+  "peopleNewProject": "New project…",
+  "peopleNewPersonTitle": "New person",
+  "peopleNewProjectTitle": "New project",
+  "peopleNameHint": "Name",
+  "peopleAlsoKnownAsHint": "Also known as (optional)",
+  "peopleCreate": "Create",
+  "peopleSuggestionsTitle": "Suggestions",
+  "peoplePagesTitle": "Pages",
+  "peopleCreatePage": "Create page",
+  "peopleNotPerson": "Not a person",
+  "peopleNotProject": "Not a project",
+  "peopleNotNow": "Not now",
+  "peopleAliasQuestion": "Is “{name}” the same as {page}?",
+  "@peopleAliasQuestion": {
+    "description": "Asked when a suggestion looks like another name of an existing page.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "page": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleAliasYes": "Yes, add alias",
+  "peopleAliasNo": "No, different",
+  "peopleEmptyTitle": "No people or projects yet",
+  "peopleEmptyMessage": "Kanso suggests a page when a name keeps coming up in your notes. Or make one yourself.",
+  "peopleSuggestionsOff": "Suggestions are off. Turn them on in Settings › People & Projects.",
+  "peopleKindPerson": "Person",
+  "peopleKindProject": "Project",
+  "peopleRefresh": "Refresh",
+  "peopleRefreshAll": "Refresh all",
+  "peopleKeep": "Keep this version",
+  "peopleUnkeep": "Stop keeping this version",
+  "peopleCopyInto": "Copy into the note",
+  "peopleCopiedInto": "Copied into the note",
+  "peopleHide": "Hide section",
+  "peopleShowHidden": "Show hidden sections",
+  "peopleNotRight": "Not right",
+  "peopleShowAll": "Show all {total}",
+  "@peopleShowAll": {
+    "description": "Shows every line of a section.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "peopleMergeWith": "Merge with…",
+  "peopleMergeTitle": "Merge with",
+  "peopleMergeNone": "There is no other page to merge with.",
+  "peopleMergeConfirmTitle": "Merge into {name}?",
+  "@peopleMergeConfirmTitle": {
+    "description": "Asks before merging two pages.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleMergeConfirmMessage": "This page's names and text move to {name}, and this page goes to the Trash.",
+  "@peopleMergeConfirmMessage": {
+    "description": "What a merge does.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "peopleMergeConfirm": "Merge",
+  "peopleAddAlias": "Add alias…",
+  "peopleAddAliasTitle": "Another name",
+  "peopleSettingsTitle": "People & Projects",
+  "peopleSettingsSuggest": "Suggest people and projects",
+  "peopleSettingsSuggestHelp": "Kanso looks for names that keep coming up in your notes, on this device only. Nothing becomes a page until you say so.",
+  "peopleSettingsWriteAi": "Write summaries with AI",
+  "peopleSettingsWriteAiHelp": "Off keeps the computed sections only.",
+  "peopleSettingsRefresh": "Refresh AI sections",
+  "peopleRefreshAuto": "What suits your model",
+  "peopleRefreshOpen": "When I open an out-of-date page",
+  "peopleRefreshPress": "Only when I press Refresh",
+  "peopleSettingsDetectAi": "Use AI to find people and projects",
+  "peopleSettingsDetectAiHelp": "Once a day at most, your model labels the suggestions as people, projects or neither. It never makes a page.",
+  "peopleSettingsDismissed": "Dismissed names",
+  "peopleSuggestAgain": "Suggest again",
+  "peopleDismissedNone": "Nothing dismissed.",
+  "peopleFailed": "Couldn't read People & Projects.",
+  "peopleYouPromised": "You promised",
+  "peopleTheyPromised": "They promised",
+  "peopleSharedNote": "shared note",
+  "peopleSettingsKeepIn": "Keep pages in",
+  "peopleSettingsKeepInDefault": "People & Projects",
+  "peopleSettingsKeepInHelp": "The notebook new person and project pages go in. The default is made when the first page is."
 }

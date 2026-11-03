@@ -257,6 +257,7 @@ fn view_menu(cx: &App) -> Vec<MenuItem> {
         MenuItem::action("Board", crate::board_view::ShowBoard),
         MenuItem::action("Tasks Board", crate::board_view::ShowTaskBoard),
         MenuItem::action("Triage Inbox", crate::triage_view::ShowTriage),
+        MenuItem::action("People & Projects", crate::people_view::ShowPeople),
         MenuItem::action("Review Flashcards", crate::flashcards_view::ShowFlashcards),
         MenuItem::action("Focus Mode", ToggleFocusMode),
         MenuItem::action("Search All Notes", SearchAllNotes),
@@ -285,6 +286,8 @@ pub fn set_menus(cx: &mut App) {
         Menu::new("File").items([
             MenuItem::action("New Note", NewNote),
             MenuItem::action("New Notebook", NewNotebook),
+            MenuItem::action("New Person…", crate::people_view::NewPerson),
+            MenuItem::action("New Project…", crate::people_view::NewProject),
             MenuItem::action("New from Template…", crate::journal::NewFromTemplate),
             MenuItem::action("Today's Note", crate::journal::OpenToday),
             MenuItem::action("Journal Calendar…", crate::calendar_view::ShowCalendar),
@@ -458,6 +461,10 @@ pub struct Workspace {
     pub(crate) _flashcards_events: Option<Subscription>,
     pub(crate) triage_open: bool,
     pub(crate) _triage_events: Option<Subscription>,
+    /// People & Projects over the window while open (`people_view.rs`).
+    pub(crate) people: Option<Entity<crate::people_view::PeopleView>>,
+    pub(crate) people_open: bool,
+    pub(crate) _people_events: Option<Subscription>,
     /// The open calendar sheet's picks.
     pub(crate) _calendar_events: Option<Subscription>,
     /// Settings, drawn in place of the list and the editor while open.
@@ -580,6 +587,8 @@ impl Workspace {
             cx.new(|cx| crate::tasks_view::TasksView::new(library.clone(), editor.clone(), cx));
         let digest =
             cx.new(|cx| crate::digest_view::DigestView::new(library.clone(), editor.clone(), cx));
+        // Looks for names that keep coming up, in the background.
+        crate::people_view::start_detection(library.clone(), store.clone(), cx);
         let focus = cx.focus_handle();
         let list_focus = note_list.read(cx).focus_handle(cx);
         let palette = cx.new(|cx| {
@@ -618,6 +627,7 @@ impl Workspace {
                 // locked notebook asks for its password once.
                 LibraryEvent::Shown => {
                     this.close_triage(window, cx);
+                    this.close_people(window, cx);
                     // A page takes the keyboard once the filter has changed.
                     cx.defer_in(window, |this, window, cx| {
                         if matches!(
@@ -709,6 +719,9 @@ impl Workspace {
                         this.library
                             .update(cx, |library, cx| library.select(Some(id), cx));
                     }
+                }
+                EditorEvent::OpenLines { id, first, last } => {
+                    this.open_note_lines(id, *first, *last, window, cx)
                 }
                 EditorEvent::Closed(id) => this.close_tab_of_note(id, window, cx),
                 EditorEvent::Renamed {
@@ -833,6 +846,9 @@ impl Workspace {
             _flashcards_events: None,
             triage_open: false,
             _triage_events: None,
+            people: None,
+            people_open: false,
+            _people_events: None,
             _calendar_events: None,
             settings,
             settings_return: None,
@@ -2497,6 +2513,11 @@ impl Render for Workspace {
         // Settings would win if they did.
         let settings_open = self.settings_open();
         let focus_mode = self.focus_mode && !settings_open;
+        if let Some(people) = self.people.clone().filter(|_| self.people_open) {
+            let lead = if focus_mode { 0. } else { leading };
+            let width = window.viewport_size().width - px(lead);
+            people.update(cx, |people, cx| people.set_frame(width, list_inset, cx));
+        }
         if let Some(triage) = self.triage.clone().filter(|_| self.triage_open) {
             // The overlay starts where the sidebar ends, or at 0 in focus mode.
             let lead = if focus_mode { 0. } else { leading };
@@ -3015,6 +3036,7 @@ impl Render for Workspace {
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
             .map(|el| crate::triage_view::on_actions(el, cx))
+            .map(|el| crate::people_view::on_actions(el, cx))
             .map(|el| crate::flashcards_view::on_actions(el, cx))
             .map(|el| crate::learn_view::on_actions(el, cx))
             .map(|el| crate::digest_view::on_actions(el, cx))
@@ -3143,6 +3165,10 @@ impl Render for Workspace {
             .children(crate::graph_view::overlay(self))
             .children(crate::board_view::overlay(self))
             .children(crate::triage_view::overlay(
+                self,
+                if focus_mode { 0. } else { leading },
+            ))
+            .children(crate::people_view::overlay(
                 self,
                 if focus_mode { 0. } else { leading },
             ))

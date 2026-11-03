@@ -4579,6 +4579,7 @@ dependencies = [
  "similar",
  "tar",
  "tempfile",
+ "thiserror 2.0.21",
  "tokenizers",
  "tokio",
  "toml 0.8.23",

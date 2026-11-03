@@ -397,6 +397,7 @@ mod tests {
                 "kanso-get-properties",
                 "kanso-list-attachments",
                 "kanso-list-backlinks",
+                "kanso-list-mentions",
                 "kanso-list-note-links",
                 "kanso-list-open-loops",
                 "kanso-list-tags",

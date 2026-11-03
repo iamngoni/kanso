@@ -14,6 +14,9 @@ import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/list_labels.dart';
 import '../../../core/utils/status_label.dart';
+import '../../../injection.dart';
+import '../../../people/models/repos/abs/people_repository.dart';
+import '../../../people/views/widgets/page_panel.dart';
 import '../../models/data/source_line.dart';
 import 'note_metadata_block.dart';
 import 'note_preview.dart';
@@ -95,6 +98,9 @@ class NoteBody extends StatelessWidget {
               ),
               sliver: NotePreview(note: note, lines: lines, onEditAt: onEditAt),
             ),
+            // A person's or project's live sections; nothing for other notes.
+            if (getIt.isRegistered<PeopleRepository>())
+              SliverToBoxAdapter(child: PeoplePagePanel(noteId: note.id)),
           ],
         ),
       ),
