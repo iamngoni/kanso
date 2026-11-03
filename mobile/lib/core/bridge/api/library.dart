@@ -17,6 +17,7 @@ import 'linking.dart';
 import 'locks.dart';
 import 'metrics.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'people.dart';
 import 'publish.dart';
 import 'renderer.dart';
 import 'shared.dart';
@@ -254,6 +255,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// `#RRGGBB` for `text`, or null when it isn't a colour.
   static String? parseColor({required String text}) =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryParseColor(text: text);
+
+  KansoPeople people();
 
   Future<List<Property>> properties({required String id});
 

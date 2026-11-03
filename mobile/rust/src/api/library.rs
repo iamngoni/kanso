@@ -34,6 +34,7 @@ use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
 use super::themes::KansoThemes;
+use super::people::KansoPeople;
 use super::triage::KansoTriage;
 use super::voice_capture::KansoVoiceCapture;
 
@@ -494,6 +495,11 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn triage(&self) -> KansoTriage {
         KansoTriage::new(self.0.triage())
+    }
+
+    #[frb(sync)]
+    pub fn people(&self) -> KansoPeople {
+        KansoPeople::new(self.0.people())
     }
 
     #[frb(sync)]
