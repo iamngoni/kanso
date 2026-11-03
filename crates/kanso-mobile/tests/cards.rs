@@ -158,7 +158,12 @@ fn reviewing_schedules_cards_and_the_log_survives_a_reopen() {
     // the reminder says a count and no words of any card.
     let text = again.reminder_text(0).unwrap().unwrap();
     assert_eq!(text, "1 flashcard is due.");
-    assert_eq!(again.reset_history().unwrap(), 1);
+    // A reset marks each note that holds cards (so answers another device
+    // made offline are covered too), and every card is new again.
+    let notes: std::collections::HashSet<&str> = due.iter().map(|c| c.note_id.as_str()).collect();
+    assert_eq!(again.reset_history().unwrap() as usize, notes.len());
+    assert_eq!(again.counts(all(), 0).unwrap().due, 0);
+    assert!(again.counts(all(), 0).unwrap().waiting >= waiting - 1);
 }
 
 #[test]
@@ -278,7 +283,9 @@ fn quiz_me_asks_from_allowed_notes_and_grades_against_one() {
 
 #[test]
 fn a_draft_loses_a_citation_to_a_note_it_was_not_given_and_saves_with_sources() {
-    let model = Scripted::new("# Update\n\nThe deck covers FSRS [1]. A made-up claim [99].");
+    let model = Scripted::new(
+        "# Update\n\nFSRS stands for Free Spaced Repetition Scheduler [1]. A made-up claim [99].",
+    );
     let (phone, ai, lib) = phone_with_deck(&model);
     let drafting = phone.library.drafting_with_ai(ai);
     let ids = vec![
