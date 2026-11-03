@@ -92,7 +92,7 @@ pub fn write_section(
     let reply = crate::loops_ai::ask(context.provider, &numbered.prompt)?;
     let parsed = parse_reply(&reply, &numbered.sent, not_right);
     // A cited note must still be one that may be read.
-    let items: Vec<CachedItem> = parsed
+    let mut items: Vec<CachedItem> = parsed
         .items
         .into_iter()
         .filter(|item| {
@@ -101,6 +101,9 @@ pub fn write_section(
                 .all(|s| note_is_eligible(store, &s.note))
         })
         .collect();
+    if let Some(most) = source.max_items(spec.key) {
+        items.truncate(most);
+    }
     Ok(CachedSection {
         none: items.is_empty(),
         items,
