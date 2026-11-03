@@ -5230,6 +5230,72 @@ abstract class AppLocalizations {
   /// **'Bring notes in from another app. Kanso only reads what you choose, and importing again updates the notes it made without undoing your edits.'**
   String get importIntro;
 
+  /// The row that opens the guide to bringing Apple Notes onto a phone or tablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Notes'**
+  String get importAppleNotesRow;
+
+  /// The title of the guide to bringing Apple Notes onto a phone or tablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Apple Notes'**
+  String get importAppleNotesTitle;
+
+  /// Explains why there is no one-tap import of Apple Notes on a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Notes doesn’t let other apps read its library on iPhone and iPad. These are the ways across.'**
+  String get importAppleNotesIntro;
+
+  /// The first option: the Mac imports Apple Notes and sync brings the notes to the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Import on your Mac and sync (recommended)'**
+  String get importAppleNotesMacTitle;
+
+  /// Says how to import Apple Notes on a Mac and what comes across.
+  ///
+  /// In en, this message translates to:
+  /// **'On your Mac, open Kanso and choose File › Import… › Apple Notes. Sync brings everything here: folders, checklists, tables, scans, drawings and attachments. Locked notes can’t be read; Kanso lists them.'**
+  String get importAppleNotesMacBody;
+
+  /// The second option: sharing single notes from the Notes app to Kanso.
+  ///
+  /// In en, this message translates to:
+  /// **'Share notes one at a time'**
+  String get importAppleNotesShareTitle;
+
+  /// Says how to share a note from Apple Notes to Kanso.
+  ///
+  /// In en, this message translates to:
+  /// **'In Notes, open a note, tap Share, then choose Kanso. It arrives in your Inbox as a Markdown note with its checklists and images.'**
+  String get importAppleNotesShareBody;
+
+  /// The third option: notes exported from Apple Notes as files.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose exported files'**
+  String get importAppleNotesFilesTitle;
+
+  /// Says what exported files can be imported and where they go.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a folder or .zip of notes exported as PDF, RTF, HTML, text or Markdown. They go in an Apple Notes notebook, with the folders you had inside it.'**
+  String get importAppleNotesFilesBody;
+
+  /// The button that opens the picker for notes exported from Apple Notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose exported files'**
+  String get importAppleNotesFilesAction;
+
+  /// The link to the help page about bringing Apple Notes across.
+  ///
+  /// In en, this message translates to:
+  /// **'Read more in Help'**
+  String get importAppleNotesHelp;
+
   /// No description provided for @importSourcesLabel.
   ///
   /// In en, this message translates to:

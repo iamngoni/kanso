@@ -13,6 +13,12 @@ abstract final class KansoLinks {
   /// Help with using Kanso, on the website.
   static final Uri help = Uri.parse('https://kansoapp.app/help');
 
+  /// Bringing Apple Notes across: import on a Mac and sync, share notes one
+  /// at a time, or choose exported files.
+  static final Uri importAppleNotes = Uri.parse(
+    'https://kansoapp.app/help/import-apple-notes',
+  );
+
   /// Exactly what the anonymous usage count sends, and what it does not.
   static final Uri metrics = Uri.parse('https://kansoapp.app/metrics');
 

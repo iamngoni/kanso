@@ -160,6 +160,7 @@ it links to) as a note in the Inbox and opens it; opening it again updates that 
 | Simplenote | the `.zip` from Export Notes, or its `notes.json` | Notes (the first line is the title), tags, pinned and trashed notes. |
 | UpNote | a folder from Export › Markdown | Read as a Markdown folder. |
 | Apple Notes | found on this computer | Accounts, folders, notes, tables, scans and drawings with a downloaded preview, pictures, PDFs and other attachments, internal links, tags and pinned notes. Locked notes and content not downloaded from iCloud are skipped and listed. Kanso finds the standard Notes library itself and macOS may ask once to allow read-only access. |
+| Apple Notes export | a folder or `.zip` of notes exported as PDF, RTF, HTML, text or Markdown | Under an "Apple Notes" notebook, the export's folders as notebooks inside it. Checklists become tasks, a PDF becomes a note with the PDF attached, a note of only a picture says "(drawing)". What a phone can import. |
 | Apple Journal | an entry `.html` file, the export's folder, or a `.zip` | Each entry as a dated note, with its reflection prompt, body text and useful activity/location/media metadata. `index.html` is skipped. |
 | Google Keep | a Keep `.json` file, a Google Takeout `.zip`, or its folder | Notes, lists and checklists, labels as tags, pinned/archived/trashed state, annotations, dates and local attachments. |
 | HTML | an `.html`/`.htm` file, a folder of pages, or a `.zip` | Pages as Markdown with their folder tree, links between pages, and local pictures/files as attachments. Remote pages are not fetched. |
@@ -172,6 +173,13 @@ Attachments larger than 10 MB, the most a Kanso attachment can be, are skipped a
 links to them stay as they were. Apple Notes is read from its local database, so use the macOS app
 to make sure the notes you need have downloaded before importing. `kanso import apple-notes` finds
 the standard Notes library; `kanso import apple-notes <path>` can read a copy somewhere else.
+
+**Apple Notes on iPhone and iPad.** Apple does not let apps read the Notes library on a phone or
+tablet, so there are three ways across (Settings › Import › Apple Notes explains them): import on
+your Mac and let sync bring everything (recommended), share a note from Notes to Kanso (it arrives
+in the Inbox as a Markdown note, checklists as tasks), or choose notes exported as files with
+**Apple Notes export**. Locked notes cannot be read by any route. Windows and Linux have no Apple
+Notes; import on a Mac and sync.
 
 From a terminal, with Kanso closed, `kanso import <kind> [path]` does the same (`kanso import
 help` lists the kinds); Apple Notes finds its own path, and `--dry-run` prints the summary and

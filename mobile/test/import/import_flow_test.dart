@@ -33,7 +33,97 @@ void _registerImport(
   });
 }
 
+/// The phone's sources with the one that reads Apple Notes exported as files.
+class _WithAppleNotes extends FixtureImportRepository {
+  @override
+  List<ImportSource> sources() => <ImportSource>[
+    ...super.sources(),
+    const ImportSource(
+      kind: 'apple-notes-files',
+      label: 'Apple Notes export',
+      hint: 'A folder or .zip of notes exported from Apple Notes',
+      picksFiles: true,
+      picksFolders: true,
+      extensions: <String>['html', 'rtf', 'txt', 'md', 'pdf', 'zip'],
+    ),
+  ];
+}
+
 void main() {
+  group('Apple Notes guide', () {
+    testWidgets('lists the three ways across and starts the files route', (
+      tester,
+    ) async {
+      final repository = _WithAppleNotes();
+      final files = FixtureImportFilesRepository();
+      _registerImport(repository, files);
+
+      await pumpBrowseApp(
+        tester,
+        KansoViewport.phone.size,
+        at: KansoRoutes.import,
+        devicePixelRatio: KansoViewport.phone.devicePixelRatio,
+        safeArea: KansoViewport.phone.safeArea,
+      );
+      await tester.tap(find.text('Apple Notes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Import Apple Notes'), findsOneWidget);
+      expect(
+        find.text('Import on your Mac and sync (recommended)'),
+        findsOneWidget,
+      );
+      expect(find.text('Share notes one at a time'), findsOneWidget);
+      expect(find.text('Read more in Help'), findsOneWidget);
+
+      await tester.tap(find.text('Choose exported files').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Import from Apple Notes export'), findsOneWidget);
+      await tester.tap(find.text('Choose a folder'));
+      await tester.pumpAndSettle();
+      expect(files.calls, <String>['pickFolder']);
+      expect(repository.calls, <String>[
+        'plan apple-notes-files ${sampleImportPick.path}',
+      ]);
+    });
+
+    testWidgets('closing the guide picks nothing', (tester) async {
+      final repository = _WithAppleNotes();
+      final files = FixtureImportFilesRepository();
+      _registerImport(repository, files);
+
+      await pumpBrowseApp(
+        tester,
+        KansoViewport.phone.size,
+        at: KansoRoutes.import,
+        devicePixelRatio: KansoViewport.phone.devicePixelRatio,
+        safeArea: KansoViewport.phone.safeArea,
+      );
+      await tester.tap(find.text('Apple Notes'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(find.text('Import Apple Notes'), findsNothing);
+      expect(files.calls, isEmpty);
+    });
+
+    testWidgets('is not offered when the sources do not include it', (
+      tester,
+    ) async {
+      _registerImport(
+        FixtureImportRepository(),
+        FixtureImportFilesRepository(),
+      );
+      await pumpBrowseApp(
+        tester,
+        KansoViewport.phone.size,
+        at: KansoRoutes.import,
+        devicePixelRatio: KansoViewport.phone.devicePixelRatio,
+        safeArea: KansoViewport.phone.safeArea,
+      );
+      expect(find.text('Apple Notes'), findsNothing);
+    });
+  });
+
   group('ImportPage', () {
     testWidgets('Settings starts an import', (tester) async {
       final repository = FixtureImportRepository();

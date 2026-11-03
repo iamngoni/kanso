@@ -2984,6 +2984,44 @@ class AppLocalizationsEn extends AppLocalizations {
       'Bring notes in from another app. Kanso only reads what you choose, and importing again updates the notes it made without undoing your edits.';
 
   @override
+  String get importAppleNotesRow => 'Apple Notes';
+
+  @override
+  String get importAppleNotesTitle => 'Import Apple Notes';
+
+  @override
+  String get importAppleNotesIntro =>
+      'Apple Notes doesn’t let other apps read its library on iPhone and iPad. These are the ways across.';
+
+  @override
+  String get importAppleNotesMacTitle =>
+      'Import on your Mac and sync (recommended)';
+
+  @override
+  String get importAppleNotesMacBody =>
+      'On your Mac, open Kanso and choose File › Import… › Apple Notes. Sync brings everything here: folders, checklists, tables, scans, drawings and attachments. Locked notes can’t be read; Kanso lists them.';
+
+  @override
+  String get importAppleNotesShareTitle => 'Share notes one at a time';
+
+  @override
+  String get importAppleNotesShareBody =>
+      'In Notes, open a note, tap Share, then choose Kanso. It arrives in your Inbox as a Markdown note with its checklists and images.';
+
+  @override
+  String get importAppleNotesFilesTitle => 'Choose exported files';
+
+  @override
+  String get importAppleNotesFilesBody =>
+      'Pick a folder or .zip of notes exported as PDF, RTF, HTML, text or Markdown. They go in an Apple Notes notebook, with the folders you had inside it.';
+
+  @override
+  String get importAppleNotesFilesAction => 'Choose exported files';
+
+  @override
+  String get importAppleNotesHelp => 'Read more in Help';
+
+  @override
   String get importSourcesLabel => 'Import from';
 
   @override

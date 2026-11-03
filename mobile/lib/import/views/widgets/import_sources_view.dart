@@ -6,11 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/bridge/api/types.dart';
+import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
+import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../state/import_flow/import_flow_bloc.dart';
 import '../../utils/import_labels.dart';
+import 'apple_notes_guide_sheet.dart';
 import 'import_kind_sheet.dart';
 import 'import_source_row.dart';
 
@@ -34,6 +37,25 @@ class ImportSourcesView extends StatelessWidget {
     final folder = await ImportKindSheet.open(context, source);
     if (folder != null) {
       bloc.add(ImportFlowEvent.sourceChosen(source.kind, folder: folder));
+    }
+  }
+
+  /// The kind of the source that reads Apple Notes exported as files.
+  static const String appleNotesFiles = 'apple-notes-files';
+
+  /// Explains the ways to bring Apple Notes across; when the person chooses
+  /// exported files, goes on to pick them.
+  Future<void> openAppleNotes(BuildContext context) async {
+    final bloc = context.read<ImportFlowBloc>();
+    final files = await AppleNotesGuideSheet.open(context);
+    if (files != true || !context.mounted) {
+      return;
+    }
+    for (final source in bloc.state.sources) {
+      if (source.kind == appleNotesFiles) {
+        await choose(context, source);
+        return;
+      }
     }
   }
 
@@ -64,6 +86,22 @@ class ImportSourcesView extends StatelessWidget {
                     color: colors.danger,
                   ),
                 ),
+              ),
+              const SizedBox(height: KansoSpacing.md),
+            ],
+            if (state.only.isEmpty &&
+                state.sources.any(
+                  (source) => source.kind == appleNotesFiles,
+                )) ...<Widget>[
+              KansoGroupedSection(
+                children: <Widget>[
+                  KansoSettingsRow(
+                    icon: KansoIcons.notebook,
+                    label: l10n.importAppleNotesRow,
+                    chevron: true,
+                    onTap: state.picking ? null : () => openAppleNotes(context),
+                  ),
+                ],
               ),
               const SizedBox(height: KansoSpacing.md),
             ],
