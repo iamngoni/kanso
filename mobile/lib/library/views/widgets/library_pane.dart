@@ -45,6 +45,7 @@ import '../../../injection.dart';
 import '../../../lock/utils/notebook_lock_rule.dart';
 import '../../../note_list/state/note_list/note_list_bloc.dart';
 import '../../../palette/views/palette_launcher.dart';
+import '../../../people/views/widgets/people_library_row.dart';
 import '../../../sharing/views/widgets/shared_with_you_row.dart';
 import 'library_actions.dart';
 import 'library_header.dart';
@@ -225,6 +226,7 @@ class _LibraryPaneState extends State<LibraryPane> {
                       const AskLibraryRow(),
                       const AgentTasksLibraryRow(),
                       const ReviewLibraryRow(),
+                      const PeopleLibraryRow(),
                       SharedWithYouRow(
                         onOpen: () =>
                             leave(() => context.push(KansoRoutes.shared)),

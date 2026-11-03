@@ -395,6 +395,13 @@ class SettingsPane extends StatelessWidget {
                             onTap: () => context.push(KansoRoutes.settingsAi),
                           ),
                           KansoSettingsRow(
+                            icon: KansoIcons.users,
+                            label: l10n.peopleTitle,
+                            chevron: true,
+                            onTap: () =>
+                                context.push(KansoRoutes.settingsPeople),
+                          ),
+                          KansoSettingsRow(
                             icon: KansoIcons.inbox,
                             label: l10n.triageSettingsOpen,
                             chevron: true,

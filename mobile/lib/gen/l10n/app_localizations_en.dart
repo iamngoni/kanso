@@ -5757,4 +5757,208 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get peopleTitle => 'People & Projects';
+
+  @override
+  String peopleSubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pages',
+      one: '1 page',
+      zero: 'No pages yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String peopleNewBadge(int count) {
+    return '$count new';
+  }
+
+  @override
+  String get peopleNewPerson => 'New person…';
+
+  @override
+  String get peopleNewProject => 'New project…';
+
+  @override
+  String get peopleNewPersonTitle => 'New person';
+
+  @override
+  String get peopleNewProjectTitle => 'New project';
+
+  @override
+  String get peopleNameHint => 'Name';
+
+  @override
+  String get peopleAlsoKnownAsHint => 'Also known as (optional)';
+
+  @override
+  String get peopleCreate => 'Create';
+
+  @override
+  String get peopleSuggestionsTitle => 'Suggestions';
+
+  @override
+  String get peoplePagesTitle => 'Pages';
+
+  @override
+  String get peopleCreatePage => 'Create page';
+
+  @override
+  String get peopleNotPerson => 'Not a person';
+
+  @override
+  String get peopleNotProject => 'Not a project';
+
+  @override
+  String get peopleNotNow => 'Not now';
+
+  @override
+  String peopleAliasQuestion(String name, String page) {
+    return 'Is “$name” the same as $page?';
+  }
+
+  @override
+  String get peopleAliasYes => 'Yes, add alias';
+
+  @override
+  String get peopleAliasNo => 'No, different';
+
+  @override
+  String get peopleEmptyTitle => 'No people or projects yet';
+
+  @override
+  String get peopleEmptyMessage =>
+      'Kanso suggests a page when a name keeps coming up in your notes. Or make one yourself.';
+
+  @override
+  String get peopleSuggestionsOff =>
+      'Suggestions are off. Turn them on in Settings › People & Projects.';
+
+  @override
+  String get peopleKindPerson => 'Person';
+
+  @override
+  String get peopleKindProject => 'Project';
+
+  @override
+  String get peopleRefresh => 'Refresh';
+
+  @override
+  String get peopleRefreshAll => 'Refresh all';
+
+  @override
+  String get peopleKeep => 'Keep this version';
+
+  @override
+  String get peopleUnkeep => 'Stop keeping this version';
+
+  @override
+  String get peopleCopyInto => 'Copy into the note';
+
+  @override
+  String get peopleCopiedInto => 'Copied into the note';
+
+  @override
+  String get peopleHide => 'Hide section';
+
+  @override
+  String get peopleShowHidden => 'Show hidden sections';
+
+  @override
+  String get peopleNotRight => 'Not right';
+
+  @override
+  String peopleShowAll(int total) {
+    return 'Show all $total';
+  }
+
+  @override
+  String get peopleMergeWith => 'Merge with…';
+
+  @override
+  String get peopleMergeTitle => 'Merge with';
+
+  @override
+  String get peopleMergeNone => 'There is no other page to merge with.';
+
+  @override
+  String peopleMergeConfirmTitle(String name) {
+    return 'Merge into $name?';
+  }
+
+  @override
+  String peopleMergeConfirmMessage(String name) {
+    return 'This page\'s names and text move to $name, and this page goes to the Trash.';
+  }
+
+  @override
+  String get peopleMergeConfirm => 'Merge';
+
+  @override
+  String get peopleAddAlias => 'Add alias…';
+
+  @override
+  String get peopleAddAliasTitle => 'Another name';
+
+  @override
+  String get peopleSettingsTitle => 'People & Projects';
+
+  @override
+  String get peopleSettingsSuggest => 'Suggest people and projects';
+
+  @override
+  String get peopleSettingsSuggestHelp =>
+      'Kanso looks for names that keep coming up in your notes, on this device only. Nothing becomes a page until you say so.';
+
+  @override
+  String get peopleSettingsWriteAi => 'Write summaries with AI';
+
+  @override
+  String get peopleSettingsWriteAiHelp =>
+      'Off keeps the computed sections only.';
+
+  @override
+  String get peopleSettingsRefresh => 'Refresh AI sections';
+
+  @override
+  String get peopleRefreshAuto => 'What suits your model';
+
+  @override
+  String get peopleRefreshOpen => 'When I open an out-of-date page';
+
+  @override
+  String get peopleRefreshPress => 'Only when I press Refresh';
+
+  @override
+  String get peopleSettingsDetectAi => 'Use AI to find people and projects';
+
+  @override
+  String get peopleSettingsDetectAiHelp =>
+      'Once a day at most, your model labels the suggestions as people, projects or neither. It never makes a page.';
+
+  @override
+  String get peopleSettingsDismissed => 'Dismissed names';
+
+  @override
+  String get peopleSuggestAgain => 'Suggest again';
+
+  @override
+  String get peopleDismissedNone => 'Nothing dismissed.';
+
+  @override
+  String get peopleFailed => 'Couldn\'t read People & Projects.';
+
+  @override
+  String get peopleYouPromised => 'You promised';
+
+  @override
+  String get peopleTheyPromised => 'They promised';
+
+  @override
+  String get peopleSharedNote => 'shared note';
 }

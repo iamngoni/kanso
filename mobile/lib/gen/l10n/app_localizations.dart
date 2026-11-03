@@ -9759,6 +9759,366 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 sentence cites no lines of your notes.} other{{count} sentences cite no lines of your notes.}}'**
   String askNoSource(int count);
+
+  /// No description provided for @peopleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'People & Projects'**
+  String get peopleTitle;
+
+  /// The line under the People & Projects title.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No pages yet} =1{1 page} other{{count} pages}}'**
+  String peopleSubtitle(int count);
+
+  /// The count of suggestions beside People & Projects.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} new'**
+  String peopleNewBadge(int count);
+
+  /// No description provided for @peopleNewPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'New person…'**
+  String get peopleNewPerson;
+
+  /// No description provided for @peopleNewProject.
+  ///
+  /// In en, this message translates to:
+  /// **'New project…'**
+  String get peopleNewProject;
+
+  /// No description provided for @peopleNewPersonTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New person'**
+  String get peopleNewPersonTitle;
+
+  /// No description provided for @peopleNewProjectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New project'**
+  String get peopleNewProjectTitle;
+
+  /// No description provided for @peopleNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get peopleNameHint;
+
+  /// No description provided for @peopleAlsoKnownAsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Also known as (optional)'**
+  String get peopleAlsoKnownAsHint;
+
+  /// No description provided for @peopleCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get peopleCreate;
+
+  /// No description provided for @peopleSuggestionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions'**
+  String get peopleSuggestionsTitle;
+
+  /// No description provided for @peoplePagesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pages'**
+  String get peoplePagesTitle;
+
+  /// No description provided for @peopleCreatePage.
+  ///
+  /// In en, this message translates to:
+  /// **'Create page'**
+  String get peopleCreatePage;
+
+  /// No description provided for @peopleNotPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a person'**
+  String get peopleNotPerson;
+
+  /// No description provided for @peopleNotProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a project'**
+  String get peopleNotProject;
+
+  /// No description provided for @peopleNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get peopleNotNow;
+
+  /// Asked when a suggestion looks like another name of an existing page.
+  ///
+  /// In en, this message translates to:
+  /// **'Is “{name}” the same as {page}?'**
+  String peopleAliasQuestion(String name, String page);
+
+  /// No description provided for @peopleAliasYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, add alias'**
+  String get peopleAliasYes;
+
+  /// No description provided for @peopleAliasNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No, different'**
+  String get peopleAliasNo;
+
+  /// No description provided for @peopleEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No people or projects yet'**
+  String get peopleEmptyTitle;
+
+  /// No description provided for @peopleEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso suggests a page when a name keeps coming up in your notes. Or make one yourself.'**
+  String get peopleEmptyMessage;
+
+  /// No description provided for @peopleSuggestionsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions are off. Turn them on in Settings › People & Projects.'**
+  String get peopleSuggestionsOff;
+
+  /// No description provided for @peopleKindPerson.
+  ///
+  /// In en, this message translates to:
+  /// **'Person'**
+  String get peopleKindPerson;
+
+  /// No description provided for @peopleKindProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get peopleKindProject;
+
+  /// No description provided for @peopleRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get peopleRefresh;
+
+  /// No description provided for @peopleRefreshAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh all'**
+  String get peopleRefreshAll;
+
+  /// No description provided for @peopleKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this version'**
+  String get peopleKeep;
+
+  /// No description provided for @peopleUnkeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop keeping this version'**
+  String get peopleUnkeep;
+
+  /// No description provided for @peopleCopyInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy into the note'**
+  String get peopleCopyInto;
+
+  /// No description provided for @peopleCopiedInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied into the note'**
+  String get peopleCopiedInto;
+
+  /// No description provided for @peopleHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide section'**
+  String get peopleHide;
+
+  /// No description provided for @peopleShowHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Show hidden sections'**
+  String get peopleShowHidden;
+
+  /// No description provided for @peopleNotRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Not right'**
+  String get peopleNotRight;
+
+  /// Shows every line of a section.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all {total}'**
+  String peopleShowAll(int total);
+
+  /// No description provided for @peopleMergeWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge with…'**
+  String get peopleMergeWith;
+
+  /// No description provided for @peopleMergeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge with'**
+  String get peopleMergeTitle;
+
+  /// No description provided for @peopleMergeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no other page to merge with.'**
+  String get peopleMergeNone;
+
+  /// Asks before merging two pages.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge into {name}?'**
+  String peopleMergeConfirmTitle(String name);
+
+  /// What a merge does.
+  ///
+  /// In en, this message translates to:
+  /// **'This page\'s names and text move to {name}, and this page goes to the Trash.'**
+  String peopleMergeConfirmMessage(String name);
+
+  /// No description provided for @peopleMergeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get peopleMergeConfirm;
+
+  /// No description provided for @peopleAddAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'Add alias…'**
+  String get peopleAddAlias;
+
+  /// No description provided for @peopleAddAliasTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Another name'**
+  String get peopleAddAliasTitle;
+
+  /// No description provided for @peopleSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'People & Projects'**
+  String get peopleSettingsTitle;
+
+  /// No description provided for @peopleSettingsSuggest.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest people and projects'**
+  String get peopleSettingsSuggest;
+
+  /// No description provided for @peopleSettingsSuggestHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso looks for names that keep coming up in your notes, on this device only. Nothing becomes a page until you say so.'**
+  String get peopleSettingsSuggestHelp;
+
+  /// No description provided for @peopleSettingsWriteAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Write summaries with AI'**
+  String get peopleSettingsWriteAi;
+
+  /// No description provided for @peopleSettingsWriteAiHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Off keeps the computed sections only.'**
+  String get peopleSettingsWriteAiHelp;
+
+  /// No description provided for @peopleSettingsRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh AI sections'**
+  String get peopleSettingsRefresh;
+
+  /// No description provided for @peopleRefreshAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'What suits your model'**
+  String get peopleRefreshAuto;
+
+  /// No description provided for @peopleRefreshOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'When I open an out-of-date page'**
+  String get peopleRefreshOpen;
+
+  /// No description provided for @peopleRefreshPress.
+  ///
+  /// In en, this message translates to:
+  /// **'Only when I press Refresh'**
+  String get peopleRefreshPress;
+
+  /// No description provided for @peopleSettingsDetectAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Use AI to find people and projects'**
+  String get peopleSettingsDetectAi;
+
+  /// No description provided for @peopleSettingsDetectAiHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Once a day at most, your model labels the suggestions as people, projects or neither. It never makes a page.'**
+  String get peopleSettingsDetectAiHelp;
+
+  /// No description provided for @peopleSettingsDismissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismissed names'**
+  String get peopleSettingsDismissed;
+
+  /// No description provided for @peopleSuggestAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest again'**
+  String get peopleSuggestAgain;
+
+  /// No description provided for @peopleDismissedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing dismissed.'**
+  String get peopleDismissedNone;
+
+  /// No description provided for @peopleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read People & Projects.'**
+  String get peopleFailed;
+
+  /// No description provided for @peopleYouPromised.
+  ///
+  /// In en, this message translates to:
+  /// **'You promised'**
+  String get peopleYouPromised;
+
+  /// No description provided for @peopleTheyPromised.
+  ///
+  /// In en, this message translates to:
+  /// **'They promised'**
+  String get peopleTheyPromised;
+
+  /// No description provided for @peopleSharedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'shared note'**
+  String get peopleSharedNote;
 }
 
 class _AppLocalizationsDelegate

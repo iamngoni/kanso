@@ -34,6 +34,8 @@ import '../../import/views/pages/import_page.dart';
 import '../../note/views/pages/note_page.dart';
 import '../../note/views/widgets/no_note_selected_pane.dart';
 import '../../note_list/views/pages/note_list_page.dart';
+import '../../people/views/pages/people_list_page.dart';
+import '../../people/views/pages/people_settings_page.dart';
 import '../../replace/views/pages/replace_page.dart';
 import '../../search/views/pages/search_page.dart';
 import '../../settings/views/pages/default_notebook_page.dart';
@@ -213,6 +215,13 @@ class KansoRouter {
           ),
         ),
         GoRoute(
+          path: KansoRoutes.people,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const PeopleListPage(),
+          ),
+        ),
+        GoRoute(
           path: KansoRoutes.triage,
           pageBuilder: (context, state) => kansoPage<void>(
             key: state.pageKey,
@@ -365,6 +374,13 @@ class KansoRouter {
                   pageBuilder: (context, state) => kansoPage<void>(
                     key: state.pageKey,
                     child: const AiSettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'people',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const PeopleSettingsPage(),
                   ),
                 ),
                 GoRoute(

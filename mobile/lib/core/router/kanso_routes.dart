@@ -74,6 +74,9 @@ abstract final class KansoRoutes {
   /// Agent tasks: the AI proposes changes to notes, the person approves them.
   static const String agentTasks = '/agent-tasks';
 
+  /// People & Projects: the pages and the names Kanso suggests pages for.
+  static const String people = '/people';
+
   /// Inbox Triage: a card for each note waiting in the Inbox.
   static const String triage = '/triage';
 
@@ -94,6 +97,7 @@ abstract final class KansoRoutes {
   static const String settingsAi = '/settings/ai';
   static const String settingsVoice = '/settings/voice';
   static const String settingsInbox = '/settings/inbox';
+  static const String settingsPeople = '/settings/people';
   static const String settingsNotebook = '/settings/notebook';
   static const String settingsTheme = '/settings/theme';
   static const String settingsIcons = '/settings/icons';

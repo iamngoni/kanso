@@ -41,6 +41,8 @@ import '../../../note/state/resurface/resurface_bloc.dart';
 import '../../../note/state/word_goal_intent/word_goal_intent_bloc.dart';
 import '../../../note/views/widgets/resurface_pill.dart';
 import '../../../note_list/views/widgets/note_list_notice.dart';
+import '../../../people/models/repos/abs/people_repository.dart';
+import '../../../people/views/widgets/page_panel.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
 import '../../../sharing/views/widgets/comment_compose_sheet.dart';
@@ -1011,6 +1013,11 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                 ),
               ),
             ),
+            // A person's or project's live sections, under the text.
+            if (getIt.isRegistered<PeopleRepository>())
+              SliverToBoxAdapter(
+                child: PeoplePagePanel(noteId: note.state.noteId),
+              ),
             room(),
           ],
         ),
