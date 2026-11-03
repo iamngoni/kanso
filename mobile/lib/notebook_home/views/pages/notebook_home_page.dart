@@ -181,6 +181,7 @@ class _HomeView extends StatelessWidget {
               ),
           ],
         ];
+        final compactAsk = MediaQuery.sizeOf(context).width < _wideAsk;
         return KansoPage(
           backgroundColor: colors.app,
           body: Column(
@@ -190,7 +191,17 @@ class _HomeView extends StatelessWidget {
                 title: name,
                 leading: inPane ? null : const ShellBackButton(),
                 trailing: <Widget>[
-                  if (open && panel.aiOn && words != null)
+                  // On a phone the words would squeeze the notebook's
+                  // name to a few letters: the sparkles alone, named.
+                  if (open && panel.aiOn && words != null && compactAsk)
+                    KansoIconButton(
+                      icon: KansoIcons.sparkles,
+                      semanticLabel: words.askButton,
+                      onPressed: () => context.push(
+                        KansoRoutes.askIn(bookId, name),
+                      ),
+                    ),
+                  if (open && panel.aiOn && words != null && !compactAsk)
                     KansoPressable(
                       semanticLabel: words.askButton,
                       onTap: () => context.push(
@@ -298,3 +309,6 @@ class _HomeView extends StatelessWidget {
     return HomeBody(panel: panel, words: words, state: state, name: name);
   }
 }
+
+/// The width from which Ask shows its words in the top bar.
+const double _wideAsk = 600;

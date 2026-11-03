@@ -24,6 +24,7 @@ import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../people/views/widgets/page_section_view.dart';
 import '../../state/notebook_home/notebook_home_bloc.dart';
 import 'home_map_card.dart';
+import 'home_note_text.dart';
 import 'home_receipts.dart';
 
 /// The sections of one notebook's homepage in a single column, in the order
@@ -216,7 +217,7 @@ class _HomeBodyState extends State<HomeBody> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(item.text, style: context.typography.previewBody),
+            HomeNoteText(item.text),
             if (item.target.isNotEmpty)
               KansoButton(
                 label: context.l10n.notebookHomeEdit,

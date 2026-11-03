@@ -207,7 +207,7 @@ void main() {
     expect(find.text('3 notes changed since this was written'), findsOneWidget);
     expect(find.text('A notebook of plans.'), findsOneWidget);
     // Ask about this notebook opens Ask limited to it.
-    await tester.tap(find.text('Ask about this notebook'));
+    await tester.tap(find.bySemanticsLabel('Ask about this notebook'));
     await tester.pumpAndSettle();
     expect(visits.single.path, '/ask');
     expect(visits.single.queryParameters['book'], _book);
