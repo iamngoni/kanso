@@ -886,6 +886,7 @@ fn list_tasks(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
     }
     let query = kanso_store::TaskQuery {
         book_id,
+        book_ids: None,
         include_done: status != "open",
         due_before: opt_str(args, "dueBefore").map(str::to_owned),
         due_after: opt_str(args, "dueAfter").map(str::to_owned),
