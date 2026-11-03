@@ -61,9 +61,7 @@ class RustLibraryRepository implements LibraryRepository {
     NoteChange change,
   ) => attempt(() async {
     final changed = await _library.change(ids: ids, change: change);
-    return change is NoteChange_Move
-        ? await _afterMove(ids, changed)
-        : changed;
+    return change is NoteChange_Move ? await _afterMove(ids, changed) : changed;
   });
 
   /// A note that moved out of the notebook it was the Home note of is no

@@ -26,7 +26,8 @@ class AskPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AskBloc>(
-      create: (context) => getIt<AskBloc>()..add(AskEvent.started(scope: scope)),
+      create: (context) =>
+          getIt<AskBloc>()..add(AskEvent.started(scope: scope)),
       child: KansoPage(
         // The question field rises with the keyboard.
         backgroundColor: context.colors.app,

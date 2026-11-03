@@ -138,8 +138,7 @@ class _HomeBodyState extends State<HomeBody> {
               variant: KansoButtonVariant.quiet,
               compact: true,
               expanded: false,
-              onPressed: () =>
-                  _bloc.add(const NotebookHomeEvent.hiddenShown()),
+              onPressed: () => _bloc.add(const NotebookHomeEvent.hiddenShown()),
             ),
           ),
         if (panel.footer.isNotEmpty)

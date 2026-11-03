@@ -99,7 +99,7 @@ impl Store {
             }
             let (notes, last): (i64, Option<i64>) = conn.query_row(
                 &format!(
-                    "{} SELECT COUNT(*), MAX(d.updated_at) FROM docs d WHERE {}",
+                    "{} SELECT COUNT(*), MAX(d.updated_at) FROM sub s JOIN docs d INDEXED BY docs_book ON d.type = 'note' AND d.book_id = s.id WHERE {}",
                     cte(false),
                     in_subtree!("d.")
                 ),
@@ -125,6 +125,7 @@ impl Store {
             id,
             "ORDER BY d.updated_at DESC, d.id LIMIT ?2",
             limit as i64,
+            false,
         )
     }
 
@@ -134,6 +135,7 @@ impl Store {
             id,
             "AND d.pinned = 1 ORDER BY d.updated_at DESC, d.id LIMIT ?2",
             limit as i64,
+            true,
         )
     }
 
@@ -152,7 +154,9 @@ impl Store {
             let mut stmt = conn.prepare(&format!(
                 "{} SELECT d.id, d.title, d.book_id, b.name, d.created_at, d.updated_at, d.pinned, \
                  (SELECT COUNT(*) FROM revisions r WHERE r.doc_id = d.id) \
-                 FROM docs d LEFT JOIN docs b ON b.id = d.book_id \
+                 FROM sub s JOIN docs d INDEXED BY docs_book \
+                 ON d.type = 'note' AND d.book_id = s.id \
+                 LEFT JOIN docs b ON b.id = d.book_id \
                  WHERE {} AND d.updated_at >= ?3 \
                  ORDER BY 8 DESC, d.updated_at DESC, d.id LIMIT ?2",
                 cte(false),
@@ -167,7 +171,7 @@ impl Store {
     pub fn home_notes_by_id(&self, id: &str, ids: &[String]) -> Result<Vec<HomeNoteRow>> {
         let wanted: HashSet<&str> = ids.iter().map(String::as_str).collect();
         Ok(self
-            .home_notes(id, "ORDER BY d.created_at, d.id LIMIT ?2", -1)?
+            .home_notes(id, "ORDER BY d.created_at, d.id LIMIT ?2", -1, true)?
             .into_iter()
             .filter(|n| wanted.contains(n.id.as_str()))
             .collect())
@@ -175,16 +179,30 @@ impl Store {
 
     /// Every note of the subtree, first created first.
     pub fn home_all_notes(&self, id: &str) -> Result<Vec<HomeNoteRow>> {
-        self.home_notes(id, "ORDER BY d.created_at, d.id LIMIT ?2", -1)
+        self.home_notes(id, "ORDER BY d.created_at, d.id LIMIT ?2", -1, true)
     }
 
-    fn home_notes(&self, id: &str, tail: &str, limit: i64) -> Result<Vec<HomeNoteRow>> {
+    /// `by_book` walks the subtree's notebooks through the notebook index
+    /// (for filters that match few notes); otherwise the newest notes are
+    /// read in order and the walk stops at the limit.
+    fn home_notes(
+        &self,
+        id: &str,
+        tail: &str,
+        limit: i64,
+        by_book: bool,
+    ) -> Result<Vec<HomeNoteRow>> {
+        let from = if by_book {
+            "FROM sub s JOIN docs d INDEXED BY docs_book ON d.type = 'note' AND d.book_id = s.id"
+        } else {
+            "FROM docs d"
+        };
         self.read(|conn| {
             if !readable(conn, id)? {
                 return Ok(Vec::new());
             }
             let mut stmt = conn.prepare(&format!(
-                "{} SELECT {NOTE_COLUMNS} FROM docs d LEFT JOIN docs b ON b.id = d.book_id \
+                "{} SELECT {NOTE_COLUMNS} {from} LEFT JOIN docs b ON b.id = d.book_id \
                  WHERE {} {tail}",
                 cte(false),
                 in_subtree!("d.")
@@ -204,7 +222,7 @@ impl Store {
                 return Ok((Vec::new(), Vec::new(), HashSet::new()));
             }
             let mut ids = conn.prepare(&format!(
-                "{} SELECT d.id FROM docs d WHERE {}",
+                "{} SELECT d.id FROM sub s JOIN docs d INDEXED BY docs_book ON d.type = 'note' AND d.book_id = s.id WHERE {}",
                 cte(false),
                 in_subtree!("d.")
             ))?;
@@ -212,8 +230,8 @@ impl Store {
                 .query_map([id], |row| row.get(0))?
                 .collect::<rusqlite::Result<_>>()?;
             let mut stmt = conn.prepare(&format!(
-                "{} SELECT l.note_id, l.target_id, l.target_title FROM note_links l \
-                 JOIN docs d ON d.id = l.note_id WHERE {}",
+                "{} SELECT l.note_id, l.target_id, l.target_title FROM sub s JOIN docs d INDEXED BY docs_book ON d.type = 'note' AND d.book_id = s.id \
+                 JOIN note_links l ON l.note_id = d.id WHERE {}",
                 cte(false),
                 in_subtree!("d.")
             ))?;
@@ -321,8 +339,8 @@ impl Store {
             }
             Ok(conn.query_row(
                 &format!(
-                    "{} SELECT COUNT(*) FROM note_tasks t JOIN docs d ON d.id = t.note_id \
-                     WHERE t.checked = 0 AND {}",
+                    "{} SELECT COUNT(*) FROM sub s JOIN docs d INDEXED BY docs_book ON d.type = 'note' AND d.book_id = s.id \
+                     JOIN note_tasks t ON t.note_id = d.id WHERE t.checked = 0 AND {}",
                     cte(false),
                     in_subtree!("d.")
                 ),
@@ -340,8 +358,8 @@ impl Store {
             }
             Ok(conn.query_row(
                 &format!(
-                    "{} SELECT COUNT(*) FROM note_tasks t JOIN docs d ON d.id = t.note_id \
-                     WHERE {}",
+                    "{} SELECT COUNT(*) FROM sub s JOIN docs d INDEXED BY docs_book ON d.type = 'note' AND d.book_id = s.id \
+                     JOIN note_tasks t ON t.note_id = d.id WHERE {}",
                     cte(false),
                     in_subtree!("d.")
                 ),
@@ -410,8 +428,8 @@ impl Store {
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let mut stmt = conn.prepare(&format!(
-                "{} SELECT l.note_id, l.target_id, l.target_title FROM note_links l \
-                 JOIN docs d ON d.id = l.note_id WHERE {} ORDER BY l.note_id, l.ord",
+                "{} SELECT l.note_id, l.target_id, l.target_title FROM sub s JOIN docs d INDEXED BY docs_book ON d.type = 'note' AND d.book_id = s.id \
+                 JOIN note_links l ON l.note_id = d.id WHERE {} ORDER BY l.note_id, l.ord",
                 cte(false),
                 in_subtree!("d.")
             ))?;
@@ -438,8 +456,8 @@ impl Store {
             }
             let mut stmt = conn.prepare(&format!(
                 "SELECT d.id, IFNULL(d.title, ''), IFNULL(d.updated_at, 0), json_extract(d.json, '$.body') \
-                 FROM docs d WHERE d.type = 'note' AND d.deleted = 0 AND d.book_id = ?1 \
-                 AND NOT {} AND instr(json_extract(d.json, '$.body'), 'kanso') > 0 \
+                 FROM docs d INDEXED BY docs_book WHERE d.type = 'note' AND d.deleted = 0 AND d.book_id = ?1 \
+                 AND NOT {} AND d.json LIKE '%kanso%home%' \
                  ORDER BY d.updated_at DESC, d.id",
                 note_locked!("d.")
             ))?;

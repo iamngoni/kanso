@@ -25,8 +25,8 @@ import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
-import '../../../shell/views/widgets/shell_back_button.dart';
 import '../../../notebook_home/models/repos/abs/notebook_home_repository.dart';
+import '../../../shell/views/widgets/shell_back_button.dart';
 import '../../models/repos/abs/people_repository.dart';
 
 /// Settings › People & Projects, at `/settings/people`.

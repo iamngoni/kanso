@@ -93,7 +93,7 @@ class _HomeCustomiseSheetState extends State<HomeCustomiseSheet> {
     setState(() {
       final next = List<HomeSectionSetting>.of(_rows);
       final moved = next.removeAt(from);
-      next.insert(to > from ? to - 1 : to, moved);
+      next.insert(to, moved);
       _rows = next;
     });
   }
@@ -162,7 +162,7 @@ class _HomeCustomiseSheetState extends State<HomeCustomiseSheet> {
               shrinkWrap: true,
               buildDefaultDragHandles: false,
               itemCount: _rows.length,
-              onReorder: _reorder,
+              onReorderItem: _reorder,
               itemBuilder: (context, i) {
                 final row = _rows[i];
                 return Padding(
@@ -208,8 +208,9 @@ class _HomeCustomiseSheetState extends State<HomeCustomiseSheet> {
               variant: KansoButtonVariant.quiet,
               compact: true,
               expanded: false,
-              onPressed: () =>
-                  Navigator.of(context).pop(const HomeLayoutChoice(reset: true)),
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(const HomeLayoutChoice(reset: true)),
             ),
           ),
         ],

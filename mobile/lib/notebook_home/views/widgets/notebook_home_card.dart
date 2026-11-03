@@ -39,7 +39,7 @@ void openNotebookHome(
   if (beside) {
     context.go(location);
   } else if (replace) {
-    unawaited(context.pushReplacement<void>(location));
+    context.pushReplacement(location);
   } else {
     unawaited(context.push<void>(location));
   }

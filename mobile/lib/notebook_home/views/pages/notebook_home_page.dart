@@ -43,7 +43,11 @@ enum _HomeAction { chooseHome, newHome, customise, showHidden }
 /// A locked notebook draws no homepage until it is open: the unlock gate
 /// asks, and the page says nothing of the notes behind it meanwhile.
 class NotebookHomePage extends StatelessWidget {
-  const NotebookHomePage({required this.bookId, this.inPane = false, super.key});
+  const NotebookHomePage({
+    required this.bookId,
+    this.inPane = false,
+    super.key,
+  });
 
   final String bookId;
 

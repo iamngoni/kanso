@@ -101,7 +101,11 @@ class NoteListBody extends StatelessWidget {
 
   /// The empty list. A notebook that only has notebooks inside it opens its
   /// homepage instead, when it has one to open.
-  Widget _empty(ListPlace place, LibraryIndexState index, AppLocalizations l10n) {
+  Widget _empty(
+    ListPlace place,
+    LibraryIndexState index,
+    AppLocalizations l10n,
+  ) {
     final pane = EmptyPlacePane(
       place: place,
       name: switch (place) {

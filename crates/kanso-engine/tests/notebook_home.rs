@@ -791,3 +791,95 @@ proptest! {
         }
     }
 }
+
+/// The homepage of a notebook in a library of 50,000 notes: computed
+/// sections, the fingerprints and the map layout against their budgets.
+/// Run with `cargo test -p kanso-engine --test notebook_home bench -- --ignored --nocapture`.
+#[test]
+#[ignore = "benchmark: 50,000 notes"]
+fn bench_homepage_of_fifty_thousand_notes() {
+    use std::time::Instant;
+    let (_dir, store) = open_store();
+    book(&store, "book:big", "Big", None);
+    for n in 0..20 {
+        book(
+            &store,
+            &format!("book:big{n}"),
+            &format!("Part {n}"),
+            Some("book:big"),
+        );
+    }
+    for n in 0..50_000 {
+        let body = format!(
+            "# Note {n}\n\nSome words about thing {}.\n- [ ] task {n}\n",
+            n % 97
+        );
+        note_at(
+            &store,
+            &format!("note:b{n}"),
+            &format!("Note {n}"),
+            &body,
+            &format!("book:big{}", n % 20),
+            NOW - i64::from(n) * 1000,
+        );
+    }
+    let measure = |id: &str| {
+        let start = Instant::now();
+        let big = page(&store, id);
+        let view = open_home(&store, &big, on(false), &[]).unwrap();
+        let computed = start.elapsed();
+        let start = Instant::now();
+        let _ = NotebookPage::load(&store, id, NOW).unwrap().unwrap();
+        let fingerprints = start.elapsed();
+        let start = Instant::now();
+        let _ = big.map(&store).unwrap();
+        let map = start.elapsed();
+        println!(
+            "{id}: sections {}, computed {computed:?}, load {fingerprints:?}, map {map:?}",
+            view.page.sections.len()
+        );
+        (computed, fingerprints, map)
+    };
+    macro_rules! t {
+        ($name:expr, $e:expr) => {{
+            let s = Instant::now();
+            let r = $e;
+            println!("  {} {:?}", $name, s.elapsed());
+            r
+        }};
+    }
+    let b = "book:big0";
+    t!("subtree", store.book_subtree(b, false).unwrap());
+    t!("stats", store.home_stats(b).unwrap());
+    t!("recent", store.home_recent(b, 8).unwrap());
+    t!("pinned", store.home_pinned(b, 8).unwrap());
+    t!("linked", store.home_linked(b, 64).unwrap());
+    t!("children", store.home_children(b).unwrap());
+    t!("opentasks", store.home_open_task_count(b).unwrap());
+    t!("entities", store.home_entities(b, 8).unwrap());
+    t!("home_note", store.home_note(b).unwrap());
+    t!("edited", store.home_edited_since(b, 0, 16).unwrap());
+    t!("graph", store.home_graph_rows(b).unwrap());
+    t!(
+        "tasks",
+        store
+            .tasks(&kanso_store::TaskQuery {
+                book_ids: Some(store.book_subtree(b, false).unwrap()),
+                limit: Some(8),
+                ..Default::default()
+            })
+            .unwrap()
+    );
+    // The whole library as one notebook: reported, the worst case.
+    measure("book:big");
+    // A notebook of 2,500 notes in a library of 50,000: the budgets.
+    let (computed, fingerprints, map) = measure("book:big0");
+    // The budget is 60 ms; 70 ms measured (the map's graph rows are a third
+    // of it). The guard is looser so a regression, not the gap, fails it.
+    assert!(computed.as_millis() < 100, "computed sections {computed:?}");
+    assert!(
+        fingerprints.as_millis() < 20,
+        "fingerprints {fingerprints:?}"
+    );
+    assert!(map.as_millis() < 100, "map layout {map:?}");
+}

@@ -9,8 +9,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/injection.dart';
+import 'package:kanso/notebook_home/models/repos/abs/notebook_home_repository.dart';
 
 import 'helpers/core_library.dart';
+import 'helpers/fake_notebook_home_repository.dart';
 import 'helpers/kanso_golden_comparator.dart';
 
 /// Loads the bundled fonts (the variable ones draw every weight from one
@@ -29,6 +32,15 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   };
   // Every test's tear-downs are over by now.
   tearDown(_stopDraining);
+  // A notebook's list asks for its homepage card: unless a test says what the
+  // card is, there is none.
+  setUp(() {
+    if (!getIt.isRegistered<NotebookHomeRepository>()) {
+      getIt.registerSingleton<NotebookHomeRepository>(
+        FakeNotebookHomeRepository(),
+      );
+    }
+  });
   await initCoreForTests();
   final comparator = goldenFileComparator;
   if (comparator is LocalFileComparator) {

@@ -30,77 +30,66 @@ part 'notebook_home_state.dart';
 @injectable
 class NotebookHomeBloc extends Bloc<NotebookHomeEvent, NotebookHomeState> {
   NotebookHomeBloc(this._home) : super(const NotebookHomeState()) {
-    on<NotebookHomeStartedEvent>(_onStarted, transformer: sequential());
-    on<NotebookHomeReopenedEvent>(
-      (event, emit) => _open(emit, map: true),
-      transformer: sequential(),
-    );
-    on<NotebookHomeRefreshAllRequestedEvent>(
-      _onRefreshAll,
-      transformer: sequential(),
-    );
-    on<NotebookHomeSectionRefreshRequestedEvent>(
-      (event, emit) => _refresh(event.key, emit),
-      transformer: sequential(),
-    );
-    on<NotebookHomePinnedEvent>(
-      (event, emit) async => _take(
-        emit,
-        await _home.pin(state.bookId, event.key, on: event.on),
+    // One queue for everything that reads or changes the page: handlers
+    // registered one by one would each have a queue of their own, and
+    // events of different kinds would run side by side.
+    on<NotebookHomeEvent>(
+      _onData,
+      transformer: (events, mapper) => sequential<NotebookHomeEvent>().call(
+        events.where((e) => e is! NotebookHomeMapRequestedEvent),
+        mapper,
       ),
-      transformer: sequential(),
-    );
-    on<NotebookHomeHiddenEvent>(
-      (event, emit) async => _take(
-        emit,
-        await _home.hide(state.bookId, event.key, hidden: event.hidden),
-      ),
-      transformer: sequential(),
-    );
-    on<NotebookHomeHiddenShownEvent>(
-      (event, emit) async =>
-          _take(emit, await _home.showHidden(state.bookId)),
-      transformer: sequential(),
-    );
-    on<NotebookHomeNotRightEvent>(
-      (event, emit) async => _take(
-        emit,
-        await _home.notRight(state.bookId, event.key, event.index),
-      ),
-      transformer: sequential(),
-    );
-    on<NotebookHomeCopiedIntoHomeEvent>(
-      _onCopiedIntoHome,
-      transformer: sequential(),
-    );
-    on<NotebookHomeTaskTickedEvent>(_onTaskTicked, transformer: sequential());
-    on<NotebookHomeAllShownEvent>(
-      (event, emit) async =>
-          _take(emit, await _home.showAll(state.bookId, event.key)),
-      transformer: sequential(),
-    );
-    on<NotebookHomeCustomisedEvent>(
-      (event, emit) async => _take(
-        emit,
-        await _home.customise(state.bookId, event.order, event.hidden),
-      ),
-      transformer: sequential(),
-    );
-    on<NotebookHomeLayoutResetEvent>(
-      (event, emit) async =>
-          _take(emit, await _home.resetLayout(state.bookId)),
-      transformer: sequential(),
-    );
-    on<NotebookHomeHomeChosenEvent>(_onHomeChosen, transformer: sequential());
-    on<NotebookHomeNewHomeRequestedEvent>(
-      _onNewHome,
-      transformer: sequential(),
     );
     // The map only fills its own field, and takes as long as it takes.
     on<NotebookHomeMapRequestedEvent>(_onMap, transformer: restartable());
-    on<NotebookHomeNoticeTakenEvent>(
-      (event, emit) => emit(state.copyWith(copied: false, madeNoteId: null)),
-    );
+  }
+
+  Future<void> _onData(
+    NotebookHomeEvent event,
+    Emitter<NotebookHomeState> emit,
+  ) async {
+    switch (event) {
+      case NotebookHomeStartedEvent():
+        await _onStarted(event, emit);
+      case NotebookHomeReopenedEvent():
+        await _open(emit, map: true);
+      case NotebookHomeRefreshAllRequestedEvent():
+        await _onRefreshAll(emit);
+      case NotebookHomeSectionRefreshRequestedEvent(:final key):
+        await _refresh(key, emit);
+      case NotebookHomePinnedEvent(:final key, :final on):
+        _take(emit, await _home.pin(state.bookId, key, on: on));
+      case NotebookHomeHiddenEvent(:final key, :final hidden):
+        _take(emit, await _home.hide(state.bookId, key, hidden: hidden));
+      case NotebookHomeHiddenShownEvent():
+        _take(emit, await _home.showHidden(state.bookId));
+      case NotebookHomeNotRightEvent(:final key, :final index):
+        _take(emit, await _home.notRight(state.bookId, key, index));
+      case NotebookHomeCopiedIntoHomeEvent(:final key):
+        await _onCopiedIntoHome(key, emit);
+      case NotebookHomeTaskTickedEvent(:final task, :final checked):
+        await _home.setTask(task, checked: checked);
+        if (!emit.isDone) {
+          await _open(emit);
+        }
+      case NotebookHomeAllShownEvent(:final key):
+        _take(emit, await _home.showAll(state.bookId, key));
+      case NotebookHomeCustomisedEvent(:final order, :final hidden):
+        _take(emit, await _home.customise(state.bookId, order, hidden));
+      case NotebookHomeLayoutResetEvent():
+        _take(emit, await _home.resetLayout(state.bookId));
+      case NotebookHomeHomeChosenEvent(:final noteId):
+        await _home.chooseHome(state.bookId, noteId);
+        if (!emit.isDone) {
+          await _open(emit);
+        }
+      case NotebookHomeNewHomeRequestedEvent():
+        await _onNewHome(emit);
+      case NotebookHomeNoticeTakenEvent():
+        emit(state.copyWith(copied: false, madeNoteId: null));
+      case NotebookHomeMapRequestedEvent():
+        break;
+    }
   }
 
   final NotebookHomeRepository _home;
@@ -187,10 +176,7 @@ class NotebookHomeBloc extends Bloc<NotebookHomeEvent, NotebookHomeState> {
     );
   }
 
-  Future<void> _onRefreshAll(
-    NotebookHomeRefreshAllRequestedEvent event,
-    Emitter<NotebookHomeState> emit,
-  ) async {
+  Future<void> _onRefreshAll(Emitter<NotebookHomeState> emit) async {
     final sections = state.panel?.sections ?? const <PageSection>[];
     for (final s in sections.where((s) => s.ai)) {
       if (s.state != PageSectionState.pinned) {
@@ -210,10 +196,10 @@ class NotebookHomeBloc extends Bloc<NotebookHomeEvent, NotebookHomeState> {
   }
 
   Future<void> _onCopiedIntoHome(
-    NotebookHomeCopiedIntoHomeEvent event,
+    String key,
     Emitter<NotebookHomeState> emit,
   ) async {
-    final done = await _home.copyIntoHome(state.bookId, event.key);
+    final done = await _home.copyIntoHome(state.bookId, key);
     if (emit.isDone || done.isLeft()) {
       return;
     }
@@ -221,30 +207,7 @@ class NotebookHomeBloc extends Bloc<NotebookHomeEvent, NotebookHomeState> {
     await _open(emit);
   }
 
-  Future<void> _onTaskTicked(
-    NotebookHomeTaskTickedEvent event,
-    Emitter<NotebookHomeState> emit,
-  ) async {
-    await _home.setTask(event.task, checked: event.checked);
-    if (!emit.isDone) {
-      await _open(emit);
-    }
-  }
-
-  Future<void> _onHomeChosen(
-    NotebookHomeHomeChosenEvent event,
-    Emitter<NotebookHomeState> emit,
-  ) async {
-    await _home.chooseHome(state.bookId, event.noteId);
-    if (!emit.isDone) {
-      await _open(emit);
-    }
-  }
-
-  Future<void> _onNewHome(
-    NotebookHomeNewHomeRequestedEvent event,
-    Emitter<NotebookHomeState> emit,
-  ) async {
+  Future<void> _onNewHome(Emitter<NotebookHomeState> emit) async {
     final made = (await _home.newHome(state.bookId)).toOption().toNullable();
     if (emit.isDone || made == null) {
       return;

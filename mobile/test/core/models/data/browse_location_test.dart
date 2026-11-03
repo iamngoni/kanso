@@ -18,6 +18,19 @@ BrowseLocation _parsed(String address) {
 
 void main() {
   group('BrowseLocation', () {
+    test('writes and reads a notebook homepage', () {
+      const home = BrowseLocation.place(
+        ListPlace.notebook(id: 'b:1'),
+        home: true,
+      );
+      expect(home.location, '/notebooks/b%3A1/home');
+      expect(_parsed(home.location), home);
+      // Opening a note leaves the homepage; only a notebook has one.
+      expect(home.withNote('n1').location, '/notebooks/b%3A1/note/n1');
+      expect(home.withoutNote.location, '/notebooks/b%3A1');
+      expect(BrowseLocation.parse(Uri.parse('/notes/home')), isNull);
+    });
+
     test('writes the address of each place', () {
       expect(const BrowseLocation.place(ListPlace.all()).location, '/notes');
       expect(

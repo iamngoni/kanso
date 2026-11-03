@@ -63,14 +63,22 @@ sealed class BrowseLocation with _$BrowseLocation {
 
   /// This location with the note [id] open.
   BrowseLocation withNote(String id) => switch (this) {
-    final PlaceLocation here => here.copyWith(noteId: id, board: null, home: false),
+    final PlaceLocation here => here.copyWith(
+      noteId: id,
+      board: null,
+      home: false,
+    ),
     final SearchLocation here => here.copyWith(noteId: id),
     final TasksLocation here => here.copyWith(noteId: id),
   };
 
   /// This location with no note open: the list alone.
   BrowseLocation get withoutNote => switch (this) {
-    final PlaceLocation here => here.copyWith(noteId: null, board: null, home: false),
+    final PlaceLocation here => here.copyWith(
+      noteId: null,
+      board: null,
+      home: false,
+    ),
     final SearchLocation here => here.copyWith(noteId: null),
     final TasksLocation here => here.copyWith(noteId: null),
   };
@@ -147,7 +155,9 @@ sealed class BrowseLocation with _$BrowseLocation {
             : BoardKind.notes,
       );
     }
-    if (tail.length == 1 && tail.first == 'home' && place is ListPlace_Notebook) {
+    if (tail.length == 1 &&
+        tail.first == 'home' &&
+        place is ListPlace_Notebook) {
       return BrowseLocation.place(place, home: true);
     }
     final noteId = _noteIdOf(tail);

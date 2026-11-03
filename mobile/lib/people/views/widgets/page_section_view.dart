@@ -189,7 +189,8 @@ class PageSectionView extends StatelessWidget {
                 s.staleLine,
                 style: typography.meta.copyWith(color: colors.warning),
               ),
-            if (trouble != null) _TroubleCard(trouble: trouble!, onRetry: onRetry),
+            if (trouble != null)
+              _TroubleCard(trouble: trouble!, onRetry: onRetry),
             if (empty && trouble == null) ...<Widget>[
               if (s.emptyLine.isNotEmpty || emptyFallback.isNotEmpty)
                 Text(

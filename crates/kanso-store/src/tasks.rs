@@ -77,8 +77,16 @@ impl Store {
     /// dated ones first, soonest first, then the rest, each note's in
     /// order.
     pub fn tasks(&self, query: &TaskQuery) -> Result<Vec<TaskRow>> {
+        // Asked for by notebooks, the notes of those notebooks lead through
+        // the notebook index; otherwise the planner reads every task.
+        let from = if query.book_ids.is_some() {
+            "FROM docs d INDEXED BY docs_book CROSS JOIN note_tasks t ON t.note_id = d.id
+             WHERE d.type = 'note' AND d.deleted = 0 AND IFNULL(d.book_id, '') != 'trash'"
+        } else {
+            LIVE_TASKS
+        };
         let mut sql = format!(
-            "SELECT t.note_id, d.title, d.book_id, t.line, t.checked, t.text, t.due, d.updated_at {LIVE_TASKS}"
+            "SELECT t.note_id, d.title, d.book_id, t.line, t.checked, t.text, t.due, d.updated_at {from}"
         );
         let mut values: Vec<SqlValue> = Vec::new();
         if let Some(book) = &query.book_id {

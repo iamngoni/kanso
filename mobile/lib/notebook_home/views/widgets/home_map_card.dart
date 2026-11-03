@@ -134,8 +134,5 @@ class HomeMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(HomeMapPainter old) =>
-      old.map != map ||
-      old.line != line ||
-      old.dot != dot ||
-      old.stub != stub;
+      old.map != map || old.line != line || old.dot != dot || old.stub != stub;
 }

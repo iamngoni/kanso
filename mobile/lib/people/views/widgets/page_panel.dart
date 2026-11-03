@@ -12,19 +12,14 @@ import '../../../core/bridge/api/library.dart';
 import '../../../core/bridge/api/people_types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
-import '../../../core/router/kanso_routes.dart';
-import '../../../core/utils/ai_trouble_text.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
-import '../../../core/views/widgets/kanso_checkbox.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
-import '../../../core/views/widgets/kanso_icon.dart';
 import '../../../core/views/widgets/kanso_menu.dart';
-import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../injection.dart';
 import '../../models/repos/abs/people_repository.dart';
-import 'people_menu.dart';
 import 'page_section_view.dart';
+import 'people_menu.dart';
 import 'people_name_sheet.dart';
 
 /// The live part of a person's or project's page, drawn below the note's
