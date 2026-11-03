@@ -206,6 +206,23 @@ void aiSuite(OpenLibrary open) {
       // The id the link carries opens the note.
       expect((await library.note(id: id)).title, 'Pricing');
 
+      // A receipt's lines are found again where they are now, or not at all.
+      final here = await ai.relocateReceipt(
+        noteId: id,
+        start: 0,
+        end: 0,
+        quote: 'We decided the yearly plan costs 40 dollars.',
+      );
+      expect((here?.start, here?.end), (0, 0));
+      expect(
+        await ai.relocateReceipt(
+          noteId: id,
+          start: 0,
+          end: 0,
+          quote: 'Nothing like this was ever written.',
+        ),
+        isNull,
+      );
       // What a question can be limited to starts with all notes.
       final scopes = await ai.askScopes();
       expect(scopes.first.kind, 'all');

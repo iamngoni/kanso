@@ -209,6 +209,7 @@ void main() {
             alsoRead: <bridge.AskNote>[],
             banner: '',
             unverified: 0,
+            noSource: 0,
             neverWrote: false,
             closest: <bridge.AskClosest>[],
           ),

@@ -9747,6 +9747,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notes that link to the best matches, and notes they link to, are looked up too. Locked notes and notes tagged #ai-exclude are never followed.'**
   String get aiAskUseLinksFooter;
+
+  /// Said when the lines a receipt pointed at are gone from the note.
+  ///
+  /// In en, this message translates to:
+  /// **'These lines have changed since the answer was written.'**
+  String get askLinesChanged;
+
+  /// Under an answer that cites its lines: how many sentences cite nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 sentence cites no lines of your notes.} other{{count} sentences cite no lines of your notes.}}'**
+  String askNoSource(int count);
 }
 
 class _AppLocalizationsDelegate

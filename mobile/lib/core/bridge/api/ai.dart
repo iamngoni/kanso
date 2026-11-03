@@ -11,7 +11,7 @@ import 'types.dart';
 part 'ai.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAi>>
 abstract class KansoAi implements RustOpaqueInterface {
@@ -50,6 +50,15 @@ abstract class KansoAi implements RustOpaqueInterface {
   Future<String> privacyLine({required String device});
 
   List<AiProviderInfo> providers();
+
+  /// Where the lines a receipt pointed at are now, or `None` when they
+  /// are gone.
+  Future<AskLines?> relocateReceipt({
+    required String noteId,
+    required int start,
+    required int end,
+    required String quote,
+  });
 
   /// Saves the key in the phone's secret store; empty removes it.
   Future<void> setKey({required String provider, required String key});
@@ -341,6 +350,9 @@ sealed class AskEvent with _$AskEvent {
   const factory AskEvent.time({
     required AskTime time,
   }) = AskEvent_Time;
+  const factory AskEvent.restarted({
+    required String line,
+  }) = AskEvent_Restarted;
   const factory AskEvent.done({
     required String markdown,
     required List<AskNote> notes,
@@ -348,6 +360,7 @@ sealed class AskEvent with _$AskEvent {
     required List<AskNote> alsoRead,
     required String banner,
     required int unverified,
+    required int noSource,
     required bool neverWrote,
     required List<AskClosest> closest,
     AskTime? time,
@@ -363,6 +376,28 @@ sealed class AskEvent with _$AskEvent {
     required String message,
   }) = AskEvent_Failed;
   const factory AskEvent.stopped() = AskEvent_Stopped;
+}
+
+/// Where a receipt's lines are now, 0-based and inclusive.
+class AskLines {
+  final int start;
+  final int end;
+
+  const AskLines({
+    required this.start,
+    required this.end,
+  });
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AskLines &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end;
 }
 
 /// A title and ID for a note the answer used; note text never crosses the

@@ -23,7 +23,9 @@ mixin _$AskTurn {
  List<AskReceipt> get receipts;/// Notes it read but did not cite.
  List<AiNoteRef> get alsoRead;/// The banner over the answer; empty when there is none.
  String get banner;/// How many sentences are marked as not found.
- int get unverified;/// The notes do not hold the answer: "You never wrote that down."
+ int get unverified;/// How many sentences cite nothing in an answer that cites elsewhere.
+ int get noSource;/// Said above the question when the conversation before it was ended.
+ String get notice;/// The notes do not hold the answer: "You never wrote that down."
  bool get neverWrote;/// The closest notes, shown with [neverWrote].
  List<AskClosest> get closest;/// The time the question was understood to be about.
  AskTimeNote? get time;/// Nothing matched in a scope narrower than all notes.
@@ -39,16 +41,16 @@ $AskTurnCopyWith<AskTurn> get copyWith => _$AskTurnCopyWithImpl<AskTurn>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskTurn&&(identical(other.question, question) || other.question == question)&&(identical(other.answer, answer) || other.answer == answer)&&const DeepCollectionEquality().equals(other.used, used)&&(identical(other.outcome, outcome) || other.outcome == outcome)&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.scope, scope) || other.scope == scope)&&const DeepCollectionEquality().equals(other.receipts, receipts)&&const DeepCollectionEquality().equals(other.alsoRead, alsoRead)&&(identical(other.banner, banner) || other.banner == banner)&&(identical(other.unverified, unverified) || other.unverified == unverified)&&(identical(other.neverWrote, neverWrote) || other.neverWrote == neverWrote)&&const DeepCollectionEquality().equals(other.closest, closest)&&(identical(other.time, time) || other.time == time)&&(identical(other.narrow, narrow) || other.narrow == narrow)&&(identical(other.savedNoteId, savedNoteId) || other.savedNoteId == savedNoteId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskTurn&&(identical(other.question, question) || other.question == question)&&(identical(other.answer, answer) || other.answer == answer)&&const DeepCollectionEquality().equals(other.used, used)&&(identical(other.outcome, outcome) || other.outcome == outcome)&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.scope, scope) || other.scope == scope)&&const DeepCollectionEquality().equals(other.receipts, receipts)&&const DeepCollectionEquality().equals(other.alsoRead, alsoRead)&&(identical(other.banner, banner) || other.banner == banner)&&(identical(other.unverified, unverified) || other.unverified == unverified)&&(identical(other.noSource, noSource) || other.noSource == noSource)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.neverWrote, neverWrote) || other.neverWrote == neverWrote)&&const DeepCollectionEquality().equals(other.closest, closest)&&(identical(other.time, time) || other.time == time)&&(identical(other.narrow, narrow) || other.narrow == narrow)&&(identical(other.savedNoteId, savedNoteId) || other.savedNoteId == savedNoteId));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,question,answer,const DeepCollectionEquality().hash(used),outcome,failure,scope,const DeepCollectionEquality().hash(receipts),const DeepCollectionEquality().hash(alsoRead),banner,unverified,neverWrote,const DeepCollectionEquality().hash(closest),time,narrow,savedNoteId);
+int get hashCode => Object.hash(runtimeType,question,answer,const DeepCollectionEquality().hash(used),outcome,failure,scope,const DeepCollectionEquality().hash(receipts),const DeepCollectionEquality().hash(alsoRead),banner,unverified,noSource,notice,neverWrote,const DeepCollectionEquality().hash(closest),time,narrow,savedNoteId);
 
 @override
 String toString() {
-  return 'AskTurn(question: $question, answer: $answer, used: $used, outcome: $outcome, failure: $failure, scope: $scope, receipts: $receipts, alsoRead: $alsoRead, banner: $banner, unverified: $unverified, neverWrote: $neverWrote, closest: $closest, time: $time, narrow: $narrow, savedNoteId: $savedNoteId)';
+  return 'AskTurn(question: $question, answer: $answer, used: $used, outcome: $outcome, failure: $failure, scope: $scope, receipts: $receipts, alsoRead: $alsoRead, banner: $banner, unverified: $unverified, noSource: $noSource, notice: $notice, neverWrote: $neverWrote, closest: $closest, time: $time, narrow: $narrow, savedNoteId: $savedNoteId)';
 }
 
 
@@ -59,7 +61,7 @@ abstract mixin class $AskTurnCopyWith<$Res>  {
   factory $AskTurnCopyWith(AskTurn value, $Res Function(AskTurn) _then) = _$AskTurnCopyWithImpl;
 @useResult
 $Res call({
- String question, String answer, List<AiNoteRef> used, AskOutcome outcome, String? failure, AskScope scope, List<AskReceipt> receipts, List<AiNoteRef> alsoRead, String banner, int unverified, bool neverWrote, List<AskClosest> closest, AskTimeNote? time, bool narrow, String? savedNoteId
+ String question, String answer, List<AiNoteRef> used, AskOutcome outcome, String? failure, AskScope scope, List<AskReceipt> receipts, List<AiNoteRef> alsoRead, String banner, int unverified, int noSource, String notice, bool neverWrote, List<AskClosest> closest, AskTimeNote? time, bool narrow, String? savedNoteId
 });
 
 
@@ -76,7 +78,7 @@ class _$AskTurnCopyWithImpl<$Res>
 
 /// Create a copy of AskTurn
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? question = null,Object? answer = null,Object? used = null,Object? outcome = null,Object? failure = freezed,Object? scope = null,Object? receipts = null,Object? alsoRead = null,Object? banner = null,Object? unverified = null,Object? neverWrote = null,Object? closest = null,Object? time = freezed,Object? narrow = null,Object? savedNoteId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? question = null,Object? answer = null,Object? used = null,Object? outcome = null,Object? failure = freezed,Object? scope = null,Object? receipts = null,Object? alsoRead = null,Object? banner = null,Object? unverified = null,Object? noSource = null,Object? notice = null,Object? neverWrote = null,Object? closest = null,Object? time = freezed,Object? narrow = null,Object? savedNoteId = freezed,}) {
   return _then(_self.copyWith(
 question: null == question ? _self.question : question // ignore: cast_nullable_to_non_nullable
 as String,answer: null == answer ? _self.answer : answer // ignore: cast_nullable_to_non_nullable
@@ -88,7 +90,9 @@ as AskScope,receipts: null == receipts ? _self.receipts : receipts // ignore: ca
 as List<AskReceipt>,alsoRead: null == alsoRead ? _self.alsoRead : alsoRead // ignore: cast_nullable_to_non_nullable
 as List<AiNoteRef>,banner: null == banner ? _self.banner : banner // ignore: cast_nullable_to_non_nullable
 as String,unverified: null == unverified ? _self.unverified : unverified // ignore: cast_nullable_to_non_nullable
-as int,neverWrote: null == neverWrote ? _self.neverWrote : neverWrote // ignore: cast_nullable_to_non_nullable
+as int,noSource: null == noSource ? _self.noSource : noSource // ignore: cast_nullable_to_non_nullable
+as int,notice: null == notice ? _self.notice : notice // ignore: cast_nullable_to_non_nullable
+as String,neverWrote: null == neverWrote ? _self.neverWrote : neverWrote // ignore: cast_nullable_to_non_nullable
 as bool,closest: null == closest ? _self.closest : closest // ignore: cast_nullable_to_non_nullable
 as List<AskClosest>,time: freezed == time ? _self.time : time // ignore: cast_nullable_to_non_nullable
 as AskTimeNote?,narrow: null == narrow ? _self.narrow : narrow // ignore: cast_nullable_to_non_nullable
@@ -199,10 +203,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String question,  String answer,  List<AiNoteRef> used,  AskOutcome outcome,  String? failure,  AskScope scope,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time,  bool narrow,  String? savedNoteId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String question,  String answer,  List<AiNoteRef> used,  AskOutcome outcome,  String? failure,  AskScope scope,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  int noSource,  String notice,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time,  bool narrow,  String? savedNoteId)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AskTurn() when $default != null:
-return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failure,_that.scope,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.neverWrote,_that.closest,_that.time,_that.narrow,_that.savedNoteId);case _:
+return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failure,_that.scope,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.noSource,_that.notice,_that.neverWrote,_that.closest,_that.time,_that.narrow,_that.savedNoteId);case _:
   return orElse();
 
 }
@@ -220,10 +224,10 @@ return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failu
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String question,  String answer,  List<AiNoteRef> used,  AskOutcome outcome,  String? failure,  AskScope scope,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time,  bool narrow,  String? savedNoteId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String question,  String answer,  List<AiNoteRef> used,  AskOutcome outcome,  String? failure,  AskScope scope,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  int noSource,  String notice,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time,  bool narrow,  String? savedNoteId)  $default,) {final _that = this;
 switch (_that) {
 case _AskTurn():
-return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failure,_that.scope,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.neverWrote,_that.closest,_that.time,_that.narrow,_that.savedNoteId);case _:
+return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failure,_that.scope,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.noSource,_that.notice,_that.neverWrote,_that.closest,_that.time,_that.narrow,_that.savedNoteId);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -240,10 +244,10 @@ return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failu
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String question,  String answer,  List<AiNoteRef> used,  AskOutcome outcome,  String? failure,  AskScope scope,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time,  bool narrow,  String? savedNoteId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String question,  String answer,  List<AiNoteRef> used,  AskOutcome outcome,  String? failure,  AskScope scope,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  int noSource,  String notice,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time,  bool narrow,  String? savedNoteId)?  $default,) {final _that = this;
 switch (_that) {
 case _AskTurn() when $default != null:
-return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failure,_that.scope,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.neverWrote,_that.closest,_that.time,_that.narrow,_that.savedNoteId);case _:
+return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failure,_that.scope,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.noSource,_that.notice,_that.neverWrote,_that.closest,_that.time,_that.narrow,_that.savedNoteId);case _:
   return null;
 
 }
@@ -255,7 +259,7 @@ return $default(_that.question,_that.answer,_that.used,_that.outcome,_that.failu
 
 
 class _AskTurn implements AskTurn {
-  const _AskTurn({required this.question, this.answer = '', final  List<AiNoteRef> used = const <AiNoteRef>[], this.outcome = AskOutcome.pending, this.failure, this.scope = AskScope.everything, final  List<AskReceipt> receipts = const <AskReceipt>[], final  List<AiNoteRef> alsoRead = const <AiNoteRef>[], this.banner = '', this.unverified = 0, this.neverWrote = false, final  List<AskClosest> closest = const <AskClosest>[], this.time, this.narrow = false, this.savedNoteId}): _used = used,_receipts = receipts,_alsoRead = alsoRead,_closest = closest;
+  const _AskTurn({required this.question, this.answer = '', final  List<AiNoteRef> used = const <AiNoteRef>[], this.outcome = AskOutcome.pending, this.failure, this.scope = AskScope.everything, final  List<AskReceipt> receipts = const <AskReceipt>[], final  List<AiNoteRef> alsoRead = const <AiNoteRef>[], this.banner = '', this.unverified = 0, this.noSource = 0, this.notice = '', this.neverWrote = false, final  List<AskClosest> closest = const <AskClosest>[], this.time, this.narrow = false, this.savedNoteId}): _used = used,_receipts = receipts,_alsoRead = alsoRead,_closest = closest;
   
 
 @override final  String question;
@@ -299,6 +303,10 @@ class _AskTurn implements AskTurn {
 @override@JsonKey() final  String banner;
 /// How many sentences are marked as not found.
 @override@JsonKey() final  int unverified;
+/// How many sentences cite nothing in an answer that cites elsewhere.
+@override@JsonKey() final  int noSource;
+/// Said above the question when the conversation before it was ended.
+@override@JsonKey() final  String notice;
 /// The notes do not hold the answer: "You never wrote that down."
 @override@JsonKey() final  bool neverWrote;
 /// The closest notes, shown with [neverWrote].
@@ -327,16 +335,16 @@ _$AskTurnCopyWith<_AskTurn> get copyWith => __$AskTurnCopyWithImpl<_AskTurn>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AskTurn&&(identical(other.question, question) || other.question == question)&&(identical(other.answer, answer) || other.answer == answer)&&const DeepCollectionEquality().equals(other._used, _used)&&(identical(other.outcome, outcome) || other.outcome == outcome)&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.scope, scope) || other.scope == scope)&&const DeepCollectionEquality().equals(other._receipts, _receipts)&&const DeepCollectionEquality().equals(other._alsoRead, _alsoRead)&&(identical(other.banner, banner) || other.banner == banner)&&(identical(other.unverified, unverified) || other.unverified == unverified)&&(identical(other.neverWrote, neverWrote) || other.neverWrote == neverWrote)&&const DeepCollectionEquality().equals(other._closest, _closest)&&(identical(other.time, time) || other.time == time)&&(identical(other.narrow, narrow) || other.narrow == narrow)&&(identical(other.savedNoteId, savedNoteId) || other.savedNoteId == savedNoteId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AskTurn&&(identical(other.question, question) || other.question == question)&&(identical(other.answer, answer) || other.answer == answer)&&const DeepCollectionEquality().equals(other._used, _used)&&(identical(other.outcome, outcome) || other.outcome == outcome)&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.scope, scope) || other.scope == scope)&&const DeepCollectionEquality().equals(other._receipts, _receipts)&&const DeepCollectionEquality().equals(other._alsoRead, _alsoRead)&&(identical(other.banner, banner) || other.banner == banner)&&(identical(other.unverified, unverified) || other.unverified == unverified)&&(identical(other.noSource, noSource) || other.noSource == noSource)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.neverWrote, neverWrote) || other.neverWrote == neverWrote)&&const DeepCollectionEquality().equals(other._closest, _closest)&&(identical(other.time, time) || other.time == time)&&(identical(other.narrow, narrow) || other.narrow == narrow)&&(identical(other.savedNoteId, savedNoteId) || other.savedNoteId == savedNoteId));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,question,answer,const DeepCollectionEquality().hash(_used),outcome,failure,scope,const DeepCollectionEquality().hash(_receipts),const DeepCollectionEquality().hash(_alsoRead),banner,unverified,neverWrote,const DeepCollectionEquality().hash(_closest),time,narrow,savedNoteId);
+int get hashCode => Object.hash(runtimeType,question,answer,const DeepCollectionEquality().hash(_used),outcome,failure,scope,const DeepCollectionEquality().hash(_receipts),const DeepCollectionEquality().hash(_alsoRead),banner,unverified,noSource,notice,neverWrote,const DeepCollectionEquality().hash(_closest),time,narrow,savedNoteId);
 
 @override
 String toString() {
-  return 'AskTurn(question: $question, answer: $answer, used: $used, outcome: $outcome, failure: $failure, scope: $scope, receipts: $receipts, alsoRead: $alsoRead, banner: $banner, unverified: $unverified, neverWrote: $neverWrote, closest: $closest, time: $time, narrow: $narrow, savedNoteId: $savedNoteId)';
+  return 'AskTurn(question: $question, answer: $answer, used: $used, outcome: $outcome, failure: $failure, scope: $scope, receipts: $receipts, alsoRead: $alsoRead, banner: $banner, unverified: $unverified, noSource: $noSource, notice: $notice, neverWrote: $neverWrote, closest: $closest, time: $time, narrow: $narrow, savedNoteId: $savedNoteId)';
 }
 
 
@@ -347,7 +355,7 @@ abstract mixin class _$AskTurnCopyWith<$Res> implements $AskTurnCopyWith<$Res> {
   factory _$AskTurnCopyWith(_AskTurn value, $Res Function(_AskTurn) _then) = __$AskTurnCopyWithImpl;
 @override @useResult
 $Res call({
- String question, String answer, List<AiNoteRef> used, AskOutcome outcome, String? failure, AskScope scope, List<AskReceipt> receipts, List<AiNoteRef> alsoRead, String banner, int unverified, bool neverWrote, List<AskClosest> closest, AskTimeNote? time, bool narrow, String? savedNoteId
+ String question, String answer, List<AiNoteRef> used, AskOutcome outcome, String? failure, AskScope scope, List<AskReceipt> receipts, List<AiNoteRef> alsoRead, String banner, int unverified, int noSource, String notice, bool neverWrote, List<AskClosest> closest, AskTimeNote? time, bool narrow, String? savedNoteId
 });
 
 
@@ -364,7 +372,7 @@ class __$AskTurnCopyWithImpl<$Res>
 
 /// Create a copy of AskTurn
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? question = null,Object? answer = null,Object? used = null,Object? outcome = null,Object? failure = freezed,Object? scope = null,Object? receipts = null,Object? alsoRead = null,Object? banner = null,Object? unverified = null,Object? neverWrote = null,Object? closest = null,Object? time = freezed,Object? narrow = null,Object? savedNoteId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? question = null,Object? answer = null,Object? used = null,Object? outcome = null,Object? failure = freezed,Object? scope = null,Object? receipts = null,Object? alsoRead = null,Object? banner = null,Object? unverified = null,Object? noSource = null,Object? notice = null,Object? neverWrote = null,Object? closest = null,Object? time = freezed,Object? narrow = null,Object? savedNoteId = freezed,}) {
   return _then(_AskTurn(
 question: null == question ? _self.question : question // ignore: cast_nullable_to_non_nullable
 as String,answer: null == answer ? _self.answer : answer // ignore: cast_nullable_to_non_nullable
@@ -376,7 +384,9 @@ as AskScope,receipts: null == receipts ? _self._receipts : receipts // ignore: c
 as List<AskReceipt>,alsoRead: null == alsoRead ? _self._alsoRead : alsoRead // ignore: cast_nullable_to_non_nullable
 as List<AiNoteRef>,banner: null == banner ? _self.banner : banner // ignore: cast_nullable_to_non_nullable
 as String,unverified: null == unverified ? _self.unverified : unverified // ignore: cast_nullable_to_non_nullable
-as int,neverWrote: null == neverWrote ? _self.neverWrote : neverWrote // ignore: cast_nullable_to_non_nullable
+as int,noSource: null == noSource ? _self.noSource : noSource // ignore: cast_nullable_to_non_nullable
+as int,notice: null == notice ? _self.notice : notice // ignore: cast_nullable_to_non_nullable
+as String,neverWrote: null == neverWrote ? _self.neverWrote : neverWrote // ignore: cast_nullable_to_non_nullable
 as bool,closest: null == closest ? _self._closest : closest // ignore: cast_nullable_to_non_nullable
 as List<AskClosest>,time: freezed == time ? _self.time : time // ignore: cast_nullable_to_non_nullable
 as AskTimeNote?,narrow: null == narrow ? _self.narrow : narrow // ignore: cast_nullable_to_non_nullable

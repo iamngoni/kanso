@@ -27,6 +27,9 @@ sealed class AnswerSpan with _$AnswerSpan {
   const factory AnswerSpan.receipt({required String text, required int n}) =
       AnswerReceiptMark;
 
+  /// A sentence that cites nothing in an answer that cites elsewhere.
+  const factory AnswerSpan.noSource({required String text}) = AnswerNoSource;
+
   /// A sentence whose receipts failed their check.
   const factory AnswerSpan.unverified({required String text}) =
       AnswerUnverified;

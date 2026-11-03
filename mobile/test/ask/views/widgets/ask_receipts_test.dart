@@ -12,6 +12,7 @@ import 'package:kanso/ask/utils/superscript.dart';
 import 'package:kanso/ask/views/widgets/ask_pane.dart';
 import 'package:kanso/core/models/data/ai_note_ref.dart';
 import 'package:kanso/core/models/data/ask_closest.dart';
+import 'package:kanso/core/models/data/ask_lines.dart';
 import 'package:kanso/core/models/data/ask_receipt.dart';
 import 'package:kanso/core/models/data/ask_scope.dart';
 import 'package:kanso/core/models/data/ask_time_note.dart';
@@ -96,6 +97,66 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('The yearly plan is 40 dollars.'), findsOneWidget);
       expect(find.text('Open note'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a receipt opens the note where its lines moved, or says gone',
+      (
+        tester,
+      ) async {
+        final ai = await _pump(tester);
+        ai.relocation = (receipt) => const AskLines(start: 5, end: 5);
+        await _ask(tester, 'What is the yearly plan?');
+        ai.askUpdates.add(
+          const AskUpdate.done(
+            answer: 'It is 40. [1](kanso-cite:1)',
+            used: <AiNoteRef>[_pricing],
+            receipts: <AskReceipt>[_receipt],
+          ),
+        );
+        await tester.pumpAndSettle();
+        final bloc = tester.element(find.byType(AskPane)).read<AskBloc>();
+        expect((await bloc.relocated(_receipt))?.start, 5);
+        ai.relocation = (receipt) => null;
+        expect(await bloc.relocated(_receipt), isNull);
+      },
+    );
+
+    testWidgets('a conversation that was ended starts over with the question', (
+      tester,
+    ) async {
+      final ai = await _pump(tester);
+      await _ask(tester, 'one');
+      ai.askUpdates.add(
+        const AskUpdate.done(answer: 'A.', used: <AiNoteRef>[_pricing]),
+      );
+      await tester.pumpAndSettle();
+      await _ask(tester, 'two');
+      ai.askUpdates
+        ..add(const AskUpdate.restarted(line: 'Started over.'))
+        ..add(const AskUpdate.done(answer: 'B.', used: <AiNoteRef>[]));
+      await tester.pumpAndSettle();
+      expect(find.text('Started over.'), findsOneWidget);
+      expect(find.text('one'), findsNothing);
+      expect(find.text('two'), findsOneWidget);
+    });
+
+    testWidgets('sentences with no source are counted', (tester) async {
+      final ai = await _pump(tester);
+      await _ask(tester, 'q');
+      ai.askUpdates.add(
+        const AskUpdate.done(
+          answer: 'It is 40. [1](kanso-cite:1) [Maybe.](kanso-nosource:2)',
+          used: <AiNoteRef>[_pricing],
+          receipts: <AskReceipt>[_receipt],
+          noSource: 1,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('1 sentence cites no lines of your notes.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a sentence that failed its check says it was not found', (

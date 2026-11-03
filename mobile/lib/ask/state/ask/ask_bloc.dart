@@ -11,6 +11,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/models/data/ai_note_ref.dart';
 import '../../../core/models/data/ai_settings.dart';
+import '../../../core/models/data/ask_receipt.dart';
 import '../../../core/models/data/ask_scope.dart';
 import '../../../core/models/data/ask_update.dart';
 import '../../../core/models/data/load_status.dart';
@@ -220,6 +221,10 @@ class AskBloc extends Bloc<AskEvent, AskState> {
         AskPhase.answering,
       ),
       AskTime(:final time) => (turn.copyWith(time: time), state.phase),
+      AskRestarted(:final line) => (
+        turn.copyWith(notice: line),
+        state.phase,
+      ),
       AskDone done => (
         turn.copyWith(
           answer: done.answer,
@@ -228,6 +233,7 @@ class AskBloc extends Bloc<AskEvent, AskState> {
           alsoRead: done.alsoRead,
           banner: done.banner,
           unverified: done.unverified,
+          noSource: done.noSource,
           neverWrote: done.neverWrote,
           closest: done.closest,
           time: done.time ?? turn.time,
@@ -252,9 +258,26 @@ class AskBloc extends Bloc<AskEvent, AskState> {
       unawaited(_updates?.cancel());
       _updates = null;
     }
+    // A conversation that was ended starts over with the question asked.
+    final earlier = update is AskRestarted
+        ? const <AskTurn>[]
+        : state.turns.take(state.turns.length - 1);
     return state.copyWith(
       phase: phase,
-      turns: <AskTurn>[...state.turns.take(state.turns.length - 1), next],
+      turns: <AskTurn>[...earlier, next],
+    );
+  }
+
+  /// Where the lines [receipt] pointed at are now: [receipt] itself when they
+  /// have not moved, the receipt with its new lines when they have, `null`
+  /// when they are gone.
+  Future<AskReceipt?> relocated(AskReceipt receipt) async {
+    final found = await _ai.relocateReceipt(receipt);
+    return found.fold(
+      (_) => receipt,
+      (lines) => lines == null
+          ? null
+          : receipt.copyWith(start: lines.start, end: lines.end),
     );
   }
 

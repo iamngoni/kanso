@@ -9,6 +9,8 @@ import '../../data/ai_settings.dart';
 import '../../data/ai_settings_change.dart';
 import '../../data/ai_test_result.dart';
 import '../../data/application_error.dart';
+import '../../data/ask_lines.dart';
+import '../../data/ask_receipt.dart';
 import '../../data/ask_scope.dart';
 import '../../data/ask_update.dart';
 import '../../data/assist_action.dart';
@@ -63,6 +65,12 @@ abstract interface class AiRepository {
 
   /// Forgets the newest exchange, to ask its question again another way.
   Future<Either<ApplicationError, Unit>> forgetLast();
+
+  /// Where the lines a receipt pointed at are now, when the note changed
+  /// since the answer; `null` when they are gone.
+  Future<Either<ApplicationError, AskLines?>> relocateReceipt(
+    AskReceipt receipt,
+  );
 
   /// Saves the newest answer as a note titled "Q: <question>", with its
   /// sources as links to the lines cited. Gives the new note's ID.

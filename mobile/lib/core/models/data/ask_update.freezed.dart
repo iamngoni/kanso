@@ -55,7 +55,7 @@ extension AskUpdatePatterns on AskUpdate {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AskSearching value)?  searching,TResult Function( AskThinking value)?  thinking,TResult Function( AskUsedNotes value)?  usedNotes,TResult Function( AskAnswer value)?  answer,TResult Function( AskTime value)?  time,TResult Function( AskDone value)?  done,TResult Function( AskNothingMatches value)?  nothingMatches,TResult Function( AskCutOff value)?  cutOff,TResult Function( AskFailed value)?  error,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AskSearching value)?  searching,TResult Function( AskThinking value)?  thinking,TResult Function( AskUsedNotes value)?  usedNotes,TResult Function( AskAnswer value)?  answer,TResult Function( AskTime value)?  time,TResult Function( AskRestarted value)?  restarted,TResult Function( AskDone value)?  done,TResult Function( AskNothingMatches value)?  nothingMatches,TResult Function( AskCutOff value)?  cutOff,TResult Function( AskFailed value)?  error,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AskSearching() when searching != null:
@@ -63,7 +63,8 @@ return searching(_that);case AskThinking() when thinking != null:
 return thinking(_that);case AskUsedNotes() when usedNotes != null:
 return usedNotes(_that);case AskAnswer() when answer != null:
 return answer(_that);case AskTime() when time != null:
-return time(_that);case AskDone() when done != null:
+return time(_that);case AskRestarted() when restarted != null:
+return restarted(_that);case AskDone() when done != null:
 return done(_that);case AskNothingMatches() when nothingMatches != null:
 return nothingMatches(_that);case AskCutOff() when cutOff != null:
 return cutOff(_that);case AskFailed() when error != null:
@@ -85,7 +86,7 @@ return error(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AskSearching value)  searching,required TResult Function( AskThinking value)  thinking,required TResult Function( AskUsedNotes value)  usedNotes,required TResult Function( AskAnswer value)  answer,required TResult Function( AskTime value)  time,required TResult Function( AskDone value)  done,required TResult Function( AskNothingMatches value)  nothingMatches,required TResult Function( AskCutOff value)  cutOff,required TResult Function( AskFailed value)  error,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AskSearching value)  searching,required TResult Function( AskThinking value)  thinking,required TResult Function( AskUsedNotes value)  usedNotes,required TResult Function( AskAnswer value)  answer,required TResult Function( AskTime value)  time,required TResult Function( AskRestarted value)  restarted,required TResult Function( AskDone value)  done,required TResult Function( AskNothingMatches value)  nothingMatches,required TResult Function( AskCutOff value)  cutOff,required TResult Function( AskFailed value)  error,}){
 final _that = this;
 switch (_that) {
 case AskSearching():
@@ -93,7 +94,8 @@ return searching(_that);case AskThinking():
 return thinking(_that);case AskUsedNotes():
 return usedNotes(_that);case AskAnswer():
 return answer(_that);case AskTime():
-return time(_that);case AskDone():
+return time(_that);case AskRestarted():
+return restarted(_that);case AskDone():
 return done(_that);case AskNothingMatches():
 return nothingMatches(_that);case AskCutOff():
 return cutOff(_that);case AskFailed():
@@ -111,7 +113,7 @@ return error(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AskSearching value)?  searching,TResult? Function( AskThinking value)?  thinking,TResult? Function( AskUsedNotes value)?  usedNotes,TResult? Function( AskAnswer value)?  answer,TResult? Function( AskTime value)?  time,TResult? Function( AskDone value)?  done,TResult? Function( AskNothingMatches value)?  nothingMatches,TResult? Function( AskCutOff value)?  cutOff,TResult? Function( AskFailed value)?  error,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AskSearching value)?  searching,TResult? Function( AskThinking value)?  thinking,TResult? Function( AskUsedNotes value)?  usedNotes,TResult? Function( AskAnswer value)?  answer,TResult? Function( AskTime value)?  time,TResult? Function( AskRestarted value)?  restarted,TResult? Function( AskDone value)?  done,TResult? Function( AskNothingMatches value)?  nothingMatches,TResult? Function( AskCutOff value)?  cutOff,TResult? Function( AskFailed value)?  error,}){
 final _that = this;
 switch (_that) {
 case AskSearching() when searching != null:
@@ -119,7 +121,8 @@ return searching(_that);case AskThinking() when thinking != null:
 return thinking(_that);case AskUsedNotes() when usedNotes != null:
 return usedNotes(_that);case AskAnswer() when answer != null:
 return answer(_that);case AskTime() when time != null:
-return time(_that);case AskDone() when done != null:
+return time(_that);case AskRestarted() when restarted != null:
+return restarted(_that);case AskDone() when done != null:
 return done(_that);case AskNothingMatches() when nothingMatches != null:
 return nothingMatches(_that);case AskCutOff() when cutOff != null:
 return cutOff(_that);case AskFailed() when error != null:
@@ -140,15 +143,16 @@ return error(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  searching,TResult Function()?  thinking,TResult Function( List<AiNoteRef> notes)?  usedNotes,TResult Function( String text)?  answer,TResult Function( AskTimeNote time)?  time,TResult Function( String answer,  List<AiNoteRef> used,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time)?  done,TResult Function( bool narrow)?  nothingMatches,TResult Function()?  cutOff,TResult Function( String message)?  error,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  searching,TResult Function()?  thinking,TResult Function( List<AiNoteRef> notes)?  usedNotes,TResult Function( String text)?  answer,TResult Function( AskTimeNote time)?  time,TResult Function( String line)?  restarted,TResult Function( String answer,  List<AiNoteRef> used,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  int noSource,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time)?  done,TResult Function( bool narrow)?  nothingMatches,TResult Function()?  cutOff,TResult Function( String message)?  error,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AskSearching() when searching != null:
 return searching();case AskThinking() when thinking != null:
 return thinking();case AskUsedNotes() when usedNotes != null:
 return usedNotes(_that.notes);case AskAnswer() when answer != null:
 return answer(_that.text);case AskTime() when time != null:
-return time(_that.time);case AskDone() when done != null:
-return done(_that.answer,_that.used,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.neverWrote,_that.closest,_that.time);case AskNothingMatches() when nothingMatches != null:
+return time(_that.time);case AskRestarted() when restarted != null:
+return restarted(_that.line);case AskDone() when done != null:
+return done(_that.answer,_that.used,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.noSource,_that.neverWrote,_that.closest,_that.time);case AskNothingMatches() when nothingMatches != null:
 return nothingMatches(_that.narrow);case AskCutOff() when cutOff != null:
 return cutOff();case AskFailed() when error != null:
 return error(_that.message);case _:
@@ -169,15 +173,16 @@ return error(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  searching,required TResult Function()  thinking,required TResult Function( List<AiNoteRef> notes)  usedNotes,required TResult Function( String text)  answer,required TResult Function( AskTimeNote time)  time,required TResult Function( String answer,  List<AiNoteRef> used,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time)  done,required TResult Function( bool narrow)  nothingMatches,required TResult Function()  cutOff,required TResult Function( String message)  error,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  searching,required TResult Function()  thinking,required TResult Function( List<AiNoteRef> notes)  usedNotes,required TResult Function( String text)  answer,required TResult Function( AskTimeNote time)  time,required TResult Function( String line)  restarted,required TResult Function( String answer,  List<AiNoteRef> used,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  int noSource,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time)  done,required TResult Function( bool narrow)  nothingMatches,required TResult Function()  cutOff,required TResult Function( String message)  error,}) {final _that = this;
 switch (_that) {
 case AskSearching():
 return searching();case AskThinking():
 return thinking();case AskUsedNotes():
 return usedNotes(_that.notes);case AskAnswer():
 return answer(_that.text);case AskTime():
-return time(_that.time);case AskDone():
-return done(_that.answer,_that.used,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.neverWrote,_that.closest,_that.time);case AskNothingMatches():
+return time(_that.time);case AskRestarted():
+return restarted(_that.line);case AskDone():
+return done(_that.answer,_that.used,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.noSource,_that.neverWrote,_that.closest,_that.time);case AskNothingMatches():
 return nothingMatches(_that.narrow);case AskCutOff():
 return cutOff();case AskFailed():
 return error(_that.message);}
@@ -194,15 +199,16 @@ return error(_that.message);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  searching,TResult? Function()?  thinking,TResult? Function( List<AiNoteRef> notes)?  usedNotes,TResult? Function( String text)?  answer,TResult? Function( AskTimeNote time)?  time,TResult? Function( String answer,  List<AiNoteRef> used,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time)?  done,TResult? Function( bool narrow)?  nothingMatches,TResult? Function()?  cutOff,TResult? Function( String message)?  error,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  searching,TResult? Function()?  thinking,TResult? Function( List<AiNoteRef> notes)?  usedNotes,TResult? Function( String text)?  answer,TResult? Function( AskTimeNote time)?  time,TResult? Function( String line)?  restarted,TResult? Function( String answer,  List<AiNoteRef> used,  List<AskReceipt> receipts,  List<AiNoteRef> alsoRead,  String banner,  int unverified,  int noSource,  bool neverWrote,  List<AskClosest> closest,  AskTimeNote? time)?  done,TResult? Function( bool narrow)?  nothingMatches,TResult? Function()?  cutOff,TResult? Function( String message)?  error,}) {final _that = this;
 switch (_that) {
 case AskSearching() when searching != null:
 return searching();case AskThinking() when thinking != null:
 return thinking();case AskUsedNotes() when usedNotes != null:
 return usedNotes(_that.notes);case AskAnswer() when answer != null:
 return answer(_that.text);case AskTime() when time != null:
-return time(_that.time);case AskDone() when done != null:
-return done(_that.answer,_that.used,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.neverWrote,_that.closest,_that.time);case AskNothingMatches() when nothingMatches != null:
+return time(_that.time);case AskRestarted() when restarted != null:
+return restarted(_that.line);case AskDone() when done != null:
+return done(_that.answer,_that.used,_that.receipts,_that.alsoRead,_that.banner,_that.unverified,_that.noSource,_that.neverWrote,_that.closest,_that.time);case AskNothingMatches() when nothingMatches != null:
 return nothingMatches(_that.narrow);case AskCutOff() when cutOff != null:
 return cutOff();case AskFailed() when error != null:
 return error(_that.message);case _:
@@ -493,8 +499,74 @@ $AskTimeNoteCopyWith<$Res> get time {
 /// @nodoc
 
 
+class AskRestarted implements AskUpdate {
+  const AskRestarted({required this.line});
+  
+
+ final  String line;
+
+/// Create a copy of AskUpdate
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AskRestartedCopyWith<AskRestarted> get copyWith => _$AskRestartedCopyWithImpl<AskRestarted>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskRestarted&&(identical(other.line, line) || other.line == line));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,line);
+
+@override
+String toString() {
+  return 'AskUpdate.restarted(line: $line)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AskRestartedCopyWith<$Res> implements $AskUpdateCopyWith<$Res> {
+  factory $AskRestartedCopyWith(AskRestarted value, $Res Function(AskRestarted) _then) = _$AskRestartedCopyWithImpl;
+@useResult
+$Res call({
+ String line
+});
+
+
+
+
+}
+/// @nodoc
+class _$AskRestartedCopyWithImpl<$Res>
+    implements $AskRestartedCopyWith<$Res> {
+  _$AskRestartedCopyWithImpl(this._self, this._then);
+
+  final AskRestarted _self;
+  final $Res Function(AskRestarted) _then;
+
+/// Create a copy of AskUpdate
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? line = null,}) {
+  return _then(AskRestarted(
+line: null == line ? _self.line : line // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class AskDone implements AskUpdate {
-  const AskDone({required this.answer, required final  List<AiNoteRef> used, final  List<AskReceipt> receipts = const <AskReceipt>[], final  List<AiNoteRef> alsoRead = const <AiNoteRef>[], this.banner = '', this.unverified = 0, this.neverWrote = false, final  List<AskClosest> closest = const <AskClosest>[], this.time}): _used = used,_receipts = receipts,_alsoRead = alsoRead,_closest = closest;
+  const AskDone({required this.answer, required final  List<AiNoteRef> used, final  List<AskReceipt> receipts = const <AskReceipt>[], final  List<AiNoteRef> alsoRead = const <AiNoteRef>[], this.banner = '', this.unverified = 0, this.noSource = 0, this.neverWrote = false, final  List<AskClosest> closest = const <AskClosest>[], this.time}): _used = used,_receipts = receipts,_alsoRead = alsoRead,_closest = closest;
   
 
  final  String answer;
@@ -525,6 +597,8 @@ class AskDone implements AskUpdate {
 @JsonKey() final  String banner;
 /// How many sentences are marked as not found.
 @JsonKey() final  int unverified;
+/// How many sentences cite nothing in an answer that cites elsewhere.
+@JsonKey() final  int noSource;
 /// The notes do not hold the answer.
 @JsonKey() final  bool neverWrote;
  final  List<AskClosest> _closest;
@@ -546,16 +620,16 @@ $AskDoneCopyWith<AskDone> get copyWith => _$AskDoneCopyWithImpl<AskDone>(this, _
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskDone&&(identical(other.answer, answer) || other.answer == answer)&&const DeepCollectionEquality().equals(other._used, _used)&&const DeepCollectionEquality().equals(other._receipts, _receipts)&&const DeepCollectionEquality().equals(other._alsoRead, _alsoRead)&&(identical(other.banner, banner) || other.banner == banner)&&(identical(other.unverified, unverified) || other.unverified == unverified)&&(identical(other.neverWrote, neverWrote) || other.neverWrote == neverWrote)&&const DeepCollectionEquality().equals(other._closest, _closest)&&(identical(other.time, time) || other.time == time));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AskDone&&(identical(other.answer, answer) || other.answer == answer)&&const DeepCollectionEquality().equals(other._used, _used)&&const DeepCollectionEquality().equals(other._receipts, _receipts)&&const DeepCollectionEquality().equals(other._alsoRead, _alsoRead)&&(identical(other.banner, banner) || other.banner == banner)&&(identical(other.unverified, unverified) || other.unverified == unverified)&&(identical(other.noSource, noSource) || other.noSource == noSource)&&(identical(other.neverWrote, neverWrote) || other.neverWrote == neverWrote)&&const DeepCollectionEquality().equals(other._closest, _closest)&&(identical(other.time, time) || other.time == time));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,answer,const DeepCollectionEquality().hash(_used),const DeepCollectionEquality().hash(_receipts),const DeepCollectionEquality().hash(_alsoRead),banner,unverified,neverWrote,const DeepCollectionEquality().hash(_closest),time);
+int get hashCode => Object.hash(runtimeType,answer,const DeepCollectionEquality().hash(_used),const DeepCollectionEquality().hash(_receipts),const DeepCollectionEquality().hash(_alsoRead),banner,unverified,noSource,neverWrote,const DeepCollectionEquality().hash(_closest),time);
 
 @override
 String toString() {
-  return 'AskUpdate.done(answer: $answer, used: $used, receipts: $receipts, alsoRead: $alsoRead, banner: $banner, unverified: $unverified, neverWrote: $neverWrote, closest: $closest, time: $time)';
+  return 'AskUpdate.done(answer: $answer, used: $used, receipts: $receipts, alsoRead: $alsoRead, banner: $banner, unverified: $unverified, noSource: $noSource, neverWrote: $neverWrote, closest: $closest, time: $time)';
 }
 
 
@@ -566,7 +640,7 @@ abstract mixin class $AskDoneCopyWith<$Res> implements $AskUpdateCopyWith<$Res> 
   factory $AskDoneCopyWith(AskDone value, $Res Function(AskDone) _then) = _$AskDoneCopyWithImpl;
 @useResult
 $Res call({
- String answer, List<AiNoteRef> used, List<AskReceipt> receipts, List<AiNoteRef> alsoRead, String banner, int unverified, bool neverWrote, List<AskClosest> closest, AskTimeNote? time
+ String answer, List<AiNoteRef> used, List<AskReceipt> receipts, List<AiNoteRef> alsoRead, String banner, int unverified, int noSource, bool neverWrote, List<AskClosest> closest, AskTimeNote? time
 });
 
 
@@ -583,7 +657,7 @@ class _$AskDoneCopyWithImpl<$Res>
 
 /// Create a copy of AskUpdate
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? answer = null,Object? used = null,Object? receipts = null,Object? alsoRead = null,Object? banner = null,Object? unverified = null,Object? neverWrote = null,Object? closest = null,Object? time = freezed,}) {
+@pragma('vm:prefer-inline') $Res call({Object? answer = null,Object? used = null,Object? receipts = null,Object? alsoRead = null,Object? banner = null,Object? unverified = null,Object? noSource = null,Object? neverWrote = null,Object? closest = null,Object? time = freezed,}) {
   return _then(AskDone(
 answer: null == answer ? _self.answer : answer // ignore: cast_nullable_to_non_nullable
 as String,used: null == used ? _self._used : used // ignore: cast_nullable_to_non_nullable
@@ -591,6 +665,7 @@ as List<AiNoteRef>,receipts: null == receipts ? _self._receipts : receipts // ig
 as List<AskReceipt>,alsoRead: null == alsoRead ? _self._alsoRead : alsoRead // ignore: cast_nullable_to_non_nullable
 as List<AiNoteRef>,banner: null == banner ? _self.banner : banner // ignore: cast_nullable_to_non_nullable
 as String,unverified: null == unverified ? _self.unverified : unverified // ignore: cast_nullable_to_non_nullable
+as int,noSource: null == noSource ? _self.noSource : noSource // ignore: cast_nullable_to_non_nullable
 as int,neverWrote: null == neverWrote ? _self.neverWrote : neverWrote // ignore: cast_nullable_to_non_nullable
 as bool,closest: null == closest ? _self._closest : closest // ignore: cast_nullable_to_non_nullable
 as List<AskClosest>,time: freezed == time ? _self.time : time // ignore: cast_nullable_to_non_nullable

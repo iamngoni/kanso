@@ -81,6 +81,13 @@ class AnswerInline extends StatelessWidget {
                   onLongPress: () => onJumpToReceipt?.call(n),
                 ),
               ),
+              AnswerNoSource(:final text) => TextSpan(
+                text: text,
+                style: style.copyWith(
+                  color: colors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
               AnswerUnverified(:final text) => WidgetSpan(
                 alignment: PlaceholderAlignment.baseline,
                 baseline: TextBaseline.alphabetic,

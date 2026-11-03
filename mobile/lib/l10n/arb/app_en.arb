@@ -7245,5 +7245,18 @@
   "aiAskUseLinksFooter": "Notes that link to the best matches, and notes they link to, are looked up too. Locked notes and notes tagged #ai-exclude are never followed.",
   "@aiAskUseLinksFooter": {
     "description": "What following links does."
+  },
+  "askLinesChanged": "These lines have changed since the answer was written.",
+  "@askLinesChanged": {
+    "description": "Said when the lines a receipt pointed at are gone from the note."
+  },
+  "askNoSource": "{count, plural, =1{1 sentence cites no lines of your notes.} other{{count} sentences cite no lines of your notes.}}",
+  "@askNoSource": {
+    "description": "Under an answer that cites its lines: how many sentences cite nothing.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

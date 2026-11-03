@@ -690,6 +690,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AskEvent dco_decode_ask_event(dynamic raw);
 
   @protected
+  AskLines dco_decode_ask_lines(dynamic raw);
+
+  @protected
   AskNote dco_decode_ask_note(dynamic raw);
 
   @protected
@@ -745,6 +748,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   AiSettingsInput dco_decode_box_autoadd_ai_settings_input(dynamic raw);
+
+  @protected
+  AskLines dco_decode_box_autoadd_ask_lines(dynamic raw);
 
   @protected
   AskScopeInput dco_decode_box_autoadd_ask_scope_input(dynamic raw);
@@ -1772,6 +1778,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  AskLines? dco_decode_opt_box_autoadd_ask_lines(dynamic raw);
 
   @protected
   AskTime? dco_decode_opt_box_autoadd_ask_time(dynamic raw);
@@ -2921,6 +2930,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AskEvent sse_decode_ask_event(SseDeserializer deserializer);
 
   @protected
+  AskLines sse_decode_ask_lines(SseDeserializer deserializer);
+
+  @protected
   AskNote sse_decode_ask_note(SseDeserializer deserializer);
 
   @protected
@@ -2982,6 +2994,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   AiSettingsInput sse_decode_box_autoadd_ai_settings_input(
     SseDeserializer deserializer,
   );
+
+  @protected
+  AskLines sse_decode_box_autoadd_ask_lines(SseDeserializer deserializer);
 
   @protected
   AskScopeInput sse_decode_box_autoadd_ask_scope_input(
@@ -4177,6 +4192,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  AskLines? sse_decode_opt_box_autoadd_ask_lines(SseDeserializer deserializer);
 
   @protected
   AskTime? sse_decode_opt_box_autoadd_ask_time(SseDeserializer deserializer);
@@ -5507,6 +5525,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_ask_event(AskEvent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ask_lines(AskLines self, SseSerializer serializer);
+
+  @protected
   void sse_encode_ask_note(AskNote self, SseSerializer serializer);
 
   @protected
@@ -5578,6 +5599,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_ai_settings_input(
     AiSettingsInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_ask_lines(
+    AskLines self,
     SseSerializer serializer,
   );
 
@@ -7149,6 +7176,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_ask_lines(
+    AskLines? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_ask_time(

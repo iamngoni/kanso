@@ -17,6 +17,7 @@ import '../../data/ai_settings_change.dart';
 import '../../data/ai_test_result.dart';
 import '../../data/application_error.dart';
 import '../../data/ask_closest.dart';
+import '../../data/ask_lines.dart';
 import '../../data/ask_receipt.dart';
 import '../../data/ask_scope.dart';
 import '../../data/ask_time_note.dart';
@@ -178,6 +179,8 @@ class RustAiRepository implements AiRepository {
           sink.add(AskUpdate.answer(text: markdown));
         case bridge.AskEvent_Time(:final time):
           sink.add(AskUpdate.time(time: _timeNote(time)));
+        case bridge.AskEvent_Restarted(:final line):
+          sink.add(AskUpdate.restarted(line: line));
         case bridge.AskEvent_Done(
           :final markdown,
           :final notes,
@@ -185,6 +188,7 @@ class RustAiRepository implements AiRepository {
           :final alsoRead,
           :final banner,
           :final unverified,
+          :final noSource,
           :final neverWrote,
           :final closest,
           :final time,
@@ -208,6 +212,7 @@ class RustAiRepository implements AiRepository {
               alsoRead: _refs(alsoRead),
               banner: banner,
               unverified: unverified,
+              noSource: noSource,
               neverWrote: neverWrote,
               closest: <AskClosest>[
                 for (final c in closest)
@@ -286,6 +291,19 @@ class RustAiRepository implements AiRepository {
   Future<Either<ApplicationError, Unit>> forgetLast() => attempt(() async {
     _conversation.forgetLast();
     return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, AskLines?>> relocateReceipt(
+    AskReceipt receipt,
+  ) => attempt(() async {
+    final found = await _ai.relocateReceipt(
+      noteId: receipt.noteId,
+      start: receipt.start,
+      end: receipt.end,
+      quote: receipt.quote,
+    );
+    return found == null ? null : AskLines(start: found.start, end: found.end);
   });
 
   @override

@@ -45,6 +45,12 @@ abstract class AskTurn with _$AskTurn {
     /// How many sentences are marked as not found.
     @Default(0) int unverified,
 
+    /// How many sentences cite nothing in an answer that cites elsewhere.
+    @Default(0) int noSource,
+
+    /// Said above the question when the conversation before it was ended.
+    @Default('') String notice,
+
     /// The notes do not hold the answer: "You never wrote that down."
     @Default(false) bool neverWrote,
 

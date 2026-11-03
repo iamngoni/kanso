@@ -72,6 +72,8 @@ List<AnswerSpan> parseAnswerInline(
               n: int.parse(address.substring('kanso-cite:'.length)),
             ),
           );
+        } else if (address.startsWith('kanso-nosource:')) {
+          spans.add(AnswerSpan.noSource(text: run.text));
         } else if (address.startsWith('kanso-unverified:')) {
           spans.add(AnswerSpan.unverified(text: run.text));
         } else if (noteId != null && usedNoteIds.contains(noteId)) {

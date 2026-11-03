@@ -10,6 +10,8 @@ import 'package:kanso/core/models/data/ai_settings.dart';
 import 'package:kanso/core/models/data/ai_settings_change.dart';
 import 'package:kanso/core/models/data/ai_test_result.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/ask_lines.dart';
+import 'package:kanso/core/models/data/ask_receipt.dart';
 import 'package:kanso/core/models/data/ask_scope.dart';
 import 'package:kanso/core/models/data/ask_update.dart';
 import 'package:kanso/core/models/data/assist_action.dart';
@@ -219,6 +221,15 @@ class FixtureAiRepository implements AiRepository {
     saves++;
     return Right<ApplicationError, String>(savedId);
   }
+
+  /// Where a receipt's lines are now; `null` is "gone". Unmoved by default.
+  AskLines? Function(AskReceipt receipt) relocation = (receipt) =>
+      AskLines(start: receipt.start, end: receipt.end);
+
+  @override
+  Future<Either<ApplicationError, AskLines?>> relocateReceipt(
+    AskReceipt receipt,
+  ) async => Right<ApplicationError, AskLines?>(relocation(receipt));
 
   @override
   Future<Either<ApplicationError, Unit>> forgetLast() async =>

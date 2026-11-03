@@ -186,6 +186,13 @@ void main() {
       );
     });
 
+    test('a sentence with no source becomes its own span', () {
+      expect(
+        parseAnswerInline('[Maybe so.](kanso-nosource:1)'),
+        <AnswerSpan>[const AnswerSpan.noSource(text: 'Maybe so.')],
+      );
+    });
+
     Glados<String>(_hostileText, kansoExploreConfig()).test(
       'for any text: no image, and links only to notes or web pages',
       (source) {
@@ -201,6 +208,8 @@ void main() {
             case AnswerReceiptMark(:final n):
               expect(n, greaterThan(0));
             case AnswerUnverified(:final text):
+              expect(text, isNotEmpty);
+            case AnswerNoSource(:final text):
               expect(text, isNotEmpty);
             case AnswerWebLink(:final url):
               final uri = Uri.parse(url);

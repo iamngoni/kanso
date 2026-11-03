@@ -5742,4 +5742,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiAskUseLinksFooter =>
       'Notes that link to the best matches, and notes they link to, are looked up too. Locked notes and notes tagged #ai-exclude are never followed.';
+
+  @override
+  String get askLinesChanged =>
+      'These lines have changed since the answer was written.';
+
+  @override
+  String askNoSource(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sentences cite no lines of your notes.',
+      one: '1 sentence cites no lines of your notes.',
+    );
+    return '$_temp0';
+  }
 }

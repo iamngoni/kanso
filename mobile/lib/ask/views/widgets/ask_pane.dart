@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/models/data/ask_receipt.dart';
 import '../../../core/models/data/load_status.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/utils/context_extensions.dart';
@@ -35,6 +36,28 @@ class AskPane extends StatelessWidget {
   const AskPane({this.inSheet = false, this.usedExpanded = false, super.key});
 
   final bool inSheet;
+
+  /// Opens the note at the lines [receipt] pointed at. The note may have
+  /// changed since the answer: the lines are found again where they moved,
+  /// and when they are gone the note opens as it is, saying so.
+  Future<void> _openReceipt(BuildContext context, AskReceipt receipt) async {
+    final found = await context.read<AskBloc>().relocated(receipt);
+    if (!context.mounted) {
+      return;
+    }
+    if (found == null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(context.l10n.askLinesChanged)),
+      );
+    }
+    openCitedNote(
+      context,
+      receipt.noteId,
+      closeFirst: inSheet,
+      start: found?.start,
+      end: found?.end,
+    );
+  }
 
   /// Whether each list of notes used starts open.
   final bool usedExpanded;
@@ -130,21 +153,10 @@ class AskPane extends StatelessWidget {
                               onOpenReceipt: (receipt) => showReceiptSheet(
                                 context,
                                 receipt,
-                                onOpen: () => openCitedNote(
-                                  context,
-                                  receipt.noteId,
-                                  closeFirst: inSheet,
-                                  start: receipt.start,
-                                  end: receipt.end,
-                                ),
+                                onOpen: () => _openReceipt(context, receipt),
                               ),
-                              onJumpToReceipt: (receipt) => openCitedNote(
-                                context,
-                                receipt.noteId,
-                                closeFirst: inSheet,
-                                start: receipt.start,
-                                end: receipt.end,
-                              ),
+                              onJumpToReceipt: (receipt) =>
+                                  _openReceipt(context, receipt),
                               onSearchAll: () =>
                                   bloc.add(const AskEvent.searchedAll()),
                               onDropTime: () =>

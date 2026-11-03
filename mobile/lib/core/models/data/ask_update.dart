@@ -34,6 +34,10 @@ sealed class AskUpdate with _$AskUpdate {
   /// The time the question was understood to be about.
   const factory AskUpdate.time({required AskTimeNote time}) = AskTime;
 
+  /// A note the earlier exchanges used is now kept out of AI, so they were
+  /// forgotten: [line] says so.
+  const factory AskUpdate.restarted({required String line}) = AskRestarted;
+
   /// The answer is complete and its receipts were checked.
   const factory AskUpdate.done({
     required String answer,
@@ -48,6 +52,9 @@ sealed class AskUpdate with _$AskUpdate {
 
     /// How many sentences are marked as not found.
     @Default(0) int unverified,
+
+    /// How many sentences cite nothing in an answer that cites elsewhere.
+    @Default(0) int noSource,
 
     /// The notes do not hold the answer.
     @Default(false) bool neverWrote,

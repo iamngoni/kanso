@@ -117,6 +117,10 @@ class AskTurnView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: KansoSpacing.sm),
+        if (turn.notice.isNotEmpty) ...<Widget>[
+          Text(turn.notice, style: quiet),
+          const SizedBox(height: KansoSpacing.xs),
+        ],
         if (turn.time != null) ...<Widget>[
           Align(
             alignment: AlignmentDirectional.centerStart,
@@ -178,6 +182,11 @@ class AskTurnView extends StatelessWidget {
               ),
           ],
         ],
+        if (answered && turn.noSource > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: KansoSpacing.xs),
+            child: Text(l10n.askNoSource(turn.noSource), style: quiet),
+          ),
         if (answered && turn.receipts.isNotEmpty)
           SourcesList(
             receipts: turn.receipts,
