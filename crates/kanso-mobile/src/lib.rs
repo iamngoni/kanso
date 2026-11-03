@@ -136,6 +136,8 @@ mod model_history;
 mod notes;
 pub mod passkey_bridge;
 mod passkey_flow;
+mod people;
+mod people_model;
 mod preview;
 mod provider_loopback;
 mod publish;
@@ -197,6 +199,8 @@ pub use kanso_engine::word_goal::{
     MAX_GOAL, PRESETS, effective_goal, goal_label, note_goal, parse_goal, progress, set_note_goal,
 };
 pub use library::Library;
+pub use people::People;
+pub use people_model::*;
 pub use linking::Linking;
 pub use linking_model::*;
 pub use locks::LockSession;

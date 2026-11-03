@@ -115,6 +115,41 @@ pub fn add_alias(store: &Store, id: &str, alias: &str, now: i64) -> Result<bool,
     Ok(true)
 }
 
+/// Appends `markdown` (a section's lines, with their sources as links) to
+/// the end of the person's own text on page `id`, where it becomes theirs to
+/// edit. The section stays live. Returns whether anything was written.
+pub fn copy_into_note(
+    store: &Store,
+    id: &str,
+    heading: &str,
+    markdown: &str,
+    now: i64,
+) -> Result<bool, ActionError> {
+    if store.entity(id)?.is_none() {
+        return Err(ActionError::NotAPage);
+    }
+    let body = store
+        .get(id)?
+        .and_then(|d| d.fields.get("body").and_then(|b| b.as_str().map(str::to_owned)))
+        .unwrap_or_default();
+    if markdown.trim().is_empty() {
+        return Ok(false);
+    }
+    let mut next = body.clone();
+    if !next.ends_with('\n') {
+        next.push('\n');
+    }
+    next.push_str(&format!("\n## {}\n\n{}", heading.trim(), markdown.trim_end()));
+    next.push('\n');
+    store.put(
+        DocType::Note,
+        json!({ "_id": id, "body": next, "updatedAt": now }),
+        Put::Merge,
+        Origin::Ui,
+    )?;
+    Ok(true)
+}
+
 /// What a merge did.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Merged {
@@ -252,6 +287,10 @@ mod tests {
             kanso_core::TRASH_BOOK_ID
         );
         assert!(store.entity(&other).unwrap().is_none());
+        assert!(copy_into_note(&store, &sam, "Promises", "- Send the deck [Linker](inkdrop://note/x#L1)\n", 17).unwrap());
+        let copied = store.note(&sam).unwrap().unwrap().body;
+        assert!(copied.contains("## Promises\n\n- Send the deck"), "{copied}");
+        assert!(!copy_into_note(&store, &sam, "Promises", "  ", 18).unwrap());
         assert!(matches!(
             merge(&store, &sam, &sam, 16),
             Err(ActionError::SameNote)
