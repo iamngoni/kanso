@@ -431,8 +431,11 @@ fn shared_from(manifest: &Value, folder: &Path) -> Result<(Shared, Vec<String>),
             bytes,
         });
     }
-    // A titled note that is only a drawing or a scan says which.
-    if shared.subject.is_some()
+    // A titled note that is only a drawing or a scan says which. Apple
+    // Notes is iOS only; on Android many apps title a plain photo share
+    // (EXTRA_SUBJECT), which must not read as a drawing.
+    if cfg!(not(target_os = "android"))
+        && shared.subject.is_some()
         && shared.text.is_none()
         && shared.url.is_none()
         && let Some(first) = shared.files.first()

@@ -15,8 +15,9 @@ abstract final class KansoLinks {
 
   /// Bringing Apple Notes across: import on a Mac and sync, share notes one
   /// at a time, or choose exported files.
+  /// A topic on the help page (site/src/routes/help.tsx, id `apple-notes`).
   static final Uri importAppleNotes = Uri.parse(
-    'https://kansoapp.app/help/import-apple-notes',
+    'https://kansoapp.app/help#apple-notes',
   );
 
   /// Exactly what the anonymous usage count sends, and what it does not.

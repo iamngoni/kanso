@@ -1,6 +1,6 @@
 /**
  * Help, in plain words: getting started, sync and adding a device, locked
- * notes, sharing, importing, crash reports, deleting an account and where to
+ * notes, sharing, importing (Apple Notes too), crash reports, deleting an account and where to
  * ask. It summarises README.md, docs/ACCOUNTS.md and docs/CRASH-REPORTS.md
  * and must change when they do. The mobile apps' Settings › About opens it.
  */
@@ -120,6 +120,31 @@ export const TOPICS: readonly Topic[] = [
           before it writes anything. The source is only ever read, and importing the same source again updates the notes it made
           instead of duplicating them. It reads Markdown folders and many other apps' exports; the list is in{" "}
           <a href={`${REPOSITORY_URL}#importing`} className="ink-link">the README</a>.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "apple-notes",
+    title: "Bringing Apple Notes across",
+    body: (
+      <>
+        <p>
+          On a Mac, <strong>File › Import… › Apple Notes</strong> reads the Notes library itself: folders, checklists, tables,
+          scans, drawings, attachments and links between notes. It is the best way across, and sync then brings everything to
+          your iPhone and iPad.
+        </p>
+        <p>
+          An iPhone or iPad can't read the Notes library, so there are two more ways. In Notes, <strong>Share › Kanso</strong>{" "}
+          saves a note to the Inbox as a Markdown note, its checklist as tasks and its pictures attached. Or export notes as files
+          (PDF, RTF, HTML, text or Markdown) and choose the folder, a <code>.zip</code> or a single file in Settings › Import ›
+          Apple Notes. They go under an <strong>Apple Notes</strong> notebook, the export's folders inside it, and importing the
+          same files again updates those notes instead of duplicating them.
+        </p>
+        <p>
+          Locked Apple notes can't be read by any of these ways: unlock them in Notes first. If you have locked the Apple Notes
+          notebook in Kanso, an import leaves its notes as they are. Windows and Linux have no Apple Notes: import on a Mac and
+          sync.
         </p>
       </>
     ),

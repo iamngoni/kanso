@@ -134,3 +134,93 @@ fn an_rtf_or_pdf_folder_is_offered_as_apple_notes() {
         [SourceKind::AppleNotesFiles]
     );
 }
+
+/// A zip whose entries climb out (`../`, absolute paths) only ever names
+/// notes inside the import, and an entry that inflates past the note limit
+/// is skipped unread.
+#[test]
+fn a_hostile_zip_stays_inside_and_skips_a_bomb() {
+    use std::io::Write;
+
+    let dir = tempfile::tempdir().unwrap();
+    let zip_path = dir.path().join("export.zip");
+    {
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for (name, body) in [
+            ("../escape.txt", "climbs"),
+            ("/abs/rooted.txt", "rooted"),
+            ("Work/Fine.txt", "fine"),
+        ] {
+            zip.start_file(name, options).unwrap();
+            zip.write_all(body.as_bytes()).unwrap();
+        }
+        zip.start_file("Bomb.txt", options).unwrap();
+        let zeros = vec![b'a'; 1024 * 1024];
+        for _ in 0..9 {
+            zip.write_all(&zeros).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let store = Store::open(tmp.path().join("db")).unwrap();
+    let report = import_source(SourceKind::AppleNotesFiles, &zip_path, &store, |_| {}).unwrap();
+    assert!(
+        report.skipped.iter().any(|s| s.path == "Bomb.txt"),
+        "{report}"
+    );
+    assert!(!dir.path().parent().unwrap().join("escape.txt").exists());
+    let notes = notes(&store);
+    assert!(notes.iter().any(|(t, _)| t == "Fine"), "{notes:?}");
+    assert!(notes.iter().all(|(t, _)| t != "Bomb"), "{notes:?}");
+    // Every notebook sits under Apple Notes, none named after `..` or `/`.
+    for (name, parent) in books(&store) {
+        assert!(
+            !name.is_empty() && name != ".." && !name.contains('/'),
+            "{name}"
+        );
+        assert!(name == "Apple Notes" || parent.is_some(), "{name}");
+    }
+}
+
+/// Importing again after the Apple Notes notebook was locked writes no
+/// plain text into it: changed and new notes are refused and reported.
+#[test]
+fn a_locked_apple_notes_notebook_gets_no_plain_text() {
+    use kanso_core::DocType;
+    use kanso_store::{Origin, Put};
+
+    let input = export();
+    let tmp = tempfile::tempdir().unwrap();
+    let store = Store::open(tmp.path().join("db")).unwrap();
+    import_source(SourceKind::AppleNotesFiles, input.path(), &store, |_| {}).unwrap();
+    let book = store
+        .books()
+        .unwrap()
+        .into_iter()
+        .find(|b| b.name == "Apple Notes")
+        .unwrap();
+    let mut doc = store.get_api(&book.id, None, false).unwrap();
+    doc.as_object_mut().unwrap().remove("count");
+    doc["kansoLock"] =
+        serde_json::json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "sealed"});
+    store
+        .put(DocType::Book, doc, Put::Upsert, Origin::Sync)
+        .unwrap();
+
+    std::fs::write(
+        input.path().join("Groceries.txt"),
+        "Groceries\nsecret change",
+    )
+    .unwrap();
+    std::fs::write(input.path().join("New.txt"), "brand new secret").unwrap();
+    let again = import_source(SourceKind::AppleNotesFiles, input.path(), &store, |_| {}).unwrap();
+    assert_eq!(again.notes.created, 0, "{again}");
+    assert_eq!(again.notes.updated, 0, "{again}");
+    assert!(!again.rejected.is_empty(), "{again}");
+    let books: Vec<String> = store.books().unwrap().into_iter().map(|b| b.id).collect();
+    for note in store.notes_in_books(&books).unwrap() {
+        assert!(!note.body.contains("secret"), "{note:?}");
+    }
+}
