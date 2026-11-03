@@ -32,6 +32,7 @@ void main() {
           NextNoteIntent,
           PreviousNoteIntent,
           PinNoteIntent,
+          UndoLastChangeIntent,
           NewNoteIntent,
           NewNotebookIntent,
           EditNoteIntent,
@@ -50,7 +51,7 @@ void main() {
           ReopenClosedTabIntent,
           GoToTabIntent,
         });
-        expect(bindings, hasLength(33));
+        expect(bindings, hasLength(34));
       }
     });
 

@@ -10,8 +10,11 @@ use gpui_kit::*;
 use kanso_core::DocType;
 pub use kanso_engine::batch::Change;
 use kanso_engine::batch::{self, Edit, summary, turned_on};
+use kanso_store::Store;
 use kanso_store::{NoteSummary, Origin};
 use serde_json::Value;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::library::Library;
 
@@ -39,12 +42,21 @@ pub fn apply(
 ) {
     let (notes, place) = {
         let library = library.read(cx);
-        let notes: Vec<NoteSummary> = library
+        let mut notes: Vec<NoteSummary> = library
             .notes
             .iter()
             .filter(|n| ids.contains(&n.id))
             .cloned()
             .collect();
+        // A note open but not in the list now (found by search, say) still
+        // takes the change.
+        for id in ids {
+            if !notes.iter().any(|n| &n.id == id)
+                && let Ok(Some(note)) = library.store.note(id)
+            {
+                notes.push(summary_of(&note));
+            }
+        }
         if must_go_one_by_one(&notes, &change, library) {
             window.push_notification(
                 Notification::info(
@@ -100,39 +112,120 @@ pub fn apply(
     for (feature, n) in tally {
         crate::metrics::record_n(cx, feature, n);
     }
+    remember(&store, &edits, cx);
     let notification =
         // Each batch's notice takes the place of the one before, so its
         // Undo is always for the latest change.
         Notification::info(summary(&change, count, &place, on))
             .id::<Edit>()
             .action(move |_, _, _| {
-            let (store, edits) = (store.clone(), edits.clone());
-            Button::new("undo-notes")
-                .label("Undo")
-                .debug_selector(|| "undo-notes".into())
-                .on_click(move |_, window, cx| {
-                    crate::editor::peers::flush_everywhere(cx);
-                    // A note deleted since is skipped, and so is what was
-                    // changed again after the batch.
-                    let now_ms = kanso_core::now_ms();
-                    let undo: Vec<Value> = edits
-                        .iter()
-                        .filter_map(|edit| {
-                            let note = store.note(&edit.id).ok().flatten()?;
-                            let current = serde_json::to_value(note).ok()?;
-                            batch::undo_stamped(&edit.change, &edit.undo, &current, now_ms)
-                        })
-                        .collect();
-                    if undo.is_empty() {
-                        return;
-                    }
-                    if let Err(err) = store.merge_many(DocType::Note, undo, Origin::Ui) {
-                        window.push_notification(
-                            Notification::error(format!("Couldn't undo: {err}")),
-                            cx,
-                        );
-                    }
-                })
-        });
+                let (store, edits) = (store.clone(), edits.clone());
+                Button::new("undo-notes")
+                    .label("Undo")
+                    .debug_selector(|| "undo-notes".into())
+                    .on_click(move |_, window, cx| {
+                        cx.set_global(Latest(None));
+                        undo_edits(&store, &edits, window, cx);
+                    })
+            });
     window.push_notification(notification, cx);
+}
+
+/// How long a change's notice stays up, and so how long Cmd/Ctrl+Z outside
+/// the note's text still takes it back.
+pub const NOTICE_SECS: u64 = 5;
+
+/// The latest batch change whose notice is up.
+struct Latest(Option<(Instant, Arc<Store>, Vec<Edit>)>);
+
+impl Global for Latest {}
+
+fn remember(store: &Arc<Store>, edits: &[Edit], cx: &mut App) {
+    cx.set_global(Latest(Some((
+        Instant::now(),
+        store.clone(),
+        edits.to_vec(),
+    ))));
+}
+
+/// Whether a change `since` ago still has its notice up. Pure.
+pub fn notice_is_up(since: Duration) -> bool {
+    since < Duration::from_secs(NOTICE_SECS)
+}
+
+/// Takes back the latest change (a trash, a move, any batch) while its
+/// notice is up. Whether there was one.
+pub fn undo_latest(window: &mut Window, cx: &mut App) -> bool {
+    let latest = cx.try_global::<Latest>().and_then(|l| l.0.clone());
+    let Some((at, store, edits)) = latest else {
+        return false;
+    };
+    cx.set_global(Latest(None));
+    if !notice_is_up(at.elapsed()) {
+        return false;
+    }
+    undo_edits(&store, &edits, window, cx);
+    true
+}
+
+/// Puts back what each note had, in one write. A note deleted since is
+/// skipped, and so is what was changed again after the batch; every note
+/// is stamped updatedAt = now.
+fn undo_edits(store: &Arc<Store>, edits: &[Edit], window: &mut Window, cx: &mut App) {
+    crate::editor::peers::flush_everywhere(cx);
+    let now_ms = kanso_core::now_ms();
+    let undo: Vec<Value> = edits
+        .iter()
+        .filter_map(|edit| {
+            let note = store.note(&edit.id).ok().flatten()?;
+            let current = serde_json::to_value(note).ok()?;
+            batch::undo_stamped(&edit.change, &edit.undo, &current, now_ms)
+        })
+        .collect();
+    if undo.is_empty() {
+        return;
+    }
+    if let Err(err) = store.merge_many(DocType::Note, undo, Origin::Ui) {
+        window.push_notification(Notification::error(format!("Couldn't undo: {err}")), cx);
+    }
+}
+
+/// What the batch needs to know of a note.
+fn summary_of(note: &kanso_core::Note) -> NoteSummary {
+    NoteSummary {
+        id: note.id.clone(),
+        rev: note.rev.clone().unwrap_or_default(),
+        title: note.title.clone(),
+        snippet: String::new(),
+        book_id: note.book_id.clone(),
+        status: note.status,
+        tags: note.tags.clone(),
+        pinned: note.pinned,
+        updated_at: note.updated_at,
+        created_at: note.created_at,
+        tasks_done: note.num_of_checked_tasks,
+        tasks_total: note.num_of_tasks,
+        locked: false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::{NOTICE_SECS, notice_is_up};
+    use std::time::Duration;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(256))]
+
+        /// The notice is up for exactly `NOTICE_SECS`, whatever the time.
+        #[test]
+        fn notice_is_up_only_within_its_time(ms in 0u64..20_000) {
+            prop_assert_eq!(
+                notice_is_up(Duration::from_millis(ms)),
+                ms < NOTICE_SECS * 1000
+            );
+        }
+    }
 }

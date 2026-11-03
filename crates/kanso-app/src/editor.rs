@@ -2138,11 +2138,6 @@ impl NoteEditor {
         }
     }
 
-    /// Moves the open note to the trash.
-    pub fn trash(&mut self, cx: &mut Context<Self>) {
-        self.set_book(TRASH_BOOK_ID.into(), cx);
-    }
-
     /// Starts the system's dictation into the note's text, at the cursor.
     /// The text must have the keyboard, and be drawn with it, before the
     /// system starts listening: that is where dictation types. Preview has

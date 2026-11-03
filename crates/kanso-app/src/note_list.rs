@@ -2466,6 +2466,36 @@ mod tests {
             assert_eq!(cx.read(|cx| library.read(cx).notes.len()), 3);
         }
 
+        // no-prop-test: drives the window; the notice's timing property is in
+        // note_batch.rs.
+        #[gpui_kit::test]
+        fn one_trashed_note_comes_back_with_cmd_z(cx: &mut TestAppContext) {
+            use kanso_core::model::TRASH_BOOK_ID;
+
+            use crate::workspace::{TrashNote, UndoLastChange};
+
+            let f = setup(cx);
+            f.window
+                .update(cx, |_, window, _| window.activate_window())
+                .unwrap();
+            let ids = listed(&f, cx);
+            let note = |cx: &mut TestAppContext, id: &str| {
+                cx.run_until_parked();
+                f.store.note(id).unwrap().unwrap()
+            };
+            click(&f, cx, &ids[0], Modifiers::none());
+            let before = note(cx, &ids[0]);
+
+            cx.dispatch_action(f.window, TrashNote);
+            assert_eq!(note(cx, &ids[0]).book_id, TRASH_BOOK_ID);
+
+            // Cmd/Ctrl+Z, outside the note's text, brings it back, stamped now.
+            cx.dispatch_action(f.window, UndoLastChange);
+            let after = note(cx, &ids[0]);
+            assert_eq!(after.book_id, before.book_id);
+            assert!(after.updated_at >= before.updated_at);
+        }
+
         // no-prop-test: drives the window with drags; the batch's properties
         // are in note_batch.rs.
         #[gpui_kit::test]

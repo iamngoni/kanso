@@ -467,6 +467,7 @@ pub fn in_main_window(
 
 pub struct NoteWindow {
     note_id: String,
+    library: Entity<Library>,
     pub(crate) editor: Entity<NoteEditor>,
     /// The window's own focus, so its shortcuts work when nothing inside
     /// has the keyboard.
@@ -579,6 +580,7 @@ impl NoteWindow {
         editor.update(cx, |editor, cx| editor.focus_body(window, cx));
         NoteWindow {
             note_id,
+            library: library.clone(),
             editor,
             focus,
             band_drag: BandDrag::default(),
@@ -658,6 +660,14 @@ impl NoteWindow {
         }
     }
 
+    /// Moves the note to the trash with the batch's notice and Undo.
+    fn trash(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let id = self.note_id.clone();
+        let library = self.library.clone();
+        let trash = crate::note_batch::Change::Move(kanso_core::model::TRASH_BOOK_ID.into());
+        crate::note_batch::apply(&[id], trash, &library, window, cx);
+    }
+
     /// A choice from the note's menu. What needs the main window (a copy
     /// to show in the list, a folder to export to) happens there.
     fn run_command(&mut self, command: NoteCommand, window: &mut Window, cx: &mut Context<Self>) {
@@ -666,7 +676,7 @@ impl NoteWindow {
             NoteCommand::SetStatus(status) => {
                 self.editor.update(cx, |e, cx| e.set_status(status, cx))
             }
-            NoteCommand::Trash => self.editor.update(cx, |e, cx| e.trash(cx)),
+            NoteCommand::Trash => self.trash(window, cx),
             // Only the menu of several selected notes offers it.
             NoteCommand::AskAgent => {}
             NoteCommand::ShowHistory => self.show_history(window, cx),
@@ -937,8 +947,8 @@ impl Render for NoteWindow {
             .on_action(cx.listener(|this, _: &TogglePinned, _, cx| {
                 this.editor.update(cx, |editor, cx| editor.toggle_pinned(cx));
             }))
-            .on_action(cx.listener(|this, _: &TrashNote, _, cx| {
-                this.editor.update(cx, |editor, cx| editor.trash(cx));
+            .on_action(cx.listener(|this, _: &TrashNote, window, cx| {
+                this.trash(window, cx);
             }))
             .on_action(cx.listener(|this, _: &ShowHistory, window, cx| {
                 this.show_history(window, cx);

@@ -16,6 +16,7 @@ import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/state/list_navigation/list_navigation_bloc.dart';
 import '../../../core/state/navigation_history/navigation_history_bloc.dart';
+import '../../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../../core/utils/neighbour_note.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
@@ -127,6 +128,14 @@ class KansoShortcuts extends StatelessWidget {
               } else {
                 KansoDrawerScope.maybeOf(context)?.toggle();
               }
+              return null;
+            },
+          ),
+          UndoLastChangeIntent: CallbackAction<UndoLastChangeIntent>(
+            onInvoke: (_) {
+              context.read<UndoNoticeBloc>().add(
+                const UndoNoticeEvent.undoPressed(),
+              );
               return null;
             },
           ),

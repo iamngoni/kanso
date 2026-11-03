@@ -21,6 +21,7 @@ import '../../core/models/repos/abs/templates_repository.dart';
 import '../../core/router/kanso_routes.dart';
 import '../../core/state/library_index/library_index_bloc.dart';
 import '../../core/state/sync_status/sync_status_bloc.dart';
+import '../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../core/utils/journal_time.dart';
 import '../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../core/views/widgets/kanso_feedback.dart';
@@ -406,9 +407,13 @@ abstract final class PaletteLauncher {
         }
       case 'trash':
         if (open != null) {
-          (await library.trash(open)).fold(
+          // The same change as the list's swipe, so it gets the same Undo.
+          (await library.change(<String>[open], const NoteChange.trash())).fold(
             (error) => _say(context, error.message),
-            (_) => router.go(KansoRoutes.notes),
+            (changed) {
+              _offerUndo(context, changed);
+              router.go(KansoRoutes.notes);
+            },
           );
         }
       case 'pin':
@@ -672,7 +677,19 @@ abstract final class PaletteLauncher {
     final library = getIt<LibraryRepository>();
     (await library.change(<String>[id], change)).fold(
       (error) => _say(context, error.message),
-      (changed) => _say(context, changed.message),
+      (changed) => _offerUndo(context, changed),
+    );
+  }
+
+  /// Says what changed, with Undo when the change can be taken back.
+  static void _offerUndo(BuildContext context, Changed changed) {
+    final ticket = changed.undo;
+    if (ticket == null) {
+      _say(context, changed.message);
+      return;
+    }
+    context.read<UndoNoticeBloc>().add(
+      UndoNoticeEvent.shown(ticket, changed.message),
     );
   }
 

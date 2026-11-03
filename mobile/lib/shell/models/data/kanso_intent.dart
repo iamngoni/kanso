@@ -106,6 +106,11 @@ class OpenPaletteIntent extends KansoIntent {
   const OpenPaletteIntent();
 }
 
+/// Take back the latest trash or move while its Undo notice is up.
+class UndoLastChangeIntent extends KansoIntent {
+  const UndoLastChangeIntent();
+}
+
 /// Show the open note by itself, or bring the rest of the app back.
 class ToggleFocusModeIntent extends KansoIntent {
   const ToggleFocusModeIntent();
