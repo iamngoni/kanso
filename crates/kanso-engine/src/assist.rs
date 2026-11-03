@@ -25,7 +25,7 @@ pub fn requests_line(provider: kanso_ai::Provider, base_url: &str, device: &str)
         format!("the model at {host}")
     };
     format!(
-        "Questions and the note excerpts they use go straight from {device} to {to}. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent."
+        "Questions and the note excerpts they use, with their titles, dates and notebook names, go straight from {device} to {to}. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent."
     )
 }
 
@@ -55,7 +55,7 @@ mod tests {
         use kanso_ai::Provider;
         assert_eq!(
             requests_line(Provider::OpenAi, "https://api.openai.com/v1", "this Mac"),
-            "Questions and the note excerpts they use go straight from this Mac to api.openai.com. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent."
+            "Questions and the note excerpts they use, with their titles, dates and notebook names, go straight from this Mac to api.openai.com. Nothing goes through Kanso's servers. Locked notes and notes tagged #ai-exclude are never sent."
         );
         let local = requests_line(
             Provider::LocalModel,

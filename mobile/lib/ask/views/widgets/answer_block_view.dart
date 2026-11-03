@@ -18,8 +18,13 @@ class AnswerBlockView extends StatelessWidget {
     required this.onOpenNote,
     required this.onOpenLink,
     required this.usedNoteIds,
+    this.onOpenReceipt,
+    this.onJumpToReceipt,
     super.key,
   });
+
+  final ValueChanged<int>? onOpenReceipt;
+  final ValueChanged<int>? onJumpToReceipt;
 
   final AnswerBlock block;
   final ValueChanged<String> onOpenNote;
@@ -42,6 +47,8 @@ class AnswerBlockView extends StatelessWidget {
       onOpenNote: onOpenNote,
       onOpenLink: onOpenLink,
       usedNoteIds: usedNoteIds,
+      onOpenReceipt: onOpenReceipt,
+      onJumpToReceipt: onJumpToReceipt,
     );
     return switch (block) {
       AnswerHeading(:final level, :final text) => AnswerInline(

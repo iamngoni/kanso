@@ -41,5 +41,21 @@ abstract class AiSettings with _$AiSettings {
     /// The plain line about where a question goes and what is never sent,
     /// in the words of the device ("this phone", "this tablet").
     @Default('') String privacy,
+
+    /// Most each question may send: `small`, `standard` or `large`.
+    @Default('standard') String askBudget,
+
+    /// "About 3,000 words of your notes per question."
+    @Default('') String budgetWordsLine,
+
+    /// "At most about $0.01 per question with gpt-4o-mini."; empty when the
+    /// price is not known.
+    @Default('') String budgetCostLine,
+
+    /// Whether each cited line is checked against what was sent.
+    @Default(true) bool checkSources,
+
+    /// Whether notes linked from the best matches are looked up too.
+    @Default(true) bool useLinks,
   }) = _AiSettings;
 }

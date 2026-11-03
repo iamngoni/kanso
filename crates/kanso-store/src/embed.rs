@@ -31,7 +31,12 @@ use crate::{Result, Store, schema};
 pub const MODEL_KEY: &str = "embed.model";
 
 /// The table, for emptying it with the library.
-pub(crate) const TABLES: [&str; 3] = ["note_embeddings", "note_passages", "resurface_dismissed"];
+pub(crate) const TABLES: [&str; 4] = [
+    "note_embeddings",
+    "note_passages",
+    "passage_embeddings",
+    "resurface_dismissed",
+];
 
 /// Changes whenever [`embed_text`] builds the text differently, so every
 /// note is embedded again.
@@ -219,6 +224,7 @@ pub fn decode_vector(bytes: &[u8], dim: usize) -> Option<Vec<f32>> {
 pub(crate) fn forget_note(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("DELETE FROM note_embeddings WHERE note_id = ?", [id])?;
     conn.execute("DELETE FROM note_passages WHERE note_id = ?", [id])?;
+    conn.execute("DELETE FROM passage_embeddings WHERE note_id = ?", [id])?;
     conn.execute(
         "DELETE FROM resurface_dismissed WHERE note_id = ?1 OR other_id = ?1",
         [id],
@@ -230,7 +236,7 @@ pub(crate) fn forget_note(conn: &Connection, id: &str) -> Result<()> {
 /// Deletes the vectors of notes that are locked or tagged `#ai-exclude`:
 /// they may have been embedded before they were locked or tagged.
 fn forget_undiscoverable(conn: &Connection) -> Result<()> {
-    for table in ["note_embeddings", "note_passages"] {
+    for table in ["note_embeddings", "note_passages", "passage_embeddings"] {
         conn.execute(
             &format!(
                 "DELETE FROM {table} WHERE note_id IN (SELECT d.id FROM docs d
@@ -285,11 +291,13 @@ impl Store {
                 Some(model) => {
                     tx.execute("DELETE FROM note_embeddings WHERE model != ?", [model])?;
                     tx.execute("DELETE FROM note_passages WHERE model != ?", [model])?;
+                    tx.execute("DELETE FROM passage_embeddings WHERE model != ?", [model])?;
                     schema::set_meta(tx, MODEL_KEY, model)?;
                 }
                 None => {
                     tx.execute("DELETE FROM note_embeddings", [])?;
                     tx.execute("DELETE FROM note_passages", [])?;
+                    tx.execute("DELETE FROM passage_embeddings", [])?;
                     tx.execute("DELETE FROM meta WHERE key = ?", [MODEL_KEY])?;
                 }
             }

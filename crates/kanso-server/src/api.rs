@@ -60,6 +60,7 @@ pub(crate) fn list_notes(store: &Store, query: &NoteQuery) -> ApiResult<Vec<Valu
         limit: query.limit,
         skip: query.skip,
         ocr: false,
+        ..SearchParams::default()
     };
     Ok(store.search_api(&params)?)
 }

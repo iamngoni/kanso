@@ -157,6 +157,7 @@ pub fn batches(sources: &[Source], budget: usize, max: usize) -> Vec<(Prompt, Ve
                 id: s.id.clone(),
                 title: s.title.clone(),
                 text: numbered(&s.body),
+                ..Excerpt::default()
             })
             .collect();
         let (user, taken) = pack(
@@ -401,6 +402,7 @@ fn excerpts_of(items: Vec<(String, String, String)>) -> Vec<Excerpt> {
                 id,
                 title,
                 text: line,
+                ..Excerpt::default()
             }),
         }
     }

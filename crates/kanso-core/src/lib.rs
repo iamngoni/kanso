@@ -13,6 +13,7 @@ pub mod links;
 pub mod loops;
 pub mod model;
 pub mod outline;
+pub mod passages;
 pub mod properties;
 pub mod query;
 pub mod query_view;
@@ -26,6 +27,7 @@ pub mod srs;
 pub mod tags;
 pub mod tasks;
 pub mod template;
+pub mod when;
 
 pub use excerpt::excerpt;
 pub use id::{DocType, new_id};

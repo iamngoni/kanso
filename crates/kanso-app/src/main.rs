@@ -22,7 +22,9 @@ mod agent_task_panel;
 mod agent_task_tests;
 mod ai_agent;
 mod ai_feature;
-mod ask;
+
+#[cfg(test)]
+mod ask_agent_tests;
 mod ask_panel;
 #[cfg(test)]
 mod ask_tests;

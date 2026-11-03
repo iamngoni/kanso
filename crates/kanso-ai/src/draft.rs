@@ -299,6 +299,7 @@ pub fn write_draft(
                 id: sources[ix].excerpt.id.clone(),
                 title: sources[ix].excerpt.title.clone(),
                 text: readings[ix].clone(),
+                ..Excerpt::default()
             },
         })
         .collect();
@@ -1085,6 +1086,7 @@ mod tests {
                 id: format!("note:n{number}"),
                 title: title.into(),
                 text: text.into(),
+                ..Excerpt::default()
             },
         }
     }
@@ -1332,6 +1334,7 @@ mod tests {
             id: "note:a".into(),
             title: "A".into(),
             text: "x".into(),
+            ..Excerpt::default()
         }];
         let q = parse_quiz(
             "{\"q\":\"Why?\",\"n\":1,\"source\":\"x\"}\n{\"q\":\"Bad\",\"n\":7}",

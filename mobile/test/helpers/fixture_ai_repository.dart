@@ -10,6 +10,9 @@ import 'package:kanso/core/models/data/ai_settings.dart';
 import 'package:kanso/core/models/data/ai_settings_change.dart';
 import 'package:kanso/core/models/data/ai_test_result.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/ask_lines.dart';
+import 'package:kanso/core/models/data/ask_receipt.dart';
+import 'package:kanso/core/models/data/ask_scope.dart';
 import 'package:kanso/core/models/data/ask_update.dart';
 import 'package:kanso/core/models/data/assist_action.dart';
 import 'package:kanso/core/models/data/assist_action_info.dart';
@@ -18,9 +21,10 @@ import 'package:kanso/core/models/repos/abs/ai_repository.dart';
 
 /// The line the fixture gives for where a question goes.
 const String fixturePrivacy =
-    'Questions and the note excerpts they use go straight from this phone '
-    'to api.anthropic.com. Nothing goes through Kanso’s servers. Locked '
-    'notes and notes tagged #ai-exclude are never sent.';
+    'Questions and the note excerpts they use, with their titles, dates and '
+    'notebook names, go straight from this phone to api.anthropic.com. '
+    'Nothing goes through Kanso’s servers. Locked notes and notes tagged '
+    '#ai-exclude are never sent.';
 
 /// The providers the fixture lists.
 const List<AiProviderInfo> fixtureProviders = <AiProviderInfo>[
@@ -164,6 +168,11 @@ class FixtureAiRepository implements AiRepository {
       baseUrl: change.baseUrl,
       model: change.model,
       region: change.region,
+      askBudget: change.askBudget.isEmpty
+          ? current.askBudget
+          : change.askBudget,
+      checkSources: change.checkSources,
+      useLinks: change.useLinks,
     );
     changes.add(current);
     return Right<ApplicationError, AiSettings>(current);
@@ -185,10 +194,46 @@ class FixtureAiRepository implements AiRepository {
       Right<ApplicationError, AiTestResult>(testResult);
 
   @override
-  Stream<AskUpdate> ask(String question) {
+  Stream<AskUpdate> ask(
+    String question, {
+    AskScope scope = AskScope.everything,
+    bool ignoreTime = false,
+  }) {
     asked.add(question);
     return askUpdates.stream;
   }
+
+  /// What a question can be limited to.
+  List<AskScope> scopes = const <AskScope>[AskScope.everything];
+
+  /// The ID the answer is saved as.
+  String savedId = 'saved:1';
+
+  /// How many answers were saved.
+  int saves = 0;
+
+  @override
+  Future<Either<ApplicationError, List<AskScope>>> askScopes() async =>
+      Right<ApplicationError, List<AskScope>>(scopes);
+
+  @override
+  Future<Either<ApplicationError, String>> saveLastAnswer() async {
+    saves++;
+    return Right<ApplicationError, String>(savedId);
+  }
+
+  /// Where a receipt's lines are now; `null` is "gone". Unmoved by default.
+  AskLines? Function(AskReceipt receipt) relocation = (receipt) =>
+      AskLines(start: receipt.start, end: receipt.end);
+
+  @override
+  Future<Either<ApplicationError, AskLines?>> relocateReceipt(
+    AskReceipt receipt,
+  ) async => Right<ApplicationError, AskLines?>(relocation(receipt));
+
+  @override
+  Future<Either<ApplicationError, Unit>> forgetLast() async =>
+      const Right<ApplicationError, Unit>(unit);
 
   @override
   Future<Either<ApplicationError, Unit>> stop() async {

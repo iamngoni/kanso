@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, mpsc};
 
 use crate::Provider;
+use crate::budget::Budget;
 use crate::prompt::Prompt;
 
 /// The most tokens an answer may take: room for the inline assistant to
@@ -97,8 +98,8 @@ pub trait ChatProvider: Send {
     /// iterator stops the request.
     fn stream(&self, prompt: &Prompt) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError>;
 
-    /// Asks `prompt` as the next turn of `history`, with `tools` available.
-    /// `on_tool_completed` runs after each tool call, on the runtime thread,
+    /// Asks `prompt` as the next turn of `history`, with `tools` available,
+    /// within `budget`'s tool calls and output tokens. `on_tool_completed` runs after each tool call, on the runtime thread,
     /// so the panel can refresh the notes it has shown as used. The default
     /// keeps single-turn providers working by ignoring history and tools.
     fn ask(
@@ -108,6 +109,7 @@ pub trait ChatProvider: Send {
         _tools: agent_runtime::ToolRegistry<()>,
         _on_tool_completed: Box<dyn FnMut() + Send>,
         _cancel: Arc<AtomicBool>,
+        _budget: &Budget,
     ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
         self.stream(prompt)
     }
@@ -163,11 +165,15 @@ impl ClientSettings {
     }
 
     fn llm_builder(&self) -> agent_runtime::LlmBuilder {
+        self.llm_builder_with(MAX_TOKENS)
+    }
+
+    fn llm_builder_with(&self, tokens: u32) -> agent_runtime::LlmBuilder {
         let mut builder = Llm::builder()
             .provider(self.provider.agent_kind())
             .api_key(self.api_key.clone().unwrap_or_default())
-            .max_tokens(MAX_TOKENS)
-            .max_completion_tokens(MAX_TOKENS as u64)
+            .max_tokens(tokens)
+            .max_completion_tokens(u64::from(tokens))
             .timeouts(Timeouts::default());
         if self.provider == Provider::Bedrock {
             if !self.region.trim().is_empty() {
@@ -180,8 +186,13 @@ impl ClientSettings {
     }
 
     fn llm(&self) -> Result<Llm, AiError> {
+        self.llm_with(MAX_TOKENS)
+    }
+
+    /// A model client that writes at most `tokens` tokens.
+    fn llm_with(&self, tokens: u32) -> Result<Llm, AiError> {
         self.validate()?;
-        let builder = self.llm_builder();
+        let builder = self.llm_builder_with(tokens);
         // A phone trusts its own certificate store, not the web's roots
         // built into the program. A model on this network over plain http
         // has no certificate to check.
@@ -227,7 +238,40 @@ pub fn client(settings: &ClientSettings) -> Result<Box<dyn ChatProvider>, AiErro
         model: settings.model.clone(),
         api_key: settings.api_key.clone().unwrap_or_default(),
         tools_key: tools_key(settings),
+        settings: Some(settings.clone()),
     }))
+}
+
+/// Asks `prompt` once and returns the whole answer, writing at most
+/// `max_tokens` tokens: for the short requests that aren't an answer to
+/// show (a follow-up rewritten as a search query).
+pub fn complete(
+    settings: &ClientSettings,
+    prompt: &Prompt,
+    max_tokens: u32,
+    cancel: &Arc<AtomicBool>,
+) -> Result<String, AiError> {
+    settings.validate()?;
+    let provider = AgentProviderClient {
+        llm: settings.llm_with(max_tokens)?,
+        model: settings.model.clone(),
+        api_key: settings.api_key.clone().unwrap_or_default(),
+        tools_key: tools_key(settings),
+        settings: None,
+    };
+    let mut said = String::new();
+    for event in provider.stream(prompt)? {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        match event {
+            Event::Text(text) => said.push_str(&text),
+            Event::Status(_) => {}
+            Event::Done => break,
+            Event::Error(message) => return Err(AiError::Provider(message)),
+        }
+    }
+    Ok(said.trim().to_owned())
 }
 
 /// A provider shared by every question using the same settings. The client
@@ -280,6 +324,7 @@ pub fn client_with_timeouts(
         model: settings.model.clone(),
         api_key: settings.api_key.clone().unwrap_or_default(),
         tools_key: tools_key(settings),
+        settings: None,
     }))
 }
 
@@ -326,6 +371,7 @@ pub fn answer(
     history: &[Turn],
     tools: ToolRegistry<()>,
     on_tool_completed: impl FnMut() + Send + 'static,
+    budget: &Budget,
 ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
     let provider = client(settings)?;
     provider.ask(
@@ -337,6 +383,7 @@ pub fn answer(
         tools,
         Box::new(on_tool_completed),
         Arc::new(AtomicBool::new(false)),
+        budget,
     )
 }
 
@@ -474,6 +521,9 @@ struct AgentProviderClient {
     /// Which provider + endpoint + model this client's tool support belongs
     /// to, so a server without tools is remembered for this session only.
     tools_key: String,
+    /// The settings it was made from, when it can be made again with
+    /// another output limit (a client over a given HTTP client can't).
+    settings: Option<ClientSettings>,
 }
 
 impl ChatProvider for AgentProviderClient {
@@ -502,8 +552,17 @@ impl ChatProvider for AgentProviderClient {
         tools: ToolRegistry<()>,
         on_tool_completed: Box<dyn FnMut() + Send>,
         cancel: Arc<AtomicBool>,
+        budget: &Budget,
     ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
-        let llm = self.llm.clone();
+        // The question's output limit: a client made from settings is made
+        // again for a limit other than the one it has.
+        let llm = match &self.settings {
+            Some(settings) if budget.output_tokens != MAX_TOKENS => {
+                settings.llm_with(budget.output_tokens)?
+            }
+            _ => self.llm.clone(),
+        };
+        let max_tool_calls = budget.tool_calls;
         let system = prompt.system.clone();
         let messages = chat_messages(history, &prompt.user);
         let tools_key = self.tools_key.clone();
@@ -528,7 +587,7 @@ impl ChatProvider for AgentProviderClient {
                             history: &messages,
                             tool_registry: &tools,
                             tool_context: (),
-                            max_tool_calls: MAX_TOOL_CALLS,
+                            max_tool_calls,
                         },
                         &mut sink,
                     )
@@ -1102,6 +1161,7 @@ mod tests {
                 ToolRegistry::new(),
                 Box::new(|| {}),
                 Arc::new(AtomicBool::new(false)),
+                &crate::budget::Budget::default(),
             )
             .expect("the request starts")
             .take(20)
@@ -1162,6 +1222,7 @@ mod tests {
                 tools,
                 Box::new(|| {}),
                 Arc::new(AtomicBool::new(false)),
+                &crate::budget::Budget::default(),
             )
             .expect("the request starts")
             .take(20)
@@ -1191,6 +1252,7 @@ mod tests {
                 ToolRegistry::new(),
                 Box::new(|| {}),
                 cancel.clone(),
+                &crate::budget::Budget::default(),
             )
             .expect("the request starts");
         let stopper = {
@@ -1276,6 +1338,7 @@ mod tests {
                 tools,
                 Box::new(|| {}),
                 Arc::new(AtomicBool::new(false)),
+                &crate::budget::Budget::default(),
             )
             .expect("the request starts")
             .take(50)
@@ -1313,6 +1376,7 @@ mod tests {
                 ToolRegistry::new(),
                 Box::new(|| {}),
                 Arc::new(AtomicBool::new(false)),
+                &crate::budget::Budget::default(),
             )
             .expect("the request starts")
             .take(50)
@@ -1342,6 +1406,7 @@ mod tests {
                 ToolRegistry::new(),
                 Box::new(|| {}),
                 Arc::new(AtomicBool::new(false)),
+                &crate::budget::Budget::default(),
             )
             .expect("the request starts")
             .take(20)

@@ -68,7 +68,7 @@ void main() {
       }
       // The provider’s own address is the hint of the empty field.
       expect(find.text('https://api.anthropic.com'), findsOneWidget);
-      expect(find.text(fixturePrivacy), findsOneWidget);
+      expect(find.text(fixturePrivacy, skipOffstage: false), findsOneWidget);
       // Region is Bedrock’s only.
       expect(find.text('Region'), findsNothing);
     });

@@ -980,8 +980,38 @@ impl Workspace {
             return;
         }
         crate::metrics::record(cx, crate::metrics::Feature::WikilinkFollowed);
+        // `note:<id>#L12-14` opens the note with those lines marked.
+        if let Some((id, anchor)) = link.split_once('#')
+            && let Some((first, last)) = kanso_core::links::line_anchor(&format!("#{anchor}"))
+        {
+            self.open_note_lines(id, first, last, window, cx);
+            return;
+        }
         self.library
             .update(cx, |library, cx| library.select(Some(link), cx));
+    }
+
+    /// Opens note `id` with lines `first` to `last` (0-based) in view and
+    /// marked for a few seconds: where a receipt or a line link points.
+    pub(crate) fn open_note_lines(
+        &mut self,
+        id: &str,
+        first: u32,
+        last: u32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.editor.read(cx).note_id() == Some(id) {
+            self.leave_settings(window, cx);
+            self.editor.update(cx, |editor, cx| {
+                editor.highlight_lines(first, last, crate::editor::HIGHLIGHT_HOLD, window, cx)
+            });
+        } else {
+            self.editor.update(cx, |editor, _| {
+                editor.highlight_after_open(id.to_owned(), first, last)
+            });
+            self.select_note(id, OpenIntent::Current, cx);
+        }
     }
 
     /// Creates a note titled `title` in the notebook a new note would go
@@ -1663,6 +1693,17 @@ impl Workspace {
             }
             SidebarEvent::PublishBook(id) => {
                 self.publish_notebook(Some(id.clone()), window, cx);
+            }
+            SidebarEvent::AskBook(id) => {
+                if !cx.global::<AppState>().config.ai.enabled {
+                    return;
+                }
+                self.close_settings(window, cx);
+                self.set_focus_mode(false, window, cx);
+                self.show_inspector(Some(InspectorTab::Ask), cx);
+                let scope = kanso_engine::ask::AskScope::Book(id.clone());
+                self.inspector
+                    .update(cx, |inspector, cx| inspector.ask_within(scope, window, cx));
             }
             SidebarEvent::DeleteBook(id) => {
                 let name = self

@@ -169,6 +169,7 @@ pub fn quiz_excerpts(store: &Store, ids: &[String]) -> Vec<Excerpt> {
                 id: c.id,
                 title: c.title,
                 text: c.body,
+                ..Excerpt::default()
             });
         }
         if out.len() >= QUIZ_EXCERPTS {
@@ -488,6 +489,7 @@ mod tests {
             id: "note:a".into(),
             title: "A".into(),
             text: "alpha fact".into(),
+            ..Excerpt::default()
         };
         let g = grade(&model, "Why?", &one, "because", &cancel).unwrap();
         assert_eq!(g.verdict, kanso_ai::draft_model::Verdict::Partly);

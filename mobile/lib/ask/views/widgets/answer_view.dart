@@ -22,8 +22,16 @@ class AnswerView extends StatelessWidget {
     required this.onOpenNote,
     required this.onOpenLink,
     required this.usedNoteIds,
+    this.onOpenReceipt,
+    this.onJumpToReceipt,
     super.key,
   });
+
+  /// Shows the lines receipt number `n` points at.
+  final ValueChanged<int>? onOpenReceipt;
+
+  /// Opens the note at the lines receipt number `n` points at.
+  final ValueChanged<int>? onJumpToReceipt;
 
   final String markdown;
 
@@ -53,6 +61,8 @@ class AnswerView extends StatelessWidget {
             onOpenNote: onOpenNote,
             onOpenLink: onOpenLink,
             usedNoteIds: usedNoteIds,
+            onOpenReceipt: onOpenReceipt,
+            onJumpToReceipt: onJumpToReceipt,
           ),
         ],
       ],

@@ -9573,6 +9573,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep sentences without a source'**
   String get flashcardsDraftKeepUnsourced;
+
+  /// What Ask says when the notes do not hold the answer.
+  ///
+  /// In en, this message translates to:
+  /// **'You never wrote that down.'**
+  String get askNeverWrote;
+
+  /// The heading of the notes nearest to a question the notes do not answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Closest notes'**
+  String get askClosestNotes;
+
+  /// The heading of the list of lines an answer rests on.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources'**
+  String get askSources;
+
+  /// The heading of the notes an answer read but did not cite.
+  ///
+  /// In en, this message translates to:
+  /// **'Also read'**
+  String get askAlsoRead;
+
+  /// The label after a sentence whose cited lines were not sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Not found in your notes'**
+  String get askNotFound;
+
+  /// What touching an unverified sentence explains.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer said this, but the lines it pointed to aren\'t in the notes Kanso sent. Treat it as unverified.'**
+  String get askNotFoundHint;
+
+  /// The banner over an answer most of whose claims failed their check.
+  ///
+  /// In en, this message translates to:
+  /// **'Most of this answer couldn\'t be checked against your notes.'**
+  String get askBannerMostly;
+
+  /// The banner over an answer that cites nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'This answer has no sources. Your model may not follow citation instructions; try a larger model.'**
+  String get askBannerNoSources;
+
+  /// The button that asks a question again over all notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Search all notes'**
+  String get askSearchAll;
+
+  /// The button that saves an answer as a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as note'**
+  String get askSaveAsNote;
+
+  /// What is said once an answer was saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as a note.'**
+  String get askSavedAsNote;
+
+  /// What is said when saving an answer failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the note.'**
+  String get askSaveFailed;
+
+  /// The button in a receipt's sheet that opens the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open note'**
+  String get askOpenNote;
+
+  /// The title of the sheet that limits what a question searches.
+  ///
+  /// In en, this message translates to:
+  /// **'Search in'**
+  String get askScopeTitle;
+
+  /// The scope that searches every note.
+  ///
+  /// In en, this message translates to:
+  /// **'All notes'**
+  String get askAllNotes;
+
+  /// The label of the cross on the time chip.
+  ///
+  /// In en, this message translates to:
+  /// **'Search without this time range'**
+  String get askDropTime;
+
+  /// While the model has the notes and has not yet written.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your notes…'**
+  String get askReading;
+
+  /// While the answer is written.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing the answer…'**
+  String get askWriting;
+
+  /// While the receipts are checked.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the sources…'**
+  String get askChecking;
+
+  /// The heading of the Ask settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get aiAskSection;
+
+  /// The row that chooses how much of the notes a question may send.
+  ///
+  /// In en, this message translates to:
+  /// **'Most each question may send'**
+  String get aiAskBudget;
+
+  /// The smallest size a question may be.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get aiAskBudgetSmall;
+
+  /// The usual size a question may be.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get aiAskBudgetStandard;
+
+  /// The largest size a question may be.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get aiAskBudgetLarge;
+
+  /// The switch that checks an answer's receipts.
+  ///
+  /// In en, this message translates to:
+  /// **'Check sources'**
+  String get aiAskCheckSources;
+
+  /// The warning under Check sources while it is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Without checking, an answer may cite lines that were never sent.'**
+  String get aiAskCheckSourcesOff;
+
+  /// What Check sources does while it is on.
+  ///
+  /// In en, this message translates to:
+  /// **'Each cited line is checked against what was sent. A sentence that fails is marked as not found.'**
+  String get aiAskCheckSourcesOn;
+
+  /// The switch that follows links of the best notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Look up related notes through links'**
+  String get aiAskUseLinks;
+
+  /// What following links does.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes that link to the best matches, and notes they link to, are looked up too. Locked notes and notes tagged #ai-exclude are never followed.'**
+  String get aiAskUseLinksFooter;
+
+  /// Said when the lines a receipt pointed at are gone from the note.
+  ///
+  /// In en, this message translates to:
+  /// **'These lines have changed since the answer was written.'**
+  String get askLinesChanged;
+
+  /// Under an answer that cites its lines: how many sentences cite nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 sentence cites no lines of your notes.} other{{count} sentences cite no lines of your notes.}}'**
+  String askNoSource(int count);
 }
 
 class _AppLocalizationsDelegate

@@ -130,7 +130,7 @@ fn seal(store: &Store, id: &str) {
 }
 
 #[tokio::test]
-async fn an_ask_token_lists_two_tools_and_opens_mcp_alone() {
+async fn an_ask_token_lists_five_tools_and_opens_mcp_alone() {
     let agents = agents();
     let minted = agents.tokens.mint(AgentScope::ask(None));
     for router in [&agents.api, &agents.private] {
@@ -142,7 +142,16 @@ async fn an_ask_token_lists_two_tools_and_opens_mcp_alone() {
             .iter()
             .map(|tool| tool["name"].as_str().unwrap())
             .collect();
-        assert_eq!(names, ["read-note", "search-notes"]);
+        assert_eq!(
+            names,
+            [
+                "read-note",
+                "search-notes",
+                "kanso-ask-read-lines",
+                "kanso-ask-search",
+                "kanso-ask-when"
+            ]
+        );
         // A tool it isn't given is refused, as read-only.
         let result = agent_tool(router, &minted.token, "list-notebooks", json!({})).await;
         assert_eq!(result["isError"], true);
@@ -606,5 +615,96 @@ proptest! {
         for id in visible.iter().filter(|_| visible.len() <= 10) {
             prop_assert!(searched.to_string().contains(id.as_str()), "{} not found", id);
         }
+    }
+}
+
+#[tokio::test]
+async fn an_agent_tool_never_returns_a_locked_or_out_of_scope_note() {
+    let agents = agents();
+    let store = &agents.store;
+    let work = book(store, "Work", None, false);
+    let home = book(store, "Home", None, false);
+    let vault = book(store, "Vault", Some(&work), true);
+    let tag = store
+        .put(
+            DocType::Tag,
+            json!({ "name": "ai-exclude" }),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let pricing = note(
+        store,
+        "Pricing",
+        "intro\nzebra yearly plan\nthird line",
+        &work,
+        vec![],
+    );
+    let groceries = note(store, "Groceries", "zebra milk", &home, vec![]);
+    let hidden = note(store, "Hidden plan", "zebra secret", &work, vec![tag]);
+    let in_vault = note(store, "Vault plan", "zebra vault", &vault, vec![]);
+    let sealed = note(store, "Sealed plan", "zebra sealed", &work, vec![]);
+    seal(store, &sealed);
+    let minted = agents
+        .tokens
+        .mint(AgentScope::ask(Some(HashSet::from([work.clone()]))));
+    let token = &minted.token;
+
+    let found = text_of(
+        &agent_tool(
+            &agents.api,
+            token,
+            "kanso-ask-search",
+            json!({ "query": "zebra" }),
+        )
+        .await,
+    );
+    assert!(found.contains("L2| zebra yearly plan"), "{found}");
+    assert!(found.starts_with("[1] Pricing"), "{found}");
+    for forbidden in [&groceries, &hidden, &in_vault, &sealed] {
+        let title = store.note(forbidden).unwrap().unwrap().title;
+        assert!(!found.contains(&title), "{title} in {found}");
+    }
+    // Reading lines is numbered the same, and merges into the same note.
+    let read = text_of(
+        &agent_tool(
+            &agents.api,
+            token,
+            "kanso-ask-read-lines",
+            json!({ "noteId": pricing, "start": 1, "end": 3 }),
+        )
+        .await,
+    );
+    assert!(read.starts_with("[1] Pricing"), "{read}");
+    assert!(read.contains("L3| third line"), "{read}");
+    let shown = agents.tokens.shown_notes(minted.id);
+    assert_eq!(shown.len(), 1);
+    assert_eq!(shown[0].lines.len(), 3);
+    // What may not be read is not found, and is never recorded.
+    for forbidden in [&groceries, &hidden, &in_vault, &sealed] {
+        let result = agent_tool(
+            &agents.api,
+            token,
+            "kanso-ask-read-lines",
+            json!({ "noteId": forbidden, "start": 1 }),
+        )
+        .await;
+        assert_eq!(result["isError"], true, "{forbidden}");
+    }
+    assert_eq!(agents.tokens.shown_notes(minted.id).len(), 1);
+    // A time range finds only readable notes too.
+    let when = text_of(
+        &agent_tool(
+            &agents.api,
+            token,
+            "kanso-ask-when",
+            json!({ "from": "1970-01-01", "to": "2100-01-01" }),
+        )
+        .await,
+    );
+    assert!(when.contains("Pricing"), "{when}");
+    for title in ["Groceries", "Hidden plan", "Vault plan", "Sealed plan"] {
+        assert!(!when.contains(title), "{title} in {when}");
     }
 }

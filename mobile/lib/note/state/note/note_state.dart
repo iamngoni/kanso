@@ -35,6 +35,11 @@ abstract class NoteState with _$NoteState {
     /// preview names it, rather than in the editor's text.
     @Default(false) bool caretInBody,
 
+    /// Where a marked range ends, in the same units as [caret], when the
+    /// note opened at a range of lines (a receipt in an Ask answer): the
+    /// editor selects the range for three seconds.
+    int? caretEnd,
+
     /// How far the editor's page starts scrolled.
     @Default(0) double scroll,
 

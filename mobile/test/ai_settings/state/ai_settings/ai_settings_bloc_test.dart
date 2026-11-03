@@ -30,6 +30,27 @@ void main() {
   });
 
   group('AiSettingsBloc', () {
+    test('an Ask setting is saved with the rest as they are', () async {
+      final ai = FixtureAiRepository();
+      addTearDown(ai.close);
+      final bloc = AiSettingsBloc(ai)..add(const AiSettingsEvent.started());
+      addTearDown(bloc.close);
+      await bloc.stream.firstWhere((s) => s.status == LoadStatus.ready);
+      bloc
+        ..add(const AiSettingsEvent.askChanged(budget: 'large'))
+        ..add(const AiSettingsEvent.askChanged(checkSources: false));
+      await bloc.stream.take(2).toList();
+      bloc.add(const AiSettingsEvent.enabledChanged(enabled: true));
+      await bloc.stream.first;
+      expect(ai.saved.map((c) => c.askBudget), <String>[
+        'large',
+        'large',
+        'large',
+      ]);
+      expect(ai.saved.map((c) => c.checkSources), <bool>[true, false, false]);
+      expect(ai.saved.last.useLinks, isTrue);
+    });
+
     blocTest<AiSettingsBloc, AiSettingsState>(
       'reads the settings and the providers',
       build: () => AiSettingsBloc(FixtureAiRepository()),

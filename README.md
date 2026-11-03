@@ -344,7 +344,8 @@ Settings › AI › Agent tasks turns them off or limits what an agent may propo
 - **A provider you have a key for**, or a model on this computer or your network (Ollama, LM Studio
   or any OpenAI-compatible server). The key is kept in the system keychain (macOS Keychain, Windows
   Credential Manager, the Secret Service on Linux), never in the settings file. Questions and the
-  excerpts they use go straight from this computer to that provider.
+  excerpts they use, with their titles, dates and notebook names, go straight from this computer
+  to that provider.
 - **An agent on this computer** that speaks the [Agent Client Protocol](https://agentclientprotocol.com):
   Claude Agent, Codex, Gemini CLI or OpenCode, signed in with your own subscription, or another
   agent from the ACP registry, or your own command. The agent keeps its own sign-in, model and

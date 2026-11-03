@@ -27,6 +27,8 @@
 //! notes with their titles.
 
 use std::path::PathBuf;
+
+use crate::AskLines;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -36,7 +38,8 @@ use kanso_engine::assist;
 use serde::{Deserialize, Serialize};
 
 use crate::ai_model::{
-    AiAction, AiProviderInfo, AiSettingsInput, AiSettingsView, AskEvent, AskNote, AssistEvent,
+    AiAction, AiProviderInfo, AiSettingsInput, AiSettingsView, AskClosest, AskEvent, AskNote,
+    AskReceipt, AskScopeInput, AskScopeOption, AskTime, AssistEvent,
 };
 use crate::boundary::{guard, held};
 use crate::errors::KansoError;
@@ -77,6 +80,7 @@ struct SettingsFile {
     base_url: String,
     model: String,
     region: String,
+    ask: kanso_engine::ask::settings::AskSettings,
 }
 
 impl Default for SettingsFile {
@@ -94,6 +98,7 @@ impl SettingsFile {
             base_url: provider.default_base_url().to_owned(),
             model: provider.default_model().to_owned(),
             region: provider.default_region().to_owned(),
+            ask: Default::default(),
         }
     }
 
@@ -173,7 +178,14 @@ impl AiHandle {
         guard(|| {
             let file = self.load();
             let provider = file.provider();
+            let budget = file.ask.budget_for(provider, &file.base_url);
             Ok(AiSettingsView {
+                ask_budget: budget.size.key().to_owned(),
+                budget_words_line: budget.words_line(),
+                budget_cost_line: kanso_ai::prices::cost_line(provider, &file.model, &budget)
+                    .unwrap_or_default(),
+                check_sources: file.ask.check_sources,
+                use_links: file.ask.use_links,
                 enabled: file.enabled,
                 provider: provider.key().to_owned(),
                 has_key: self.read_key(provider).is_some(),
@@ -216,8 +228,50 @@ impl AiHandle {
             if provider == Provider::Bedrock && !input.region.trim().is_empty() {
                 file.region = input.region.trim().to_owned();
             }
+            file.ask.budget = kanso_ai::BudgetSize::from_key(input.ask_budget.trim())
+                .map(|size| size.key().to_owned());
+            file.ask.check_sources = input.check_sources;
+            file.ask.use_links = input.use_links;
             self.save(&file)?;
             self.settings()
+        })
+    }
+
+    /// What a question can be limited to: all notes, each notebook that
+    /// isn't locked by its path, and each tag but `#ai-exclude`.
+    pub fn ask_scopes(&self) -> Result<Vec<AskScopeOption>, KansoError> {
+        guard(|| {
+            let store = &self.inner.store;
+            let locked = store.locked_books().unwrap_or_default();
+            let mut options = vec![AskScopeOption {
+                kind: "all".to_owned(),
+                value: String::new(),
+                label: "All notes".to_owned(),
+            }];
+            let mut books: Vec<(String, String)> = ask::book_paths(store)
+                .into_iter()
+                .filter(|(id, _)| !locked.contains(id))
+                .collect();
+            books.sort_by_key(|(_, path)| path.to_lowercase());
+            options.extend(books.into_iter().map(|(id, path)| AskScopeOption {
+                kind: "book".to_owned(),
+                value: id,
+                label: path,
+            }));
+            let mut tags: Vec<String> = store
+                .tags()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|tag| tag.name)
+                .filter(|name| !ask::is_exclude_tag(name))
+                .collect();
+            tags.sort_by_key(|name| name.to_lowercase());
+            options.extend(tags.into_iter().map(|name| AskScopeOption {
+                kind: "tag".to_owned(),
+                label: format!("#{name}"),
+                value: name,
+            }));
+            Ok(options)
         })
     }
 
@@ -247,6 +301,38 @@ impl AiHandle {
         })
     }
 
+    /// Where the lines a receipt pointed at are now, when the note has
+    /// changed since the answer: at the same lines, else found again by what
+    /// they said. `None` when they are gone, or the note can't be read (a
+    /// locked note reads as empty).
+    pub fn relocate_receipt(
+        &self,
+        note_id: &str,
+        start: u32,
+        end: u32,
+        quote: &str,
+    ) -> Result<Option<AskLines>, KansoError> {
+        guard(|| {
+            let body = self
+                .inner
+                .store
+                .note(note_id)
+                .map_err(|err| KansoError::storage(err.to_string()))?
+                .map(|note| note.body)
+                .unwrap_or_default();
+            let receipt = ask::Receipt {
+                n: 1,
+                note_id: note_id.to_owned(),
+                title: String::new(),
+                updated: None,
+                start,
+                end,
+                quote: quote.to_owned(),
+            };
+            Ok(ask::relocate(&body, &receipt).map(|(start, end)| AskLines { start, end }))
+        })
+    }
+
     /// Whether note `id` may be sent to AI: it isn't locked (even if the lock
     /// is open), isn't in the trash and isn't tagged `#ai-exclude`. The shell
     /// uses it to show or hide the AI actions.
@@ -261,6 +347,7 @@ impl AiHandle {
             ai: self.clone(),
             turns: Arc::default(),
             running: Arc::default(),
+            last: Arc::default(),
         }
     }
 
@@ -453,6 +540,15 @@ pub struct AskConversation {
     turns: Arc<Mutex<Conversation>>,
     /// The question being answered, as the flag that stops it.
     running: Arc<Mutex<Option<Arc<AtomicBool>>>>,
+    /// The newest checked answer, for Save as note.
+    last: Arc<Mutex<Option<LastAnswer>>>,
+}
+
+/// An answer kept so the person can save it as a note.
+struct LastAnswer {
+    question: String,
+    scope: ask::AskScope,
+    finished: ask::Finished,
 }
 
 impl AskConversation {
@@ -463,34 +559,76 @@ impl AskConversation {
     /// AI is off, the provider has no key or model, the question is empty.
     /// The answer arrives as [`AskEvent`]s on `sink`, the last of which
     /// ends it.
-    pub fn ask(&self, question: String, sink: Sink<AskEvent>) -> Result<(), KansoError> {
+    ///
+    /// `scope` limits what is searched; `ignore_time` leaves out the time
+    /// range the question was understood to have; `utc_offset_minutes` is
+    /// the phone's offset from UTC, for "last week" and "in October".
+    pub fn ask(
+        &self,
+        question: String,
+        scope: AskScopeInput,
+        ignore_time: bool,
+        utc_offset_minutes: i32,
+        sink: Sink<AskEvent>,
+    ) -> Result<(), KansoError> {
         guard(|| {
             let question = question.trim().to_owned();
             if question.is_empty() {
                 return Err(KansoError::invalid("Type a question."));
             }
+            let scope = match scope.kind.as_str() {
+                "book" => ask::AskScope::Book(scope.value),
+                "tag" => ask::AskScope::Tag(scope.value),
+                _ => ask::AskScope::All,
+            };
             let settings = self.ai.enabled()?;
+            let ask_settings = self.ai.load().ask;
             let provider = self.ai.provider_for(&settings)?;
             self.ai.inner.metrics().count(crate::metrics::Feature::Ai);
             self.stop();
             // A different provider, address or model is a different
             // conversation; what can no longer be sent is dropped.
-            let history = {
+            let (history, previous, began) = {
                 let mut turns = held(&self.turns);
-                turns.begin(&identity(&settings), &self.ai.inner.store);
-                turns.history()
+                let began = turns.begin(&identity(&settings), &self.ai.inner.store);
+                (turns.history(), turns.previous(), began)
             };
+            if began == ask::Began::KeptOut {
+                // The earlier exchanges used a note that is now kept out.
+                *held(&self.last) = None;
+            }
+            let offset_ms = i64::from(utc_offset_minutes) * 60_000;
+            let mut request = ask::AskRequest::new(
+                &question,
+                kanso_core::dates::Date::from_local_ms(kanso_core::now_ms() + offset_ms),
+            );
+            request.scope = scope.clone();
+            request.utc_offset_ms = offset_ms;
+            request.zone = device_zone(utc_offset_minutes);
+            request.budget = ask_settings.budget_for(settings.provider, &settings.base_url);
+            request.use_links = ask_settings.use_links;
+            request.ignore_time = ignore_time;
+            request.previous = previous;
             let cancel = Arc::new(AtomicBool::new(false));
             *held(&self.running) = Some(cancel.clone());
             let emitter = Arc::new(Emitter::new(sink, cancel.clone()));
+            if began == ask::Began::KeptOut {
+                emitter.send(AskEvent::Restarted {
+                    line: ask::KEPT_OUT_ENDED.to_owned(),
+                });
+            }
             let worker = Question {
                 emitter: emitter.clone(),
                 cancel,
                 store: self.ai.inner.store.clone(),
                 turns: self.turns.clone(),
+                last: self.last.clone(),
                 provider,
                 history,
                 text: question,
+                scope,
+                request,
+                check_sources: ask_settings.check_sources,
             };
             spawn("kanso-ask", move || worker.run())
         })
@@ -508,6 +646,35 @@ impl AskConversation {
     pub fn clear(&self) {
         self.stop();
         held(&self.turns).clear();
+        *held(&self.last) = None;
+    }
+
+    /// Forgets the newest exchange, so the same question can be asked
+    /// another way (without its time range) as if it came first.
+    pub fn forget_last(&self) {
+        self.stop();
+        held(&self.turns).pop();
+        *held(&self.last) = None;
+    }
+
+    /// Saves the newest answer as a note, titled "Q: <question>", with its
+    /// Sources as note links to the lines cited, in the notebook the
+    /// question was limited to or else the Inbox. The one write Ask makes,
+    /// and only when the person asks for it. Returns the new note's ID.
+    pub fn save_last(&self) -> Result<String, KansoError> {
+        guard(|| {
+            let last = held(&self.last);
+            let Some(last) = last.as_ref() else {
+                return Err(KansoError::invalid("There is no answer to save."));
+            };
+            ask::save_answer(
+                &self.ai.inner.store,
+                &last.scope,
+                &last.question,
+                &last.finished,
+            )
+            .map_err(|err| KansoError::storage(err.to_string()))
+        })
     }
 
     /// How many exchanges are kept to resend.
@@ -551,9 +718,13 @@ struct Question {
     cancel: Arc<AtomicBool>,
     store: Arc<kanso_store::Store>,
     turns: Arc<Mutex<Conversation>>,
+    last: Arc<Mutex<Option<LastAnswer>>>,
     provider: SharedProvider,
     history: Vec<kanso_ai::Turn>,
     text: String,
+    scope: ask::AskScope,
+    request: ask::AskRequest,
+    check_sources: bool,
 }
 
 impl Question {
@@ -563,113 +734,133 @@ impl Question {
             cancel,
             store,
             turns,
+            last,
             provider,
             history,
             text,
+            scope,
+            request,
+            check_sources,
         } = self;
-        emitter.send(AskEvent::Searching);
-        let excerpts = match ask::retrieve(&store, &text) {
-            Ok(excerpts) => excerpts,
-            Err(err) => {
-                emitter.finish(AskEvent::Failed {
-                    message: format!("Couldn't search your notes: {err}"),
-                });
-                return;
-            }
-        };
-        if cancel.load(Ordering::Relaxed) {
-            emitter.finish(AskEvent::Stopped);
-            return;
-        }
-        if excerpts.is_empty() {
-            emitter.finish(AskEvent::NothingMatches {
-                message: NOTHING_MATCHES.to_owned(),
-            });
-            return;
-        }
-        let prompt = kanso_ai::build_prompt(&text, &excerpts, ask::BUDGET);
-        // Every note this question's tools search or read is kept, so the
-        // answer can list and cite all of them.
-        let used = Arc::new(Mutex::new(excerpts));
-        let turn_notes = Arc::new(Mutex::new(Vec::<String>::new()));
-        let report = {
-            let (emitter, used, turns, turn_notes) = (
-                emitter.clone(),
-                used.clone(),
-                turns.clone(),
-                turn_notes.clone(),
-            );
-            move || {
-                let list = held(&used).clone();
-                held(&turns).note_used(&mut held(&turn_notes), list.clone());
-                emitter.send(AskEvent::Used {
-                    notes: notes_of(&list),
-                });
-            }
-        };
-        report();
-        let tools = ask::tool_registry(store.clone(), used.clone());
-        // The provider is held only to start the request.
-        let events = {
-            let provider = held(&provider);
-            provider.ask(
-                &prompt,
-                &history,
-                tools,
-                Box::new({
-                    let report = report.clone();
-                    move || report()
-                }),
-                cancel.clone(),
-            )
-        };
         let mut answer = String::new();
-        ask::stream_events(events, &cancel, |event| match event {
-            Event::Text(piece) => {
-                answer.push_str(&piece);
-                let list = held(&used).clone();
-                emitter.send(AskEvent::Answer {
-                    markdown: render(&answer, &list),
-                });
-            }
-            Event::Status(line) => emitter.send(AskEvent::Status { line }),
-            Event::Done => {
-                if answer.trim().is_empty() {
-                    emitter.finish(AskEvent::Failed {
-                        message: "Nothing came back.".to_owned(),
-                    });
-                    return;
+        let mut used: Vec<Excerpt> = Vec::new();
+        let mut turn_notes: Vec<String> = Vec::new();
+        ask::run(
+            ask::Turn {
+                store,
+                provider,
+                request,
+                history,
+                check_sources,
+                cancel: cancel.clone(),
+            },
+            |event| match event {
+                ask::TurnEvent::Status(line) if line == ask::SEARCHING => {
+                    emitter.send(AskEvent::Searching)
                 }
-                let list = held(&used).clone();
-                held(&turns).finish(text.clone(), answer.clone(), held(&turn_notes).clone());
-                emitter.finish(AskEvent::Done {
-                    markdown: render(&answer, &list),
-                    notes: notes_of(&list),
-                });
-            }
-            Event::Error(message) if message == kanso_ai::CUT_OFF => {
-                emitter.finish(AskEvent::CutOff { message });
-            }
-            Event::Error(message) => emitter.finish(AskEvent::Failed { message }),
-        });
-        // The stream ended without saying how: stopped, or cut short.
+                ask::TurnEvent::Status(line) => emitter.send(AskEvent::Status { line }),
+                ask::TurnEvent::Used(list) => {
+                    held(&turns).note_used(&mut turn_notes, list.clone());
+                    emitter.send(AskEvent::Used {
+                        notes: notes_of(&list),
+                    });
+                    used = list;
+                }
+                ask::TurnEvent::Time(time) => emitter.send(AskEvent::Time {
+                    time: time_of(&time),
+                }),
+                ask::TurnEvent::Text(piece) => {
+                    answer.push_str(&piece);
+                    emitter.send(AskEvent::Answer {
+                        markdown: link_notes(&ask::streaming_markdown(&answer, &used)),
+                    });
+                }
+                ask::TurnEvent::Done(done) => {
+                    let done = *done;
+                    held(&turns).finish_with(
+                        text.clone(),
+                        done.plain_answer(),
+                        turn_notes.clone(),
+                        done.receipts.clone(),
+                    );
+                    let event = AskEvent::Done {
+                        markdown: link_notes(&done.markdown),
+                        notes: notes_of(&used),
+                        receipts: done.receipts.iter().map(receipt_of).collect(),
+                        also_read: notes_of(&done.also_read),
+                        banner: done.banner.map(|b| b.text().to_owned()).unwrap_or_default(),
+                        unverified: done.unverified as u32,
+                        no_source: done.no_source as u32,
+                        never_wrote: done.not_in_notes,
+                        closest: done
+                            .closest
+                            .iter()
+                            .map(|c| AskClosest {
+                                note_id: c.note_id.clone(),
+                                title: c.title.clone(),
+                                start: c.start,
+                                end: c.end,
+                            })
+                            .collect(),
+                        time: done.time.as_ref().map(time_of),
+                    };
+                    *held(&last) = Some(LastAnswer {
+                        question: text.clone(),
+                        scope: scope.clone(),
+                        finished: done,
+                    });
+                    emitter.finish(event);
+                }
+                ask::TurnEvent::NothingMatches { narrow } => {
+                    emitter.finish(AskEvent::NothingMatches {
+                        message: NOTHING_MATCHES.to_owned(),
+                        narrow,
+                    })
+                }
+                ask::TurnEvent::Failed(message) => emitter.finish(AskEvent::Failed { message }),
+                ask::TurnEvent::CutOff => emitter.finish(AskEvent::CutOff {
+                    message: kanso_ai::CUT_OFF.to_owned(),
+                }),
+                ask::TurnEvent::Stopped => emitter.finish(AskEvent::Stopped),
+            },
+        );
+        // A run that ended without saying how (a stopped stream).
         if cancel.load(Ordering::Relaxed) {
             emitter.finish(AskEvent::Stopped);
-        } else {
-            emitter.finish(AskEvent::CutOff {
-                message: kanso_ai::CUT_OFF.to_owned(),
-            });
         }
     }
 }
 
-/// An answer for display: citations linked to their notes, images and HTML
-/// made harmless.
-fn render(answer: &str, used: &[Excerpt]) -> String {
-    ask::sanitize_answer(answer, used).replace(
+/// An answer for display: note links point at `kanso://note/<id>`.
+fn link_notes(markdown: &str) -> String {
+    markdown.replace(
         kanso_core::links::NOTE_LINK_PREFIX,
         &format!("{CITATION_PREFIX}note:"),
     )
+}
+
+fn time_of(time: &ask::TimeNote) -> AskTime {
+    use kanso_core::when::TimeIntent;
+    AskTime {
+        label: match time.intent {
+            TimeIntent::Written(_) => format!("Written {}", time.label),
+            TimeIntent::About(_) => format!("About {}", time.label),
+            TimeIntent::Either(_) => time.label.clone(),
+        },
+        relaxed_line: time.relaxed_line().unwrap_or_default(),
+    }
+}
+
+fn receipt_of(receipt: &ask::Receipt) -> AskReceipt {
+    AskReceipt {
+        n: receipt.n as u32,
+        note_id: receipt.note_id.clone(),
+        title: receipt.title.clone(),
+        label: receipt.source_line(),
+        start: receipt.start,
+        end: receipt.end,
+        quote: receipt.quote.clone(),
+    }
 }
 
 fn notes_of(list: &[Excerpt]) -> Vec<AskNote> {
@@ -854,4 +1045,21 @@ fn describe(provider: Provider) -> &'static str {
             "Another OpenAI-compatible server, such as LM Studio, at an address you type. A key is optional."
         }
     }
+}
+
+/// The device's zone as a function of an instant, when it is the zone the
+/// phone said it is in (its offset now is `utc_offset_minutes`): then a
+/// range that crosses a daylight-saving change is cut with each end's own
+/// offset. Otherwise the one offset the phone sent is used.
+fn device_zone(utc_offset_minutes: i32) -> Option<ask::ZoneOffsets> {
+    use chrono::{Local, TimeZone};
+    let now = Local::now().offset().local_minus_utc();
+    (now == utc_offset_minutes * 60).then(|| {
+        ask::ZoneOffsets(Arc::new(|at_ms| {
+            Local
+                .timestamp_millis_opt(at_ms)
+                .earliest()
+                .map_or(0, |time| i64::from(time.offset().local_minus_utc()) * 1000)
+        }))
+    })
 }

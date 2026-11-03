@@ -11,6 +11,8 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/models/data/ai_note_ref.dart';
 import '../../../core/models/data/ai_settings.dart';
+import '../../../core/models/data/ask_receipt.dart';
+import '../../../core/models/data/ask_scope.dart';
 import '../../../core/models/data/ask_update.dart';
 import '../../../core/models/data/load_status.dart';
 import '../../../core/models/repos/abs/ai_repository.dart';
@@ -47,6 +49,16 @@ class AskBloc extends Bloc<AskEvent, AskState> {
     on<AskStoppedEvent>(_onStopped, transformer: droppable());
     on<AskClearedEvent>(_onCleared);
     on<AskRetriedEvent>(_onRetried);
+    // What the scope, the time range and saving do touch one another and the
+    // newest turn, so they are taken one at a time, in order.
+    on<AskScopeChosenEvent>(
+      (event, emit) => emit(state.copyWith(scope: event.scope)),
+      transformer: sequential(),
+    );
+    on<AskScopesRequestedEvent>(_onScopesRequested, transformer: sequential());
+    on<AskTimeDroppedEvent>(_onTimeDropped, transformer: sequential());
+    on<AskSearchedAllEvent>(_onSearchedAll, transformer: sequential());
+    on<AskAnswerSavedEvent>(_onAnswerSaved, transformer: sequential());
   }
 
   final AiRepository _ai;
@@ -85,26 +97,110 @@ class AskBloc extends Bloc<AskEvent, AskState> {
     AskQuestionAskedEvent event,
     Emitter<AskState> emit,
   ) async {
-    final question = event.question.trim();
+    await _begin(event.question.trim(), emit);
+  }
+
+  /// Starts [question] as the next turn, over [AskState.scope].
+  Future<void> _begin(
+    String question,
+    Emitter<AskState> emit, {
+    bool ignoreTime = false,
+  }) async {
     if (question.isEmpty || state.busy || !state.aiEnabled) {
       return;
     }
     emit(
       state.copyWith(
         phase: AskPhase.searching,
+        saveFailure: null,
         turns: <AskTurn>[
           ...state.turns,
-          AskTurn(question: question),
+          AskTurn(question: question, scope: state.scope),
         ],
       ),
     );
     await _updates?.cancel();
     _updates = _ai
-        .ask(question)
+        .ask(question, scope: state.scope, ignoreTime: ignoreTime)
         .listen(
           (update) => add(AskEvent.updateReceived(update)),
           onDone: () => add(const AskEvent.streamEnded()),
         );
+  }
+
+  Future<void> _onScopesRequested(
+    AskScopesRequestedEvent event,
+    Emitter<AskState> emit,
+  ) async {
+    final result = await _ai.askScopes();
+    if (emit.isDone) {
+      return;
+    }
+    result.fold((_) {}, (scopes) => emit(state.copyWith(scopes: scopes)));
+  }
+
+  /// Asks the newest question again without its time range.
+  Future<void> _onTimeDropped(
+    AskTimeDroppedEvent event,
+    Emitter<AskState> emit,
+  ) async {
+    final last = state.turns.lastOrNull;
+    if (last == null || last.time == null || state.busy) {
+      return;
+    }
+    await _ai.forgetLast();
+    emit(
+      state.copyWith(turns: state.turns.take(state.turns.length - 1).toList()),
+    );
+    await _begin(last.question, emit, ignoreTime: true);
+  }
+
+  /// Asks the newest question again over all notes.
+  Future<void> _onSearchedAll(
+    AskSearchedAllEvent event,
+    Emitter<AskState> emit,
+  ) async {
+    final last = state.turns.lastOrNull;
+    if (last == null || !last.narrow || state.busy) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        scope: AskScope.everything,
+        turns: state.turns.take(state.turns.length - 1).toList(),
+      ),
+    );
+    await _begin(last.question, emit);
+  }
+
+  /// Saves the newest answer as a note: the one write Ask makes.
+  Future<void> _onAnswerSaved(
+    AskAnswerSavedEvent event,
+    Emitter<AskState> emit,
+  ) async {
+    final last = state.turns.lastOrNull;
+    if (last == null ||
+        last.outcome != AskOutcome.answered ||
+        last.savedNoteId != null ||
+        state.busy) {
+      return;
+    }
+    final result = await _ai.saveLastAnswer();
+    if (emit.isDone) {
+      return;
+    }
+    result.fold(
+      (error) => emit(state.copyWith(saveFailure: error.message)),
+      (id) => emit(
+        state.copyWith(
+          saveFailure: null,
+          turns: <AskTurn>[
+            ...state.turns.take(state.turns.length - 1),
+            last.copyWith(savedNoteId: id),
+          ],
+        ),
+      ),
+    );
   }
 
   /// [state] with [update] of the question being answered applied.
@@ -124,16 +220,29 @@ class AskBloc extends Bloc<AskEvent, AskState> {
         turn.copyWith(answer: text),
         AskPhase.answering,
       ),
-      AskDone(:final answer, :final used) => (
+      AskTime(:final time) => (turn.copyWith(time: time), state.phase),
+      AskRestarted(:final line) => (
+        turn.copyWith(notice: line),
+        state.phase,
+      ),
+      AskDone done => (
         turn.copyWith(
-          answer: answer,
-          used: _withNew(turn.used, used),
+          answer: done.answer,
+          used: _withNew(turn.used, done.used),
+          receipts: done.receipts,
+          alsoRead: done.alsoRead,
+          banner: done.banner,
+          unverified: done.unverified,
+          noSource: done.noSource,
+          neverWrote: done.neverWrote,
+          closest: done.closest,
+          time: done.time ?? turn.time,
           outcome: AskOutcome.answered,
         ),
         AskPhase.idle,
       ),
-      AskNothingMatches() => (
-        turn.copyWith(outcome: AskOutcome.nothingMatches),
+      AskNothingMatches(:final narrow) => (
+        turn.copyWith(outcome: AskOutcome.nothingMatches, narrow: narrow),
         AskPhase.idle,
       ),
       AskCutOff() => (
@@ -149,9 +258,26 @@ class AskBloc extends Bloc<AskEvent, AskState> {
       unawaited(_updates?.cancel());
       _updates = null;
     }
+    // A conversation that was ended starts over with the question asked.
+    final earlier = update is AskRestarted
+        ? const <AskTurn>[]
+        : state.turns.take(state.turns.length - 1);
     return state.copyWith(
       phase: phase,
-      turns: <AskTurn>[...state.turns.take(state.turns.length - 1), next],
+      turns: <AskTurn>[...earlier, next],
+    );
+  }
+
+  /// Where the lines [receipt] pointed at are now: [receipt] itself when they
+  /// have not moved, the receipt with its new lines when they have, `null`
+  /// when they are gone.
+  Future<AskReceipt?> relocated(AskReceipt receipt) async {
+    final found = await _ai.relocateReceipt(receipt);
+    return found.fold(
+      (_) => receipt,
+      (lines) => lines == null
+          ? null
+          : receipt.copyWith(start: lines.start, end: lines.end),
     );
   }
 

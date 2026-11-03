@@ -64,7 +64,19 @@ List<AnswerSpan> parseAnswerInline(
         // The link's address is two runs on: `[`, text, `](`, address, `)`.
         final address = i + 2 < runs.length ? runs[i + 2].text : '';
         final noteId = noteIdOfCitation(address);
-        if (noteId != null && usedNoteIds.contains(noteId)) {
+        if (address.startsWith('kanso-cite:') &&
+            int.tryParse(address.substring('kanso-cite:'.length)) != null) {
+          spans.add(
+            AnswerSpan.receipt(
+              text: run.text,
+              n: int.parse(address.substring('kanso-cite:'.length)),
+            ),
+          );
+        } else if (address.startsWith('kanso-nosource:')) {
+          spans.add(AnswerSpan.noSource(text: run.text));
+        } else if (address.startsWith('kanso-unverified:')) {
+          spans.add(AnswerSpan.unverified(text: run.text));
+        } else if (noteId != null && usedNoteIds.contains(noteId)) {
           spans.add(AnswerSpan.note(text: run.text, noteId: noteId));
         } else if (_isWebAddress(address)) {
           spans.add(AnswerSpan.web(text: run.text, url: address));

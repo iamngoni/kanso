@@ -14,7 +14,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AiSettingsChange {
 
- bool get enabled; String get provider; String get baseUrl; String get model; String get region;
+ bool get enabled; String get provider; String get baseUrl; String get model; String get region;/// `small`, `standard`, `large`; empty leaves the size the model suits.
+ String get askBudget; bool get checkSources; bool get useLinks;
 /// Create a copy of AiSettingsChange
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +26,16 @@ $AiSettingsChangeCopyWith<AiSettingsChange> get copyWith => _$AiSettingsChangeCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AiSettingsChange&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AiSettingsChange&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region)&&(identical(other.askBudget, askBudget) || other.askBudget == askBudget)&&(identical(other.checkSources, checkSources) || other.checkSources == checkSources)&&(identical(other.useLinks, useLinks) || other.useLinks == useLinks));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region);
+int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region,askBudget,checkSources,useLinks);
 
 @override
 String toString() {
-  return 'AiSettingsChange(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region)';
+  return 'AiSettingsChange(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region, askBudget: $askBudget, checkSources: $checkSources, useLinks: $useLinks)';
 }
 
 
@@ -45,7 +46,7 @@ abstract mixin class $AiSettingsChangeCopyWith<$Res>  {
   factory $AiSettingsChangeCopyWith(AiSettingsChange value, $Res Function(AiSettingsChange) _then) = _$AiSettingsChangeCopyWithImpl;
 @useResult
 $Res call({
- bool enabled, String provider, String baseUrl, String model, String region
+ bool enabled, String provider, String baseUrl, String model, String region, String askBudget, bool checkSources, bool useLinks
 });
 
 
@@ -62,14 +63,17 @@ class _$AiSettingsChangeCopyWithImpl<$Res>
 
 /// Create a copy of AiSettingsChange
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,Object? askBudget = null,Object? checkSources = null,Object? useLinks = null,}) {
   return _then(_self.copyWith(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,provider: null == provider ? _self.provider : provider // ignore: cast_nullable_to_non_nullable
 as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
 as String,model: null == model ? _self.model : model // ignore: cast_nullable_to_non_nullable
 as String,region: null == region ? _self.region : region // ignore: cast_nullable_to_non_nullable
-as String,
+as String,askBudget: null == askBudget ? _self.askBudget : askBudget // ignore: cast_nullable_to_non_nullable
+as String,checkSources: null == checkSources ? _self.checkSources : checkSources // ignore: cast_nullable_to_non_nullable
+as bool,useLinks: null == useLinks ? _self.useLinks : useLinks // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -154,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  String askBudget,  bool checkSources,  bool useLinks)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AiSettingsChange() when $default != null:
-return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region);case _:
+return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.askBudget,_that.checkSources,_that.useLinks);case _:
   return orElse();
 
 }
@@ -175,10 +179,10 @@ return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.reg
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  String askBudget,  bool checkSources,  bool useLinks)  $default,) {final _that = this;
 switch (_that) {
 case _AiSettingsChange():
-return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region);case _:
+return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.askBudget,_that.checkSources,_that.useLinks);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +199,10 @@ return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.reg
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  String provider,  String baseUrl,  String model,  String region)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool enabled,  String provider,  String baseUrl,  String model,  String region,  String askBudget,  bool checkSources,  bool useLinks)?  $default,) {final _that = this;
 switch (_that) {
 case _AiSettingsChange() when $default != null:
-return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region);case _:
+return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.region,_that.askBudget,_that.checkSources,_that.useLinks);case _:
   return null;
 
 }
@@ -210,7 +214,7 @@ return $default(_that.enabled,_that.provider,_that.baseUrl,_that.model,_that.reg
 
 
 class _AiSettingsChange implements AiSettingsChange {
-  const _AiSettingsChange({required this.enabled, required this.provider, this.baseUrl = '', this.model = '', this.region = ''});
+  const _AiSettingsChange({required this.enabled, required this.provider, this.baseUrl = '', this.model = '', this.region = '', this.askBudget = '', this.checkSources = true, this.useLinks = true});
   
 
 @override final  bool enabled;
@@ -218,6 +222,10 @@ class _AiSettingsChange implements AiSettingsChange {
 @override@JsonKey() final  String baseUrl;
 @override@JsonKey() final  String model;
 @override@JsonKey() final  String region;
+/// `small`, `standard`, `large`; empty leaves the size the model suits.
+@override@JsonKey() final  String askBudget;
+@override@JsonKey() final  bool checkSources;
+@override@JsonKey() final  bool useLinks;
 
 /// Create a copy of AiSettingsChange
 /// with the given fields replaced by the non-null parameter values.
@@ -229,16 +237,16 @@ _$AiSettingsChangeCopyWith<_AiSettingsChange> get copyWith => __$AiSettingsChang
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AiSettingsChange&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AiSettingsChange&&(identical(other.enabled, enabled) || other.enabled == enabled)&&(identical(other.provider, provider) || other.provider == provider)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.model, model) || other.model == model)&&(identical(other.region, region) || other.region == region)&&(identical(other.askBudget, askBudget) || other.askBudget == askBudget)&&(identical(other.checkSources, checkSources) || other.checkSources == checkSources)&&(identical(other.useLinks, useLinks) || other.useLinks == useLinks));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region);
+int get hashCode => Object.hash(runtimeType,enabled,provider,baseUrl,model,region,askBudget,checkSources,useLinks);
 
 @override
 String toString() {
-  return 'AiSettingsChange(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region)';
+  return 'AiSettingsChange(enabled: $enabled, provider: $provider, baseUrl: $baseUrl, model: $model, region: $region, askBudget: $askBudget, checkSources: $checkSources, useLinks: $useLinks)';
 }
 
 
@@ -249,7 +257,7 @@ abstract mixin class _$AiSettingsChangeCopyWith<$Res> implements $AiSettingsChan
   factory _$AiSettingsChangeCopyWith(_AiSettingsChange value, $Res Function(_AiSettingsChange) _then) = __$AiSettingsChangeCopyWithImpl;
 @override @useResult
 $Res call({
- bool enabled, String provider, String baseUrl, String model, String region
+ bool enabled, String provider, String baseUrl, String model, String region, String askBudget, bool checkSources, bool useLinks
 });
 
 
@@ -266,14 +274,17 @@ class __$AiSettingsChangeCopyWithImpl<$Res>
 
 /// Create a copy of AiSettingsChange
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? enabled = null,Object? provider = null,Object? baseUrl = null,Object? model = null,Object? region = null,Object? askBudget = null,Object? checkSources = null,Object? useLinks = null,}) {
   return _then(_AiSettingsChange(
 enabled: null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
 as bool,provider: null == provider ? _self.provider : provider // ignore: cast_nullable_to_non_nullable
 as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
 as String,model: null == model ? _self.model : model // ignore: cast_nullable_to_non_nullable
 as String,region: null == region ? _self.region : region // ignore: cast_nullable_to_non_nullable
-as String,
+as String,askBudget: null == askBudget ? _self.askBudget : askBudget // ignore: cast_nullable_to_non_nullable
+as String,checkSources: null == checkSources ? _self.checkSources : checkSources // ignore: cast_nullable_to_non_nullable
+as bool,useLinks: null == useLinks ? _self.useLinks : useLinks // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

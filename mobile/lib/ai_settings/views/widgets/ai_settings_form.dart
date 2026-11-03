@@ -13,6 +13,7 @@ import '../../../core/views/widgets/kanso_grouped_section.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../state/ai_settings/ai_settings_bloc.dart';
+import 'ai_budget_sheet.dart';
 import 'ai_field_row.dart';
 import 'ai_key_row.dart';
 import 'ai_privacy_note.dart';
@@ -170,6 +171,40 @@ class _AiSettingsFormState extends State<AiSettingsForm> {
             ),
           ),
         ],
+        const SizedBox(height: KansoSpacing.lg),
+        KansoGroupedSection(
+          title: l10n.aiAskSection,
+          footer: settings.checkSources
+              ? l10n.aiAskCheckSourcesOn
+              : l10n.aiAskCheckSourcesOff,
+          children: <Widget>[
+            KansoSettingsRow(
+              icon: KansoIcons.sparkles,
+              label: l10n.aiAskBudget,
+              value: askBudgetName(context, settings.askBudget),
+              chevron: true,
+              onTap: () => showAiBudgetSheet(context, bloc),
+            ),
+            KansoSettingsRow(
+              icon: KansoIcons.check,
+              label: l10n.aiAskCheckSources,
+              trailing: KansoSwitch(
+                value: settings.checkSources,
+                onChanged: (value) =>
+                    bloc.add(AiSettingsEvent.askChanged(checkSources: value)),
+              ),
+            ),
+            KansoSettingsRow(
+              icon: KansoIcons.link,
+              label: l10n.aiAskUseLinks,
+              trailing: KansoSwitch(
+                value: settings.useLinks,
+                onChanged: (value) =>
+                    bloc.add(AiSettingsEvent.askChanged(useLinks: value)),
+              ),
+            ),
+          ],
+        ),
         const AgentSettingsSection(),
         if (settings.privacy.isNotEmpty) ...<Widget>[
           const SizedBox(height: KansoSpacing.lg),

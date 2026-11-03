@@ -7,24 +7,41 @@
 //! (`search_notes` and `read_note`) behind the same exclusions.
 
 mod conversation;
+mod followup;
+mod model;
+pub mod receipts;
+mod retrieve;
+mod save;
+mod scope;
+pub mod settings;
+mod tools;
+mod turn;
 
 pub use conversation::{
-    AskedTurn, Conversation, HISTORY_BUDGET, cap_history, eligible_turns, record_turn_notes,
+    AskedTurn, Began, Conversation, HISTORY_BUDGET, cap_history, eligible_turns, record_turn_notes,
+};
+pub use model::*;
+pub use receipts::{check, relocate};
+pub use retrieve::{
+    AskError, MAX_PASSAGES, best_passages, best_text, retrieve, retrieve_with, select,
+};
+pub use save::{SavedAnswer, save_answer, saved_note};
+pub use scope::{ScopeFilter, book_paths};
+pub use tools::{READ_LINES, Shown, ToolNote, read_lines, search_notes, tool_registry};
+pub use turn::{
+    Banner, Finished, Prepared, Turn, TurnEvent, finalize, plain, prepare, run, streaming_markdown,
 };
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
 
-use kanso_ai::{ChatProvider, Event, Excerpt, JsonTool, Prompt, ToolRegistry};
-use kanso_core::DocType;
+use kanso_ai::{Budget, ChatProvider, Event, Excerpt, Prompt, ToolRegistry};
 use kanso_core::query::{Clause, Query};
-use kanso_store::{MEANING_SIMILARITY, SearchParams};
-use kanso_store::{MeaningSearch, Sort, Store};
-use serde::Deserialize;
+use kanso_store::{SearchParams, Sort, Store};
 
 /// How many notes one question may send from the initial retrieval.
-pub const MAX_NOTES: usize = 8;
+pub const MAX_NOTES: usize = 12;
 /// The prompt's character budget.
 pub const BUDGET: usize = kanso_ai::DEFAULT_BUDGET;
 
@@ -44,24 +61,30 @@ const MAX_PER_NOTE: usize = 6000;
 /// is a strong match, and then only its opening.
 const MEANING_ONLY_SIMILARITY: f32 = 0.5;
 const MEANING_ONLY_ROOM: usize = 400;
-/// How much of one note a tool result may carry.
-const TOOL_EXCERPT_ROOM: usize = 900;
-/// How much of one note `read_note` may return.
-const READ_ROOM: usize = 6000;
-/// How many notes a tool's search may return.
-const TOOL_RESULTS: usize = 5;
-/// The most text every tool call in one question may hand the model together.
-const TOOL_TOTAL_ROOM: usize = 24_000;
+
+/// A closed range of times in milliseconds since the epoch, either end open.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Bounds {
+    pub after: Option<i64>,
+    pub before: Option<i64>,
+}
 
 /// A note as retrieval sees it. The flags are decided by the store; the
 /// exclusions are decided here, in [`eligible`] alone.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Candidate {
     pub id: String,
     pub title: String,
     pub body: String,
     /// Tag names, as the person writes them.
     pub tags: Vec<String>,
+    /// Tag IDs, for a scope.
+    pub tag_ids: Vec<String>,
+    /// The notebook it is in.
+    pub book_id: String,
+    /// When it was made and last changed, in milliseconds since the epoch.
+    pub created_at: i64,
+    pub updated_at: i64,
     /// Sealed, or in a locked notebook, even if unlocked right now.
     pub locked: bool,
     pub trashed: bool,
@@ -82,165 +105,167 @@ pub fn is_exclude_tag(tag: &str) -> bool {
     kanso_core::tags::is_ai_exclude(tag)
 }
 
+/// Words every question has, which say nothing about which note is relevant.
+const STOP: &[&str] = &[
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "if",
+    "then",
+    "than",
+    "so",
+    "such",
+    "what",
+    "which",
+    "who",
+    "whom",
+    "whose",
+    "how",
+    "why",
+    "when",
+    "where",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "being",
+    "am",
+    "do",
+    "does",
+    "did",
+    "of",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "from",
+    "with",
+    "about",
+    "into",
+    "over",
+    "under",
+    "again",
+    "further",
+    "your",
+    "you",
+    "my",
+    "me",
+    "i",
+    "we",
+    "our",
+    "it",
+    "its",
+    "this",
+    "that",
+    "these",
+    "those",
+    "can",
+    "could",
+    "should",
+    "would",
+    "will",
+    "shall",
+    "might",
+    "must",
+    "have",
+    "has",
+    "had",
+    "not",
+    "no",
+    "as",
+    "by",
+    "any",
+    "all",
+    "some",
+    "there",
+    "their",
+    "them",
+    "they",
+    "he",
+    "she",
+    "his",
+    "her",
+    // The verbs and nouns most questions share, which say nothing about
+    // which note is relevant.
+    "tell",
+    "say",
+    "says",
+    "said",
+    "know",
+    "remember",
+    "recall",
+    "write",
+    "wrote",
+    "written",
+    "note",
+    "notes",
+    "list",
+    "last",
+    "latest",
+    "explain",
+    "describe",
+    "summarize",
+    "summarise",
+    "summary",
+    "think",
+    "mention",
+    "mentioned",
+    "discuss",
+    "discussed",
+    "talk",
+    "talked",
+    "find",
+    "show",
+    "give",
+    "get",
+    "want",
+    "need",
+    "help",
+    "please",
+    "read",
+    "look",
+    "see",
+    "anything",
+    "something",
+    "everything",
+    "thing",
+    "things",
+    "according",
+    "based",
+    "kind",
+    "sort",
+    "way",
+    "much",
+    "many",
+    "more",
+    "most",
+    "also",
+    "just",
+    "only",
+    "very",
+    "really",
+    "like",
+    "make",
+    "made",
+    "take",
+    "took",
+    "go",
+    "went",
+    "come",
+    "came",
+    "keep",
+    "kept",
+];
+
 /// The words of a question worth searching for, without the ones every
 /// question has. Falls back to the question itself when it is all such words.
 pub fn question_terms(question: &str) -> Vec<String> {
-    const STOP: &[&str] = &[
-        "the",
-        "a",
-        "an",
-        "and",
-        "or",
-        "but",
-        "if",
-        "then",
-        "than",
-        "so",
-        "such",
-        "what",
-        "which",
-        "who",
-        "whom",
-        "whose",
-        "how",
-        "why",
-        "when",
-        "where",
-        "is",
-        "are",
-        "was",
-        "were",
-        "be",
-        "been",
-        "being",
-        "am",
-        "do",
-        "does",
-        "did",
-        "of",
-        "in",
-        "on",
-        "at",
-        "to",
-        "for",
-        "from",
-        "with",
-        "about",
-        "into",
-        "over",
-        "under",
-        "again",
-        "further",
-        "your",
-        "you",
-        "my",
-        "me",
-        "i",
-        "we",
-        "our",
-        "it",
-        "its",
-        "this",
-        "that",
-        "these",
-        "those",
-        "can",
-        "could",
-        "should",
-        "would",
-        "will",
-        "shall",
-        "might",
-        "must",
-        "have",
-        "has",
-        "had",
-        "not",
-        "no",
-        "as",
-        "by",
-        "any",
-        "all",
-        "some",
-        "there",
-        "their",
-        "them",
-        "they",
-        "he",
-        "she",
-        "his",
-        "her",
-        // The verbs and nouns most questions share, which say nothing about
-        // which note is relevant.
-        "tell",
-        "say",
-        "says",
-        "said",
-        "know",
-        "remember",
-        "recall",
-        "write",
-        "wrote",
-        "written",
-        "note",
-        "notes",
-        "list",
-        "last",
-        "latest",
-        "explain",
-        "describe",
-        "summarize",
-        "summarise",
-        "summary",
-        "think",
-        "mention",
-        "mentioned",
-        "discuss",
-        "discussed",
-        "talk",
-        "talked",
-        "find",
-        "show",
-        "give",
-        "get",
-        "want",
-        "need",
-        "help",
-        "please",
-        "read",
-        "look",
-        "see",
-        "anything",
-        "something",
-        "everything",
-        "thing",
-        "things",
-        "according",
-        "based",
-        "kind",
-        "sort",
-        "way",
-        "much",
-        "many",
-        "more",
-        "most",
-        "also",
-        "just",
-        "only",
-        "very",
-        "really",
-        "like",
-        "make",
-        "made",
-        "take",
-        "took",
-        "go",
-        "went",
-        "come",
-        "came",
-        "keep",
-        "kept",
-    ];
     let mut seen = HashSet::new();
     let mut terms = Vec::new();
     for word in question.split(|c: char| !c.is_alphanumeric() && c != '\'' && c != '-') {
@@ -260,6 +285,22 @@ pub fn question_terms(question: &str) -> Vec<String> {
         }
     }
     terms
+}
+
+/// Every word of `text` worth comparing: lowercase, at least three
+/// characters, without the common words, once each. Unlike
+/// [`question_terms`] it has no cap and no fallback.
+pub fn content_words(text: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut words = Vec::new();
+    for word in text.split(|c: char| !c.is_alphanumeric() && c != '\'' && c != '-') {
+        let word = word.trim_matches('\'').to_lowercase();
+        if word.chars().count() < 3 || STOP.contains(&word.as_str()) || !seen.insert(word.clone()) {
+            continue;
+        }
+        words.push(word);
+    }
+    words
 }
 
 /// How many distinct terms a full-text candidate must match: at least half,
@@ -285,6 +326,7 @@ fn search_forms(term: &str) -> Vec<&str> {
 fn search_documents(
     store: &Store,
     terms: &[String],
+    bounds: Option<&Bounds>,
 ) -> kanso_store::Result<(
     HashMap<String, kanso_store::Doc>,
     usize,
@@ -308,14 +350,33 @@ fn search_documents(
                 limit: Some(TEXT_RESULTS_PER_TERM),
                 ..SearchParams::default()
             };
-            match store.search(&params) {
-                Ok(found) => {
-                    failed_here = false;
-                    for doc in found {
-                        docs.entry(doc.id.clone()).or_insert(doc);
+            // A time range is searched by when notes changed, then by when
+            // they were made, and the two are merged.
+            let passes: Vec<SearchParams> = match bounds {
+                None => vec![params],
+                Some(bounds) => vec![
+                    SearchParams {
+                        updated_after: bounds.after,
+                        updated_before: bounds.before,
+                        ..params.clone()
+                    },
+                    SearchParams {
+                        created_after: bounds.after,
+                        created_before: bounds.before,
+                        ..params
+                    },
+                ],
+            };
+            for params in passes {
+                match store.search(&params) {
+                    Ok(found) => {
+                        failed_here = false;
+                        for doc in found {
+                            docs.entry(doc.id.clone()).or_insert(doc);
+                        }
                     }
+                    Err(err) => last_error = Some(err),
                 }
-                Err(err) => last_error = Some(err),
             }
         }
         if failed_here {
@@ -343,124 +404,6 @@ pub fn fuse(ranked: &[Vec<String>], k: usize) -> Vec<String> {
         .collect()
 }
 
-/// The notes a question may send, best first. The exclusions are applied
-/// here before anything is read out.
-pub fn select(
-    question: &str,
-    candidates: &[Candidate],
-    limit: usize,
-    budget: usize,
-) -> Vec<Excerpt> {
-    let allowed: Vec<&Candidate> = candidates
-        .iter()
-        .filter(|candidate| eligible(candidate))
-        .take(limit)
-        .collect();
-    if allowed.is_empty() || question.trim().is_empty() {
-        return Vec::new();
-    }
-    let terms = question_terms(question);
-    let required = required_matches(terms.len());
-    let per_note = if allowed.len() == 1 {
-        budget
-    } else {
-        (budget / allowed.len()).clamp(MIN_PER_NOTE, MAX_PER_NOTE)
-    };
-    let mut used = 0;
-    let mut chosen = Vec::new();
-    for candidate in allowed {
-        let room = per_note.min(budget.saturating_sub(used));
-        if room == 0 {
-            break;
-        }
-        let (matched, in_title) = term_hits(&candidate.title, &candidate.body, &terms);
-        let from_meaning = candidate
-            .meaning
-            .is_some_and(|score| score >= MEANING_SIMILARITY);
-        if matched < required && !from_meaning {
-            continue;
-        }
-        let mut text = best_text(&candidate.body, &terms, room);
-        if text.trim().is_empty() {
-            if matched == 0 {
-                // No word in the note, title or body, matches the question:
-                // only a strong meaning-only hit may send it, and then only
-                // its opening, never thousands of characters.
-                if !candidate
-                    .meaning
-                    .is_some_and(|score| score >= MEANING_ONLY_SIMILARITY)
-                {
-                    continue;
-                }
-                text = opening(&candidate.body, room.min(MEANING_ONLY_ROOM));
-            } else if !from_meaning && in_title == 0 {
-                // Nothing in the note's text matches, and its title didn't
-                // either: it is not a reason to send the note.
-                continue;
-            } else {
-                text = opening(&candidate.body, room);
-            }
-        }
-        if text.trim().is_empty() {
-            continue;
-        }
-        used += text.chars().count();
-        chosen.push(Excerpt {
-            id: candidate.id.clone(),
-            title: candidate.title.clone(),
-            text,
-        });
-    }
-    chosen
-}
-
-/// The passages of `body` that match `terms`, joined, within `room`
-/// characters. A note with no matching passage gives nothing.
-pub fn best_text(body: &str, terms: &[String], room: usize) -> String {
-    if body.trim().is_empty() || room == 0 || terms.is_empty() {
-        return String::new();
-    }
-    let passages = passages(body);
-    let mut ranked: Vec<(usize, usize)> = passages
-        .iter()
-        .enumerate()
-        .map(|(ix, passage)| (overlap(passage, terms), ix))
-        .collect();
-    ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-    let mut text = String::new();
-    for (score, ix) in ranked {
-        if score == 0 {
-            break;
-        }
-        if !text.is_empty() {
-            text.push_str("\n\n");
-        }
-        let left = room.saturating_sub(text.chars().count());
-        if left == 0 {
-            break;
-        }
-        let passage = passage_around(&passages[ix], terms, left);
-        text.push_str(&passage);
-        if text.chars().count() >= room {
-            break;
-        }
-    }
-    kanso_ai::prompt::truncate(&text, room)
-}
-
-/// The first `room` characters of a note, for a note that passed the meaning
-/// floor without sharing a word with the question.
-fn opening(body: &str, room: usize) -> String {
-    kanso_ai::prompt::truncate(body.trim(), room)
-}
-
-/// How many whole-word occurrences of `term` are in `text` (already lowercased),
-/// and how many distinct terms appear.
-fn overlap(text: &str, terms: &[String]) -> usize {
-    let lower = text.to_lowercase();
-    terms.iter().map(|term| word_count(&lower, term)).sum()
-}
-
 /// How many whole-word occurrences of `term` are in `haystack`.
 ///
 /// Words are compared whole and Unicode-aware, so `plan` does not match
@@ -486,7 +429,7 @@ pub fn word_count(haystack: &str, term: &str) -> usize {
 
 /// A plain plural's singular. Deliberately tiny: only a trailing `s` on a
 /// word of some length, never `ss`.
-fn stem(word: &str) -> &str {
+pub(crate) fn stem(word: &str) -> &str {
     if word.len() > 3 && word.ends_with('s') && !word.ends_with("ss") {
         &word[..word.len() - 1]
     } else {
@@ -534,111 +477,12 @@ fn term_hits(title: &str, body: &str, terms: &[String]) -> (usize, usize) {
     (matched, in_title)
 }
 
-/// The paragraphs of a body: runs of lines between blank ones.
-fn passages(body: &str) -> Vec<String> {
-    let mut passages = Vec::new();
-    let mut current = String::new();
-    for line in body.lines() {
-        if line.trim().is_empty() {
-            if !current.trim().is_empty() {
-                passages.push(current.trim_end().to_owned());
-            }
-            current.clear();
-        } else {
-            if !current.is_empty() {
-                current.push('\n');
-            }
-            current.push_str(line);
-        }
-    }
-    if !current.trim().is_empty() {
-        passages.push(current.trim_end().to_owned());
-    }
-    if passages.is_empty() && !body.trim().is_empty() {
-        passages.push(body.trim().to_owned());
-    }
-    passages
-}
-
-/// `passage`, or the part of it around the first matching term when it is
-/// longer than `room`.
-///
-/// Matches are found on the original text, char by char, so offsets always
-/// land on a character boundary. (Lowercasing can change a string's byte
-/// length — `İ` grows, `K` and `ẞ` shrink — so offsets from a lowercased copy
-/// must never be used to slice the original.)
-fn passage_around(passage: &str, terms: &[String], room: usize) -> String {
-    if passage.chars().count() <= room {
-        return passage.to_owned();
-    }
-    let at = terms
-        .iter()
-        .filter_map(|term| find_term_start(passage, term))
-        .min()
-        .unwrap_or(0);
-    let chars: Vec<char> = passage.chars().collect();
-    let at = passage[..at].chars().count();
-    let start = at.saturating_sub(room / 4).min(chars.len());
-    let end = (start + room).min(chars.len());
-    chars[start..end].iter().collect()
-}
-
-/// The byte offset of the first whole-word, case-insensitive occurrence of
-/// `term` in `haystack`, if any.
-fn find_term_start(haystack: &str, term: &str) -> Option<usize> {
-    let term = term.to_lowercase();
-    if term.is_empty() {
-        return None;
-    }
-    for (start, _) in haystack.char_indices() {
-        if haystack[..start]
-            .chars()
-            .next_back()
-            .is_some_and(|c| c.is_alphanumeric())
-        {
-            continue;
-        }
-        if let Some(end) = match_at(haystack, start, &term)
-            && haystack[end..]
-                .chars()
-                .next()
-                .is_none_or(|c| !c.is_alphanumeric())
-        {
-            return Some(start);
-        }
-    }
-    None
-}
-
-/// The end byte offset when `term` (already lowercased) matches at `start`,
-/// comparing each original char's lowercase expansion. Returns `None` when it
-/// does not match or runs past the end of `haystack`.
-fn match_at(haystack: &str, start: usize, term: &str) -> Option<usize> {
-    let mut wanted = term.chars();
-    for (offset, ch) in haystack[start..].char_indices() {
-        let mut lowered = ch.to_lowercase();
-        let mut any = false;
-        for lower in lowered.by_ref() {
-            if wanted.next()? != lower {
-                return None;
-            }
-            any = true;
-        }
-        if !any {
-            return None;
-        }
-        if wanted.as_str().is_empty() {
-            return Some(start + offset + ch.len_utf8());
-        }
-    }
-    None
-}
-
 /// Runs `provider`'s answer to `prompt`, handing each event to `on_event`
 /// until the answer ends, fails, or `cancel` is set. `history` is the panel's
 /// conversation so far and `tools` are the notes tools the model may call;
 /// `on_tool_completed` fires after each call. The iterator is dropped on
 /// cancel, which closes the request.
+#[allow(clippy::too_many_arguments)]
 pub fn stream_answer(
     provider: &dyn ChatProvider,
     prompt: &Prompt,
@@ -646,13 +490,21 @@ pub fn stream_answer(
     tools: ToolRegistry<()>,
     on_tool_completed: Box<dyn FnMut() + Send>,
     cancel: &Arc<AtomicBool>,
+    budget: &Budget,
     on_event: impl FnMut(Event),
 ) {
     if cancel.load(Ordering::Relaxed) {
         return;
     }
     stream_events(
-        provider.ask(prompt, history, tools, on_tool_completed, cancel.clone()),
+        provider.ask(
+            prompt,
+            history,
+            tools,
+            on_tool_completed,
+            cancel.clone(),
+            budget,
+        ),
         cancel,
         on_event,
     );
@@ -901,6 +753,10 @@ fn candidate_for(
         title: note.title.clone(),
         body: note.body.clone(),
         tags,
+        tag_ids: note.tags.clone(),
+        book_id: note.book_id.clone(),
+        created_at: note.created_at,
+        updated_at: note.updated_at,
         locked: false,
         trashed: note.is_trashed(),
         meaning,
@@ -937,300 +793,14 @@ pub fn eligible_note(store: &Store, id: &str) -> kanso_store::Result<Option<Cand
     candidate_for(store, &id, &names, None)
 }
 
-/// Searches `store` for `question` and returns the excerpts to send, or
-/// nothing when the notes don't cover it.
-pub fn retrieve(store: &Store, question: &str) -> kanso_store::Result<Vec<Excerpt>> {
-    let question = question.trim();
-    let terms = question_terms(question);
-    if terms.is_empty() || question.is_empty() {
-        return Ok(Vec::new());
-    }
-    let names = tag_names(store)?;
-    let required = required_matches(terms.len());
-
-    let (docs, failed, last_error) = search_documents(store, &terms)?;
-    // Every full-text search failing is a real search error; one failing term
-    // is not.
-    if failed == terms.len() {
-        return Err(last_error.expect("a failed search has an error"));
-    }
-
-    let mut text_ranked: Vec<(String, f64, i64)> = Vec::new();
-    for (id, doc) in &docs {
-        if doc.doc_type != DocType::Note {
-            continue;
-        }
-        // Run the one eligibility predicate before using a search hit's
-        // title or body. The final pass checks it again before sending.
-        let Some(candidate) = candidate_for(store, id, &names, None)? else {
-            continue;
-        };
-        let (matched, in_title) =
-            term_hits(&candidate.title, &candidate.body.to_lowercase(), &terms);
-        if matched < required {
-            continue;
-        }
-        let occurrences: usize = terms
-            .iter()
-            .map(|term| word_count(&candidate.body, term))
-            .sum();
-        let score =
-            matched as f64 * 10. + in_title as f64 * 8. + (occurrences.min(12) as f64) * 0.5;
-        let updated = doc
-            .fields
-            .get("updatedAt")
-            .and_then(|value| value.as_i64())
-            .unwrap_or(0);
-        text_ranked.push((id.clone(), score, updated));
-    }
-    text_ranked.sort_by(|a, b| {
-        b.1.total_cmp(&a.1)
-            .then_with(|| b.2.cmp(&a.2))
-            .then_with(|| a.0.cmp(&b.0))
-    });
-    let text_ids: Vec<String> = text_ranked.into_iter().map(|(id, _, _)| id).collect();
-
-    // Meaning search is best effort: no model, or an error, leaves the
-    // full-text results alone.
-    let mut meaning_scores: HashMap<String, f32> = HashMap::new();
-    let mut meaning_ids = Vec::new();
-    if let Ok(MeaningSearch::Found(found)) = store.search_by_meaning(question, MEANING_RESULTS) {
-        for note in found {
-            if note.score >= MEANING_SIMILARITY
-                && candidate_for(store, &note.id, &names, Some(note.score))?.is_some()
-            {
-                meaning_scores.insert(note.id.clone(), note.score);
-                meaning_ids.push(note.id);
-            }
-        }
-    }
-
-    let mut lists = vec![text_ids];
-    if !meaning_ids.is_empty() {
-        lists.push(meaning_ids);
-    }
-    let ranked = fuse(&lists, MAX_NOTES * 4);
-    let mut candidates = Vec::new();
-    for id in ranked {
-        let meaning = meaning_scores.get(&id).copied();
-        // Every candidate goes through `candidate_for`, which re-checks the
-        // note (including a lock check that fails closed). Building one from a
-        // search row here would skip that check.
-        if let Some(candidate) = candidate_for(store, &id, &names, meaning)? {
-            candidates.push(candidate);
-        }
-    }
-    Ok(select(question, &candidates, MAX_NOTES, BUDGET))
-}
-
-/// The notes a tool search returns, with the passages that matched. Every
-/// exclusion applies exactly as it does to the initial retrieval.
-pub fn search_notes(
-    store: &Store,
-    query: &str,
-    used: &Mutex<Vec<Excerpt>>,
-) -> kanso_store::Result<Vec<Excerpt>> {
-    let terms = question_terms(query);
-    if terms.is_empty() {
-        return Ok(Vec::new());
-    }
-    let names = tag_names(store)?;
-    let (docs, failed, last_error) = search_documents(store, &terms)?;
-    if failed == terms.len() {
-        return Err(last_error.expect("a failed search has an error"));
-    }
-
-    let mut scored: Vec<(String, usize, i64)> = Vec::new();
-    for (id, doc) in &docs {
-        if doc.doc_type != DocType::Note {
-            continue;
-        }
-        // Both the selection pass and the pass that reads an excerpt use the
-        // same store-backed eligibility gate.
-        let Some(candidate) = candidate_for(store, id, &names, None)? else {
-            continue;
-        };
-        let (matched, in_title) =
-            term_hits(&candidate.title, &candidate.body.to_lowercase(), &terms);
-        if matched == 0 {
-            continue;
-        }
-        let updated = doc
-            .fields
-            .get("updatedAt")
-            .and_then(|value| value.as_i64())
-            .unwrap_or(0);
-        scored.push((id.clone(), matched * 10 + in_title * 8, updated));
-    }
-    scored.sort_by(|a, b| {
-        b.1.cmp(&a.1)
-            .then_with(|| b.2.cmp(&a.2))
-            .then_with(|| a.0.cmp(&b.0))
-    });
-
-    let mut results = Vec::new();
-    for (id, _, _) in scored.into_iter().take(TOOL_RESULTS) {
-        let Some(candidate) = candidate_for(store, &id, &names, None)? else {
-            continue;
-        };
-        let text = best_text(&candidate.body, &terms, TOOL_EXCERPT_ROOM);
-        let excerpt = Excerpt {
-            id: id.clone(),
-            title: candidate.title,
-            text,
-        };
-        record_used(used, &excerpt);
-        results.push(excerpt);
-    }
-    Ok(results)
-}
-
-/// One note by ID for the `read_note` tool, or `None` when it is missing or
-/// excluded (so an excluded note is indistinguishable from a missing one).
-pub fn read_note(
-    store: &Store,
-    id: &str,
-    used: &Mutex<Vec<Excerpt>>,
-) -> kanso_store::Result<Option<Excerpt>> {
-    let id = if id.trim().starts_with("note:") {
-        id.trim().to_owned()
-    } else {
-        format!("note:{}", id.trim())
-    };
-    let names = tag_names(store)?;
-    let Some(candidate) = candidate_for(store, &id, &names, None)? else {
-        return Ok(None);
-    };
-    let excerpt = Excerpt {
-        id: candidate.id,
-        title: candidate.title,
-        text: kanso_ai::prompt::truncate(candidate.body.trim(), READ_ROOM),
-    };
-    record_used(used, &excerpt);
-    Ok(Some(excerpt))
-}
-
-/// Trims tool text to what is left of this question's tool budget. Titles and
-/// IDs always stay so the model can still name a note it saw.
-fn clamp_excerpts(results: Vec<Excerpt>, room: &Mutex<usize>) -> Vec<Excerpt> {
-    let mut left = room.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    results
-        .into_iter()
-        .map(|mut excerpt| {
-            let take = (*left).min(excerpt.text.chars().count());
-            excerpt.text = kanso_ai::prompt::truncate(&excerpt.text, take);
-            *left -= take;
-            excerpt
-        })
-        .collect()
-}
-
-fn record_used(used: &Mutex<Vec<Excerpt>>, excerpt: &Excerpt) {
-    if let Ok(mut used) = used.lock()
-        && !used.iter().any(|seen| seen.id == excerpt.id)
-    {
-        used.push(excerpt.clone());
-    }
-}
-
-#[derive(Deserialize, schemars::JsonSchema)]
-struct SearchArgs {
-    /// The words to find in the notes.
-    query: String,
-}
-
-#[derive(Deserialize, schemars::JsonSchema)]
-struct ReadArgs {
-    /// The note's ID, as given by search_notes or an excerpt label.
-    id: String,
-}
-
-/// The two tools a question may call. Both enforce the same exclusions as
-/// retrieval, and both add what they read to `used`, so the panel can show
-/// every note the answer drew on.
-pub fn tool_registry(store: Arc<Store>, used: Arc<Mutex<Vec<Excerpt>>>) -> ToolRegistry<()> {
-    let mut registry = ToolRegistry::new();
-    // One budget for everything the tools hand the model this question, so a
-    // model that keeps calling search cannot grow the request without bound.
-    let room = Arc::new(Mutex::new(TOOL_TOTAL_ROOM));
-    let search_store = store.clone();
-    let search_used = used.clone();
-    let search_room = room.clone();
-    registry.register(JsonTool::new(
-        "search_notes",
-        "Search the user's notes. Returns matching notes with their IDs and the passages that matched.",
-        move |_ctx: (), args: SearchArgs| {
-            let store = search_store.clone();
-            let used = search_used.clone();
-            let room = search_room.clone();
-            async move {
-                match search_notes(&store, &args.query, &used) {
-                    Ok(results) => {
-                        let results = clamp_excerpts(results, &room);
-                        Ok(serde_json::json!({
-                            "results": results
-                                .into_iter()
-                                .map(|excerpt| serde_json::json!({
-                                    "id": excerpt.id,
-                                    "title": excerpt.title,
-                                    "excerpt": excerpt.text,
-                                }))
-                                .collect::<Vec<_>>(),
-                        }))
-                    }
-                    Err(_) => Ok(serde_json::json!({
-                        "error": "Couldn't search the notes.",
-                    })),
-                }
-            }
-        },
-    ));
-    let read_store = store;
-    let read_used = used;
-    let read_room = room;
-    registry.register(JsonTool::new(
-        "read_note",
-        "Read one note by ID. A note that is locked, in the trash or tagged #ai-exclude is reported as not found.",
-        move |_ctx: (), args: ReadArgs| {
-            let store = read_store.clone();
-            let used = read_used.clone();
-            let room = read_room.clone();
-            async move {
-                match read_note(&store, &args.id, &used) {
-                    Ok(Some(excerpt)) => {
-                        let excerpt = clamp_excerpts(vec![excerpt], &room)
-                            .pop()
-                            .expect("one note");
-                        Ok(serde_json::json!({
-                            "found": true,
-                            "id": excerpt.id,
-                            "title": excerpt.title,
-                            "text": excerpt.text,
-                        }))
-                    }
-                    Ok(None) => Ok(serde_json::json!({
-                        "found": false,
-                        "error": "not found",
-                    })),
-                    Err(_) => Ok(serde_json::json!({
-                        "found": false,
-                        "error": "not found",
-                    })),
-                }
-            }
-        },
-    ));
-    registry
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        Candidate, MAX_NOTES, best_text, clamp_excerpts, eligible, fuse, is_exclude_tag, linkify,
-        note_is_eligible, passage_around, question_terms, read_note, retrieve, sanitize_answer,
+        Candidate, MAX_NOTES, ScopeFilter, Shown, best_text, eligible, fuse, is_exclude_tag,
+        linkify, note_is_eligible, question_terms, read_lines, retrieve, sanitize_answer,
         search_notes, select, stream_answer, strip_remote_images, tool_registry,
     };
-    use kanso_ai::{AiError, ChatProvider, Event, Excerpt, Prompt, ToolRegistry};
+    use kanso_ai::{AiError, Budget, ChatProvider, Event, Excerpt, Prompt, ToolRegistry};
     use kanso_core::DocType;
     use kanso_store::{Embedder, MeaningSearch, Origin, Put, Store};
     use proptest::prelude::*;
@@ -1248,6 +818,7 @@ mod tests {
             locked,
             trashed,
             meaning: None,
+            ..Candidate::default()
         }
     }
 
@@ -1309,11 +880,12 @@ mod tests {
     #[test]
     fn the_matching_passage_comes_before_the_opening() {
         let text = best_text(
-            "A note about the garden.\n\nWe chose the blue paint for the kitchen.",
+            "A note about the garden.\n\n# Kitchen\nWe chose the blue paint for the kitchen.",
             &["paint".to_owned()],
             400,
         );
-        assert!(text.starts_with("We chose the blue paint"));
+        assert!(text.starts_with("# Kitchen\nWe chose the blue paint"));
+        assert!(!text.contains("garden"));
     }
 
     #[test]
@@ -1335,6 +907,7 @@ mod tests {
                 locked: false,
                 trashed: false,
                 meaning: None,
+                ..Candidate::default()
             },
             Candidate {
                 id: "note:planet".into(),
@@ -1344,6 +917,7 @@ mod tests {
                 locked: false,
                 trashed: false,
                 meaning: None,
+                ..Candidate::default()
             },
         ];
         let chosen = select(
@@ -1382,7 +956,7 @@ mod tests {
                     tags: if *exclude { vec!["ai-exclude".to_owned()] } else { vec![] },
                     locked: *locked,
                     trashed: *trashed,
-                    meaning: None,
+                    meaning: None, ..Candidate::default()
                 })
                 .collect();
             let chosen = select(&question, &candidates, 8, 20_000);
@@ -1507,6 +1081,7 @@ mod tests {
             ToolRegistry::new(),
             Box::new(|| {}),
             &Arc::new(AtomicBool::new(false)),
+            &Budget::default(),
             |event| {
                 if let Event::Text(text) = event {
                     said.push_str(&text);
@@ -1538,6 +1113,7 @@ mod tests {
             ToolRegistry::new(),
             Box::new(|| {}),
             &cancel,
+            &Budget::default(),
             |event| {
                 if let Event::Text(text) = event {
                     said.push_str(&text);
@@ -1565,6 +1141,7 @@ mod tests {
             ToolRegistry::new(),
             Box::new(|| {}),
             &Arc::new(AtomicBool::new(false)),
+            &Budget::default(),
             |event| events.push(event),
         );
         assert_eq!(events, [Event::Error("offline".into())]);
@@ -1591,6 +1168,7 @@ mod tests {
             id: format!("note:{}", title.to_lowercase()),
             title: title.to_owned(),
             text: text.to_owned(),
+            ..Excerpt::default()
         }
     }
 
@@ -1919,16 +1497,27 @@ mod tests {
             for id in &searchable {
                 prop_assert!(searched.contains(id), "{id} never reached the filter");
             }
-            let used = Mutex::new(Vec::new());
+            let shown = Shown::new();
+            let room = Mutex::new(24_000);
+            let scope = ScopeFilter::all();
             let found = retrieve(&store, "zebra").unwrap();
-            let tool_found = search_notes(&store, "zebra", &used).unwrap();
-            for excerpt in found.iter().chain(tool_found.iter()) {
-                prop_assert!(!excluded.contains(&excerpt.id), "{} was exposed", excerpt.id);
-                prop_assert!(allowed.contains(&excerpt.id), "{} was not allowed", excerpt.id);
+            let tool_found = search_notes(&store, "zebra", &scope, &shown, &room).unwrap();
+            let sent: Vec<String> = found
+                .iter()
+                .map(|excerpt| excerpt.id.clone())
+                .chain(tool_found.iter().map(|note| note.id.clone()))
+                .collect();
+            for id in &sent {
+                prop_assert!(!excluded.contains(id), "{id} was exposed");
+                prop_assert!(allowed.contains(id), "{id} was not allowed");
             }
             for id in &excluded {
-                prop_assert!(read_note(&store, id, &used).unwrap().is_none(), "{id} was read");
-                prop_assert!(!used.lock().unwrap().iter().any(|excerpt| &excerpt.id == id));
+                prop_assert!(
+                    read_lines(&store, id, 0, 10, &scope, &shown, &room).unwrap().is_none(),
+                    "{id} was read"
+                );
+                prop_assert!(!shown.used().iter().any(|excerpt| &excerpt.id == id));
+                prop_assert!(!shown.sent().iter().any(|s| &s.id == id));
             }
             // The property is not vacuous: at least one allowed note is sent
             // when there is one, and store search can see the sealed notes.
@@ -1961,25 +1550,43 @@ mod tests {
                 Origin::Sync,
             )
             .unwrap();
-        let used = Mutex::new(Vec::new());
-        let results = search_notes(&store, "pricing", &used).unwrap();
-        assert!(results.iter().all(|excerpt| excerpt.id != sealed));
-        assert!(results.iter().any(|excerpt| excerpt.id == kept));
-        assert!(read_note(&store, &sealed, &used).unwrap().is_none());
-        assert!(read_note(&store, &kept, &used).unwrap().is_some());
+        let shown = Shown::new();
+        let room = Mutex::new(24_000);
+        let scope = ScopeFilter::all();
+        let results = search_notes(&store, "pricing", &scope, &shown, &room).unwrap();
+        assert!(results.iter().all(|note| note.id != sealed));
+        assert!(results.iter().any(|note| note.id == kept));
         assert!(
-            used.lock()
+            read_lines(&store, &sealed, 0, 10, &scope, &shown, &room)
                 .unwrap()
-                .iter()
-                .any(|excerpt| excerpt.id == kept)
+                .is_none()
         );
-        let _registry = tool_registry(Arc::new(store), Arc::new(Mutex::new(Vec::new())));
+        let read = read_lines(&store, &kept, 0, 10, &scope, &shown, &room)
+            .unwrap()
+            .expect("the kept note is read");
+        assert_eq!(read.lines[0].1, "The yearly plan costs 40 dollars.");
+        assert!(shown.used().iter().any(|excerpt| excerpt.id == kept));
+        // Every tool result is numbered and remembered for checking.
+        assert!(shown.sent().iter().all(|s| s.id != sealed));
+        let numbers: Vec<usize> = shown.sent().iter().map(|s| s.number).collect();
+        assert_eq!(numbers, (1..=numbers.len()).collect::<Vec<_>>());
+        let _registry = tool_registry(
+            Arc::new(store),
+            shown,
+            ScopeFilter::all(),
+            &Budget::default(),
+        );
     }
 
     #[test]
     fn the_tool_registry_names_both_tools() {
         let (_dir, store) = open();
-        let registry = tool_registry(Arc::new(store), Arc::new(Mutex::new(Vec::new())));
+        let registry = tool_registry(
+            Arc::new(store),
+            Shown::new(),
+            ScopeFilter::all(),
+            &Budget::default(),
+        );
         let names: Vec<String> = registry
             .definitions()
             .into_iter()
@@ -2127,58 +1734,6 @@ mod tests {
     }
 
     #[test]
-    fn a_dropped_offset_can_never_split_a_character() {
-        // `İ` lowercases to two chars, so a match after it sits at a larger
-        // byte offset in the lowercased copy than in the original.
-        let passage = format!(
-            "{} İstanbul şube {}",
-            "dolgu ".repeat(80),
-            "son ".repeat(80)
-        );
-        let out = passage_around(&passage, &["şube".to_owned()], 200);
-        assert!(passage.contains(&out));
-        assert!(out.contains("şube"), "{out}");
-
-        // The Kelvin sign shrinks when lowercased, so the old offset landed
-        // wrongly in the original.
-        let passage = format!(
-            "\u{212A}elvin ölçü {} hedef {}",
-            "dolgu ".repeat(80),
-            "son ".repeat(80)
-        );
-        let out = passage_around(&passage, &["hedef".to_owned()], 200);
-        assert!(passage.contains(&out));
-        assert!(out.contains("hedef"), "{out}");
-
-        // Capital sharp S shrinks too.
-        let passage = format!("ẞtraße {} ziel {}", "dolgu ".repeat(80), "son ".repeat(80));
-        let out = passage_around(&passage, &["ziel".to_owned()], 200);
-        assert!(passage.contains(&out));
-        assert!(out.contains("ziel"), "{out}");
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: 256,
-            failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
-            ..ProptestConfig::default()
-        })]
-
-        /// Any Unicode passage and term: no panic, and the excerpt is always a
-        /// whole-character substring of the passage within its room.
-        #[test]
-        fn prop_passage_around_never_panics(
-            passage in "\\PC{0,600}",
-            term in "\\PC{0,24}",
-            room in 1usize..300,
-        ) {
-            let out = passage_around(&passage, &[term], room);
-            prop_assert!(out.chars().count() <= room);
-            prop_assert!(passage.contains(&out), "{passage:?} -> {out:?}");
-        }
-    }
-
-    #[test]
     fn a_meaning_only_hit_needs_a_stronger_match_and_sends_only_the_opening() {
         let body = "a".repeat(2000);
         let weak = Candidate {
@@ -2189,6 +1744,7 @@ mod tests {
             locked: false,
             trashed: false,
             meaning: Some(0.36),
+            ..Candidate::default()
         };
         assert!(select("zzzz", &[weak], 8, 20_000).is_empty());
 
@@ -2200,11 +1756,14 @@ mod tests {
             locked: false,
             trashed: false,
             meaning: Some(0.6),
+            ..Candidate::default()
         };
         let chosen = select("zzzz", &[strong], 8, 20_000);
         assert_eq!(chosen.len(), 1);
-        assert_eq!(chosen[0].text.chars().count(), super::MEANING_ONLY_ROOM);
-        assert!(chosen[0].text.chars().all(|ch| ch == 'a'));
+        // The opening, one line, cut to the longest line that is sent.
+        assert_eq!(chosen[0].lines.len(), 1);
+        assert!(chosen[0].text.chars().count() <= super::MEANING_ONLY_ROOM);
+        assert!(chosen[0].text.starts_with("aaaa"));
     }
 
     #[test]
@@ -2245,20 +1804,5 @@ mod tests {
         assert!(!note_is_eligible(&store, &id));
         let found = retrieve(&store, "Secret pricing").unwrap_or_default();
         assert!(found.iter().all(|excerpt| excerpt.id != id), "{found:?}");
-    }
-
-    #[test]
-    fn the_tool_room_is_shared_and_bounded() {
-        let room = Mutex::new(10);
-        let clamped = clamp_excerpts(
-            vec![
-                excerpt_for("One", "0123456789abcdef"),
-                excerpt_for("Two", "abcdef"),
-            ],
-            &room,
-        );
-        assert_eq!(clamped[0].text, "0123456789");
-        assert!(clamped[1].text.is_empty());
-        assert_eq!(*room.lock().unwrap(), 0);
     }
 }

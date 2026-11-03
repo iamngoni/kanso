@@ -17,6 +17,7 @@ mod history;
 mod loops;
 mod meaning;
 mod ocr;
+mod passage_embed;
 mod passages;
 mod plugin;
 mod query_view;
@@ -63,6 +64,9 @@ pub use meaning::rank::{
     merged_tags, suggest_tags,
 };
 pub use ocr::{OCR_TYPES, UnreadImage};
+pub use passage_embed::{
+    EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
+};
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
 pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,

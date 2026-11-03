@@ -20,6 +20,15 @@ abstract class AskState with _$AskState {
     /// The conversation, oldest question first.
     @Default(<AskTurn>[]) List<AskTurn> turns,
     @Default(AskPhase.idle) AskPhase phase,
+
+    /// What the next question searches.
+    @Default(AskScope.everything) AskScope scope,
+
+    /// What a question can be limited to, once the scope sheet asked.
+    @Default(<AskScope>[]) List<AskScope> scopes,
+
+    /// Why the answer could not be saved, in plain words.
+    String? saveFailure,
   }) = _AskState;
 
   const AskState._();

@@ -226,6 +226,7 @@ pub fn sources(store: &Store, ids: &[String], request: &str) -> Vec<Source> {
                     id: c.id,
                     title: c.title,
                     text: c.body,
+                    ..Excerpt::default()
                 },
             ));
         }

@@ -50,6 +50,7 @@ use crate::updates::{Phase, Problem as UpdateProblem, Updates};
 use crate::workspace::{AppState, Workspace, apply_theme};
 
 mod ai;
+pub(crate) mod ask;
 mod discovery;
 mod plugins_panel;
 mod plugins_settings;
@@ -5244,6 +5245,10 @@ fn snapshots() {
             Edit,
             voice::settings_voice_failed,
         ),
+        shot("light-ask-receipts", Light, Edit, ask::answer_with_receipts),
+        shot("dark-ask-receipts", Dark, Edit, ask::answer_with_receipts),
+        shot("light-ask-never-wrote", Light, Edit, ask::never_wrote),
+        shot("light-ask-no-sources", Light, Edit, ask::no_sources_banner),
         shot("light-settings-ai-api", Light, Edit, ai::settings_ai_api),
         shot(
             "light-settings-ai-agent-ready",

@@ -25,6 +25,18 @@ pub struct AiSettingsView {
     /// Whether questions leave this device for [`Self::host`]: true unless
     /// the host is this device itself.
     pub is_remote: bool,
+    /// Most each question may send, as a key: `small`, `standard` or `large`.
+    /// What the model suits until it is chosen.
+    pub ask_budget: String,
+    /// "About 3,000 words of your notes per question."
+    pub budget_words_line: String,
+    /// "At most about $0.01 per question with gpt-4o-mini."; empty when the
+    /// price isn't known.
+    pub budget_cost_line: String,
+    /// Check that each cited line was sent and supports its sentence.
+    pub check_sources: bool,
+    /// Look up related notes through links and backlinks.
+    pub use_links: bool,
 }
 
 /// The settings to save. Unlike [`AiSettingsView`] it has no key (see
@@ -36,6 +48,70 @@ pub struct AiSettingsInput {
     pub base_url: String,
     pub model: String,
     pub region: String,
+    /// `small`, `standard` or `large`; empty leaves the size the model
+    /// suits.
+    pub ask_budget: String,
+    pub check_sources: bool,
+    pub use_links: bool,
+}
+
+/// What a question is limited to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskScopeInput {
+    /// `all`, `book` (a notebook and the ones inside it) or `tag`.
+    pub kind: String,
+    /// The notebook's ID or the tag's name; empty for `all`.
+    pub value: String,
+}
+
+/// One choice in the scope sheet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskScopeOption {
+    pub kind: String,
+    pub value: String,
+    /// "All notes", a notebook's path (`Work/Plans`) or `#tag`.
+    pub label: String,
+}
+
+/// One receipt: the lines an answer's sentence rests on, as they were sent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskReceipt {
+    /// Its number in the answer, from 1.
+    pub n: u32,
+    pub note_id: String,
+    pub title: String,
+    /// "Pricing \u{b7} lines 12\u{2013}14 \u{b7} 14 Oct".
+    pub label: String,
+    /// 0-based, inclusive.
+    pub start: u32,
+    pub end: u32,
+    /// The cited lines as they were sent.
+    pub quote: String,
+}
+
+/// A passage found for a question the notes do not answer.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskClosest {
+    pub note_id: String,
+    pub title: String,
+    pub start: u32,
+    pub end: u32,
+}
+
+/// The time a question was understood to be about.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AskTime {
+    /// "Written October 2026".
+    pub label: String,
+    /// The line that says the range was relaxed; empty when it wasn't.
+    pub relaxed_line: String,
+}
+
+/// Where a receipt's lines are now, 0-based and inclusive.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AskLines {
+    pub start: u32,
+    pub end: u32,
 }
 
 /// A provider to choose from, as the desktop's Settings › AI describes it.
@@ -95,13 +171,32 @@ pub enum AskEvent {
     Status { line: String },
     /// The whole answer so far.
     Answer { markdown: String },
-    /// The answer is complete. `notes` are all the notes it drew on.
+    /// The time the question was understood to be about.
+    Time { time: AskTime },
+    /// A note the earlier exchanges used is now kept out of AI, so they were
+    /// forgotten: drop them from the screen and say `line`.
+    Restarted { line: String },
+    /// The answer is complete and its receipts were checked. `notes` are all
+    /// the notes it drew on; `also_read` the ones it did not cite.
     Done {
         markdown: String,
         notes: Vec<AskNote>,
+        receipts: Vec<AskReceipt>,
+        also_read: Vec<AskNote>,
+        /// The banner over the answer; empty when there is none.
+        banner: String,
+        /// How many sentences are marked as not found.
+        unverified: u32,
+        /// How many sentences cite nothing in an answer that cites elsewhere.
+        no_source: u32,
+        /// The notes do not hold the answer: "You never wrote that down."
+        never_wrote: bool,
+        closest: Vec<AskClosest>,
+        time: Option<AskTime>,
     },
     /// Nothing in the notes matches the question, so no model was asked.
-    NothingMatches { message: String },
+    /// `narrow` is whether the scope was narrower than all notes.
+    NothingMatches { message: String, narrow: bool },
     /// The answer stopped before its end. What arrived stays shown.
     CutOff { message: String },
     /// The question couldn't be answered, in plain words.

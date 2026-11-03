@@ -161,11 +161,16 @@ void main() {
       final ai = await _pump(tester);
       await _ask(tester, 'q');
       ai.askUpdates.add(
-        const AskUpdate.error(message: 'The key was rejected.'),
+        const AskUpdate.error(message: '401 Unauthorized'),
       );
       await tester.pumpAndSettle();
       expect(find.text('Couldn’t answer'), findsOneWidget);
-      expect(find.text('The key was rejected.'), findsOneWidget);
+      expect(
+        find.text(
+          'Your model turned the key down. Check the API key in AI settings.',
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
       expect(ai.asked, <String>['q', 'q']);

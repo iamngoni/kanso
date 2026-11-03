@@ -60,6 +60,41 @@ pub struct NoteLink {
     /// The heading a wiki-link points at, as written.
     pub heading: Option<String>,
     pub line: u32,
+    /// The lines (0-based, inclusive) an ID link points at with `#L12` or
+    /// `#L12-14` after the note ID.
+    pub lines: Option<(u32, u32)>,
+}
+
+/// The lines a link's `#L12` / `#L12-14` anchor names, as 0-based inclusive
+/// `(first, last)`, from the text right after a note ID. `#L<digits>` and
+/// `#L<digits>-<digits>` are reserved for lines, so a heading literally
+/// named `L12` is only reachable by its wiki-link.
+pub fn line_anchor(after_id: &str) -> Option<(u32, u32)> {
+    let rest = after_id.strip_prefix("#L")?;
+    let digits = |text: &str| -> (Option<u32>, usize) {
+        let n = text.chars().take_while(char::is_ascii_digit).count();
+        (text[..n].parse().ok(), n)
+    };
+    let (first, n) = digits(rest);
+    let first = first.filter(|first| *first >= 1)?;
+    let tail = &rest[n..];
+    let last = match tail.strip_prefix('-') {
+        Some(after) => {
+            let (last, _) = digits(after);
+            last.filter(|last| *last >= first).unwrap_or(first)
+        }
+        None => first,
+    };
+    Some((first - 1, last - 1))
+}
+
+/// The anchor text for lines `first..=last` (0-based), as `L13` or `L13-15`.
+pub fn line_anchor_text(first: u32, last: u32) -> String {
+    if last > first {
+        format!("L{}-{}", first + 1, last + 1)
+    } else {
+        format!("L{}", first + 1)
+    }
 }
 
 /// A title as wiki-links match it: trimmed, inner whitespace collapsed to
@@ -260,6 +295,7 @@ pub fn note_links(body: &str) -> Vec<NoteLink> {
                     target: LinkTarget::Note(format!("note:{}", &rest[..end])),
                     heading: None,
                     line: line_of(body, at),
+                    lines: line_anchor(&rest[end..]),
                 },
             ));
         }
@@ -271,6 +307,7 @@ pub fn note_links(body: &str) -> Vec<NoteLink> {
                 target: LinkTarget::Title(normalize_title(&link.title)),
                 heading: link.heading,
                 line: line_of(body, link.range.start),
+                lines: None,
             },
         ));
     }
@@ -520,6 +557,19 @@ mod tests {
     }
 
     #[test]
+    fn an_id_link_can_name_lines() {
+        assert_eq!(line_anchor("#L12"), Some((11, 11)));
+        assert_eq!(line_anchor("#L12-14)"), Some((11, 13)));
+        assert_eq!(line_anchor("#L0"), None);
+        assert_eq!(line_anchor("#Lx"), None);
+        assert_eq!(line_anchor("#Heading"), None);
+        let links = note_links("[Pricing](inkdrop://note/abc#L12-14)");
+        assert_eq!(links[0].lines, Some((11, 13)));
+        assert_eq!(line_anchor_text(11, 13), "L12-14");
+        assert_eq!(line_anchor_text(11, 11), "L12");
+    }
+
+    #[test]
     fn note_links_find_both_kinds_in_order() {
         let body = "[[Two]]\nx [a](inkdrop://note/abc) y\n";
         let links = note_links(body);
@@ -529,12 +579,14 @@ mod tests {
                 NoteLink {
                     target: LinkTarget::Title("two".into()),
                     heading: None,
-                    line: 0
+                    line: 0,
+                    lines: None,
                 },
                 NoteLink {
                     target: LinkTarget::Note("note:abc".into()),
                     heading: None,
-                    line: 1
+                    line: 1,
+                    lines: None,
                 },
             ]
         );

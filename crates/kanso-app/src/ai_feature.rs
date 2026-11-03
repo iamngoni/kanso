@@ -29,7 +29,7 @@ pub type Maker = Arc<dyn Fn() -> Result<SharedProvider, String> + Send + Sync>;
 /// Whether note `id` may be sent to AI: it is not locked, not in the trash
 /// and not tagged `#ai-exclude`. The same decision Ask makes.
 pub fn eligible(store: &Store, id: &str) -> bool {
-    crate::ask::note_is_eligible(store, id)
+    kanso_engine::ask::note_is_eligible(store, id)
 }
 
 /// How a feature started now gets its provider, from the settings as they
@@ -233,6 +233,7 @@ pub(crate) mod testing {
             _tools: kanso_ai::ToolRegistry<()>,
             _on_tool_completed: Box<dyn FnMut() + Send>,
             _cancel: Arc<AtomicBool>,
+            _budget: &kanso_ai::Budget,
         ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
             *self.0.tool_asks.lock().unwrap() += 1;
             self.stream(prompt)

@@ -219,10 +219,11 @@ proptest! {
                 .chain(seeded.plain.iter())
                 .map(|note| format!("[[{}]] ", note.title))
                 .collect();
-            let model = Scripted::with(&format!("They are {cites}"), calls, Ending::Complete);
+            let answer = format!("They are {cites}");
+            let model = Scripted::with(&answer, calls, Ending::Complete);
             let ai = ai_on(&phone.library, &model);
             let (sink, rx) = listen();
-            ai.conversation().ask("Tell me about the quokka".into(), sink).unwrap();
+            ai.conversation().ask("Tell me about the quokka".into(), kanso_mobile::AskScopeInput { kind: "all".into(), value: String::new() }, false, 0, sink).unwrap();
             let heard = until(&rx, |e| {
                 matches!(
                     e,
@@ -230,12 +231,13 @@ proptest! {
                         | AskEvent::CutOff { .. } | AskEvent::Stopped
                 )
             });
-            let sent = model.everything_sent();
-            // The model's own echo of the IDs it asked for is not a leak.
+            // The model's own answer, handed back to it to add receipts, and
+            // its echo of the IDs it asked for, are not leaks.
+            let sent = model.everything_sent().replace(answer.trim_end(), "");
             assert_clean(&sent, &hidden, !reads_hidden)?;
             prop_assert!(sent.contains("Plainbody0"), "the plain notes must be sent");
 
-            let Some(AskEvent::Done { markdown, notes }) = heard.last() else {
+            let Some(AskEvent::Done { markdown, notes, .. }) = heard.last() else {
                 return Err(TestCaseError::fail(format!("no answer: {heard:?}")));
             };
             for event in &heard {
@@ -290,5 +292,148 @@ proptest! {
         let sent = model.everything_sent();
         prop_assert!(sent.contains(&plain.body), "the plain note was not sent");
         assert_clean(&sent, &hidden, true)?;
+    }
+}
+
+// ---- The repair request: what it sends, exactly -------------------------
+
+/// A long answer in the notes' own words, with no receipt markers, so the
+/// checker asks the model to add them.
+const UNCITED: &str = "The quokka facts in these notes say that a quokka is a small marsupial that lives on a few islands, eats leaves and grass, and rests in the shade. They also say nothing else that this answer could add.";
+
+/// The `user` text of a request body sent to the scripted model.
+fn user_text(body: &str) -> String {
+    let body: serde_json::Value = serde_json::from_str(body).unwrap();
+    body["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["role"] == "user")
+        .and_then(|m| m["content"].as_str())
+        .unwrap()
+        .to_owned()
+}
+
+fn ask_once(ai: &kanso_mobile::AiHandle, question: &str) -> Vec<AskEvent> {
+    let (sink, rx) = listen();
+    ai.conversation()
+        .ask(
+            question.into(),
+            kanso_mobile::AskScopeInput {
+                kind: "all".into(),
+                value: String::new(),
+            },
+            false,
+            0,
+            sink,
+        )
+        .unwrap();
+    until(&rx, |e| {
+        matches!(
+            e,
+            AskEvent::Done { .. }
+                | AskEvent::Failed { .. }
+                | AskEvent::NothingMatches { .. }
+                | AskEvent::CutOff { .. }
+                | AskEvent::Stopped
+        )
+    })
+}
+
+const REPAIR_TAIL: &str = "\n\nAdd the citations to this answer in the [n:Lx] format. Remove any sentence you cannot cite. Change nothing else.";
+
+// no-prop-test: pins one request exactly; the property cases are above.
+#[test]
+fn the_repair_request_is_the_first_prompt_the_answer_and_nothing_more() {
+    let (phone, _seeded, _anchor) = library_for(&Library {
+        plain: 2,
+        sealed: 1,
+        in_locked_book: 1,
+        in_nested_book: 1,
+        trashed: 1,
+        excluded: 1,
+    });
+    let model = Scripted::new(UNCITED);
+    let ai = ai_on(&phone.library, &model);
+    ask_once(&ai, "Tell me about the quokka");
+    let sent = model.sent.lock().unwrap().clone();
+    assert_eq!(sent.len(), 2, "one question and one repair");
+    let first = user_text(&sent[0]);
+    let repair = user_text(&sent[1]);
+    assert_eq!(
+        repair,
+        format!("{first}\n\nAnswer to repair:\n{UNCITED}{REPAIR_TAIL}")
+    );
+}
+
+// no-prop-test: pins one request exactly; the property cases are above.
+#[test]
+fn the_repair_request_carries_the_lines_the_tools_read_and_no_others() {
+    let (phone, seeded, anchor) = library_for(&Library {
+        plain: 2,
+        sealed: 1,
+        in_locked_book: 1,
+        in_nested_book: 0,
+        trashed: 1,
+        excluded: 1,
+    });
+    let store = Store::open(phone.path()).unwrap();
+    let notes = book(&store, "Notes");
+    let aside = raw_note(
+        &store,
+        json!({"title": "Aside", "body": "kiwi facts Asidebody", "bookId": notes}),
+    );
+    let model = Scripted::with(
+        UNCITED,
+        vec![("read_note", json!({"id": aside}).to_string())],
+        Ending::Complete,
+    );
+    let ai = ai_on(&phone.library, &model);
+    ask_once(&ai, "Tell me about the quokka");
+    let sent = model.sent.lock().unwrap().clone();
+    let repair = user_text(sent.last().unwrap());
+    assert!(
+        repair.contains("Lines you read with your tools:"),
+        "{repair}"
+    );
+    assert!(repair.contains("Asidebody"), "{repair}");
+    assert!(
+        repair.contains(&format!("Answer to repair:\n{UNCITED}")),
+        "{repair}"
+    );
+    let mut hidden = seeded.hidden;
+    hidden.push(anchor);
+    assert_clean(&repair, &hidden, true).unwrap();
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 24,
+        failure_persistence: None,
+        ..ProptestConfig::default()
+    })]
+
+    /// The same attack with an answer that names no kept-out title: nothing
+    /// of the kept-out notes is in any request, repair included, and nothing
+    /// is stripped from what is checked.
+    #[test]
+    fn prop_ask_repair_never_sends_a_kept_out_note(shape in libraries()) {
+        let (phone, seeded, anchor) = library_for(&shape);
+        let mut hidden: Vec<Hidden> = seeded.hidden;
+        hidden.push(anchor);
+        for reads_hidden in [false, true] {
+            let mut calls = vec![("search_notes", json!({"query": "quokka"}).to_string())];
+            if reads_hidden {
+                for note in &hidden {
+                    calls.push(("read_note", json!({"id": note.id}).to_string()));
+                }
+            }
+            let model = Scripted::with(UNCITED, calls, Ending::Complete);
+            let ai = ai_on(&phone.library, &model);
+            ask_once(&ai, "Tell me about the quokka");
+            let sent = model.everything_sent();
+            prop_assert!(sent.contains("Answer to repair"), "the repair must have run");
+            assert_clean(&sent, &hidden, !reads_hidden)?;
+        }
     }
 }

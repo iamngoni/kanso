@@ -47,7 +47,18 @@ fn ask(
 ) -> Vec<AskEvent> {
     let _ = ai;
     let (sink, rx) = listen();
-    conversation.ask(q.to_owned(), sink).unwrap();
+    conversation
+        .ask(
+            q.to_owned(),
+            kanso_mobile::AskScopeInput {
+                kind: "all".into(),
+                value: String::new(),
+            },
+            false,
+            0,
+            sink,
+        )
+        .unwrap();
     until(&rx, is_end)
 }
 
@@ -69,6 +80,9 @@ fn settings_round_trip_and_the_key_lives_only_in_the_secret_store() {
             base_url: String::new(),
             model: String::new(),
             region: "ignored".into(),
+            ask_budget: String::new(),
+            check_sources: true,
+            use_links: true,
         })
         .unwrap();
     assert!(saved.enabled);
@@ -154,7 +168,16 @@ fn nothing_is_asked_while_ai_is_off() {
     let ai = phone.library.ai_with_provider(maker_of(model.clone()));
     let (sink, _rx) = listen();
     assert_eq!(
-        ai.conversation().ask("pricing?".into(), sink),
+        ai.conversation().ask(
+            "pricing?".into(),
+            kanso_mobile::AskScopeInput {
+                kind: "all".into(),
+                value: String::new()
+            },
+            false,
+            0,
+            sink
+        ),
         Err(invalid(AI_OFF))
     );
     let (sink, _rx) = listen();
@@ -188,7 +211,8 @@ fn a_question_nothing_matches_calls_no_model() {
     assert_eq!(
         events.last(),
         Some(&AskEvent::NothingMatches {
-            message: NOTHING_MATCHES.into()
+            message: NOTHING_MATCHES.into(),
+            narrow: false
         })
     );
     assert_eq!(model.request_count(), 0);
@@ -213,7 +237,10 @@ fn a_citation_becomes_a_link_that_names_the_note() {
     );
     assert_eq!(events.first(), Some(&AskEvent::Searching));
     assert!(events.iter().any(|e| matches!(e, AskEvent::Answer { .. })));
-    let Some(AskEvent::Done { markdown, notes }) = events.last() else {
+    let Some(AskEvent::Done {
+        markdown, notes, ..
+    }) = events.last()
+    else {
         panic!("{events:?}");
     };
     assert!(
@@ -274,16 +301,20 @@ fn stop_cancels_the_answer_and_ends_the_stream() {
     let conversation = ai.conversation();
     let (sink, rx) = listen();
     conversation
-        .ask("yearly plan pricing".into(), sink)
+        .ask(
+            "yearly plan pricing".into(),
+            kanso_mobile::AskScopeInput {
+                kind: "all".into(),
+                value: String::new(),
+            },
+            false,
+            0,
+            sink,
+        )
         .unwrap();
     let mut heard = Vec::new();
-    // The tool ran (the second list of notes), and the answer then hangs.
-    while heard
-        .iter()
-        .filter(|e| matches!(e, AskEvent::Used { .. }))
-        .count()
-        < 2
-    {
+    // The notes were read, and the answer then hangs.
+    while !heard.iter().any(|e| matches!(e, AskEvent::Used { .. })) {
         heard.push(
             rx.recv_timeout(std::time::Duration::from_secs(20))
                 .unwrap_or_else(|_| panic!("heard only {heard:?}")),
@@ -380,7 +411,13 @@ fn an_exchange_whose_note_gets_locked_is_forgotten() {
         .unwrap();
     // The next question (about something else) drops the exchange first.
     note(&phone.library, "Garden", "Tomatoes need staking in July.");
-    ask(&ai, &conversation, "tomatoes staking");
+    let events = ask(&ai, &conversation, "tomatoes staking");
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, AskEvent::Restarted { .. })),
+        "{events:?}"
+    );
     assert_eq!(conversation.turn_count(), 1);
     let sent = model.sent.lock().unwrap().last().cloned().unwrap();
     assert!(!sent.contains("The plan costs 40 dollars, see"), "{sent}");
@@ -565,4 +602,214 @@ fn the_test_button_asks_the_server_the_settings_name() {
         panic!("a missing key must be refused");
     };
     assert!(message.contains("API key"), "{message}");
+}
+
+// no-prop-test: one scripted answer with a good and a made-up receipt.
+#[test]
+fn receipts_are_checked_and_a_made_up_one_is_marked_not_found() {
+    let model = Scripted::new(
+        "We decided the yearly plan costs 40 dollars [1:L1]. The price doubles next year [1:L40].",
+    );
+    let (phone, ai) = ai_phone(&model);
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let events = ask(
+        &ai,
+        &ai.conversation(),
+        "What did we decide about the yearly plan pricing?",
+    );
+    let Some(AskEvent::Done {
+        markdown,
+        receipts,
+        unverified,
+        never_wrote,
+        ..
+    }) = events.last()
+    else {
+        panic!("{events:?}");
+    };
+    assert_eq!(receipts.len(), 1, "{markdown}");
+    assert_eq!(receipts[0].note_id, id);
+    assert_eq!((receipts[0].start, receipts[0].end), (0, 0));
+    assert!(markdown.contains("](kanso-cite:1)"), "{markdown}");
+    assert_eq!(*unverified, 1);
+    assert!(markdown.contains("Not found in your notes"), "{markdown}");
+    assert!(!never_wrote);
+}
+
+// no-prop-test: the sentinel is one fixed word.
+#[test]
+fn the_sentinel_says_you_never_wrote_that_down() {
+    let model = Scripted::new("NOT_IN_NOTES");
+    let (phone, ai) = ai_phone(&model);
+    note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let events = ask(&ai, &ai.conversation(), "yearly plan pricing decision");
+    let Some(AskEvent::Done {
+        never_wrote,
+        closest,
+        ..
+    }) = events.last()
+    else {
+        panic!("{events:?}");
+    };
+    assert!(never_wrote);
+    assert!(!closest.is_empty(), "the closest notes are offered");
+}
+
+// no-prop-test: one answer saved once.
+#[test]
+fn saving_an_answer_writes_one_note_with_its_sources() {
+    let model = Scripted::new("The yearly plan costs 40 dollars [1:L1].");
+    let (phone, ai) = ai_phone(&model);
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let conversation = ai.conversation();
+    assert!(conversation.save_last().is_err(), "nothing to save yet");
+    ask(&ai, &conversation, "yearly plan pricing cost");
+    let saved = conversation.save_last().unwrap();
+    let note = phone.library.note(&saved).unwrap();
+    assert_eq!(note.title, "Q: yearly plan pricing cost");
+    assert!(
+        note.body.clone().unwrap_or_default().contains(&format!(
+            "inkdrop://note/{}#L1",
+            id.trim_start_matches("note:")
+        )),
+        "{}",
+        note.body.clone().unwrap_or_default()
+    );
+}
+
+// no-prop-test: settings are a fixed round trip.
+#[test]
+fn the_ask_settings_round_trip_and_state_their_cost() {
+    let model = Scripted::new("never");
+    let (_phone, ai) = ai_phone(&model);
+    let before = ai.settings().unwrap();
+    assert!(before.check_sources && before.use_links);
+    let mut input = custom_settings(true);
+    input.ask_budget = "large".into();
+    input.check_sources = false;
+    let now = ai.set_settings(input).unwrap();
+    assert_eq!(now.ask_budget, "large");
+    assert!(!now.check_sources);
+    assert_eq!(
+        now.budget_words_line,
+        "About 7,500 words of your notes per question."
+    );
+}
+
+/// Writes a note's body straight into the store.
+fn set_body(phone: &Phone, id: &str, body: &str) {
+    Store::open(phone.path())
+        .unwrap()
+        .put(
+            DocType::Note,
+            json!({"_id": id, "body": body}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+}
+
+// no-prop-test: one scripted answer with a cited and an uncited sentence.
+#[test]
+fn a_sentence_with_no_source_is_counted_in_an_answer_that_cites() {
+    let model = Scripted::new(
+        "We decided the yearly plan costs 40 dollars [1:L1]. It will probably go up someday.",
+    );
+    let (phone, ai) = ai_phone(&model);
+    note(
+        &phone.library,
+        "Pricing",
+        "We decided the yearly plan costs 40 dollars.",
+    );
+    let events = ask(&ai, &ai.conversation(), "yearly plan pricing decision");
+    let Some(AskEvent::Done {
+        markdown,
+        no_source,
+        unverified,
+        ..
+    }) = events.last()
+    else {
+        panic!("{events:?}");
+    };
+    assert_eq!((*no_source, *unverified), (1, 0), "{markdown}");
+    assert!(markdown.contains("kanso-nosource:"), "{markdown}");
+}
+
+// no-prop-test: a note gets #ai-exclude between two questions.
+#[test]
+fn a_note_that_gets_ai_exclude_ends_the_conversation_that_used_it() {
+    let model = Scripted::new("The plan costs 40 dollars, see [[Pricing]].");
+    let (phone, ai) = ai_phone(&model);
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "The yearly plan costs 40 dollars.",
+    );
+    note(&phone.library, "Garden", "Tomatoes need staking in July.");
+    let conversation = ai.conversation();
+    let first = ask(&ai, &conversation, "yearly plan pricing");
+    assert!(
+        !first
+            .iter()
+            .any(|e| matches!(e, AskEvent::Restarted { .. }))
+    );
+    let store = Store::open(phone.path()).unwrap();
+    let exclude = tag(&store, "AI-Exclude");
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "tags": [exclude]}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let second = ask(&ai, &conversation, "tomatoes staking");
+    assert!(
+        second
+            .iter()
+            .any(|e| matches!(e, AskEvent::Restarted { .. })),
+        "{second:?}"
+    );
+    assert_eq!(conversation.turn_count(), 1, "only the new exchange");
+    let sent = model.sent.lock().unwrap().last().cloned().unwrap();
+    assert!(!sent.contains("The plan costs 40 dollars, see"), "{sent}");
+}
+
+// no-prop-test: lines that moved, and lines that are gone.
+#[test]
+fn a_receipts_lines_are_found_again_after_the_note_changes() {
+    let phone = lone_phone();
+    let id = note(
+        &phone.library,
+        "Pricing",
+        "We chose the yearly plan.\n40 dollars a year.\nBilled once.",
+    );
+    let ai = phone.library.ai();
+    let quote = "40 dollars a year.";
+    // Unchanged: the same lines.
+    let same = ai.relocate_receipt(&id, 1, 1, quote).unwrap().unwrap();
+    assert_eq!((same.start, same.end), (1, 1));
+    // Lines added above: found where they are now.
+    set_body(
+        &phone,
+        &id,
+        "Intro line.\nAnother.\nWe chose the yearly plan.\n40 dollars a year.\nBilled once.",
+    );
+    let moved = ai.relocate_receipt(&id, 1, 1, quote).unwrap().unwrap();
+    assert_eq!((moved.start, moved.end), (3, 3));
+    // Gone.
+    set_body(&phone, &id, "Nothing about money here.");
+    assert_eq!(ai.relocate_receipt(&id, 1, 1, quote).unwrap(), None);
 }

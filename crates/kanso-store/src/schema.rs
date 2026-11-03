@@ -300,6 +300,24 @@ CREATE INDEX IF NOT EXISTS card_log_at ON card_log (at);
 CREATE INDEX IF NOT EXISTS card_log_card ON card_log (card_key);
 CREATE INDEX IF NOT EXISTS card_log_note ON card_log (note_id);
 "#,
+    // Ask with receipts (issue #199, `passage_embed.rs`): a vector for each
+    // passage of a note longer than the text its own vector is made from,
+    // so the tail of a long note can be found by meaning. Local to this
+    // device like `note_embeddings`, never synced, emptied with the library
+    // and when related notes are turned off. `start_line` and `end_line`
+    // are 0-based lines of the body, as `kanso_core::passages` counts them.
+    r#"
+CREATE TABLE IF NOT EXISTS passage_embeddings (
+    note_id TEXT NOT NULL,
+    start_line INTEGER NOT NULL,
+    end_line INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    dim INTEGER NOT NULL,
+    vector BLOB NOT NULL,
+    content_hash TEXT NOT NULL,
+    PRIMARY KEY (note_id, start_line, model)
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -510,7 +528,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let conn = connect(&dir.path().join("k.db")).unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(MIGRATIONS.len(), 15);
         assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "note_passages", "end_byte"));
         assert!(has_column(&conn, "resurface_dismissed", "other_id"));
@@ -520,7 +537,7 @@ mod tests {
         assert!(has_column(&conn, "file_text", "md5"));
         // Running it again changes nothing.
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 15);
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "note_files", "file_id"));
         assert!(has_column(&conn, "revisions", "author"));
         assert!(has_column(&conn, "revisions", "agent"));
@@ -544,7 +561,7 @@ mod tests {
         assert!(!has_column(&conn, "note_embeddings", "vector"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 15);
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "revisions", "batch"));
         assert!(has_column(&conn, "note_embeddings", "vector"));
         assert!(has_column(&conn, "file_text", "text"));
@@ -568,7 +585,7 @@ mod tests {
         assert!(!has_column(&conn, "triage_dismissed", "value"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(version(&conn), 15);
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "triage_dismissed", "value"));
         assert!(has_column(&conn, "note_loops", "key"));
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
@@ -591,8 +608,7 @@ mod tests {
         assert!(!has_column(&conn, "note_loops", "key"));
         set_meta(&conn, "kept", "yes").unwrap();
         migrate(&conn).unwrap();
-        assert_eq!(MIGRATIONS.len(), 15);
-        assert_eq!(version(&conn), 15);
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "note_loops", "key"));
         assert!(has_column(&conn, "finished_items", "at"));
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
@@ -627,5 +643,34 @@ mod tests {
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
         // Running it again changes nothing.
         migrate(&conn).unwrap();
+    }
+
+    /// A database pinned at version 15 (flashcards) moves to head (Ask with
+    /// receipts) keeping what it had, and the passage vectors table works.
+    #[test]
+    fn version_fifteen_moves_to_sixteen() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db")).unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(15).enumerate() {
+            conn.execute_batch(&format!(
+                "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
+                index + 1
+            ))
+            .unwrap();
+        }
+        assert_eq!(version(&conn), 15);
+        assert!(!has_column(&conn, "passage_embeddings", "vector"));
+        set_meta(&conn, "kept", "yes").unwrap();
+        migrate(&conn).unwrap();
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
+        assert!(has_column(&conn, "passage_embeddings", "content_hash"));
+        assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+        conn.execute(
+            "INSERT INTO passage_embeddings VALUES ('n', 0, 3, 'm', 1, x'00000000', 'h')",
+            [],
+        )
+        .unwrap();
+        // Running a migration that was already applied changes nothing.
+        conn.execute_batch(MIGRATIONS[15]).unwrap();
     }
 }

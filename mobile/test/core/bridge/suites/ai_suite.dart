@@ -86,6 +86,9 @@ AiSettingsInput _settings(String baseUrl, {bool enabled = true}) =>
       baseUrl: baseUrl,
       model: 'test-model',
       region: '',
+      askBudget: 'standard',
+      checkSources: true,
+      useLinks: true,
     );
 
 /// The AI features, through the bridge: every call of `KansoAi`,
@@ -153,7 +156,12 @@ void aiSuite(OpenLibrary open) {
       final id = await makeNote(library, 'Plan', 'We ship on friday.');
       final asked = await ai
           .conversation()
-          .ask(question: 'when do we ship?')
+          .ask(
+            question: 'when do we ship?',
+            scope: const AskScopeInput(kind: 'all', value: ''),
+            ignoreTime: false,
+            utcOffsetMinutes: 0,
+          )
           .toList();
       expect(
         asked.single,
@@ -181,7 +189,12 @@ void aiSuite(OpenLibrary open) {
 
       final conversation = ai.conversation();
       final events = await conversation
-          .ask(question: 'What did we decide about the yearly plan pricing?')
+          .ask(
+            question: 'What did we decide about the yearly plan pricing?',
+            scope: const AskScopeInput(kind: 'all', value: ''),
+            ignoreTime: false,
+            utcOffsetMinutes: 0,
+          )
           .toList();
       expect(events.first, isA<AskEvent_Searching>());
       expect(events.any((e) => e is AskEvent_Answer), isTrue);
@@ -192,6 +205,32 @@ void aiSuite(OpenLibrary open) {
       expect(conversation.turnCount(), 1);
       // The id the link carries opens the note.
       expect((await library.note(id: id)).title, 'Pricing');
+
+      // A receipt's lines are found again where they are now, or not at all.
+      final here = await ai.relocateReceipt(
+        noteId: id,
+        start: 0,
+        end: 0,
+        quote: 'We decided the yearly plan costs 40 dollars.',
+      );
+      expect((here?.start, here?.end), (0, 0));
+      expect(
+        await ai.relocateReceipt(
+          noteId: id,
+          start: 0,
+          end: 0,
+          quote: 'Nothing like this was ever written.',
+        ),
+        isNull,
+      );
+      // What a question can be limited to starts with all notes.
+      final scopes = await ai.askScopes();
+      expect(scopes.first.kind, 'all');
+      // The answer saves as a note, and the newest exchange can be dropped.
+      final saved = await conversation.saveLast();
+      expect((await library.note(id: saved)).title, startsWith('Q:'));
+      conversation.forgetLast();
+      expect(conversation.turnCount(), 0);
 
       conversation.clear();
       expect(conversation.turnCount(), 0);
@@ -207,7 +246,12 @@ void aiSuite(OpenLibrary open) {
       await makeNote(library, 'Pricing', 'The yearly plan costs 40 dollars.');
       final events = await ai
           .conversation()
-          .ask(question: 'quantum chromodynamics lattice')
+          .ask(
+            question: 'quantum chromodynamics lattice',
+            scope: const AskScopeInput(kind: 'all', value: ''),
+            ignoreTime: false,
+            utcOffsetMinutes: 0,
+          )
           .toList();
       expect(
         events.last,

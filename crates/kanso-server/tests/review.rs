@@ -323,7 +323,16 @@ async fn with_the_setting_off_the_write_tools_are_read_only() {
         .iter()
         .map(|tool| tool["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["read-note", "search-notes"]);
+    assert_eq!(
+        names,
+        [
+            "read-note",
+            "search-notes",
+            "kanso-ask-read-lines",
+            "kanso-ask-search",
+            "kanso-ask-when"
+        ]
+    );
 }
 
 #[tokio::test]

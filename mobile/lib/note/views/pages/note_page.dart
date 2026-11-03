@@ -33,6 +33,7 @@ class NotePage extends StatelessWidget {
     required this.noteId,
     this.inPane = false,
     this.bodyLine,
+    this.bodyLineEnd,
     this.cursor16,
     this.titleFirst = false,
     super.key,
@@ -46,6 +47,9 @@ class NotePage extends StatelessWidget {
 
   /// A task source line to open in Edit, if a reminder led here.
   final int? bodyLine;
+
+  /// The last line of a range to mark from [bodyLine], for a few seconds.
+  final int? bodyLineEnd;
 
   /// A template cursor in UTF-16 units, if a template led here.
   final int? cursor16;
@@ -61,7 +65,8 @@ class NotePage extends StatelessWidget {
     return BlocProvider<NoteBloc>(
       // Another note is a new read: nothing of the last is kept.
       key: ValueKey<String>(
-        '$noteId:${bodyLine ?? ''}:${cursor16 ?? ''}:$titleFirst',
+        '$noteId:${bodyLine ?? ''}:${bodyLineEnd ?? ''}:'
+        '${cursor16 ?? ''}:$titleFirst',
       ),
       create: (context) {
         // A note opened by a link, or any way but a list, is a visit too;
@@ -74,6 +79,7 @@ class NotePage extends StatelessWidget {
             noteId,
             themeId,
             bodyLine: bodyLine,
+            bodyLineEnd: bodyLineEnd,
             cursor16: cursor16,
             titleFirst: titleFirst,
           ),

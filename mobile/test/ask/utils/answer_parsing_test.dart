@@ -172,6 +172,27 @@ void main() {
       ]);
     });
 
+    test('a receipt and an unverified sentence become their own spans', () {
+      expect(
+        parseAnswerInline(
+          'It costs 40. [1](kanso-cite:1) [Unsure.](kanso-unverified:2)',
+        ),
+        <AnswerSpan>[
+          const AnswerSpan.text('It costs 40. '),
+          const AnswerSpan.receipt(text: '1', n: 1),
+          const AnswerSpan.text(' '),
+          const AnswerSpan.unverified(text: 'Unsure.'),
+        ],
+      );
+    });
+
+    test('a sentence with no source becomes its own span', () {
+      expect(
+        parseAnswerInline('[Maybe so.](kanso-nosource:1)'),
+        <AnswerSpan>[const AnswerSpan.noSource(text: 'Maybe so.')],
+      );
+    });
+
     Glados<String>(_hostileText, kansoExploreConfig()).test(
       'for any text: no image, and links only to notes or web pages',
       (source) {
@@ -184,6 +205,12 @@ void main() {
               expect(RegExp(r'!\[[^\]]*\]\([^)]*\)').hasMatch(text), isFalse);
             case AnswerNoteLink(:final noteId):
               expect(noteId, isNotEmpty);
+            case AnswerReceiptMark(:final n):
+              expect(n, greaterThan(0));
+            case AnswerUnverified(:final text):
+              expect(text, isNotEmpty);
+            case AnswerNoSource(:final text):
+              expect(text, isNotEmpty);
             case AnswerWebLink(:final url):
               final uri = Uri.parse(url);
               expect(<String>['http', 'https'], contains(uri.scheme));

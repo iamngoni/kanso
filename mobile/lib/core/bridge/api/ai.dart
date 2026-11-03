@@ -11,13 +11,16 @@ import 'types.dart';
 part 'ai.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAi>>
 abstract class KansoAi implements RustOpaqueInterface {
   List<AiAction> actions();
 
   KansoAgentTasks agentTasks();
+
+  /// What a question can be limited to: all notes, notebooks, tags.
+  Future<List<AskScopeOption>> askScopes();
 
   /// The suggestion's events, until it ends or Dart stops listening. A
   /// request that can't start (AI off, a note kept out) is one `Failed`
@@ -48,6 +51,15 @@ abstract class KansoAi implements RustOpaqueInterface {
 
   List<AiProviderInfo> providers();
 
+  /// Where the lines a receipt pointed at are now, or `None` when they
+  /// are gone.
+  Future<AskLines?> relocateReceipt({
+    required String noteId,
+    required int start,
+    required int end,
+    required String quote,
+  });
+
   /// Saves the key in the phone's secret store; empty removes it.
   Future<void> setKey({required String provider, required String key});
 
@@ -76,9 +88,20 @@ abstract class KansoAiRun implements RustOpaqueInterface {
 abstract class KansoAskConversation implements RustOpaqueInterface {
   /// The answer's events, until it ends or Dart stops listening. A question
   /// that can't start (AI off, no key) is one `Failed` event with the reason.
-  Stream<AskEvent> ask({required String question});
+  Stream<AskEvent> ask({
+    required String question,
+    required AskScopeInput scope,
+    required bool ignoreTime,
+    required int utcOffsetMinutes,
+  });
 
   void clear();
+
+  /// Forgets the newest exchange.
+  void forgetLast();
+
+  /// Saves the newest answer as a note and returns its ID.
+  Future<String> saveLast();
 
   void stop();
 
@@ -171,6 +194,9 @@ class AiSettingsInput {
   final String baseUrl;
   final String model;
   final String region;
+  final String askBudget;
+  final bool checkSources;
+  final bool useLinks;
 
   const AiSettingsInput({
     required this.enabled,
@@ -178,6 +204,9 @@ class AiSettingsInput {
     required this.baseUrl,
     required this.model,
     required this.region,
+    required this.askBudget,
+    required this.checkSources,
+    required this.useLinks,
   });
 
   @override
@@ -186,7 +215,10 @@ class AiSettingsInput {
       provider.hashCode ^
       baseUrl.hashCode ^
       model.hashCode ^
-      region.hashCode;
+      region.hashCode ^
+      askBudget.hashCode ^
+      checkSources.hashCode ^
+      useLinks.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -197,7 +229,10 @@ class AiSettingsInput {
           provider == other.provider &&
           baseUrl == other.baseUrl &&
           model == other.model &&
-          region == other.region;
+          region == other.region &&
+          askBudget == other.askBudget &&
+          checkSources == other.checkSources &&
+          useLinks == other.useLinks;
 }
 
 /// AI preferences exposed to Settings. The API key itself never crosses the
@@ -211,6 +246,11 @@ class AiSettingsView {
   final bool hasKey;
   final String host;
   final bool isRemote;
+  final String askBudget;
+  final String budgetWordsLine;
+  final String budgetCostLine;
+  final bool checkSources;
+  final bool useLinks;
 
   const AiSettingsView({
     required this.enabled,
@@ -221,6 +261,11 @@ class AiSettingsView {
     required this.hasKey,
     required this.host,
     required this.isRemote,
+    required this.askBudget,
+    required this.budgetWordsLine,
+    required this.budgetCostLine,
+    required this.checkSources,
+    required this.useLinks,
   });
 
   @override
@@ -232,7 +277,12 @@ class AiSettingsView {
       region.hashCode ^
       hasKey.hashCode ^
       host.hashCode ^
-      isRemote.hashCode;
+      isRemote.hashCode ^
+      askBudget.hashCode ^
+      budgetWordsLine.hashCode ^
+      budgetCostLine.hashCode ^
+      checkSources.hashCode ^
+      useLinks.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -246,7 +296,41 @@ class AiSettingsView {
           region == other.region &&
           hasKey == other.hasKey &&
           host == other.host &&
-          isRemote == other.isRemote;
+          isRemote == other.isRemote &&
+          askBudget == other.askBudget &&
+          budgetWordsLine == other.budgetWordsLine &&
+          budgetCostLine == other.budgetCostLine &&
+          checkSources == other.checkSources &&
+          useLinks == other.useLinks;
+}
+
+/// A passage found for a question the notes do not answer.
+class AskClosest {
+  final String noteId;
+  final String title;
+  final int start;
+  final int end;
+
+  const AskClosest({
+    required this.noteId,
+    required this.title,
+    required this.start,
+    required this.end,
+  });
+
+  @override
+  int get hashCode =>
+      noteId.hashCode ^ title.hashCode ^ start.hashCode ^ end.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AskClosest &&
+          runtimeType == other.runtimeType &&
+          noteId == other.noteId &&
+          title == other.title &&
+          start == other.start &&
+          end == other.end;
 }
 
 @freezed
@@ -263,12 +347,27 @@ sealed class AskEvent with _$AskEvent {
   const factory AskEvent.answer({
     required String markdown,
   }) = AskEvent_Answer;
+  const factory AskEvent.time({
+    required AskTime time,
+  }) = AskEvent_Time;
+  const factory AskEvent.restarted({
+    required String line,
+  }) = AskEvent_Restarted;
   const factory AskEvent.done({
     required String markdown,
     required List<AskNote> notes,
+    required List<AskReceipt> receipts,
+    required List<AskNote> alsoRead,
+    required String banner,
+    required int unverified,
+    required int noSource,
+    required bool neverWrote,
+    required List<AskClosest> closest,
+    AskTime? time,
   }) = AskEvent_Done;
   const factory AskEvent.nothingMatches({
     required String message,
+    required bool narrow,
   }) = AskEvent_NothingMatches;
   const factory AskEvent.cutOff({
     required String message,
@@ -277,6 +376,28 @@ sealed class AskEvent with _$AskEvent {
     required String message,
   }) = AskEvent_Failed;
   const factory AskEvent.stopped() = AskEvent_Stopped;
+}
+
+/// Where a receipt's lines are now, 0-based and inclusive.
+class AskLines {
+  final int start;
+  final int end;
+
+  const AskLines({
+    required this.start,
+    required this.end,
+  });
+
+  @override
+  int get hashCode => start.hashCode ^ end.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AskLines &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end;
 }
 
 /// A title and ID for a note the answer used; note text never crosses the
@@ -300,6 +421,119 @@ class AskNote {
           runtimeType == other.runtimeType &&
           id == other.id &&
           title == other.title;
+}
+
+/// The lines an answer's sentence rests on, as they were sent.
+class AskReceipt {
+  final int n;
+  final String noteId;
+  final String title;
+  final String label;
+  final int start;
+  final int end;
+  final String quote;
+
+  const AskReceipt({
+    required this.n,
+    required this.noteId,
+    required this.title,
+    required this.label,
+    required this.start,
+    required this.end,
+    required this.quote,
+  });
+
+  @override
+  int get hashCode =>
+      n.hashCode ^
+      noteId.hashCode ^
+      title.hashCode ^
+      label.hashCode ^
+      start.hashCode ^
+      end.hashCode ^
+      quote.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AskReceipt &&
+          runtimeType == other.runtimeType &&
+          n == other.n &&
+          noteId == other.noteId &&
+          title == other.title &&
+          label == other.label &&
+          start == other.start &&
+          end == other.end &&
+          quote == other.quote;
+}
+
+/// What a question is limited to: `all`, `book` (notebook ID) or `tag`.
+class AskScopeInput {
+  final String kind;
+  final String value;
+
+  const AskScopeInput({
+    required this.kind,
+    required this.value,
+  });
+
+  @override
+  int get hashCode => kind.hashCode ^ value.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AskScopeInput &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          value == other.value;
+}
+
+/// One choice in the scope sheet.
+class AskScopeOption {
+  final String kind;
+  final String value;
+  final String label;
+
+  const AskScopeOption({
+    required this.kind,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  int get hashCode => kind.hashCode ^ value.hashCode ^ label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AskScopeOption &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          value == other.value &&
+          label == other.label;
+}
+
+/// The time a question was understood to be about.
+class AskTime {
+  final String label;
+  final String relaxedLine;
+
+  const AskTime({
+    required this.label,
+    required this.relaxedLine,
+  });
+
+  @override
+  int get hashCode => label.hashCode ^ relaxedLine.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AskTime &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          relaxedLine == other.relaxedLine;
 }
 
 @freezed

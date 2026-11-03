@@ -86,6 +86,9 @@ pub(crate) fn call(
         ("kanso-run-query-view", vis) => run_query_view(store, vis, &args),
         ("kanso-list-versions", vis) => list_versions(store, vis, &args),
         ("kanso-read-version", vis) => read_version(store, vis, &args),
+        ("kanso-ask-search", Some(vis)) => ask_search(store, vis, &args),
+        ("kanso-ask-read-lines", Some(vis)) => ask_read_lines(vis, &args),
+        ("kanso-ask-when", Some(vis)) => ask_when(store, vis, &args),
         // Nothing else is ever an agent's; the scope is checked before this.
         (_, Some(_)) => Err(ToolError(super::READ_ONLY.to_owned())),
         (name, None) => call_full(state, name, args),
@@ -1472,6 +1475,226 @@ fn read_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
         });
     }
     result(blocks)
+}
+
+// ---- Ask's numbered tools ---------------------------------------------------
+
+/// The most characters of one line shown to a model.
+const ASK_LINE_MAX: usize = 400;
+/// The most lines `kanso-ask-read-lines` returns.
+const ASK_READ_LINES: u32 = 200;
+/// The most matching lines `kanso-ask-search` shows per note.
+const ASK_MATCH_LINES: usize = 6;
+
+fn ask_cut(line: &str) -> String {
+    let line = line.trim_end_matches('\r');
+    match line.char_indices().nth(ASK_LINE_MAX) {
+        Some((at, _)) => format!("{}…", &line[..at]),
+        None => line.to_owned(),
+    }
+}
+
+/// One numbered note as the tools show it: a header and `L12| text` rows
+/// (1-based).
+fn ask_block(number: usize, note: &kanso_core::Note, lines: &[(u32, String)]) -> String {
+    let title = if note.title.trim().is_empty() {
+        "Untitled"
+    } else {
+        note.title.trim()
+    };
+    let mut out = format!(
+        "[{number}] {title} \u{b7} {}\n",
+        scope::day_of(note.updated_at)
+    );
+    for (n, text) in lines {
+        out.push_str(&format!("L{}| {text}\n", n + 1));
+    }
+    out
+}
+
+fn ask_words(query: &str) -> Vec<String> {
+    query
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|word| word.chars().count() >= 3)
+        .map(str::to_lowercase)
+        .collect()
+}
+
+/// The lines of `body` to show for `words`: those that hold one, else the
+/// first non-blank lines.
+fn ask_matching_lines(body: &str, words: &[String]) -> Vec<(u32, String)> {
+    let all: Vec<&str> = body.split('\n').collect();
+    let mut hits: Vec<(u32, String)> = all
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| {
+            let lower = line.to_lowercase();
+            words.iter().any(|word| lower.contains(word.as_str()))
+        })
+        .take(ASK_MATCH_LINES)
+        .map(|(n, line)| (n as u32, ask_cut(line)))
+        .collect();
+    if hits.is_empty() {
+        hits = all
+            .iter()
+            .enumerate()
+            .filter(|(_, line)| !line.trim().is_empty())
+            .take(3)
+            .map(|(n, line)| (n as u32, ask_cut(line)))
+            .collect();
+    }
+    hits
+}
+
+fn ask_limit(args: &Args, default: usize, max: usize) -> usize {
+    args.get("limit")
+        .and_then(Value::as_f64)
+        .map_or(default, |n| (n as usize).clamp(1, max))
+}
+
+fn ask_search(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
+    let query = str_arg(args, "query").to_owned();
+    let limit = ask_limit(args, 5, 10);
+    let words = ask_words(&query);
+    let rows = api::list_notes(
+        store,
+        &NoteQuery {
+            keyword: query,
+            limit: Some(limit * SCOPED_WIDEN),
+            ..NoteQuery::default()
+        },
+    )?;
+    let mut out = String::new();
+    let mut shown = 0;
+    for row in rows {
+        let Some(id) = row.get("_id").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(note) = vis.note(id).filter(|note| vis.allows(&note.id)) else {
+            continue;
+        };
+        let lines = ask_matching_lines(&note.body, &words);
+        let number = vis.show_lines(&note, lines.clone());
+        out.push_str(&ask_block(number, &note, &lines));
+        out.push('\n');
+        shown += 1;
+        if shown == limit {
+            break;
+        }
+    }
+    if shown == 0 {
+        out = "No notes match.".to_owned();
+    }
+    result(vec![text(out)])
+}
+
+fn ask_read_lines(vis: &Visibility, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let Some(note) = vis.note(&id).filter(|note| vis.allows(&note.id)) else {
+        return Err(ApiError::not_found().into());
+    };
+    let number = |key: &str| {
+        args.get(key)
+            .and_then(Value::as_f64)
+            .map(|n| n.max(1.0) as u32)
+    };
+    let start = number("start").unwrap_or(1);
+    let end = number("end")
+        .unwrap_or(start + 49)
+        .max(start)
+        .min(start + ASK_READ_LINES - 1);
+    let all: Vec<&str> = note.body.split('\n').collect();
+    let lines: Vec<(u32, String)> = (start - 1..end)
+        .filter_map(|n| all.get(n as usize).map(|line| (n, ask_cut(line))))
+        .collect();
+    if lines.is_empty() {
+        return result(vec![text(format!(
+            "The note has {} lines; there is nothing at line {start}.",
+            all.len()
+        ))]);
+    }
+    let number = vis.show_lines(&note, lines.clone());
+    result(vec![text(ask_block(number, &note, &lines))])
+}
+
+fn ask_day(args: &Args, key: &str) -> Option<chrono::NaiveDate> {
+    chrono::NaiveDate::parse_from_str(opt_str(args, key)?, "%Y-%m-%d").ok()
+}
+
+fn ask_when(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
+    let Some(from) = ask_day(args, "from") else {
+        return Err(ToolError(
+            "`from` must be a day like 2026-10-14.".to_owned(),
+        ));
+    };
+    let to = ask_day(args, "to").unwrap_or(from).max(from);
+    let limit = ask_limit(args, 8, 15);
+    let day_ms = |day: chrono::NaiveDate, end: bool| {
+        let time = if end {
+            day.and_hms_milli_opt(23, 59, 59, 999)
+        } else {
+            day.and_hms_opt(0, 0, 0)
+        };
+        time.map(|t| t.and_utc().timestamp_millis())
+    };
+    let mut out = String::new();
+    if opt_str(args, "kind") == Some("about") {
+        let tasks = store
+            .tasks(&kanso_store::TaskQuery {
+                include_done: true,
+                due_after: from.pred_opt().map(|d| d.format("%Y-%m-%d").to_string()),
+                due_before: to.succ_opt().map(|d| d.format("%Y-%m-%d").to_string()),
+                limit: Some(limit * SCOPED_WIDEN),
+                ..kanso_store::TaskQuery::default()
+            })
+            .map_err(|err| ToolError(err.to_string()))?;
+        let mut shown = 0;
+        for task in tasks {
+            let Some(note) = vis.note(&task.note_id).filter(|n| vis.allows(&n.id)) else {
+                continue;
+            };
+            let line = task.line;
+            let rows = vec![(
+                line,
+                ask_cut(kanso_core::links::line_text(&note.body, line)),
+            )];
+            let number = vis.show_lines(&note, rows.clone());
+            out.push_str(&ask_block(number, &note, &rows));
+            out.push('\n');
+            shown += 1;
+            if shown == limit {
+                break;
+            }
+        }
+    } else {
+        let params = kanso_store::SearchParams {
+            updated_after: day_ms(from, false),
+            updated_before: day_ms(to, true),
+            limit: Some(limit * SCOPED_WIDEN),
+            ..kanso_store::SearchParams::default()
+        };
+        let docs = store
+            .search(&params)
+            .map_err(|err| ToolError(err.to_string()))?;
+        let mut shown = 0;
+        for doc in docs {
+            let Some(note) = vis.note(&doc.id).filter(|n| vis.allows(&n.id)) else {
+                continue;
+            };
+            let rows = ask_matching_lines(&note.body, &[]);
+            let number = vis.show_lines(&note, rows.clone());
+            out.push_str(&ask_block(number, &note, &rows));
+            out.push('\n');
+            shown += 1;
+            if shown == limit {
+                break;
+            }
+        }
+    }
+    if out.is_empty() {
+        out = "No notes found in that range.".to_owned();
+    }
+    result(vec![text(out)])
 }
 
 #[cfg(test)]

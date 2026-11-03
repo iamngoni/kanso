@@ -573,6 +573,16 @@ impl Links {
     fn open(&self, url: &str, cx: &mut App) {
         match linked_note(url) {
             Some(id) => {
+                // A line anchor (`#L12-14`) rides along for the workspace to
+                // show those lines.
+                let id = match url.split_once('#') {
+                    Some((_, anchor))
+                        if kanso_core::links::line_anchor(&format!("#{anchor}")).is_some() =>
+                    {
+                        format!("{id}#{anchor}")
+                    }
+                    _ => id,
+                };
                 self.0.try_send(id).ok();
             }
             // An unresolved wiki-link: the workspace creates its note.
