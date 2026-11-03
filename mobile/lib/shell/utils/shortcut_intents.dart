@@ -14,6 +14,7 @@ import '../models/data/kanso_intent.dart';
 /// reason each desktop key has no corresponding mobile surface or handler.
 const Set<String> unboundOnMobile = <String>{
   'quit', // The operating system owns quitting the app.
+  'go_notebook_home', // A phone opens a notebook's homepage by tapping its card.
   'save_capture', // Quick Capture is a separate desktop window.
   'cancel_capture', // Quick Capture is a separate desktop window.
   'dictate', // Voice input is not reachable from the shell.
