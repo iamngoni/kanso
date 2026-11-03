@@ -29,6 +29,8 @@ pub mod linking;
 pub mod linking_types;
 pub mod locks;
 pub mod metrics;
+pub mod notebook_home;
+pub mod notebook_home_types;
 pub mod people;
 pub mod people_types;
 pub mod publish;
