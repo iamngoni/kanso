@@ -714,7 +714,10 @@ fn open_main_window(cx: &mut App) {
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         titlebar: Some(titlebar),
         app_owns_titlebar_drag: cfg!(target_os = "macos"),
-        window_min_size: Some(size(px(1100.), px(720.))),
+        window_min_size: Some(size(
+            px(layout::WINDOW_MIN_SIZE.0),
+            px(layout::WINDOW_MIN_SIZE.1),
+        )),
         // Matches kanso.desktop, so the dock and the window list show its
         // name and icon.
         #[cfg(target_os = "linux")]
