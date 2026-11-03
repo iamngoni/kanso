@@ -87,6 +87,7 @@ actions!(
         AskYourNotes,
         NewAgentTask,
         UndoAgentTask,
+        UndoLastChange,
         SummarizeNote,
         TidyVoiceNote,
     ]
@@ -174,6 +175,8 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("secondary-4", ShowLive, None),
         KeyBinding::new("secondary-s", SaveNote, None),
         KeyBinding::new("secondary-shift-p", TogglePinned, None),
+        // Never in text or the task list, which have their own Undo.
+        KeyBinding::new("secondary-z", UndoLastChange, Some("!Input && !TasksView")),
         KeyBinding::new("secondary-shift-a", AskYourNotes, None),
         KeyBinding::new("secondary-shift-m", Dictate, None),
         KeyBinding::new("secondary-alt-down", NextNote, None),
@@ -1414,17 +1417,11 @@ impl Workspace {
             }
             // Only the menu of several selected notes offers it.
             NoteCommand::AskAgent => {}
+            // The same path as trashing several: one write, and a notice
+            // with Undo.
             NoteCommand::Trash => {
-                if !self.with_open_note(id, cx, |editor, cx| editor.trash(cx)) {
-                    self.merge(
-                        DocType::Note,
-                        id,
-                        json!({"bookId": TRASH_BOOK_ID}),
-                        window,
-                        cx,
-                    );
-                    crate::metrics::record(cx, crate::metrics::Feature::NoteDeleted);
-                }
+                let trash = BatchChange::Move(TRASH_BOOK_ID.into());
+                self.change_notes(&[id.to_owned()], trash, window, cx);
             }
             NoteCommand::Duplicate => {
                 self.flush(cx);
@@ -2829,7 +2826,18 @@ impl Render for Workspace {
                     let trash = BatchChange::Move(TRASH_BOOK_ID.into());
                     return this.change_notes(&ids, trash, window, cx);
                 }
-                this.editor.update(cx, |editor, cx| editor.trash(cx));
+                let open = this.editor.read(cx).note_id().map(str::to_owned);
+                if let Some(id) = open {
+                    let trash = BatchChange::Move(TRASH_BOOK_ID.into());
+                    this.change_notes(&[id], trash, window, cx);
+                }
+            }))
+            .on_action(cx.listener(|_, _: &UndoLastChange, window, cx| {
+                // Nothing to take back: the key goes on to whatever else
+                // binds it.
+                if !crate::note_batch::undo_latest(window, cx) {
+                    cx.propagate();
+                }
             }))
             .on_action(
                 cx.listener(|this, _: &crate::transcribe::TranscribeAudio, window, cx| {

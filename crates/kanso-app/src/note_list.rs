@@ -2466,6 +2466,55 @@ mod tests {
             assert_eq!(cx.read(|cx| library.read(cx).notes.len()), 3);
         }
 
+        // no-prop-test: drives the window; the notice's timing property is in
+        // note_batch.rs.
+        #[gpui_kit::test]
+        fn one_trashed_note_comes_back_with_cmd_z(cx: &mut TestAppContext) {
+            use kanso_core::model::TRASH_BOOK_ID;
+
+            use crate::workspace::{TrashNote, UndoLastChange};
+
+            let f = setup(cx);
+            cx.update(crate::workspace::bind_keys);
+            f.window
+                .update(cx, |_, window, _| window.activate_window())
+                .unwrap();
+            let ids = listed(&f, cx);
+            let note = |cx: &mut TestAppContext, id: &str| {
+                cx.run_until_parked();
+                f.store.note(id).unwrap().unwrap()
+            };
+            click(&f, cx, &ids[0], Modifiers::none());
+            let before = note(cx, &ids[0]);
+
+            cx.dispatch_action(f.window, TrashNote);
+            assert_eq!(note(cx, &ids[0]).book_id, TRASH_BOOK_ID);
+            // Cmd/Ctrl+Z, outside the note's text, brings it back, stamped now.
+            cx.simulate_keystrokes(f.window, "cmd-z");
+            let after = note(cx, &ids[0]);
+            assert_eq!(after.book_id, before.book_id);
+            assert!(after.updated_at >= before.updated_at);
+
+            // Once its notice is closed, Cmd/Ctrl+Z no longer takes it back.
+            click(&f, cx, &ids[0], Modifiers::none());
+            cx.dispatch_action(f.window, TrashNote);
+            assert_eq!(note(cx, &ids[0]).book_id, TRASH_BOOK_ID);
+            f.window
+                .update(cx, |_, window, cx| {
+                    gpui_kit::component::WindowExt::remove_notification::<kanso_engine::batch::Edit>(
+                        window, cx,
+                    )
+                })
+                .unwrap();
+            // The notice closes once its exit has played.
+            cx.background_executor
+                .advance_clock(std::time::Duration::from_secs(1));
+            f.draw(cx);
+            cx.run_until_parked();
+            cx.dispatch_action(f.window, UndoLastChange);
+            assert_eq!(note(cx, &ids[0]).book_id, TRASH_BOOK_ID);
+        }
+
         // no-prop-test: drives the window with drags; the batch's properties
         // are in note_batch.rs.
         #[gpui_kit::test]

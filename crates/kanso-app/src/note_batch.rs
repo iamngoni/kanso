@@ -10,8 +10,10 @@ use gpui_kit::*;
 use kanso_core::DocType;
 pub use kanso_engine::batch::Change;
 use kanso_engine::batch::{self, Edit, summary, turned_on};
+use kanso_store::Store;
 use kanso_store::{NoteSummary, Origin};
 use serde_json::Value;
+use std::sync::Arc;
 
 use crate::library::Library;
 
@@ -39,12 +41,21 @@ pub fn apply(
 ) {
     let (notes, place) = {
         let library = library.read(cx);
-        let notes: Vec<NoteSummary> = library
+        let mut notes: Vec<NoteSummary> = library
             .notes
             .iter()
             .filter(|n| ids.contains(&n.id))
             .cloned()
             .collect();
+        // A note open but not in the list now (found by search, say) still
+        // takes the change.
+        for id in ids {
+            if !notes.iter().any(|n| &n.id == id)
+                && let Ok(Some(note)) = library.store.note(id)
+            {
+                notes.push(summary_of(&note));
+            }
+        }
         if must_go_one_by_one(&notes, &change, library) {
             window.push_notification(
                 Notification::info(
@@ -100,39 +111,125 @@ pub fn apply(
     for (feature, n) in tally {
         crate::metrics::record_n(cx, feature, n);
     }
+    let serial = remember(&store, &edits, cx);
     let notification =
         // Each batch's notice takes the place of the one before, so its
-        // Undo is always for the latest change.
+        // Undo is always for the latest change. A notice with an action
+        // never hides by itself: Cmd/Ctrl+Z works for exactly as long as
+        // it is up, and forgets the change when it closes.
         Notification::info(summary(&change, count, &place, on))
             .id::<Edit>()
+            .on_close(move |_, cx| forget(serial, cx))
             .action(move |_, _, _| {
-            let (store, edits) = (store.clone(), edits.clone());
-            Button::new("undo-notes")
-                .label("Undo")
-                .debug_selector(|| "undo-notes".into())
-                .on_click(move |_, window, cx| {
-                    crate::editor::peers::flush_everywhere(cx);
-                    // A note deleted since is skipped, and so is what was
-                    // changed again after the batch.
-                    let now_ms = kanso_core::now_ms();
-                    let undo: Vec<Value> = edits
-                        .iter()
-                        .filter_map(|edit| {
-                            let note = store.note(&edit.id).ok().flatten()?;
-                            let current = serde_json::to_value(note).ok()?;
-                            batch::undo_stamped(&edit.change, &edit.undo, &current, now_ms)
-                        })
-                        .collect();
-                    if undo.is_empty() {
-                        return;
-                    }
-                    if let Err(err) = store.merge_many(DocType::Note, undo, Origin::Ui) {
-                        window.push_notification(
-                            Notification::error(format!("Couldn't undo: {err}")),
-                            cx,
-                        );
-                    }
-                })
-        });
+                let (store, edits) = (store.clone(), edits.clone());
+                Button::new("undo-notes")
+                    .label("Undo")
+                    .debug_selector(|| "undo-notes".into())
+                    .on_click(move |_, window, cx| {
+                        forget(serial, cx);
+                        undo_edits(&store, &edits, window, cx);
+                    })
+            });
     window.push_notification(notification, cx);
+}
+
+/// The latest batch change whose notice is up, with its serial.
+#[derive(Default)]
+struct Latest {
+    serial: u64,
+    change: Option<(Arc<Store>, Vec<Edit>)>,
+}
+
+impl Global for Latest {}
+
+/// Keeps the change for Cmd/Ctrl+Z; its serial.
+fn remember(store: &Arc<Store>, edits: &[Edit], cx: &mut App) -> u64 {
+    let latest = cx.default_global::<Latest>();
+    latest.serial += 1;
+    latest.change = Some((store.clone(), edits.to_vec()));
+    latest.serial
+}
+
+/// Drops change `serial`, unless a later one has taken its place (the
+/// notice it replaced closes after the new change is kept).
+fn forget(serial: u64, cx: &mut App) {
+    let latest = cx.default_global::<Latest>();
+    if is_current(latest.serial, serial) {
+        latest.change = None;
+    }
+}
+
+/// Whether the notice of change `serial` is the latest one. Pure.
+pub fn is_current(latest: u64, serial: u64) -> bool {
+    latest == serial
+}
+
+/// Takes back the latest change (a trash, a move, any batch) while its
+/// notice is up. Whether there was one.
+pub fn undo_latest(window: &mut Window, cx: &mut App) -> bool {
+    let Some((store, edits)) = cx.default_global::<Latest>().change.take() else {
+        return false;
+    };
+    // Cmd/Ctrl+Z took it back: its notice goes too.
+    window.remove_notification::<Edit>(cx);
+    undo_edits(&store, &edits, window, cx);
+    true
+}
+
+/// Puts back what each note had, in one write. A note deleted since is
+/// skipped, and so is what was changed again after the batch; every note
+/// is stamped updatedAt = now.
+fn undo_edits(store: &Arc<Store>, edits: &[Edit], window: &mut Window, cx: &mut App) {
+    crate::editor::peers::flush_everywhere(cx);
+    let now_ms = kanso_core::now_ms();
+    let undo: Vec<Value> = edits
+        .iter()
+        .filter_map(|edit| {
+            let note = store.note(&edit.id).ok().flatten()?;
+            let current = serde_json::to_value(note).ok()?;
+            batch::undo_stamped(&edit.change, &edit.undo, &current, now_ms)
+        })
+        .collect();
+    if undo.is_empty() {
+        return;
+    }
+    if let Err(err) = store.merge_many(DocType::Note, undo, Origin::Ui) {
+        window.push_notification(Notification::error(format!("Couldn't undo: {err}")), cx);
+    }
+}
+
+/// What the batch needs to know of a note.
+fn summary_of(note: &kanso_core::Note) -> NoteSummary {
+    NoteSummary {
+        id: note.id.clone(),
+        rev: note.rev.clone().unwrap_or_default(),
+        title: note.title.clone(),
+        snippet: String::new(),
+        book_id: note.book_id.clone(),
+        status: note.status,
+        tags: note.tags.clone(),
+        pinned: note.pinned,
+        updated_at: note.updated_at,
+        created_at: note.created_at,
+        tasks_done: note.num_of_checked_tasks,
+        tasks_total: note.num_of_tasks,
+        locked: false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::is_current;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(256))]
+
+        /// Closing an older notice never forgets a newer change.
+        #[test]
+        fn only_the_latest_notice_forgets(latest in 0u64..1000, serial in 0u64..1000) {
+            prop_assert_eq!(is_current(latest, serial), latest == serial);
+        }
+    }
 }

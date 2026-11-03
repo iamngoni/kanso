@@ -16,6 +16,7 @@ import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/state/list_navigation/list_navigation_bloc.dart';
 import '../../../core/state/navigation_history/navigation_history_bloc.dart';
+import '../../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../../core/utils/neighbour_note.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
@@ -65,6 +66,7 @@ class KansoShortcuts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final focus = _maybeReadBloc<FocusModeBloc>(context);
+    final notices = _maybeReadBloc<UndoNoticeBloc>(context);
     final focusActive = focus?.state.active ?? false;
     final activeContexts = <ShortcutContext>{
       ...contexts,
@@ -130,6 +132,8 @@ class KansoShortcuts extends StatelessWidget {
               return null;
             },
           ),
+          if (notices != null)
+            UndoLastChangeIntent: UndoLastChangeAction(notices),
           ToggleFocusModeIntent: CallbackAction<ToggleFocusModeIntent>(
             onInvoke: (_) {
               focus?.add(const FocusModeEvent.toggled());
@@ -285,4 +289,36 @@ T? _maybeReadBloc<T>(BuildContext context) {
   } on ProviderNotFoundException {
     return null;
   }
+}
+
+/// Cmd/Ctrl+Z outside text: takes back the change whose Undo notice is up.
+///
+/// It stands aside (so the key goes on to the text's own Undo) while a
+/// text field has the keyboard, and when no notice is up.
+class UndoLastChangeAction extends Action<UndoLastChangeIntent> {
+  UndoLastChangeAction(this._notices);
+
+  final UndoNoticeBloc _notices;
+
+  @override
+  bool isEnabled(UndoLastChangeIntent intent, [BuildContext? context]) =>
+      _notices.state.notice != null && !textHasFocus();
+
+  @override
+  Object? invoke(UndoLastChangeIntent intent) {
+    _notices.add(const UndoNoticeEvent.undoPressed());
+    return null;
+  }
+}
+
+/// Whether the keyboard is in text with its own Undo: any field, the
+/// Markdown editor, the live editor (they all answer [UndoTextIntent]).
+bool textHasFocus() {
+  final focused = FocusManager.instance.primaryFocus?.context;
+  if (focused == null || !focused.mounted) {
+    return false;
+  }
+  return focused.widget is EditableText ||
+      focused.findAncestorStateOfType<EditableTextState>() != null ||
+      Actions.maybeFind<UndoTextIntent>(focused) != null;
 }

@@ -89,6 +89,7 @@ Intent? intentForShortcut(ShortcutEntry entry) => switch (entry.id) {
   'format_quote' => const FormatIntent(FormatKind.quote),
   'format_code_block' => const FormatIntent(FormatKind.codeBlock),
   'toggle_pinned' => const PinNoteIntent(),
+  'undo_last_change' => const UndoLastChangeIntent(),
   'dictate' => null, // No voice-input action is reachable from the shell.
   'open_in_new_window' => const OpenInNewWindowIntent(),
   'close_note_window' => const CloseNoteWindowIntent(),

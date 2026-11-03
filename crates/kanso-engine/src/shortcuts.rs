@@ -439,6 +439,15 @@ pub const SHORTCUTS: &[Shortcut] = &[
         on_mobile: true,
     },
     Shortcut {
+        id: "undo_last_change",
+        mac: "secondary-z",
+        other: "secondary-z",
+        context: ShortcutContext::Global,
+        label: "Undo Trash or Move",
+        group: ShortcutGroup::Edit,
+        on_mobile: true,
+    },
+    Shortcut {
         id: "focus_search",
         mac: "secondary-l",
         other: "secondary-l",

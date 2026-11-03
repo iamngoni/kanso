@@ -6,13 +6,22 @@ import 'dart:async';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show EditableText, MaterialApp, Text;
+import 'package:flutter/material.dart'
+    show
+        EditableText,
+        Material,
+        MaterialApp,
+        Text,
+        TextEditingController,
+        TextField;
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/linking_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/layout_class.dart';
+import 'package:kanso/core/state/undo_notice/undo_notice_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer_scope.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/note_list/views/pages/note_list_page.dart';
@@ -22,6 +31,7 @@ import 'package:kanso/shell/views/widgets/kanso_shortcuts.dart';
 import 'package:kanso/shell/views/widgets/library_navigation.dart';
 import 'package:kanso/tabs/views/widgets/tab_actions.dart';
 
+import '../../../helpers/browse_blocs.dart' show RecordingHaptics;
 import '../../../helpers/core_library.dart';
 import '../../../helpers/fixture_library_repository.dart';
 import '../../../helpers/library_fixtures.dart';
@@ -328,6 +338,64 @@ void main() {
       await _shortcut(tester, LogicalKeyboardKey.digit3);
       expect(app.where, '/pinned');
       expect(app.blocs.library.changesMade, isEmpty);
+    });
+
+    testWidgets('secondary + Z outside text takes back the change whose '
+        'notice is up, once', (tester) async {
+      final app = await pumpBrowseApp(tester, _landscape, at: '/pinned');
+      app.blocs.undoNotice.add(
+        const UndoNoticeEvent.shown(4, 'Moved 1 note to Trash.'),
+      );
+      await tester.pump();
+      await _shortcut(tester, LogicalKeyboardKey.keyZ);
+      expect(app.blocs.library.undone, <int>[4]);
+      await _shortcut(tester, LogicalKeyboardKey.keyZ);
+      expect(app.blocs.library.undone, <int>[4]);
+    });
+
+    testWidgets('secondary + Z does nothing with no notice up', (
+      tester,
+    ) async {
+      final app = await pumpBrowseApp(tester, _landscape, at: '/pinned');
+      await _shortcut(tester, LogicalKeyboardKey.keyZ);
+      expect(app.blocs.library.undone, isEmpty);
+    });
+
+    testWidgets("secondary + Z in a text field is the text's own Undo, "
+        'even with a notice up', (tester) async {
+      await initCoreForTests();
+      final library = FixtureLibraryRepository();
+      final notices = UndoNoticeBloc(library, RecordingHaptics());
+      addTearDown(notices.close);
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<UndoNoticeBloc>.value(
+            value: notices,
+            child: KansoShortcuts(
+              layout: LayoutClass.single,
+              location: null,
+              child: Material(
+                child: TextField(controller: controller, autofocus: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // Typing puts the keyboard in the field.
+      await tester.enterText(find.byType(TextField), 'abc');
+      await tester.pump();
+      expect(textHasFocus(), isTrue);
+      notices.add(const UndoNoticeEvent.shown(4, 'Moved 1 note to Trash.'));
+      await tester.pump();
+
+      await _shortcut(tester, LogicalKeyboardKey.keyZ);
+
+      // The key went on to the field: the notice's change stays.
+      expect(library.undone, isEmpty);
+      expect(notices.state.notice?.ticket, 4);
     });
   });
 }

@@ -19,7 +19,7 @@ type Bound = (String, ShortcutContext, String);
 /// its keys on the window and on its text field.
 fn context_of(predicate: Option<String>) -> ShortcutContext {
     match predicate.as_deref() {
-        None => ShortcutContext::Global,
+        None | Some("!Input && !TasksView") => ShortcutContext::Global,
         Some("NoteList") => ShortcutContext::NoteList,
         Some("NoteBody" | "Input") => ShortcutContext::Editor,
         Some("FocusMode") => ShortcutContext::FocusMode,

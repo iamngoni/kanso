@@ -21,6 +21,7 @@ import '../../core/models/repos/abs/templates_repository.dart';
 import '../../core/router/kanso_routes.dart';
 import '../../core/state/library_index/library_index_bloc.dart';
 import '../../core/state/sync_status/sync_status_bloc.dart';
+import '../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../core/utils/journal_time.dart';
 import '../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../core/views/widgets/kanso_feedback.dart';
@@ -406,9 +407,14 @@ abstract final class PaletteLauncher {
         }
       case 'trash':
         if (open != null) {
-          (await library.trash(open)).fold(
+          // The same change as the list's swipe, so it gets the same Undo.
+          final notices = _maybeRead<UndoNoticeBloc>(context);
+          (await library.change(<String>[open], const NoteChange.trash())).fold(
             (error) => _say(context, error.message),
-            (_) => router.go(KansoRoutes.notes),
+            (changed) {
+              _offerUndo(context, notices, changed);
+              router.go(KansoRoutes.notes);
+            },
           );
         }
       case 'pin':
@@ -670,10 +676,26 @@ abstract final class PaletteLauncher {
     String id,
   ) async {
     final library = getIt<LibraryRepository>();
+    final notices = _maybeRead<UndoNoticeBloc>(context);
     (await library.change(<String>[id], change)).fold(
       (error) => _say(context, error.message),
-      (changed) => _say(context, changed.message),
+      (changed) => _offerUndo(context, notices, changed),
     );
+  }
+
+  /// Says what changed, with Undo when the change can be taken back.
+  /// [notices] is read before the change: the palette may be gone by now.
+  static void _offerUndo(
+    BuildContext context,
+    UndoNoticeBloc? notices,
+    Changed changed,
+  ) {
+    final ticket = changed.undo;
+    if (ticket == null || notices == null) {
+      _say(context, changed.message);
+      return;
+    }
+    notices.add(UndoNoticeEvent.shown(ticket, changed.message));
   }
 
   static Future<void> _copyLink(
