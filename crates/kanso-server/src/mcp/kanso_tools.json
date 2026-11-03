@@ -298,6 +298,27 @@
     }
   },
   {
+    "name": "kanso-list-mentions",
+    "description": "List the lines of notes that mention a person or project page (by link, @name or plain words). Pass the page's note ID or its name or alias. The page and every returned note must be visible to this caller.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "The person or project page: its note ID (with the `note:` prefix), or its name or an alias."
+        }
+      },
+      "required": [
+        "entity"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-list-note-links",
     "description": "List outgoing ID and wiki links in a note, with their source line and resolved visible target when available. The note must be visible to this caller.",
     "inputSchema": {

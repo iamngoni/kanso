@@ -83,6 +83,7 @@ pub(crate) fn call(
         ("kanso-get-properties", vis) => get_properties(store, vis, &args),
         ("kanso-list-note-links", vis) => list_note_links(store, vis, &args),
         ("kanso-list-backlinks", vis) => list_backlinks(store, vis, &args),
+        ("kanso-list-mentions", vis) => list_mentions(store, vis, &args),
         ("kanso-run-query-view", vis) => run_query_view(store, vis, &args),
         ("kanso-list-versions", vis) => list_versions(store, vis, &args),
         ("kanso-read-version", vis) => read_version(store, vis, &args),
@@ -402,6 +403,50 @@ fn list_backlinks(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolR
         .map(|link| json!({ "noteId": link.id, "title": link.title, "uri": note_uri(&link.id), "line": link.line, "context": link.context }))
         .collect();
     result(vec![text(pretty(&Value::Array(rows)))])
+}
+
+/// Lists the lines of visible notes that mention a person or project page,
+/// named by its note ID or by a name or alias. The page and every returned
+/// note must be visible to this caller; locked notes never appear.
+fn list_mentions(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let wanted = str_arg(args, "entity");
+    let id = if wanted.trim_start().starts_with("note:") {
+        wanted.trim().to_owned()
+    } else {
+        let mut named = store
+            .entities_named(&wanted)
+            .map_err(|err| ToolError(err.to_string()))?;
+        match named.len() {
+            0 => return Err(ToolError("No person or project page has that name.".into())),
+            1 => named.remove(0).id,
+            _ => {
+                return Err(ToolError(
+                    "More than one page has that name; pass a note ID.".into(),
+                ));
+            }
+        }
+    };
+    native_visible_note(store, vis, &id)?;
+    let page = store
+        .entity(&id)
+        .map_err(|err| ToolError(err.to_string()))?
+        .ok_or_else(|| ToolError("That note isn't a person or project page.".into()))?;
+    let rows: Vec<Value> = store
+        .entity_mentions(&id, 500)
+        .map_err(|err| ToolError(err.to_string()))?
+        .into_iter()
+        .filter(|m| {
+            native_note_is_visible(store, &m.note_id) && vis.is_none_or(|vis| vis.allows(&m.note_id))
+        })
+        .inspect(|m| {
+            if let Some(vis) = vis {
+                vis.show(&m.note_id);
+            }
+        })
+        .map(|m| json!({ "noteId": m.note_id, "title": m.title, "uri": note_uri(&m.note_id), "line": m.line, "how": m.how.as_str() }))
+        .collect();
+    let output = json!({ "entity": { "noteId": page.id, "title": page.title, "kind": page.kind.as_str() }, "mentions": rows });
+    result(vec![text(pretty(&output))])
 }
 
 /// Runs the first saved query fence in a visible note through the core evaluator.
