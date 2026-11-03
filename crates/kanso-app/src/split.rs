@@ -110,6 +110,34 @@ mod tests {
         ]
     }
 
+    /// How far f32 arithmetic on scroll offsets of this size may drift: a
+    /// few units in the last place of the largest value involved, never
+    /// less than the old fixed 0.01 point. A fixed 0.01 is below one ulp
+    /// (0.0156) once a note is a few thousand rows tall.
+    fn scroll_tolerance(text: f32, viewport: f32) -> f32 {
+        let largest = text.abs().max(viewport.abs()).max(1.);
+        (8. * largest * f32::EPSILON).max(1e-2)
+    }
+
+    /// The shrunk case from a flaky run (issue 206): 4432 rows of 38.09573
+    /// in a 514.66406 viewport. The room below the last line comes out
+    /// 0.0195 under half the viewport, which is f32 rounding of a sum near
+    /// 170000 (spacing 0.0156), not a wrong estimate; the check's fixed
+    /// 0.01 tolerance was under that spacing.
+    #[test]
+    fn the_scroll_range_of_a_tall_note_holds_to_float_precision() {
+        let (rows, line_height, viewport) = (4432usize, 38.09573_f32, 514.66406_f32);
+        let max = source_scroll_max(rows, line_height, viewport);
+        let text = rows as f32 * line_height;
+        let tol = scroll_tolerance(text, viewport);
+        assert!(max + viewport >= text - tol, "{max} + {viewport} < {text}");
+        let below = max + viewport - text;
+        assert!(below >= 3. * line_height - tol, "{below}");
+        assert!(below >= viewport / 2. - tol, "{below} < half of {viewport}");
+        assert!(source_scroll_max(rows + 1, line_height, viewport) >= max);
+        assert!(source_scroll_max(rows, line_height, viewport) <= max + tol);
+    }
+
     proptest! {
         #![proptest_config(config())]
 
@@ -219,19 +247,20 @@ mod tests {
         ) {
             let max = source_scroll_max(rows, line_height, viewport);
             let text = rows as f32 * line_height;
+            let tol = scroll_tolerance(text, viewport);
             prop_assert!(max >= 0.);
             prop_assert!(source_scroll_max(rows + more, line_height, viewport) >= max);
-            prop_assert!(source_scroll_max(rows, line_height, viewport + taller) <= max + 1e-2);
-            prop_assert!(max + viewport >= text - 1e-2, "{} + {} < {}", max, viewport, text);
+            prop_assert!(source_scroll_max(rows, line_height, viewport + taller) <= max + tol);
+            prop_assert!(max + viewport >= text - tol, "{} + {} < {}", max, viewport, text);
             // The editor's own rule, written out rather than borrowed from
             // the code under test: three lines, or half the viewport.
             if max > 0. {
                 let below = max + viewport - text;
-                prop_assert!(below >= 3. * line_height - 1e-2, "{}", below);
-                prop_assert!(below >= viewport / 2. - 1e-2, "{}", below);
+                prop_assert!(below >= 3. * line_height - tol, "{}", below);
+                prop_assert!(below >= viewport / 2. - tol, "{}", below);
             }
             if viewport >= 3. * line_height {
-                prop_assert!(max <= text + 1e-2, "{} past {}", max, text);
+                prop_assert!(max <= text + tol, "{} past {}", max, text);
             }
             if viewport >= 6. * line_height && text <= viewport / 2. {
                 prop_assert_eq!(max, 0.);

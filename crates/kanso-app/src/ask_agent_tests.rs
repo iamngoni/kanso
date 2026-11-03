@@ -141,7 +141,7 @@ fn an_agent_is_sent_only_eligible_notes() {
     let locked = note(
         &store,
         "Locked pricing",
-        "The locked pricing is 99.",
+        "The locked pricing is zanzibar.",
         vec![],
     );
     store
@@ -164,13 +164,13 @@ fn an_agent_is_sent_only_eligible_notes() {
     note(
         &store,
         "Excluded pricing",
-        "The excluded pricing is 77.",
+        "The excluded pricing is quokka.",
         vec![tag],
     );
     let trashed = note(
         &store,
         "Trashed pricing",
-        "The trashed pricing is 55.",
+        "The trashed pricing is walrus.",
         vec![],
     );
     store.delete(&trashed, Origin::Ui).unwrap();
@@ -180,10 +180,12 @@ fn an_agent_is_sent_only_eligible_notes() {
     let sent = ask_through(&provider, &prepared.numbered.prompt);
     assert!(sent.contains("yearly plan"), "{sent}");
     assert!(sent.starts_with(kanso_ai::agent::AGENT_SYSTEM));
+    // Sentinel words, never digits: the prompt carries random note ids
+    // (8 characters of [A-Za-z0-9_-]) that can spell "99" by chance.
     for hidden in [
-        "99",
-        "77",
-        "55",
+        "zanzibar",
+        "quokka",
+        "walrus",
         "Locked pricing",
         "Excluded pricing",
         "Trashed pricing",
