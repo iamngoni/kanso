@@ -7369,5 +7369,8 @@
   "peopleFailed": "Couldn't read People & Projects.",
   "peopleYouPromised": "You promised",
   "peopleTheyPromised": "They promised",
-  "peopleSharedNote": "shared note"
+  "peopleSharedNote": "shared note",
+  "peopleSettingsKeepIn": "Keep pages in",
+  "peopleSettingsKeepInDefault": "People & Projects",
+  "peopleSettingsKeepInHelp": "The notebook new person and project pages go in. The default is made when the first page is."
 }

@@ -10119,6 +10119,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'shared note'**
   String get peopleSharedNote;
+
+  /// No description provided for @peopleSettingsKeepIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep pages in'**
+  String get peopleSettingsKeepIn;
+
+  /// No description provided for @peopleSettingsKeepInDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'People & Projects'**
+  String get peopleSettingsKeepInDefault;
+
+  /// No description provided for @peopleSettingsKeepInHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The notebook new person and project pages go in. The default is made when the first page is.'**
+  String get peopleSettingsKeepInHelp;
 }
 
 class _AppLocalizationsDelegate

@@ -5961,4 +5961,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get peopleSharedNote => 'shared note';
+
+  @override
+  String get peopleSettingsKeepIn => 'Keep pages in';
+
+  @override
+  String get peopleSettingsKeepInDefault => 'People & Projects';
+
+  @override
+  String get peopleSettingsKeepInHelp =>
+      'The notebook new person and project pages go in. The default is made when the first page is.';
 }

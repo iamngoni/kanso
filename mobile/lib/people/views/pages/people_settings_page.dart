@@ -6,15 +6,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/bridge/api/library.dart';
 import '../../../core/bridge/api/people_types.dart';
+import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
+import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
@@ -33,6 +37,7 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
   final PeopleRepository _people = getIt<PeopleRepository>();
   PeopleSettings? _settings;
   List<String> _dismissed = const <String>[];
+  List<NotebookRow> _books = const <NotebookRow>[];
 
   /// The refresh choices, in the order they cycle.
   static const List<String> _refreshModes = <String>['auto', 'open', 'press'];
@@ -46,8 +51,17 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
   Future<void> _load() async {
     final settings = await _people.settings();
     final dismissed = await _people.dismissed();
+    var books = const <NotebookRow>[];
+    try {
+      books = (await getIt<KansoLibrary>().notebooks())
+          .where((b) => !b.locked && b.role == null)
+          .toList();
+    } on Object {
+      // No library to ask (a preview): the default notebook is all there is.
+    }
     if (mounted) {
       setState(() {
+        _books = books;
         _settings = settings.toOption().toNullable();
         _dismissed = dismissed.toOption().toNullable() ?? const <String>[];
       });
@@ -67,6 +81,43 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
     await _load();
   }
 
+  /// The notebook pages are kept in: a sheet of the notebooks, with the
+  /// default first.
+  Future<void> _chooseBook(PeopleSettings s) async {
+    final l10n = context.l10n;
+    final picked = await showKansoBottomSheet<String>(
+      context,
+      builder: (sheet) => Padding(
+        padding: const EdgeInsets.only(bottom: KansoSpacing.md),
+        child: SingleChildScrollView(
+          child: KansoSheetGroup(
+            title: l10n.peopleSettingsKeepIn,
+            children: <Widget>[
+              KansoSettingsRow(
+                label: l10n.peopleSettingsKeepInDefault,
+                trailing: s.keepIn.isEmpty
+                    ? const Icon(Icons.check, size: 18)
+                    : null,
+                onTap: () => Navigator.of(sheet).pop(''),
+              ),
+              for (final book in _books)
+                KansoSettingsRow(
+                  label: book.name,
+                  trailing: s.keepIn == book.id
+                      ? const Icon(Icons.check, size: 18)
+                      : null,
+                  onTap: () => Navigator.of(sheet).pop(book.id),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) {
+      await _change(_copy(s, keepIn: picked));
+    }
+  }
+
   Widget _switch(
     KansoIcons icon,
     String label,
@@ -84,10 +135,11 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
     bool? suggest,
     bool? writeWithAi,
     String? refresh,
+    String? keepIn,
     bool? detectWithAi,
   }) => PeopleSettings(
     suggest: suggest ?? s.suggest,
-    keepIn: s.keepIn,
+    keepIn: keepIn ?? s.keepIn,
     writeWithAi: writeWithAi ?? s.writeWithAi,
     refresh: refresh ?? s.refresh,
     detectWithAi: detectWithAi ?? s.detectWithAi,
@@ -129,6 +181,25 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
                           l10n.peopleSettingsSuggest,
                           s.suggest,
                           (v) => unawaited(_change(_copy(s, suggest: v))),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: KansoSpacing.lg),
+                    KansoGroupedSection(
+                      footer: l10n.peopleSettingsKeepInHelp,
+                      dividerIndent: 48,
+                      children: <Widget>[
+                        KansoSettingsRow(
+                          icon: KansoIcons.folder,
+                          label: l10n.peopleSettingsKeepIn,
+                          value:
+                              _books
+                                  .where((b) => b.id == s.keepIn)
+                                  .map((b) => b.name)
+                                  .firstOrNull ??
+                              l10n.peopleSettingsKeepInDefault,
+                          chevron: true,
+                          onTap: () => unawaited(_chooseBook(s)),
                         ),
                       ],
                     ),
