@@ -67,7 +67,10 @@ fn write_to(secrets: &dyn SecretStore, provider: Provider, key: &str) -> Result<
 /// The plain line about where a question goes: the server it reaches, and
 /// what is never sent. Settings and the Ask panel show the same line.
 pub fn requests_line(provider: Provider, base_url: &str) -> String {
-    kanso_engine::assist::requests_line(provider, base_url, "this Mac")
+    format!(
+        "{} Drafts and quizzes send only the notes you pick.",
+        kanso_engine::assist::requests_line(provider, base_url, "this Mac")
+    )
 }
 
 /// The client settings the fields describe.
