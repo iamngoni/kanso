@@ -644,6 +644,9 @@ impl Store {
         // Its open loops' sentences would sit in plain text beside the
         // sealed body.
         fields.remove(kanso_core::loops::LOOPS_FIELD);
+        // The lines it quotes from other notes would sit in plain text beside
+        // the sealed body.
+        fields.remove(kanso_core::page_cache::PAGE_FIELD);
         let result = self.write(|tx, changes| {
             validate_note_files(tx, &fields)?;
             let result = put_in(
@@ -824,6 +827,7 @@ impl Store {
             match note {
                 Value::Object(mut note) if note.contains_key(LOCK_FIELD) => {
                     note.remove(kanso_core::loops::LOOPS_FIELD);
+                    note.remove(kanso_core::page_cache::PAGE_FIELD);
                     sealed.push(note);
                 }
                 _ => return Err(StoreError::Invalid("A note isn't locked.".into())),
@@ -1344,6 +1348,8 @@ impl Store {
             // document, never the seal.
             let mut fields = fields;
             fields.remove(FILE_LOCK_FIELD);
+            // So is a page's cache of AI sections: an import takes the text.
+            fields.remove(kanso_core::page_cache::PAGE_FIELD);
             if doc_type == DocType::Note {
                 fields.remove(KANSO_FILES_FIELD);
             }

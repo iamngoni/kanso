@@ -28,16 +28,19 @@ use crate::{Origin, Result, Store, schema};
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
 /// Changes whenever a derived table's source or derivation changes.
-pub const DERIVED_VERSION: &str = "4";
+pub const DERIVED_VERSION: &str = "5";
 
 /// The tables, for emptying them.
-pub(crate) const TABLES: [&str; 6] = [
+pub(crate) const TABLES: [&str; 9] = [
     "note_links",
     "note_headings",
     "note_tasks",
     "note_files",
     "note_loops",
     "note_cards",
+    "entities",
+    "entity_names",
+    "note_mentions",
 ];
 
 /// How long a finished item is remembered, in days.
@@ -91,16 +94,37 @@ pub(crate) fn write_note(
     } else {
         HashSet::new()
     };
+    let entity_before = crate::entity_index::before(conn, id)?;
     for table in TABLES {
         conn.execute(&format!("DELETE FROM {table} WHERE note_id = ?"), [id])?;
     }
     let Some(fields) = fields else {
         conn.execute("DELETE FROM finished_items WHERE note_id = ?", [id])?;
+        crate::entity_index::write(
+            conn,
+            &crate::entity_index::Indexed {
+                id,
+                title: "",
+                body: "",
+                trashed: true,
+            },
+            entity_before,
+        )?;
         return Ok(());
     };
     let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
     let loops = read_loops(fields);
     insert_rows(conn, id, body, &loops)?;
+    crate::entity_index::write(
+        conn,
+        &crate::entity_index::Indexed {
+            id,
+            title: fields.get("title").and_then(Value::as_str).unwrap_or(""),
+            body: if locked { "" } else { body },
+            trashed: fields.get("bookId").and_then(Value::as_str) == Some("trash"),
+        },
+        entity_before,
+    )?;
     if locked {
         conn.execute("DELETE FROM finished_items WHERE note_id = ?", [id])?;
     } else {
@@ -331,11 +355,22 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
         })?
         .collect::<rusqlite::Result<_>>()?;
+    let mut entity_notes: Vec<(String, String, Option<String>, bool)> = Vec::new();
     for (id, body, json, in_locked_notebook) in notes {
         let fields = match serde_json::from_str::<Value>(&json)? {
             Value::Object(fields) => fields,
             _ => Map::new(),
         };
+        entity_notes.push((
+            id.clone(),
+            fields
+                .get("title")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
+            body.clone(),
+            fields.get("bookId").and_then(Value::as_str) == Some("trash"),
+        ));
         let loops = if body.is_some() {
             read_loops(&fields)
         } else {
@@ -344,6 +379,7 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
         insert_rows(&tx, &id, body.as_deref().unwrap_or(""), &loops)?;
         write_file_ownership(&tx, &id, &fields, in_locked_notebook)?;
     }
+    crate::entity_index::rebuild(&tx, &entity_notes)?;
     schema::set_meta(&tx, DERIVED_VERSION_KEY, DERIVED_VERSION)?;
     tx.commit()?;
     Ok(true)
@@ -374,12 +410,40 @@ fn resolve(conn: &Connection, title: &str) -> Result<Option<(String, String)>> {
     if wanted.is_empty() {
         return Ok(None);
     }
-    Ok(conn
+    let by_title = conn
         .query_row(
             "SELECT id, title FROM docs WHERE type = 'note' AND deleted = 0
              AND IFNULL(book_id, '') != 'trash' AND kanso_norm_title(title) = ?
              ORDER BY created_at, id LIMIT 1",
-            [wanted],
+            [&wanted],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                ))
+            },
+        )
+        .optional()?;
+    if by_title.is_some() {
+        return Ok(by_title);
+    }
+    // No note has that title: a name or alias of exactly one person or
+    // project page stands for it. Two pages with the alias resolve to
+    // nothing.
+    let owners: Vec<String> = conn
+        .prepare_cached("SELECT note_id FROM entity_names WHERE name = ? LIMIT 2")?
+        .query_map([kanso_core::entities::normalize_name(&wanted)], |row| {
+            row.get(0)
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    let [owner] = owners.as_slice() else {
+        return Ok(None);
+    };
+    Ok(conn
+        .query_row(
+            "SELECT id, title FROM docs WHERE id = ? AND deleted = 0
+             AND IFNULL(book_id, '') != 'trash'",
+            [owner],
             |row| {
                 Ok((
                     row.get(0)?,
@@ -417,7 +481,10 @@ impl Store {
                 "
                  FROM note_links l JOIN docs d ON d.id = l.note_id
                  WHERE d.deleted = 0 AND IFNULL(d.book_id, '') != 'trash' AND d.id != ?1
-                   AND (l.target_id = ?1 OR (?2 IS NOT NULL AND l.target_title = ?2))
+                   AND (l.target_id = ?1 OR (?2 IS NOT NULL AND l.target_title = ?2)
+                        OR l.target_title IN (SELECT n.name FROM entity_names n
+                            WHERE n.note_id = ?1 AND (SELECT COUNT(*) FROM entity_names m
+                                WHERE m.name = n.name) = 1))
                  GROUP BY d.id ORDER BY d.updated_at DESC, d.id"
             ))?;
             let rows = stmt.query_map(params![id, by_title], |row| {

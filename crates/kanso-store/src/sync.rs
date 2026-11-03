@@ -433,6 +433,7 @@ impl Store {
             .chain(crate::embed::TABLES)
             .chain(crate::ocr::TABLES)
             .chain(crate::triage::TABLES)
+            .chain(crate::entities::TABLES)
             {
                 tx.execute(&format!("DELETE FROM {table}"), [])?;
             }
@@ -833,7 +834,7 @@ impl Store {
             // (a loop closed on one device stays closed). Whichever side
             // wins, the other side's entries are folded in, and the result
             // is pushed if it holds more than the remote version.
-            if !rules.legacy() && local_dirty && doc_type == DocType::Note && !local.deleted && !remote.deleted {
+            if !rules.legacy() && local_dirty && matches!(doc_type, DocType::Note | DocType::Book) && !local.deleted && !remote.deleted {
                 let (base, other) = if remote_wins {
                     (&fields, &local.fields)
                 } else {
@@ -908,6 +909,44 @@ fn union_loops_and_acks(
     ) && let Some(value) = kanso_core::capture_mark::merge_capture(mine, theirs)
     {
         merged.insert(kanso_core::capture_mark::CAPTURE_FIELD.into(), value);
+    }
+    // A page's cache of AI-written sections merges section by section, so a
+    // refresh on one device never looks like a conflict with an edit on
+    // another; the names turned away from suggestions only grow.
+    {
+        use kanso_core::page_cache::{
+            PAGE_FIELD, merge as merge_pages, read as read_pages, to_value,
+        };
+        let (mine, theirs) = (read_pages(base), read_pages(other));
+        if !theirs.is_empty() {
+            let pages = merge_pages(&mine, &theirs);
+            if pages != mine {
+                merged.insert(PAGE_FIELD.into(), to_value(&pages));
+            }
+        }
+        let names = |fields: &Map<String, Value>| -> Vec<String> {
+            fields
+                .get(crate::DISMISSED_FIELD)
+                .and_then(Value::as_array)
+                .map(|list| {
+                    list.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        let (mine, theirs) = (names(base), names(other));
+        let mut union: std::collections::BTreeSet<String> = mine.iter().cloned().collect();
+        union.extend(theirs);
+        if union.len() != mine.len() {
+            let list: Vec<Value> = union
+                .into_iter()
+                .take(crate::MAX_DISMISSED)
+                .map(Value::String)
+                .collect();
+            merged.insert(crate::DISMISSED_FIELD.into(), Value::Array(list));
+        }
     }
     (merged != *base).then_some(merged)
 }

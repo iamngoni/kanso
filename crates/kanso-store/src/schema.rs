@@ -318,6 +318,51 @@ CREATE TABLE IF NOT EXISTS passage_embeddings (
     PRIMARY KEY (note_id, start_line, model)
 ) WITHOUT ROWID;
 "#,
+    // People and projects (issue #200, `entity_index.rs`, `entities.rs`):
+    // the notes marked `kanso: person` / `kanso: project`, the names each
+    // answers to, and every line of every note that mentions one. Derived
+    // from note bodies like `note_links`, local to this device, never
+    // synced, rebuilt when `DERIVED_VERSION` moves. `entity_candidates`
+    // holds what detection suggests, and `entity_dismissed` the names the
+    // person said no to ("never") or "not now" to ("later", with the
+    // number of notes it had then); neither is synced from here (the
+    // "never" names are also kept in the notebook the pages live in).
+    r#"
+CREATE TABLE IF NOT EXISTS entities (
+    note_id TEXT PRIMARY KEY NOT NULL,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS entity_names (
+    name TEXT NOT NULL,
+    note_id TEXT NOT NULL,
+    PRIMARY KEY (name, note_id)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS entity_names_note ON entity_names (note_id);
+CREATE TABLE IF NOT EXISTS note_mentions (
+    note_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    line INTEGER NOT NULL,
+    how TEXT NOT NULL,
+    PRIMARY KEY (note_id, entity_id, line)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS note_mentions_entity ON note_mentions (entity_id);
+CREATE TABLE IF NOT EXISTS entity_candidates (
+    name TEXT PRIMARY KEY NOT NULL,
+    kind TEXT NOT NULL,
+    notes INTEGER NOT NULL,
+    last_seen INTEGER NOT NULL,
+    forms TEXT NOT NULL,
+    score REAL NOT NULL,
+    alias_of TEXT
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS entity_dismissed (
+    name TEXT PRIMARY KEY NOT NULL,
+    kind TEXT NOT NULL,
+    notes INTEGER NOT NULL DEFAULT 0,
+    at INTEGER NOT NULL
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -672,5 +717,37 @@ mod tests {
         .unwrap();
         // Running a migration that was already applied changes nothing.
         conn.execute_batch(MIGRATIONS[15]).unwrap();
+    }
+
+    /// A database pinned at version 16 (Ask with receipts) moves to head
+    /// (people and projects) keeping what it had, and the entity tables
+    /// work. Running the migration again changes nothing.
+    #[test]
+    fn version_sixteen_moves_to_seventeen() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db")).unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(16).enumerate() {
+            conn.execute_batch(&format!(
+                "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
+                index + 1
+            ))
+            .unwrap();
+        }
+        assert_eq!(version(&conn), 16);
+        assert!(!has_column(&conn, "note_mentions", "entity_id"));
+        set_meta(&conn, "kept", "yes").unwrap();
+        migrate(&conn).unwrap();
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
+        assert!(has_column(&conn, "note_mentions", "entity_id"));
+        assert!(has_column(&conn, "entity_names", "name"));
+        assert!(has_column(&conn, "entity_candidates", "alias_of"));
+        assert!(has_column(&conn, "entity_dismissed", "kind"));
+        assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+        conn.execute(
+            "INSERT INTO entities VALUES ('note:a', 'person', 'sam')",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch(MIGRATIONS[16]).unwrap();
     }
 }
