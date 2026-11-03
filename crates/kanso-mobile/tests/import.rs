@@ -304,7 +304,7 @@ fn an_import_is_announced_on_the_change_stream() {
 #[test]
 fn the_sources_are_the_phone_ones_in_order() {
     let sources = import_sources();
-    assert_eq!(sources.len(), 16);
+    assert_eq!(sources.len(), 17);
     let expected: Vec<&str> = SourceKind::ALL
         .iter()
         .filter(|k| **k != SourceKind::AppleNotes)
@@ -488,4 +488,34 @@ proptest! {
         prop_assert_ne!(&first, &elsewhere);
         prop_assert_eq!(std::fs::read_dir(&staging).unwrap().count(), 0);
     }
+}
+
+// no-prop-test: one fixed export; the conversion is property-tested in
+// kanso-import.
+#[test]
+fn an_apple_notes_export_imports_under_an_apple_notes_notebook_once() {
+    let phone = lone_phone();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("Home")).unwrap();
+    write(&dir.path().join("Home/List.txt"), "List\n☐ one\n☑ two");
+    write(
+        &dir.path().join("Home/Page.html"),
+        "<h1>Page</h1><p>Words</p>",
+    );
+    assert_eq!(
+        import_kinds_for(&dir.path().join("Home/List.txt").to_string_lossy()),
+        ["markdown"]
+    );
+    let plan = done(events(&phone, true, "apple-notes-files", dir.path()));
+    assert!(plan.dry_run);
+    assert_eq!(plan.found.notes, 2);
+    assert_eq!(notes_in(&phone), 0);
+
+    let summary = done(events(&phone, false, "apple-notes-files", dir.path()));
+    assert_eq!(summary.found.notes, 2);
+    assert_eq!(summary.found.notebooks, 2);
+    assert_eq!(notes_in(&phone), 2);
+    let again = done(events(&phone, false, "apple-notes-files", dir.path()));
+    assert_eq!(again.found.notes, 2);
+    assert_eq!(notes_in(&phone), 2, "importing again makes no copies");
 }

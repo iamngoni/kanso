@@ -36,6 +36,7 @@ A share is written as a *drop*: a folder in `<library folder>/inbox/`.
   "subject": "The page's title, or the share's subject",
   "text": "Shared text",
   "url": "https://example.com/a",
+  "html": "<h1>Shared note</h1><ul><li><input type=\"checkbox\"> a task</li></ul>",
   "files": [
     {"path": "0.png", "name": "IMG_0042.png", "type": "image/png"},
     {"path": "1.pdf", "name": "Quarterly report.pdf", "type": "application/pdf"}
@@ -43,6 +44,13 @@ A share is written as a *drop*: a folder in `<library folder>/inbox/`.
 }
 ```
 
+- `html` is a shared note's formatted text, up to 4 MB (the share extension
+  reads `public.html`, or `public.rtf` converted to HTML). Apple Notes
+  hands one over when a note is shared. The library turns it into Markdown
+  (`kanso_import::library::notes_html`): checklists become `- [ ]` and
+  `- [x]` tasks, a first line equal to the `subject` is not repeated, and a
+  titled share that is only a drawing or a scan gets `(drawing)` or
+  `(scan)` as its body. `text` is used when `html` is missing or empty.
 - `path` is a file name inside the drop's folder; any other path (with `/`,
   `..` or absolute) is refused.
 - `type` is what the sharing app said; the library decides by the file's

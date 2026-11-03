@@ -458,3 +458,67 @@ proptest! {
         prop_assert_eq!(note_ids(&phone.library).len(), usize::from(!closed.get()));
     }
 }
+
+// no-prop-test: a Notes share is one fixed payload; the HTML rules are
+// property-tested in kanso-import's notes_html.
+#[test]
+fn a_notes_share_with_a_checklist_and_an_image_becomes_a_markdown_note() {
+    let phone = lone_phone();
+    let inbox = inbox_of(&phone);
+    let png: &[u8] = &[
+        0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, b'I', b'H', b'D', b'R', 0,
+        0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1f, 0x15, 0xc4, 0x89, 0, 0, 0, 0x0d, b'I', b'D',
+        b'A', b'T', 0x78, 0x9c, 0x63, 0xf8, 0xff, 0xff, 0x3f, 0, 5, 0xfe, 2, 0xfe, 0xa7, 0x35,
+        0x81, 0x84, 0, 0, 0, 0, b'I', b'E', b'N', b'D', 0xae, 0x42, 0x60, 0x82,
+    ];
+    let manifest = json!({
+        "version": 1, "createdAt": 5, "subject": "Packing list",
+        "html": "<h1>Packing list</h1><p>For Friday</p><ul>\
+                 <li><input type=\"checkbox\" checked> passport</li>\
+                 <li><input type=\"checkbox\"> charger</li></ul>",
+        "text": "Packing list\nFor Friday\npassport\ncharger",
+        "files": [{"path": "0.png", "name": "photo.png", "type": "image/png"}],
+    });
+    write_drop(&inbox, &id(7), &manifest, &[("0.png", png)]);
+    let saved = phone.library.save_drops(&inbox).unwrap();
+    assert_eq!(saved.notes.len(), 1, "{:?}", saved.problems);
+    let note = phone.library.note(&saved.notes[0]).unwrap();
+    assert_eq!(note.title, "Packing list");
+    let body = note.body.unwrap();
+    assert!(
+        body.starts_with("For Friday\n\n- [x] passport\n- [ ] charger\n\n![](inkdrop://file:cap-"),
+        "{body}"
+    );
+}
+
+// no-prop-test: one fixed payload.
+#[test]
+fn a_notes_share_of_only_a_scan_says_scan() {
+    let phone = lone_phone();
+    let inbox = inbox_of(&phone);
+    let manifest = json!({
+        "version": 1, "createdAt": 5, "subject": "Sketch",
+        "files": [{"path": "0.pdf", "name": "Scan.pdf", "type": "application/pdf"}],
+    });
+    write_drop(&inbox, &id(8), &manifest, &[("0.pdf", PDF)]);
+    let saved = phone.library.save_drops(&inbox).unwrap();
+    let note = phone.library.note(&saved.notes[0]).unwrap();
+    assert!(note.body.unwrap().starts_with("(scan)\n\n[Scan.pdf]"));
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 16, ..ProptestConfig::default() })]
+
+    /// Whatever HTML a drop carries, it is saved and its folder goes; it
+    /// never blocks the inbox.
+    #[test]
+    fn prop_any_html_never_blocks_the_inbox(html in "[ -~\n]{0,120}") {
+        let phone = lone_phone();
+        let inbox = inbox_of(&phone);
+        let manifest = json!({"version": 1, "createdAt": 1, "subject": "S", "html": html, "text": "t"});
+        let folder = write_drop(&inbox, &id(1), &manifest, &[]);
+        let saved = phone.library.save_drops(&inbox).unwrap();
+        prop_assert_eq!(saved.kept, 0);
+        prop_assert!(!folder.exists());
+    }
+}

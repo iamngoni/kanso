@@ -91,9 +91,13 @@ final class DropWriter {
   /// Writes `drop.json` and renames the folder, which is what makes the drop
   /// readable. Returns the finished folder.
   ///
-  /// Empty strings are left out of `drop.json`.
+  /// Empty strings are left out of `drop.json`. `html` is a shared note's
+  /// formatted text (Apple Notes hands over HTML); the library turns it into
+  /// Markdown, checklists included.
   @discardableResult
-  func finish(subject: String? = nil, text: String? = nil, url: String? = nil) throws -> URL {
+  func finish(
+    subject: String? = nil, text: String? = nil, url: String? = nil, html: String? = nil
+  ) throws -> URL {
     lock.lock()
     defer { lock.unlock() }
     guard !closed else { throw DropError.closed }
@@ -102,7 +106,7 @@ final class DropWriter {
       "version": 1,
       "createdAt": Int64((Date().timeIntervalSince1970 * 1000).rounded()),
     ]
-    for (key, value) in [("subject", subject), ("text", text), ("url", url)] {
+    for (key, value) in [("subject", subject), ("text", text), ("url", url), ("html", html)] {
       if let value, !value.isEmpty { json[key] = value }
     }
     if !files.isEmpty { json["files"] = files }

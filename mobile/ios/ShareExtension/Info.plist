@@ -39,6 +39,8 @@
 		$attachment,
 		ANY $attachment.registeredTypeIdentifiers UTI-EQUALS "public.url"
 		OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text"
+		OR ANY $attachment.registeredTypeIdentifiers UTI-EQUALS "public.html"
+		OR ANY $attachment.registeredTypeIdentifiers UTI-EQUALS "public.rtf"
 		OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.image"
 		OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "com.adobe.pdf"
 	).@count &gt;= 1
