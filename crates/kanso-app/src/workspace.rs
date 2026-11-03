@@ -515,6 +515,9 @@ pub struct Workspace {
     pending_tab_closes: std::collections::BTreeSet<String>,
     /// [`Workspace::nav_reach`] until a visit or a change to the notes.
     pub(crate) nav_reach: Option<(bool, bool)>,
+    /// A Home note opened from its notebook's homepage, in a tab of its
+    /// own: `(note, notebook)`. Closing that tab shows the homepage again.
+    pub(crate) home_return: Option<(String, String)>,
     /// Draws stand-ins for the traffic lights, which the system draws over
     /// the window and a headless snapshot can't show.
     #[cfg(test)]
@@ -889,6 +892,7 @@ impl Workspace {
             pending_open: OpenIntent::Current,
             pending_tab_closes: Default::default(),
             nav_reach: None,
+            home_return: None,
             #[cfg(test)]
             placeholder_traffic_lights: false,
             title_bar: crate::title_bar::SHOWN
@@ -1297,8 +1301,15 @@ impl Workspace {
             HomeEvent::Notice(message) => {
                 window.push_notification(Notification::info(message.clone()), cx);
             }
-            HomeEvent::OpenNote(id) | HomeEvent::EditHome(id) => {
+            HomeEvent::OpenNote(id) => {
                 self.select_note(id, OpenIntent::Current, cx);
+            }
+            // The Home note opens in a tab of its own; closing it comes back
+            // to the homepage (`close_tab`).
+            HomeEvent::EditHome(id) => {
+                let book = self.home.read(cx).book().map(str::to_owned);
+                self.select_note(id, OpenIntent::NewTab, cx);
+                self.home_return = book.map(|book| (id.clone(), book));
             }
             HomeEvent::OpenLines { id, first } => {
                 self.open_note_at(id, *first, false, window, cx);
@@ -2403,12 +2414,21 @@ impl Workspace {
 
     pub(crate) fn close_tab(&mut self, index: usize, _window: &mut Window, cx: &mut Context<Self>) {
         let was_active = self.tabs.active_index() == index;
+        let closing = self.tabs.get(index).map(|tab| tab.meta.id.clone());
         if !self.tabs.close(index) {
             return;
         }
         self.save_tabs(cx);
         if was_active && !self.tabs.is_empty() {
             self.show_tab(self.tabs.active_index(), cx);
+        }
+        // The Home note opened from a homepage: back to the homepage.
+        if let Some((note, book)) = self.home_return.take() {
+            if closing.as_deref() == Some(note.as_str()) {
+                self.open_home_of(Some(book), cx);
+            } else {
+                self.home_return = Some((note, book));
+            }
         }
         cx.notify();
     }

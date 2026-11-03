@@ -2106,11 +2106,24 @@ impl NoteEditor {
     pub fn set_book(&mut self, book_id: String, cx: &mut Context<Self>) {
         let from = self.note.as_ref().map(|n| n.book_id.clone());
         let to = book_id.clone();
-        if self.write(move |note, _| note.book_id = book_id, Origin::Ui, cx)
-            && let Some(from) = from
-            && let Some(feature) = crate::metrics_hooks::move_feature(&from, &to)
+        if !self.write(move |note, _| note.book_id = book_id, Origin::Ui, cx) {
+            return;
+        }
+        if let Some(from) = &from
+            && let Some(feature) = crate::metrics_hooks::move_feature(from, &to)
         {
             crate::metrics::record(cx, feature);
+        }
+        // A Home note that went into a notebook with a Home note of its own
+        // is an ordinary note there. The editor holds nothing unsaved now,
+        // so it takes the note without its mark when the change comes back.
+        if from.as_deref() != Some(to.as_str())
+            && let Some(id) = self.note_id().map(str::to_owned)
+            && crate::home_data::settle_moved(&self.store, &[id]) > 0
+        {
+            cx.emit(EditorEvent::Notice(
+                kanso_engine::pages::notebook_model::HOME_MOVED_LINE.into(),
+            ));
         }
     }
 

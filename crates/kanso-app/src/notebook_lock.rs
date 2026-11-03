@@ -706,6 +706,69 @@ mod tests {
         assert_eq!(touch.asked(), 2);
     }
 
+    /// A locked notebook's homepage (issue #201). Closed, it shows nothing
+    /// of the notebook: no sections, no counts, no titles. Open, it shows
+    /// the computed sections built in memory from the opened notes, no AI,
+    /// and the muted line; locked again, all of that goes. Nothing is ever
+    /// cached on the notebook.
+    // no-prop-test: drives one window through a lock's states; what each
+    // state shows is `locked_home`'s properties in kanso-engine.
+    #[gpui_kit::test]
+    fn a_locked_notebooks_homepage_shows_nothing_closed_and_only_computed_sections_open(
+        cx: &mut TestAppContext,
+    ) {
+        let f = setup(cx, None);
+        let form = f.lock(cx).unwrap();
+        f.submit(cx, &form, &[PASSWORD, PASSWORD]);
+        f.lock_now(cx);
+        let (library, home) = cx.read(|cx| {
+            let w = f.workspace.read(cx);
+            (w.library.clone(), w.home.clone())
+        });
+        let private = f.private.clone();
+        library.update(cx, |library, cx| {
+            library.set_filter(Filter::Book(private.clone()), cx)
+        });
+        cx.run_until_parked();
+        f.close_dialog(cx);
+        library.update(cx, |library, cx| library.set_home(true, cx));
+        cx.run_until_parked();
+        let shown = |cx: &mut TestAppContext| {
+            cx.read(|cx| {
+                let h = home.read(cx);
+                (h.is_loaded(), h.section_keys(), h.footer())
+            })
+        };
+        let (loaded, keys, _) = shown(cx);
+        assert!(!loaded, "closed: nothing is built");
+        assert!(keys.is_empty());
+
+        let form = f.open_notebook(cx).expect("a closed notebook asks");
+        f.submit(cx, &form, &[PASSWORD]);
+        cx.run_until_parked();
+        let (loaded, keys, footer) = shown(cx);
+        assert!(loaded, "open: the homepage is built from the opened notes");
+        assert!(keys.iter().any(|k| k == "recent"), "recent in {keys:?}");
+        assert!(
+            !keys.iter().any(|k| k == "about" || k == "decisions"),
+            "no AI sections in {keys:?}"
+        );
+        assert_eq!(
+            footer.as_deref(),
+            Some(kanso_engine::pages::notebook_model::LOCKED_LINE)
+        );
+        assert!(f.store.page_cache(&private).unwrap().is_empty());
+
+        f.lock_now(cx);
+        let (loaded, keys, _) = shown(cx);
+        assert!(
+            !loaded,
+            "locked again: what the opened notes showed is gone"
+        );
+        assert!(keys.is_empty());
+        assert!(f.store.page_cache(&private).unwrap().is_empty());
+    }
+
     #[gpui_kit::test]
     fn showing_a_locked_notebook_asks_for_the_password(cx: &mut TestAppContext) {
         let f = setup(cx, None);

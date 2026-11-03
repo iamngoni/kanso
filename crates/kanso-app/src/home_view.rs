@@ -161,15 +161,27 @@ impl EventEmitter<HomeEvent> for NotebookHomeView {}
 impl NotebookHomeView {
     pub fn new(library: Entity<Library>, cx: &mut Context<Self>) -> Self {
         let store = library.read(cx).store.clone();
-        let subscriptions = vec![cx.subscribe(&library, |this, _, event, cx| {
-            if let LibraryEvent::Changed(change) = event
-                && this.book.is_some()
-                && (change.id.starts_with("note:") || change.id.starts_with("book:"))
-            {
-                this.stale = true;
-                this.reload_soon(cx);
-            }
-        })];
+        let subscriptions = vec![
+            cx.subscribe(&library, |this, _, event, cx| {
+                if let LibraryEvent::Changed(change) = event
+                    && this.book.is_some()
+                    && (change.id.starts_with("note:") || change.id.starts_with("book:"))
+                {
+                    this.stale = true;
+                    this.reload_soon(cx);
+                }
+            }),
+            // A locked notebook's homepage is built from the notes this
+            // session opened: opening the notebook builds it, and locking
+            // the notes again drops it at once.
+            cx.observe_global::<crate::locked::LockKeys>(|this, cx| {
+                if let Some(book) = this.book.clone()
+                    && this.library.read(cx).is_book_locked(&book)
+                {
+                    this.reload(false, cx);
+                }
+            }),
+        ];
         NotebookHomeView {
             store,
             library,
@@ -219,6 +231,12 @@ impl NotebookHomeView {
             .flat_map(|l| &l.view.page.sections)
             .map(|s| s.title.clone())
             .collect()
+    }
+
+    /// The muted line at the end, if any.
+    #[cfg(test)]
+    pub fn footer(&self) -> Option<String> {
+        self.loaded.as_ref().and_then(|l| l.view.footer.clone())
     }
 
     pub fn set_pane_width(&mut self, width: f32, cx: &mut Context<Self>) {

@@ -99,6 +99,18 @@ pub fn load(
     }))
 }
 
+/// After notes `ids` moved: a Home note that went into a notebook that
+/// already has one loses its mark (the engine's `after_move`). Returns how
+/// many did, for the notice. A failure here never fails the move.
+pub fn settle_moved(store: &Store, ids: &[String]) -> usize {
+    let now = now_ms();
+    ids.iter()
+        .filter(|id| {
+            kanso_engine::pages::notebook_actions::after_move(store, id, now).unwrap_or(false)
+        })
+        .count()
+}
+
 /// The notebook's map, laid out. Heavy: call off the main thread.
 pub fn map(store: &Store, id: &str) -> kanso_store::Result<Option<MapView>> {
     let Some(page) = NotebookPage::load(store, id, now_ms())? else {

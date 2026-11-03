@@ -1,12 +1,13 @@
 //! Customise home (issue #201): the homepage's sections in a list, each
-//! with a switch to show or hide it and arrows to move it. The order and the
-//! hidden sections sync with the notebook.
+//! with a drag handle, a switch to show or hide it, and arrows that move it
+//! one place (for the keyboard and for a trackpad that drags badly). The
+//! order and the hidden sections sync with the notebook.
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Disableable as _, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::{Disableable as _, Icon, Sizable as _, h_flex, v_flex};
 use gpui_kit::*;
 
 use crate::home_view::NotebookHomeView;
@@ -37,6 +38,15 @@ impl CustomiseDialog {
         }
     }
 
+    /// Puts row `from` where row `to` is, as a dropped handle does.
+    pub fn reorder(&mut self, from: usize, to: usize, cx: &mut Context<Self>) {
+        if from < self.rows.len() && to < self.rows.len() && from != to {
+            let row = self.rows.remove(from);
+            self.rows.insert(to, row);
+            cx.notify();
+        }
+    }
+
     pub fn show(&mut self, ix: usize, shown: bool, cx: &mut Context<Self>) {
         if let Some(row) = self.rows.get_mut(ix) {
             row.2 = !shown;
@@ -57,6 +67,30 @@ impl CustomiseDialog {
     }
 }
 
+/// A section's row being dragged by its handle.
+#[derive(Clone)]
+struct DraggedRow {
+    from: usize,
+    title: SharedString,
+}
+
+impl Render for DraggedRow {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let colors = Colors::get(cx);
+        div()
+            .px(px(10.))
+            .py(px(5.))
+            .rounded(px(6.))
+            .border_1()
+            .border_color(Hsla::from(colors.accent).opacity(0.6))
+            .bg(colors.elevated)
+            .shadow_md()
+            .text_size(px(13.))
+            .text_color(colors.text)
+            .child(self.title.clone())
+    }
+}
+
 impl Render for CustomiseDialog {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
@@ -72,10 +106,38 @@ impl Render for CustomiseDialog {
                     .enumerate()
                     .map(|(ix, (_, title, hidden))| {
                         let (up, down, toggle) = (view.clone(), view.clone(), view.clone());
+                        let dropped = view.clone();
+                        let accent = Hsla::from(colors.accent);
                         h_flex()
+                            .id(("home-row", ix))
                             .h(px(34.))
                             .gap(px(8.))
+                            .px(px(2.))
+                            .rounded(px(6.))
                             .items_center()
+                            .drag_over::<DraggedRow>(move |style, _, _, _| {
+                                style.bg(accent.opacity(0.12))
+                            })
+                            .on_drop(move |drag: &DraggedRow, _, cx| {
+                                dropped
+                                    .update(cx, |this, cx| this.reorder(drag.from, ix, cx))
+                                    .ok();
+                            })
+                            .child(
+                                div()
+                                    .id(("home-grip", ix))
+                                    .debug_selector(move || format!("home-grip-{ix}"))
+                                    .cursor_grab()
+                                    .text_color(colors.text_muted)
+                                    .child(Icon::new(Lucide::GripVertical).size(px(14.)))
+                                    .on_drag(
+                                        DraggedRow {
+                                            from: ix,
+                                            title: title.clone().into(),
+                                        },
+                                        |drag, _, _, cx| cx.new(|_| drag.clone()),
+                                    ),
+                            )
                             .child(
                                 div()
                                     .flex_1()

@@ -446,6 +446,65 @@ fn set_filter(cx: &mut HeadlessAppContext, workspace: &Entity<Workspace>, filter
     cx.update(|cx| library.update(cx, |library, cx| library.set_filter(filter, cx)));
 }
 
+/// Notebook `name`'s ID in the demo library.
+fn demo_book(store: &Store, name: &str) -> String {
+    store
+        .books()
+        .unwrap()
+        .into_iter()
+        .find(|b| b.name == name)
+        .unwrap()
+        .id
+}
+
+/// Engineering's homepage, as its Home row opens it (issue #201): two
+/// columns in a full window, one in a narrow one.
+fn notebook_home(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    let engineering = demo_book(store, "Engineering");
+    set_filter(cx, workspace, Filter::Book(engineering));
+    cx.run_until_parked();
+    let library = cx.update(|cx| workspace.read(cx).library.clone());
+    cx.update(|cx| library.update(cx, |library, cx| library.set_home(true, cx)));
+    cx.run_until_parked();
+}
+
+/// A notebook with only notebooks inside it ("Areas", holding Engineering
+/// and Research): selecting it opens its homepage by itself.
+fn notebook_home_parent_only(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    let areas = store
+        .put(
+            DocType::Book,
+            json!({"name": "Areas"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    for name in ["Engineering", "Research"] {
+        store
+            .put(
+                DocType::Book,
+                json!({"_id": demo_book(store, name), "parentBookId": areas}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+    }
+    cx.run_until_parked();
+    set_filter(cx, workspace, Filter::Book(areas));
+    cx.run_until_parked();
+}
+
 /// The Status group open on Active, while the API's port is taken (by
 /// another app, say) and sync can't reach its server: the footer's warnings.
 fn status_and_warnings(
@@ -4378,6 +4437,11 @@ fn check_surfaces(image: &image::RgbaImage, shot: &Shot, inspector: bool) {
     if !crate::layout::LIGHTS_IN_BAND {
         checks.retain(|((_, y), _, _)| *y > TOP_BAND_SAMPLE);
     }
+    // A notebook's homepage fills the editor's pane to the bottom: it has
+    // no footer band of its own.
+    if shot.name.contains("notebook-home") {
+        checks.retain(|(_, _, what)| *what != "editor's bottom divider");
+    }
     for (at, expected, what) in checks {
         assert_surface(
             image,
@@ -4651,6 +4715,21 @@ fn snapshots() {
         shot("dark-tabs", Dark, Edit, open_tabs),
         shot("light-tabs", Light, Edit, open_tabs),
         shot("dark-notebook-open", Dark, Edit, notebook_open),
+        // Notebook homepages (issue #201): wide, at the smallest window
+        // (520 points, issue #223) and for a notebook of notebooks.
+        shot("dark-notebook-home", Dark, Edit, notebook_home),
+        shot("light-notebook-home", Light, Edit, notebook_home),
+        Shot {
+            size: size(px(520.), px(900.)),
+            left: Left::Rail,
+            ..shot("dark-notebook-home-narrow", Dark, Edit, notebook_home)
+        },
+        shot(
+            "light-notebook-home-parent-only",
+            Light,
+            Edit,
+            notebook_home_parent_only,
+        ),
         Shot {
             dialog_width: crate::book_icons::PICKER_WIDTH,
             ..shot("dark-book-icons", Dark, Edit, book_icon_picker)
