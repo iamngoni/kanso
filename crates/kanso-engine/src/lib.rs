@@ -83,6 +83,8 @@ pub mod discovery;
 pub mod draft;
 pub mod edit;
 pub mod editor_settings;
+#[cfg(feature = "ai")]
+pub mod entities;
 pub mod export;
 #[cfg(feature = "ai")]
 pub mod flashcards;
@@ -100,6 +102,8 @@ pub mod loops_ai;
 pub mod navigate;
 pub mod notes;
 pub mod outline;
+#[cfg(feature = "ai")]
+pub mod pages;
 pub mod palette;
 pub mod publish;
 pub mod replace;
