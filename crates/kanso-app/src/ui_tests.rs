@@ -1537,6 +1537,57 @@ fn a_narrow_window_keeps_the_editor_its_room(cx: &mut TestAppContext) {
     assert_eq!(vcx.debug_bounds("list-pane").unwrap().size.width, px(480.));
 }
 
+/// At the smallest the window gets (half of a 1366-wide screen at 125%),
+/// the sidebar has folded to its rail and every pane, the note title and
+/// the inspector toggle sit inside the window, at that width and the ones
+/// Snap and dragging pass through on the way.
+// no-prop-test: drives one window through widths; `sidebar_folds` and
+// `PaneWidths::fitted` have the properties.
+#[gpui_kit::test]
+fn the_smallest_window_holds_the_workspace(cx: &mut TestAppContext) {
+    use crate::layout::WINDOW_MIN_SIZE;
+    use gpui_kit::{px, size};
+
+    let f = split_fixture(cx, "one\ntwo");
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    for width in [WINDOW_MIN_SIZE.0, 546., 640., 683., 760., 819., 900., 1366.] {
+        vcx.simulate_resize(size(px(width), px(WINDOW_MIN_SIZE.1)));
+        for _ in 0..3 {
+            f.draw(&mut vcx);
+        }
+        let sidebar = vcx.debug_bounds("sidebar-pane").unwrap();
+        let list = vcx.debug_bounds("list-pane").unwrap();
+        let editor = vcx.debug_bounds("editor-pane").unwrap();
+        for (name, b) in [("sidebar", sidebar), ("list", list), ("editor", editor)] {
+            assert!(
+                f32::from(b.right()) <= width + 0.5 && f32::from(b.left()) >= -0.5,
+                "{name} spans {:?}..{:?} in {width}",
+                b.left(),
+                b.right()
+            );
+        }
+        assert!(list.right() <= editor.left() + px(0.5), "{width}");
+        if width < crate::layout::SIDEBAR_FOLD_BELOW {
+            assert!(
+                f32::from(sidebar.size.width) < 100.,
+                "the sidebar is {:?} wide in {width}",
+                sidebar.size.width
+            );
+            assert!(
+                f32::from(editor.size.width) >= 240.,
+                "the editor is {:?} wide in {width}",
+                editor.size.width
+            );
+        }
+        if let Some(title) = vcx.debug_bounds("note-title") {
+            assert!(
+                f32::from(title.right()) <= f32::from(editor.right()) + 0.5,
+                "{width}"
+            );
+        }
+    }
+}
+
 /// Another note opens at its top in the preview too, whether the preview
 /// was scrolled alone (Preview) or beside a source left at its top (Split).
 // no-prop-test: drives one window; the scroll mapping is a property in

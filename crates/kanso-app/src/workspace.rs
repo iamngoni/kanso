@@ -26,7 +26,7 @@ use crate::editor::{EditorEvent, NoteEditor};
 use crate::inspector::{Inspector, InspectorEvent};
 use crate::layout::{
     BandAction, BandDrag, PaneEdge, PaneWidths, inset_after, inspector_dragged, inspector_fitted,
-    rail_width,
+    rail_width, sidebar_folds,
 };
 use crate::library::{Filter, Library, LibraryEvent};
 use crate::note_batch::Change as BatchChange;
@@ -2032,7 +2032,15 @@ impl Workspace {
 
     /// The rail's width while the sidebar is folded to it.
     fn rail(&self, window: &Window) -> Option<f32> {
-        (!self.show_sidebar).then(|| rail_width(window.is_fullscreen()))
+        (!self.sidebar_shown(window)).then(|| rail_width(window.is_fullscreen()))
+    }
+
+    /// Whether the full sidebar is drawn: as the user set it, and the
+    /// window wide enough for it (below that it folds to the rail, so a
+    /// half-screen window keeps room for the list and the editor).
+    fn sidebar_shown(&self, window: &Window) -> bool {
+        let width = crate::zoom::unscaled(window.viewport_size().width);
+        self.show_sidebar && !sidebar_folds(width)
     }
 
     /// The panes' widths as drawn: as set, or narrower when the window
@@ -2483,6 +2491,7 @@ pub fn tag_color_name(color: TagColor) -> String {
 impl Render for Workspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
+        let sidebar_shown = self.sidebar_shown(window);
         // The sidebar or its rail is leftmost and keeps the traffic lights'
         // room; the list's top band leaves whatever is left of it free.
         let leading = self.leading_width(window);
@@ -2506,7 +2515,7 @@ impl Render for Workspace {
         self.settings.update(cx, |settings, cx| {
             settings.set_leading_inset(list_inset, cx)
         });
-        let collapsed = !self.show_sidebar;
+        let collapsed = !sidebar_shown;
         self.sidebar
             .update(cx, |sidebar, cx| sidebar.set_collapsed(collapsed, cx));
         // Opening Settings leaves focus mode, so the two never show together;
@@ -3081,7 +3090,7 @@ impl Render for Workspace {
                                 .debug_selector(|| "settings-pane".into())
                                 .child(self.settings.clone())
                                 // The rail keeps its width.
-                                .when(self.show_sidebar, |el| {
+                                .when(sidebar_shown, |el| {
                                     el.child(pane_handle(PaneEdge::Sidebar))
                                 }),
                         )
@@ -3097,7 +3106,7 @@ impl Render for Workspace {
                                 .min_w_0()
                                 .debug_selector(|| "page-pane".into())
                                 .child(self.digest.clone())
-                                .when(self.show_sidebar, |el| {
+                                .when(sidebar_shown, |el| {
                                     el.child(pane_handle(PaneEdge::Sidebar))
                                 }),
                         )
@@ -3119,7 +3128,7 @@ impl Render for Workspace {
                                         }
                                     })
                                     // The rail keeps its width.
-                                    .when(self.show_sidebar, |el| {
+                                    .when(sidebar_shown, |el| {
                                         el.child(pane_handle(PaneEdge::Sidebar))
                                     }),
                             )

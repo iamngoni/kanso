@@ -25,6 +25,23 @@ pub const SIDEBAR_RANGE: (f32, f32) = (180., 320.);
 pub const NOTE_LIST_RANGE: (f32, f32) = (260., 480.);
 /// The editor's own minimum: dragging a pane wider stops short of it.
 pub const EDITOR_MIN_WIDTH: f32 = 560.;
+/// The smallest a main window gets, in points. Windows scales the minimum
+/// by the display scale, and half of a 1366-wide screen at 125% is 546
+/// points, so 520 lets Snap's half layout through at 100% and 125%.
+pub const WINDOW_MIN_SIZE: (f32, f32) = (520., 420.);
+/// In a window this narrow the editor keeps only its compact minimum and
+/// the list may narrow below its usual range, so the panes still fit.
+pub const EDITOR_COMPACT_MIN: f32 = 260.;
+pub const NOTE_LIST_COMPACT_MIN: f32 = 200.;
+/// Below this window width the sidebar folds to the icon rail whatever the
+/// user chose, so the list and the editor keep their room.
+pub const SIDEBAR_FOLD_BELOW: f32 = 820.;
+
+/// Whether a window `window` points wide is too narrow for the full sidebar.
+pub fn sidebar_folds(window: f32) -> bool {
+    window < SIDEBAR_FOLD_BELOW
+}
+
 /// The inspector beside the editor (outline and backlinks): its width
 /// before it is first dragged, and how narrow and wide dragging makes it.
 pub const INSPECTOR_WIDTH: f32 = 264.;
@@ -172,6 +189,17 @@ impl PaneWidths {
             (self.sidebar - short).max(SIDEBAR_RANGE.0.min(self.sidebar))
         } else {
             self.sidebar
+        };
+        // Still short (a window near its minimum, beside a rail): the list
+        // narrows below its range, down to a compact floor, so the editor
+        // keeps at least its compact minimum.
+        // (Without a rail the sidebar has folded to one long before this.)
+        let left = rail.unwrap_or(sidebar);
+        let short = EDITOR_COMPACT_MIN - (window - left - list);
+        let list = if rail.is_some() && short > 1e-3 {
+            (list - short).max(NOTE_LIST_COMPACT_MIN.min(list))
+        } else {
+            list
         };
         PaneWidths { sidebar, list }
     }
@@ -627,6 +655,21 @@ mod tests {
             }
             // The rail covers the lights, so whatever follows it starts flush.
             prop_assert_eq!(inset_after(rail_width(fullscreen), fullscreen), 0.);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(config())]
+
+        /// The sidebar folds exactly below its threshold, and at the
+        /// window's minimum the rail, the narrowest list and the editor's
+        /// floor all fit side by side.
+        #[test]
+        fn folding_is_monotonic_and_the_minimum_fits(a in 0f32..3000., b in 0f32..3000.) {
+            let (lo, hi) = if a < b { (a, b) } else { (b, a) };
+            prop_assert!(!sidebar_folds(hi) || sidebar_folds(lo) == (lo < SIDEBAR_FOLD_BELOW));
+            prop_assert!(sidebar_folds(WINDOW_MIN_SIZE.0));
+            prop_assert!(RAIL_MIN_WIDTH + NOTE_LIST_COMPACT_MIN + EDITOR_COMPACT_MIN <= WINDOW_MIN_SIZE.0);
         }
     }
 
