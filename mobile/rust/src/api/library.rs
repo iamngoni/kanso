@@ -21,7 +21,9 @@ use super::account::KansoAccount;
 use super::account_settings::KansoAccountSettings;
 use super::ai::KansoAi;
 use super::approvals::KansoApprovals;
+use super::cards::KansoCards;
 use super::discovery::KansoDiscovery;
+use super::draft::KansoDrafting;
 use super::editor::KansoEditor;
 use super::gallery::KansoGallery;
 use super::linking::KansoLinking;
@@ -477,6 +479,16 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn voice_capture(&self) -> KansoVoiceCapture {
         KansoVoiceCapture::new(self.0.clone())
+    }
+
+    #[frb(sync)]
+    pub fn cards(&self) -> KansoCards {
+        KansoCards::new(self.0.cards())
+    }
+
+    #[frb(sync)]
+    pub fn drafting(&self) -> KansoDrafting {
+        KansoDrafting::new(self.0.drafting())
     }
 
     #[frb(sync)]

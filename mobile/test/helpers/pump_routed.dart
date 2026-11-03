@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
 
+import 'fixture_ai_repository.dart';
 import 'fixture_discovery_repository.dart';
 import 'kanso_test_app.dart';
 import 'seeded_appearance_bloc.dart';
@@ -80,12 +82,22 @@ Future<GoRouter> pumpRouted(
   );
   addTearDown(router.dispose);
   await tester.pumpWidget(
-    BlocProvider<DiscoverySettingsBloc>(
-      lazy: false,
-      create: (_) => DiscoverySettingsBloc(
-        FixtureDiscoveryRepository(),
-        SeededPreferencesRepository(const Preferences()),
-      )..add(const DiscoverySettingsEvent.started()),
+    MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<DiscoverySettingsBloc>(
+          lazy: false,
+          create: (_) => DiscoverySettingsBloc(
+            FixtureDiscoveryRepository(),
+            SeededPreferencesRepository(const Preferences()),
+          )..add(const DiscoverySettingsEvent.started()),
+        ),
+        // The app's AI switch, which menus read to offer the AI actions.
+        BlocProvider<AiStatusBloc>(
+          create: (_) =>
+              AiStatusBloc(FixtureAiRepository())
+                ..add(const AiStatusEvent.started()),
+        ),
+      ],
       child: KansoTestRouterApp(
         brightness: brightness,
         routerConfig: router,

@@ -6738,5 +6738,396 @@
   "voiceTidyDone": "Tidied this voice note",
   "@voiceTidyDone": {
     "description": "Notice after a voice note was tidied; Undo puts it back as it was."
+  },
+  "flashcardsReviewTitle": "Review",
+  "@flashcardsReviewTitle": {
+    "description": "Flashcards, Quiz Me and drafting: review title."
+  },
+  "flashcardsShowAnswer": "Show Answer",
+  "@flashcardsShowAnswer": {
+    "description": "Flashcards, Quiz Me and drafting: show answer."
+  },
+  "flashcardsAgain": "Again",
+  "@flashcardsAgain": {
+    "description": "Flashcards, Quiz Me and drafting: again."
+  },
+  "flashcardsHard": "Hard",
+  "@flashcardsHard": {
+    "description": "Flashcards, Quiz Me and drafting: hard."
+  },
+  "flashcardsGood": "Good",
+  "@flashcardsGood": {
+    "description": "Flashcards, Quiz Me and drafting: good."
+  },
+  "flashcardsEasy": "Easy",
+  "@flashcardsEasy": {
+    "description": "Flashcards, Quiz Me and drafting: easy."
+  },
+  "flashcardsSwipeHint": "Swipe left for Again, right for Good",
+  "@flashcardsSwipeHint": {
+    "description": "Flashcards, Quiz Me and drafting: swipe hint."
+  },
+  "flashcardsDoneForToday": "Done for today.",
+  "@flashcardsDoneForToday": {
+    "description": "Flashcards, Quiz Me and drafting: done for today."
+  },
+  "flashcardsDoneBody": "Come back when more cards are due. Cards are lines written as question :: answer in your notes.",
+  "@flashcardsDoneBody": {
+    "description": "Flashcards, Quiz Me and drafting: done body."
+  },
+  "flashcardsReviewMore": "Review More",
+  "@flashcardsReviewMore": {
+    "description": "Flashcards, Quiz Me and drafting: review more."
+  },
+  "flashcardsNoCardsTitle": "No cards yet",
+  "@flashcardsNoCardsTitle": {
+    "description": "Flashcards, Quiz Me and drafting: no cards title."
+  },
+  "flashcardsNoCardsBody": "Write a line like  What is FSRS? :: A scheduler  in any note. Each such line is a flashcard.",
+  "@flashcardsNoCardsBody": {
+    "description": "Flashcards, Quiz Me and drafting: no cards body."
+  },
+  "flashcardsStats": "Stats",
+  "@flashcardsStats": {
+    "description": "Flashcards, Quiz Me and drafting: stats."
+  },
+  "flashcardsSettings": "Flashcards",
+  "@flashcardsSettings": {
+    "description": "Flashcards, Quiz Me and drafting: settings."
+  },
+  "flashcardsSuspend": "Suspend Card",
+  "@flashcardsSuspend": {
+    "description": "Flashcards, Quiz Me and drafting: suspend."
+  },
+  "flashcardsSuspended": "Card suspended.",
+  "@flashcardsSuspended": {
+    "description": "Flashcards, Quiz Me and drafting: suspended."
+  },
+  "flashcardsOpenNote": "Open Note",
+  "@flashcardsOpenNote": {
+    "description": "Flashcards, Quiz Me and drafting: open note."
+  },
+  "flashcardsStatsTotal": "Cards",
+  "@flashcardsStatsTotal": {
+    "description": "Flashcards, Quiz Me and drafting: stats total."
+  },
+  "flashcardsStatsDue": "Due today",
+  "@flashcardsStatsDue": {
+    "description": "Flashcards, Quiz Me and drafting: stats due."
+  },
+  "flashcardsStatsNew": "New",
+  "@flashcardsStatsNew": {
+    "description": "Flashcards, Quiz Me and drafting: stats new."
+  },
+  "flashcardsStatsSuspended": "Suspended",
+  "@flashcardsStatsSuspended": {
+    "description": "Flashcards, Quiz Me and drafting: stats suspended."
+  },
+  "flashcardsStatsPerDay": "Reviews, last 30 days",
+  "@flashcardsStatsPerDay": {
+    "description": "Flashcards, Quiz Me and drafting: stats per day."
+  },
+  "flashcardsStatsRetention": "Retention, last 30 days",
+  "@flashcardsStatsRetention": {
+    "description": "Flashcards, Quiz Me and drafting: stats retention."
+  },
+  "flashcardsStatsForecast": "Due, next 7 days",
+  "@flashcardsStatsForecast": {
+    "description": "Flashcards, Quiz Me and drafting: stats forecast."
+  },
+  "flashcardsStatsHardest": "Hardest cards",
+  "@flashcardsStatsHardest": {
+    "description": "Flashcards, Quiz Me and drafting: stats hardest."
+  },
+  "flashcardsStatsNone": "Nothing reviewed yet.",
+  "@flashcardsStatsNone": {
+    "description": "Flashcards, Quiz Me and drafting: stats none."
+  },
+  "flashcardsNewPerDay": "New cards a day",
+  "@flashcardsNewPerDay": {
+    "description": "Flashcards, Quiz Me and drafting: new per day."
+  },
+  "flashcardsReviewsPerDay": "Reviews a day",
+  "@flashcardsReviewsPerDay": {
+    "description": "Flashcards, Quiz Me and drafting: reviews per day."
+  },
+  "flashcardsTargetRecall": "Target recall",
+  "@flashcardsTargetRecall": {
+    "description": "Flashcards, Quiz Me and drafting: target recall."
+  },
+  "flashcardsDailyReminder": "Daily reminder",
+  "@flashcardsDailyReminder": {
+    "description": "Flashcards, Quiz Me and drafting: daily reminder."
+  },
+  "flashcardsReminderOff": "Off",
+  "@flashcardsReminderOff": {
+    "description": "Flashcards, Quiz Me and drafting: reminder off."
+  },
+  "flashcardsShowIcons": "Show card icons in the editor",
+  "@flashcardsShowIcons": {
+    "description": "Flashcards, Quiz Me and drafting: show icons."
+  },
+  "flashcardsResetHistory": "Reset Review History…",
+  "@flashcardsResetHistory": {
+    "description": "Flashcards, Quiz Me and drafting: reset history."
+  },
+  "flashcardsResetTitle": "Reset review history?",
+  "@flashcardsResetTitle": {
+    "description": "Flashcards, Quiz Me and drafting: reset title."
+  },
+  "flashcardsResetBody": "Every card starts again as new, on all your devices. The cards in your notes stay.",
+  "@flashcardsResetBody": {
+    "description": "Flashcards, Quiz Me and drafting: reset body."
+  },
+  "flashcardsReset": "Reset",
+  "@flashcardsReset": {
+    "description": "Flashcards, Quiz Me and drafting: reset."
+  },
+  "flashcardsMakeCards": "Make Flashcards…",
+  "@flashcardsMakeCards": {
+    "description": "Flashcards, Quiz Me and drafting: make cards."
+  },
+  "flashcardsMakeBlockedExcluded": "This note is excluded from AI.",
+  "@flashcardsMakeBlockedExcluded": {
+    "description": "Flashcards, Quiz Me and drafting: make blocked excluded."
+  },
+  "flashcardsMakeReading": "Reading the note…",
+  "@flashcardsMakeReading": {
+    "description": "Flashcards, Quiz Me and drafting: make reading."
+  },
+  "flashcardsSourceNotFound": "Source not found",
+  "@flashcardsSourceNotFound": {
+    "description": "Flashcards, Quiz Me and drafting: source not found."
+  },
+  "flashcardsNoSuggestions": "No cards came back. Try again.",
+  "@flashcardsNoSuggestions": {
+    "description": "Flashcards, Quiz Me and drafting: no suggestions."
+  },
+  "flashcardsQuizMe": "Quiz Me",
+  "@flashcardsQuizMe": {
+    "description": "Flashcards, Quiz Me and drafting: quiz me."
+  },
+  "flashcardsQuizHint": "Type your answer",
+  "@flashcardsQuizHint": {
+    "description": "Flashcards, Quiz Me and drafting: quiz hint."
+  },
+  "flashcardsQuizCheck": "Check",
+  "@flashcardsQuizCheck": {
+    "description": "Flashcards, Quiz Me and drafting: quiz check."
+  },
+  "flashcardsQuizNext": "Next",
+  "@flashcardsQuizNext": {
+    "description": "Flashcards, Quiz Me and drafting: quiz next."
+  },
+  "flashcardsQuizSaveCard": "Save as Card",
+  "@flashcardsQuizSaveCard": {
+    "description": "Flashcards, Quiz Me and drafting: quiz save card."
+  },
+  "flashcardsQuizDone": "That was the round.",
+  "@flashcardsQuizDone": {
+    "description": "Flashcards, Quiz Me and drafting: quiz done."
+  },
+  "flashcardsQuizAgain": "Another Round",
+  "@flashcardsQuizAgain": {
+    "description": "Flashcards, Quiz Me and drafting: quiz again."
+  },
+  "flashcardsDraftFrom": "Draft from This Note…",
+  "@flashcardsDraftFrom": {
+    "description": "Flashcards, Quiz Me and drafting: draft from."
+  },
+  "flashcardsDraftTitle": "Draft",
+  "@flashcardsDraftTitle": {
+    "description": "Flashcards, Quiz Me and drafting: draft title."
+  },
+  "flashcardsDraftSources": "Sources",
+  "@flashcardsDraftSources": {
+    "description": "Flashcards, Quiz Me and drafting: draft sources."
+  },
+  "flashcardsDraftWhat": "What should it say, and for whom?",
+  "@flashcardsDraftWhat": {
+    "description": "Flashcards, Quiz Me and drafting: draft what."
+  },
+  "flashcardsDraftWrite": "Write Draft",
+  "@flashcardsDraftWrite": {
+    "description": "Flashcards, Quiz Me and drafting: draft write."
+  },
+  "flashcardsDraftStop": "Stop",
+  "@flashcardsDraftStop": {
+    "description": "Flashcards, Quiz Me and drafting: draft stop."
+  },
+  "flashcardsDraftTryAgain": "Try Again",
+  "@flashcardsDraftTryAgain": {
+    "description": "Flashcards, Quiz Me and drafting: draft try again."
+  },
+  "flashcardsDraftCopy": "Copy",
+  "@flashcardsDraftCopy": {
+    "description": "Flashcards, Quiz Me and drafting: draft copy."
+  },
+  "flashcardsDraftSave": "Save as Note",
+  "@flashcardsDraftSave": {
+    "description": "Flashcards, Quiz Me and drafting: draft save."
+  },
+  "flashcardsDraftDiscard": "Discard",
+  "@flashcardsDraftDiscard": {
+    "description": "Flashcards, Quiz Me and drafting: draft discard."
+  },
+  "flashcardsDraftDiscardTitle": "Discard this draft?",
+  "@flashcardsDraftDiscardTitle": {
+    "description": "Flashcards, Quiz Me and drafting: draft discard title."
+  },
+  "flashcardsDraftDiscardBody": "It has not been saved. Drafts are not kept.",
+  "@flashcardsDraftDiscardBody": {
+    "description": "Flashcards, Quiz Me and drafting: draft discard body."
+  },
+  "flashcardsDraftNoSource": "No source in your notes",
+  "@flashcardsDraftNoSource": {
+    "description": "Flashcards, Quiz Me and drafting: draft no source."
+  },
+  "flashcardsDraftNone": "None of these notes can be sent to AI. Locked notes and notes tagged #ai-exclude are never sent.",
+  "@flashcardsDraftNone": {
+    "description": "Flashcards, Quiz Me and drafting: draft none."
+  },
+  "flashcardsDraftNoAi": "Drafting needs an AI provider. Choose one in Settings › AI.",
+  "@flashcardsDraftNoAi": {
+    "description": "Flashcards, Quiz Me and drafting: draft no ai."
+  },
+  "flashcardsDraftSaved": "Saved the draft as a note.",
+  "@flashcardsDraftSaved": {
+    "description": "Flashcards, Quiz Me and drafting: draft saved."
+  },
+  "flashcardsDraftReviewTitle": "Review",
+  "@flashcardsDraftReviewTitle": {
+    "description": "Flashcards, Quiz Me and drafting: draft review title."
+  },
+  "flashcardsDraftNotebook": "Notebook",
+  "@flashcardsDraftNotebook": {
+    "description": "Flashcards, Quiz Me and drafting: draft notebook."
+  },
+  "flashcardsProgress": "{at} of {total}{fresh, plural, =0{} other{ · {fresh} new}}",
+  "@flashcardsProgress": {
+    "description": "Progress through a review, such as \"3 of 20 · 5 new\".",
+    "placeholders": {
+      "at": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "fresh": {
+        "type": "int"
+      }
+    }
+  },
+  "flashcardsInterval": "{name} · {span}",
+  "@flashcardsInterval": {
+    "description": "A grade button: its name and the time until the card returns.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "span": {
+        "type": "String"
+      }
+    }
+  },
+  "flashcardsAddCards": "{n, plural, =1{Add 1 Card} other{Add {n} Cards}}",
+  "@flashcardsAddCards": {
+    "description": "The button that adds the ticked suggested cards.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "flashcardsAdded": "{n, plural, =1{Added 1 card.} other{Added {n} cards.}}",
+  "@flashcardsAdded": {
+    "description": "Confirms how many suggested cards were written into the note.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "flashcardsQuizProgress": "Question {at} of {total}",
+  "@flashcardsQuizProgress": {
+    "description": "Progress through a Quiz Me round.",
+    "placeholders": {
+      "at": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "flashcardsDraftSent": "{n, plural, =1{Only this note is sent to your AI.} other{Only these {n} notes are sent to your AI.}}",
+  "@flashcardsDraftSent": {
+    "description": "Says which notes a draft sends to the AI provider.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "flashcardsShapeReport": "Report",
+  "@flashcardsShapeReport": {
+    "description": "The kind of draft: report."
+  },
+  "flashcardsShapeEssay": "Essay",
+  "@flashcardsShapeEssay": {
+    "description": "The kind of draft: essay."
+  },
+  "flashcardsShapeUpdate": "Update",
+  "@flashcardsShapeUpdate": {
+    "description": "The kind of draft: update."
+  },
+  "flashcardsShapeOutline": "Outline",
+  "@flashcardsShapeOutline": {
+    "description": "The kind of draft: outline."
+  },
+  "flashcardsShapeCustom": "Custom",
+  "@flashcardsShapeCustom": {
+    "description": "The kind of draft: custom."
+  },
+  "flashcardsLengthShort": "Short",
+  "@flashcardsLengthShort": {
+    "description": "How long a draft should be: short."
+  },
+  "flashcardsLengthMedium": "Medium",
+  "@flashcardsLengthMedium": {
+    "description": "How long a draft should be: medium."
+  },
+  "flashcardsLengthLong": "Long",
+  "@flashcardsLengthLong": {
+    "description": "How long a draft should be: long."
+  },
+  "flashcardsDraftFromNotebook": "Draft from This Notebook…",
+  "@flashcardsDraftFromNotebook": {
+    "description": "A notebook menu row that writes a draft from the notebook's notes."
+  },
+  "flashcardsDraftFromTag": "Draft from This Tag…",
+  "@flashcardsDraftFromTag": {
+    "description": "A tag menu row that writes a draft from the notes with the tag."
+  },
+  "flashcardsDraftFromNotes": "{n, plural, =1{Draft from This Note…} other{Draft from These {n} Notes…}}",
+  "@flashcardsDraftFromNotes": {
+    "description": "A row of the menu for chosen notes that writes a draft from them.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "flashcardsDraftNoNotes": "There are no notes here that a draft can read. Locked notes and notes tagged #ai-exclude are never sent.",
+  "@flashcardsDraftNoNotes": {
+    "description": "Said when a notebook or tag has no notes a draft may read."
+  },
+  "flashcardsDraftNoSourceNote": "Underlined: no source in your notes. These are left out when you save.",
+  "@flashcardsDraftNoSourceNote": {
+    "description": "Drafting: the line under a draft that has sentences no note supports."
+  },
+  "flashcardsDraftKeepUnsourced": "Keep sentences without a source",
+  "@flashcardsDraftKeepUnsourced": {
+    "description": "Drafting: the switch that saves unsourced sentences too."
   }
 }

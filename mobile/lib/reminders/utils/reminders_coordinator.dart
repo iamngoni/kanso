@@ -30,11 +30,18 @@ const String digestReviewKeyPrefix = '${digestKeyPrefix}review:';
 /// The key of the brief's notifications.
 const String digestBriefKeyPrefix = '${digestKeyPrefix}brief:';
 
-/// The key a brief or review notification is scheduled under, so an answer
-/// to it tells which page to open.
-String digestKeyOf(PlannedNotice notice) =>
-    '${notice.isReview ? digestReviewKeyPrefix : digestBriefKeyPrefix}'
-    '${notice.id}';
+/// The key of the daily flashcard reminder's notifications.
+const String digestCardsKeyPrefix = '${digestKeyPrefix}cards:';
+
+/// The key a brief, review or flashcard notification is scheduled under, so
+/// an answer to it tells which page to open.
+String digestKeyOf(PlannedNotice notice) {
+  if (notice.id.startsWith('cards-')) {
+    return '$digestCardsKeyPrefix${notice.id}';
+  }
+  return '${notice.isReview ? digestReviewKeyPrefix : digestBriefKeyPrefix}'
+      '${notice.id}';
+}
 
 /// How long the library must be quiet before the reminders are planned
 /// again.
@@ -96,6 +103,11 @@ class RemindersCoordinator {
   /// a notification.
   Stream<bool> get digestOpened => _digestOpened.stream;
 
+  final StreamController<void> _cardsOpened = StreamController<void>();
+
+  /// A tap on the daily flashcard reminder: Review should open.
+  Stream<void> get cardsOpened => _cardsOpened.stream;
+
   /// Starts listening, then answers what was waiting and plans.
   Future<void> start() async {
     if (_started) {
@@ -154,6 +166,7 @@ class RemindersCoordinator {
     unawaited(_opened.close());
     unawaited(_digestOpened.close());
     unawaited(_agentOpened.close());
+    unawaited(_cardsOpened.close());
   }
 
   Future<void> _serialised(Future<void> Function() action) {
@@ -304,7 +317,13 @@ class RemindersCoordinator {
       return;
     }
     if (response.key.startsWith(digestKeyPrefix)) {
-      // A tap opens the brief or the review; the buttons do nothing.
+      // A tap opens the brief, the review or Review; the buttons do nothing.
+      if (response.key.startsWith(digestCardsKeyPrefix)) {
+        if (response.action == ReminderAnswer.open && !_cardsOpened.isClosed) {
+          _cardsOpened.add(null);
+        }
+        return;
+      }
       if (response.action == ReminderAnswer.open && !_digestOpened.isClosed) {
         _digestOpened.add(response.key.startsWith(digestReviewKeyPrefix));
       }

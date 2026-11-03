@@ -40,6 +40,7 @@ import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sidebar_row.dart';
 import '../../../core/views/widgets/kanso_status_glyph.dart';
 import '../../../core/views/widgets/kanso_themed_icon.dart';
+import '../../../flashcards/views/widgets/review_library_row.dart';
 import '../../../injection.dart';
 import '../../../lock/utils/notebook_lock_rule.dart';
 import '../../../note_list/state/note_list/note_list_bloc.dart';
@@ -223,6 +224,7 @@ class _LibraryPaneState extends State<LibraryPane> {
                       ),
                       const AskLibraryRow(),
                       const AgentTasksLibraryRow(),
+                      const ReviewLibraryRow(),
                       SharedWithYouRow(
                         onOpen: () =>
                             leave(() => context.push(KansoRoutes.shared)),

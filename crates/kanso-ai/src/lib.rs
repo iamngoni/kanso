@@ -13,6 +13,8 @@
 #[cfg(feature = "acp")]
 pub mod agent;
 pub mod client;
+pub mod draft;
+pub mod draft_model;
 pub mod features;
 pub mod prompt;
 pub mod raw_tool;

@@ -471,6 +471,9 @@ LiveDisplay buildLiveDisplay({
           : null,
     ).merge(code ? style.inlineCode : null);
     var drawn = isLink ? style.link.merge(mark) : mark;
+    if (styledAt(LiveStyleKind.cardSeparator, from)) {
+      drawn = drawn.merge(TextStyle(color: style.muted));
+    }
     if (covered(overlays.comments, from)) {
       drawn = drawn.merge(overlays.commentStyle);
     }

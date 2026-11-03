@@ -7,6 +7,7 @@
 use std::rc::Rc;
 
 use gpui_kit::component::menu::{PopupMenu, PopupMenuItem};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::NoteStatus;
 
@@ -27,6 +28,13 @@ pub enum NoteCommand {
     OpenAsSticky,
     /// The note as slides, full screen (`presentation.rs`).
     Present,
+    /// Writes a draft from the note, or from all the selected ones
+    /// (`learn_view.rs`).
+    DraftFrom,
+    /// Suggests flashcards for the note.
+    MakeFlashcards,
+    /// Asks questions about the note.
+    QuizMe,
     SetStatus(NoteStatus),
     ShowHistory,
     Export,
@@ -47,11 +55,13 @@ pub type Run = Rc<dyn Fn(NoteCommand, &mut Window, &mut App)>;
 
 /// Adds the items for a note that is `pinned` or not, `locked` or not and
 /// has `status` to `menu`, each calling `run` with its command.
+#[allow(clippy::too_many_arguments)] // the note's state, the menu and its window
 pub fn items(
     menu: PopupMenu,
     pinned: bool,
     locked: bool,
     status: NoteStatus,
+    ai: bool,
     run: Run,
     window: &mut Window,
     cx: &mut Context<PopupMenu>,
@@ -84,6 +94,12 @@ pub fn items(
         menu
     })
     .separator()
+    .when(ai, |menu| {
+        menu.item(item("Draft from This Note…", NoteCommand::DraftFrom))
+            .item(item("Make Flashcards…", NoteCommand::MakeFlashcards))
+            .item(item("Quiz Me", NoteCommand::QuizMe))
+            .separator()
+    })
     .item(item("Show History…", NoteCommand::ShowHistory))
     .item(item("Export Note…", NoteCommand::Export))
     .item(item("Share…", NoteCommand::Share))
@@ -141,6 +157,10 @@ pub fn several_items(
         menu.item(item(
             format!("Ask an Agent About {count} Notes…"),
             NoteCommand::AskAgent,
+        ))
+        .item(item(
+            format!("Draft from These {count} Notes…"),
+            NoteCommand::DraftFrom,
         ))
     } else {
         menu

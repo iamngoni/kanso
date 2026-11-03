@@ -754,7 +754,8 @@ impl NoteList {
                             cx.emit(NoteListEvent::Command(id.clone(), command))
                         });
                     });
-                    crate::note_menu::items(menu, pinned, locked, status, run, window, cx)
+                    let ai = cx.global::<crate::AppState>().config.ai.enabled && !locked;
+                    crate::note_menu::items(menu, pinned, locked, status, ai, run, window, cx)
                 }
             })
     }

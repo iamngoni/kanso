@@ -1459,6 +1459,7 @@ pub enum _LiveDocStyleKind {
     Heading,
     InlineMath,
     Quote,
+    CardSeparator,
     TaskDone,
 }
 

@@ -2569,6 +2569,7 @@ enum LiveDocStyleKind {
   heading,
   inlineMath,
   quote,
+  cardSeparator,
   taskDone,
 }
 

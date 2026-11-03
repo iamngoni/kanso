@@ -5,6 +5,7 @@
 //! working unchanged.
 
 pub mod capture_mark;
+pub mod cards;
 pub mod dates;
 pub mod excerpt;
 pub mod id;
@@ -18,8 +19,10 @@ pub mod query_view;
 pub mod reminders;
 pub mod replace;
 pub mod rev;
+pub mod review_doc;
 pub mod roles;
 pub mod slides;
+pub mod srs;
 pub mod tags;
 pub mod tasks;
 pub mod template;

@@ -682,7 +682,17 @@ impl EditorSession {
             let from = index.utf16_to_byte(&text, start as usize);
             let to = index.utf16_to_byte(&text, end as usize).max(from);
             let spans = held(&self.shared.highlighter).spans(&text, from..to);
-            let runs = spans
+            let separators = if text[from..to].contains(" :: ") && self.show_card_marks() {
+                kanso_core::cards::card_marks(&text)
+                    .into_iter()
+                    .map(|mark| mark.separator)
+                    .filter(|sep| sep.start >= from && sep.end <= to)
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            let dim = kanso_engine::theme::style(&[Token::Marker], &theme.fitted.syntax);
+            let mut runs: Vec<EditorRun> = spans
                 .into_iter()
                 .filter_map(|span| {
                     let style = kanso_engine::theme::style(&span.tokens, &theme.fitted.syntax);
@@ -708,6 +718,26 @@ impl EditorSession {
                     })
                 })
                 .collect();
+            // The `::` of a flashcard line, dim, where no other run is.
+            for sep in separators {
+                let (start, end) = (
+                    index.byte_to_utf16(&text, sep.start) as u32,
+                    index.byte_to_utf16(&text, sep.end) as u32,
+                );
+                if runs
+                    .iter()
+                    .all(|r| r.range.end <= start || r.range.start >= end)
+                {
+                    runs.push(EditorRun {
+                        range: Range16 { start, end },
+                        color: dim.color.map(|color| color.0),
+                        italic: None,
+                        weight: None,
+                        quiet: false,
+                    });
+                }
+            }
+            runs.sort_by_key(|r| r.range.start);
             Ok(RunBatch { version, runs })
         })
     }
@@ -806,10 +836,21 @@ impl EditorSession {
                     .as_ref()
                     .is_some_and(|titles| titles.resolve(title).is_none())
             };
+            let card_marks = text.contains(" :: ") && self.show_card_marks();
             Ok(crate::live_document::live_document(
-                &text, &index, version, &reveal, &missing,
+                &text, &index, version, &reveal, &missing, card_marks,
             ))
         })
+    }
+
+    /// Whether Settings › Flashcards asks for the `::` of a card to be drawn
+    /// dim (on unless turned off).
+    fn show_card_marks(&self) -> bool {
+        self.shared
+            .inner
+            .store
+            .card_settings()
+            .map_or(true, |settings| settings.show_icons)
     }
 
     /// What the caret completes: `[[` with note titles, `#` with tags. Titles

@@ -70,6 +70,7 @@ LiveLayoutData liveLayoutOf(LiveDocument document, String text) {
             LiveDocStyleKind.heading => LiveStyleKind.heading,
             LiveDocStyleKind.inlineMath => LiveStyleKind.inlineMath,
             LiveDocStyleKind.quote => LiveStyleKind.quote,
+            LiveDocStyleKind.cardSeparator => LiveStyleKind.cardSeparator,
             LiveDocStyleKind.taskDone => LiveStyleKind.taskDone,
           },
         ),

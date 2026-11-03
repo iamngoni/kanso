@@ -4,7 +4,7 @@
 
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/configs/kanso_palette.dart';
 import 'package:kanso/core/configs/kanso_theme.dart';
@@ -69,6 +69,32 @@ void main() {
       expect(shown.toDisplay(9), 6);
       expect(shown.toSource(6), 8);
       expect(shown.toSource(8), 12);
+    });
+
+    test('the :: of a flashcard line is drawn in the muted colour', () {
+      const text = 'Q :: A';
+      final layout = LiveLayoutData(
+        text: text,
+        version: 1,
+        styles: <LiveStyleData>[
+          LiveStyleData(range: r(2, 4), kind: LiveStyleKind.cardSeparator),
+        ],
+        blocks: <LiveBlockData>[
+          LiveBlockData(kind: LiveBlockKind.paragraph, lines: r(0, 6)),
+        ],
+      );
+      final row = LiveRow(kind: LiveRowKind.text, range: r(0, 6));
+      final shown = buildLiveDisplay(layout: layout, row: row, style: style);
+      expect(shown.span.toPlainText(), text, reason: 'nothing is hidden');
+      final colours = <String, Color?>{};
+      shown.span.visitChildren((span) {
+        if (span is TextSpan && span.text != null) {
+          colours[span.text!] = span.style?.color;
+        }
+        return true;
+      });
+      expect(colours['::'], style.muted);
+      expect(colours['Q '], isNot(style.muted));
     });
 
     test('a line break in a paragraph is a space off the caret', () {

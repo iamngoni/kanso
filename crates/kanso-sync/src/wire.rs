@@ -71,12 +71,28 @@ pub fn is_base64url(s: &str) -> bool {
     s.bytes().all(is_base64url_char)
 }
 
-/// A wire document ID: `^(note|book|tag|file):[A-Za-z0-9_-]{22}$`.
+/// A wire document ID: `^(note|book|tag|file|review):[A-Za-z0-9_-]{22}$`.
 pub fn is_wire_id(id: &str) -> bool {
     let Some((kind, rest)) = id.split_once(':') else {
         return false;
     };
-    matches!(kind, "note" | "book" | "tag" | "file") && rest.len() == 22 && is_base64url(rest)
+    matches!(kind, "note" | "book" | "tag" | "file" | "review")
+        && rest.len() == 22
+        && is_base64url(rest)
+}
+
+/// A document ID of the right shape (`kind:` and 22 base64url characters)
+/// whose kind this version does not know: a document of a newer Kanso. It
+/// is left alone, and is no problem to report.
+pub fn is_future_kind_id(id: &str) -> bool {
+    let Some((kind, rest)) = id.split_once(':') else {
+        return false;
+    };
+    (2..=16).contains(&kind.len())
+        && kind.bytes().all(|b| b.is_ascii_lowercase())
+        && !matches!(kind, "note" | "book" | "tag" | "file" | "review")
+        && rest.len() == 22
+        && is_base64url(rest)
 }
 
 /// A wire file ID: a [`is_wire_id`] of kind `file`.
@@ -1039,6 +1055,10 @@ mod tests {
         assert!(!is_wire_id("note:Q2hhbmdlTWVQbGVhc2UxM"));
         assert!(!is_wire_id("note:Q2hhbmdlTWVQbGVhc2Ux+g"));
         assert!(!is_wire_id("page:Q2hhbmdlTWVQbGVhc2UxMg"));
+        assert!(is_future_kind_id("page:Q2hhbmdlTWVQbGVhc2UxMg"));
+        assert!(!is_future_kind_id("note:Q2hhbmdlTWVQbGVhc2UxMg"));
+        assert!(!is_future_kind_id("page:Q2hhbmdlTWVQbGVhc2Ux"));
+        assert!(!is_future_kind_id("Page:Q2hhbmdlTWVQbGVhc2UxMg"));
         assert!(!is_wire_id("note:07HmFZwo"));
         assert!(is_wire_file_id("file:Q2hhbmdlTWVQbGVhc2UxMg"));
         assert!(!is_wire_file_id("note:Q2hhbmdlTWVQbGVhc2UxMg"));
@@ -1081,7 +1101,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
         /// Oracle: the hand-written wire-ID check agrees with the spec's
-        /// pattern `^(note|book|tag|file):[A-Za-z0-9_-]{22}$`, spelled out
+        /// pattern `^(note|book|tag|file|review):[A-Za-z0-9_-]{22}$`, spelled out
         /// as a proptest regex.
         #[test]
         fn prop_wire_ids_match_the_pattern(id in "(note|book|tag|file|page|):[A-Za-z0-9_+/=-]{20,24}") {

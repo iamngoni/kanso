@@ -9057,6 +9057,522 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tidied this voice note'**
   String get voiceTidyDone;
+
+  /// Flashcards, Quiz Me and drafting: review title.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get flashcardsReviewTitle;
+
+  /// Flashcards, Quiz Me and drafting: show answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Answer'**
+  String get flashcardsShowAnswer;
+
+  /// Flashcards, Quiz Me and drafting: again.
+  ///
+  /// In en, this message translates to:
+  /// **'Again'**
+  String get flashcardsAgain;
+
+  /// Flashcards, Quiz Me and drafting: hard.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard'**
+  String get flashcardsHard;
+
+  /// Flashcards, Quiz Me and drafting: good.
+  ///
+  /// In en, this message translates to:
+  /// **'Good'**
+  String get flashcardsGood;
+
+  /// Flashcards, Quiz Me and drafting: easy.
+  ///
+  /// In en, this message translates to:
+  /// **'Easy'**
+  String get flashcardsEasy;
+
+  /// Flashcards, Quiz Me and drafting: swipe hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe left for Again, right for Good'**
+  String get flashcardsSwipeHint;
+
+  /// Flashcards, Quiz Me and drafting: done for today.
+  ///
+  /// In en, this message translates to:
+  /// **'Done for today.'**
+  String get flashcardsDoneForToday;
+
+  /// Flashcards, Quiz Me and drafting: done body.
+  ///
+  /// In en, this message translates to:
+  /// **'Come back when more cards are due. Cards are lines written as question :: answer in your notes.'**
+  String get flashcardsDoneBody;
+
+  /// Flashcards, Quiz Me and drafting: review more.
+  ///
+  /// In en, this message translates to:
+  /// **'Review More'**
+  String get flashcardsReviewMore;
+
+  /// Flashcards, Quiz Me and drafting: no cards title.
+  ///
+  /// In en, this message translates to:
+  /// **'No cards yet'**
+  String get flashcardsNoCardsTitle;
+
+  /// Flashcards, Quiz Me and drafting: no cards body.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a line like  What is FSRS? :: A scheduler  in any note. Each such line is a flashcard.'**
+  String get flashcardsNoCardsBody;
+
+  /// Flashcards, Quiz Me and drafting: stats.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats'**
+  String get flashcardsStats;
+
+  /// Flashcards, Quiz Me and drafting: settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashcards'**
+  String get flashcardsSettings;
+
+  /// Flashcards, Quiz Me and drafting: suspend.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspend Card'**
+  String get flashcardsSuspend;
+
+  /// Flashcards, Quiz Me and drafting: suspended.
+  ///
+  /// In en, this message translates to:
+  /// **'Card suspended.'**
+  String get flashcardsSuspended;
+
+  /// Flashcards, Quiz Me and drafting: open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Note'**
+  String get flashcardsOpenNote;
+
+  /// Flashcards, Quiz Me and drafting: stats total.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
+  String get flashcardsStatsTotal;
+
+  /// Flashcards, Quiz Me and drafting: stats due.
+  ///
+  /// In en, this message translates to:
+  /// **'Due today'**
+  String get flashcardsStatsDue;
+
+  /// Flashcards, Quiz Me and drafting: stats new.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get flashcardsStatsNew;
+
+  /// Flashcards, Quiz Me and drafting: stats suspended.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get flashcardsStatsSuspended;
+
+  /// Flashcards, Quiz Me and drafting: stats per day.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews, last 30 days'**
+  String get flashcardsStatsPerDay;
+
+  /// Flashcards, Quiz Me and drafting: stats retention.
+  ///
+  /// In en, this message translates to:
+  /// **'Retention, last 30 days'**
+  String get flashcardsStatsRetention;
+
+  /// Flashcards, Quiz Me and drafting: stats forecast.
+  ///
+  /// In en, this message translates to:
+  /// **'Due, next 7 days'**
+  String get flashcardsStatsForecast;
+
+  /// Flashcards, Quiz Me and drafting: stats hardest.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardest cards'**
+  String get flashcardsStatsHardest;
+
+  /// Flashcards, Quiz Me and drafting: stats none.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing reviewed yet.'**
+  String get flashcardsStatsNone;
+
+  /// Flashcards, Quiz Me and drafting: new per day.
+  ///
+  /// In en, this message translates to:
+  /// **'New cards a day'**
+  String get flashcardsNewPerDay;
+
+  /// Flashcards, Quiz Me and drafting: reviews per day.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews a day'**
+  String get flashcardsReviewsPerDay;
+
+  /// Flashcards, Quiz Me and drafting: target recall.
+  ///
+  /// In en, this message translates to:
+  /// **'Target recall'**
+  String get flashcardsTargetRecall;
+
+  /// Flashcards, Quiz Me and drafting: daily reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily reminder'**
+  String get flashcardsDailyReminder;
+
+  /// Flashcards, Quiz Me and drafting: reminder off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get flashcardsReminderOff;
+
+  /// Flashcards, Quiz Me and drafting: show icons.
+  ///
+  /// In en, this message translates to:
+  /// **'Show card icons in the editor'**
+  String get flashcardsShowIcons;
+
+  /// Flashcards, Quiz Me and drafting: reset history.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Review History…'**
+  String get flashcardsResetHistory;
+
+  /// Flashcards, Quiz Me and drafting: reset title.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset review history?'**
+  String get flashcardsResetTitle;
+
+  /// Flashcards, Quiz Me and drafting: reset body.
+  ///
+  /// In en, this message translates to:
+  /// **'Every card starts again as new, on all your devices. The cards in your notes stay.'**
+  String get flashcardsResetBody;
+
+  /// Flashcards, Quiz Me and drafting: reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get flashcardsReset;
+
+  /// Flashcards, Quiz Me and drafting: make cards.
+  ///
+  /// In en, this message translates to:
+  /// **'Make Flashcards…'**
+  String get flashcardsMakeCards;
+
+  /// Flashcards, Quiz Me and drafting: make blocked excluded.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is excluded from AI.'**
+  String get flashcardsMakeBlockedExcluded;
+
+  /// Flashcards, Quiz Me and drafting: make reading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the note…'**
+  String get flashcardsMakeReading;
+
+  /// Flashcards, Quiz Me and drafting: source not found.
+  ///
+  /// In en, this message translates to:
+  /// **'Source not found'**
+  String get flashcardsSourceNotFound;
+
+  /// Flashcards, Quiz Me and drafting: no suggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'No cards came back. Try again.'**
+  String get flashcardsNoSuggestions;
+
+  /// Flashcards, Quiz Me and drafting: quiz me.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz Me'**
+  String get flashcardsQuizMe;
+
+  /// Flashcards, Quiz Me and drafting: quiz hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your answer'**
+  String get flashcardsQuizHint;
+
+  /// Flashcards, Quiz Me and drafting: quiz check.
+  ///
+  /// In en, this message translates to:
+  /// **'Check'**
+  String get flashcardsQuizCheck;
+
+  /// Flashcards, Quiz Me and drafting: quiz next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get flashcardsQuizNext;
+
+  /// Flashcards, Quiz Me and drafting: quiz save card.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as Card'**
+  String get flashcardsQuizSaveCard;
+
+  /// Flashcards, Quiz Me and drafting: quiz done.
+  ///
+  /// In en, this message translates to:
+  /// **'That was the round.'**
+  String get flashcardsQuizDone;
+
+  /// Flashcards, Quiz Me and drafting: quiz again.
+  ///
+  /// In en, this message translates to:
+  /// **'Another Round'**
+  String get flashcardsQuizAgain;
+
+  /// Flashcards, Quiz Me and drafting: draft from.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft from This Note…'**
+  String get flashcardsDraftFrom;
+
+  /// Flashcards, Quiz Me and drafting: draft title.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get flashcardsDraftTitle;
+
+  /// Flashcards, Quiz Me and drafting: draft sources.
+  ///
+  /// In en, this message translates to:
+  /// **'Sources'**
+  String get flashcardsDraftSources;
+
+  /// Flashcards, Quiz Me and drafting: draft what.
+  ///
+  /// In en, this message translates to:
+  /// **'What should it say, and for whom?'**
+  String get flashcardsDraftWhat;
+
+  /// Flashcards, Quiz Me and drafting: draft write.
+  ///
+  /// In en, this message translates to:
+  /// **'Write Draft'**
+  String get flashcardsDraftWrite;
+
+  /// Flashcards, Quiz Me and drafting: draft stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get flashcardsDraftStop;
+
+  /// Flashcards, Quiz Me and drafting: draft try again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get flashcardsDraftTryAgain;
+
+  /// Flashcards, Quiz Me and drafting: draft copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get flashcardsDraftCopy;
+
+  /// Flashcards, Quiz Me and drafting: draft save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as Note'**
+  String get flashcardsDraftSave;
+
+  /// Flashcards, Quiz Me and drafting: draft discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get flashcardsDraftDiscard;
+
+  /// Flashcards, Quiz Me and drafting: draft discard title.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this draft?'**
+  String get flashcardsDraftDiscardTitle;
+
+  /// Flashcards, Quiz Me and drafting: draft discard body.
+  ///
+  /// In en, this message translates to:
+  /// **'It has not been saved. Drafts are not kept.'**
+  String get flashcardsDraftDiscardBody;
+
+  /// Flashcards, Quiz Me and drafting: draft no source.
+  ///
+  /// In en, this message translates to:
+  /// **'No source in your notes'**
+  String get flashcardsDraftNoSource;
+
+  /// Flashcards, Quiz Me and drafting: draft none.
+  ///
+  /// In en, this message translates to:
+  /// **'None of these notes can be sent to AI. Locked notes and notes tagged #ai-exclude are never sent.'**
+  String get flashcardsDraftNone;
+
+  /// Flashcards, Quiz Me and drafting: draft no ai.
+  ///
+  /// In en, this message translates to:
+  /// **'Drafting needs an AI provider. Choose one in Settings › AI.'**
+  String get flashcardsDraftNoAi;
+
+  /// Flashcards, Quiz Me and drafting: draft saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved the draft as a note.'**
+  String get flashcardsDraftSaved;
+
+  /// Flashcards, Quiz Me and drafting: draft review title.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get flashcardsDraftReviewTitle;
+
+  /// Flashcards, Quiz Me and drafting: draft notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebook'**
+  String get flashcardsDraftNotebook;
+
+  /// Progress through a review, such as "3 of 20 · 5 new".
+  ///
+  /// In en, this message translates to:
+  /// **'{at} of {total}{fresh, plural, =0{} other{ · {fresh} new}}'**
+  String flashcardsProgress(int at, int total, int fresh);
+
+  /// A grade button: its name and the time until the card returns.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {span}'**
+  String flashcardsInterval(String name, String span);
+
+  /// The button that adds the ticked suggested cards.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{Add 1 Card} other{Add {n} Cards}}'**
+  String flashcardsAddCards(int n);
+
+  /// Confirms how many suggested cards were written into the note.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{Added 1 card.} other{Added {n} cards.}}'**
+  String flashcardsAdded(int n);
+
+  /// Progress through a Quiz Me round.
+  ///
+  /// In en, this message translates to:
+  /// **'Question {at} of {total}'**
+  String flashcardsQuizProgress(int at, int total);
+
+  /// Says which notes a draft sends to the AI provider.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{Only this note is sent to your AI.} other{Only these {n} notes are sent to your AI.}}'**
+  String flashcardsDraftSent(int n);
+
+  /// The kind of draft: report.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get flashcardsShapeReport;
+
+  /// The kind of draft: essay.
+  ///
+  /// In en, this message translates to:
+  /// **'Essay'**
+  String get flashcardsShapeEssay;
+
+  /// The kind of draft: update.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get flashcardsShapeUpdate;
+
+  /// The kind of draft: outline.
+  ///
+  /// In en, this message translates to:
+  /// **'Outline'**
+  String get flashcardsShapeOutline;
+
+  /// The kind of draft: custom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get flashcardsShapeCustom;
+
+  /// How long a draft should be: short.
+  ///
+  /// In en, this message translates to:
+  /// **'Short'**
+  String get flashcardsLengthShort;
+
+  /// How long a draft should be: medium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get flashcardsLengthMedium;
+
+  /// How long a draft should be: long.
+  ///
+  /// In en, this message translates to:
+  /// **'Long'**
+  String get flashcardsLengthLong;
+
+  /// A notebook menu row that writes a draft from the notebook's notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft from This Notebook…'**
+  String get flashcardsDraftFromNotebook;
+
+  /// A tag menu row that writes a draft from the notes with the tag.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft from This Tag…'**
+  String get flashcardsDraftFromTag;
+
+  /// A row of the menu for chosen notes that writes a draft from them.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{Draft from This Note…} other{Draft from These {n} Notes…}}'**
+  String flashcardsDraftFromNotes(int n);
+
+  /// Said when a notebook or tag has no notes a draft may read.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no notes here that a draft can read. Locked notes and notes tagged #ai-exclude are never sent.'**
+  String get flashcardsDraftNoNotes;
+
+  /// Drafting: the line under a draft that has sentences no note supports.
+  ///
+  /// In en, this message translates to:
+  /// **'Underlined: no source in your notes. These are left out when you save.'**
+  String get flashcardsDraftNoSourceNote;
+
+  /// Drafting: the switch that saves unsourced sentences too.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep sentences without a source'**
+  String get flashcardsDraftKeepUnsourced;
 }
 
 class _AppLocalizationsDelegate

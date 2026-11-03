@@ -761,7 +761,7 @@ impl Store {
                 // the tombstone would delete another Mac's edit, and the
                 // file's bytes, everywhere. A replay of content this Mac
                 // held stays stale below.
-                if conflict && local.deleted {
+                if conflict && local.deleted && doc_type != DocType::Review {
                     clear_stale_blob(tx)?;
                     store_blob(tx)?;
                     store_row(tx, &remote.id, doc_type, &remote.rev, false, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
@@ -790,10 +790,41 @@ impl Store {
                 return Ok(ApplyOutcome::Applied);
             }
             let local_dirty = local.synced_rev.as_deref() != Some(local.rev.as_str());
+            // A month of flashcard answers is a set that only grows: two
+            // versions made apart never conflict. Both sides' entries are
+            // kept, and the union is pushed when it holds more than the
+            // remote version.
+            if !rules.legacy() && local_dirty && doc_type == DocType::Review && !local.deleted && !remote.deleted {
+                let merged = kanso_core::review_doc::merge_fields(&local.fields, &fields);
+                let mut merged = merged;
+                if let Some(at) = [updated_at(&local.fields), updated_at(&fields)].into_iter().max() {
+                    merged.insert("updatedAt".into(), at.into());
+                }
+                let created = |f: &Map<String, Value>| f.get("createdAt").and_then(Value::as_i64);
+                if let Some(at) = [created(&local.fields), created(&fields)].into_iter().flatten().min() {
+                    merged.insert("createdAt".into(), at.into());
+                }
+                if merged == fields {
+                    store_row(tx, &remote.id, doc_type, &remote.rev, false, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                    learned(tx, &remote.id, &remote.rev)?;
+                    return Ok(ApplyOutcome::RemoteWon);
+                }
+                let above = kanso_core::Rev {
+                    generation: local_rev.generation.max(remote_rev.generation),
+                    hash: String::new(),
+                };
+                let new_rev = kanso_core::Rev::next(Some(&above), &Value::Object(merged.clone())).to_string();
+                store_row(tx, &remote.id, doc_type, &new_rev, false, &merged, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                learned(tx, &remote.id, &remote.rev)?;
+                return Ok(ApplyOutcome::LocalWon { new_rev });
+            }
             let remote_wins = !local_dirty
                 || match (local.deleted, remote.deleted) {
-                    (true, false) => true,
-                    (false, true) => false,
+                    // A deleted note's answers stay deleted whichever side
+                    // deleted them: a device that reviewed offline must not
+                    // bring them back.
+                    (true, false) => doc_type != DocType::Review,
+                    (false, true) => doc_type == DocType::Review,
                     (true, true) => true,
                     (false, false) => updated_at(&remote.fields) >= updated_at(&local.fields),
                 };

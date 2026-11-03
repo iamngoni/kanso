@@ -242,12 +242,22 @@ fn view_menu(cx: &App) -> Vec<MenuItem> {
     if ai {
         items.push(MenuItem::action("Ask Your Notes…", AskYourNotes));
         items.push(MenuItem::action("Agent Task…", NewAgentTask));
+        items.push(MenuItem::action(
+            "Draft from This Note…",
+            crate::learn_view::DraftFromNote,
+        ));
+        items.push(MenuItem::action(
+            "Make Flashcards…",
+            crate::learn_view::MakeFlashcardsFromNote,
+        ));
+        items.push(MenuItem::action("Quiz Me", crate::learn_view::QuizMeOnNote));
     }
     items.extend([
         MenuItem::action("Graph", crate::graph_view::ShowGraph),
         MenuItem::action("Board", crate::board_view::ShowBoard),
         MenuItem::action("Tasks Board", crate::board_view::ShowTaskBoard),
         MenuItem::action("Triage Inbox", crate::triage_view::ShowTriage),
+        MenuItem::action("Review Flashcards", crate::flashcards_view::ShowFlashcards),
         MenuItem::action("Focus Mode", ToggleFocusMode),
         MenuItem::action("Search All Notes", SearchAllNotes),
         MenuItem::action("Replace in All Notes…", crate::replace::ReplaceInNotes),
@@ -438,6 +448,14 @@ pub struct Workspace {
     /// Inbox triage over the window while open (`triage_view.rs`); made the
     /// first time it opens.
     pub(crate) triage: Option<Entity<crate::triage_view::TriageView>>,
+    /// Review over the window while open (`flashcards_view.rs`).
+    pub(crate) flashcards: Option<Entity<crate::flashcards_view::FlashcardsView>>,
+    pub(crate) flashcards_open: bool,
+    /// Draft, Make Flashcards and Quiz Me (`learn_view.rs`).
+    pub(crate) learn: Option<Entity<crate::learn_view::LearnView>>,
+    pub(crate) learn_open: bool,
+    pub(crate) _learn_events: Option<Subscription>,
+    pub(crate) _flashcards_events: Option<Subscription>,
     pub(crate) triage_open: bool,
     pub(crate) _triage_events: Option<Subscription>,
     /// The open calendar sheet's picks.
@@ -807,6 +825,12 @@ impl Workspace {
             board_open: false,
             _board_events: None,
             triage: None,
+            flashcards: None,
+            flashcards_open: false,
+            learn: None,
+            learn_open: false,
+            _learn_events: None,
+            _flashcards_events: None,
             triage_open: false,
             _triage_events: None,
             _calendar_events: None,
@@ -1272,6 +1296,15 @@ impl Workspace {
                 }
                 return;
             }
+            NoteCommand::DraftFrom => {
+                return self.show_learn(crate::learn_model::Mode::Draft, ids.to_vec(), window, cx);
+            }
+            NoteCommand::MakeFlashcards | NoteCommand::QuizMe => {
+                if let Some(id) = self.library.read(cx).selected.clone() {
+                    self.run_note_command(&id, command, window, cx);
+                }
+                return;
+            }
             NoteCommand::Duplicate
             | NoteCommand::ShowHistory
             | NoteCommand::Publish
@@ -1394,6 +1427,24 @@ impl Workspace {
             NoteCommand::OpenInNewWindow => self.open_in_new_window(id, window, cx),
             NoteCommand::OpenAsSticky => self.open_as_sticky(id, window, cx),
             NoteCommand::Present => crate::presentation::present(id.to_owned(), window, cx),
+            NoteCommand::DraftFrom => self.show_learn(
+                crate::learn_model::Mode::Draft,
+                vec![id.to_owned()],
+                window,
+                cx,
+            ),
+            NoteCommand::MakeFlashcards => self.show_learn(
+                crate::learn_model::Mode::Make,
+                vec![id.to_owned()],
+                window,
+                cx,
+            ),
+            NoteCommand::QuizMe => self.show_learn(
+                crate::learn_model::Mode::Quiz,
+                vec![id.to_owned()],
+                window,
+                cx,
+            ),
             // These work on the open note, so the note opens first.
             NoteCommand::ShowHistory => {
                 if self.open_note(id, window, cx) {
@@ -2411,6 +2462,16 @@ impl Render for Workspace {
             let width = window.viewport_size().width - px(lead);
             triage.update(cx, |triage, cx| triage.set_frame(width, list_inset, cx));
         }
+        {
+            let lead = if focus_mode { 0. } else { leading };
+            let width = window.viewport_size().width - px(lead);
+            if let Some(learn) = self.learn.clone().filter(|_| self.learn_open) {
+                learn.update(cx, |learn, cx| learn.set_frame(width, list_inset, cx));
+            }
+            if let Some(view) = self.flashcards.clone().filter(|_| self.flashcards_open) {
+                view.update(cx, |view, cx| view.set_frame(width, list_inset, cx));
+            }
+        }
         self.editor
             .update(cx, |editor, cx| editor.set_focus_mode(focus_mode, cx));
         let widths = self.fitted_widths(window);
@@ -2913,6 +2974,8 @@ impl Render for Workspace {
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
             .map(|el| crate::triage_view::on_actions(el, cx))
+            .map(|el| crate::flashcards_view::on_actions(el, cx))
+            .map(|el| crate::learn_view::on_actions(el, cx))
             .map(|el| crate::digest_view::on_actions(el, cx))
             // Off macOS, Kanso's own title bar with the menus.
             .when_some(self.title_bar.clone(), |el, menus| {
@@ -3039,6 +3102,14 @@ impl Render for Workspace {
             .children(crate::graph_view::overlay(self))
             .children(crate::board_view::overlay(self))
             .children(crate::triage_view::overlay(
+                self,
+                if focus_mode { 0. } else { leading },
+            ))
+            .children(crate::flashcards_view::overlay(
+                self,
+                if focus_mode { 0. } else { leading },
+            ))
+            .children(crate::learn_view::overlay(
                 self,
                 if focus_mode { 0. } else { leading },
             ))

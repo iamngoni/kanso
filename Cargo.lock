@@ -4422,6 +4422,7 @@ dependencies = [
  "async-trait",
  "futures-util",
  "kanso-acp",
+ "kanso-core",
  "kanso-tls",
  "proptest",
  "reqwest",
@@ -4835,6 +4836,7 @@ version = "0.9.3"
 dependencies = [
  "async-channel",
  "base64 0.22.1",
+ "fastrand",
  "getrandom 0.4.3",
  "kanso-core",
  "md-5",

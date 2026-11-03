@@ -10,6 +10,7 @@ rust-version.workspace = true
 agent-runtime.workspace = true
 # An agent on this computer, over the Agent Client Protocol.
 kanso-acp = { workspace = true, optional = true }
+kanso-core.workspace = true
 anyhow.workspace = true
 async-trait = "0.1"
 serde.workspace = true

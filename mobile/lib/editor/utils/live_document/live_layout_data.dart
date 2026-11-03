@@ -49,6 +49,9 @@ enum LiveStyleKind {
   heading,
   inlineMath,
   quote,
+
+  /// The `::` of a flashcard line, drawn dim.
+  cardSeparator,
   taskDone,
 }
 

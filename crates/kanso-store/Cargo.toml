@@ -7,6 +7,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+fastrand.workspace = true
 async-channel.workspace = true
 base64.workspace = true
 getrandom.workspace = true

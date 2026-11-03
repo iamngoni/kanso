@@ -6,6 +6,8 @@
 //! write is broadcast to subscribers as a [`Change`].
 
 mod backup;
+mod cards;
+mod cards_model;
 pub mod collab;
 mod derived;
 mod doc;
@@ -34,6 +36,9 @@ use std::sync::Mutex;
 use rusqlite::Connection;
 
 pub use backup::{BackupName, BackupPolicy, backup_name};
+pub use cards_model::{
+    CardCounts, CardScope, CardSettings, CardStats, DueCard, HardCard, NoteCard,
+};
 pub use collab::model::{
     CommentRecord, Contact, Outgoing, SealedKey, SharedNote, SharedStatus, StoredNotice,
 };

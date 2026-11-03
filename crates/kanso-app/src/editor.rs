@@ -330,6 +330,7 @@ pub struct NoteEditor {
     inline: Option<inline_glue::Suggestion>,
     /// The tints on tasks' due dates in the text.
     due_marks: crate::due::DueMarks,
+    card_marks: crate::card_marks::CardMarks,
     /// The underlines under misspelled words in the text.
     spell_marks: SpellMarks,
     /// Live mode's hidden marks, larger headings and styles in the text.
@@ -516,6 +517,13 @@ impl NoteEditor {
                         |editor: &mut NoteEditor| &mut editor.due_marks,
                         cx,
                     );
+                    let (body, me) = (this.body.clone(), cx.entity().downgrade());
+                    this.card_marks.refresh_soon(
+                        body,
+                        me,
+                        |editor: &mut NoteEditor| &mut editor.card_marks,
+                        cx,
+                    );
                     this.check_spelling(spellcheck::CHECK_DELAY, cx);
                     this.refresh_live(cx);
                 }
@@ -608,6 +616,7 @@ impl NoteEditor {
             vim: None,
             inline: None,
             due_marks: Default::default(),
+            card_marks: Default::default(),
             spell_marks: Default::default(),
             live_marks: Default::default(),
             live_plain: false,
@@ -1119,6 +1128,7 @@ impl NoteEditor {
             }
         });
         self.due_marks.refresh(&self.body, cx);
+        self.card_marks.refresh(&self.body, cx);
         self.check_spelling(Duration::ZERO, cx);
         // The kept line lengths describe the old text, which may have had
         // the same length.
@@ -3414,7 +3424,8 @@ impl NoteEditor {
                         let run: crate::note_menu::Run = Rc::new(move |command, _, cx| {
                             view.update(cx, |_, cx| cx.emit(EditorEvent::Command(command)));
                         });
-                        crate::note_menu::items(menu, pinned, locked, status, run, window, cx)
+                        let ai = cx.global::<AppState>().config.ai.enabled && !locked;
+                        crate::note_menu::items(menu, pinned, locked, status, ai, run, window, cx)
                     }),
             )
             .when(!self.standalone, |el| {
@@ -5627,6 +5638,92 @@ mod tests {
         editor.update(cx, |editor, cx| editor.keep_mine(cx));
         assert_eq!(state(cx), SaveState::Saved);
         assert_eq!(store.note(&id).unwrap().unwrap().body, "one, typed more");
+    }
+
+    /// Cards added to the open note from Make Flashcards, while there is
+    /// typing the editor has not saved: the editor asks which to keep (the
+    /// banner) rather than losing the typing, and nothing of it is written
+    /// over the cards.
+    #[gpui_kit::test]
+    fn cards_added_to_the_open_note_ask_rather_than_overwrite(cx: &mut TestAppContext) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(Store::open(dir.path().join("k.db")).unwrap());
+        let book = store
+            .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+            .unwrap()
+            .id;
+        let id = store
+            .put(
+                DocType::Note,
+                json!({"title": "t", "body": "one", "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let editor_store = store.clone();
+        let (window, editor) = cx.update(|cx| {
+            gpui_kit::init(cx);
+            gpui_kit::open_window(Default::default(), cx, |window, cx| {
+                let library = cx.new(|cx| Library::new(editor_store.clone(), cx));
+                let (links, _) = async_channel::unbounded();
+                cx.new(|cx| {
+                    NoteEditor::new(
+                        editor_store,
+                        library,
+                        links,
+                        &Appearance::default(),
+                        window,
+                        cx,
+                    )
+                })
+            })
+            .unwrap()
+        });
+        window
+            .update(cx, |_, window, cx| {
+                editor.update(cx, |editor, cx| {
+                    editor.open(Some(&id), window, cx);
+                    editor.edit_for_test("one, typed", window, cx);
+                })
+            })
+            .unwrap();
+        let added = kanso_engine::flashcards::add_cards(
+            &store,
+            &id,
+            &[("Capital of France?".to_owned(), "Paris".to_owned())],
+        )
+        .unwrap();
+        assert_eq!(added, 1);
+        window
+            .update(cx, |_, window, cx| {
+                let change = kanso_store::Change {
+                    id: id.clone(),
+                    rev: store.note(&id).unwrap().unwrap().rev.unwrap(),
+                    seq: 0,
+                    deleted: false,
+                    origin: Origin::Ui,
+                };
+                editor.update(cx, |editor, cx| editor.on_store_change(&change, window, cx));
+            })
+            .unwrap();
+        // The banner is up, the typing is still the editor's, and the cards
+        // are in the store, not overwritten by anything.
+        assert!(editor.read_with(cx, |editor, _| editor.incoming.is_some()));
+        assert_eq!(
+            cx.read(|cx| editor.read(cx).save_state(cx)),
+            SaveState::NotSaved
+        );
+        cx.executor().advance_clock(Duration::from_secs(2));
+        cx.run_until_parked();
+        assert!(
+            store
+                .note(&id)
+                .unwrap()
+                .unwrap()
+                .body
+                .contains("Capital of France? :: Paris")
+        );
     }
 
     /// A note with these fields, as the store returns one.

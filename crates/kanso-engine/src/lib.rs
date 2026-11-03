@@ -79,9 +79,13 @@ pub mod catalogue;
 pub mod daily;
 #[cfg(feature = "discovery")]
 pub mod discovery;
+#[cfg(feature = "ai")]
+pub mod draft;
 pub mod edit;
 pub mod editor_settings;
 pub mod export;
+#[cfg(feature = "ai")]
+pub mod flashcards;
 pub mod fuzzy;
 #[cfg(feature = "highlight")]
 pub mod highlight;

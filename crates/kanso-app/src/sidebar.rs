@@ -80,6 +80,9 @@ struct Entry {
 }
 /// How often relative times ("Synced 3 min ago") are brought up to date.
 const TICK: Duration = Duration::from_secs(30);
+/// How long the Review count waits after a change before it is read, so a
+/// burst of changes is one read.
+const REVIEW_PAUSE: Duration = Duration::from_millis(400);
 
 pub struct Sidebar {
     library: Entity<Library>,
@@ -109,6 +112,10 @@ pub struct Sidebar {
     /// as a pointer resting on it would.
     #[cfg(test)]
     pub(crate) reveal_tooltip: Option<&'static str>,
+    /// Flashcards waiting today; `None` while the library has no cards.
+    review: Option<usize>,
+    /// The read of the count in flight, or waiting out its pause.
+    review_task: Option<Task<()>>,
     _tick: Task<()>,
 }
 
@@ -121,6 +128,7 @@ impl Sidebar {
             let choice = status_choice_after(this.status_choice, this.status_filter, is_status);
             this.set_status_choice(choice, cx);
             this.status_filter = is_status;
+            this.refresh_review(cx);
             cx.notify();
         })
         .detach();
@@ -130,7 +138,13 @@ impl Sidebar {
         let tick = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(TICK).await;
-                if this.update(cx, |_, cx| cx.notify()).is_err() {
+                if this
+                    .update(cx, |this, cx| {
+                        this.refresh_review(cx);
+                        cx.notify();
+                    })
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -162,8 +176,89 @@ impl Sidebar {
             badge: crate::flavour::CURRENT.badge,
             #[cfg(test)]
             reveal_tooltip: None,
+            review: None,
+            review_task: None,
             _tick: tick,
         }
+    }
+
+    /// Reads how many flashcards wait today, for the Review row. The read
+    /// runs off the main thread after a short pause, so a burst of Library
+    /// changes (typing, a sync) makes one read, and a newer request drops
+    /// an older one.
+    // no-prop-test: scheduling of a read of the store's counts, which have their tests.
+    fn refresh_review(&mut self, cx: &mut Context<Self>) {
+        let Some(store) = cx.try_global::<AppState>().map(|state| state.store.clone()) else {
+            return;
+        };
+        let now = crate::clock::Clock::now_ms(cx);
+        let offset = crate::clock::Clock::utc_offset_secs(cx, now) / 60;
+        let day = kanso_engine::flashcards::day_start_ms(now, offset);
+        self.review_task = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(REVIEW_PAUSE).await;
+            let count = cx
+                .background_executor()
+                .spawn(async move { store.review_badge(now, day).ok().flatten() })
+                .await;
+            this.update(cx, |this, cx| {
+                if this.review != count {
+                    this.review = count;
+                    cx.notify();
+                }
+            })
+            .ok();
+        }));
+    }
+
+    /// Review, with the cards waiting today in an accent pill. Shown only
+    /// while some note holds a card.
+    // no-prop-test: drawing; the count is the store's (`cards_waiting`).
+    fn review_row(&self, waiting: usize, cx: &mut Context<Self>) -> Stateful<Div> {
+        let colors = Colors::get(cx);
+        let icon = self.icon(Icon::new(Lucide::BookOpen), cx);
+        div()
+            .id("review-flashcards")
+            .debug_selector(|| "review-flashcards".into())
+            .h(px(ROW_HEIGHT))
+            .flex()
+            .flex_none()
+            .items_center()
+            .gap(px(10.))
+            .mx_2()
+            .pr(px(8.))
+            .pl(px(10.))
+            .rounded(px(6.))
+            .text_size(px(13.5))
+            .cursor_pointer()
+            .hover(|el| el.bg(colors.sidebar_hover))
+            .child(icon)
+            .child(div().flex_1().min_w_0().truncate().child("Review"))
+            .when(waiting > 0, |el| {
+                el.child(
+                    div()
+                        .id("review-waiting")
+                        .px(px(6.))
+                        .h(px(17.))
+                        .flex()
+                        .items_center()
+                        .rounded_full()
+                        .bg(Hsla::from(colors.accent).opacity(0.16))
+                        .text_size(px(11.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(colors.accent)
+                        .child(waiting.to_string())
+                        .tooltip(move |window, cx| {
+                            Tooltip::new(format!(
+                                "{waiting} flashcard{} waiting",
+                                if waiting == 1 { "" } else { "s" }
+                            ))
+                            .build(window, cx)
+                        }),
+                )
+            })
+            .on_click(|_, window, cx| {
+                window.dispatch_action(Box::new(crate::flashcards_view::ShowFlashcards), cx)
+            })
     }
 
     /// Collapses the sidebar to its icon rail, or opens it again.
@@ -1515,6 +1610,9 @@ impl Render for Sidebar {
             cx,
         ));
         list = list.child(self.tasks_row(cx));
+        if let Some(waiting) = self.review {
+            list = list.child(self.review_row(waiting, cx));
+        }
         let briefs = cx.global::<AppState>().config.briefs.clone();
         if briefs.loops {
             let icon = self.icon(Icon::new(Lucide::CircleDot), cx);
