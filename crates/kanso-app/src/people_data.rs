@@ -143,6 +143,53 @@ pub fn offer_for<'a, K: Clone>(
     })
 }
 
+/// The name an `@mention` or a `[[wiki-link]]` holding byte `caret` of
+/// `text` names, so the page offer shows with the caret in it as well as
+/// for a selection. None outside either.
+pub fn name_at(text: &str, caret: usize) -> Option<String> {
+    if caret > text.len() || !text.is_char_boundary(caret) {
+        return None;
+    }
+    let line_start = text[..caret].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = text[caret..].find('\n').map_or(text.len(), |i| caret + i);
+    let line = &text[line_start..line_end];
+    let at = caret - line_start;
+    // `[[Name]]` (or `[[Name|label]]`) around the caret.
+    let mut from = 0;
+    while let Some(open) = line[from..].find("[[").map(|i| from + i) {
+        let Some(close) = line[open + 2..].find("]]").map(|i| open + 2 + i) else {
+            break;
+        };
+        if at >= open && at <= close + 2 {
+            let inner = &line[open + 2..close];
+            let name = inner.split('|').next().unwrap_or("").trim();
+            return (!name.is_empty()).then(|| name.to_owned());
+        }
+        from = close + 2;
+    }
+    // `@name` around the caret.
+    let is_name = |c: char| c.is_alphanumeric() || c == '_' || c == '-' || c == '.';
+    let start = line[..at]
+        .char_indices()
+        .rev()
+        .take_while(|(_, c)| is_name(*c) || *c == '@')
+        .last()
+        .map_or(at, |(i, _)| i);
+    // A caret just before the `@` is in the mention too.
+    let after = at + usize::from(line[at..].starts_with('@'));
+    let end = line[after..]
+        .char_indices()
+        .find(|(_, c)| !is_name(*c))
+        .map_or(line.len(), |(i, _)| after + i);
+    let word = &line[start..end];
+    let name = word.strip_prefix('@')?.trim_end_matches('.');
+    let before_ok = line[..start]
+        .chars()
+        .next_back()
+        .is_none_or(|c| !c.is_alphanumeric());
+    (before_ok && !name.is_empty() && !name.contains('@')).then(|| name.to_owned())
+}
+
 /// The names an `@mention` can mean, normalized, each with the page it
 /// goes to. A name two pages answer to is left out: it means nothing.
 pub type MentionMap = std::collections::HashMap<String, String>;
@@ -252,6 +299,20 @@ pub fn mention_choices(pages: &[(String, Vec<String>)], query: &str) -> Vec<Ment
 
 #[cfg(test)]
 mod tests {
+    // no-prop-test: a handful of fixed caret positions.
+    #[test]
+    fn the_name_at_the_caret() {
+        use super::name_at;
+        let text = "met @Sam today\nsee [[Sam Moyo|him]] later";
+        assert_eq!(name_at(text, 6).as_deref(), Some("Sam"));
+        assert_eq!(name_at(text, 4).as_deref(), Some("Sam"));
+        assert_eq!(name_at(text, 1), None);
+        let link = text.find("Moyo").unwrap();
+        assert_eq!(name_at(text, link).as_deref(), Some("Sam Moyo"));
+        assert_eq!(name_at(text, text.len()), None);
+        assert_eq!(name_at("mail a@b.com", 7), None);
+    }
+
     use super::*;
     use proptest::prelude::*;
 

@@ -551,7 +551,7 @@ impl People {
             let Some(page) = EntityPage::load(self.store(), id)? else {
                 return Ok(None);
             };
-            pages::pin(self.store(), &page, key, on)?;
+            pages::pin(self.store(), &page, key, on, now_ms())?;
             Ok(Some(self.panel(&page, &[])?))
         })
     }

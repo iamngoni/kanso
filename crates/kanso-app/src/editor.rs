@@ -4036,8 +4036,9 @@ impl NoteEditor {
         )
     }
 
-    /// "Create a page for Tendai Chirwa": offered while the text selected
-    /// is a name Kanso suggests a page for. Nothing is made until it is
+    /// "Create a page for Tendai Chirwa": offered while the text selected,
+    /// or the `@mention` / `[[link]]` the caret is in, is a name Kanso
+    /// suggests a page for. Nothing is made until it is
     /// pressed.
     // no-prop-test: drawing; `people_data::offer_for` has the tests.
     fn render_page_offer(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -4048,7 +4049,11 @@ impl NoteEditor {
         if library.people_offers.is_empty() {
             return None;
         }
-        let selected = self.selected_text(cx)?;
+        // A selected name, or the `@mention` / `[[link]]` the caret is in.
+        let selected = self.selected_text(cx).or_else(|| {
+            let state = self.body.read(cx);
+            crate::people_data::name_at(&state.value(), state.cursor())
+        })?;
         let (_, name, kind) =
             crate::people_data::offer_for(&selected, &library.people_offers)?.clone();
         let colors = Colors::get(cx);

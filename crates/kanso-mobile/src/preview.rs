@@ -507,10 +507,46 @@ impl Library {
         let index = WikiIndex::new(self.inner.store.note_titles()?);
         let linked = links::rewrite_for_app(text, &index);
         let tagged = links::tags::rewrite_for_app(&linked);
-        Ok(match due_chips::rewrite_for_preview(&tagged) {
+        let dated = match due_chips::rewrite_for_preview(&tagged) {
             Cow::Borrowed(_) => tagged.into_owned(),
             Cow::Owned(dated) => dated,
-        })
+        };
+        // `@name` of a person's or project's page, as a link to the page
+        // (as the desktop preview writes it).
+        if !dated.contains('@') {
+            return Ok(dated);
+        }
+        let mentions = self.mention_names()?;
+        Ok(
+            match kanso_core::entities::rewrite_at_mentions(&dated, &|name| {
+                mentions.get(name).cloned().flatten()
+            }) {
+                Cow::Borrowed(_) => dated,
+                Cow::Owned(linked) => linked,
+            },
+        )
+    }
+
+    /// The names `@mentions` can mean, each with its page; a name two
+    /// pages answer to maps to `None` and links nowhere.
+    fn mention_names(
+        &self,
+    ) -> Result<std::collections::HashMap<String, Option<String>>, KansoError> {
+        let mut names: std::collections::HashMap<String, Option<String>> =
+            std::collections::HashMap::new();
+        for page in self.inner.store.entities()? {
+            for name in page.names {
+                names
+                    .entry(name)
+                    .and_modify(|taken| {
+                        if taken.as_deref() != Some(page.id.as_str()) {
+                            *taken = None;
+                        }
+                    })
+                    .or_insert_with(|| Some(page.id.clone()));
+            }
+        }
+        Ok(names)
     }
 
     /// A note address (`inkdrop://note/<id>[#Heading]`) as a target.

@@ -109,6 +109,7 @@ pub fn write_section(
         fingerprint: fingerprint(&inputs),
         inputs,
         pinned: false,
+        kept_at: 0,
         based_on,
     })
 }

@@ -200,7 +200,8 @@ pub fn at_mentions(body: &str) -> Vec<(u32, String)> {
 
 /// The body with each `@name` that `resolve` knows (given the normalized
 /// name, answering a note ID) written as an ordinary link to that note, for
-/// the preview: `@sam` becomes `[@sam](inkdrop://note/ID)`. Text with
+/// the preview: `@sam` becomes `[@sam](inkdrop://note/ID)` (a `note:`
+/// prefix on the ID is dropped, as note links write it). Text with
 /// nothing to rewrite comes back as it is.
 pub fn rewrite_at_mentions<'a>(
     body: &'a str,
@@ -216,8 +217,11 @@ pub fn rewrite_at_mentions<'a>(
             continue;
         };
         out.push_str(&body[done..span.range.start]);
+        // Note links carry the bare ID (`inkdrop://note/<id>`), as every
+        // reader of them adds the `note:` back.
+        let bare = id.strip_prefix("note:").unwrap_or(&id);
         out.push_str(&format!(
-            "[{}]({}{id})",
+            "[{}]({}{bare})",
             &body[span.range.clone()],
             crate::links::NOTE_LINK_PREFIX
         ));
@@ -365,6 +369,13 @@ pub fn own_text(body: &str) -> &str {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+
+    // no-prop-test: one stored ID, one link.
+    #[test]
+    fn an_at_mention_links_the_bare_note_id() {
+        let out = rewrite_at_mentions("hi @sam", &|_| Some("note:abc".to_owned()));
+        assert_eq!(out, "hi [@sam](inkdrop://note/abc)");
+    }
 
     #[test]
     fn reads_kind_and_names() {

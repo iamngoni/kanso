@@ -330,9 +330,13 @@ pub fn refresh_section(
         return Err(write::WriteError::NoSuchSection);
     }
     let mut cache = store.page_cache(source.doc_id())?;
-    let pinned = cache.sections.get(key).is_some_and(|s| s.pinned);
+    let (pinned, kept_at) = cache
+        .sections
+        .get(key)
+        .map_or((false, 0), |s| (s.pinned, s.kept_at));
     let mut written = write::write_section(store, source, key, &cache.not_right, context)?;
     written.pinned = pinned;
+    written.kept_at = kept_at;
     cache.sections.insert(key.to_owned(), written.clone());
     store.set_page_cache(source.doc_id(), &cache)?;
     Ok(written)
@@ -366,6 +370,7 @@ pub fn pin(
     source: &dyn PageSource,
     key: &str,
     on: bool,
+    now: i64,
 ) -> kanso_store::Result<bool> {
     let mut cache = store.page_cache(source.doc_id())?;
     let Some(section) = cache.sections.get_mut(key) else {
@@ -375,6 +380,7 @@ pub fn pin(
         return Ok(false);
     }
     section.pinned = on;
+    section.kept_at = now;
     store.set_page_cache(source.doc_id(), &cache)
 }
 

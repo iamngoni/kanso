@@ -241,3 +241,26 @@ fn a_locked_page_has_no_live_sections() {
     let _ = DocType::Note;
     let _ = (Origin::Ui, Put::Upsert);
 }
+
+// no-prop-test: one note previewed with one `@name` of a page.
+#[test]
+fn the_preview_links_an_at_mention_to_its_page() {
+    let phone = lone_phone();
+    let (sam, _weekly, store) = world(&phone);
+    let book = book(&store, "Home");
+    let id = raw_note(
+        &store,
+        json!({"title": "Call", "bookId": book, "body": "Rang @Sam about it, mail a@b.com\n"}),
+    );
+    let theme = r##"{"name":"t","appearance":"light","ui":{"editor":"#ffffff","text":"#222222","accent":"#2185d0"},"syntax":{},"preview":{}}"##;
+    let palette = kanso_mobile::Renderer::theme_tokens(theme.into())
+        .unwrap()
+        .palette;
+    let page = phone.library.renderer().preview_html(&id, palette).unwrap();
+    let url = format!("inkdrop://note/{}", sam.trim_start_matches("note:"));
+    assert!(page.contains(&url), "{page}");
+    // A tap on it opens the page.
+    let target = phone.library.renderer().link_target(&id, &url).unwrap();
+    assert!(format!("{target:?}").contains(&sam), "{target:?}");
+    assert!(!page.contains("inkdrop://note/a@b"), "{page}");
+}

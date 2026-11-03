@@ -1474,6 +1474,39 @@ impl Sidebar {
                 cx,
             )
             .on_click(cx.listener(|_, _, _, cx| cx.emit(SidebarEvent::GoToTag)));
+        // People & Projects: shown under the same rule as the full
+        // sidebar's group, with a dot while there are new suggestions.
+        let (people_shown, people_new) = {
+            let library = self.library.read(cx);
+            (
+                !library.people.is_empty() || library.people_new > 0,
+                library.people_new > 0,
+            )
+        };
+        let people = people_shown.then(|| {
+            self.rail_button(
+                "rail-people",
+                Lucide::Users,
+                "People & Projects",
+                Some(Box::new(crate::people_view::ShowPeople)),
+                false,
+                cx,
+            )
+            .when(people_new, |el| {
+                el.child(
+                    div()
+                        .absolute()
+                        .top(px(5.))
+                        .right(px(5.))
+                        .size(px(7.))
+                        .rounded_full()
+                        .bg(colors.accent),
+                )
+            })
+            .on_click(|_, window, cx| {
+                window.dispatch_action(Box::new(crate::people_view::ShowPeople), cx)
+            })
+        });
         let trash = self
             .rail_place(
                 "rail-trash",
@@ -1617,6 +1650,7 @@ impl Sidebar {
                     )
                     .child(notebooks)
                     .child(tags)
+                    .children(people)
                     .child(trash),
             )
             .children(crate::updates::render_rail_button(cx))

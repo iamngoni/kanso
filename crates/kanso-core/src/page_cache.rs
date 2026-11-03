@@ -62,6 +62,10 @@ pub struct CachedSection {
     pub inputs: Vec<(String, String)>,
     #[serde(default)]
     pub pinned: bool,
+    /// When the person last kept or stopped keeping it, so the later choice
+    /// holds across devices (0 when never touched).
+    #[serde(default, rename = "keptAt", skip_serializing_if = "is_zero")]
+    pub kept_at: i64,
     /// The model had nothing to say: the section says so rather than being
     /// asked again.
     #[serde(default)]
@@ -160,11 +164,31 @@ pub fn fit(cache: &mut PageCache) {
     }
 }
 
-/// Which of two copies of one section wins: a kept one over an unkept one,
-/// else the later write, else a fixed order so merging commutes.
+fn is_zero(value: &i64) -> bool {
+    *value == 0
+}
+
+/// Which of two copies of one section wins. When one is kept and the other
+/// isn't, the later keep/stop-keeping choice wins (a tie keeps it), so
+/// stopping keeping on one device is not undone by the other's stale copy.
+/// Otherwise the later write, else a fixed order so merging commutes.
 fn section_wins(a: &CachedSection, b: &CachedSection) -> bool {
-    (a.pinned, a.written_at, &a.fingerprint, a.items.len())
-        >= (b.pinned, b.written_at, &b.fingerprint, b.items.len())
+    if a.pinned != b.pinned && a.kept_at != b.kept_at {
+        return a.kept_at > b.kept_at;
+    }
+    (
+        a.pinned,
+        a.written_at,
+        &a.fingerprint,
+        a.items.len(),
+        a.kept_at,
+    ) >= (
+        b.pinned,
+        b.written_at,
+        &b.fingerprint,
+        b.items.len(),
+        b.kept_at,
+    )
 }
 
 /// Two devices' caches as one: each section from whichever copy wins, a
@@ -295,6 +319,25 @@ mod tests {
             prop_assert!(value.to_string().len() <= MAX_BYTES);
             prop_assert_eq!(read(&fields), PageCache { v: VERSION, ..a });
         }
+    }
+
+    // no-prop-test: one concurrent keep/stop-keeping pair.
+    #[test]
+    fn stopping_keeping_later_beats_a_stale_kept_copy() {
+        let mut kept = section(1, true, "x");
+        kept.kept_at = 10;
+        let mut unkept = kept.clone();
+        unkept.pinned = false;
+        unkept.kept_at = 20;
+        let (mut a, mut b) = (PageCache::default(), PageCache::default());
+        a.sections.insert("promises".into(), kept.clone());
+        b.sections.insert("promises".into(), unkept);
+        assert!(!merge(&a, &b).sections["promises"].pinned);
+        assert!(!merge(&b, &a).sections["promises"].pinned);
+        // Keeping it again later wins back.
+        kept.kept_at = 30;
+        a.sections.insert("promises".into(), kept);
+        assert!(merge(&a, &b).sections["promises"].pinned);
     }
 
     // no-prop-test: one oversized cache, one assertion.

@@ -441,9 +441,9 @@ fn pin_hide_copy_and_not_right() {
     let (provider, seen) = Cites::new();
     let ctx = WriteContext::new(&provider, "m", T0);
     pages::refresh_section(&store, &page, "promises", &ctx).unwrap();
-    assert!(pages::pin(&store, &page, "promises", true).unwrap());
+    assert!(pages::pin(&store, &page, "promises", true, 1).unwrap());
     assert!(
-        !pages::pin(&store, &page, "discussed", true).unwrap(),
+        !pages::pin(&store, &page, "discussed", true, 1).unwrap(),
         "nothing written to keep"
     );
     let view = pages::open(&store, &page, options(true), &[]).unwrap();
@@ -542,7 +542,7 @@ proptest! {
         let wants = [("promises", pin_promises), ("discussed", pin_discussed)];
         for (key, on) in wants {
             if on {
-                pages::pin(&store, &page, key, true).unwrap();
+                pages::pin(&store, &page, key, true, 1).unwrap();
             }
         }
         let before = store.page_cache(&id).unwrap();
