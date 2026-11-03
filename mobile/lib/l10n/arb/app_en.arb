@@ -3920,6 +3920,50 @@
   "importTitle": "Import notes",
   "importEmptyButton": "Import notes",
   "importIntro": "Bring notes in from another app. Kanso only reads what you choose, and importing again updates the notes it made without undoing your edits.",
+  "importAppleNotesRow": "Apple Notes",
+  "@importAppleNotesRow": {
+    "description": "The row that opens the guide to bringing Apple Notes onto a phone or tablet."
+  },
+  "importAppleNotesTitle": "Import Apple Notes",
+  "@importAppleNotesTitle": {
+    "description": "The title of the guide to bringing Apple Notes onto a phone or tablet."
+  },
+  "importAppleNotesIntro": "Apple Notes doesn’t let other apps read its library on iPhone and iPad. These are the ways across.",
+  "@importAppleNotesIntro": {
+    "description": "Explains why there is no one-tap import of Apple Notes on a phone."
+  },
+  "importAppleNotesMacTitle": "Import on your Mac and sync (recommended)",
+  "@importAppleNotesMacTitle": {
+    "description": "The first option: the Mac imports Apple Notes and sync brings the notes to the phone."
+  },
+  "importAppleNotesMacBody": "On your Mac, open Kanso and choose File › Import… › Apple Notes. Sync brings everything here: folders, checklists, tables, scans, drawings and attachments. Locked notes can’t be read; Kanso lists them.",
+  "@importAppleNotesMacBody": {
+    "description": "Says how to import Apple Notes on a Mac and what comes across."
+  },
+  "importAppleNotesShareTitle": "Share notes one at a time",
+  "@importAppleNotesShareTitle": {
+    "description": "The second option: sharing single notes from the Notes app to Kanso."
+  },
+  "importAppleNotesShareBody": "In Notes, open a note, tap Share, then choose Kanso. It arrives in your Inbox as a Markdown note with its checklists and images.",
+  "@importAppleNotesShareBody": {
+    "description": "Says how to share a note from Apple Notes to Kanso."
+  },
+  "importAppleNotesFilesTitle": "Choose exported files",
+  "@importAppleNotesFilesTitle": {
+    "description": "The third option: notes exported from Apple Notes as files."
+  },
+  "importAppleNotesFilesBody": "Pick a folder or .zip of notes exported as PDF, RTF, HTML, text or Markdown. They go in an Apple Notes notebook, with the folders you had inside it.",
+  "@importAppleNotesFilesBody": {
+    "description": "Says what exported files can be imported and where they go."
+  },
+  "importAppleNotesFilesAction": "Choose exported files",
+  "@importAppleNotesFilesAction": {
+    "description": "The button that opens the picker for notes exported from Apple Notes."
+  },
+  "importAppleNotesHelp": "Read more in Help",
+  "@importAppleNotesHelp": {
+    "description": "The link to the help page about bringing Apple Notes across."
+  },
   "importSourcesLabel": "Import from",
   "importPickFile": "Choose a file",
   "importPickFolder": "Choose a folder",

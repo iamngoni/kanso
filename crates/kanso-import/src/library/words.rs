@@ -17,6 +17,7 @@ pub fn picks(kind: SourceKind) -> (bool, bool) {
         | SourceKind::Evernote
         | SourceKind::Joplin
         | SourceKind::AppleNotes
+        | SourceKind::AppleNotesFiles
         | SourceKind::AppleJournal
         | SourceKind::GoogleKeep
         | SourceKind::Html

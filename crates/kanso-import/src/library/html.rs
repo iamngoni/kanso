@@ -12,7 +12,7 @@ const MAX_NOTE: u64 = 8 * 1024 * 1024;
 
 /// The deepest element nesting handed to `htmd`, which recurses once per
 /// level: deeper HTML could overflow an import thread's stack.
-const MAX_DEPTH: usize = 256;
+pub(super) const MAX_DEPTH: usize = 256;
 
 /// What a rewritten local path encodes, so `htmd` writes it as one Markdown
 /// link destination (it leaves spaces as they are and escapes parentheses).
@@ -141,7 +141,7 @@ pub(super) fn to_markdown(html: &str) -> Option<String> {
 /// How deeply `html`'s elements nest, from its tags alone. Void elements
 /// don't nest, and the end tags HTML lets a page leave out (`<p>`, `<li>`,
 /// table cells) are inferred, so real pages are rarely overcounted.
-fn nesting_depth(html: &str) -> usize {
+pub(super) fn nesting_depth(html: &str) -> usize {
     const VOID: &[&str] = &[
         "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
         "source", "track", "wbr",
@@ -225,7 +225,7 @@ fn nesting_depth(html: &str) -> usize {
     deepest
 }
 
-fn html_title(html: &str) -> Option<String> {
+pub(super) fn html_title(html: &str) -> Option<String> {
     let lower = html.to_ascii_lowercase();
     for tag in ["title", "h1"] {
         let Some(start) = lower.find(&format!("<{tag}")) else {
@@ -250,7 +250,11 @@ fn html_title(html: &str) -> Option<String> {
 
 /// `html` with each local `href` and `src` `%`-encoded, and a link to
 /// another document in the import as `kanso-import:note/<its path>`.
-fn rewrite_doc_links(html: &str, path: &str, targets: &HashMap<String, String>) -> String {
+pub(super) fn rewrite_doc_links(
+    html: &str,
+    path: &str,
+    targets: &HashMap<String, String>,
+) -> String {
     let html = rewrite_attribute(html, "href=", path, targets);
     rewrite_attribute(&html, "src=", path, targets)
 }
@@ -305,7 +309,7 @@ fn rewrite_attribute(
     result
 }
 
-fn normalize(path: &str) -> Option<String> {
+pub(super) fn normalize(path: &str) -> Option<String> {
     let mut parts: Vec<&str> = Vec::new();
     let normalized = path.replace('\\', "/");
     for part in normalized.split('/') {
@@ -321,7 +325,7 @@ fn normalize(path: &str) -> Option<String> {
 }
 
 /// Drops each `<tag …>…</tag>` block in one pass over `input`.
-fn remove_blocks(input: &str, tags: &[&str]) -> String {
+pub(super) fn remove_blocks(input: &str, tags: &[&str]) -> String {
     let lower = input.to_ascii_lowercase();
     let mut out = String::with_capacity(input.len());
     let (mut kept, mut at) = (0, 0);

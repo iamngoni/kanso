@@ -25,6 +25,7 @@ use kanso_engine::attach::too_large_file;
 use kanso_engine::capture::{
     CaptureError, MAX_SHARED_FILES, Shared, SharedFile, is_drop_id, save_shared,
 };
+use kanso_import::library::notes_html::{placeholder, share_markdown};
 use kanso_store::{Origin, Store};
 use serde_json::Value;
 
@@ -44,6 +45,8 @@ const MANIFEST_LIMIT: u64 = 8 * 1024 * 1024;
 /// A file larger than this is refused unread: converting it would not fit
 /// the attachment limit in any case.
 const READ_LIMIT: u64 = 4 * MAX_ATTACHMENT_SIZE as u64;
+/// The largest `html` a drop carries, in bytes; more is read as plain text.
+const HTML_LIMIT: usize = 4 * 1024 * 1024;
 /// The name of a drop's description.
 const MANIFEST: &str = "drop.json";
 
@@ -369,9 +372,17 @@ fn read_manifest(folder: &Path) -> Result<Value, Unreadable> {
 /// later.
 fn shared_from(manifest: &Value, folder: &Path) -> Result<(Shared, Vec<String>), String> {
     let text = |key: &str| manifest.get(key).and_then(Value::as_str).map(str::to_owned);
+    let subject = text("subject");
+    // A note shared from Apple Notes brings its HTML (or RTF as HTML):
+    // checklists become tasks and the title is not said twice.
+    let html = text("html").filter(|html| html.len() <= HTML_LIMIT);
     let mut shared = Shared {
-        subject: text("subject"),
-        text: text("text"),
+        text: if html.is_some() {
+            share_markdown(subject.as_deref(), html.as_deref(), text("text").as_deref())
+        } else {
+            text("text")
+        },
+        subject,
         url: text("url"),
         files: Vec::new(),
     };
@@ -419,6 +430,19 @@ fn shared_from(manifest: &Value, folder: &Path) -> Result<(Shared, Vec<String>),
             content_type: entry.get("type").and_then(Value::as_str).map(str::to_owned),
             bytes,
         });
+    }
+    // A titled note that is only a drawing or a scan says which. Apple
+    // Notes is iOS only; on Android many apps title a plain photo share
+    // (EXTRA_SUBJECT), which must not read as a drawing.
+    if cfg!(not(target_os = "android"))
+        && shared.subject.is_some()
+        && shared.text.is_none()
+        && shared.url.is_none()
+        && let Some(first) = shared.files.first()
+    {
+        let pdf = first.content_type.as_deref() == Some("application/pdf")
+            || first.name.to_ascii_lowercase().ends_with(".pdf");
+        shared.text = Some(placeholder(pdf).to_owned());
     }
     if listed.is_some_and(|files| files.len() > MAX_SHARED_FILES) {
         problems.push(format!(

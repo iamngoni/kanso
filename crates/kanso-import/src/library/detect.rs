@@ -51,7 +51,8 @@ fn for_file(path: &Path, ext: &str) -> Vec<SourceKind> {
         "bear2bk" => vec![Bear],
         "textbundle" | "textpack" => vec![TextBundle],
         "note" => vec![Tomboy],
-        "html" | "htm" => vec![Html, AppleJournal],
+        "html" | "htm" => vec![Html, AppleJournal, AppleNotesFiles],
+        "rtf" | "pdf" => vec![AppleNotesFiles],
         "md" | "markdown" => vec![Markdown],
         "txt" => {
             if peek(path).trim_start().starts_with('{') {
@@ -131,6 +132,9 @@ fn zip_kinds(path: &Path) -> Vec<SourceKind> {
     if ends(".md") && (ends(".csv") || names.iter().any(|n| has_notion_id(n))) {
         kinds.push(Notion);
     }
+    if ends(".rtf") || ends(".pdf") {
+        kinds.push(AppleNotesFiles);
+    }
     if ends(".html") || ends(".htm") {
         kinds.push(Html);
         kinds.push(AppleJournal);
@@ -144,6 +148,7 @@ fn zip_kinds(path: &Path) -> Vec<SourceKind> {
         TextBundle,
         Bear,
         AppleJournal,
+        AppleNotesFiles,
     ]);
     kinds
 }
@@ -173,6 +178,7 @@ struct Look {
     jex: bool,
     tomboy: bool,
     html: bool,
+    rtf_or_pdf: bool,
     markdown: bool,
     keep_json: bool,
     notion_ids: bool,
@@ -217,6 +223,7 @@ fn for_folder(path: &Path, ext: &str) -> Vec<SourceKind> {
                 "jex" => look.jex = true,
                 "note" => look.tomboy = true,
                 "html" | "htm" => look.html = true,
+                "rtf" | "pdf" => look.rtf_or_pdf = true,
                 "json" => look.keep_json = true,
                 "md" | "markdown" | "txt" => {
                     look.markdown = true;
@@ -255,9 +262,13 @@ fn for_folder(path: &Path, ext: &str) -> Vec<SourceKind> {
     if look.keep_json {
         kinds.push(GoogleKeep);
     }
+    if look.rtf_or_pdf {
+        kinds.push(AppleNotesFiles);
+    }
     if look.html {
         kinds.push(Html);
         kinds.push(AppleJournal);
+        kinds.push(AppleNotesFiles);
     }
     if look.markdown || kinds.is_empty() {
         kinds.push(Markdown);
@@ -283,9 +294,9 @@ mod tests {
         assert_eq!(kinds("/x/b.bear2bk"), [Bear]);
         assert_eq!(kinds("/x/b.textpack"), [TextBundle]);
         assert_eq!(kinds("/x/b.note"), [Tomboy]);
-        assert_eq!(kinds("/x/p.html"), [Html, AppleJournal]);
+        assert_eq!(kinds("/x/p.html"), [Html, AppleJournal, AppleNotesFiles]);
         assert_eq!(kinds("/x/p.md"), [Markdown]);
-        assert_eq!(kinds("/x/p.pdf"), Vec::<SourceKind>::new());
+        assert_eq!(kinds("/x/p.pdf"), [AppleNotesFiles]);
         assert_eq!(kinds("/x/NoteStore.sqlite"), Vec::<SourceKind>::new());
     }
 

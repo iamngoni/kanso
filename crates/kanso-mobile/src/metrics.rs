@@ -440,7 +440,8 @@ pub(crate) fn import_source(kind: SourceKind) -> ImportSource {
         SourceKind::Simplenote => ImportSource::Simplenote,
         SourceKind::UpNote => ImportSource::Upnote,
         SourceKind::AppleNotes => ImportSource::AppleNotes,
-        SourceKind::AppleJournal
+        SourceKind::AppleNotesFiles
+        | SourceKind::AppleJournal
         | SourceKind::GoogleKeep
         | SourceKind::Html
         | SourceKind::Roam

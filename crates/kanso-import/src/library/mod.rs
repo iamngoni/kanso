@@ -20,6 +20,7 @@
 
 pub mod apple_journal;
 pub mod apple_notes;
+pub mod apple_notes_files;
 pub mod bear;
 pub mod dates;
 pub mod detect;
@@ -31,11 +32,13 @@ pub mod joplin;
 pub mod jsonexports;
 pub mod links;
 pub mod markdown;
+pub mod notes_html;
 pub mod notion;
 pub mod open_files;
 mod report;
 pub mod resolve;
 pub mod roam;
+pub mod rtf;
 pub mod textbundle;
 pub mod tomboy;
 pub mod tree;
@@ -80,6 +83,8 @@ pub enum SourceKind {
     Simplenote,
     UpNote,
     AppleNotes,
+    /// Apple Notes notes exported as files (what a phone can read).
+    AppleNotesFiles,
     AppleJournal,
     GoogleKeep,
     Html,
@@ -89,7 +94,7 @@ pub enum SourceKind {
 }
 
 impl SourceKind {
-    pub const ALL: [SourceKind; 17] = [
+    pub const ALL: [SourceKind; 18] = [
         SourceKind::Markdown,
         SourceKind::Obsidian,
         SourceKind::Notion,
@@ -101,6 +106,7 @@ impl SourceKind {
         SourceKind::Simplenote,
         SourceKind::UpNote,
         SourceKind::AppleNotes,
+        SourceKind::AppleNotesFiles,
         SourceKind::AppleJournal,
         SourceKind::GoogleKeep,
         SourceKind::Html,
@@ -123,6 +129,7 @@ impl SourceKind {
             SourceKind::Simplenote => "simplenote",
             SourceKind::UpNote => "upnote",
             SourceKind::AppleNotes => "apple-notes",
+            SourceKind::AppleNotesFiles => "apple-notes-files",
             SourceKind::AppleJournal => "apple-journal",
             SourceKind::GoogleKeep => "google-keep",
             SourceKind::Html => "html",
@@ -139,6 +146,7 @@ impl SourceKind {
             "enex" => "evernote",
             "standardnotes" | "sn" => "standard-notes",
             "apple notes" | "applenotes" => "apple-notes",
+            "apple notes export" | "apple-notes-export" => "apple-notes-files",
             "apple journal" | "applejournal" => "apple-journal",
             "google keep" | "googlekeep" | "keep" => "google-keep",
             "roam json" | "roam-json" => "roam",
@@ -163,6 +171,7 @@ impl SourceKind {
             SourceKind::Simplenote => "Simplenote export",
             SourceKind::UpNote => "UpNote export",
             SourceKind::AppleNotes => "Apple Notes",
+            SourceKind::AppleNotesFiles => "Apple Notes export",
             SourceKind::AppleJournal => "Apple Journal",
             SourceKind::GoogleKeep => "Google Keep",
             SourceKind::Html => "HTML files",
@@ -198,6 +207,9 @@ impl SourceKind {
             SourceKind::AppleNotes => {
                 "Kanso finds the Notes library on this Mac. macOS may ask you to allow read-only access; locked or undownloaded notes are listed."
             }
+            SourceKind::AppleNotesFiles => {
+                "A folder or .zip of notes exported from Apple Notes (PDF, RTF, HTML, text or Markdown). They go under an Apple Notes notebook."
+            }
             SourceKind::AppleJournal => {
                 "Journal entry .html files, or the folder Apple Journal exports them to."
             }
@@ -223,6 +235,7 @@ impl SourceKind {
                 | SourceKind::Obsidian
                 | SourceKind::Logseq
                 | SourceKind::UpNote
+                | SourceKind::AppleNotesFiles
                 | SourceKind::AppleJournal
                 | SourceKind::GoogleKeep
                 | SourceKind::Html
@@ -236,6 +249,7 @@ impl SourceKind {
         match self {
             SourceKind::Notion => &["zip"],
             SourceKind::AppleNotes => &["sqlite"],
+            SourceKind::AppleNotesFiles => &["html", "htm", "rtf", "txt", "md", "pdf", "zip"],
             SourceKind::AppleJournal => &["html", "htm", "zip"],
             SourceKind::GoogleKeep => &["json", "zip"],
             SourceKind::Html => &["html", "htm", "zip"],
@@ -343,6 +357,7 @@ pub fn open(kind: SourceKind, path: &Path) -> anyhow::Result<Box<dyn Source>> {
         SourceKind::StandardNotes => Box::new(jsonexports::standard_notes(path)?),
         SourceKind::Simplenote => Box::new(jsonexports::simplenote(path)?),
         SourceKind::AppleNotes => Box::new(apple_notes::open(path)?),
+        SourceKind::AppleNotesFiles => Box::new(apple_notes_files::open(path)?),
         SourceKind::AppleJournal => Box::new(apple_journal::open(path)?),
         SourceKind::GoogleKeep => Box::new(google_keep::open(path)?),
         SourceKind::Html => Box::new(html::open(path)?),

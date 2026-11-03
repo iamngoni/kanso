@@ -94,6 +94,7 @@ final class ShareViewController: UIViewController {
     var subject: String?
     var text: String?
     var url: String?
+    var html: String?
   }
 
   private func save() {
@@ -135,6 +136,7 @@ final class ShareViewController: UIViewController {
           switch part {
           case .url(let value): if gathered.url == nil { gathered.url = value }
           case .text(let value): if gathered.text == nil { gathered.text = value }
+          case .html(let value): if gathered.html == nil { gathered.html = value }
           case .file: break
           case .skipped: skipped += 1
           }
@@ -146,14 +148,16 @@ final class ShareViewController: UIViewController {
 
     group.notify(queue: .global(qos: .userInitiated)) { [weak self] in
       guard let self, !self.cancelled else { return }
-      let nothing = gathered.url == nil && gathered.text == nil && writer.fileCount == 0
+      let nothing = gathered.url == nil && gathered.text == nil && gathered.html == nil
+        && writer.fileCount == 0
       if nothing {
         writer.discard()
         DispatchQueue.main.async { self.show("Kanso can't save this kind of item.") }
         return
       }
       do {
-        try writer.finish(subject: gathered.subject, text: gathered.text, url: gathered.url)
+        try writer.finish(
+          subject: gathered.subject, text: gathered.text, url: gathered.url, html: gathered.html)
       } catch {
         writer.discard()
         DispatchQueue.main.async { self.show("Kanso couldn't save this.") }
@@ -171,6 +175,9 @@ final class ShareViewController: UIViewController {
   private enum Part {
     case url(String)
     case text(String)
+    /// A note's formatted text as HTML (Apple Notes), converted from RTF when
+    /// that is what the sender handed over.
+    case html(String)
     case file
     case skipped
   }
@@ -201,6 +208,14 @@ final class ShareViewController: UIViewController {
           done(.skipped)
         }
       }
+    } else if provider.hasItemConformingToTypeIdentifier(UTType.html.identifier) {
+      provider.loadItem(forTypeIdentifier: UTType.html.identifier) { value, _ in
+        done(ShareViewController.html(from: value).map(Part.html) ?? .skipped)
+      }
+    } else if provider.hasItemConformingToTypeIdentifier(UTType.rtf.identifier) {
+      provider.loadItem(forTypeIdentifier: UTType.rtf.identifier) { value, _ in
+        done(ShareViewController.htmlFromRTF(value).map(Part.html) ?? .skipped)
+      }
     } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
       provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { value, _ in
         let text = (value as? String) ?? (value as? URL).flatMap { try? String(contentsOf: $0) }
@@ -210,6 +225,46 @@ final class ShareViewController: UIViewController {
     } else {
       done(.skipped)
     }
+  }
+
+  /// The most HTML read from a share: the extension has little memory, and
+  /// the library refuses more than this in any case.
+  private static let maxHTML = 4 * 1024 * 1024
+
+  /// A note's HTML from what the provider gave (text, data or a file).
+  private static func html(from value: Any?) -> String? {
+    let text: String?
+    switch value {
+    case let string as String: text = string
+    case let data as Data: text = String(data: data, encoding: .utf8)
+    case let url as URL: text = try? String(contentsOf: url, encoding: .utf8)
+    default: text = nil
+    }
+    guard let text, text.utf8.count <= maxHTML,
+      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else { return nil }
+    return text
+  }
+
+  /// RTF (from a provider that has no HTML) as HTML, so the library reads
+  /// it the same way. Checklists survive only if the sender wrote them as
+  /// text; the library also reads a leading checkbox glyph as a task.
+  private static func htmlFromRTF(_ value: Any?) -> String? {
+    let data: Data?
+    switch value {
+    case let d as Data: data = d
+    case let url as URL: data = try? Data(contentsOf: url)
+    default: data = nil
+    }
+    guard let data, data.count <= maxHTML,
+      let attributed = try? NSAttributedString(
+        data: data, options: [.documentType: NSAttributedString.DocumentType.rtf],
+        documentAttributes: nil),
+      let converted = try? attributed.data(
+        from: NSRange(location: 0, length: attributed.length),
+        documentAttributes: [.documentType: NSAttributedString.DocumentType.html])
+    else { return nil }
+    return html(from: converted)
   }
 
   /// The type to load a file attachment as: a PNG or JPEG if the provider has
