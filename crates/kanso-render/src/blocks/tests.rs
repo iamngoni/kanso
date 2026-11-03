@@ -975,3 +975,19 @@ mod props {
         }
     }
 }
+
+#[test]
+fn html_comments_are_hidden_and_other_html_is_not() {
+    let md = "<!-- kanso:transcript -->\n[00:01](kanso-audio://file:a?t=1) Hi\n<!-- /kanso:transcript -->\n\na <!-- note --> b\n\n<!-- x --> <div>y</div>\n";
+    let drawn = plain_blocks(md);
+    let shown = format!("{drawn:?}");
+    assert!(!shown.contains("kanso:transcript"), "{shown}");
+    assert!(!shown.contains("note"), "{shown}");
+    assert!(
+        shown.contains("00:01") && shown.contains("<div>y</div>"),
+        "{shown}"
+    );
+    assert!(only_comments("<!-- a -->\n<!-- b -->"));
+    assert!(!only_comments("<!-- a"));
+    assert!(!only_comments(""));
+}

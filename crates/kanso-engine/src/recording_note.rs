@@ -76,19 +76,55 @@ fn clean(text: &str) -> String {
         .replace("<!--", "< !--")
 }
 
-/// Where the marked transcript is in `body`: from the opening marker to
-/// the end of the closing one. Pure.
-pub fn transcript_range(body: &str) -> Option<std::ops::Range<usize>> {
-    let start = body.find(TRANSCRIPT_OPEN)?;
-    let close = body[start..].find(TRANSCRIPT_CLOSE)? + start;
-    Some(start..close + TRANSCRIPT_CLOSE.len())
+/// Where `file_id`'s marked transcript is in `body`: from the opening
+/// marker to the end of the closing one. A block counts only when it is
+/// still machine text for this recording: its own markers (an opening
+/// marker with no close before the next opening one is skipped), and
+/// every line between them a paragraph that starts with a moment link to
+/// `file_id`. So another recording's block, a block the user has written
+/// their own lines into, and prose between a deleted closing marker and a
+/// later block are never matched, and so never replaced. Pure.
+pub fn transcript_range(body: &str, file_id: &str) -> Option<std::ops::Range<usize>> {
+    let mut from = 0;
+    while let Some(open) = body[from..].find(TRANSCRIPT_OPEN).map(|at| at + from) {
+        let inner_start = open + TRANSCRIPT_OPEN.len();
+        let close = body[inner_start..].find(TRANSCRIPT_CLOSE)? + inner_start;
+        let inner = &body[inner_start..close];
+        if let Some(nested) = inner.find(TRANSCRIPT_OPEN) {
+            from = inner_start + nested;
+            continue;
+        }
+        if is_machine_text(inner, file_id) {
+            return Some(open..close + TRANSCRIPT_CLOSE.len());
+        }
+        from = close + TRANSCRIPT_CLOSE.len();
+    }
+    None
 }
 
-/// `body` with the marked transcript swapped for `block`, or `None` when
-/// the markers are gone (the caller then asks before writing anywhere).
+/// Whether every non-blank line of `inner` starts with a moment link to
+/// `file_id`, and there is at least one. Pure.
+fn is_machine_text(inner: &str, file_id: &str) -> bool {
+    let target = format!("]({AUDIO_SCHEME}{file_id}?t=");
+    let mut any = false;
+    for line in inner.lines().map(str::trim).filter(|l| !l.is_empty()) {
+        let linked = line.starts_with('[')
+            && line
+                .find("](")
+                .is_some_and(|at| line[at..].starts_with(&target));
+        if !linked {
+            return false;
+        }
+        any = true;
+    }
+    any
+}
+
+/// `body` with `file_id`'s marked transcript swapped for `block`, or
+/// `None` when there is none to replace ([`transcript_range`]).
 /// Everything outside the markers is untouched. Pure.
-pub fn replace_transcript(body: &str, block: &str) -> Option<String> {
-    let range = transcript_range(body)?;
+pub fn replace_transcript(body: &str, file_id: &str, block: &str) -> Option<String> {
+    let range = transcript_range(body, file_id)?;
     Some(format!(
         "{}{block}{}",
         &body[..range.start],
@@ -136,10 +172,41 @@ mod tests {
         let old = render_transcript("file:a", &[seg(0, "old")]).unwrap();
         let new = render_transcript("file:a", &[seg(0, "new")]).unwrap();
         let body = format!("# T\n\nMy prose\n\n{old}\n\nAfter");
-        let out = replace_transcript(&body, &new).unwrap();
+        let out = replace_transcript(&body, "file:a", &new).unwrap();
         assert_eq!(out, format!("# T\n\nMy prose\n\n{new}\n\nAfter"));
-        assert_eq!(replace_transcript("no markers", &new), None);
-        assert_eq!(replace_transcript(TRANSCRIPT_OPEN, &new), None);
+        assert_eq!(replace_transcript("no markers", "file:a", &new), None);
+        assert_eq!(replace_transcript(TRANSCRIPT_OPEN, "file:a", &new), None);
+    }
+
+    #[test]
+    fn edited_or_foreign_markers_never_cost_prose() {
+        let a = render_transcript("file:a", &[seg(0, "old a")]).unwrap();
+        let b = render_transcript("file:b", &[seg(0, "old b")]).unwrap();
+        let new = render_transcript("file:b", &[seg(0, "new b")]).unwrap();
+        // Two recordings: only b's block is b's.
+        let body = format!("{a}\n\nMine\n\n{b}");
+        assert_eq!(
+            replace_transcript(&body, "file:b", &new).unwrap(),
+            format!("{a}\n\nMine\n\n{new}")
+        );
+        // a's closing marker deleted: a's open must not pair with b's close.
+        let cut = a.replace(TRANSCRIPT_CLOSE, "");
+        let body = format!("{cut}\n\nMine\n\n{b}");
+        assert_eq!(transcript_range(&body, "file:a"), None);
+        assert_eq!(
+            replace_transcript(&body, "file:b", &new).unwrap(),
+            format!("{cut}\n\nMine\n\n{new}")
+        );
+        // A line of the user's own inside the markers: hands off.
+        let mine = a.replace("old a", "old a\n\nMy own thought");
+        assert_eq!(transcript_range(&mine, "file:a"), None);
+        // Opening marker deleted: nothing to replace.
+        assert_eq!(
+            transcript_range(&a.replace(TRANSCRIPT_OPEN, ""), "file:a"),
+            None
+        );
+        // file:a must not match file:ab.
+        assert_eq!(transcript_range(&a, "file:ab"), None);
     }
 
     #[test]
@@ -184,9 +251,9 @@ mod tests {
                 prop_assert_eq!(parse_moment(url), Some(AudioMoment { file_id: id.clone(), seconds: *s }));
             }
             let body = format!("{before}{block}{after}");
-            let range = transcript_range(&body).unwrap();
+            let range = transcript_range(&body, &id).unwrap();
             prop_assert_eq!(&body[range], block.as_str());
-            let out = replace_transcript(&body, "X").unwrap();
+            let out = replace_transcript(&body, &id, "X").unwrap();
             prop_assert_eq!(out, format!("{before}X{after}"));
         }
 

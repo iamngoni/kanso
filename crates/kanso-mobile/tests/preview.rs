@@ -698,3 +698,28 @@ proptest! {
         }
     }
 }
+
+/// A recording's transcript (#38): the markers draw as nothing, the stamps
+/// draw as text, and a tap on one is inert until the phone has a player.
+#[test]
+fn a_recording_transcript_draws_and_its_moment_links_are_inert() {
+    let phone = lone_phone();
+    let body = "Before\n\n<!-- kanso:transcript -->\n[00:00](kanso-audio://file:m1?t=0) We started.\n\n[00:20](kanso-audio://file:m1?t=20) Then this.\n<!-- /kanso:transcript -->\n\nAfter\n";
+    let id = note(&phone.library, "Meeting", body);
+    let r = phone.library.renderer();
+    let blocks = format!(
+        "{:?}",
+        r.preview_blocks(&id, palette(), PreviewOptions::default())
+            .unwrap()
+    );
+    assert!(
+        blocks.contains("00:20") && blocks.contains("Then this."),
+        "{blocks}"
+    );
+    assert!(!blocks.contains("kanso:transcript"), "{blocks}");
+    let page = r.preview_html(&id, palette()).unwrap();
+    assert!(page.contains("Then this."), "{page}");
+    for url in ["kanso-audio://file:m1?t=20", "kanso-audio://file:m1"] {
+        assert_eq!(r.link_target(&id, url).unwrap(), PreviewLink::Nothing);
+    }
+}

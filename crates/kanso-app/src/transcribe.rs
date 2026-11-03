@@ -92,9 +92,9 @@ pub fn transcript_edit(
     }
     // A marked transcript replaces the marked one already in the note.
     let marked = words.starts_with(recording_note::TRANSCRIPT_OPEN);
-    let replaced = marked
-        .then(|| recording_note::transcript_range(text))
-        .flatten();
+    let replaced = file_id
+        .filter(|_| marked)
+        .and_then(|id| recording_note::transcript_range(text, id));
     if let Some(range) = replaced {
         let shift = |offset: usize| {
             let offset = offset.min(text.len());
