@@ -59,7 +59,36 @@ class RustLibraryRepository implements LibraryRepository {
   Future<Either<ApplicationError, Changed>> change(
     List<String> ids,
     NoteChange change,
-  ) => attempt(() => _library.change(ids: ids, change: change));
+  ) => attempt(() async {
+    final changed = await _library.change(ids: ids, change: change);
+    return change is NoteChange_Move
+        ? await _afterMove(ids, changed)
+        : changed;
+  });
+
+  /// A note that moved out of the notebook it was the Home note of is no
+  /// longer its Home note: the core takes the mark off, and the notice says
+  /// so. Nothing here may fail the move itself.
+  Future<Changed> _afterMove(List<String> ids, Changed changed) async {
+    try {
+      final home = _library.notebookHome();
+      var removed = false;
+      for (final id in ids) {
+        removed = await home.afterMove(noteId: id) || removed;
+      }
+      if (!removed) {
+        return changed;
+      }
+      final words = await home.words();
+      return Changed(
+        count: changed.count,
+        undo: changed.undo,
+        message: '${changed.message} ${words.homeMoved}',
+      );
+    } on Object {
+      return changed;
+    }
+  }
 
   @override
   Future<Either<ApplicationError, int>> undo(int ticket) =>

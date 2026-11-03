@@ -22,6 +22,7 @@ import '../../../core/views/widgets/kanso_large_title.dart';
 import '../../../core/views/widgets/kanso_refresh_control.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_swipe_host.dart';
+import '../../../notebook_home/views/widgets/notebook_home_card.dart';
 import '../../../tabs/state/tabs/tabs_bloc.dart';
 import '../../models/data/note_list_entry.dart';
 import '../../state/note_list/note_list_bloc.dart';
@@ -41,6 +42,7 @@ class NoteListView extends StatelessWidget {
     this.bottomClearance = 0,
     this.largeTitle,
     this.largeSubtitle,
+    this.beside = false,
     super.key,
   });
 
@@ -57,6 +59,9 @@ class NoteListView extends StatelessWidget {
   /// over once it has scrolled away (a phone's list); none when null.
   final String? largeTitle;
   final String? largeSubtitle;
+
+  /// Whether the list is beside the note pane, in a wide window.
+  final bool beside;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +95,15 @@ class NoteListView extends StatelessWidget {
           if (largeTitle case final title?)
             SliverToBoxAdapter(
               child: KansoLargeTitle(title: title, subtitle: largeSubtitle),
+            ),
+          // The notebook's card, above its first note.
+          if (state.place case ListPlace_Notebook(:final id))
+            SliverToBoxAdapter(
+              child: NotebookHomeCard(
+                key: ValueKey<String>('home-card-$id'),
+                bookId: id,
+                beside: beside,
+              ),
             ),
           SliverPadding(
             padding: EdgeInsets.only(

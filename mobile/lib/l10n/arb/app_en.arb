@@ -7372,5 +7372,31 @@
   "peopleSharedNote": "shared note",
   "peopleSettingsKeepIn": "Keep pages in",
   "peopleSettingsKeepInDefault": "People & Projects",
-  "peopleSettingsKeepInHelp": "The notebook new person and project pages go in. The default is made when the first page is."
+  "peopleSettingsKeepInHelp": "The notebook new person and project pages go in. The default is made when the first page is.",
+  "notebookHomeChooseHome": "Choose Home note…",
+  "notebookHomeNewHome": "New Home note",
+  "notebookHomeCustomise": "Customise home…",
+  "notebookHomeCopyInto": "Copy into Home note",
+  "notebookHomeCopiedInto": "Copied into the Home note",
+  "notebookHomeEdit": "Edit",
+  "notebookHomeChooseTitle": "Home note",
+  "notebookHomeChooseNone": "This notebook has no notes to choose from yet.",
+  "notebookHomeCustomiseTitle": "Customise home",
+  "notebookHomeResetLayout": "Reset layout",
+  "notebookHomeDone": "Done",
+  "notebookHomeFailed": "Couldn't read this homepage.",
+  "notebookHomeMapLabel": "Map of the notes in {name}",
+  "@notebookHomeMapLabel": {
+    "description": "Spoken label of the map on a notebook homepage.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "notebookHomeSettingsTitle": "Notebook homepages",
+  "notebookHomeSettingsShow": "Show notebook homepages",
+  "notebookHomeSettingsShowHelp": "A card above a notebook's notes opens its homepage. Off hides the card and the page.",
+  "notebookHomeSettingsAi": "Write notebook summaries with AI",
+  "notebookHomeSettingsAiHelp": "Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above."
 }

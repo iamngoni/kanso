@@ -71,6 +71,22 @@ abstract final class KansoRoutes {
   /// Ask the notes a question, a page on a phone and sheet on a tablet.
   static const String ask = '/ask';
 
+  /// The parameters of [ask] that limit it to a notebook: its ID and the
+  /// name the scope chip shows.
+  static const String askBookParameter = 'book';
+  static const String askLabelParameter = 'label';
+
+  /// The address of Ask limited to the notebook [id], called [label].
+  static String askIn(String id, String label) =>
+      '$ask?$askBookParameter=${Uri.encodeQueryComponent(id)}'
+      '&$askLabelParameter=${Uri.encodeQueryComponent(label)}';
+
+  /// A notebook's homepage is its address plus `/home`.
+  static const String notebookHome = 'home';
+
+  /// The notebook the graph is narrowed to: `/graph?book=`.
+  static const String graphBookParameter = 'book';
+
   /// Agent tasks: the AI proposes changes to notes, the person approves them.
   static const String agentTasks = '/agent-tasks';
 

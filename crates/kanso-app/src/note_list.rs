@@ -1068,6 +1068,11 @@ impl NoteList {
             .into_any_element();
         }
         match &library.filter {
+            // Its notes are a level or more down: its homepage shows beside
+            // the Home row, in place of this line.
+            Filter::Book(id) if crate::library::homepages_on(cx) && library.has_notes_inside(id) => {
+                div().into_any_element()
+            }
             // Its notes are a level or more down: not a notebook to start.
             Filter::Book(id) if library.has_notes_inside(id) => quiet_empty(
                 library_icon(Slot::Notebook),
@@ -1475,6 +1480,7 @@ impl Render for NoteList {
                 el.children(crate::shared_inbox::render(&self.library, cx))
             })
             .children(triage_bar)
+            .children(self.render_home_row(cx))
             .when_some(error, |el, error| {
                 el.child(
                     div()
@@ -1532,6 +1538,58 @@ impl Render for NoteList {
 }
 
 impl NoteList {
+    /// The pinned row above a notebook's notes that opens its homepage: the
+    /// notebook's icon and colour, then "Home". Nothing for any other
+    /// place, for a locked notebook, or while homepages are off.
+    // no-prop-test: drawing; the snapshots show it.
+    fn render_home_row(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let library = self.library.read(cx);
+        let Filter::Book(id) = &library.filter else {
+            return None;
+        };
+        if !crate::library::homepages_on(cx) || library.is_book_locked(id) {
+            return None;
+        }
+        let book = library.book(id)?;
+        let selected = library.home;
+        let icon = crate::book_icons::book_icon(book, cx);
+        let color = crate::book_colors::book_color(book);
+        let colors = Colors::get(cx);
+        let tint = match color {
+            Some(rgb) => crate::book_colors::icon_tint(rgb, cx.theme().is_dark()),
+            None => colors.text_secondary,
+        };
+        let library = self.library.clone();
+        Some(
+            h_flex()
+                .id("home-row")
+                .debug_selector(|| "home-row".into())
+                .flex_none()
+                .mx(px(ROW_INSET_X))
+                .mt(px(4.))
+                .h(px(32.))
+                .px(px(ROW_PAD_X))
+                .gap(px(8.))
+                .items_center()
+                .rounded(px(6.))
+                .cursor_pointer()
+                .when(selected, |row| row.bg(colors.row_active))
+                .hover(|row| row.bg(colors.row_hover))
+                .child(Icon::new(icon).size(px(15.)).text_color(tint))
+                .child(
+                    div()
+                        .flex_1()
+                        .text_size(px(13.5))
+                        .text_color(colors.text)
+                        .child(kanso_engine::pages::notebook_model::HOME_ROW),
+                )
+                .on_click(move |_, _, cx| {
+                    library.update(cx, |library, cx| library.set_home(true, cx));
+                })
+                .into_any_element(),
+        )
+    }
+
     /// The Triage bar, above the Inbox's notes while some wait to be filed
     /// (`triage_view.rs`). The count is read again only when the list is.
     fn triage_bar(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {

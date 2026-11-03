@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/library.dart';
+import '../../../core/bridge/api/notebook_home_types.dart';
 import '../../../core/bridge/api/people_types.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
@@ -25,6 +26,7 @@ import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
 import '../../../shell/views/widgets/shell_back_button.dart';
+import '../../../notebook_home/models/repos/abs/notebook_home_repository.dart';
 import '../../models/repos/abs/people_repository.dart';
 
 /// Settings › People & Projects, at `/settings/people`.
@@ -37,7 +39,9 @@ class PeopleSettingsPage extends StatefulWidget {
 
 class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
   final PeopleRepository _people = getIt<PeopleRepository>();
+  final NotebookHomeRepository _homes = getIt<NotebookHomeRepository>();
   PeopleSettings? _settings;
+  HomeSettings? _homeSettings;
   List<String> _dismissed = const <String>[];
   List<NotebookRow> _books = const <NotebookRow>[];
 
@@ -53,6 +57,7 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
   Future<void> _load() async {
     final settings = await _people.settings();
     final dismissed = await _people.dismissed();
+    final homeSettings = await _homes.settings();
     var books = const <NotebookRow>[];
     try {
       books = (await getIt<KansoLibrary>().notebooks())
@@ -65,6 +70,7 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
       setState(() {
         _books = books;
         _settings = settings.toOption().toNullable();
+        _homeSettings = homeSettings.toOption().toNullable();
         _dismissed = dismissed.toOption().toNullable() ?? const <String>[];
       });
     }
@@ -73,8 +79,35 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
   Future<void> _change(PeopleSettings next) async {
     setState(() => _settings = next);
     final saved = await _people.setSettings(next);
+    // The refresh choice is one setting for both, so the homepages' copy of
+    // it is read again.
+    final homes = await _homes.settings();
     if (mounted) {
-      setState(() => _settings = saved.toOption().toNullable() ?? next);
+      setState(() {
+        _settings = saved.toOption().toNullable() ?? next;
+        _homeSettings = homes.toOption().toNullable() ?? _homeSettings;
+      });
+    }
+  }
+
+  Future<void> _changeHome({bool? showHomepages, bool? summariesWithAi}) async {
+    final current = _homeSettings;
+    final people = _settings;
+    if (current == null || people == null) {
+      return;
+    }
+    final next = HomeSettings(
+      showHomepages: showHomepages ?? current.showHomepages,
+      summariesWithAi: summariesWithAi ?? current.summariesWithAi,
+      // The shared refresh setting, as it is now.
+      refresh: people.refresh,
+    );
+    setState(() => _homeSettings = next);
+    final saved = await _homes.setSettings(next);
+    if (mounted) {
+      setState(
+        () => _homeSettings = saved.toOption().toNullable() ?? next,
+      );
     }
   }
 
@@ -241,6 +274,38 @@ class _PeopleSettingsPageState extends State<PeopleSettingsPage> {
                         ),
                       ],
                     ),
+                    if (_homeSettings case final home?) ...<Widget>[
+                      const SizedBox(height: KansoSpacing.lg),
+                      KansoSectionHeader(
+                        label: l10n.notebookHomeSettingsTitle,
+                        horizontalPadding: 0,
+                      ),
+                      KansoGroupedSection(
+                        footer: l10n.notebookHomeSettingsShowHelp,
+                        dividerIndent: 48,
+                        children: <Widget>[
+                          _switch(
+                            KansoIcons.notebook,
+                            l10n.notebookHomeSettingsShow,
+                            home.showHomepages,
+                            (v) => unawaited(_changeHome(showHomepages: v)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: KansoSpacing.lg),
+                      KansoGroupedSection(
+                        footer: l10n.notebookHomeSettingsAiHelp,
+                        dividerIndent: 48,
+                        children: <Widget>[
+                          _switch(
+                            KansoIcons.sparkles,
+                            l10n.notebookHomeSettingsAi,
+                            home.summariesWithAi,
+                            (v) => unawaited(_changeHome(summariesWithAi: v)),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: KansoSpacing.lg),
                     KansoGroupedSection(
                       footer: l10n.peopleSettingsDetectAiHelp,
