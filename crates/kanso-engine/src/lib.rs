@@ -106,6 +106,8 @@ pub mod outline;
 pub mod pages;
 pub mod palette;
 pub mod publish;
+pub mod recording_note;
+pub mod recording_note_model;
 pub mod replace;
 pub mod saving;
 pub mod shortcuts;
