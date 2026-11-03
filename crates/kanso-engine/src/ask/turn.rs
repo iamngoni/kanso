@@ -432,8 +432,13 @@ pub fn run(turn: Turn, mut on_event: impl FnMut(TurnEvent)) {
     if check_sources {
         on_event(TurnEvent::Status(CHECKING.to_owned()));
         if needs_repair(&raw, &shown) {
-            if let Some(better) = repair(&provider, &numbered, &raw, &request.budget, &cancel) {
-                raw = better;
+            let read = read_since_prompt(&numbered, &shown);
+            if let Some(better) =
+                repair(&provider, &numbered, &read, &raw, &request.budget, &cancel)
+            {
+                if prefer_repair(&check(&raw, &shown.sent()), &check(&better, &shown.sent())) {
+                    raw = better;
+                }
             }
             if stopped() {
                 on_event(TurnEvent::Stopped);
@@ -465,16 +470,35 @@ fn needs_repair(raw: &str, shown: &Shown) -> bool {
     checked.has_no_sources()
 }
 
+/// What the tools showed the model after the first prompt: new excerpts, and
+/// excerpts whose lines grew.
+fn read_since_prompt(numbered: &Numbered, shown: &Shown) -> Vec<kanso_ai::prompt::SentExcerpt> {
+    shown
+        .sent()
+        .into_iter()
+        .filter(|now| !numbered.sent.contains(now))
+        .collect()
+}
+
+/// Whether the repaired answer should replace the original: only when it has
+/// more claims that survive their check. A repair that cut sentences it
+/// could not cite, or left nothing that checks, loses to the original.
+fn prefer_repair(original: &Checked, repaired: &Checked) -> bool {
+    let valid = |checked: &Checked| checked.claims.saturating_sub(checked.unsupported.len());
+    valid(repaired) > valid(original)
+}
+
 /// Asks the model once to add citations to `raw`. The repaired answer, or
 /// `None` when the request failed or came back empty.
 fn repair(
     provider: &SharedProvider,
     numbered: &Numbered,
+    read: &[kanso_ai::prompt::SentExcerpt],
     raw: &str,
     budget: &Budget,
     cancel: &Arc<AtomicBool>,
 ) -> Option<String> {
-    let prompt = kanso_ai::prompt::repair(&numbered.prompt, raw);
+    let prompt = kanso_ai::prompt::repair_with(&numbered.prompt, raw, read);
     let events = {
         let provider = lock(provider);
         provider.ask(
@@ -580,5 +604,69 @@ mod streaming_tests {
             prop_assert!(out.len() <= text.len());
             prop_assert!(!out.contains(":L"), "{out}");
         }
+    }
+}
+
+#[cfg(test)]
+mod repair_tests {
+    use super::*;
+    use kanso_ai::prompt::SentExcerpt;
+
+    fn checked(claims: usize, unsupported: usize) -> Checked {
+        Checked {
+            claims,
+            unsupported: (0..unsupported).map(|n| n..n + 1).collect(),
+            ..Checked::default()
+        }
+    }
+
+    // no-prop-test: fixed comparisons of valid-claim counts.
+    #[test]
+    fn a_repair_replaces_the_answer_only_with_more_valid_claims() {
+        let uncited = checked(0, 0);
+        assert!(prefer_repair(&uncited, &checked(2, 0)));
+        assert!(prefer_repair(&uncited, &checked(2, 1)));
+        assert!(
+            !prefer_repair(&uncited, &checked(2, 2)),
+            "nothing checks out"
+        );
+        assert!(
+            !prefer_repair(&uncited, &checked(0, 0)),
+            "it cut everything"
+        );
+        assert!(
+            !prefer_repair(&checked(3, 0), &checked(2, 0)),
+            "fewer valid claims"
+        );
+    }
+
+    // no-prop-test: one fixed prompt, both shapes of the request.
+    #[test]
+    fn the_repair_prompt_adds_only_the_lines_the_tools_read() {
+        let first = kanso_ai::prompt::Prompt {
+            system: "S".into(),
+            user: "U".into(),
+        };
+        let plain = kanso_ai::prompt::repair(&first, " A. ");
+        assert_eq!(
+            plain.user,
+            "U\n\nAnswer to repair:\nA.\n\nAdd the citations to this answer in the [n:Lx] format. Remove any sentence you cannot cite. Change nothing else."
+        );
+        let read = [SentExcerpt {
+            number: 3,
+            id: "note:x".into(),
+            title: "X".into(),
+            updated: None,
+            lines: vec![(4, "five".into())],
+        }];
+        let with = kanso_ai::prompt::repair_with(&first, "A.", &read);
+        assert!(
+            with.user.starts_with(
+                "U\n\nLines you read with your tools:\n[3] X\nL5| five\n\nAnswer to repair:\nA."
+            ),
+            "{}",
+            with.user
+        );
+        assert!(!with.user.contains("note:x"), "the id is not repeated");
     }
 }

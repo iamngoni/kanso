@@ -277,12 +277,33 @@ pub fn escape_excerpt(text: &str) -> String {
 /// The request that asks a model to add citations to an answer that has
 /// none: the same excerpts and question, the answer, and what to do.
 pub fn repair(prompt: &Prompt, answer: &str) -> Prompt {
+    repair_with(prompt, answer, &[])
+}
+
+/// [`repair`] with the lines the model read through its tools since the
+/// first prompt (`read`), numbered as it saw them, so a sentence it took
+/// from those can be cited and is not cut. Nothing here was not already sent
+/// to the model in this question.
+pub fn repair_with(prompt: &Prompt, answer: &str, read: &[SentExcerpt]) -> Prompt {
+    let mut user = prompt.user.clone();
+    if !read.is_empty() {
+        user.push_str("\n\nLines you read with your tools:");
+        for excerpt in read {
+            user.push_str(&format!(
+                "\n[{}] {}",
+                excerpt.number,
+                escape_excerpt(&truncate(excerpt.title.trim(), LABEL_TITLE))
+            ));
+            for (number, text) in &excerpt.lines {
+                user.push_str(&format!("\nL{}| {}", number + 1, escape_excerpt(text)));
+            }
+        }
+    }
     Prompt {
         system: prompt.system.clone(),
         user: format!(
-            "{}\n\nAnswer to repair:\n{}\n\nAdd the citations to this answer in the [n:Lx] \
+            "{user}\n\nAnswer to repair:\n{}\n\nAdd the citations to this answer in the [n:Lx] \
 format. Remove any sentence you cannot cite. Change nothing else.",
-            prompt.user,
             answer.trim()
         ),
     }
