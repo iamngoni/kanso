@@ -1,6 +1,8 @@
 //! What a model costs, by hand: a small table of list prices in US dollars
 //! per million tokens, so Settings can say what one question costs at most.
 //! A model that isn't in it shows no estimate. Updated by hand; prices change.
+//! Claude prices are the first-party list prices (Haiku 5.5's are for prompts
+//! up to 100K tokens, which a question never exceeds).
 
 use crate::Provider;
 use crate::budget::Budget;
@@ -46,6 +48,66 @@ const PRICES: &[Price] = &[
         model: "gpt-4.1",
         input: 2.00,
         output: 8.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-fable-5-1",
+        input: 10.00,
+        output: 50.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-fable-5",
+        input: 10.00,
+        output: 50.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-opus-5-5",
+        input: 4.00,
+        output: 20.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-opus-5",
+        input: 5.00,
+        output: 25.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-opus-4",
+        input: 5.00,
+        output: 25.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-sonnet-5-5",
+        input: 2.00,
+        output: 10.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-sonnet-5",
+        input: 2.00,
+        output: 10.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-sonnet-4",
+        input: 3.00,
+        output: 15.00,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-haiku-5-5",
+        input: 0.10,
+        output: 0.50,
+    },
+    Price {
+        provider: Provider::Anthropic,
+        model: "claude-haiku-4-5",
+        input: 1.00,
+        output: 5.00,
     },
     Price {
         provider: Provider::Anthropic,
@@ -97,18 +159,24 @@ const PRICES: &[Price] = &[
     },
 ];
 
+/// The fewest characters a token can hold, for a worst case: Latin text is
+/// about four, Chinese, Japanese and Korean about one to two. An upper bound
+/// uses the small end, so a cost is never understated for any language.
+const WORST_CHARS_PER_TOKEN: f64 = 2.;
+
 /// The most one question can cost in US dollars with `model` at `provider`,
-/// or `None` when the price isn't known: `(input chars / 4) × input price +
-/// output tokens × output price`, for the whole of `budget`.
+/// or `None` when the price isn't known: `(input chars / 2) × input price +
+/// output tokens × output price`, over every request the question can make
+/// (see [`Budget::most_chars_sent`]).
 pub fn most_per_question(provider: Provider, model: &str, budget: &Budget) -> Option<f64> {
     let model = model.trim().to_ascii_lowercase();
     let price = PRICES
         .iter()
         .find(|price| price.provider == provider && model.starts_with(price.model))?;
-    let input_tokens = budget.most_chars_sent() as f64 / 4.;
+    let input_tokens = budget.most_chars_sent() as f64 / WORST_CHARS_PER_TOKEN;
     Some(
         input_tokens * price.input / 1_000_000.
-            + f64::from(budget.output_tokens) * price.output / 1_000_000.,
+            + f64::from(budget.most_tokens_written()) * price.output / 1_000_000.,
     )
 }
 
@@ -136,7 +204,7 @@ mod tests {
         let standard = Budget::default();
         assert_eq!(
             cost_line(Provider::OpenAi, "gpt-4o-mini", &standard).as_deref(),
-            Some("At most about $0.01 per question with gpt-4o-mini.")
+            Some("At most about $0.05 per question with gpt-4o-mini.")
         );
         assert_eq!(cost_line(Provider::OpenAi, "gpt-9", &standard), None);
         assert_eq!(cost_line(Provider::LocalModel, "llama3.2", &standard), None);
@@ -166,5 +234,31 @@ mod tests {
             prop_assert!(costs.iter().all(|c| *c > 0.));
             prop_assert!(costs.windows(2).all(|w| w[0] < w[1]));
         }
+    }
+}
+
+#[cfg(test)]
+mod bound_tests {
+    use super::*;
+
+    // no-prop-test: pins the upper bound's parts with fixed numbers.
+    #[test]
+    fn the_bound_counts_every_round_a_repair_and_a_rewrite() {
+        let b = Budget::default();
+        let base = b.excerpt_chars + b.history_chars;
+        let rounds = b.tool_calls + 1;
+        let floor = rounds * base + b.tool_calls * b.tool_chars;
+        assert!(b.most_chars_sent() > floor + b.excerpt_chars);
+        assert!(b.most_tokens_written() > b.output_tokens * (b.tool_calls as u32 + 1));
+    }
+
+    // no-prop-test: four fixed Claude 5 prices.
+    #[test]
+    fn current_claude_models_are_priced() {
+        let b = Budget::default();
+        let cost = |m: &str| most_per_question(Provider::Anthropic, m, &b).unwrap();
+        assert!(cost("claude-haiku-5-5") < cost("claude-sonnet-5-5"));
+        assert!(cost("claude-sonnet-5-5") < cost("claude-opus-5-5"));
+        assert!(cost("claude-opus-5-5") < cost("claude-fable-5-1"));
     }
 }

@@ -42,6 +42,12 @@ impl BudgetSize {
     }
 }
 
+/// Tokens a rewrite of a follow-up may write.
+pub const REWRITE_OUTPUT_TOKENS: u32 = 300;
+
+/// Characters of the follow-up question and its framing in a rewrite.
+pub const REWRITE_QUESTION_CHARS: usize = 2_000;
+
 /// The ceilings for one question.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Budget {
@@ -95,10 +101,29 @@ impl Budget {
         }
     }
 
-    /// The most characters one question can send to the model: the first
-    /// prompt, every tool result and the history.
+    /// An upper bound on the characters one question can send to the model,
+    /// over every request it can make:
+    ///
+    /// - each round of the answer (`tool_calls + 1` of them) resends the
+    ///   first prompt and the history, and, in the worst case, every tool
+    ///   result already handed over (all of it from the first call);
+    /// - one repair, which resends the excerpts, the lines the tools read
+    ///   and the answer being repaired;
+    /// - one rewrite of a follow-up, which sends the history and the
+    ///   question.
     pub fn most_chars_sent(&self) -> usize {
-        self.excerpt_chars + self.tool_chars + self.history_chars
+        let base = self.excerpt_chars + self.history_chars;
+        let rounds = self.tool_calls + 1;
+        let answer = rounds * base + self.tool_calls * self.tool_chars;
+        let repair = self.excerpt_chars + self.tool_chars + self.output_tokens as usize * 4;
+        let rewrite = self.history_chars + REWRITE_QUESTION_CHARS;
+        answer + repair + rewrite
+    }
+
+    /// An upper bound on the tokens the model may write for one question:
+    /// every round, one repair and one rewrite.
+    pub fn most_tokens_written(&self) -> u32 {
+        (self.tool_calls as u32 + 2) * self.output_tokens + REWRITE_OUTPUT_TOKENS
     }
 
     /// About how many words of notes one question may send (a word is

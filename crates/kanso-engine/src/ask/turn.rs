@@ -27,7 +27,7 @@ const REPAIR_FROM: usize = 200;
 /// The most a rewritten search query may be, in characters.
 const REWRITE_MAX: usize = 200;
 /// The output limit of the rewrite request.
-const REWRITE_TOKENS: u32 = 300;
+const REWRITE_TOKENS: u32 = kanso_ai::budget::REWRITE_OUTPUT_TOKENS;
 
 /// A line over an answer that could not be trusted as a whole.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
