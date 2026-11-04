@@ -85,8 +85,17 @@ impl EventEmitter<CanvasEvent> for CanvasView {}
 /// A gesture that moves the view or a card instead of drawing.
 #[derive(Clone, Copy)]
 enum Grab {
-    Pan { last: [f32; 2] },
-    Card { last: [f32; 2], moved: bool },
+    Pan {
+        last: [f32; 2],
+    },
+    /// A card follows the pointer from where it was pressed: `start` is the
+    /// press, in view points, and `origin` the card's corner then, so a slow
+    /// drag at a high zoom still moves it (each step rounds from the start).
+    Card {
+        start: [f32; 2],
+        origin: (f64, f64),
+        moved: bool,
+    },
 }
 
 pub struct CanvasView {
@@ -111,6 +120,13 @@ pub struct CanvasView {
     pressed_card: Option<String>,
     /// The pointer over the surface, in view points: where a drop lands.
     pointer: [f32; 2],
+    /// The document's size against its budget, as of the last change: the
+    /// toolbar shows it every frame, and measuring means writing the JSON.
+    budget: Budget,
+    /// A drag (an eraser, a lasso move) changed the document and the editor
+    /// hasn't been told: it is, with the body, when the gesture ends, not on
+    /// every pointer move.
+    unsaved: bool,
     focus: FocusHandle,
 }
 
@@ -137,6 +153,8 @@ impl CanvasView {
             fit: Rc::new(Cell::new(true)),
             pressed_card: None,
             pointer: [0., 0.],
+            budget: Budget::Ok,
+            unsaved: false,
             focus: cx.focus_handle(),
         }
     }
@@ -153,6 +171,8 @@ impl CanvasView {
         self.note_id = Some(id.to_owned());
         self.grab = None;
         self.gesture = None;
+        self.unsaved = false;
+        self.budget = canvas::budget(body.len());
         self.refresh_titles();
         match CanvasState::from_body(body) {
             Ok(mut next) => {
@@ -230,29 +250,47 @@ impl CanvasView {
         ERASER_RADIUS / zoom
     }
 
+    /// Takes what an edit did. A change in the middle of a drag is only
+    /// noted; one that ends a gesture (or a drag's earlier changes, once it
+    /// ends) is sent to the editor with the body.
     fn report(&mut self, outcome: Outcome, ended: bool, cx: &mut Context<Self>) {
         match outcome {
-            Outcome::Nothing => {}
-            Outcome::Changed => {
-                if let Some(state) = &self.state {
-                    cx.emit(CanvasEvent::Changed {
-                        body: state.body(),
-                        stroke_ended: ended,
-                    });
+            Outcome::Changed if !ended => self.unsaved = true,
+            Outcome::Changed => self.emit_changed(cx),
+            Outcome::Nothing => {
+                if ended && self.unsaved {
+                    self.emit_changed(cx);
                 }
             }
             Outcome::Refused(why) => {
+                if ended && self.unsaved {
+                    self.emit_changed(cx);
+                }
                 let words = match why {
                     Refused::Full => {
                         "This canvas is full (1 MB). Erase some ink or move cards to a new canvas."
                     }
                     Refused::TooLong => "That stroke is too long.",
-                    Refused::Empty => return,
+                    Refused::Empty => "",
                 };
-                cx.emit(CanvasEvent::Notice(words.into()));
+                if !words.is_empty() {
+                    cx.emit(CanvasEvent::Notice(words.into()));
+                }
             }
         }
         cx.notify();
+    }
+
+    /// Tells the editor the document changed, with the body to save now.
+    fn emit_changed(&mut self, cx: &mut Context<Self>) {
+        self.unsaved = false;
+        let Some(state) = &self.state else { return };
+        let body = state.body();
+        self.budget = canvas::budget(body.len());
+        cx.emit(CanvasEvent::Changed {
+            body,
+            stroke_ended: true,
+        });
     }
 
     // ---- pointer ----
@@ -326,7 +364,8 @@ impl CanvasView {
         {
             self.pressed_card = Some(card.id.clone());
             self.grab = Some(Grab::Card {
-                last: at,
+                start: at,
+                origin: (card.x, card.y),
                 moved: false,
             });
             return;
@@ -356,21 +395,28 @@ impl CanvasView {
                     }
                     self.grab = Some(Grab::Pan { last: at });
                 }
-                Grab::Card { last, .. } => {
+                Grab::Card {
+                    start,
+                    origin,
+                    moved: was,
+                } => {
                     let zoom = self.state.as_ref().map_or(1.0, |s| f64::from(s.view.zoom));
                     let (dx, dy) = (
-                        f64::from(at[0] - last[0]) / zoom,
-                        f64::from(at[1] - last[1]) / zoom,
+                        f64::from(at[0] - start[0]) / zoom,
+                        f64::from(at[1] - start[1]) / zoom,
                     );
                     let now = Self::now(cx);
+                    let mut moved = false;
                     if let (Some(id), Some(state)) = (&self.pressed_card, &mut self.state)
-                        && let Some(node) = state.canvas.node(id).cloned()
+                        && let Some(node) = state.canvas.node(id)
                     {
-                        state.move_card(id, node.x + dx, node.y + dy, now);
+                        let to = ((origin.0 + dx).round(), (origin.1 + dy).round());
+                        moved = (node.x, node.y) != to && state.move_card(id, to.0, to.1, now);
                     }
                     self.grab = Some(Grab::Card {
-                        last: at,
-                        moved: true,
+                        start,
+                        origin,
+                        moved: was || moved,
                     });
                 }
             }
@@ -406,11 +452,8 @@ impl CanvasView {
 
     fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(Grab::Card { moved, .. }) = self.grab.take() {
-            if moved && let Some(state) = &self.state {
-                cx.emit(CanvasEvent::Changed {
-                    body: state.body(),
-                    stroke_ended: true,
-                });
+            if moved {
+                self.emit_changed(cx);
             }
             self.pressed_card = None;
             cx.notify();
@@ -425,20 +468,14 @@ impl CanvasView {
             return;
         }
         let now = Self::now(cx);
-        if let Some(state) = &mut self.state {
-            let outcome = state.end(now);
-            // The stroke itself ends the gesture; an erase already reported
-            // each step, so only a save is asked for now.
-            let outcome = match outcome {
-                Outcome::Nothing if state.can_undo() => Outcome::Changed,
-                other => other,
-            };
-            if outcome == Outcome::Changed || matches!(outcome, Outcome::Refused(_)) {
-                self.report(outcome, true, cx);
-                return;
-            }
-        }
-        cx.notify();
+        let outcome = match &mut self.state {
+            Some(state) => state.end(now),
+            None => Outcome::Nothing,
+        };
+        // Only a gesture that changed the document (now, or in an earlier
+        // step of the drag) asks for a save: a lasso that only selected
+        // writes nothing.
+        self.report(outcome, true, cx);
     }
 
     fn on_scroll(&mut self, event: &ScrollWheelEvent, _: &mut Window, cx: &mut Context<Self>) {
@@ -530,11 +567,8 @@ impl CanvasView {
                 x += 280.;
             }
         }
-        if added && let Some(state) = &self.state {
-            cx.emit(CanvasEvent::Changed {
-                body: state.body(),
-                stroke_ended: true,
-            });
+        if added {
+            self.emit_changed(cx);
         }
         if skipped > 0 {
             cx.emit(CanvasEvent::Notice(
@@ -550,10 +584,7 @@ impl CanvasView {
         let Some(state) = &mut self.state else { return };
         let id = state.add_text_card(x, y, NEW_CARD_TEXT, now);
         if let Some(card) = state.canvas.node(&id).cloned() {
-            cx.emit(CanvasEvent::Changed {
-                body: state.body(),
-                stroke_ended: true,
-            });
+            self.emit_changed(cx);
             cx.notify();
             self.edit_card(&card, window, cx);
         }
@@ -582,10 +613,7 @@ impl CanvasView {
                     if let Some(state) = &mut view.state
                         && state.set_card_text(&id, &text, now)
                     {
-                        cx.emit(CanvasEvent::Changed {
-                            body: state.body(),
-                            stroke_ended: true,
-                        });
+                        view.emit_changed(cx);
                         cx.notify();
                     }
                 });
@@ -628,7 +656,9 @@ impl CanvasView {
             state.tool = tool;
             state.selection.clear();
             self.hover = None;
-            cx.notify();
+            self.gesture = None;
+            // A drag cut short keeps what it erased: save it.
+            self.report(Outcome::Nothing, true, cx);
         }
     }
 
@@ -711,7 +741,7 @@ impl CanvasView {
         };
         let divider = || div().w(px(1.)).h(px(18.)).mx(px(4.)).bg(colors.divider);
         let (can_undo, can_redo) = state.map_or((false, false), |s| (s.can_undo(), s.can_redo()));
-        let budget = state.map(CanvasState::budget);
+        let budget = state.map(|_| self.budget);
         h_flex()
             .h(px(TOP_BAND_HEIGHT - 8.))
             .flex_none()
@@ -861,7 +891,7 @@ impl CanvasView {
                     .border(gpui_kit::px((1.5 * view.zoom).max(0.5)))
                     .border_color(border)
                     .when(!group, |el| el.bg(colors.fill))
-                    .when(group, |el| el.bg(Hsla::from(border).opacity(0.06)))
+                    .when(group, |el| el.bg(border.opacity(0.06)))
                     .when(view.zoom >= TEXT_ZOOM, |el| {
                         el.p(gpui_kit::px(10. * view.zoom))
                             .text_size(gpui_kit::px(font))
@@ -885,51 +915,24 @@ impl CanvasView {
         let view = self.state.as_ref()?.view;
         let seen = view.visible(size, 24.);
         let state = self.state.as_mut()?;
-        // Outlines of the strokes in view; the rest are culled by bounds.
-        let mut strokes: Vec<InkPaint> = Vec::new();
+        // Only the strokes in view, each from its cached outline: nothing of
+        // a stroke is copied or measured again from frame to frame.
         let mut selected: Vec<[f32; 4]> = Vec::new();
-        let layers: Vec<(String, f64, f64)> = state
-            .canvas
-            .live_nodes()
-            .filter(|n| n.kind == canvas::INK)
-            .map(|n| (n.id.clone(), n.x, n.y))
+        let strokes: Vec<InkPaint> = state
+            .visible_ink(seen)
+            .into_iter()
+            .map(|ink| {
+                if let Some(b) = ink.selected {
+                    selected.push([b.x as f32, b.y as f32, b.right() as f32, b.bottom() as f32]);
+                }
+                InkPaint {
+                    polygon: ink.polygon,
+                    origin: ink.origin,
+                    color: ink_hsla(&ink.color, dark),
+                    opacity: pen::opacity(&ink.tool) as f32,
+                }
+            })
             .collect();
-        for (id, ox, oy) in layers {
-            let list: Vec<canvas::Stroke> = state
-                .canvas
-                .node(&id)
-                .map(|n| n.strokes.iter().filter(|s| !s.deleted).cloned().collect())
-                .unwrap_or_default();
-            for stroke in list {
-                let Some(b) = stroke.bounds() else { continue };
-                if ((b.right() + ox) as f32) < seen.0[0]
-                    || ((b.x + ox) as f32) > seen.1[0]
-                    || ((b.bottom() + oy) as f32) < seen.0[1]
-                    || ((b.y + oy) as f32) > seen.1[1]
-                {
-                    continue;
-                }
-                let polygon = state.outline_of(&stroke);
-                let is_selected = state
-                    .selection
-                    .iter()
-                    .any(|r| r.stroke == stroke.id && r.node == id);
-                if is_selected {
-                    selected.push([
-                        (b.x + ox) as f32,
-                        (b.y + oy) as f32,
-                        (b.right() + ox) as f32,
-                        (b.bottom() + oy) as f32,
-                    ]);
-                }
-                strokes.push(InkPaint {
-                    polygon,
-                    origin: (ox, oy),
-                    color: ink_hsla(&stroke.color, dark),
-                    opacity: pen::opacity(&stroke.tool) as f32,
-                });
-            }
-        }
         let live = state.live_outline(&[]).map(|(stroke, polygon)| InkPaint {
             polygon: Arc::new(polygon),
             origin: (0., 0.),
@@ -1209,7 +1212,7 @@ impl Render for CanvasView {
                     state.selection.clear();
                 }
                 this.gesture = None;
-                cx.notify();
+                this.report(Outcome::Nothing, true, cx);
             }))
             .child(surface_el)
             .children(cards)
@@ -1325,4 +1328,12 @@ fn paint_minimap(
         accent,
         BorderStyle::Solid,
     ));
+}
+
+#[cfg(test)]
+impl CanvasView {
+    /// The canvas being drawn on, to set a test up and look at it.
+    pub fn state_for_test(&mut self) -> Option<&mut CanvasState> {
+        self.state.as_mut()
+    }
 }

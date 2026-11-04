@@ -136,6 +136,17 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
   double? _spread;
 
   CanvasViewController get _controller => widget.controller;
+
+  /// Whether a pen is making a mark now: touches are palms until it lifts.
+  bool get _penDrawing {
+    final actor = _actor;
+    if (actor == null) {
+      return false;
+    }
+    final kind = _pointers[actor]?.kind;
+    return kind == PointerDeviceKind.stylus ||
+        kind == PointerDeviceKind.invertedStylus;
+  }
   CanvasViewport get _viewport => _controller.value;
 
   @override
@@ -206,6 +217,11 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
     );
     final touch = _Touch(e.kind, role, e.localPosition);
     _pointers[e.pointer] = touch;
+    if (_penDrawing && e.kind == PointerDeviceKind.touch) {
+      // A palm resting while the pen writes: it neither pans, zooms nor
+      // ends the stroke.
+      return;
+    }
     final fingers = _pointers.values
         .where((t) => t.kind == PointerDeviceKind.touch)
         .length;
@@ -244,6 +260,9 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
     if (touch == null) {
       return;
     }
+    if (_penDrawing && touch.kind == PointerDeviceKind.touch) {
+      return;
+    }
     final fingers = _pointers.values
         .where((t) => t.kind == PointerDeviceKind.touch)
         .toList(growable: false);
@@ -258,7 +277,9 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
     final delta = e.localPosition - touch.last;
     touch.last = e.localPosition;
     if (e.pointer != _actor) {
-      if (touch.role == PointerRole.pan && touch.moved) {
+      // Nothing pans under a mark being made: the samples already taken
+      // would be in a different place from the ones still to come.
+      if (touch.role == PointerRole.pan && touch.moved && _actor == null) {
         _controller.value = _viewport.panned(delta);
       }
       return;
@@ -290,7 +311,10 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
       _spread = null;
     }
     if (e.pointer != _actor) {
-      if (touch.role == PointerRole.pan && !touch.moved && _pointers.isEmpty) {
+      if (touch.role == PointerRole.pan &&
+          !touch.moved &&
+          _pointers.isEmpty &&
+          _actor == null) {
         _tapped(e.localPosition);
       }
       return;

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use kanso_core::canvas::{
-    self, Action, Budget, Canvas, Node, Point, Refused, Stroke, StrokeRef, unique_id,
+    self, Action, Canvas, Node, Point, Refused, Stroke, StrokeRef, unique_id,
 };
 use kanso_render::canvas::pen;
 
@@ -19,6 +19,8 @@ use crate::graph::Viewport;
 
 /// The most undo steps kept.
 const UNDO_DEPTH: usize = 100;
+/// Past this many stroke outlines, those of dead strokes are dropped.
+const OUTLINES_KEPT: usize = 20_000;
 /// The eraser disc's radius, in points on the screen.
 pub const ERASER_RADIUS: f64 = 10.;
 /// The pen widths offered, in points.
@@ -139,7 +141,27 @@ pub struct CanvasState {
     dragging: Option<Drag>,
     undo: Vec<Action>,
     redo: Vec<Action>,
-    outlines: HashMap<(String, u64), Arc<Vec<[f64; 2]>>>,
+    /// Finished strokes as painted, by stroke ID: built once per version.
+    outlines: HashMap<String, Painted>,
+}
+
+/// A finished stroke as painted: its outline and its rectangle, in its ink
+/// layer's coordinates, for the version it was built from.
+struct Painted {
+    version: u64,
+    bounds: Option<canvas::Bounds>,
+    polygon: Arc<Vec<[f64; 2]>>,
+}
+
+/// A stroke in view, ready to fill.
+pub struct VisibleInk {
+    pub polygon: Arc<Vec<[f64; 2]>>,
+    /// The ink layer's origin.
+    pub origin: (f64, f64),
+    pub color: String,
+    pub tool: String,
+    /// The stroke's rectangle in canvas coordinates, when the lasso holds it.
+    pub selected: Option<canvas::Bounds>,
 }
 
 struct Live {
@@ -183,7 +205,8 @@ impl CanvasState {
         canvas::to_body(&self.canvas)
     }
 
-    pub fn budget(&self) -> Budget {
+    #[cfg(test)]
+    pub fn budget(&self) -> canvas::Budget {
         canvas::budget(self.body().len())
     }
 
@@ -538,7 +561,8 @@ impl CanvasState {
         self.canvas.move_node(id, x.round(), y.round(), now)
     }
 
-    /// Deletes a card, group or ink layer (and the arrows on it).
+    #[cfg(test)]
+    /// Deletes a card, group or ink layer; its arrows stay, hidden.
     pub fn delete_card(&mut self, id: &str, now: i64) -> bool {
         self.canvas.remove_node(id, now)
     }
@@ -571,19 +595,66 @@ impl CanvasState {
         self.view = Viewport::fit(&corners, size, 48., 2.0);
     }
 
+    #[cfg(test)]
     /// The outline polygon of a finished stroke, kept until the stroke
     /// changes (a stroke never changes: its version is its identity).
     pub fn outline_of(&mut self, stroke: &Stroke) -> Arc<Vec<[f64; 2]>> {
-        let key = (stroke.id.clone(), stroke.kanso_version);
-        if let Some(hit) = self.outlines.get(&key) {
-            return hit.clone();
+        painted(&mut self.outlines, stroke).polygon.clone()
+    }
+
+    /// The finished strokes whose rectangles meet `seen` (canvas
+    /// coordinates, low and high corners), bottom first. Outlines and
+    /// rectangles are built once per stroke version, and nothing is copied
+    /// but the outline's handle: this runs every frame, over every stroke.
+    pub fn visible_ink(&mut self, seen: ([f32; 2], [f32; 2])) -> Vec<VisibleInk> {
+        let CanvasState {
+            canvas,
+            outlines,
+            selection,
+            ..
+        } = self;
+        let (lo, hi) = (
+            [f64::from(seen.0[0]), f64::from(seen.0[1])],
+            [f64::from(seen.1[0]), f64::from(seen.1[1])],
+        );
+        let mut out = Vec::new();
+        let mut live = 0;
+        for node in canvas.live_nodes().filter(|n| n.kind == canvas::INK) {
+            let (ox, oy) = (node.x, node.y);
+            for stroke in node.strokes.iter().filter(|s| !s.deleted) {
+                live += 1;
+                let painted = painted(outlines, stroke);
+                let Some(b) = painted.bounds else { continue };
+                if b.right() + ox < lo[0]
+                    || b.x + ox > hi[0]
+                    || b.bottom() + oy < lo[1]
+                    || b.y + oy > hi[1]
+                {
+                    continue;
+                }
+                let held = selection
+                    .iter()
+                    .any(|r| r.stroke == stroke.id && r.node == node.id);
+                out.push(VisibleInk {
+                    polygon: painted.polygon.clone(),
+                    origin: (ox, oy),
+                    color: stroke.color.clone(),
+                    tool: stroke.tool.clone(),
+                    selected: held.then_some(canvas::Bounds {
+                        x: b.x + ox,
+                        y: b.y + oy,
+                        ..b
+                    }),
+                });
+            }
         }
-        if self.outlines.len() > 20_000 {
-            self.outlines.clear();
+        if outlines.len() > OUTLINES_KEPT.max(2 * live) {
+            // Mostly strokes since erased or moved: keep the live ones only.
+            let live: std::collections::HashSet<&str> =
+                canvas.live_strokes().map(|(_, s)| s.id.as_str()).collect();
+            outlines.retain(|id, _| live.contains(id.as_str()));
         }
-        let polygon = Arc::new(pen::outline(stroke, true));
-        self.outlines.insert(key, polygon.clone());
-        polygon
+        out
     }
 
     /// The outline of the stroke in progress, with `predicted` samples
@@ -602,4 +673,23 @@ impl CanvasState {
         let polygon = pen::outline(&stroke, false);
         Some((stroke, polygon))
     }
+}
+
+/// `stroke`'s outline and rectangle from `cache`, built when it has none for
+/// the stroke's version.
+fn painted<'a>(cache: &'a mut HashMap<String, Painted>, stroke: &Stroke) -> &'a Painted {
+    let fresh = cache
+        .get(stroke.id.as_str())
+        .is_none_or(|p| p.version != stroke.kanso_version);
+    if fresh {
+        cache.insert(
+            stroke.id.clone(),
+            Painted {
+                version: stroke.kanso_version,
+                bounds: stroke.bounds(),
+                polygon: Arc::new(pen::outline(stroke, true)),
+            },
+        );
+    }
+    &cache[stroke.id.as_str()]
 }

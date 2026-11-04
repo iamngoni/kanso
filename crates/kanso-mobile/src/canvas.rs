@@ -523,7 +523,8 @@ impl CanvasSession {
         })
     }
 
-    /// Deletes a card (and the arrows that end on it).
+    /// Deletes a card. Its arrows are hidden, not deleted: an undo brings
+    /// the card back with them.
     pub fn delete_card(&self, id: String, known: Vec<String>) -> Result<CanvasView, KansoError> {
         self.edit(known, |c| {
             let before = c.node(&id).filter(|n| n.kind != INK).cloned()?;

@@ -240,7 +240,13 @@ fn cards_arrows_and_live_titles() {
     assert!(v.arrows[0].from.y > 300.0 - 1.0);
     // Undo walks back through card edits; deleting a card removes its arrow.
     assert_eq!(session.undo(vec![]).unwrap().cards[0].rect.y, 0.0);
-    let v = session.delete_card(text, vec![]).unwrap();
+    let v = session.delete_card(text.clone(), vec![]).unwrap();
+    assert!(v.arrows.is_empty() && v.cards.len() == 1);
+    // The arrow was only hidden: undoing the delete shows it again, and
+    // redoing it hides it again.
+    let v = session.undo(vec![]).unwrap();
+    assert_eq!((v.cards.len(), v.arrows.len()), (2, 1));
+    let v = session.redo(vec![]).unwrap();
     assert!(v.arrows.is_empty() && v.cards.len() == 1);
     session.save().unwrap();
     assert_eq!(

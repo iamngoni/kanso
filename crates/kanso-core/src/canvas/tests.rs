@@ -773,6 +773,38 @@ fn an_arrow_to_a_deleted_card_is_kept_and_the_merge_is_order_independent() {
     assert!(m.validate().is_ok());
 }
 
+/// Deleting a card keeps its arrows (hidden: an end is a tombstone), so
+/// the card coming back, by an undo here or a later version of it from
+/// another device, brings its arrows back too.
+#[test]
+fn a_deleted_cards_arrow_comes_back_with_the_card() {
+    let mut c = base();
+    let card = c.node("t2").cloned().unwrap();
+    assert!(c.remove_node("t2", 10));
+    let arrow = c.edges.iter().find(|e| e.id == "e1").unwrap();
+    assert!(!arrow.deleted, "the arrow is kept, only hidden");
+    assert!(c.node("t2").is_none(), "an end is gone: nothing draws it");
+    assert!(c.validate().is_ok());
+    // Put back here (what an undo does) ...
+    let mut here = c.clone();
+    here.put_node(card.clone(), 11);
+    assert!(here.node("t1").is_some() && here.node("t2").is_some());
+    assert!(!here.edges.iter().find(|e| e.id == "e1").unwrap().deleted);
+    // ... or revived by another device whose version of the card is higher:
+    // the merge keeps the arrow live either way round.
+    let mut other = base();
+    other
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == "t2")
+        .unwrap()
+        .kanso_version = 9;
+    for m in [merge(&c, &other), merge(&other, &c)] {
+        assert!(m.node("t2").is_some());
+        assert!(!m.edges.iter().find(|e| e.id == "e1").unwrap().deleted);
+    }
+}
+
 #[test]
 fn bodies_merge_only_when_both_are_canvases() {
     let (a, b) = (to_body(&base()), to_body(&base()));

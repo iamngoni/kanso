@@ -56,8 +56,10 @@ impl Canvas {
         }
     }
 
-    /// Deletes node `id`: it becomes a tombstone, and so do the arrows that
-    /// end on it. `false` when there was no live node.
+    /// Deletes node `id`: it becomes a tombstone. The arrows that end on it
+    /// stay as they are, hidden while an end is deleted, so putting the card
+    /// back (an undo, or a later version of it from another device) shows
+    /// them again. `false` when there was no live node.
     pub fn remove_node(&mut self, id: &str, now: i64) -> bool {
         let Some(node) = self.nodes.iter_mut().find(|n| n.id == id && !n.deleted) else {
             return false;
@@ -70,13 +72,6 @@ impl Canvas {
             kanso_z: node.kanso_z,
             ..Node::default()
         };
-        for edge in self
-            .edges
-            .iter_mut()
-            .filter(|e| !e.deleted && (e.from_node == id || e.to_node == id))
-        {
-            *edge = tombstone_edge(edge, now);
-        }
         true
     }
 

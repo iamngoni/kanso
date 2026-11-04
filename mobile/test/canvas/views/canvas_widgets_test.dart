@@ -274,6 +274,43 @@ void main() {
       expect(controller.value.center.dx, lessThan(before.dx));
     });
 
+    testWidgets('palms on the screen while a pen writes are ignored', (
+      tester,
+    ) async {
+      final calls = _Calls();
+      final controller = CanvasViewController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        _surface(calls: calls, controller: controller, stylusSeen: true),
+      );
+      final before = controller.value;
+      final pen = await tester.createGesture(
+        kind: PointerDeviceKind.stylus,
+        buttons: kPrimaryStylusButton,
+      );
+      await pen.down(const Offset(100, 200));
+      await tester.pump();
+      // Two contacts of a resting hand land and drift while the pen moves.
+      final palm1 = await tester.createGesture(pointer: 21);
+      final palm2 = await tester.createGesture(pointer: 22);
+      await palm1.down(const Offset(250, 450));
+      await palm2.down(const Offset(300, 480));
+      await tester.pump();
+      for (var i = 1; i <= 5; i++) {
+        await pen.moveTo(Offset(100.0 + i * 30, 200));
+        await palm1.moveTo(Offset(250.0 + i * 20, 450.0 + i * 10));
+        await palm2.moveTo(Offset(300.0 + i * 40, 480));
+        await tester.pump();
+      }
+      await palm1.up();
+      await palm2.up();
+      await pen.up();
+      await tester.pump();
+      expect(calls.strokes, hasLength(1), reason: 'the stroke went on');
+      expect(calls.strokes.single.length, greaterThan(4));
+      expect(controller.value, before, reason: 'the view stayed put');
+    });
+
     testWidgets('with finger draws off a finger pans', (tester) async {
       final calls = _Calls();
       final controller = CanvasViewController();

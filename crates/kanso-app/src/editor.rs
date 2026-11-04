@@ -5221,7 +5221,6 @@ impl Render for NoteEditor {
     }
 }
 
-#[cfg(test)]
 impl NoteEditor {
     /// What the canvas view reports: the document changed, the person wants
     /// the raw JSON, a note card was opened, or there is something to say.
@@ -5279,7 +5278,10 @@ impl NoteEditor {
             .ok();
         }));
     }
+}
 
+#[cfg(test)]
+impl NoteEditor {
     /// Whether the open note is drawn as a canvas.
     pub fn is_canvas_shown(&self) -> bool {
         self.canvas_body.is_some()

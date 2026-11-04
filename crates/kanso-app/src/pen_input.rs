@@ -63,6 +63,20 @@ pub fn proximity(entering: bool, eraser: bool) {
     });
 }
 
+/// A mouse press that came from a mouse or trackpad, not a tablet. The pen
+/// can't be near the tablet then: AppKit only tells this app it left when it
+/// was in front, so a pen put down while Kanso was behind would otherwise
+/// stay "near" for good, and every mouse stroke would draw at its last
+/// pressure (zero, after the pen lifted).
+pub fn plain_mouse_down() {
+    if let Ok(mut state) = STATE.lock()
+        && let Some(s) = state.as_mut()
+    {
+        s.in_proximity = false;
+        s.eraser = false;
+    }
+}
+
 /// A sample from the pen: `pressure` 0 to 1 and the tilt as the platform
 /// gives it, each of x and y from -1 to 1.
 pub fn sample(pressure: f64, tilt: Option<(f64, f64)>) {
@@ -102,6 +116,13 @@ pub fn install() {
         if kind == NSEventType::TabletProximity {
             let eraser = ev.pointingDeviceType() == NSPointingDeviceType::Eraser;
             proximity(ev.isEnteringProximity(), eraser);
+        } else if kind == NSEventType::LeftMouseDown
+            && !matches!(
+                ev.subtype(),
+                NSEventSubtype::TabletPoint | NSEventSubtype::TabletProximity
+            )
+        {
+            plain_mouse_down();
         } else if kind == NSEventType::TabletPoint
             || (matches!(
                 kind,
@@ -158,6 +179,12 @@ mod tests {
         assert!((s.pressure - 0.7).abs() < 1e-12);
         assert!(s.tilt.is_some());
         proximity(false, false);
+        assert_eq!(current(), None);
+        // A pen whose leaving was never seen: a plain mouse press ends it.
+        proximity(true, false);
+        sample(0.0, None);
+        assert!(current().is_some());
+        plain_mouse_down();
         assert_eq!(current(), None);
     }
 

@@ -4023,6 +4023,73 @@ fn a_canvas_is_drawn_on_and_saves_its_strokes(cx: &mut TestAppContext) {
     assert_eq!(live_strokes(&f.store, &id), 1);
 }
 
+/// A card dragged slowly at a high zoom follows the pointer (each step is a
+/// fraction of a canvas point, which rounding step by step used to drop),
+/// and is saved once, when it is let go; a lasso that only selects saves
+/// nothing.
+// no-prop-test: drives one window with the pointer.
+#[gpui_kit::test]
+fn a_card_follows_a_slow_drag_and_saves_once(cx: &mut TestAppContext) {
+    use gpui_kit::{Modifiers, MouseButton, point, px};
+    let f = setup(cx);
+    let id = make_canvas(&f, "Board");
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    let canvas = f.editor(&mut vcx, |e, _| e.canvas_view().clone());
+    let card = canvas.update(&mut vcx, |view, cx| {
+        let state = view.state_for_test().unwrap();
+        let card = state.add_text_card(0., 0., "Plan", 1);
+        state.view = crate::graph::Viewport {
+            center: [130., 60.],
+            zoom: 4.,
+        };
+        state.tool = crate::canvas_state::Tool::Lasso;
+        cx.notify();
+        card
+    });
+    settle(&f, &mut vcx);
+    let rev = f.store.note(&id).unwrap().unwrap().rev;
+    let surface = vcx.debug_bounds("canvas-surface").unwrap();
+    let middle = surface.center();
+    vcx.simulate_mouse_down(middle, MouseButton::Left, Modifiers::none());
+    for step in 1..=12 {
+        let at = point(middle.x + px(step as f32), middle.y);
+        vcx.simulate_mouse_move(at, MouseButton::Left, Modifiers::none());
+        f.draw(&mut vcx);
+    }
+    assert_eq!(
+        f.store.note(&id).unwrap().unwrap().rev,
+        rev,
+        "nothing is written mid-drag"
+    );
+    vcx.simulate_mouse_up(
+        point(middle.x + px(12.), middle.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    settle(&f, &mut vcx);
+    let body = f.store.note(&id).unwrap().unwrap().body;
+    let saved = kanso_core::canvas::parse(&body).unwrap();
+    assert_eq!(
+        saved.node(&card).map(|n| n.x),
+        Some(3.),
+        "12 points / zoom 4"
+    );
+
+    // A lasso drawn round nothing (far from the card) selects nothing and
+    // writes nothing.
+    canvas.update(&mut vcx, |view, cx| {
+        view.state_for_test().unwrap().view.center = [5000., 5000.];
+        cx.notify();
+    });
+    settle(&f, &mut vcx);
+    let rev = f.store.note(&id).unwrap().unwrap().rev;
+    stroke_across(&f, &mut vcx, (10., 10.), (60., 40.));
+    settle(&f, &mut vcx);
+    assert_eq!(f.store.note(&id).unwrap().unwrap().rev, rev);
+}
+
 /// Canvases have their own list; All Notes leaves them out; the count of
 /// Canvases is the sidebar's.
 // no-prop-test: drives one window through filters.
