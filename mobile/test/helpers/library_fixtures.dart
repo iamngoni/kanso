@@ -177,7 +177,7 @@ const LibraryOverview mockOverview = LibraryOverview(
   pinned: 3,
   recent: 11,
   trash: 4,
-  canvases: 0,
+  canvases: 3,
   byStatus: <StatusCount>[],
 );
 

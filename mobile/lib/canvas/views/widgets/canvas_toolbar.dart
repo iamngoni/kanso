@@ -158,11 +158,14 @@ class CanvasToolbar extends StatelessWidget {
           Expanded(
             child: Semantics(
               label: context.l10n.canvasWidth,
-              child: Slider(
-                value: width.clamp(1, 24).toDouble(),
-                min: 1,
-                max: 24,
-                onChanged: onWidth,
+              child: Material(
+                type: MaterialType.transparency,
+                child: Slider(
+                  value: width.clamp(1, 24).toDouble(),
+                  min: 1,
+                  max: 24,
+                  onChanged: onWidth,
+                ),
               ),
             ),
           ),

@@ -145,12 +145,14 @@ void main() {
       tester,
     ) async {
       final bloc = await _readyIndex(tester, library);
-      await pumpRouted(tester, _pane(bloc));
+      await pumpRouted(tester, _pane(bloc), size: const Size(393, 1400));
 
       expect(find.text('All Notes'), findsOneWidget);
+      expect(find.text('Canvases'), findsOneWidget);
       expect(find.text('142'), findsOneWidget);
       expect(find.text('Pinned'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
+      // Pinned and Canvases both count three.
+      expect(find.text('3'), findsNWidgets(2));
       expect(find.text('Recent'), findsOneWidget);
       expect(find.text('Work'), findsOneWidget);
       expect(find.text('31'), findsOneWidget);
@@ -347,7 +349,11 @@ void main() {
 
     testWidgets('a row opens its place', (tester) async {
       final bloc = await _readyIndex(tester, library);
-      final router = await pumpRouted(tester, _pane(bloc));
+      final router = await pumpRouted(
+        tester,
+        _pane(bloc),
+        size: const Size(393, 1400),
+      );
       await tester.tap(find.text('Work'));
       await tester.pumpAndSettle();
       expect(

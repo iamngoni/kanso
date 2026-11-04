@@ -223,13 +223,6 @@ class _LibraryPaneState extends State<LibraryPane> {
                         label: l10n.libraryRecent,
                         selected: current == const ListPlace.recent(),
                       ),
-                      LibraryPlaceRow(
-                        place: const ListPlace.canvases(),
-                        icon: KansoIcons.infinity,
-                        label: l10n.libraryCanvases,
-                        count: index.overview.canvases,
-                        selected: current == const ListPlace.canvases(),
-                      ),
                       const AskLibraryRow(),
                       const AgentTasksLibraryRow(),
                       const ReviewLibraryRow(),
@@ -241,6 +234,13 @@ class _LibraryPaneState extends State<LibraryPane> {
                       LibraryTasksRow(
                         overdue: index.overdueTasks,
                         selected: here is TasksLocation,
+                      ),
+                      LibraryPlaceRow(
+                        place: const ListPlace.canvases(),
+                        icon: KansoIcons.infinity,
+                        label: l10n.libraryCanvases,
+                        count: index.overview.canvases,
+                        selected: current == const ListPlace.canvases(),
                       ),
                       KansoSectionHeader(
                         label: l10n.libraryNotebooks,
