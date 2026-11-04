@@ -32,6 +32,7 @@ use crate::api::account_settings::*;
 use crate::api::agent_tasks::*;
 use crate::api::ai::*;
 use crate::api::approvals::*;
+use crate::api::canvas::*;
 use crate::api::cards::*;
 use crate::api::discovery::*;
 use crate::api::draft::*;
@@ -64,7 +65,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 622896977;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1843279870;
 
 // Section: executor
 
@@ -3957,6 +3958,1112 @@ fn wire__crate__api__ai__KansoAskConversation_turn_count_impl(
                 ))?;
                 std::result::Result::Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_add_arrow_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_add_arrow",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_from = <String>::sse_decode(&mut deserializer);
+            let api_to = <String>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::add_arrow(
+                        &*api_that_guard,
+                        api_from,
+                        api_to,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_add_note_card_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_add_note_card",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_note_id = <String>::sse_decode(&mut deserializer);
+            let api_x = <f64>::sse_decode(&mut deserializer);
+            let api_y = <f64>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::add_note_card(
+                        &*api_that_guard,
+                        api_note_id,
+                        api_x,
+                        api_y,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_add_text_card_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_add_text_card",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_x = <f64>::sse_decode(&mut deserializer);
+            let api_y = <f64>::sse_decode(&mut deserializer);
+            let api_text = <String>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::add_text_card(
+                        &*api_that_guard,
+                        api_x,
+                        api_y,
+                        api_text,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_delete_card_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_delete_card",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::delete_card(
+                        &*api_that_guard,
+                        api_id,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_delete_strokes_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_delete_strokes",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_keys =
+                <Vec<crate::api::canvas_types::StrokeKey>>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::delete_strokes(
+                        &*api_that_guard,
+                        api_keys,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_draw_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_draw",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_style = <crate::api::canvas_types::InkStyle>::sse_decode(&mut deserializer);
+            let api_samples =
+                <Vec<crate::api::canvas_types::PenSample>>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::draw(
+                        &*api_that_guard,
+                        api_style,
+                        api_samples,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_erase_along_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_erase_along",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_path =
+                <Vec<crate::api::canvas_types::CanvasPoint>>::sse_decode(&mut deserializer);
+            let api_radius = <f64>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::erase_along(
+                        &*api_that_guard,
+                        api_path,
+                        api_radius,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_erase_at_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_erase_at",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_x = <f64>::sse_decode(&mut deserializer);
+            let api_y = <f64>::sse_decode(&mut deserializer);
+            let api_radius = <f64>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::erase_at(
+                        &*api_that_guard,
+                        api_x,
+                        api_y,
+                        api_radius,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_erase_strokes_along_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_erase_strokes_along",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_path =
+                <Vec<crate::api::canvas_types::CanvasPoint>>::sse_decode(&mut deserializer);
+            let api_radius = <f64>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::erase_strokes_along(
+                        &*api_that_guard,
+                        api_path,
+                        api_radius,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_export_excalidraw_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_export_excalidraw",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::canvas::KansoCanvas::export_excalidraw(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_export_svg_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_export_svg",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_dark = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::canvas::KansoCanvas::export_svg(&*api_that_guard, api_dark)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_move_strokes_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_move_strokes",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_keys =
+                <Vec<crate::api::canvas_types::StrokeKey>>::sse_decode(&mut deserializer);
+            let api_dx = <f64>::sse_decode(&mut deserializer);
+            let api_dy = <f64>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::move_strokes(
+                        &*api_that_guard,
+                        api_keys,
+                        api_dx,
+                        api_dy,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_move_to_new_canvas_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_move_to_new_canvas",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_keys =
+                <Vec<crate::api::canvas_types::StrokeKey>>::sse_decode(&mut deserializer);
+            let api_title = <String>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::move_to_new_canvas(
+                        &*api_that_guard,
+                        api_keys,
+                        api_title,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_redo_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_redo",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::canvas::KansoCanvas::redo(&*api_that_guard, api_known)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_save_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_save",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::save(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_select_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_select",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_polygon =
+                <Vec<crate::api::canvas_types::CanvasPoint>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::canvas::KansoCanvas::select(&*api_that_guard, api_polygon)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_set_card_rect_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_set_card_rect",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_rect = <crate::api::canvas_types::CanvasRect>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::set_card_rect(
+                        &*api_that_guard,
+                        api_id,
+                        api_rect,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_set_card_text_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_set_card_text",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_text = <String>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::canvas::KansoCanvas::set_card_text(
+                        &*api_that_guard,
+                        api_id,
+                        api_text,
+                        api_known,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_undo_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_undo",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::canvas::KansoCanvas::undo(&*api_that_guard, api_known)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__canvas__KansoCanvas_view_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoCanvas_view",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
+            >>::sse_decode(&mut deserializer);
+            let api_known = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::canvas::KansoCanvas::view(&*api_that_guard, api_known)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -8816,6 +9923,57 @@ fn wire__crate__api__library__KansoLibrary_brief_prefs_impl(
         },
     )
 }
+fn wire__crate__api__library__KansoLibrary_canvas_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_canvas",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::library::KansoLibrary::canvas(&*api_that_guard, api_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__library__KansoLibrary_capture_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -9128,6 +10286,63 @@ fn wire__crate__api__library__KansoLibrary_create_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok =
                         crate::api::library::KansoLibrary::create(&*api_that_guard, api_note)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__library__KansoLibrary_create_canvas_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_create_canvas",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_preferred_notebook_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_title = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::library::KansoLibrary::create_canvas(
+                        &*api_that_guard,
+                        api_notebook_id,
+                        api_preferred_notebook_id,
+                        api_title,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -10128,6 +11343,65 @@ fn wire__crate__api__library__KansoLibrary_import_impl(
         },
     )
 }
+fn wire__crate__api__library__KansoLibrary_import_excalidraw_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_import_excalidraw",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_source = <String>::sse_decode(&mut deserializer);
+            let api_notebook_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_preferred_notebook_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_title = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::library::KansoLibrary::import_excalidraw(
+                        &*api_that_guard,
+                        api_source,
+                        api_notebook_id,
+                        api_preferred_notebook_id,
+                        api_title,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__library__KansoLibrary_import_plan_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -10187,6 +11461,56 @@ fn wire__crate__api__library__KansoLibrary_import_plan_impl(
                     std::result::Result::Ok(output_ok)
                 })())
             }
+        },
+    )
+}
+fn wire__crate__api__library__KansoLibrary_is_canvas_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_is_canvas",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>(crate::api::library::KansoLibrary::is_canvas(
+                    &*api_that_guard,
+                    api_id,
+                ))?;
+                std::result::Result::Ok(output_ok)
+            })())
         },
     )
 }
@@ -23902,6 +25226,41 @@ fn wire__crate__api__library__backups_summary_impl(
         },
     )
 }
+fn wire__crate__api__canvas__canvas_ink_preview_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "canvas_ink_preview",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_style = <crate::api::canvas_types::InkStyle>::sse_decode(&mut deserializer);
+            let api_samples =
+                <Vec<crate::api::canvas_types::PenSample>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::canvas::canvas_ink_preview(
+                    api_style,
+                    api_samples,
+                ))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__voice__dictated_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -24612,6 +25971,81 @@ const _: fn() = || {
         let _: bool = CalendarDay.is_today;
     }
     {
+        let CanvasArrow = None::<crate::api::canvas_types::CanvasArrow>.unwrap();
+        let _: String = CanvasArrow.id;
+        let _: crate::api::canvas_types::CanvasPoint = CanvasArrow.from;
+        let _: crate::api::canvas_types::CanvasPoint = CanvasArrow.c1;
+        let _: crate::api::canvas_types::CanvasPoint = CanvasArrow.c2;
+        let _: crate::api::canvas_types::CanvasPoint = CanvasArrow.to;
+        let _: bool = CanvasArrow.from_arrow;
+        let _: bool = CanvasArrow.to_arrow;
+        let _: Option<String> = CanvasArrow.color;
+        let _: String = CanvasArrow.label;
+    }
+    {
+        let CanvasCard = None::<crate::api::canvas_types::CanvasCard>.unwrap();
+        let _: String = CanvasCard.id;
+        let _: String = CanvasCard.kind;
+        let _: crate::api::canvas_types::CanvasRect = CanvasCard.rect;
+        let _: String = CanvasCard.text;
+        let _: Option<String> = CanvasCard.color;
+        let _: Option<String> = CanvasCard.note_id;
+        let _: bool = CanvasCard.missing;
+    }
+    {
+        let CanvasGroup = None::<crate::api::canvas_types::CanvasGroup>.unwrap();
+        let _: String = CanvasGroup.id;
+        let _: crate::api::canvas_types::CanvasRect = CanvasGroup.rect;
+        let _: String = CanvasGroup.label;
+        let _: Option<String> = CanvasGroup.color;
+    }
+    {
+        let CanvasPoint = None::<crate::api::canvas_types::CanvasPoint>.unwrap();
+        let _: f64 = CanvasPoint.x;
+        let _: f64 = CanvasPoint.y;
+    }
+    {
+        let CanvasRect = None::<crate::api::canvas_types::CanvasRect>.unwrap();
+        let _: f64 = CanvasRect.x;
+        let _: f64 = CanvasRect.y;
+        let _: f64 = CanvasRect.width;
+        let _: f64 = CanvasRect.height;
+    }
+    {
+        let CanvasSaved = None::<crate::api::canvas_types::CanvasSaved>.unwrap();
+        let _: String = CanvasSaved.rev;
+        let _: u32 = CanvasSaved.bytes;
+        let _: bool = CanvasSaved.merged;
+    }
+    {
+        let CanvasStroke = None::<crate::api::canvas_types::CanvasStroke>.unwrap();
+        let _: String = CanvasStroke.id;
+        let _: String = CanvasStroke.node_id;
+        let _: String = CanvasStroke.tool;
+        let _: String = CanvasStroke.color;
+        let _: f64 = CanvasStroke.opacity;
+        let _: f64 = CanvasStroke.width;
+        let _: crate::api::canvas_types::CanvasRect = CanvasStroke.bounds;
+        let _: Vec<f64> = CanvasStroke.outline;
+        let _: bool = CanvasStroke.known;
+    }
+    {
+        let CanvasView = None::<crate::api::canvas_types::CanvasView>.unwrap();
+        let _: String = CanvasView.note_id;
+        let _: String = CanvasView.rev;
+        let _: String = CanvasView.title;
+        let _: Vec<crate::api::canvas_types::CanvasStroke> = CanvasView.strokes;
+        let _: Vec<crate::api::canvas_types::CanvasCard> = CanvasView.cards;
+        let _: Vec<crate::api::canvas_types::CanvasGroup> = CanvasView.groups;
+        let _: Vec<crate::api::canvas_types::CanvasArrow> = CanvasView.arrows;
+        let _: Option<crate::api::canvas_types::CanvasRect> = CanvasView.bounds;
+        let _: u32 = CanvasView.bytes;
+        let _: crate::api::canvas_types::CanvasBudget = CanvasView.budget;
+        let _: bool = CanvasView.can_undo;
+        let _: bool = CanvasView.can_redo;
+        let _: bool = CanvasView.dirty;
+    }
+    {
         let CaptureOutcome = None::<crate::api::types::CaptureOutcome>.unwrap();
         let _: String = CaptureOutcome.note_id;
         let _: Vec<String> = CaptureOutcome.problems;
@@ -25236,6 +26670,12 @@ const _: fn() = || {
         let _: Option<String> = ImportSummary.first_note;
     }
     {
+        let InkStyle = None::<crate::api::canvas_types::InkStyle>.unwrap();
+        let _: String = InkStyle.tool;
+        let _: String = InkStyle.color;
+        let _: f64 = InkStyle.width;
+    }
+    {
         let InstalledIconThemeRow = None::<crate::api::types::InstalledIconThemeRow>.unwrap();
         let _: String = InstalledIconThemeRow.id;
         let _: String = InstalledIconThemeRow.name;
@@ -25284,6 +26724,7 @@ const _: fn() = || {
     {
         let LibraryOverview = None::<crate::api::types::LibraryOverview>.unwrap();
         let _: u32 = LibraryOverview.all;
+        let _: u32 = LibraryOverview.canvases;
         let _: u32 = LibraryOverview.pinned;
         let _: u32 = LibraryOverview.recent;
         let _: u32 = LibraryOverview.trash;
@@ -25316,6 +26757,7 @@ const _: fn() = || {
         crate::api::types::ListPlace::All => {}
         crate::api::types::ListPlace::Pinned => {}
         crate::api::types::ListPlace::Recent => {}
+        crate::api::types::ListPlace::Canvases => {}
         crate::api::types::ListPlace::Notebook { id } => {
             let _: String = id;
         }
@@ -25585,6 +27027,7 @@ const _: fn() = || {
         let _: u32 = NoteRow.tasks_done;
         let _: u32 = NoteRow.tasks_total;
         let _: bool = NoteRow.locked;
+        let _: bool = NoteRow.canvas;
     }
     {
         let NoteVersion = None::<crate::api::types::NoteVersion>.unwrap();
@@ -25822,6 +27265,14 @@ const _: fn() = || {
         let _: i64 = PasskeyRow.added_ms;
         let _: Option<i64> = PasskeyRow.last_used_ms;
         let _: bool = PasskeyRow.can_unlock;
+    }
+    {
+        let PenSample = None::<crate::api::canvas_types::PenSample>.unwrap();
+        let _: f64 = PenSample.x;
+        let _: f64 = PenSample.y;
+        let _: f64 = PenSample.pressure;
+        let _: Option<f64> = PenSample.azimuth;
+        let _: Option<f64> = PenSample.altitude;
     }
     {
         let PeopleMerged = None::<crate::api::people_types::PeopleMerged>.unwrap();
@@ -26478,6 +27929,11 @@ const _: fn() = || {
         let _: u32 = StatusCount.count;
     }
     {
+        let StrokeKey = None::<crate::api::canvas_types::StrokeKey>.unwrap();
+        let _: String = StrokeKey.node_id;
+        let _: String = StrokeKey.stroke_id;
+    }
+    {
         let StyledRun = None::<crate::api::types::StyledRun>.unwrap();
         let _: crate::api::types::Range16 = StyledRun.range;
         let _: Option<u32> = StyledRun.color;
@@ -26831,6 +28287,9 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>
+);
+flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCards>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
@@ -26969,6 +28428,16 @@ impl SseDecode for KansoAskConversation {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>,
+        >>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
+    }
+}
+
+impl SseDecode for KansoCanvas {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -27244,6 +28713,16 @@ impl SseDecode
 
 impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return decode_rust_opaque_moi(inner);
+    }
+}
+
+impl SseDecode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -28452,6 +29931,184 @@ impl SseDecode for crate::api::types::CalendarDay {
             in_month: var_inMonth,
             has_note: var_hasNote,
             is_today: var_isToday,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasArrow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_from = <crate::api::canvas_types::CanvasPoint>::sse_decode(deserializer);
+        let mut var_c1 = <crate::api::canvas_types::CanvasPoint>::sse_decode(deserializer);
+        let mut var_c2 = <crate::api::canvas_types::CanvasPoint>::sse_decode(deserializer);
+        let mut var_to = <crate::api::canvas_types::CanvasPoint>::sse_decode(deserializer);
+        let mut var_fromArrow = <bool>::sse_decode(deserializer);
+        let mut var_toArrow = <bool>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasArrow {
+            id: var_id,
+            from: var_from,
+            c1: var_c1,
+            c2: var_c2,
+            to: var_to,
+            from_arrow: var_fromArrow,
+            to_arrow: var_toArrow,
+            color: var_color,
+            label: var_label,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasBudget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::canvas_types::CanvasBudget::Ok,
+            1 => crate::api::canvas_types::CanvasBudget::Warn,
+            2 => crate::api::canvas_types::CanvasBudget::Full,
+            _ => unreachable!("Invalid variant for CanvasBudget: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_rect = <crate::api::canvas_types::CanvasRect>::sse_decode(deserializer);
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        let mut var_noteId = <Option<String>>::sse_decode(deserializer);
+        let mut var_missing = <bool>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasCard {
+            id: var_id,
+            kind: var_kind,
+            rect: var_rect,
+            text: var_text,
+            color: var_color,
+            note_id: var_noteId,
+            missing: var_missing,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasGroup {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_rect = <crate::api::canvas_types::CanvasRect>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasGroup {
+            id: var_id,
+            rect: var_rect,
+            label: var_label,
+            color: var_color,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasPoint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_x = <f64>::sse_decode(deserializer);
+        let mut var_y = <f64>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasPoint { x: var_x, y: var_y };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasRect {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_x = <f64>::sse_decode(deserializer);
+        let mut var_y = <f64>::sse_decode(deserializer);
+        let mut var_width = <f64>::sse_decode(deserializer);
+        let mut var_height = <f64>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasRect {
+            x: var_x,
+            y: var_y,
+            width: var_width,
+            height: var_height,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasSaved {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_rev = <String>::sse_decode(deserializer);
+        let mut var_bytes = <u32>::sse_decode(deserializer);
+        let mut var_merged = <bool>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasSaved {
+            rev: var_rev,
+            bytes: var_bytes,
+            merged: var_merged,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasStroke {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_nodeId = <String>::sse_decode(deserializer);
+        let mut var_tool = <String>::sse_decode(deserializer);
+        let mut var_color = <String>::sse_decode(deserializer);
+        let mut var_opacity = <f64>::sse_decode(deserializer);
+        let mut var_width = <f64>::sse_decode(deserializer);
+        let mut var_bounds = <crate::api::canvas_types::CanvasRect>::sse_decode(deserializer);
+        let mut var_outline = <Vec<f64>>::sse_decode(deserializer);
+        let mut var_known = <bool>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasStroke {
+            id: var_id,
+            node_id: var_nodeId,
+            tool: var_tool,
+            color: var_color,
+            opacity: var_opacity,
+            width: var_width,
+            bounds: var_bounds,
+            outline: var_outline,
+            known: var_known,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::CanvasView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_noteId = <String>::sse_decode(deserializer);
+        let mut var_rev = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_strokes =
+            <Vec<crate::api::canvas_types::CanvasStroke>>::sse_decode(deserializer);
+        let mut var_cards = <Vec<crate::api::canvas_types::CanvasCard>>::sse_decode(deserializer);
+        let mut var_groups = <Vec<crate::api::canvas_types::CanvasGroup>>::sse_decode(deserializer);
+        let mut var_arrows = <Vec<crate::api::canvas_types::CanvasArrow>>::sse_decode(deserializer);
+        let mut var_bounds =
+            <Option<crate::api::canvas_types::CanvasRect>>::sse_decode(deserializer);
+        let mut var_bytes = <u32>::sse_decode(deserializer);
+        let mut var_budget = <crate::api::canvas_types::CanvasBudget>::sse_decode(deserializer);
+        let mut var_canUndo = <bool>::sse_decode(deserializer);
+        let mut var_canRedo = <bool>::sse_decode(deserializer);
+        let mut var_dirty = <bool>::sse_decode(deserializer);
+        return crate::api::canvas_types::CanvasView {
+            note_id: var_noteId,
+            rev: var_rev,
+            title: var_title,
+            strokes: var_strokes,
+            cards: var_cards,
+            groups: var_groups,
+            arrows: var_arrows,
+            bounds: var_bounds,
+            bytes: var_bytes,
+            budget: var_budget,
+            can_undo: var_canUndo,
+            can_redo: var_canRedo,
+            dirty: var_dirty,
         };
     }
 }
@@ -30148,6 +31805,20 @@ impl SseDecode for crate::api::types::ImportSummary {
     }
 }
 
+impl SseDecode for crate::api::canvas_types::InkStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_tool = <String>::sse_decode(deserializer);
+        let mut var_color = <String>::sse_decode(deserializer);
+        let mut var_width = <f64>::sse_decode(deserializer);
+        return crate::api::canvas_types::InkStyle {
+            tool: var_tool,
+            color: var_color,
+            width: var_width,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::InstalledIconThemeRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -30261,12 +31932,14 @@ impl SseDecode for crate::api::types::LibraryOverview {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_all = <u32>::sse_decode(deserializer);
+        let mut var_canvases = <u32>::sse_decode(deserializer);
         let mut var_pinned = <u32>::sse_decode(deserializer);
         let mut var_recent = <u32>::sse_decode(deserializer);
         let mut var_trash = <u32>::sse_decode(deserializer);
         let mut var_byStatus = <Vec<crate::api::types::StatusCount>>::sse_decode(deserializer);
         return crate::api::types::LibraryOverview {
             all: var_all,
+            canvases: var_canvases,
             pinned: var_pinned,
             recent: var_recent,
             trash: var_trash,
@@ -30516,6 +32189,76 @@ impl SseDecode for Vec<crate::api::types::CalendarDay> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::CalendarDay>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::canvas_types::CanvasArrow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::canvas_types::CanvasArrow>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::canvas_types::CanvasCard> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::canvas_types::CanvasCard>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::canvas_types::CanvasGroup> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::canvas_types::CanvasGroup>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::canvas_types::CanvasPoint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::canvas_types::CanvasPoint>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::canvas_types::CanvasStroke> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::canvas_types::CanvasStroke>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -31275,6 +33018,20 @@ impl SseDecode for Vec<crate::api::types::PasskeyRow> {
     }
 }
 
+impl SseDecode for Vec<crate::api::canvas_types::PenSample> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::canvas_types::PenSample>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::people_types::PeoplePage> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -31318,22 +33075,25 @@ impl SseDecode for crate::api::types::ListPlace {
                 return crate::api::types::ListPlace::Recent;
             }
             3 => {
-                let mut var_id = <String>::sse_decode(deserializer);
-                return crate::api::types::ListPlace::Notebook { id: var_id };
+                return crate::api::types::ListPlace::Canvases;
             }
             4 => {
                 let mut var_id = <String>::sse_decode(deserializer);
-                return crate::api::types::ListPlace::Tag { id: var_id };
+                return crate::api::types::ListPlace::Notebook { id: var_id };
             }
             5 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::types::ListPlace::Tag { id: var_id };
+            }
+            6 => {
                 let mut var_status = <String>::sse_decode(deserializer);
                 return crate::api::types::ListPlace::Status { status: var_status };
             }
-            6 => {
+            7 => {
                 let mut var_path = <String>::sse_decode(deserializer);
                 return crate::api::types::ListPlace::TagPath { path: var_path };
             }
-            7 => {
+            8 => {
                 return crate::api::types::ListPlace::Trash;
             }
             _ => {
@@ -31478,6 +33238,18 @@ impl SseDecode for Vec<crate::api::types::PreviewSourcedBlock> {
             ans_.push(<crate::api::types::PreviewSourcedBlock>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<f64>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -31824,6 +33596,20 @@ impl SseDecode for Vec<crate::api::types::StatusCount> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::StatusCount>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::canvas_types::StrokeKey> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::canvas_types::StrokeKey>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -32772,6 +34558,7 @@ impl SseDecode for crate::api::types::NoteRow {
         let mut var_tasksDone = <u32>::sse_decode(deserializer);
         let mut var_tasksTotal = <u32>::sse_decode(deserializer);
         let mut var_locked = <bool>::sse_decode(deserializer);
+        let mut var_canvas = <bool>::sse_decode(deserializer);
         return crate::api::types::NoteRow {
             id: var_id,
             rev: var_rev,
@@ -32786,6 +34573,7 @@ impl SseDecode for crate::api::types::NoteRow {
             tasks_done: var_tasksDone,
             tasks_total: var_tasksTotal,
             locked: var_locked,
+            canvas: var_canvas,
         };
     }
 }
@@ -33064,6 +34852,19 @@ impl SseDecode for Option<bool> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<bool>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::canvas_types::CanvasRect> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::canvas_types::CanvasRect>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -33989,6 +35790,24 @@ impl SseDecode for crate::api::types::PasskeyRow {
     }
 }
 
+impl SseDecode for crate::api::canvas_types::PenSample {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_x = <f64>::sse_decode(deserializer);
+        let mut var_y = <f64>::sse_decode(deserializer);
+        let mut var_pressure = <f64>::sse_decode(deserializer);
+        let mut var_azimuth = <Option<f64>>::sse_decode(deserializer);
+        let mut var_altitude = <Option<f64>>::sse_decode(deserializer);
+        return crate::api::canvas_types::PenSample {
+            x: var_x,
+            y: var_y,
+            pressure: var_pressure,
+            azimuth: var_azimuth,
+            altitude: var_altitude,
+        };
+    }
+}
+
 impl SseDecode for crate::api::people_types::PeopleKind {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -34882,6 +36701,20 @@ impl SseDecode for crate::api::types::Range16 {
     }
 }
 
+impl SseDecode
+    for (
+        crate::api::types::Saved,
+        crate::api::canvas_types::CanvasView,
+    )
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <crate::api::types::Saved>::sse_decode(deserializer);
+        let mut var_field1 = <crate::api::canvas_types::CanvasView>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
 impl SseDecode for (String, crate::api::types::ShareRole) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -35753,6 +37586,18 @@ impl SseDecode for crate::api::types::StatusCount {
         return crate::api::types::StatusCount {
             status: var_status,
             count: var_count,
+        };
+    }
+}
+
+impl SseDecode for crate::api::canvas_types::StrokeKey {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_nodeId = <String>::sse_decode(deserializer);
+        let mut var_strokeId = <String>::sse_decode(deserializer);
+        return crate::api::canvas_types::StrokeKey {
+            node_id: var_nodeId,
+            stroke_id: var_strokeId,
         };
     }
 }
@@ -37080,1569 +38925,1665 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        73 => wire__crate__api__cards__KansoCards_add_cards_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__cards__KansoCards_answer_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__cards__KansoCards_counts_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__cards__KansoCards_due_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__cards__KansoCards_grade_impl(port, ptr, rust_vec_len, data_len),
-        78 => {
-            wire__crate__api__cards__KansoCards_make_blocked_impl(port, ptr, rust_vec_len, data_len)
+        73 => {
+            wire__crate__api__canvas__KansoCanvas_add_arrow_impl(port, ptr, rust_vec_len, data_len)
         }
-        79 => {
-            wire__crate__api__cards__KansoCards_note_cards_impl(port, ptr, rust_vec_len, data_len)
-        }
-        80 => wire__crate__api__cards__KansoCards_quiz_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__cards__KansoCards_reminder_text_impl(
+        74 => wire__crate__api__canvas__KansoCanvas_add_note_card_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__cards__KansoCards_reset_history_impl(
+        75 => wire__crate__api__canvas__KansoCanvas_add_text_card_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        76 => wire__crate__api__canvas__KansoCanvas_delete_card_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        77 => wire__crate__api__canvas__KansoCanvas_delete_strokes_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        78 => wire__crate__api__canvas__KansoCanvas_draw_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__canvas__KansoCanvas_erase_along_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        80 => {
+            wire__crate__api__canvas__KansoCanvas_erase_at_impl(port, ptr, rust_vec_len, data_len)
+        }
+        81 => wire__crate__api__canvas__KansoCanvas_erase_strokes_along_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        82 => wire__crate__api__canvas__KansoCanvas_export_excalidraw_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         83 => {
+            wire__crate__api__canvas__KansoCanvas_export_svg_impl(port, ptr, rust_vec_len, data_len)
+        }
+        84 => wire__crate__api__canvas__KansoCanvas_move_strokes_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        85 => wire__crate__api__canvas__KansoCanvas_move_to_new_canvas_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        86 => wire__crate__api__canvas__KansoCanvas_redo_impl(port, ptr, rust_vec_len, data_len),
+        87 => wire__crate__api__canvas__KansoCanvas_save_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__canvas__KansoCanvas_select_impl(port, ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__canvas__KansoCanvas_set_card_rect_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        90 => wire__crate__api__canvas__KansoCanvas_set_card_text_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        91 => wire__crate__api__canvas__KansoCanvas_undo_impl(port, ptr, rust_vec_len, data_len),
+        92 => wire__crate__api__canvas__KansoCanvas_view_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__cards__KansoCards_add_cards_impl(port, ptr, rust_vec_len, data_len),
+        94 => wire__crate__api__cards__KansoCards_answer_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__api__cards__KansoCards_counts_impl(port, ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__cards__KansoCards_due_impl(port, ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__cards__KansoCards_grade_impl(port, ptr, rust_vec_len, data_len),
+        98 => {
+            wire__crate__api__cards__KansoCards_make_blocked_impl(port, ptr, rust_vec_len, data_len)
+        }
+        99 => {
+            wire__crate__api__cards__KansoCards_note_cards_impl(port, ptr, rust_vec_len, data_len)
+        }
+        100 => wire__crate__api__cards__KansoCards_quiz_impl(port, ptr, rust_vec_len, data_len),
+        101 => wire__crate__api__cards__KansoCards_reminder_text_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        102 => wire__crate__api__cards__KansoCards_reset_history_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        103 => {
             wire__crate__api__cards__KansoCards_set_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        84 => wire__crate__api__cards__KansoCards_settings_impl(port, ptr, rust_vec_len, data_len),
-        85 => wire__crate__api__cards__KansoCards_stats_impl(port, ptr, rust_vec_len, data_len),
-        86 => wire__crate__api__cards__KansoCards_suggest_impl(port, ptr, rust_vec_len, data_len),
-        87 => wire__crate__api__cards__KansoCards_suspend_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__discovery__KansoDiscovery_dismiss_related_impl(
+        104 => wire__crate__api__cards__KansoCards_settings_impl(port, ptr, rust_vec_len, data_len),
+        105 => wire__crate__api__cards__KansoCards_stats_impl(port, ptr, rust_vec_len, data_len),
+        106 => wire__crate__api__cards__KansoCards_suggest_impl(port, ptr, rust_vec_len, data_len),
+        107 => wire__crate__api__cards__KansoCards_suspend_impl(port, ptr, rust_vec_len, data_len),
+        108 => wire__crate__api__discovery__KansoDiscovery_dismiss_related_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        89 => wire__crate__api__discovery__KansoDiscovery_dismiss_twin_impl(
+        109 => wire__crate__api__discovery__KansoDiscovery_dismiss_twin_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__discovery__KansoDiscovery_graph_impl(
+        110 => wire__crate__api__discovery__KansoDiscovery_graph_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__discovery__KansoDiscovery_measure_impl(
+        111 => wire__crate__api__discovery__KansoDiscovery_measure_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__discovery__KansoDiscovery_merge_notes_impl(
+        112 => wire__crate__api__discovery__KansoDiscovery_merge_notes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__discovery__KansoDiscovery_note_meaning_impl(
+        114 => wire__crate__api__discovery__KansoDiscovery_note_meaning_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__discovery__KansoDiscovery_ocr_keep_impl(
+        115 => wire__crate__api__discovery__KansoDiscovery_ocr_keep_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__discovery__KansoDiscovery_ocr_next_impl(
+        116 => wire__crate__api__discovery__KansoDiscovery_ocr_next_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__discovery__KansoDiscovery_ocr_waiting_impl(
+        117 => wire__crate__api__discovery__KansoDiscovery_ocr_waiting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__discovery__KansoDiscovery_on_this_day_impl(
+        118 => wire__crate__api__discovery__KansoDiscovery_on_this_day_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__discovery__KansoDiscovery_related_enabled_impl(
+        119 => wire__crate__api__discovery__KansoDiscovery_related_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__discovery__KansoDiscovery_related_notes_impl(
+        120 => wire__crate__api__discovery__KansoDiscovery_related_notes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__discovery__KansoDiscovery_related_state_impl(
+        121 => wire__crate__api__discovery__KansoDiscovery_related_state_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__discovery__KansoDiscovery_related_stream_impl(
+        122 => wire__crate__api__discovery__KansoDiscovery_related_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__discovery__KansoDiscovery_resurface_impl(
+        123 => wire__crate__api__discovery__KansoDiscovery_resurface_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__discovery__KansoDiscovery_search_by_meaning_impl(
+        124 => wire__crate__api__discovery__KansoDiscovery_search_by_meaning_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__discovery__KansoDiscovery_set_related_notes_impl(
+        125 => wire__crate__api__discovery__KansoDiscovery_set_related_notes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__draft__KansoDrafting_notes_of_notebook_impl(
+        126 => wire__crate__api__draft__KansoDrafting_notes_of_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__draft__KansoDrafting_notes_of_tag_impl(
+        127 => wire__crate__api__draft__KansoDrafting_notes_of_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => {
+        128 => {
             wire__crate__api__draft__KansoDrafting_preview_impl(port, ptr, rust_vec_len, data_len)
         }
-        109 => wire__crate__api__draft__KansoDrafting_save_impl(port, ptr, rust_vec_len, data_len),
-        110 => {
+        129 => wire__crate__api__draft__KansoDrafting_save_impl(port, ptr, rust_vec_len, data_len),
+        130 => {
             wire__crate__api__draft__KansoDrafting_sources_impl(port, ptr, rust_vec_len, data_len)
         }
-        111 => wire__crate__api__draft__KansoDrafting_write_impl(port, ptr, rust_vec_len, data_len),
-        113 => wire__crate__api__editor__KansoEditor_attach_impl(port, ptr, rust_vec_len, data_len),
-        114 => wire__crate__api__editor__KansoEditor_close_impl(port, ptr, rust_vec_len, data_len),
-        116 => wire__crate__api__editor__KansoEditor_comment_marks_impl(
+        131 => wire__crate__api__draft__KansoDrafting_write_impl(port, ptr, rust_vec_len, data_len),
+        133 => wire__crate__api__editor__KansoEditor_attach_impl(port, ptr, rust_vec_len, data_len),
+        134 => wire__crate__api__editor__KansoEditor_close_impl(port, ptr, rust_vec_len, data_len),
+        136 => wire__crate__api__editor__KansoEditor_comment_marks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__editor__KansoEditor_comment_on_selection_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        118 => {
-            wire__crate__api__editor__KansoEditor_completion_impl(port, ptr, rust_vec_len, data_len)
-        }
-        119 => wire__crate__api__editor__KansoEditor_default_word_goal_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        120 => wire__crate__api__editor__KansoEditor_effective_word_goal_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        121 => wire__crate__api__editor__KansoEditor_events_impl(port, ptr, rust_vec_len, data_len),
-        122 => wire__crate__api__editor__KansoEditor_flush_impl(port, ptr, rust_vec_len, data_len),
-        123 => {
-            wire__crate__api__editor__KansoEditor_keep_mine_impl(port, ptr, rust_vec_len, data_len)
-        }
-        124 => {
-            wire__crate__api__editor__KansoEditor_link_at_impl(port, ptr, rust_vec_len, data_len)
-        }
-        125 => wire__crate__api__editor__KansoEditor_live_document_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        126 => wire__crate__api__editor__KansoEditor_live_layout_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        128 => wire__crate__api__editor__KansoEditor_remote_cursors_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        129 => wire__crate__api__editor__KansoEditor_remove_property_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        131 => wire__crate__api__editor__KansoEditor_select_comment_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        132 => wire__crate__api__editor__KansoEditor_set_property_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        134 => wire__crate__api__editor__KansoEditor_set_word_goal_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        135 => {
-            wire__crate__api__editor__KansoEditor_snapshot_impl(port, ptr, rust_vec_len, data_len)
-        }
-        136 => wire__crate__api__editor__KansoEditor_styled_runs_impl(
+        137 => wire__crate__api__editor__KansoEditor_comment_on_selection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         138 => {
+            wire__crate__api__editor__KansoEditor_completion_impl(port, ptr, rust_vec_len, data_len)
+        }
+        139 => wire__crate__api__editor__KansoEditor_default_word_goal_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        140 => wire__crate__api__editor__KansoEditor_effective_word_goal_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        141 => wire__crate__api__editor__KansoEditor_events_impl(port, ptr, rust_vec_len, data_len),
+        142 => wire__crate__api__editor__KansoEditor_flush_impl(port, ptr, rust_vec_len, data_len),
+        143 => {
+            wire__crate__api__editor__KansoEditor_keep_mine_impl(port, ptr, rust_vec_len, data_len)
+        }
+        144 => {
+            wire__crate__api__editor__KansoEditor_link_at_impl(port, ptr, rust_vec_len, data_len)
+        }
+        145 => wire__crate__api__editor__KansoEditor_live_document_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        146 => wire__crate__api__editor__KansoEditor_live_layout_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        148 => wire__crate__api__editor__KansoEditor_remote_cursors_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        149 => wire__crate__api__editor__KansoEditor_remove_property_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        151 => wire__crate__api__editor__KansoEditor_select_comment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        152 => wire__crate__api__editor__KansoEditor_set_property_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        154 => wire__crate__api__editor__KansoEditor_set_word_goal_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        155 => {
+            wire__crate__api__editor__KansoEditor_snapshot_impl(port, ptr, rust_vec_len, data_len)
+        }
+        156 => wire__crate__api__editor__KansoEditor_styled_runs_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        158 => {
             wire__crate__api__editor__KansoEditor_use_theirs_impl(port, ptr, rust_vec_len, data_len)
         }
-        139 => {
+        159 => {
             wire__crate__api__feedback__KansoFeedback_delete_impl(port, ptr, rust_vec_len, data_len)
         }
-        140 => {
+        160 => {
             wire__crate__api__feedback__KansoFeedback_flush_impl(port, ptr, rust_vec_len, data_len)
         }
-        141 => wire__crate__api__feedback__KansoFeedback_mark_seen_impl(
+        161 => wire__crate__api__feedback__KansoFeedback_mark_seen_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        142 => wire__crate__api__feedback__KansoFeedback_preview_impl(
+        162 => wire__crate__api__feedback__KansoFeedback_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        144 => wire__crate__api__feedback__KansoFeedback_reports_impl(
+        164 => wire__crate__api__feedback__KansoFeedback_reports_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        145 => wire__crate__api__feedback__KansoFeedback_retry_now_impl(
+        165 => wire__crate__api__feedback__KansoFeedback_retry_now_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        146 => {
+        166 => {
             wire__crate__api__feedback__KansoFeedback_send_impl(port, ptr, rust_vec_len, data_len)
         }
-        147 => {
+        167 => {
             wire__crate__api__gallery__KansoGallery_index_impl(port, ptr, rust_vec_len, data_len)
         }
-        148 => {
+        168 => {
             wire__crate__api__gallery__KansoGallery_install_impl(port, ptr, rust_vec_len, data_len)
         }
-        149 => wire__crate__api__gallery__KansoGallery_installed_theme_tokens_impl(
+        169 => wire__crate__api__gallery__KansoGallery_installed_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        150 => wire__crate__api__gallery__KansoGallery_installed_themes_impl(
+        170 => wire__crate__api__gallery__KansoGallery_installed_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        151 => wire__crate__api__gallery__KansoGallery_uninstall_impl(
+        171 => wire__crate__api__gallery__KansoGallery_uninstall_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        156 => wire__crate__api__library__KansoLibrary_approve_ai_loops_impl(
+        176 => wire__crate__api__library__KansoLibrary_approve_ai_loops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        157 => wire__crate__api__library__KansoLibrary_attachment_impl(
+        177 => wire__crate__api__library__KansoLibrary_attachment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        158 => wire__crate__api__library__KansoLibrary_back_up_now_impl(
+        178 => wire__crate__api__library__KansoLibrary_back_up_now_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        159 => wire__crate__api__library__KansoLibrary_backup_if_due_impl(
+        179 => wire__crate__api__library__KansoLibrary_backup_if_due_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        160 => {
+        180 => {
             wire__crate__api__library__KansoLibrary_backups_impl(port, ptr, rust_vec_len, data_len)
         }
-        161 => {
+        181 => {
             wire__crate__api__library__KansoLibrary_board_impl(port, ptr, rust_vec_len, data_len)
         }
-        162 => {
+        182 => {
             wire__crate__api__library__KansoLibrary_brief_impl(port, ptr, rust_vec_len, data_len)
         }
-        163 => wire__crate__api__library__KansoLibrary_brief_plan_impl(
+        183 => wire__crate__api__library__KansoLibrary_brief_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        164 => wire__crate__api__library__KansoLibrary_brief_prefs_impl(
+        184 => wire__crate__api__library__KansoLibrary_brief_prefs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        165 => {
+        185 => {
+            wire__crate__api__library__KansoLibrary_canvas_impl(port, ptr, rust_vec_len, data_len)
+        }
+        186 => {
             wire__crate__api__library__KansoLibrary_capture_impl(port, ptr, rust_vec_len, data_len)
         }
-        167 => {
+        188 => {
             wire__crate__api__library__KansoLibrary_change_impl(port, ptr, rust_vec_len, data_len)
         }
-        168 => {
+        189 => {
             wire__crate__api__library__KansoLibrary_changes_impl(port, ptr, rust_vec_len, data_len)
         }
-        169 => wire__crate__api__library__KansoLibrary_close_loop_impl(
+        190 => wire__crate__api__library__KansoLibrary_close_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        170 => {
+        191 => {
             wire__crate__api__library__KansoLibrary_create_impl(port, ptr, rust_vec_len, data_len)
         }
-        171 => wire__crate__api__library__KansoLibrary_create_linked_note_impl(
+        192 => wire__crate__api__library__KansoLibrary_create_canvas_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        172 => wire__crate__api__library__KansoLibrary_create_notebook_impl(
+        193 => wire__crate__api__library__KansoLibrary_create_linked_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        173 => wire__crate__api__library__KansoLibrary_create_tag_impl(
+        194 => wire__crate__api__library__KansoLibrary_create_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        175 => wire__crate__api__library__KansoLibrary_daily_template_impl(
+        195 => wire__crate__api__library__KansoLibrary_create_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        176 => wire__crate__api__library__KansoLibrary_default_word_goal_impl(
+        197 => wire__crate__api__library__KansoLibrary_daily_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        177 => wire__crate__api__library__KansoLibrary_delete_backup_impl(
+        198 => wire__crate__api__library__KansoLibrary_default_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        178 => wire__crate__api__library__KansoLibrary_delete_notebook_impl(
+        199 => wire__crate__api__library__KansoLibrary_delete_backup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        179 => wire__crate__api__library__KansoLibrary_delete_tag_impl(
+        200 => wire__crate__api__library__KansoLibrary_delete_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        183 => wire__crate__api__library__KansoLibrary_duplicate_impl(
+        201 => wire__crate__api__library__KansoLibrary_delete_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        184 => wire__crate__api__library__KansoLibrary_edit_impl(port, ptr, rust_vec_len, data_len),
-        185 => wire__crate__api__library__KansoLibrary_empty_trash_impl(
+        205 => wire__crate__api__library__KansoLibrary_duplicate_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        188 => {
+        206 => wire__crate__api__library__KansoLibrary_edit_impl(port, ptr, rust_vec_len, data_len),
+        207 => wire__crate__api__library__KansoLibrary_empty_trash_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        210 => {
             wire__crate__api__library__KansoLibrary_history_impl(port, ptr, rust_vec_len, data_len)
         }
-        189 => wire__crate__api__library__KansoLibrary_history_diff_impl(
+        211 => wire__crate__api__library__KansoLibrary_history_diff_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        190 => {
+        212 => {
             wire__crate__api__library__KansoLibrary_import_impl(port, ptr, rust_vec_len, data_len)
         }
-        191 => wire__crate__api__library__KansoLibrary_import_plan_impl(
+        213 => wire__crate__api__library__KansoLibrary_import_excalidraw_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        192 => wire__crate__api__library__KansoLibrary_journal_month_impl(
+        214 => wire__crate__api__library__KansoLibrary_import_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        193 => wire__crate__api__library__KansoLibrary_journal_open_day_impl(
+        216 => wire__crate__api__library__KansoLibrary_journal_month_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        194 => wire__crate__api__library__KansoLibrary_journal_step_impl(
+        217 => wire__crate__api__library__KansoLibrary_journal_open_day_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        195 => wire__crate__api__library__KansoLibrary_journal_today_impl(
+        218 => wire__crate__api__library__KansoLibrary_journal_step_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        198 => wire__crate__api__library__KansoLibrary_list_impl(port, ptr, rust_vec_len, data_len),
-        201 => wire__crate__api__library__KansoLibrary_move_card_impl(
+        219 => wire__crate__api__library__KansoLibrary_journal_today_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        202 => wire__crate__api__library__KansoLibrary_new_from_template_impl(
+        222 => wire__crate__api__library__KansoLibrary_list_impl(port, ptr, rust_vec_len, data_len),
+        225 => wire__crate__api__library__KansoLibrary_move_card_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        203 => wire__crate__api__library__KansoLibrary_new_template_impl(
+        226 => wire__crate__api__library__KansoLibrary_new_from_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        204 => wire__crate__api__library__KansoLibrary_note_impl(port, ptr, rust_vec_len, data_len),
-        205 => wire__crate__api__library__KansoLibrary_note_link_impl(
+        227 => wire__crate__api__library__KansoLibrary_new_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        206 => wire__crate__api__library__KansoLibrary_note_word_goal_impl(
+        228 => wire__crate__api__library__KansoLibrary_note_impl(port, ptr, rust_vec_len, data_len),
+        229 => wire__crate__api__library__KansoLibrary_note_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        210 => wire__crate__api__library__KansoLibrary_notebooks_impl(
+        230 => wire__crate__api__library__KansoLibrary_note_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        211 => wire__crate__api__library__KansoLibrary_open_impl(port, ptr, rust_vec_len, data_len),
-        212 => wire__crate__api__library__KansoLibrary_open_documents_impl(
+        234 => wire__crate__api__library__KansoLibrary_notebooks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        213 => wire__crate__api__library__KansoLibrary_open_loops_impl(
+        235 => wire__crate__api__library__KansoLibrary_open_impl(port, ptr, rust_vec_len, data_len),
+        236 => wire__crate__api__library__KansoLibrary_open_documents_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        214 => wire__crate__api__library__KansoLibrary_overdue_tasks_impl(
+        237 => wire__crate__api__library__KansoLibrary_open_loops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        215 => {
+        238 => wire__crate__api__library__KansoLibrary_overdue_tasks_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        239 => {
             wire__crate__api__library__KansoLibrary_overview_impl(port, ptr, rust_vec_len, data_len)
         }
-        218 => wire__crate__api__library__KansoLibrary_properties_impl(
+        242 => wire__crate__api__library__KansoLibrary_properties_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        219 => wire__crate__api__library__KansoLibrary_publisher_impl(
+        243 => wire__crate__api__library__KansoLibrary_publisher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        220 => wire__crate__api__library__KansoLibrary_query_view_impl(
+        244 => wire__crate__api__library__KansoLibrary_query_view_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        222 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
+        246 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        223 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
+        247 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        224 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
+        248 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        225 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
+        249 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        226 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
+        250 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        227 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
+        251 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        229 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
+        253 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        230 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
+        254 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        231 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
+        255 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        232 => wire__crate__api__library__KansoLibrary_restore_version_impl(
+        256 => wire__crate__api__library__KansoLibrary_restore_version_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        233 => {
+        257 => {
             wire__crate__api__library__KansoLibrary_review_impl(port, ptr, rust_vec_len, data_len)
         }
-        234 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
-        235 => wire__crate__api__library__KansoLibrary_save_drops_impl(
+        258 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
+        259 => wire__crate__api__library__KansoLibrary_save_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        236 => wire__crate__api__library__KansoLibrary_save_review_impl(
+        260 => wire__crate__api__library__KansoLibrary_save_review_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        237 => {
+        261 => {
             wire__crate__api__library__KansoLibrary_search_impl(port, ptr, rust_vec_len, data_len)
         }
-        238 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
+        262 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        239 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
+        263 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        240 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
+        264 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        241 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
+        265 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        242 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
+        266 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        243 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
+        267 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        244 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
+        268 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        245 => {
+        269 => {
             wire__crate__api__library__KansoLibrary_set_task_impl(port, ptr, rust_vec_len, data_len)
         }
-        246 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
+        270 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        251 => wire__crate__api__library__KansoLibrary_tag_places_impl(
+        275 => wire__crate__api__library__KansoLibrary_tag_places_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        252 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
-        253 => {
+        276 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
+        277 => {
             wire__crate__api__library__KansoLibrary_tasks_impl(port, ptr, rust_vec_len, data_len)
         }
-        254 => wire__crate__api__library__KansoLibrary_templates_impl(
+        278 => wire__crate__api__library__KansoLibrary_templates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        256 => wire__crate__api__library__KansoLibrary_today_note_impl(
+        280 => wire__crate__api__library__KansoLibrary_today_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        257 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
+        281 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        258 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        259 => {
-            wire__crate__api__library__KansoLibrary_trash_impl(port, ptr, rust_vec_len, data_len)
-        }
-        261 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
-        262 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        264 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        265 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        266 => wire__crate__api__linking__KansoLinking_backlinks_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        268 => wire__crate__api__linking__KansoLinking_link_mention_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        270 => {
-            wire__crate__api__linking__KansoLinking_palette_impl(port, ptr, rust_vec_len, data_len)
-        }
-        271 => wire__crate__api__linking__KansoLinking_quick_open_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        272 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        273 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        274 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        275 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        276 => wire__crate__api__locks__KansoLocks_change_password_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        277 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        278 => {
-            wire__crate__api__locks__KansoLocks_is_unlocked_impl(port, ptr, rust_vec_len, data_len)
-        }
-        279 => {
-            wire__crate__api__locks__KansoLocks_library_id_impl(port, ptr, rust_vec_len, data_len)
-        }
-        280 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
-        281 => {
-            wire__crate__api__locks__KansoLocks_lock_events_impl(port, ptr, rust_vec_len, data_len)
-        }
-        282 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
+        282 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         283 => {
+            wire__crate__api__library__KansoLibrary_trash_impl(port, ptr, rust_vec_len, data_len)
+        }
+        285 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
+        286 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        288 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        289 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        290 => wire__crate__api__linking__KansoLinking_backlinks_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        292 => wire__crate__api__linking__KansoLinking_link_mention_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        294 => {
+            wire__crate__api__linking__KansoLinking_palette_impl(port, ptr, rust_vec_len, data_len)
+        }
+        295 => wire__crate__api__linking__KansoLinking_quick_open_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        296 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        297 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        298 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        299 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        300 => wire__crate__api__locks__KansoLocks_change_password_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        301 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        302 => {
+            wire__crate__api__locks__KansoLocks_is_unlocked_impl(port, ptr, rust_vec_len, data_len)
+        }
+        303 => {
+            wire__crate__api__locks__KansoLocks_library_id_impl(port, ptr, rust_vec_len, data_len)
+        }
+        304 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
+        305 => {
+            wire__crate__api__locks__KansoLocks_lock_events_impl(port, ptr, rust_vec_len, data_len)
+        }
+        306 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        307 => {
             wire__crate__api__locks__KansoLocks_lock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        284 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
+        308 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        285 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
+        309 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        286 => {
+        310 => {
             wire__crate__api__locks__KansoLocks_lock_status_impl(port, ptr, rust_vec_len, data_len)
         }
-        287 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
+        311 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        288 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
+        312 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        289 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
+        313 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        290 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
+        314 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        291 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
-        292 => {
+        315 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
+        316 => {
             wire__crate__api__locks__KansoLocks_unlock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        293 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
+        317 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        294 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
+        318 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        295 => {
+        319 => {
             wire__crate__api__metrics__KansoMetrics_launched_impl(port, ptr, rust_vec_len, data_len)
         }
-        296 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
+        320 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        297 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
+        321 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        298 => {
+        322 => {
             wire__crate__api__metrics__KansoMetrics_record_impl(port, ptr, rust_vec_len, data_len)
         }
-        299 => {
+        323 => {
             wire__crate__api__metrics__KansoMetrics_send_due_impl(port, ptr, rust_vec_len, data_len)
         }
-        300 => wire__crate__api__notebook_home__KansoNotebookHome_after_move_impl(
+        324 => wire__crate__api__notebook_home__KansoNotebookHome_after_move_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        301 => wire__crate__api__notebook_home__KansoNotebookHome_candidates_impl(
+        325 => wire__crate__api__notebook_home__KansoNotebookHome_candidates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        302 => wire__crate__api__notebook_home__KansoNotebookHome_card_impl(
+        326 => wire__crate__api__notebook_home__KansoNotebookHome_card_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        303 => wire__crate__api__notebook_home__KansoNotebookHome_choose_home_impl(
+        327 => wire__crate__api__notebook_home__KansoNotebookHome_choose_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        304 => wire__crate__api__notebook_home__KansoNotebookHome_clear_home_impl(
+        328 => wire__crate__api__notebook_home__KansoNotebookHome_clear_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        305 => wire__crate__api__notebook_home__KansoNotebookHome_copy_into_home_impl(
+        329 => wire__crate__api__notebook_home__KansoNotebookHome_copy_into_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        306 => wire__crate__api__notebook_home__KansoNotebookHome_customise_impl(
+        330 => wire__crate__api__notebook_home__KansoNotebookHome_customise_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        307 => wire__crate__api__notebook_home__KansoNotebookHome_hide_impl(
+        331 => wire__crate__api__notebook_home__KansoNotebookHome_hide_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        308 => wire__crate__api__notebook_home__KansoNotebookHome_map_impl(
+        332 => wire__crate__api__notebook_home__KansoNotebookHome_map_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        309 => wire__crate__api__notebook_home__KansoNotebookHome_new_home_impl(
+        333 => wire__crate__api__notebook_home__KansoNotebookHome_new_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        310 => wire__crate__api__notebook_home__KansoNotebookHome_not_right_impl(
+        334 => wire__crate__api__notebook_home__KansoNotebookHome_not_right_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        311 => wire__crate__api__notebook_home__KansoNotebookHome_open_impl(
+        335 => wire__crate__api__notebook_home__KansoNotebookHome_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        312 => wire__crate__api__notebook_home__KansoNotebookHome_pin_impl(
+        336 => wire__crate__api__notebook_home__KansoNotebookHome_pin_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        313 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_all_impl(
+        337 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        314 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_section_impl(
+        338 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_section_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        315 => wire__crate__api__notebook_home__KansoNotebookHome_reset_layout_impl(
+        339 => wire__crate__api__notebook_home__KansoNotebookHome_reset_layout_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        316 => wire__crate__api__notebook_home__KansoNotebookHome_section_markdown_impl(
+        340 => wire__crate__api__notebook_home__KansoNotebookHome_section_markdown_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        317 => wire__crate__api__notebook_home__KansoNotebookHome_sections_impl(
+        341 => wire__crate__api__notebook_home__KansoNotebookHome_sections_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        318 => wire__crate__api__notebook_home__KansoNotebookHome_set_settings_impl(
+        342 => wire__crate__api__notebook_home__KansoNotebookHome_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        319 => wire__crate__api__notebook_home__KansoNotebookHome_settings_impl(
+        343 => wire__crate__api__notebook_home__KansoNotebookHome_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        320 => wire__crate__api__notebook_home__KansoNotebookHome_show_all_impl(
+        344 => wire__crate__api__notebook_home__KansoNotebookHome_show_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        321 => wire__crate__api__notebook_home__KansoNotebookHome_show_hidden_impl(
+        345 => wire__crate__api__notebook_home__KansoNotebookHome_show_hidden_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        322 => wire__crate__api__notebook_home__KansoNotebookHome_words_impl(
+        346 => wire__crate__api__notebook_home__KansoNotebookHome_words_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        323 => {
+        347 => {
             wire__crate__api__people__KansoPeople_add_alias_impl(port, ptr, rust_vec_len, data_len)
         }
-        324 => wire__crate__api__people__KansoPeople_confirm_alias_impl(
+        348 => wire__crate__api__people__KansoPeople_confirm_alias_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        325 => wire__crate__api__people__KansoPeople_copy_into_note_impl(
+        349 => wire__crate__api__people__KansoPeople_copy_into_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        326 => wire__crate__api__people__KansoPeople_create_impl(port, ptr, rust_vec_len, data_len),
-        327 => wire__crate__api__people__KansoPeople_detect_impl(port, ptr, rust_vec_len, data_len),
-        328 => wire__crate__api__people__KansoPeople_detect_with_ai_impl(
+        350 => wire__crate__api__people__KansoPeople_create_impl(port, ptr, rust_vec_len, data_len),
+        351 => wire__crate__api__people__KansoPeople_detect_impl(port, ptr, rust_vec_len, data_len),
+        352 => wire__crate__api__people__KansoPeople_detect_with_ai_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        329 => {
+        353 => {
             wire__crate__api__people__KansoPeople_dismiss_impl(port, ptr, rust_vec_len, data_len)
         }
-        330 => {
+        354 => {
             wire__crate__api__people__KansoPeople_dismissed_impl(port, ptr, rust_vec_len, data_len)
         }
-        331 => wire__crate__api__people__KansoPeople_hide_impl(port, ptr, rust_vec_len, data_len),
-        332 => wire__crate__api__people__KansoPeople_merge_impl(port, ptr, rust_vec_len, data_len),
-        333 => {
+        355 => wire__crate__api__people__KansoPeople_hide_impl(port, ptr, rust_vec_len, data_len),
+        356 => wire__crate__api__people__KansoPeople_merge_impl(port, ptr, rust_vec_len, data_len),
+        357 => {
             wire__crate__api__people__KansoPeople_not_right_impl(port, ptr, rust_vec_len, data_len)
         }
-        334 => wire__crate__api__people__KansoPeople_page_impl(port, ptr, rust_vec_len, data_len),
-        335 => wire__crate__api__people__KansoPeople_pages_impl(port, ptr, rust_vec_len, data_len),
-        336 => wire__crate__api__people__KansoPeople_pin_impl(port, ptr, rust_vec_len, data_len),
-        337 => wire__crate__api__people__KansoPeople_refresh_all_impl(
+        358 => wire__crate__api__people__KansoPeople_page_impl(port, ptr, rust_vec_len, data_len),
+        359 => wire__crate__api__people__KansoPeople_pages_impl(port, ptr, rust_vec_len, data_len),
+        360 => wire__crate__api__people__KansoPeople_pin_impl(port, ptr, rust_vec_len, data_len),
+        361 => wire__crate__api__people__KansoPeople_refresh_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        338 => wire__crate__api__people__KansoPeople_refresh_section_impl(
+        362 => wire__crate__api__people__KansoPeople_refresh_section_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        339 => wire__crate__api__people__KansoPeople_section_markdown_impl(
+        363 => wire__crate__api__people__KansoPeople_section_markdown_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        340 => wire__crate__api__people__KansoPeople_set_settings_impl(
+        364 => wire__crate__api__people__KansoPeople_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        341 => {
+        365 => {
             wire__crate__api__people__KansoPeople_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        342 => {
+        366 => {
             wire__crate__api__people__KansoPeople_show_all_impl(port, ptr, rust_vec_len, data_len)
         }
-        343 => wire__crate__api__people__KansoPeople_show_hidden_impl(
+        367 => wire__crate__api__people__KansoPeople_show_hidden_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        344 => wire__crate__api__people__KansoPeople_status_impl(port, ptr, rust_vec_len, data_len),
-        345 => wire__crate__api__people__KansoPeople_suggest_again_impl(
+        368 => wire__crate__api__people__KansoPeople_status_impl(port, ptr, rust_vec_len, data_len),
+        369 => wire__crate__api__people__KansoPeople_suggest_again_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        346 => wire__crate__api__people__KansoPeople_suggestions_impl(
+        370 => wire__crate__api__people__KansoPeople_suggestions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        347 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
+        371 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        348 => {
+        372 => {
             wire__crate__api__publish__KansoPublisher_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        349 => wire__crate__api__publish__KansoPublisher_notebook_impl(
+        373 => wire__crate__api__publish__KansoPublisher_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        350 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
+        374 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        351 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
+        375 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        352 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
+        376 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        353 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
+        377 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        354 => wire__crate__api__recording__KansoRecorder_discard_found_impl(
+        378 => wire__crate__api__recording__KansoRecorder_discard_found_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        355 => {
+        379 => {
             wire__crate__api__recording__KansoRecorder_found_impl(port, ptr, rust_vec_len, data_len)
         }
-        356 => wire__crate__api__recording__KansoRecorder_recover_impl(
+        380 => wire__crate__api__recording__KansoRecorder_recover_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        357 => {
+        381 => {
             wire__crate__api__recording__KansoRecorder_start_impl(port, ptr, rust_vec_len, data_len)
         }
-        358 => wire__crate__api__recording__KansoRecording_discard_impl(
+        382 => wire__crate__api__recording__KansoRecording_discard_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        362 => {
+        386 => {
             wire__crate__api__recording__KansoRecording_stop_impl(port, ptr, rust_vec_len, data_len)
         }
-        363 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
+        387 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        364 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
+        388 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        365 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
+        389 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        366 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
+        390 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        367 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
+        391 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        368 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
+        392 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        369 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
+        393 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        370 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
+        394 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        371 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
+        395 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        372 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
+        396 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        373 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
+        397 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        374 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
+        398 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        375 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
+        399 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        376 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
+        400 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        377 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
+        401 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        378 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
+        402 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        379 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
+        403 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        380 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
+        404 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        381 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
+        405 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        382 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
+        406 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        383 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
-        384 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
+        407 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
+        408 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        385 => wire__crate__api__shared__KansoShared_add_comment_impl(
+        409 => wire__crate__api__shared__KansoShared_add_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        386 => wire__crate__api__shared__KansoShared_approve_request_impl(
+        410 => wire__crate__api__shared__KansoShared_approve_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        387 => {
+        411 => {
             wire__crate__api__shared__KansoShared_can_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        388 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+        412 => wire__crate__api__shared__KansoShared_cancel_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        389 => {
+        413 => {
             wire__crate__api__shared__KansoShared_close_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        390 => {
+        414 => {
             wire__crate__api__shared__KansoShared_comments_impl(port, ptr, rust_vec_len, data_len)
         }
-        391 => wire__crate__api__shared__KansoShared_comments_band_impl(
+        415 => wire__crate__api__shared__KansoShared_comments_band_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        392 => wire__crate__api__shared__KansoShared_create_link_impl(
+        416 => wire__crate__api__shared__KansoShared_create_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        393 => {
+        417 => {
             wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
         }
-        394 => wire__crate__api__shared__KansoShared_decline_request_impl(
+        418 => wire__crate__api__shared__KansoShared_decline_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        395 => wire__crate__api__shared__KansoShared_delete_comment_impl(
+        419 => wire__crate__api__shared__KansoShared_delete_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        396 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
+        420 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        397 => wire__crate__api__shared__KansoShared_edit_comment_impl(
+        421 => wire__crate__api__shared__KansoShared_edit_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        398 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
-        399 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
-        400 => wire__crate__api__shared__KansoShared_invitations_impl(
+        422 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
+        423 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
+        424 => wire__crate__api__shared__KansoShared_invitations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        401 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
-        402 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
-        403 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
-        404 => wire__crate__api__shared__KansoShared_live_status_impl(
+        425 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
+        426 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
+        427 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
+        428 => wire__crate__api__shared__KansoShared_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        405 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+        429 => wire__crate__api__shared__KansoShared_lookup_person_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        406 => wire__crate__api__shared__KansoShared_open_comments_impl(
+        430 => wire__crate__api__shared__KansoShared_open_comments_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        407 => {
+        431 => {
             wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        408 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
-        409 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+        432 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
+        433 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        410 => {
+        434 => {
             wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
         }
-        411 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
-        412 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
-        413 => wire__crate__api__shared__KansoShared_sync_shared_impl(
+        435 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
+        436 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
+        437 => wire__crate__api__shared__KansoShared_sync_shared_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        414 => wire__crate__api__shared__KansoShared_verify_person_impl(
+        438 => wire__crate__api__shared__KansoShared_verify_person_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        415 => {
+        439 => {
             wire__crate__api__sync__KansoSync_check_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        416 => {
+        440 => {
             wire__crate__api__sync__KansoSync_default_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        420 => {
+        444 => {
             wire__crate__api__sync__KansoSync_push_enabled_impl(port, ptr, rust_vec_len, data_len)
         }
-        421 => {
+        445 => {
             wire__crate__api__sync__KansoSync_refresh_push_impl(port, ptr, rust_vec_len, data_len)
         }
-        422 => {
+        446 => {
             wire__crate__api__sync__KansoSync_set_foreground_impl(port, ptr, rust_vec_len, data_len)
         }
-        423 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        424 => {
-            wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
-        }
-        425 => {
-            wire__crate__api__sync__KansoSync_set_settings_impl(port, ptr, rust_vec_len, data_len)
-        }
-        426 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
-        427 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        428 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
-        429 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
-        431 => {
-            wire__crate__api__sync__KansoSync_status_stream_impl(port, ptr, rust_vec_len, data_len)
-        }
-        432 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
-        433 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
-        434 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        435 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
-        436 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        437 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
-        438 => {
-            wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
-        }
-        439 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        440 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
-        441 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
-        442 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
-        443 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
-        444 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
-        445 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
-        446 => {
-            wire__crate__api__triage__KansoTriage_resolve_impl(port, ptr, rust_vec_len, data_len)
-        }
-        447 => wire__crate__api__triage__KansoTriage_set_settings_impl(
+        447 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         448 => {
+            wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
+        }
+        449 => {
+            wire__crate__api__sync__KansoSync_set_settings_impl(port, ptr, rust_vec_len, data_len)
+        }
+        450 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
+        451 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        452 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
+        453 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
+        455 => {
+            wire__crate__api__sync__KansoSync_status_stream_impl(port, ptr, rust_vec_len, data_len)
+        }
+        456 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
+        457 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
+        458 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        459 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
+        460 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        461 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
+        462 => {
+            wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
+        }
+        463 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        464 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
+        465 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
+        466 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
+        467 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
+        468 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
+        469 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
+        470 => {
+            wire__crate__api__triage__KansoTriage_resolve_impl(port, ptr, rust_vec_len, data_len)
+        }
+        471 => wire__crate__api__triage__KansoTriage_set_settings_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        472 => {
             wire__crate__api__triage__KansoTriage_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        449 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
-        450 => {
+        473 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
+        474 => {
             wire__crate__api__triage__KansoTriage_unreject_impl(port, ptr, rust_vec_len, data_len)
         }
-        451 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
+        475 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        452 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
+        476 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        453 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
+        477 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        454 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
+        478 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        455 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
+        479 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        456 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
+        480 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        457 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
+        481 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        458 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
+        482 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        459 => {
+        483 => {
             wire__crate__api__diagnostics__backup_excluded_impl(port, ptr, rust_vec_len, data_len)
         }
-        466 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
-        468 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
-        470 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
-        471 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+        491 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
+        493 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
+        495 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
+        496 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -38669,98 +40610,100 @@ fn pde_ffi_dispatcher_sync_impl(
         72 => {
             wire__crate__api__ai__KansoAskConversation_turn_count_impl(ptr, rust_vec_len, data_len)
         }
-        93 => {
+        113 => {
             wire__crate__api__discovery__KansoDiscovery_model_dir_impl(ptr, rust_vec_len, data_len)
         }
-        112 => wire__crate__api__editor__KansoEditor_apply_impl(ptr, rust_vec_len, data_len),
-        115 => wire__crate__api__editor__KansoEditor_command_impl(ptr, rust_vec_len, data_len),
-        127 => wire__crate__api__editor__KansoEditor_redo_impl(ptr, rust_vec_len, data_len),
-        130 => wire__crate__api__editor__KansoEditor_select_impl(ptr, rust_vec_len, data_len),
-        133 => wire__crate__api__editor__KansoEditor_set_title_impl(ptr, rust_vec_len, data_len),
-        137 => wire__crate__api__editor__KansoEditor_undo_impl(ptr, rust_vec_len, data_len),
-        143 => {
+        132 => wire__crate__api__editor__KansoEditor_apply_impl(ptr, rust_vec_len, data_len),
+        135 => wire__crate__api__editor__KansoEditor_command_impl(ptr, rust_vec_len, data_len),
+        147 => wire__crate__api__editor__KansoEditor_redo_impl(ptr, rust_vec_len, data_len),
+        150 => wire__crate__api__editor__KansoEditor_select_impl(ptr, rust_vec_len, data_len),
+        153 => wire__crate__api__editor__KansoEditor_set_title_impl(ptr, rust_vec_len, data_len),
+        157 => wire__crate__api__editor__KansoEditor_undo_impl(ptr, rust_vec_len, data_len),
+        163 => {
             wire__crate__api__feedback__KansoFeedback_refresh_due_impl(ptr, rust_vec_len, data_len)
         }
-        152 => wire__crate__api__library__KansoLibrary_account_impl(ptr, rust_vec_len, data_len),
-        153 => wire__crate__api__library__KansoLibrary_account_settings_impl(
+        172 => wire__crate__api__library__KansoLibrary_account_impl(ptr, rust_vec_len, data_len),
+        173 => wire__crate__api__library__KansoLibrary_account_settings_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        154 => wire__crate__api__library__KansoLibrary_ai_impl(ptr, rust_vec_len, data_len),
-        155 => wire__crate__api__library__KansoLibrary_approvals_impl(ptr, rust_vec_len, data_len),
-        166 => wire__crate__api__library__KansoLibrary_cards_impl(ptr, rust_vec_len, data_len),
-        174 => {
+        174 => wire__crate__api__library__KansoLibrary_ai_impl(ptr, rust_vec_len, data_len),
+        175 => wire__crate__api__library__KansoLibrary_approvals_impl(ptr, rust_vec_len, data_len),
+        187 => wire__crate__api__library__KansoLibrary_cards_impl(ptr, rust_vec_len, data_len),
+        196 => {
             wire__crate__api__library__KansoLibrary_daily_date_of_impl(ptr, rust_vec_len, data_len)
         }
-        180 => wire__crate__api__library__KansoLibrary_discovery_impl(ptr, rust_vec_len, data_len),
-        181 => wire__crate__api__library__KansoLibrary_drafting_impl(ptr, rust_vec_len, data_len),
-        182 => wire__crate__api__library__KansoLibrary_due_chip_impl(ptr, rust_vec_len, data_len),
-        186 => wire__crate__api__library__KansoLibrary_feedback_impl(ptr, rust_vec_len, data_len),
-        187 => wire__crate__api__library__KansoLibrary_gallery_impl(ptr, rust_vec_len, data_len),
-        196 => wire__crate__api__library__KansoLibrary_journal_week_start_impl(
+        202 => wire__crate__api__library__KansoLibrary_discovery_impl(ptr, rust_vec_len, data_len),
+        203 => wire__crate__api__library__KansoLibrary_drafting_impl(ptr, rust_vec_len, data_len),
+        204 => wire__crate__api__library__KansoLibrary_due_chip_impl(ptr, rust_vec_len, data_len),
+        208 => wire__crate__api__library__KansoLibrary_feedback_impl(ptr, rust_vec_len, data_len),
+        209 => wire__crate__api__library__KansoLibrary_gallery_impl(ptr, rust_vec_len, data_len),
+        215 => wire__crate__api__library__KansoLibrary_is_canvas_impl(ptr, rust_vec_len, data_len),
+        220 => wire__crate__api__library__KansoLibrary_journal_week_start_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        197 => wire__crate__api__library__KansoLibrary_linking_impl(ptr, rust_vec_len, data_len),
-        199 => wire__crate__api__library__KansoLibrary_locks_impl(ptr, rust_vec_len, data_len),
-        200 => wire__crate__api__library__KansoLibrary_metrics_impl(ptr, rust_vec_len, data_len),
-        207 => wire__crate__api__library__KansoLibrary_notebook_colors_impl(
+        221 => wire__crate__api__library__KansoLibrary_linking_impl(ptr, rust_vec_len, data_len),
+        223 => wire__crate__api__library__KansoLibrary_locks_impl(ptr, rust_vec_len, data_len),
+        224 => wire__crate__api__library__KansoLibrary_metrics_impl(ptr, rust_vec_len, data_len),
+        231 => wire__crate__api__library__KansoLibrary_notebook_colors_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        208 => {
+        232 => {
             wire__crate__api__library__KansoLibrary_notebook_home_impl(ptr, rust_vec_len, data_len)
         }
-        209 => {
+        233 => {
             wire__crate__api__library__KansoLibrary_notebook_icons_impl(ptr, rust_vec_len, data_len)
         }
-        216 => {
+        240 => {
             wire__crate__api__library__KansoLibrary_parse_color_impl(ptr, rust_vec_len, data_len)
         }
-        217 => wire__crate__api__library__KansoLibrary_people_impl(ptr, rust_vec_len, data_len),
-        221 => wire__crate__api__library__KansoLibrary_recorder_impl(ptr, rust_vec_len, data_len),
-        228 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
-        247 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
-        248 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
-        249 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
-        250 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
-        255 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
-        260 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
-        263 => {
+        241 => wire__crate__api__library__KansoLibrary_people_impl(ptr, rust_vec_len, data_len),
+        245 => wire__crate__api__library__KansoLibrary_recorder_impl(ptr, rust_vec_len, data_len),
+        252 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
+        271 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
+        272 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
+        273 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
+        274 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
+        279 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
+        284 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
+        287 => {
             wire__crate__api__library__KansoLibrary_voice_capture_impl(ptr, rust_vec_len, data_len)
         }
-        267 => wire__crate__api__linking__KansoLinking_current_heading_impl(
+        291 => wire__crate__api__linking__KansoLinking_current_heading_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        269 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
-        359 => wire__crate__api__recording__KansoRecording_pause_impl(ptr, rust_vec_len, data_len),
-        360 => wire__crate__api__recording__KansoRecording_resume_impl(ptr, rust_vec_len, data_len),
-        361 => wire__crate__api__recording__KansoRecording_status_impl(ptr, rust_vec_len, data_len),
-        417 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
-        418 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
-        419 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
-        430 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
-        460 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
-        461 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
-        462 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
-        463 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
-        464 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
-        465 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
-        467 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
-        469 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
-        472 => {
+        293 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
+        383 => wire__crate__api__recording__KansoRecording_pause_impl(ptr, rust_vec_len, data_len),
+        384 => wire__crate__api__recording__KansoRecording_resume_impl(ptr, rust_vec_len, data_len),
+        385 => wire__crate__api__recording__KansoRecording_status_impl(ptr, rust_vec_len, data_len),
+        441 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
+        442 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
+        443 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
+        454 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
+        484 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
+        485 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
+        486 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
+        487 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
+        488 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
+        489 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
+        490 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
+        492 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
+        494 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
+        497 => {
             wire__crate__api__word_goal__word_goal_format_count_impl(ptr, rust_vec_len, data_len)
         }
-        473 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
-        474 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
-        475 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
-        476 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
-        477 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+        498 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
+        499 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
+        500 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
+        501 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
+        502 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -38874,6 +40817,21 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
 
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoAskConversation>> for KansoAskConversation {
     fn into_into_dart(self) -> FrbWrapper<KansoAskConversation> {
+        self.into()
+    }
+}
+
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<KansoCanvas> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
+            .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<KansoCanvas> {}
+
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoCanvas>> for KansoCanvas {
+    fn into_into_dart(self) -> FrbWrapper<KansoCanvas> {
         self.into()
     }
 }
@@ -40119,6 +42077,231 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::CalendarDay
     for crate::api::types::CalendarDay
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::CalendarDay> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasArrow> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.from.into_into_dart().into_dart(),
+            self.0.c1.into_into_dart().into_dart(),
+            self.0.c2.into_into_dart().into_dart(),
+            self.0.to.into_into_dart().into_dart(),
+            self.0.from_arrow.into_into_dart().into_dart(),
+            self.0.to_arrow.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.label.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasArrow>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasArrow>>
+    for crate::api::canvas_types::CanvasArrow
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasArrow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasBudget> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::canvas_types::CanvasBudget::Ok => 0.into_dart(),
+            crate::api::canvas_types::CanvasBudget::Warn => 1.into_dart(),
+            crate::api::canvas_types::CanvasBudget::Full => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasBudget>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasBudget>>
+    for crate::api::canvas_types::CanvasBudget
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasBudget> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasCard> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.kind.into_into_dart().into_dart(),
+            self.0.rect.into_into_dart().into_dart(),
+            self.0.text.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.note_id.into_into_dart().into_dart(),
+            self.0.missing.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasCard>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasCard>>
+    for crate::api::canvas_types::CanvasCard
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasCard> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasGroup> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.rect.into_into_dart().into_dart(),
+            self.0.label.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasGroup>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasGroup>>
+    for crate::api::canvas_types::CanvasGroup
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasGroup> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasPoint> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.x.into_into_dart().into_dart(),
+            self.0.y.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasPoint>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasPoint>>
+    for crate::api::canvas_types::CanvasPoint
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasPoint> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasRect> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.x.into_into_dart().into_dart(),
+            self.0.y.into_into_dart().into_dart(),
+            self.0.width.into_into_dart().into_dart(),
+            self.0.height.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasRect>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasRect>>
+    for crate::api::canvas_types::CanvasRect
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasRect> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasSaved> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.rev.into_into_dart().into_dart(),
+            self.0.bytes.into_into_dart().into_dart(),
+            self.0.merged.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasSaved>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasSaved>>
+    for crate::api::canvas_types::CanvasSaved
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasSaved> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasStroke> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.node_id.into_into_dart().into_dart(),
+            self.0.tool.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.opacity.into_into_dart().into_dart(),
+            self.0.width.into_into_dart().into_dart(),
+            self.0.bounds.into_into_dart().into_dart(),
+            self.0.outline.into_into_dart().into_dart(),
+            self.0.known.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasStroke>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasStroke>>
+    for crate::api::canvas_types::CanvasStroke
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasStroke> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::CanvasView> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.note_id.into_into_dart().into_dart(),
+            self.0.rev.into_into_dart().into_dart(),
+            self.0.title.into_into_dart().into_dart(),
+            self.0.strokes.into_into_dart().into_dart(),
+            self.0.cards.into_into_dart().into_dart(),
+            self.0.groups.into_into_dart().into_dart(),
+            self.0.arrows.into_into_dart().into_dart(),
+            self.0.bounds.into_into_dart().into_dart(),
+            self.0.bytes.into_into_dart().into_dart(),
+            self.0.budget.into_into_dart().into_dart(),
+            self.0.can_undo.into_into_dart().into_dart(),
+            self.0.can_redo.into_into_dart().into_dart(),
+            self.0.dirty.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::CanvasView>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::CanvasView>>
+    for crate::api::canvas_types::CanvasView
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::CanvasView> {
         self.into()
     }
 }
@@ -42339,6 +44522,28 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::ImportSumma
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::InkStyle> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.tool.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.width.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::InkStyle>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::InkStyle>>
+    for crate::api::canvas_types::InkStyle
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::InkStyle> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::InstalledIconThemeRow> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -42456,6 +44661,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::LibraryOver
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.0.all.into_into_dart().into_dart(),
+            self.0.canvases.into_into_dart().into_dart(),
             self.0.pinned.into_into_dart().into_dart(),
             self.0.recent.into_into_dart().into_dart(),
             self.0.trash.into_into_dart().into_dart(),
@@ -42556,19 +44762,20 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::ListPlace> 
             crate::api::types::ListPlace::All => [0.into_dart()].into_dart(),
             crate::api::types::ListPlace::Pinned => [1.into_dart()].into_dart(),
             crate::api::types::ListPlace::Recent => [2.into_dart()].into_dart(),
+            crate::api::types::ListPlace::Canvases => [3.into_dart()].into_dart(),
             crate::api::types::ListPlace::Notebook { id } => {
-                [3.into_dart(), id.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::types::ListPlace::Tag { id } => {
                 [4.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::types::ListPlace::Tag { id } => {
+                [5.into_dart(), id.into_into_dart().into_dart()].into_dart()
+            }
             crate::api::types::ListPlace::Status { status } => {
-                [5.into_dart(), status.into_into_dart().into_dart()].into_dart()
+                [6.into_dart(), status.into_into_dart().into_dart()].into_dart()
             }
             crate::api::types::ListPlace::TagPath { path } => {
-                [6.into_dart(), path.into_into_dart().into_dart()].into_dart()
+                [7.into_dart(), path.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::types::ListPlace::Trash => [7.into_dart()].into_dart(),
+            crate::api::types::ListPlace::Trash => [8.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -43512,6 +45719,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::NoteRow> {
             self.0.tasks_done.into_into_dart().into_dart(),
             self.0.tasks_total.into_into_dart().into_dart(),
             self.0.locked.into_into_dart().into_dart(),
+            self.0.canvas.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -44293,6 +46501,30 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PasskeyRow>
     for crate::api::types::PasskeyRow
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::PasskeyRow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::PenSample> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.x.into_into_dart().into_dart(),
+            self.0.y.into_into_dart().into_dart(),
+            self.0.pressure.into_into_dart().into_dart(),
+            self.0.azimuth.into_into_dart().into_dart(),
+            self.0.altitude.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::PenSample>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::PenSample>>
+    for crate::api::canvas_types::PenSample
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::PenSample> {
         self.into()
     }
 }
@@ -46627,6 +48859,27 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::StatusCount
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::canvas_types::StrokeKey> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.node_id.into_into_dart().into_dart(),
+            self.0.stroke_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::canvas_types::StrokeKey>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::canvas_types::StrokeKey>>
+    for crate::api::canvas_types::StrokeKey
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::canvas_types::StrokeKey> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::StyledRun> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -48035,6 +50288,13 @@ impl SseEncode for KansoAskConversation {
     }
 }
 
+impl SseEncode for KansoCanvas {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
+    }
+}
+
 impl SseEncode for KansoCards {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -48248,6 +50508,17 @@ impl SseEncode
 
 impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -49240,6 +51511,122 @@ impl SseEncode for crate::api::types::CalendarDay {
         <bool>::sse_encode(self.in_month, serializer);
         <bool>::sse_encode(self.has_note, serializer);
         <bool>::sse_encode(self.is_today, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasArrow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <crate::api::canvas_types::CanvasPoint>::sse_encode(self.from, serializer);
+        <crate::api::canvas_types::CanvasPoint>::sse_encode(self.c1, serializer);
+        <crate::api::canvas_types::CanvasPoint>::sse_encode(self.c2, serializer);
+        <crate::api::canvas_types::CanvasPoint>::sse_encode(self.to, serializer);
+        <bool>::sse_encode(self.from_arrow, serializer);
+        <bool>::sse_encode(self.to_arrow, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
+        <String>::sse_encode(self.label, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasBudget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::canvas_types::CanvasBudget::Ok => 0,
+                crate::api::canvas_types::CanvasBudget::Warn => 1,
+                crate::api::canvas_types::CanvasBudget::Full => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasCard {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <crate::api::canvas_types::CanvasRect>::sse_encode(self.rect, serializer);
+        <String>::sse_encode(self.text, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
+        <Option<String>>::sse_encode(self.note_id, serializer);
+        <bool>::sse_encode(self.missing, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasGroup {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <crate::api::canvas_types::CanvasRect>::sse_encode(self.rect, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasPoint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.x, serializer);
+        <f64>::sse_encode(self.y, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasRect {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.x, serializer);
+        <f64>::sse_encode(self.y, serializer);
+        <f64>::sse_encode(self.width, serializer);
+        <f64>::sse_encode(self.height, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasSaved {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.rev, serializer);
+        <u32>::sse_encode(self.bytes, serializer);
+        <bool>::sse_encode(self.merged, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasStroke {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.node_id, serializer);
+        <String>::sse_encode(self.tool, serializer);
+        <String>::sse_encode(self.color, serializer);
+        <f64>::sse_encode(self.opacity, serializer);
+        <f64>::sse_encode(self.width, serializer);
+        <crate::api::canvas_types::CanvasRect>::sse_encode(self.bounds, serializer);
+        <Vec<f64>>::sse_encode(self.outline, serializer);
+        <bool>::sse_encode(self.known, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::CanvasView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.note_id, serializer);
+        <String>::sse_encode(self.rev, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <Vec<crate::api::canvas_types::CanvasStroke>>::sse_encode(self.strokes, serializer);
+        <Vec<crate::api::canvas_types::CanvasCard>>::sse_encode(self.cards, serializer);
+        <Vec<crate::api::canvas_types::CanvasGroup>>::sse_encode(self.groups, serializer);
+        <Vec<crate::api::canvas_types::CanvasArrow>>::sse_encode(self.arrows, serializer);
+        <Option<crate::api::canvas_types::CanvasRect>>::sse_encode(self.bounds, serializer);
+        <u32>::sse_encode(self.bytes, serializer);
+        <crate::api::canvas_types::CanvasBudget>::sse_encode(self.budget, serializer);
+        <bool>::sse_encode(self.can_undo, serializer);
+        <bool>::sse_encode(self.can_redo, serializer);
+        <bool>::sse_encode(self.dirty, serializer);
     }
 }
 
@@ -50521,6 +52908,15 @@ impl SseEncode for crate::api::types::ImportSummary {
     }
 }
 
+impl SseEncode for crate::api::canvas_types::InkStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.tool, serializer);
+        <String>::sse_encode(self.color, serializer);
+        <f64>::sse_encode(self.width, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::InstalledIconThemeRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -50601,6 +52997,7 @@ impl SseEncode for crate::api::types::LibraryOverview {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.all, serializer);
+        <u32>::sse_encode(self.canvases, serializer);
         <u32>::sse_encode(self.pinned, serializer);
         <u32>::sse_encode(self.recent, serializer);
         <u32>::sse_encode(self.trash, serializer);
@@ -50805,6 +53202,56 @@ impl SseEncode for Vec<crate::api::types::CalendarDay> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::CalendarDay>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::canvas_types::CanvasArrow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::canvas_types::CanvasArrow>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::canvas_types::CanvasCard> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::canvas_types::CanvasCard>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::canvas_types::CanvasGroup> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::canvas_types::CanvasGroup>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::canvas_types::CanvasPoint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::canvas_types::CanvasPoint>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::canvas_types::CanvasStroke> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::canvas_types::CanvasStroke>::sse_encode(item, serializer);
         }
     }
 }
@@ -51399,6 +53846,16 @@ impl SseEncode for Vec<crate::api::types::PasskeyRow> {
     }
 }
 
+impl SseEncode for Vec<crate::api::canvas_types::PenSample> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::canvas_types::PenSample>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::people_types::PeoplePage> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -51432,24 +53889,27 @@ impl SseEncode for crate::api::types::ListPlace {
             crate::api::types::ListPlace::Recent => {
                 <i32>::sse_encode(2, serializer);
             }
-            crate::api::types::ListPlace::Notebook { id } => {
+            crate::api::types::ListPlace::Canvases => {
                 <i32>::sse_encode(3, serializer);
-                <String>::sse_encode(id, serializer);
             }
-            crate::api::types::ListPlace::Tag { id } => {
+            crate::api::types::ListPlace::Notebook { id } => {
                 <i32>::sse_encode(4, serializer);
                 <String>::sse_encode(id, serializer);
             }
-            crate::api::types::ListPlace::Status { status } => {
+            crate::api::types::ListPlace::Tag { id } => {
                 <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(id, serializer);
+            }
+            crate::api::types::ListPlace::Status { status } => {
+                <i32>::sse_encode(6, serializer);
                 <String>::sse_encode(status, serializer);
             }
             crate::api::types::ListPlace::TagPath { path } => {
-                <i32>::sse_encode(6, serializer);
+                <i32>::sse_encode(7, serializer);
                 <String>::sse_encode(path, serializer);
             }
             crate::api::types::ListPlace::Trash => {
-                <i32>::sse_encode(7, serializer);
+                <i32>::sse_encode(8, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -51564,6 +54024,16 @@ impl SseEncode for Vec<crate::api::types::PreviewSourcedBlock> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::PreviewSourcedBlock>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <f64>::sse_encode(item, serializer);
         }
     }
 }
@@ -51835,6 +54305,16 @@ impl SseEncode for Vec<crate::api::types::StatusCount> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::StatusCount>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::canvas_types::StrokeKey> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::canvas_types::StrokeKey>::sse_encode(item, serializer);
         }
     }
 }
@@ -52575,6 +55055,7 @@ impl SseEncode for crate::api::types::NoteRow {
         <u32>::sse_encode(self.tasks_done, serializer);
         <u32>::sse_encode(self.tasks_total, serializer);
         <bool>::sse_encode(self.locked, serializer);
+        <bool>::sse_encode(self.canvas, serializer);
     }
 }
 
@@ -52787,6 +55268,16 @@ impl SseEncode for Option<bool> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <bool>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::canvas_types::CanvasRect> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::canvas_types::CanvasRect>::sse_encode(value, serializer);
         }
     }
 }
@@ -53522,6 +56013,17 @@ impl SseEncode for crate::api::types::PasskeyRow {
         <i64>::sse_encode(self.added_ms, serializer);
         <Option<i64>>::sse_encode(self.last_used_ms, serializer);
         <bool>::sse_encode(self.can_unlock, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::PenSample {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.x, serializer);
+        <f64>::sse_encode(self.y, serializer);
+        <f64>::sse_encode(self.pressure, serializer);
+        <Option<f64>>::sse_encode(self.azimuth, serializer);
+        <Option<f64>>::sse_encode(self.altitude, serializer);
     }
 }
 
@@ -54270,6 +56772,19 @@ impl SseEncode for crate::api::types::Range16 {
     }
 }
 
+impl SseEncode
+    for (
+        crate::api::types::Saved,
+        crate::api::canvas_types::CanvasView,
+    )
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::types::Saved>::sse_encode(self.0, serializer);
+        <crate::api::canvas_types::CanvasView>::sse_encode(self.1, serializer);
+    }
+}
+
 impl SseEncode for (String, crate::api::types::ShareRole) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -54920,6 +57435,14 @@ impl SseEncode for crate::api::types::StatusCount {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.status, serializer);
         <u32>::sse_encode(self.count, serializer);
+    }
+}
+
+impl SseEncode for crate::api::canvas_types::StrokeKey {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.node_id, serializer);
+        <String>::sse_encode(self.stroke_id, serializer);
     }
 }
 
@@ -55684,6 +58207,7 @@ mod io {
     use crate::api::agent_tasks::*;
     use crate::api::ai::*;
     use crate::api::approvals::*;
+    use crate::api::canvas::*;
     use crate::api::cards::*;
     use crate::api::discovery::*;
     use crate::api::draft::*;
@@ -55810,6 +58334,20 @@ mod io {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAskConversation>>::decrement_strong_count(ptr as _);
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>::increment_strong_count(ptr as _);
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>::decrement_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]

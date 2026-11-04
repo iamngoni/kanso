@@ -12,7 +12,10 @@ class DraftCite {
   final int number;
   final String? heading;
 
-  const DraftCite({required this.number, this.heading});
+  const DraftCite({
+    required this.number,
+    this.heading,
+  });
 
   @override
   int get hashCode => number.hashCode ^ heading.hashCode;
@@ -30,20 +33,30 @@ class DraftCite {
 sealed class DraftEvent with _$DraftEvent {
   const DraftEvent._();
 
-  const factory DraftEvent.status({required String line}) = DraftEvent_Status;
-  const factory DraftEvent.text({required DraftView draft}) = DraftEvent_Text;
+  const factory DraftEvent.status({
+    required String line,
+  }) = DraftEvent_Status;
+  const factory DraftEvent.text({
+    required DraftView draft,
+  }) = DraftEvent_Text;
   const factory DraftEvent.done({
     required DraftView draft,
     required List<DraftSourceRef> sources,
   }) = DraftEvent_Done;
-  const factory DraftEvent.cutOff({required String message}) =
-      DraftEvent_CutOff;
-  const factory DraftEvent.failed({required String message}) =
-      DraftEvent_Failed;
+  const factory DraftEvent.cutOff({
+    required String message,
+  }) = DraftEvent_CutOff;
+  const factory DraftEvent.failed({
+    required String message,
+  }) = DraftEvent_Failed;
   const factory DraftEvent.stopped() = DraftEvent_Stopped;
 }
 
-enum DraftLength { short, medium, long }
+enum DraftLength {
+  short,
+  medium,
+  long,
+}
 
 class DraftPreview {
   final String title;
@@ -70,7 +83,13 @@ class DraftPreview {
           defaultBookId == other.defaultBookId;
 }
 
-enum DraftShape { report, essay, update, outline, custom }
+enum DraftShape {
+  report,
+  essay,
+  update,
+  outline,
+  custom,
+}
 
 class DraftSourceNote {
   final String id;
