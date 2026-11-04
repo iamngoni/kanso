@@ -14,6 +14,8 @@ pub mod ai;
 pub mod approvals;
 pub mod board;
 pub mod brief;
+pub mod canvas;
+pub mod canvas_types;
 pub mod cards;
 pub mod cards_types;
 pub mod diagnostics;

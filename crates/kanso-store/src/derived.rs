@@ -617,6 +617,20 @@ impl Store {
         })
     }
 
+    /// The IDs of the live canvases outside the trash: the `[[` picker draws
+    /// a canvas glyph beside them.
+    pub fn canvas_ids(&self) -> Result<HashSet<String>> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id FROM docs WHERE type = 'note' AND deleted = 0
+                 AND IFNULL(book_id, '') != 'trash'
+                 AND json_extract(json, '$.doctype') = 'canvas'",
+            )?;
+            let rows = stmt.query_map([], |row| row.get(0))?;
+            Ok(rows.collect::<rusqlite::Result<_>>()?)
+        })
+    }
+
     /// Headings of live notes outside the trash whose words contain
     /// `needle` (case-insensitive), in the most recently changed notes
     /// first, at most `limit`.

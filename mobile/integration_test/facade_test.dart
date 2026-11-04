@@ -20,6 +20,7 @@ import '../test/core/bridge/suites/ai_suite.dart';
 import '../test/core/bridge/suites/approvals_suite.dart';
 import '../test/core/bridge/suites/boards_suite.dart';
 import '../test/core/bridge/suites/brief_suite.dart';
+import '../test/core/bridge/suites/canvas_suite.dart';
 import '../test/core/bridge/suites/cards_suite.dart';
 import '../test/core/bridge/suites/diagnostics_suite.dart';
 import '../test/core/bridge/suites/discovery_suite.dart';
@@ -98,6 +99,7 @@ void main() {
   gallerySuite(openDeviceLibrary);
   editorSuite(openDeviceLibrary);
   boardsSuite(openDeviceLibrary);
+  canvasSuite(openDeviceLibrary);
   briefSuite(openDeviceLibrary);
   discoverySuite(openDeviceLibrary);
   journalSuite(openDeviceLibrary);

@@ -17,6 +17,9 @@
 //! [`sketch`] (inline sketches in a Markdown note).
 
 mod bounds;
+mod edit;
+#[cfg(test)]
+mod edit_tests;
 mod ink;
 mod merge;
 mod model;
@@ -31,6 +34,7 @@ use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 
 pub use bounds::Bounds;
+pub use edit::{Action, MIN_SAMPLE_DISTANCE, Refused, StrokeRef, in_polygon, thin, unique_id};
 pub use ink::{Eraser, Split, covers, split_stroke};
 pub use merge::{merge, merge_bodies};
 pub use model::{Canvas, Edge, INK, InkOcr, Node, Point, Sketch, Stroke, TOOLS};
@@ -100,13 +104,12 @@ impl Canvas {
 
     /// Checks what the editor relies on: every ID is there and unique (a
     /// tombstone holds its ID), live sizes are positive, every live arrow
-    /// joins two live cards, and every live stroke is well formed.
+    /// joins two cards (a deleted one hides it), and every live stroke is well formed.
     pub fn validate(&self) -> Result<(), String> {
         if self.nodes.len() > MAX_ITEMS || self.edges.len() > MAX_ITEMS {
             return Err("The canvas has too many items.".into());
         }
         let mut ids = HashSet::new();
-        let mut live = HashSet::new();
         let mut stroke_ids = HashSet::new();
         for node in &self.nodes {
             if node.id.is_empty() {
@@ -126,7 +129,6 @@ impl Canvas {
             if node.deleted {
                 continue;
             }
-            live.insert(node.id.as_str());
             if node.kind.is_empty() {
                 return Err(format!("Card “{}” has no type.", node.id));
             }
@@ -158,7 +160,9 @@ impl Canvas {
             if edge.deleted {
                 continue;
             }
-            if !live.contains(edge.from_node.as_str()) || !live.contains(edge.to_node.as_str()) {
+            // An end that is a deleted card is allowed: the arrow stays in the
+            // data, hidden, so the merge doesn't depend on the order of edits.
+            if !ids.contains(edge.from_node.as_str()) || !ids.contains(edge.to_node.as_str()) {
                 return Err(format!(
                     "Arrow “{}” points at a card that isn't there.",
                     edge.id
@@ -298,12 +302,7 @@ impl Canvas {
         }
         // Edges that named a now-renamed card can't be repaired without
         // guessing; those that named a card that never existed are dropped.
-        let ids: HashSet<String> = self
-            .nodes
-            .iter()
-            .filter(|n| !n.deleted)
-            .map(|n| n.id.clone())
-            .collect();
+        let ids: HashSet<String> = self.nodes.iter().map(|n| n.id.clone()).collect();
         self.edges
             .retain(|e| e.deleted || (ids.contains(&e.from_node) && ids.contains(&e.to_node)));
         let mut seen = HashSet::new();

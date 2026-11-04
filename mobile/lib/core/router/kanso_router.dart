@@ -16,6 +16,7 @@ import '../../ai_settings/views/pages/ai_settings_page.dart';
 import '../../ask/views/pages/ask_page.dart';
 import '../../backups/views/pages/backups_page.dart';
 import '../../board/views/pages/board_page.dart';
+import '../../canvas/views/pages/note_or_canvas_page.dart';
 import '../../capture/views/pages/daily_note_page.dart';
 import '../../capture/views/pages/new_note_page.dart';
 import '../../crash/views/pages/crash_reports_page.dart';
@@ -31,7 +32,6 @@ import '../../graph/views/pages/graph_page.dart';
 import '../../history/views/pages/history_page.dart';
 import '../../import/views/pages/import_page.dart';
 import '../../injection.dart';
-import '../../note/views/pages/note_page.dart';
 import '../../note/views/widgets/no_note_selected_pane.dart';
 import '../../note_list/views/pages/note_list_page.dart';
 import '../../notebook_home/views/pages/notebook_home_page.dart';
@@ -330,6 +330,10 @@ class KansoRouter {
             _placeRoute(KansoRoutes.notes, (_) => const ListPlace.all()),
             _placeRoute(KansoRoutes.pinned, (_) => const ListPlace.pinned()),
             _placeRoute(KansoRoutes.recent, (_) => const ListPlace.recent()),
+            _placeRoute(
+              KansoRoutes.canvases,
+              (_) => const ListPlace.canvases(),
+            ),
             _placeRoute(KansoRoutes.trash, (_) => const ListPlace.trash()),
             _placeRoute(
               '${KansoRoutes.notebooks}/:notebookId',
@@ -698,7 +702,7 @@ class KansoRouter {
         return layoutClass.value == LayoutClass.single
             ? kansoPage<void>(
                 key: state.pageKey,
-                child: NotePage(
+                child: NoteOrCanvasPage(
                   noteId: noteId,
                   bodyLine: line,
                   bodyLineEnd: lineEnd,
@@ -708,7 +712,7 @@ class KansoRouter {
               )
             : NoTransitionPage<void>(
                 key: state.pageKey,
-                child: NotePage(
+                child: NoteOrCanvasPage(
                   noteId: noteId,
                   inPane: true,
                   bodyLine: line,

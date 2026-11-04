@@ -82,6 +82,7 @@ pub struct _NoteRow {
     pub tasks_done: u32,
     pub tasks_total: u32,
     pub locked: bool,
+    pub canvas: bool,
 }
 
 #[frb(mirror(LockState))]
@@ -111,6 +112,7 @@ pub enum _ListPlace {
     All,
     Pinned,
     Recent,
+    Canvases,
     Notebook { id: String },
     Tag { id: String },
     Status { status: String },
@@ -150,6 +152,7 @@ pub struct _NoteList {
 #[frb(mirror(LibraryOverview))]
 pub struct _LibraryOverview {
     pub all: u32,
+    pub canvases: u32,
     pub pinned: u32,
     pub recent: u32,
     pub trash: u32,

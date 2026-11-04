@@ -640,6 +640,7 @@ impl Library {
             Filter::All => "All Notes".into(),
             Filter::Pinned => "Pinned".into(),
             Filter::Recent => "Recent".into(),
+            Filter::Canvases => "Canvases".into(),
             Filter::Book(id) => self.book(id).map_or("Notebook".into(), |b| b.name.clone()),
             Filter::Tag(id) => self
                 .tag(id)

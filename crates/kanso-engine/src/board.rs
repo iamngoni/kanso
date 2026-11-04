@@ -350,6 +350,7 @@ mod tests {
             tasks_done: 0,
             tasks_total: 0,
             locked: false,
+            canvas: false,
         }
     }
 

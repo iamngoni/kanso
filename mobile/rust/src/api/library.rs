@@ -21,6 +21,7 @@ use super::account::KansoAccount;
 use super::account_settings::KansoAccountSettings;
 use super::ai::KansoAi;
 use super::approvals::KansoApprovals;
+use super::canvas::KansoCanvas;
 use super::cards::KansoCards;
 use super::discovery::KansoDiscovery;
 use super::draft::KansoDrafting;
@@ -495,6 +496,41 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn voice_capture(&self) -> KansoVoiceCapture {
         KansoVoiceCapture::new(self.0.clone())
+    }
+
+    /// Opens canvas note `id` for drawing.
+    pub fn canvas(&self, id: String) -> Result<KansoCanvas, KansoError> {
+        self.0.canvas(&id).map(KansoCanvas::new)
+    }
+
+    /// Whether note `id` is a canvas: the note route opens the canvas view
+    /// for it.
+    #[frb(sync)]
+    pub fn is_canvas(&self, id: String) -> bool {
+        self.0.is_canvas(&id)
+    }
+
+    /// Makes an empty canvas note.
+    pub fn create_canvas(
+        &self,
+        notebook_id: Option<String>,
+        preferred_notebook_id: Option<String>,
+        title: String,
+    ) -> Result<Saved, KansoError> {
+        self.0
+            .create_canvas(notebook_id, preferred_notebook_id, title)
+    }
+
+    /// Makes a canvas note from an Excalidraw scene.
+    pub fn import_excalidraw(
+        &self,
+        source: String,
+        notebook_id: Option<String>,
+        preferred_notebook_id: Option<String>,
+        title: String,
+    ) -> Result<Saved, KansoError> {
+        self.0
+            .import_excalidraw(source, notebook_id, preferred_notebook_id, title)
     }
 
     #[frb(sync)]

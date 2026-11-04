@@ -4056,3 +4056,223 @@ fn a_due_task_is_ticked_from_overview_and_undone(cx: &mut TestAppContext) {
     let body = f.store.note(&id).unwrap().unwrap().body;
     assert!(body.contains("- [ ] Send the deck"), "{body}");
 }
+
+
+/// A canvas note in the fixture's notebook.
+fn make_canvas(f: &Fixture, title: &str) -> String {
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    f.store
+        .put(
+            DocType::Note,
+            json!({
+                "title": title,
+                "doctype": "canvas",
+                "bookId": book,
+                "body": kanso_core::canvas::to_body(&kanso_core::canvas::Canvas::default()),
+            }),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id
+}
+
+fn live_strokes(store: &Store, id: &str) -> usize {
+    let body = store.note(id).unwrap().unwrap().body;
+    kanso_core::canvas::parse(&body)
+        .map(|c| c.live_strokes().count())
+        .unwrap_or(0)
+}
+
+/// Drags the left button across the canvas surface in steps, then lets go.
+fn stroke_across(
+    f: &Fixture,
+    vcx: &mut gpui_kit::VisualTestContext,
+    from: (f32, f32),
+    to: (f32, f32),
+) {
+    use gpui_kit::{Modifiers, MouseButton, point, px};
+    let surface = vcx
+        .debug_bounds("canvas-surface")
+        .expect("the canvas shows");
+    let at = |t: f32| {
+        point(
+            surface.left() + px(from.0 + (to.0 - from.0) * t),
+            surface.top() + px(from.1 + (to.1 - from.1) * t),
+        )
+    };
+    vcx.simulate_mouse_down(at(0.), MouseButton::Left, Modifiers::none());
+    for step in 1..=8 {
+        vcx.simulate_mouse_move(at(step as f32 / 8.), MouseButton::Left, Modifiers::none());
+        f.draw(vcx);
+    }
+    vcx.simulate_mouse_up(at(1.), MouseButton::Left, Modifiers::none());
+    f.draw(vcx);
+}
+
+/// A canvas opens as a surface to draw on, not as text; a stroke drawn with
+/// the pointer is saved to the note at once, as compact JSON the text
+/// surfaces never see; and the stroke eraser takes it out again.
+// no-prop-test: drives one window with the pointer; `canvas_state` has the
+// properties.
+#[gpui_kit::test]
+fn a_canvas_is_drawn_on_and_saves_its_strokes(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let id = make_canvas(&f, "Board");
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    assert!(f.editor(&mut vcx, |e, _| e.is_canvas_shown()));
+    assert!(vcx.debug_bounds("canvas-surface").is_some());
+    assert_eq!(f.editor(&mut vcx, |e, cx| e.text_for_test(cx)), "");
+
+    stroke_across(&f, &mut vcx, (120., 140.), (360., 200.));
+    assert_eq!(live_strokes(&f.store, &id), 1, "the stroke was saved");
+    // The text editor holds nothing, and saved nothing over the canvas.
+    assert_eq!(f.editor(&mut vcx, |e, cx| e.text_for_test(cx)), "");
+    assert!(kanso_core::canvas::is_canvas(
+        &f.store.note(&id).unwrap().unwrap().body
+    ));
+
+    // Switch to the stroke eraser and cross the line.
+    let canvas = f.editor(&mut vcx, |e, _| e.canvas_view().clone());
+    canvas.update(&mut vcx, |view, cx| {
+        view.set_tool(crate::canvas_state::Tool::Eraser, cx)
+    });
+    stroke_across(&f, &mut vcx, (240., 100.), (240., 260.));
+    settle(&f, &mut vcx);
+    assert_eq!(live_strokes(&f.store, &id), 0, "the stroke was erased");
+
+    // Undo brings it back, and is saved too.
+    canvas.update(&mut vcx, |view, cx| view.undo(cx));
+    settle(&f, &mut vcx);
+    assert_eq!(live_strokes(&f.store, &id), 1);
+}
+
+/// A card dragged slowly at a high zoom follows the pointer (each step is a
+/// fraction of a canvas point, which rounding step by step used to drop),
+/// and is saved once, when it is let go; a lasso that only selects saves
+/// nothing.
+// no-prop-test: drives one window with the pointer.
+#[gpui_kit::test]
+fn a_card_follows_a_slow_drag_and_saves_once(cx: &mut TestAppContext) {
+    use gpui_kit::{Modifiers, MouseButton, point, px};
+    let f = setup(cx);
+    let id = make_canvas(&f, "Board");
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    let canvas = f.editor(&mut vcx, |e, _| e.canvas_view().clone());
+    let card = canvas.update(&mut vcx, |view, cx| {
+        let state = view.state_for_test().unwrap();
+        let card = state.add_text_card(0., 0., "Plan", 1);
+        state.view = crate::graph::Viewport {
+            center: [130., 60.],
+            zoom: 4.,
+        };
+        state.tool = crate::canvas_state::Tool::Lasso;
+        cx.notify();
+        card
+    });
+    settle(&f, &mut vcx);
+    let rev = f.store.note(&id).unwrap().unwrap().rev;
+    let surface = vcx.debug_bounds("canvas-surface").unwrap();
+    let middle = surface.center();
+    vcx.simulate_mouse_down(middle, MouseButton::Left, Modifiers::none());
+    for step in 1..=12 {
+        let at = point(middle.x + px(step as f32), middle.y);
+        vcx.simulate_mouse_move(at, MouseButton::Left, Modifiers::none());
+        f.draw(&mut vcx);
+    }
+    assert_eq!(
+        f.store.note(&id).unwrap().unwrap().rev,
+        rev,
+        "nothing is written mid-drag"
+    );
+    vcx.simulate_mouse_up(
+        point(middle.x + px(12.), middle.y),
+        MouseButton::Left,
+        Modifiers::none(),
+    );
+    settle(&f, &mut vcx);
+    let body = f.store.note(&id).unwrap().unwrap().body;
+    let saved = kanso_core::canvas::parse(&body).unwrap();
+    assert_eq!(
+        saved.node(&card).map(|n| n.x),
+        Some(3.),
+        "12 points / zoom 4"
+    );
+
+    // A lasso drawn round nothing (far from the card) selects nothing and
+    // writes nothing.
+    canvas.update(&mut vcx, |view, cx| {
+        view.state_for_test().unwrap().view.center = [5000., 5000.];
+        cx.notify();
+    });
+    settle(&f, &mut vcx);
+    let rev = f.store.note(&id).unwrap().unwrap().rev;
+    stroke_across(&f, &mut vcx, (10., 10.), (60., 40.));
+    settle(&f, &mut vcx);
+    assert_eq!(f.store.note(&id).unwrap().unwrap().rev, rev);
+}
+
+/// Canvases have their own list; All Notes leaves them out; the count of
+/// Canvases is the sidebar's.
+// no-prop-test: drives one window through filters.
+#[gpui_kit::test]
+fn canvases_are_listed_apart_from_all_notes(cx: &mut TestAppContext) {
+    use crate::library::Filter;
+    let f = setup(cx);
+    let id = make_canvas(&f, "Board");
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    let ids_for = |cx: &mut TestAppContext, filter: Filter| {
+        library.update(cx, |library, cx| library.set_filter(filter, cx));
+        cx.run_until_parked();
+        cx.read(|cx| {
+            library
+                .read(cx)
+                .notes
+                .iter()
+                .map(|n| (n.id.clone(), n.canvas))
+                .collect::<Vec<_>>()
+        })
+    };
+    assert_eq!(ids_for(cx, Filter::Canvases), [(id.clone(), true)]);
+    let all = ids_for(cx, Filter::All);
+    assert!(all.iter().all(|(_, canvas)| !canvas), "{all:?}");
+    assert_eq!(all.len(), 2);
+    assert_eq!(library.read_with(cx, |l, _| l.counts.canvases), 1);
+    assert_eq!(library.read_with(cx, |l, _| l.counts.all), 3);
+}
+
+/// A note dragged onto a canvas becomes a card with its title; a trashed
+/// note, or the canvas itself, does not.
+// no-prop-test: drives one window.
+#[gpui_kit::test]
+fn notes_dropped_on_a_canvas_become_cards(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let id = make_canvas(&f, "Board");
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": f.notes[1], "bookId": kanso_core::model::TRASH_BOOK_ID}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    let canvas = f.editor(&mut vcx, |e, _| e.canvas_view().clone());
+    let ids = vec![f.notes[0].clone(), f.notes[1].clone(), id.clone()];
+    canvas.update(&mut vcx, |view, cx| view.drop_notes(&ids, cx));
+    settle(&f, &mut vcx);
+    let saved = kanso_core::canvas::parse(&f.store.note(&id).unwrap().unwrap().body).unwrap();
+    let cards: Vec<_> = saved
+        .nodes
+        .iter()
+        .filter(|n| n.kind == "file")
+        .map(|n| (n.file.clone().unwrap(), n.title.clone().unwrap()))
+        .collect();
+    assert_eq!(cards, [(f.notes[0].clone(), "a".to_owned())]);
+}

@@ -8,6 +8,8 @@ import 'api/account_settings.dart';
 import 'api/agent_tasks.dart';
 import 'api/ai.dart';
 import 'api/approvals.dart';
+import 'api/canvas.dart';
+import 'api/canvas_types.dart';
 import 'api/cards.dart';
 import 'api/cards_types.dart';
 import 'api/diagnostics.dart';
@@ -84,6 +86,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoAskConversationPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversationPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoCanvasPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvasPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoCardsPtr => wire
@@ -211,6 +217,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAskConversation
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    dynamic raw,
+  );
+
+  @protected
+  KansoCanvas
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
     dynamic raw,
   );
 
@@ -379,6 +391,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAskConversation
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    dynamic raw,
+  );
+
+  @protected
+  KansoCanvas
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
     dynamic raw,
   );
 
@@ -553,6 +571,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAskConversation
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    dynamic raw,
+  );
+
+  @protected
+  KansoCanvas
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
     dynamic raw,
   );
 
@@ -895,6 +919,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BriefPrefs dco_decode_box_autoadd_brief_prefs(dynamic raw);
 
   @protected
+  CanvasRect dco_decode_box_autoadd_canvas_rect(dynamic raw);
+
+  @protected
   CardKey dco_decode_box_autoadd_card_key(dynamic raw);
 
   @protected
@@ -974,6 +1001,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ImportSummary dco_decode_box_autoadd_import_summary(dynamic raw);
+
+  @protected
+  InkStyle dco_decode_box_autoadd_ink_style(dynamic raw);
 
   @protected
   LinkTarget dco_decode_box_autoadd_link_target(dynamic raw);
@@ -1148,6 +1178,33 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CalendarDay dco_decode_calendar_day(dynamic raw);
+
+  @protected
+  CanvasArrow dco_decode_canvas_arrow(dynamic raw);
+
+  @protected
+  CanvasBudget dco_decode_canvas_budget(dynamic raw);
+
+  @protected
+  CanvasCard dco_decode_canvas_card(dynamic raw);
+
+  @protected
+  CanvasGroup dco_decode_canvas_group(dynamic raw);
+
+  @protected
+  CanvasPoint dco_decode_canvas_point(dynamic raw);
+
+  @protected
+  CanvasRect dco_decode_canvas_rect(dynamic raw);
+
+  @protected
+  CanvasSaved dco_decode_canvas_saved(dynamic raw);
+
+  @protected
+  CanvasStroke dco_decode_canvas_stroke(dynamic raw);
+
+  @protected
+  CanvasView dco_decode_canvas_view(dynamic raw);
 
   @protected
   CaptureOutcome dco_decode_capture_outcome(dynamic raw);
@@ -1429,6 +1486,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ImportSummary dco_decode_import_summary(dynamic raw);
 
   @protected
+  InkStyle dco_decode_ink_style(dynamic raw);
+
+  @protected
   InstalledIconThemeRow dco_decode_installed_icon_theme_row(dynamic raw);
 
   @protected
@@ -1499,6 +1559,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<CalendarDay> dco_decode_list_calendar_day(dynamic raw);
+
+  @protected
+  List<CanvasArrow> dco_decode_list_canvas_arrow(dynamic raw);
+
+  @protected
+  List<CanvasCard> dco_decode_list_canvas_card(dynamic raw);
+
+  @protected
+  List<CanvasGroup> dco_decode_list_canvas_group(dynamic raw);
+
+  @protected
+  List<CanvasPoint> dco_decode_list_canvas_point(dynamic raw);
+
+  @protected
+  List<CanvasStroke> dco_decode_list_canvas_stroke(dynamic raw);
 
   @protected
   List<CardPair> dco_decode_list_card_pair(dynamic raw);
@@ -1704,6 +1779,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> dco_decode_list_passkey_row(dynamic raw);
 
   @protected
+  List<PenSample> dco_decode_list_pen_sample(dynamic raw);
+
+  @protected
   List<PeoplePage> dco_decode_list_people_page(dynamic raw);
 
   @protected
@@ -1744,6 +1822,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<PreviewSourcedBlock> dco_decode_list_preview_sourced_block(dynamic raw);
+
+  @protected
+  Float64List dco_decode_list_prim_f_64_strict(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_32_loose(dynamic raw);
@@ -1833,6 +1914,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<StatusCount> dco_decode_list_status_count(dynamic raw);
+
+  @protected
+  List<StrokeKey> dco_decode_list_stroke_key(dynamic raw);
 
   @protected
   List<StyledRun> dco_decode_list_styled_run(dynamic raw);
@@ -2061,6 +2145,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  CanvasRect? dco_decode_opt_box_autoadd_canvas_rect(dynamic raw);
 
   @protected
   Completion? dco_decode_opt_box_autoadd_completion(dynamic raw);
@@ -2308,6 +2395,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PasskeyRow dco_decode_passkey_row(dynamic raw);
 
   @protected
+  PenSample dco_decode_pen_sample(dynamic raw);
+
+  @protected
   PeopleKind dco_decode_people_kind(dynamic raw);
 
   @protected
@@ -2429,6 +2519,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Range16 dco_decode_range_16(dynamic raw);
+
+  @protected
+  (Saved, CanvasView) dco_decode_record_saved_canvas_view(dynamic raw);
 
   @protected
   (String, ShareRole) dco_decode_record_string_share_role(dynamic raw);
@@ -2588,6 +2681,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   StatusCount dco_decode_status_count(dynamic raw);
+
+  @protected
+  StrokeKey dco_decode_stroke_key(dynamic raw);
 
   @protected
   StyledRun dco_decode_styled_run(dynamic raw);
@@ -2821,6 +2917,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoCanvas
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoCards
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCards(
     SseDeserializer deserializer,
@@ -2985,6 +3087,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAskConversation
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoCanvas
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
     SseDeserializer deserializer,
   );
 
@@ -3159,6 +3267,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoAskConversation
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoCanvas
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
     SseDeserializer deserializer,
   );
 
@@ -3525,6 +3639,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BriefPrefs sse_decode_box_autoadd_brief_prefs(SseDeserializer deserializer);
 
   @protected
+  CanvasRect sse_decode_box_autoadd_canvas_rect(SseDeserializer deserializer);
+
+  @protected
   CardKey sse_decode_box_autoadd_card_key(SseDeserializer deserializer);
 
   @protected
@@ -3626,6 +3743,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ImportSummary sse_decode_box_autoadd_import_summary(
     SseDeserializer deserializer,
   );
+
+  @protected
+  InkStyle sse_decode_box_autoadd_ink_style(SseDeserializer deserializer);
 
   @protected
   LinkTarget sse_decode_box_autoadd_link_target(SseDeserializer deserializer);
@@ -3840,6 +3960,33 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CalendarDay sse_decode_calendar_day(SseDeserializer deserializer);
+
+  @protected
+  CanvasArrow sse_decode_canvas_arrow(SseDeserializer deserializer);
+
+  @protected
+  CanvasBudget sse_decode_canvas_budget(SseDeserializer deserializer);
+
+  @protected
+  CanvasCard sse_decode_canvas_card(SseDeserializer deserializer);
+
+  @protected
+  CanvasGroup sse_decode_canvas_group(SseDeserializer deserializer);
+
+  @protected
+  CanvasPoint sse_decode_canvas_point(SseDeserializer deserializer);
+
+  @protected
+  CanvasRect sse_decode_canvas_rect(SseDeserializer deserializer);
+
+  @protected
+  CanvasSaved sse_decode_canvas_saved(SseDeserializer deserializer);
+
+  @protected
+  CanvasStroke sse_decode_canvas_stroke(SseDeserializer deserializer);
+
+  @protected
+  CanvasView sse_decode_canvas_view(SseDeserializer deserializer);
 
   @protected
   CaptureOutcome sse_decode_capture_outcome(SseDeserializer deserializer);
@@ -4123,6 +4270,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ImportSummary sse_decode_import_summary(SseDeserializer deserializer);
 
   @protected
+  InkStyle sse_decode_ink_style(SseDeserializer deserializer);
+
+  @protected
   InstalledIconThemeRow sse_decode_installed_icon_theme_row(
     SseDeserializer deserializer,
   );
@@ -4209,6 +4359,23 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<CalendarDay> sse_decode_list_calendar_day(SseDeserializer deserializer);
+
+  @protected
+  List<CanvasArrow> sse_decode_list_canvas_arrow(SseDeserializer deserializer);
+
+  @protected
+  List<CanvasCard> sse_decode_list_canvas_card(SseDeserializer deserializer);
+
+  @protected
+  List<CanvasGroup> sse_decode_list_canvas_group(SseDeserializer deserializer);
+
+  @protected
+  List<CanvasPoint> sse_decode_list_canvas_point(SseDeserializer deserializer);
+
+  @protected
+  List<CanvasStroke> sse_decode_list_canvas_stroke(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<CardPair> sse_decode_list_card_pair(SseDeserializer deserializer);
@@ -4482,6 +4649,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> sse_decode_list_passkey_row(SseDeserializer deserializer);
 
   @protected
+  List<PenSample> sse_decode_list_pen_sample(SseDeserializer deserializer);
+
+  @protected
   List<PeoplePage> sse_decode_list_people_page(SseDeserializer deserializer);
 
   @protected
@@ -4540,6 +4710,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PreviewSourcedBlock> sse_decode_list_preview_sourced_block(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Float64List sse_decode_list_prim_f_64_strict(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_32_loose(SseDeserializer deserializer);
@@ -4655,6 +4828,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<StatusCount> sse_decode_list_status_count(SseDeserializer deserializer);
+
+  @protected
+  List<StrokeKey> sse_decode_list_stroke_key(SseDeserializer deserializer);
 
   @protected
   List<StyledRun> sse_decode_list_styled_run(SseDeserializer deserializer);
@@ -4901,6 +5077,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  CanvasRect? sse_decode_opt_box_autoadd_canvas_rect(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Completion? sse_decode_opt_box_autoadd_completion(
@@ -5214,6 +5395,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PasskeyRow sse_decode_passkey_row(SseDeserializer deserializer);
 
   @protected
+  PenSample sse_decode_pen_sample(SseDeserializer deserializer);
+
+  @protected
   PeopleKind sse_decode_people_kind(SseDeserializer deserializer);
 
   @protected
@@ -5345,6 +5529,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Range16 sse_decode_range_16(SseDeserializer deserializer);
+
+  @protected
+  (Saved, CanvasView) sse_decode_record_saved_canvas_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   (String, ShareRole) sse_decode_record_string_share_role(
@@ -5508,6 +5697,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   StatusCount sse_decode_status_count(SseDeserializer deserializer);
+
+  @protected
+  StrokeKey sse_decode_stroke_key(SseDeserializer deserializer);
 
   @protected
   StyledRun sse_decode_styled_run(SseDeserializer deserializer);
@@ -5758,6 +5950,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+    KansoCanvas self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCards(
     KansoCards self,
     SseSerializer serializer,
@@ -5949,6 +6148,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     KansoAskConversation self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+    KansoCanvas self,
     SseSerializer serializer,
   );
 
@@ -6151,6 +6357,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation(
     KansoAskConversation self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+    KansoCanvas self,
     SseSerializer serializer,
   );
 
@@ -6602,6 +6815,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_canvas_rect(
+    CanvasRect self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_card_key(CardKey self, SseSerializer serializer);
 
   @protected
@@ -6742,6 +6961,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_import_summary(
     ImportSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_ink_style(
+    InkStyle self,
     SseSerializer serializer,
   );
 
@@ -7053,6 +7278,33 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_calendar_day(CalendarDay self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_arrow(CanvasArrow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_budget(CanvasBudget self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_card(CanvasCard self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_group(CanvasGroup self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_point(CanvasPoint self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_rect(CanvasRect self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_saved(CanvasSaved self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_stroke(CanvasStroke self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_view(CanvasView self, SseSerializer serializer);
 
   @protected
   void sse_encode_capture_outcome(
@@ -7391,6 +7643,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_import_summary(ImportSummary self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ink_style(InkStyle self, SseSerializer serializer);
+
+  @protected
   void sse_encode_installed_icon_theme_row(
     InstalledIconThemeRow self,
     SseSerializer serializer,
@@ -7507,6 +7762,36 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_calendar_day(
     List<CalendarDay> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_canvas_arrow(
+    List<CanvasArrow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_canvas_card(
+    List<CanvasCard> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_canvas_group(
+    List<CanvasGroup> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_canvas_point(
+    List<CanvasPoint> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_canvas_stroke(
+    List<CanvasStroke> self,
     SseSerializer serializer,
   );
 
@@ -7880,6 +8165,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_pen_sample(
+    List<PenSample> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_people_page(
     List<PeoplePage> self,
     SseSerializer serializer,
@@ -7957,6 +8248,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_preview_sourced_block(
     List<PreviewSourcedBlock> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_f_64_strict(
+    Float64List self,
     SseSerializer serializer,
   );
 
@@ -8113,6 +8410,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_status_count(
     List<StatusCount> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_stroke_key(
+    List<StrokeKey> self,
     SseSerializer serializer,
   );
 
@@ -8421,6 +8724,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_canvas_rect(
+    CanvasRect? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_completion(
@@ -8834,6 +9143,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_passkey_row(PasskeyRow self, SseSerializer serializer);
 
   @protected
+  void sse_encode_pen_sample(PenSample self, SseSerializer serializer);
+
+  @protected
   void sse_encode_people_kind(PeopleKind self, SseSerializer serializer);
 
   @protected
@@ -8997,6 +9309,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_range_16(Range16 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_record_saved_canvas_view(
+    (Saved, CanvasView) self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_record_string_share_role(
@@ -9195,6 +9513,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_status_count(StatusCount self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_stroke_key(StrokeKey self, SseSerializer serializer);
 
   @protected
   void sse_encode_styled_run(StyledRun self, SseSerializer serializer);
@@ -9660,6 +9981,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversation =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoAskConversationPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvasPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvasPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvasPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvas =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoCanvasPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

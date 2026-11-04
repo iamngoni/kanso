@@ -195,6 +195,7 @@ impl Library {
                 created_at: note.created_at,
                 tasks_done: 0,
                 tasks_total: 0,
+                canvas: false,
             });
         }
         let books = store.books()?;

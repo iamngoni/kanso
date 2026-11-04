@@ -41,6 +41,9 @@ use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::{DocType, Note, NoteStatus};
 use kanso_engine::editor_settings::FocusLive;
 use kanso_engine::saving::{AUTOSAVE_DELAY, same_content};
+
+/// How long a canvas waits, quiet, before it is saved: it is rewritten whole.
+const CANVAS_SAVE_DELAY: Duration = Duration::from_secs(2);
 use kanso_store::{Backlink, Change, Origin, Put, Store, StoreError};
 
 use crate::clock::Clock;
@@ -270,6 +273,14 @@ pub struct NoteEditor {
     pub readable_width: bool,
     /// Whether the body shows line numbers now; see [`EditorFont::face`].
     line_numbers: bool,
+    /// The canvas drawn in place of the text, when the open note is one
+    /// (`doctype: "canvas"`) and not being repaired as text.
+    canvas: Entity<crate::canvas_view::CanvasView>,
+    /// The canvas document as last drawn: what a save writes as the body.
+    /// `Some` exactly while the canvas shows.
+    canvas_body: Option<String>,
+    /// The person chose Edit as Text for this note: the raw JSON shows.
+    canvas_as_text: bool,
     autosave: Option<Task<()>>,
     /// The preview's interval, while typing goes on.
     preview_task: Option<Task<()>>,
@@ -486,6 +497,7 @@ impl NoteEditor {
             footer.set_goal(GoalSetting::Default, settings.word_goal, cx);
             footer
         });
+        let canvas = cx.new(|cx| crate::canvas_view::CanvasView::new(store.clone(), cx));
         let subscriptions = vec![
             cx.subscribe_in(
                 &resurface,
@@ -521,6 +533,13 @@ impl NoteEditor {
                         }
                         PageEvent::Notice(message) => cx.emit(EditorEvent::Notice(message.clone())),
                     }
+                },
+            ),
+            cx.subscribe_in(
+                &canvas,
+                window,
+                |this, _, event: &crate::canvas_view::CanvasEvent, window, cx| {
+                    this.on_canvas_event(event, window, cx)
                 },
             ),
             cx.subscribe(&footer, |this, _, event: &FooterEvent, cx| match event {
@@ -635,6 +654,9 @@ impl NoteEditor {
             allow_line_numbers,
             readable_width,
             line_numbers,
+            canvas: canvas.clone(),
+            canvas_body: None,
+            canvas_as_text: false,
             autosave: None,
             preview_task: None,
             preview_stale: false,
@@ -1157,9 +1179,29 @@ impl NoteEditor {
         {
             self.inline = None;
         }
-        let (title, body) = note.as_ref().map_or((String::new(), String::new()), |n| {
+        let (title, mut body) = note.as_ref().map_or((String::new(), String::new()), |n| {
             (n.title.clone(), n.body.clone())
         });
+        // A canvas is drawn, not typed: the text surfaces stay empty and the
+        // canvas view holds the document (Edit as Text brings the JSON up).
+        let same_canvas =
+            note.as_ref().map(|n| n.id.as_str()) == self.note.as_ref().map(|n| n.id.as_str());
+        if !same_canvas {
+            self.canvas_as_text = false;
+        }
+        let is_canvas = note.as_ref().is_some_and(|n| n.doctype == "canvas")
+            && !self.lock.is_closed()
+            && !self.canvas_as_text;
+        self.canvas_body = None;
+        if is_canvas && let Some(n) = &note {
+            let read_only = self.account_read_only || n.is_trashed();
+            self.canvas_body = Some(std::mem::take(&mut body));
+            let (id, canvas_body) = (n.id.clone(), n.body.clone());
+            self.canvas
+                .update(cx, |view, cx| view.open(&id, &canvas_body, read_only, cx));
+        } else {
+            self.canvas.update(cx, |view, cx| view.clear(cx));
+        }
         self.note = note;
         // Loading isn't typing: the text set here goes to no other editor.
         self.peer_echo = Some((title.clone(), body.clone()));
@@ -1364,7 +1406,10 @@ impl NoteEditor {
     fn current_text(&self, cx: &App) -> (String, String) {
         (
             self.title.read(cx).value().to_string(),
-            self.body.read(cx).value().to_string(),
+            match &self.canvas_body {
+                Some(canvas) => canvas.clone(),
+                None => self.body.read(cx).value().to_string(),
+            },
         )
     }
 
@@ -1374,7 +1419,10 @@ impl NoteEditor {
     pub fn has_unsaved_edits(&self, cx: &App) -> bool {
         self.note.as_ref().is_some_and(|note| {
             self.title.read(cx).value() != note.title.as_str()
-                || !pieces_eq(self.body.read(cx).text().chunks(), &note.body)
+                || match &self.canvas_body {
+                    Some(canvas) => *canvas != note.body,
+                    None => !pieces_eq(self.body.read(cx).text().chunks(), &note.body),
+                }
         })
     }
 
@@ -1870,7 +1918,10 @@ impl NoteEditor {
         }
         // Settings › Editor: `#tags` in the text become the note's tags.
         // A locked note's `#tags` stay in its text: tags show unlocked.
-        let inline = (self.settings.inline_tags && self.lock == LockView::Plain).then(|| {
+        let inline = (self.settings.inline_tags
+            && self.lock == LockView::Plain
+            && self.canvas_body.is_none())
+        .then(|| {
             let caret = typing.then(|| self.body.read(cx).cursor());
             (self.store.clone(), caret)
         });
@@ -4943,7 +4994,8 @@ impl Render for NoteEditor {
                     && !trashed
                     && !focus_mode
                     && !compact
-                    && !self.lock.is_closed(),
+                    && !self.lock.is_closed()
+                    && self.canvas_body.is_none(),
                 |el| el.child(v_flex().flex_none().child(self.render_format_bar(cx))),
             );
 
@@ -5042,6 +5094,7 @@ impl Render for NoteEditor {
             );
         let body = match mode {
             _ if self.lock.is_closed() => self.render_locked(cx),
+            _ if self.canvas_body.is_some() => self.canvas.clone().into_any_element(),
             ViewMode::Edit | ViewMode::Live => h_flex()
                 .size_full()
                 .child(source)
@@ -5166,7 +5219,7 @@ impl Render for NoteEditor {
             )
             .when(!compact && !trashed, |el| el.child(self.page_panel.clone()))
             // Redrawn only when the cursor or the counts change.
-            .when(!compact, |el| {
+            .when(!compact && self.canvas_body.is_none(), |el| {
                 el.child(
                     AnyView::from(self.footer.clone()).cached(
                         StyleRefinement::default()
@@ -5207,8 +5260,77 @@ impl Render for NoteEditor {
     }
 }
 
+impl NoteEditor {
+    /// What the canvas view reports: the document changed, the person wants
+    /// the raw JSON, a note card was opened, or there is something to say.
+    fn on_canvas_event(
+        &mut self,
+        event: &crate::canvas_view::CanvasEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::canvas_view::CanvasEvent;
+        match event {
+            CanvasEvent::Changed { body, stroke_ended } => {
+                if self.canvas_body.is_none() {
+                    return;
+                }
+                self.canvas_body = Some(body.clone());
+                if *stroke_ended {
+                    // A finished stroke saves now; the sync waits its own
+                    // twenty seconds after the last edit.
+                    self.autosave = None;
+                    self.save_as(false, cx);
+                } else {
+                    self.schedule_canvas_save(cx);
+                }
+                cx.notify();
+            }
+            CanvasEvent::EditAsText => {
+                self.flush(cx);
+                self.canvas_as_text = true;
+                let note = self.note.clone();
+                self.show(note, true, window, cx);
+                cx.notify();
+            }
+            CanvasEvent::OpenNote(id) => cx.emit(EditorEvent::OpenNote {
+                id: id.clone(),
+                new_tab: false,
+            }),
+            CanvasEvent::Notice(words) => cx.emit(EditorEvent::Notice(words.clone())),
+        }
+    }
+
+    /// Saves the canvas once it has been quiet for two seconds: it is
+    /// rewritten whole, so not at the text editor's pace.
+    fn schedule_canvas_save(&mut self, cx: &mut Context<Self>) {
+        if self.note.is_none() || self.incoming.is_some() {
+            return;
+        }
+        self.autosave = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(CANVAS_SAVE_DELAY).await;
+            this.update(cx, |this, cx| {
+                this.autosave = None;
+                this.save_as(false, cx);
+                cx.notify();
+            })
+            .ok();
+        }));
+    }
+}
+
 #[cfg(test)]
 impl NoteEditor {
+    /// Whether the open note is drawn as a canvas.
+    pub fn is_canvas_shown(&self) -> bool {
+        self.canvas_body.is_some()
+    }
+
+    /// The canvas view, to give the keyboard to.
+    pub fn canvas_view(&self) -> &Entity<crate::canvas_view::CanvasView> {
+        &self.canvas
+    }
+
     /// The source editor's state, to type into.
     pub fn body_state(&self) -> Entity<EditorState> {
         self.body.clone()
@@ -5279,6 +5401,11 @@ impl NoteEditor {
 
     pub fn body_for_test(&self, cx: &App) -> String {
         self.current_text(cx).1
+    }
+
+    /// What the text surface itself holds (a canvas keeps it empty).
+    pub fn text_for_test(&self, cx: &App) -> String {
+        self.body.read(cx).value().to_string()
     }
 
     /// How far the body is scrolled.

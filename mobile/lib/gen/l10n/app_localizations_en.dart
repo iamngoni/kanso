@@ -6375,6 +6375,153 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedbackStepFiled => 'Filed';
 
   @override
+  String get libraryCanvases => 'Canvases';
+
+  @override
+  String get emptyCanvasesTitle => 'No canvases yet';
+
+  @override
+  String get emptyCanvasesMessage =>
+      'Draw, write and pin notes on an endless page. Tap New to start one.';
+
+  @override
+  String get canvasNew => 'New canvas';
+
+  @override
+  String get canvasUntitled => 'Untitled canvas';
+
+  @override
+  String get canvasToolPen => 'Pen';
+
+  @override
+  String get canvasToolPencil => 'Pencil';
+
+  @override
+  String get canvasToolMarker => 'Marker';
+
+  @override
+  String get canvasToolHighlighter => 'Highlighter';
+
+  @override
+  String get canvasToolEraser => 'Eraser';
+
+  @override
+  String get canvasToolPartialEraser => 'Partial eraser';
+
+  @override
+  String get canvasToolLasso => 'Select';
+
+  @override
+  String get canvasToolText => 'Text card';
+
+  @override
+  String get canvasToolArrow => 'Arrow';
+
+  @override
+  String get canvasToolHand => 'Move canvas';
+
+  @override
+  String get canvasUndo => 'Undo';
+
+  @override
+  String get canvasRedo => 'Redo';
+
+  @override
+  String get canvasFit => 'Fit to content';
+
+  @override
+  String get canvasColor => 'Ink color';
+
+  @override
+  String get canvasWidth => 'Pen width';
+
+  @override
+  String get canvasFingerDraws => 'Finger draws';
+
+  @override
+  String get canvasFingerDrawsHelp =>
+      'Off, a finger only moves and zooms the canvas. It turns off by itself when a pen is used.';
+
+  @override
+  String get canvasMore => 'More';
+
+  @override
+  String get canvasSurface => 'Canvas';
+
+  @override
+  String get canvasBudgetWarnTitle => 'This canvas is getting large';
+
+  @override
+  String get canvasBudgetWarnMessage =>
+      'Select some ink and move it to a new canvas before this one is full.';
+
+  @override
+  String get canvasBudgetFullTitle => 'This canvas is full';
+
+  @override
+  String get canvasBudgetFullMessage =>
+      'New ink is refused until you move some to a new canvas.';
+
+  @override
+  String get canvasMoveToNew => 'Move to a new canvas';
+
+  @override
+  String get canvasMovedTitle => 'Moved ink';
+
+  @override
+  String get canvasSelectionDelete => 'Delete selection';
+
+  @override
+  String get canvasSelectionClear => 'Clear selection';
+
+  @override
+  String get canvasCardTitle => 'Text card';
+
+  @override
+  String get canvasCardHint => 'Write on the card';
+
+  @override
+  String get canvasCardSave => 'Done';
+
+  @override
+  String get canvasCardDelete => 'Delete card';
+
+  @override
+  String get canvasCardOpenNote => 'Open note';
+
+  @override
+  String get canvasCardMissing => 'This note is gone.';
+
+  @override
+  String get canvasNotSaved =>
+      'Couldn\'t save. Your drawing is kept here and will be saved again.';
+
+  @override
+  String get canvasFailed => 'Couldn\'t open this canvas.';
+
+  @override
+  String get canvasLockedTitle => 'This canvas is locked';
+
+  @override
+  String get canvasLockedMessage =>
+      'Unlock it from the notes list to draw on it.';
+
+  @override
+  String get canvasExportSvg => 'Export as image';
+
+  @override
+  String get canvasExportExcalidraw => 'Export to Excalidraw';
+
+  @override
+  String get canvasExported => 'Copied to the clipboard.';
+
+  @override
+  String get canvasExportFailed => 'Couldn\'t export this canvas.';
+
+  @override
+  String get canvasBack => 'Back';
+
+  @override
   String get overviewTitle => 'Overview';
 
   @override

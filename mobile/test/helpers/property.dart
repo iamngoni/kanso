@@ -351,6 +351,7 @@ extension KansoListAny on Any {
       intInRange(1770000000000, 1790000000000),
       intInRange(1770000000000, 1790000000000),
       (bool pinned, int created, int updated) => NoteRow(
+        canvas: false,
         id: '',
         rev: '',
         title: '',
@@ -371,6 +372,7 @@ extension KansoListAny on Any {
           <NoteRow>[
             for (var i = 0; i < rows.length; i++)
               NoteRow(
+                canvas: false,
                 id: 'n$i',
                 rev: '',
                 title: 'Note $i',

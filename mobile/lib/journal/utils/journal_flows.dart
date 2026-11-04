@@ -5,6 +5,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../canvas/utils/new_canvas.dart';
 import '../../templates/views/widgets/template_picker_sheet.dart';
 import '../models/data/new_choice.dart';
 import '../state/journal/journal_bloc.dart';
@@ -57,5 +58,7 @@ Future<void> showNewMenu(BuildContext context, {String? notebookId}) async {
       await showTemplatePicker(context, notebookId: notebookId);
     case NewChoice.newTemplate:
       bloc.add(const JournalEvent.newTemplateRequested());
+    case NewChoice.canvas:
+      await newCanvas(context, notebookId: notebookId);
   }
 }

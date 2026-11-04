@@ -1010,7 +1010,7 @@ impl Palette {
                 Filter::All,
                 "All Notes".into(),
                 NotebookIcon::Slot(Slot::AllNotes),
-                counts.all,
+                counts.all.saturating_sub(counts.canvases),
                 &["everything", "library"],
             ),
             place(
@@ -1026,6 +1026,13 @@ impl Palette {
                 NotebookIcon::Slot(Slot::Recent),
                 library.recent,
                 &["latest", "edited", "week"],
+            ),
+            place(
+                Filter::Canvases,
+                "Canvases".into(),
+                NotebookIcon::Choice(IconName::PenTool),
+                counts.canvases,
+                &["draw", "drawing", "ink", "whiteboard", "sketch", "board"],
             ),
             place(
                 Filter::Tasks,
@@ -1669,6 +1676,7 @@ impl Palette {
                     match filter {
                         Filter::All => "Shows every note outside the trash.".to_owned(),
                         Filter::Pinned => "Shows the pinned notes.".to_owned(),
+                        Filter::Canvases => "Shows the canvases: notes you draw and arrange cards on.".to_owned(),
                         Filter::Recent => format!(
                             "Shows the notes edited in the last {RECENT_DAYS} days, newest first."
                         ),
@@ -2513,6 +2521,7 @@ mod tests {
             tasks_done: 0,
             tasks_total: 0,
             locked: false,
+            canvas: false,
         }
     }
 
