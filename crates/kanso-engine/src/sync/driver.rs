@@ -46,10 +46,13 @@ pub struct DriverSeams {
     /// Run on the sync thread after each successful library sync and on
     /// each timer tick (shared notes in `kanso serve`: the collab engine's
     /// `sync_all`). kanso-engine can't depend on kanso-collab, hence a hook.
-    /// An `Err` is reported as [`DriverEvent::Problem`] with
-    /// [`SyncProblem::Other`], then [`DriverEvent::HookFailed`] with its
-    /// text.
+    /// An `Err` is reported as [`DriverEvent::HookFailed`] with its text:
+    /// the library's own sync went as its events say.
     pub after_sync: Option<Arc<dyn Fn() -> Result<(), String> + Send + Sync>>,
+    /// Held for the whole of each library sync: a driver that replaces
+    /// another of the same library shares it, so the new one's sync waits
+    /// for the old one's cancelled sync to end and two never run at once.
+    pub exclusive: Option<Arc<std::sync::Mutex<()>>>,
 }
 
 /// How a driver starts. [`Driver::start`] takes the default: automatic,
@@ -65,6 +68,10 @@ pub struct DriverStart {
     pub hold: Option<Hold>,
     /// Whether an account task runs at start ([`Driver::set_busy`]).
     pub busy: bool,
+    /// Leave an unsaved recovery key alone when the session ends: the
+    /// owner judges it (the app, whose screen may be showing it). Only the
+    /// ended session's item is forgotten.
+    pub keep_recovery_key: bool,
 }
 
 impl Default for DriverStart {
@@ -73,6 +80,7 @@ impl Default for DriverStart {
             automatic: true,
             hold: None,
             busy: false,
+            keep_recovery_key: false,
         }
     }
 }
@@ -228,7 +236,13 @@ impl Driver {
         let session = seams.session.clone();
         let secrets = seams.secrets.clone();
         let library_id = seams.library_id.clone();
+        let exclusive = seams.exclusive.clone();
         let runner: Runner = Arc::new(move |cancel| {
+            // A poisoned lock only means another sync panicked: the
+            // library itself is in a committed state.
+            let _slot = exclusive
+                .as_ref()
+                .map(|slot| slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner()));
             run_once(
                 &store,
                 backend.as_ref(),
@@ -272,6 +286,7 @@ impl Driver {
             finished: finished.clone(),
             busy: busy.clone(),
             automatic: start.automatic,
+            keep_recovery_key: start.keep_recovery_key,
             scheduler: scheduler.clone(),
             worker: None,
             start_pending: None,
@@ -410,6 +425,8 @@ struct Control {
     busy: Arc<AtomicBool>,
     /// [`DriverStart::automatic`].
     automatic: bool,
+    /// [`DriverStart::keep_recovery_key`].
+    keep_recovery_key: bool,
     scheduler: Arc<Mutex<Scheduler>>,
     worker: Option<Worker>,
     /// A library sync the scheduler started while a hook-only worker ran:
@@ -624,7 +641,6 @@ impl Control {
 
     fn hook_events(&mut self, hook: Option<Result<(), String>>) {
         if let Some(Err(text)) = hook {
-            (self.on)(DriverEvent::Problem(SyncProblem::Other));
             (self.on)(DriverEvent::HookFailed(text));
         }
     }
@@ -642,7 +658,7 @@ impl Control {
             &self.seams.library_id,
             reason,
             Some(&self.seams.session),
-            self.busy.load(Ordering::SeqCst),
+            self.keep_recovery_key || self.busy.load(Ordering::SeqCst),
         );
         self.finished.store(true, Ordering::SeqCst);
         (self.on)(DriverEvent::SignedOut(reason));
@@ -750,6 +766,7 @@ mod tests {
             after_edit,
             now_ms: Arc::new(|| 1_234),
             after_sync: None,
+            exclusive: None,
         }
     }
 
@@ -924,7 +941,27 @@ mod tests {
     }
 
     #[test]
-    fn a_failing_hook_is_a_problem_with_its_text() {
+    fn a_sync_waits_while_another_driver_of_the_library_holds_the_slot() {
+        let lib = lib();
+        let (on, events) = listen();
+        let slot = Arc::new(std::sync::Mutex::new(()));
+        let mut seams = seams(&lib, Duration::from_secs(600), AFTER);
+        seams.exclusive = Some(slot.clone());
+        // The old driver's sync is still running.
+        let held = slot.lock().unwrap();
+        let driver = Driver::start(seams, on).unwrap();
+        wait_for(&events, |e| matches!(e, DriverEvent::SyncStarted));
+        assert!(
+            events.recv_timeout(Duration::from_millis(300)).is_err(),
+            "no sync ran beside the other"
+        );
+        drop(held);
+        wait_for(&events, |e| matches!(e, DriverEvent::Synced(_)));
+        driver.stop();
+    }
+
+    #[test]
+    fn a_failing_hook_reports_its_text_and_not_a_sync_problem() {
         let lib = lib();
         let (on, events) = listen();
         let mut seams = seams(&lib, Duration::from_secs(600), AFTER);
@@ -935,10 +972,7 @@ mod tests {
         assert!(matches!(seen[2], DriverEvent::Synced(_)), "{seen:?}");
         assert_eq!(
             seen[3..],
-            [
-                DriverEvent::Problem(SyncProblem::Other),
-                DriverEvent::HookFailed("shared notes: offline".into())
-            ]
+            [DriverEvent::HookFailed("shared notes: offline".into())]
         );
         driver.stop();
     }

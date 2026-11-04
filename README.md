@@ -466,10 +466,14 @@ your notes. Sign the server's library in to your account once, with the service 
 seconds after any API or MCP write.
 
 ```bash
-sudo systemctl stop kanso
+sudo useradd --system --home-dir /var/lib/kanso --shell /usr/sbin/nologin kanso
+sudo install -d -o kanso -g kanso -m 700 /var/lib/kanso
+sudo cp assets/linux/kanso.service /etc/systemd/system/ && sudo systemctl daemon-reload
 sudo -u kanso KANSO_DATA_DIR=/var/lib/kanso kanso account sign-in --username ngoni
-sudo systemctl start kanso
+sudo systemctl enable --now kanso
 ```
+
+Sign in again later with the service stopped (`sudo systemctl stop kanso` first).
 
 Sign in with your password (typed, or on the first line of standard input with
 `--password-stdin`), or with `--provider github`, approved from a device that's already signed in

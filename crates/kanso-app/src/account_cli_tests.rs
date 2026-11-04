@@ -3,6 +3,7 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use kanso_core::DocType;
 use kanso_store::{Origin, Put, Store};
@@ -112,6 +113,7 @@ impl Lab {
             },
             now_ms: Box::new(|| 1_000_000),
             pause: Box::new(|_| {}),
+            interrupt: Box::new(|| Arc::new(AtomicBool::new(false))),
         }
     }
 
@@ -190,6 +192,28 @@ fn a_fresh_library_signs_in_with_the_password_on_stdin() {
         "{}",
         refused.0
     );
+
+    // A session that can't be read is never taken for none.
+    lab.secrets.fail_reads(true);
+    let mut unreadable = Script::new(false, &[PASSWORD]);
+    let refused = lab
+        .run(
+            &[
+                "sign-in",
+                "--username",
+                "alice",
+                "--password-stdin",
+                "--secrets",
+                "system",
+            ],
+            &mut unreadable,
+        )
+        .unwrap_err();
+    assert!(refused.0.contains("reading the session"), "{}", refused.0);
+    let mut status = Script::new(false, &[]);
+    assert!(lab.run(&["status"], &mut status).is_err());
+    lab.secrets.fail_reads(false);
+    assert_eq!(lab.config().sync.secret_store, SecretStoreKind::File);
 
     // Status, devices, revoke, sign-out.
     let mut status = Script::new(false, &[]);
@@ -492,6 +516,17 @@ proptest! {
 /// compare: the whole headless sign-in against `MemoryServer`.
 #[test]
 fn github_sign_in_is_approved_by_another_device() {
+    github_sign_in(false);
+}
+
+/// Ctrl-C while waiting for approval cancels the request and signs the
+/// half-made session out: nothing is left behind.
+#[test]
+fn github_sign_in_interrupted_while_waiting_keeps_nothing() {
+    github_sign_in(true);
+}
+
+fn github_sign_in(interrupt: bool) {
     use kanso_engine::account::approval::{ApproverKey, FrontStep, front_step};
     use kanso_engine::account::provider::ProviderSignup;
     let server = Arc::new(MemoryServer::new());
@@ -570,6 +605,11 @@ fn github_sign_in_is_approved_by_another_device() {
         secrets: Arc::new(MemorySecrets::new()),
     };
     let mut world = lab.world();
+    let interrupted = Arc::new(AtomicBool::new(false));
+    {
+        let interrupted = interrupted.clone();
+        world.interrupt = Box::new(move || interrupted.clone());
+    }
     let key: Arc<std::sync::Mutex<Option<ApproverKey>>> = Arc::default();
     let approver_code: Arc<std::sync::Mutex<Option<String>>> = Arc::default();
     {
@@ -579,7 +619,12 @@ fn github_sign_in_is_approved_by_another_device() {
             key.clone(),
             approver_code.clone(),
         );
+        let interrupted = interrupted.clone();
         world.pause = Box::new(move |_| {
+            if interrupt {
+                interrupted.store(true, Ordering::SeqCst);
+                return;
+            }
             let pending = kanso_sync::pending_approvals(server.as_ref(), &alice).unwrap();
             let Some(request) = pending.first() else {
                 return;
@@ -612,7 +657,20 @@ fn github_sign_in_is_approved_by_another_device() {
         .iter()
         .map(|a| a.to_string())
         .collect();
-    run(&world, parse(&args).unwrap(), &mut console).unwrap();
+    let ran = run(&world, parse(&args).unwrap(), &mut console);
+    if interrupt {
+        let refused = ran.unwrap_err();
+        assert!(refused.0.contains("cancelled"), "{}", refused.0);
+        assert!(lab.secrets.items().is_empty(), "{:?}", lab.secrets.items());
+        assert!(lab.config().sync.account.is_none());
+        assert!(
+            kanso_sync::pending_approvals(server.as_ref(), &alice)
+                .unwrap()
+                .is_empty()
+        );
+        return;
+    }
+    ran.unwrap();
     let said = console.transcript();
     assert!(said.contains("enter WXYZ-9876"), "{said}");
     assert!(said.contains("doesn't have your notes' key yet"), "{said}");

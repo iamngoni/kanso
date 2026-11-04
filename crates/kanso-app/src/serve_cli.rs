@@ -43,16 +43,24 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     let config = crate::load_config(&data_dir)?;
     let server = crate::services::server_config(&config.server).map_err(anyhow::Error::msg)?;
     let store = Arc::new(Store::open(crate::paths::db_path(&data_dir))?);
-    // A daily snapshot of the database, as the app takes.
+    // A daily snapshot of the database, as the app takes, checked every
+    // hour: a server runs for months.
     let backup_store = store.clone();
     let backup_folder = data_dir.clone();
-    std::thread::spawn(move || {
-        if let Err(err) =
-            kanso_engine::backup::run_daily(&backup_store, &backup_folder, kanso_core::now_ms())
-        {
-            eprintln!("kanso: backup failed: {err}");
-        }
-    });
+    std::thread::Builder::new()
+        .name("kanso-backup".into())
+        .spawn(move || {
+            loop {
+                if let Err(err) = kanso_engine::backup::run_daily(
+                    &backup_store,
+                    &backup_folder,
+                    kanso_core::now_ms(),
+                ) {
+                    eprintln!("kanso: backup failed: {err}");
+                }
+                std::thread::sleep(BACKUP_CHECK);
+            }
+        })?;
     let say: Say = Arc::new(|line| eprintln!("{line}"));
     let handle = kanso_server::spawn(store.clone(), server);
     match handle.bind_result() {
@@ -99,6 +107,9 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// How often `serve` checks whether the daily backup is due.
+const BACKUP_CHECK: Duration = Duration::from_secs(60 * 60);
+
 /// The warning for an API other computers can reach, or `None` on
 /// loopback. Pure.
 pub fn exposed_warning(bind_address: &str) -> Option<&'static str> {
@@ -117,6 +128,8 @@ pub fn exposed_warning(bind_address: &str) -> Option<&'static str> {
 fn wait_for_stop() {
     let stop = Arc::new(AtomicBool::new(false));
     for signal in [signal_hook::consts::SIGINT, signal_hook::consts::SIGTERM] {
+        // A second signal while stopping ends the process at once.
+        signal_hook::flag::register_conditional_shutdown(signal, 1, stop.clone()).ok();
         if let Err(err) = signal_hook::flag::register(signal, stop.clone()) {
             eprintln!("kanso serve: can't catch signal {signal}: {err}");
         }
@@ -176,7 +189,13 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
         .account
         .as_ref()
         .map(|a| (a.origin.as_str(), a.id.as_str()));
-    let restored = flow.restore(account)?;
+    let Some(restored) = flow.restore(account) else {
+        say(
+            "kanso serve: couldn't read this library's device identity; running signed out."
+                .to_owned(),
+        );
+        return None;
+    };
     if restored.kept.is_some() {
         say("kanso serve: an unsaved recovery key is kept for this library; open this library in Kanso to see it.".to_owned());
     }
@@ -225,6 +244,7 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
         after_edit: kanso_engine::sync::AFTER_EDIT,
         now_ms: Arc::new(kanso_core::now_ms),
         after_sync,
+        exclusive: None,
     };
     let config_path = crate::paths::config_path(data_dir);
     let mut last_problem = None;

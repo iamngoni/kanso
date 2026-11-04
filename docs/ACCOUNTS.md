@@ -645,9 +645,11 @@ The server stores and returns it opaquely. A device that has no name yet (just s
 - **Creating it.** The first account action on a library creates, in its `meta`:
   - `sync.v2.library_id`: `l_` + 32 lowercase hex characters from `getrandom`; it names the Keychain items.
   - `sync.v2.device_secret`: 32 random bytes as hex.
-  - `sync.v2.hardware`: `hex(SHA-256("kanso-hw" || IOPlatformUUID))[0..32]`. The UUID comes from
-    `ioreg -rd1 -c IOPlatformExpertDevice`. If `ioreg` gives no UUID, the value is empty and the check below
-    is skipped.
+  - `sync.v2.hardware`: `hex(SHA-256("kanso-hw" || IOPlatformUUID))[0..32]`. On a Mac the UUID comes
+    from `ioreg -rd1 -c IOPlatformExpertDevice`; on Linux it is the machine ID (`/etc/machine-id`, else
+    `/var/lib/dbus/machine-id`); Windows has none. With no UUID the value is empty and the check below
+    is skipped. A library that stored an empty value records the hash the first time one is read, and
+    keeps its identity.
 - **The device ID for an account** is `d_ + hex(HMAC-SHA256(device_secret, account_id)[0..16])`, so the server can't link one Mac's sessions across accounts.
 - **The device proof for an account** is `HKDF(ikm device_secret, info "kanso/v1/device-proof" ||
   lp(origin) || lp(account_id))`, 32 bytes, sent as 43 base64url characters as `proof` in every

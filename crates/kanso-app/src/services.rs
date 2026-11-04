@@ -154,6 +154,8 @@ impl Drop for SyncDriver {
 
 #[derive(Default)]
 pub struct Services {
+    /// Held through each library sync, by whichever driver runs it.
+    pub sync_slot: Arc<std::sync::Mutex<()>>,
     pub api: ApiState,
     pub sync: SyncState,
     /// Signed out, in, or ended; never `Busy`, which [`Self::account_state`]
@@ -361,13 +363,16 @@ impl Services {
     /// own thread; `None` when none runs. No sync starts while the task
     /// runs ([`Self::task_changed`]).
     pub fn stop_sync(&mut self) -> Option<StoppedSync> {
-        if !self.sync_running {
-            return None;
-        }
         let driver = self.driver.as_ref()?.get();
         driver.set_busy(true);
+        // Ask the driver whatever the status says: a sync it started on a
+        // timer or after an edit may not have been announced here yet.
+        let stopped = driver.stop_sync();
+        if stopped.is_none() && !self.sync_running {
+            return None;
+        }
         self.sync_running = false;
-        Some(StoppedSync(driver.stop_sync()))
+        Some(StoppedSync(stopped))
     }
 
     /// Tells the driver whether an account task runs: while one does,
@@ -628,6 +633,9 @@ fn start_driver(cx: &mut App) -> bool {
         automatic: settings.enabled,
         hold,
         busy: services.task.is_some(),
+        // `end_session` judges the unsaved recovery key, and drops it from
+        // the screen when it goes.
+        keep_recovery_key: true,
     };
     let seams = DriverSeams {
         store,
@@ -644,6 +652,9 @@ fn start_driver(cx: &mut App) -> bool {
         after_edit,
         now_ms: Arc::new(kanso_core::now_ms),
         after_sync: None,
+        // Shared by every driver of this library: a replaced driver's
+        // cancelled sync ends before the new one's starts.
+        exclusive: Some(services.sync_slot.clone()),
     };
     let generation = DRIVERS.fetch_add(1, Ordering::SeqCst);
     let live = Arc::new(AtomicBool::new(true));

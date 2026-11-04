@@ -309,6 +309,28 @@ pub struct World {
     pub now_ms: Box<dyn Fn() -> i64>,
     /// How the approval wait pauses between polls.
     pub pause: Box<dyn Fn(std::time::Duration) + Send + Sync>,
+    /// A flag Ctrl-C (or SIGTERM) sets while a GitHub sign-in waits, so
+    /// the wait ends by cancelling its request and signing the half-made
+    /// session out. Asked for only then: a password prompt keeps Ctrl-C's
+    /// usual meaning.
+    pub interrupt: Box<dyn Fn() -> Arc<AtomicBool>>,
+}
+
+/// Ctrl-C and SIGTERM set the flag instead of ending the process; a second
+/// Ctrl-C ends it.
+#[cfg(unix)]
+fn interrupt_flag() -> Arc<AtomicBool> {
+    let flag = Arc::new(AtomicBool::new(false));
+    for signal in [signal_hook::consts::SIGINT, signal_hook::consts::SIGTERM] {
+        signal_hook::flag::register_conditional_shutdown(signal, 1, flag.clone()).ok();
+        signal_hook::flag::register(signal, flag.clone()).ok();
+    }
+    flag
+}
+
+#[cfg(not(unix))]
+fn interrupt_flag() -> Arc<AtomicBool> {
+    Arc::new(AtomicBool::new(false))
 }
 
 /// `kanso account …`. Prints its own errors and exits with 1 for a refusal
@@ -333,6 +355,7 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
         machine: Machine::this_mac(),
         now_ms: Box::new(kanso_core::now_ms),
         pause: Box::new(std::thread::sleep),
+        interrupt: Box::new(interrupt_flag),
     };
     match run(&world, command, &mut Terminal) {
         Ok(()) => Ok(()),
@@ -425,6 +448,20 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
         .unwrap_or_else(|| kanso_sync::DEFAULT_SERVER.to_owned());
     let server = kanso_sync::check_endpoint(&server)
         .map_err(|_| Refusal(format!("{server} isn't a server address")))?;
+    if config.sync.account.is_some() {
+        // Checked in the store the config names, whatever this sign-in
+        // would use: a session there that can't be read is never taken for
+        // "signed out" and left behind.
+        let secrets = (world.open_secrets)(config.sync.secret_store)
+            .map_err(|err| Refusal(format!("{err:#}")))?;
+        let store = Arc::new(Store::open(crate::paths::db_path(&world.data_dir))?);
+        if let Some(session) = current_session(&flow(world, store, secrets), &config)? {
+            return refuse(format!(
+                "this library is signed in as {} already; run `kanso account sign-out` first.",
+                session.username
+            ));
+        }
+    }
     let kind = match args.secrets {
         Some(kind) => kind,
         None => crate::secrets::default_kind(&config, &world.system_works),
@@ -448,15 +485,9 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
         machine: Some(machine),
         ..flow(world, store, secrets)
     };
-    if let Some(session) = current_session(&flow, &config)? {
-        return refuse(format!(
-            "this library is signed in as {} already; run `kanso account sign-out` first.",
-            session.username
-        ));
-    }
     console.say(&format!("Kanso account on {server}"));
     let (session, library_id, backup, evicted) = match args.method {
-        Method::Github => sign_in_github(&flow, &server, &args, &*world.pause, console)?,
+        Method::Github => sign_in_github(&flow, &server, &args, world, console)?,
         _ => sign_in_password(&flow, &server, &args, console)?,
     };
     // The config last: the session and the binding are saved already, so
@@ -652,10 +683,11 @@ fn sign_in_github(
     flow: &Flow,
     server: &str,
     args: &SignInArgs,
-    pause: &dyn Fn(std::time::Duration),
+    world: &World,
     console: &mut dyn Console,
 ) -> Result<SignedIn, Refusal> {
     let provider = Provider::Github;
+    let cancel = (world.interrupt)();
     let login_device = LoginDevice::ephemeral();
     let started = flow
         .start_provider(&Headless, server, &provider, &login_device, &|_| {})
@@ -668,7 +700,6 @@ fn sign_in_github(
         _ => return refuse("the server didn't start a GitHub sign-in"),
     }
     console.say("Waiting for GitHub…");
-    let cancel = Arc::new(AtomicBool::new(false));
     let finished = flow
         .finish_provider(
             &Headless,
@@ -677,7 +708,7 @@ fn sign_in_github(
             &login_device,
             started,
             None,
-            cancel,
+            cancel.clone(),
             &|_| {},
         )
         .map_err(|failure| Refusal(failure.words))?;
@@ -694,7 +725,7 @@ fn sign_in_github(
         "Signed in to {}, but this computer doesn't have your notes' key yet.",
         locked.username
     ));
-    let candidate = match unlock(flow, &locked, &device, args, pause, console) {
+    let candidate = match unlock(flow, &locked, &device, args, world, &cancel, console) {
         Ok(candidate) => candidate,
         Err(refusal) => {
             flow.discard_locked(&locked);
@@ -733,15 +764,23 @@ fn sign_in_github(
         same_token_as_locked,
         ..
     } = candidate;
-    let (session, library_id) = flow
-        .promote(
-            session,
-            library_id,
-            same_token_as_locked,
-            choice,
-            Some(&locked),
-        )
-        .map_err(|failure| Refusal(failure.words))?;
+    let (session, library_id) = match flow.promote(
+        session,
+        library_id,
+        same_token_as_locked,
+        choice,
+        Some(&locked),
+    ) {
+        Ok(promoted) => promoted,
+        Err(failure) => {
+            // Promotion cleans up what it can; the locked session must not
+            // outlive it either way.
+            if !failure.locked_cleanup {
+                flow.discard_locked(&locked);
+            }
+            return refuse(failure.words);
+        }
+    };
     let backup = (choice == Some(Choice::Replace))
         .then(|| newest_backup(&crate::paths::backups_dir(&flow_data_dir(flow))))
         .flatten();
@@ -774,7 +813,8 @@ fn unlock(
     locked: &kanso_sync::LockedSession,
     device: &DeviceIdentity,
     args: &SignInArgs,
-    pause: &dyn Fn(std::time::Duration),
+    world: &World,
+    cancel: &AtomicBool,
     console: &mut dyn Console,
 ) -> Result<UnlockedCandidate, Refusal> {
     if locked.has_password && console.is_tty() && !args.password_stdin {
@@ -794,7 +834,7 @@ fn unlock(
         flow.wait_for_approval(
             locked,
             device,
-            None,
+            Some(cancel),
             &|update| {
                 if let WaitUpdate::Code(code) = update {
                     said.borrow_mut().say(&format!(
@@ -803,7 +843,7 @@ fn unlock(
                     ));
                 }
             },
-            pause,
+            &*world.pause,
         )
     };
     match waited {
@@ -863,13 +903,9 @@ fn status(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
     let library_id = meta(meta_keys::LIBRARY_ID);
     let has_session = match &library_id {
         Some(library_id) => (world.open_secrets)(config.sync.secret_store)
-            .ok()
-            .and_then(|secrets| {
-                secrets
-                    .get(&kanso_sync::keychain::account_item(library_id))
-                    .ok()
-            })
-            .flatten()
+            .map_err(|err| Refusal(format!("{err:#}")))?
+            .get(&kanso_sync::keychain::account_item(library_id))
+            .map_err(|err| Refusal(format!("reading the session: {err}")))?
             .is_some(),
         None => false,
     };

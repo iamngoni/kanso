@@ -478,7 +478,17 @@ mod file_secrets {
             file.write_all(&bytes)
                 .and_then(|()| file.sync_all())
                 .map_err(|err| io_error("write", &tmp, err))?;
-            std::fs::rename(&tmp, &self.path).map_err(|err| io_error("replace", &self.path, err))
+            std::fs::rename(&tmp, &self.path)
+                .map_err(|err| io_error("replace", &self.path, err))?;
+            // The rename itself survives a crash only once the folder is
+            // synced too.
+            #[cfg(unix)]
+            if let Some(dir) = self.path.parent() {
+                std::fs::File::open(dir)
+                    .and_then(|dir| dir.sync_all())
+                    .map_err(|err| io_error("sync", dir, err))?;
+            }
+            Ok(())
         }
     }
 
