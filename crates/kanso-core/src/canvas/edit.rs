@@ -14,6 +14,21 @@ use super::ink::Eraser;
 use super::model::{Canvas, INK, Node, Point, Stroke, TOOLS};
 use super::{MAX_BYTES, MAX_STROKE_POINTS, fresh_id};
 
+/// An ID of `prefix` and eight random characters that `taken` doesn't hold.
+/// Two devices drawing offline must not make the same ID for different
+/// strokes, so a counter ([`fresh_id`]) is not enough for items drawn by hand.
+pub fn unique_id(prefix: &str, taken: &HashSet<String>) -> String {
+    loop {
+        let tail: String = (0..8)
+            .map(|_| char::from(b"abcdefghijklmnopqrstuvwxyz0123456789"[fastrand::usize(..36)]))
+            .collect();
+        let id = format!("{prefix}{tail}");
+        if !taken.contains(&id) {
+            return id;
+        }
+    }
+}
+
 /// Samples closer together than this, in points, are dropped on the way in.
 pub const MIN_SAMPLE_DISTANCE: f64 = 0.4;
 
@@ -102,7 +117,7 @@ impl Canvas {
             .into_iter()
             .map(str::to_owned)
             .collect::<HashSet<_>>();
-        stroke.id = fresh_id("s", &taken);
+        stroke.id = unique_id("s", &taken);
         stroke.points = points
             .into_iter()
             .map(|p| Point {
@@ -272,7 +287,7 @@ impl Canvas {
                 continue;
             };
             let mut moved = old.clone();
-            let new_id = fresh_id("s", &taken);
+            let new_id = unique_id("s", &taken);
             taken.insert(new_id.clone());
             moved.id = new_id.clone();
             for p in &mut moved.points {

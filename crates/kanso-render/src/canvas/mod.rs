@@ -7,6 +7,7 @@
 //! bounds of the content, never an unbounded surface.
 
 pub mod excalidraw;
+pub mod geometry;
 pub mod pen;
 
 use std::collections::HashMap;
