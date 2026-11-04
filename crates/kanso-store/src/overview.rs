@@ -95,6 +95,7 @@ fn read_session(conn: &Connection, id: &str) -> rusqlite::Result<Option<Session>
 /// Records typing in a note: extends the session when the last keystroke
 /// was within [`GAP_MS`], otherwise starts a new one. Does nothing for a
 /// note that doesn't exist or can't be shown.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn record_typing(
     conn: &Connection,
     id: &str,

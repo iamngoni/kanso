@@ -3,6 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/bridge/api/overview_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 
 import 'open_library.dart';
@@ -71,6 +72,40 @@ void briefSuite(OpenLibrary open) {
       );
     });
 
+    test('Overview is read, its places hidden and revisits set', () async {
+      final library = await open();
+      final id = (await library.create(
+        note: const NewNote(title: 'Plans', body: 'Write the plan.\n'),
+      )).id;
+
+      final today = await library.overviewToday();
+      expect(today.greeting, isNotEmpty);
+      expect(library.overviewSnapshot(), isNotNull);
+      final week = await library.overviewWeek();
+      expect(week.lede, isNotNull);
+
+      await library.noteWriting(
+        noteId: id,
+        line: 0,
+        column: 5,
+        typedChars: 60,
+        body: 'Write the plan.\n',
+      );
+      await library.overviewHidePlace(noteId: id);
+      await library.overviewDismissPast(noteId: id);
+      await library.overviewSnoozeWaiting(key: 'nothing');
+
+      expect(library.revisitOptions(), isNotEmpty);
+      expect(await library.revisitOf(noteId: id), isNull);
+      final day = await library.setRevisit(
+        noteId: id,
+        choice: RevisitChoice.tomorrow,
+      );
+      expect(await library.revisitOf(noteId: id), day);
+      await library.clearRevisit(noteId: id);
+      expect(await library.revisitOf(noteId: id), isNull);
+    });
+
     test('settings are clamped and plan fixed-text notices', () async {
       final library = await open();
       final prefs = await library.briefPrefs();
@@ -90,6 +125,8 @@ void briefSuite(OpenLibrary open) {
           notifyBrief: true,
           notifyReview: true,
           markDoneInNote: false,
+          openToOverview: true,
+          quietDays: 99,
         ),
       );
       expect(kept.briefHour, 23);

@@ -92,6 +92,11 @@ impl OverviewParts {
     }
 }
 
+type AlsoAction = (
+    &'static str,
+    fn(&mut DigestView, &mut Window, &mut Context<DigestView>),
+);
+
 fn plural(n: u32, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
 }
@@ -1743,10 +1748,7 @@ impl DigestView {
                     .into_any_element(),
             );
         }
-        let action: Option<(
-            &'static str,
-            fn(&mut DigestView, &mut Window, &mut Context<DigestView>),
-        )> = match line.kind {
+        let action: Option<AlsoAction> = match line.kind {
             AlsoKind::Captured => Some(("Triage", |_, window, cx| {
                 window.dispatch_action(Box::new(crate::triage_view::ShowTriage), cx)
             })),

@@ -103,7 +103,7 @@ pub fn week(store: &Store, week_start: Date, now: Now, opts: &Options) -> Result
 
     // Finished.
     let mut finished: Vec<&kanso_store::FinishedRow> = review.finished.iter().collect();
-    finished.sort_by(|a, b| b.at.cmp(&a.at));
+    finished.sort_by_key(|a| std::cmp::Reverse(a.at));
     let finished_more = finished.len().saturating_sub(FINISHED_SHOWN) as u32;
     let finished_items: Vec<FinishedItem> = finished
         .iter()

@@ -4,10 +4,11 @@
 
 import 'package:dartz/dartz.dart';
 
+import '../../../bridge/api/overview_types.dart';
 import '../../../bridge/api/types.dart';
 import '../../data/application_error.dart';
 
-/// The Rust core's open loops, morning brief and weekly review.
+/// The Rust core's open loops and Overview (Today and This week).
 ///
 /// Locked notes and notes in locked notebooks are in none of them.
 abstract interface class DigestRepository {
@@ -20,11 +21,54 @@ abstract interface class DigestRepository {
     required LoopAction action,
   });
 
-  /// The morning brief, worked out now.
-  Future<Either<ApplicationError, BriefView>> brief();
+  /// Closes the loop named [key] of [noteId] as done; false when it is gone
+  /// from its note already.
+  Future<Either<ApplicationError, bool>> doneLoop({
+    required String noteId,
+    required String key,
+    required int line,
+  });
 
-  /// The review of the week holding [from] (`YYYY-MM-DD`), or this week.
-  Future<Either<ApplicationError, ReviewView>> review({String? from});
+  /// The last Today kept, when it is today's: the first frame, at once.
+  OverviewToday? overviewSnapshot();
+
+  /// Today, worked out now.
+  Future<Either<ApplicationError, OverviewToday>> overviewToday();
+
+  /// The week holding [from] (`YYYY-MM-DD`), or this week.
+  Future<Either<ApplicationError, OverviewWeek>> overviewWeek({String? from});
+
+  /// "Not now" on Pick up: hidden until the note is written in again.
+  Future<Either<ApplicationError, void>> hidePlace(String noteId);
+
+  /// "Not yet" on Waiting on others: asked again in three days.
+  Future<Either<ApplicationError, void>> snoozeWaiting(String key);
+
+  /// "Not useful" on the note from the past.
+  Future<Either<ApplicationError, void>> dismissPast(String noteId);
+
+  /// The choices of "Revisit in…", with the day each means today.
+  List<RevisitOption> revisitOptions();
+
+  /// Brings [noteId] back on Overview on [choice]'s day; the day, as
+  /// `YYYY-MM-DD`. Setting it is not an edit.
+  Future<Either<ApplicationError, String>> setRevisit({
+    required String noteId,
+    required RevisitChoice choice,
+  });
+
+  /// Takes [noteId] off "To revisit".
+  Future<Either<ApplicationError, void>> clearRevisit(String noteId);
+
+  /// Typing in a note, for Pick up: the caret and the characters typed since
+  /// the last call.
+  Future<Either<ApplicationError, void>> noteWriting({
+    required String noteId,
+    required int line,
+    required int column,
+    required int typedChars,
+    required String body,
+  });
 
   /// Saves the review of the week from [from] as a Journal note.
   Future<Either<ApplicationError, ReviewSaved>> saveReview({
@@ -51,11 +95,11 @@ abstract interface class DigestRepository {
   /// Keeps the proposals the person chose; how many were added.
   Future<Either<ApplicationError, int>> keepLoops(List<LoopProposal> picks);
 
-  /// A short paragraph over today's brief.
-  Future<Either<ApplicationError, AiSummary>> summariseBrief();
-
-  /// A short paragraph over the week from [from], or this week.
-  Future<Either<ApplicationError, AiSummary>> summariseReview({String? from});
+  /// A short paragraph over Today, or over the week of [from] when [week].
+  Future<Either<ApplicationError, AiSummary>> summariseOverview({
+    required bool week,
+    String? from,
+  });
 
   /// Stops the AI request in flight, if any.
   void stopAi();

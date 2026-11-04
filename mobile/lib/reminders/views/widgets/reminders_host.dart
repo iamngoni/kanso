@@ -72,11 +72,13 @@ class _RemindersHostState extends State<RemindersHost>
     }
   }
 
-  /// Shows the morning brief, or the weekly review when [review].
+  /// Shows Overview's Today, or its This week when [review].
   void _openDigest(bool review) {
     unawaited(
       widget.router.push<void>(
-        review ? KansoRoutes.review : KansoRoutes.brief,
+        review
+            ? '${KansoRoutes.overview}?${KansoRoutes.overviewWeekParameter}=1'
+            : KansoRoutes.overview,
       ),
     );
   }

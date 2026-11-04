@@ -517,7 +517,7 @@ pub const SHORTCUTS: &[Shortcut] = &[
         context: ShortcutContext::Global,
         label: "Overview",
         group: ShortcutGroup::Go,
-        on_mobile: false,
+        on_mobile: true,
     },
     Shortcut {
         id: "go_back",

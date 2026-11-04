@@ -209,9 +209,7 @@ fn base_strength(text: &str, kind: LoopKind, fam: Family) -> f32 {
         0.6
     } else if kind == LoopKind::Question || fam == Family::Check || fam == Family::Ask {
         0.3
-    } else if matches!(fam, Family::Need | Family::MustShould) {
-        0.4
-    } else if kind == LoopKind::Waiting {
+    } else if matches!(fam, Family::Need | Family::MustShould) || kind == LoopKind::Waiting {
         0.4
     } else {
         0.3

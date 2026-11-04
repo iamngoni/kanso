@@ -2243,6 +2243,8 @@ pub struct _BriefPrefs {
     pub notify_brief: bool,
     pub notify_review: bool,
     pub mark_done_in_note: bool,
+    pub open_to_overview: bool,
+    pub quiet_days: u32,
 }
 
 #[frb(mirror(PlannedNotice))]
