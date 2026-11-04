@@ -364,8 +364,26 @@ describe("0017_pdf_file_size.sql", () => {
 		expect(await add("B", 52_432_937)).toBe("accepted");
 		expect(await add("C", 52_432_938)).toContain("CHECK constraint failed");
 		const setting = async (name: string) => (await db.prepare("SELECT value FROM settings WHERE name = ?1").bind(name).first<{ value: string }>())?.value;
-		expect(await setting("quota_file_bytes")).toBe("1073741824");
-		// An operator's own value is kept.
+		// An operator's own cap is kept, and the quota stays where 1 GiB would overcommit it.
 		expect(await setting("global_file_bytes")).toBe("777000000");
+		expect(await setting("quota_file_bytes")).toBe("524288000");
+	});
+
+	it("moves both defaults on a server still at them", async () => {
+		await emptyDatabase();
+		await applyD1Migrations(db, env.TEST_MIGRATIONS);
+		const setting = async (name: string) => (await db.prepare("SELECT value FROM settings WHERE name = ?1").bind(name).first<{ value: string }>())?.value;
+		expect(await setting("quota_file_bytes")).toBe("1073741824");
+		expect(await setting("global_file_bytes")).toBe("60000000000");
+	});
+
+	it("keeps 500 MiB where 1 GiB a slot would overcommit the cap", async () => {
+		await emptyDatabase();
+		await applyD1Migrations(db, env.TEST_MIGRATIONS.filter((m) => m.name < "0017"));
+		await db.prepare("UPDATE settings SET value = '60' WHERE name = 'max_accounts'").run();
+		await applyD1Migrations(db, env.TEST_MIGRATIONS);
+		const setting = async (name: string) => (await db.prepare("SELECT value FROM settings WHERE name = ?1").bind(name).first<{ value: string }>())?.value;
+		expect(await setting("global_file_bytes")).toBe("60000000000");
+		expect(await setting("quota_file_bytes")).toBe("524288000");
 	});
 });

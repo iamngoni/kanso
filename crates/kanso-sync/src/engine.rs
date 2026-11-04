@@ -1150,6 +1150,13 @@ impl Run<'_> {
                     self.report.too_large.push(doc.id);
                     continue;
                 }
+                // A file over its limit (10 MiB, 50 MiB for a PDF) would be
+                // refused by every other device's store: it stays here,
+                // listed as too large, rather than spending the quota.
+                if !doc.deleted && is_file_id(&doc.id) && file_over_limit(&doc.fields) {
+                    self.report.too_large.push(doc.id);
+                    continue;
+                }
                 let size = wire_size(&doc, fields);
                 let class = Class::of(&doc);
                 // Every live document is charged one potential slot: an edit
@@ -1319,9 +1326,9 @@ impl Run<'_> {
     /// Uploads the bytes of the live files in `batch`, so they are on the
     /// server before any device can see the documents. Documents a 413
     /// earlier in this sync now holds leave the batch first. A file whose
-    /// upload is held (a files quota entry, or a 429 `uploads-global`) or
-    /// hits a quota leaves the batch and stays pending; any other 429 stops
-    /// pushing.
+    /// upload is held (a files quota entry, or a 429 `uploads-global`),
+    /// hits a quota or is too large for the server (413 `too_large`) leaves
+    /// the batch and stays pending; any other 429 stops pushing.
     fn upload_files(&mut self, batch: Vec<SyncDoc>) -> Result<Vec<SyncDoc>, SyncError> {
         let mut kept = Vec::with_capacity(batch.len());
         for doc in batch {
@@ -1382,6 +1389,14 @@ impl Run<'_> {
                     self.pause(retry_after, limit);
                     return Ok(Vec::new());
                 }
+                // A server older than 50 MiB PDFs takes 10 MiB files: the
+                // file stays here, listed as too large, and the rest syncs.
+                Err(ApiError::TooLarge) => {
+                    if !self.report.too_large.contains(&doc.id) {
+                        self.report.too_large.push(doc.id.clone());
+                    }
+                    self.note_held(&doc);
+                }
                 Err(err) => return Err(err.into()),
             }
         }
@@ -1413,8 +1428,9 @@ pub enum SyncProblem {
     ServerFull,
     /// Feed documents skipped unrepaired: "Some items skipped". Keeps running.
     Skipped { count: usize },
-    /// Local files too large for the server stay on this device: "Some files
-    /// not synced". Keeps running; everything else syncs.
+    /// Local documents too large to sync (a note's fields over the push
+    /// cap, a file over its limit) stay on this device: "Some items not
+    /// synced". Keeps running; everything else syncs.
     TooLarge { count: usize },
     /// A newer format in the feed: "Update Kanso". Stops; Sync now retries.
     UpdateKanso,
@@ -1522,6 +1538,36 @@ pub fn report_problem(report: &SyncReport) -> Option<SyncProblem> {
     None
 }
 
+/// Whether a file document says it is larger than any device takes: a
+/// sealed container over [`MAX_SEALED_ATTACHMENT`], a PDF over
+/// [`MAX_PDF_SIZE`], anything else over [`MAX_ATTACHMENT_SIZE`]. Only the
+/// metadata is read (the store checked the bytes when they were written);
+/// a PDF is taken at its word here, its magic bytes were checked then.
+///
+/// [`MAX_SEALED_ATTACHMENT`]: kanso_core::model::MAX_SEALED_ATTACHMENT
+/// [`MAX_PDF_SIZE`]: kanso_core::model::MAX_PDF_SIZE
+/// [`MAX_ATTACHMENT_SIZE`]: kanso_core::model::MAX_ATTACHMENT_SIZE
+fn file_over_limit(fields: &serde_json::Map<String, Value>) -> bool {
+    use kanso_core::model::{
+        FILE_LOCK_FIELD, MAX_ATTACHMENT_SIZE, MAX_PDF_SIZE, MAX_SEALED_ATTACHMENT,
+    };
+    let Some(length) = fields.get("contentLength").and_then(Value::as_u64) else {
+        return false;
+    };
+    let pdf = fields
+        .get("contentType")
+        .and_then(Value::as_str)
+        .is_some_and(|t| t.eq_ignore_ascii_case("application/pdf"));
+    let limit = if fields.contains_key(FILE_LOCK_FIELD) {
+        MAX_SEALED_ATTACHMENT
+    } else if pdf {
+        MAX_PDF_SIZE
+    } else {
+        MAX_ATTACHMENT_SIZE
+    };
+    length > limit as u64
+}
+
 /// Splits items of the given sizes into consecutive batches of at most
 /// `max_docs` items and `max_bytes` bytes, filling each batch greedily. An
 /// item larger than `max_bytes` goes alone.
@@ -1549,6 +1595,39 @@ pub fn batches(sizes: &[usize], max_docs: usize, max_bytes: usize) -> Vec<Range<
 mod problem_tests {
     use super::*;
     use proptest::prelude::*;
+
+    proptest! {
+        /// A file is kept back exactly when its length is over the limit
+        /// for its kind: 50 MiB for a PDF, the container cap for a sealed
+        /// file, 10 MiB for anything else.
+        #[test]
+        fn a_file_is_over_the_limit_for_its_kind(
+            length in 0u64..60 * 1024 * 1024,
+            pdf in any::<bool>(),
+            sealed in any::<bool>(),
+        ) {
+            use kanso_core::model::{
+                FILE_LOCK_FIELD, MAX_ATTACHMENT_SIZE, MAX_PDF_SIZE, MAX_SEALED_ATTACHMENT,
+            };
+            let mut fields = serde_json::Map::new();
+            fields.insert("contentLength".into(), length.into());
+            let kind = if pdf { "Application/PDF" } else { "image/png" };
+            fields.insert("contentType".into(), kind.into());
+            if sealed {
+                fields.insert(FILE_LOCK_FIELD.into(), serde_json::json!({"v": 1}));
+            }
+            let limit = if sealed {
+                MAX_SEALED_ATTACHMENT
+            } else if pdf {
+                MAX_PDF_SIZE
+            } else {
+                MAX_ATTACHMENT_SIZE
+            };
+            prop_assert_eq!(file_over_limit(&fields), length > limit as u64);
+            fields.remove("contentLength");
+            prop_assert!(!file_over_limit(&fields), "no length says nothing");
+        }
+    }
 
     #[test]
     fn errors_map_to_problems() {

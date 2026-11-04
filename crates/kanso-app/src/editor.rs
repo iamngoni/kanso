@@ -4500,7 +4500,11 @@ fn attach(store: &Store, image: Pasted) -> Result<String, String> {
             if let Ok(meta) = std::fs::metadata(&path)
                 && meta.len() > MAX_PDF_SIZE as u64
             {
-                return Err(smart_paste::too_large(meta.len() as usize, MAX_PDF_SIZE));
+                return Err(kanso_engine::attach::too_large_file(
+                    "PDF",
+                    meta.len() as usize,
+                    MAX_PDF_SIZE,
+                ));
             }
             let bytes =
                 std::fs::read(&path).map_err(|err| format!("Couldn't read the PDF: {err}"))?;

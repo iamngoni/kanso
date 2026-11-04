@@ -42,8 +42,16 @@ END;
 
 -- Account file quota: 500 MiB -> 1 GiB, so a few large PDFs do not use up an
 -- account, and the server-wide file cap 50 GB -> 60 GB so the default quotas
--- of a full server (50 accounts) are still not overcommitted. Only a database
--- still at the shipped defaults moves; an operator's own values are kept, and
--- accounts with their own quota_file_bytes are untouched.
-UPDATE settings SET value = '1073741824' WHERE name = 'quota_file_bytes' AND value = '524288000';
+-- of a full server (50 accounts, 53.7 GB) are still not overcommitted. Only a
+-- database still at the shipped defaults moves; an operator's own values are
+-- kept, and accounts with their own quota_file_bytes are untouched. The cap
+-- moves first; the quota moves only if, as `npm run -s admin` would require,
+-- what the quotas then promise (each account's own quota or the default,
+-- plus the default for every free account slot) still fits the cap, so a
+-- server with more accounts or a lower cap keeps 500 MiB.
 UPDATE settings SET value = '60000000000' WHERE name = 'global_file_bytes' AND value = '50000000000';
+UPDATE settings SET value = '1073741824'
+WHERE name = 'quota_file_bytes' AND value = '524288000'
+  AND (SELECT coalesce(sum(coalesce(quota_file_bytes, 1073741824)), 0) FROM accounts)
+      + max(0, (SELECT CAST(value AS INTEGER) FROM settings WHERE name = 'max_accounts') - (SELECT count(*) FROM accounts)) * 1073741824
+      <= (SELECT CAST(value AS INTEGER) FROM settings WHERE name = 'global_file_bytes');

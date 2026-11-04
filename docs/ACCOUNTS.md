@@ -2187,10 +2187,12 @@ PUT takes the sealed bytes with `Content-Type: application/octet-stream`, `Conte
 `x-kanso-sha256: <64 lowercase hex>`. The client always sends the hash; anything but 64 lowercase
 hex is 400. Steps:
 
-1. Check the path's wire ID and the headers (400 or 415). Then count `writes-account` by 1.
-2. Read the body: under 41 bytes is 400; over 10,489,897 bytes is 413.
-3. Hash it with `crypto.subtle.digest("SHA-256")` and compare: 400 `checksum_mismatch` if different.
-4. One batch:
+1. Check the path's wire ID and the headers (400 or 415). Then count `writes-account` by 1, and
+   `uploads-account` by the declared length (the largest file when `Content-Length` is missing).
+2. Check the declared length: under 41 bytes is 400; over 52,432,937 bytes (a 50 MiB PDF's
+   container) is 413. The body is not read yet. Every Kanso client sends `Content-Length`; a
+   chunked body without one is read whole, up to the largest file, to learn its length.
+3. One batch:
    1. `SELECT size` of the row this replaces.
    2. Update `accounts`: `files` grows by `NOT EXISTS(row)`, and `file_bytes` by `size + 1024 −
       coalesce(old size + 1024, 0)`, computed in SQL. The statement must affect the account row;
@@ -2200,10 +2202,15 @@ hex is 400. Steps:
       above its fair share, with `rate_limited:uploads-global` (429; security re-check 2).
 
    Triggers refuse growth past quotas with 413.
-5. `FILES.put(key, body, {sha256})`. If R2 fails, a compensating batch restores the old row and
-   counters, if the row still holds this upload's size, and the answer is 500. Restoring a larger
-   old size sets `recounted_at`, so the quota triggers let the correction through.
-6. 200 `{"ok": true, "size": n}`.
+4. Stream the body into `FILES.put(key, stream, {sha256})` through a `FixedLengthStream` of the
+   declared length, never buffering it: a 50 MiB file read whole (and joined from its chunks)
+   would take most of the isolate's 128 MB. R2 checks the hash and the stream the length before
+   anything is stored, so the old bytes stay on any failure. A compensating batch then restores the
+   old row and counters, if the row still holds this upload's size, and the answer is 400
+   `checksum_mismatch` (the Worker's own digest of what passed differs), 400 for a body shorter than
+   declared, or 500. Restoring a larger old size sets `recounted_at`, so the quota triggers let the
+   correction through. A refused upload's size still counts towards the day's upload bytes.
+5. 200 `{"ok": true, "size": n}`.
 
 Two concurrent uploads of the same ID can leave the counter off by their size difference. `recount`
 repairs it. The engine never uploads one file twice at once.
@@ -2211,6 +2218,11 @@ repairs it. The engine never uploads one file twice at once.
 GET answers 200 with the bytes (`application/octet-stream`, `Content-Length`) only when the account
 has an `account_files` row for the ID, and 404 otherwise, even if R2 still holds an object (security
 re-check 8). The cron reconciles the two (below).
+
+The client says the largest file it takes in `x-kanso-max-file` (bytes). A file larger than that,
+or than 10,489,897 bytes when the header is missing, is 404 `not_found`: a Kanso from before 50 MiB
+PDFs caps the answer at 10,489,897 bytes and would fail its whole sync on a bigger one, while a 404
+counts as a missing file, retried a day later, and the sync goes on.
 
 ## Storage
 
@@ -2754,11 +2766,11 @@ refuses rather than allows (security re-check 1).
 | `quota_docs` | 50,000 | Live documents of every kind; deleting frees space |
 | `quota_doc_bytes` | 100 MiB (104,857,600) | `length(sealed) + 512` per row, tombstones included. Real cost. |
 | `quota_files` | 10,000 | Stored file objects |
-| `quota_file_bytes` | 1 GiB (1,073,741,824; 500 MiB before migration 0017) | `size + 1,024` per file |
+| `quota_file_bytes` | 1 GiB (1,073,741,824; 500 MiB before migration 0017, which raises it only where it still fits `global_file_bytes`) | `size + 1,024` per file |
 | `writes_per_day` | 20,000 | Pushed documents plus file uploads (and refused push bodies), per account, unless the account's `quota_writes_per_day` says otherwise (`quota <user> --writes-per-day`). A fifteenth of `global_writes_per_day`, so no one account can spend the server's day. A library that needs more in one day, like the owner's first upload or a re-merge of a large library, pauses at the cap and finishes after UTC midnight; the owner raises their own account instead. |
-| `upload_bytes_per_day` | 1 GiB (1,073,741,824) | Uploaded file bytes per account per UTC day, refused uploads included. Twice the default file bytes quota, under a fifth of `global_upload_bytes_per_day`. |
+| `upload_bytes_per_day` | 1 GiB (1,073,741,824) | Uploaded file bytes per account per UTC day, refused uploads included. The default file bytes quota (twice it before migration 0017), under a fifth of `global_upload_bytes_per_day`. |
 | `global_doc_bytes` | 6,000,000,000 | Sum over all accounts |
-| `global_file_bytes` | 50,000,000,000 | Sum over all accounts |
+| `global_file_bytes` | 60,000,000,000 (50,000,000,000 before migration 0017) | Sum over all accounts |
 | `global_writes_per_day` | 300,000 | Stored document writes (new and updated) per UTC day, all accounts together. Past it, only accounts above their fair share (÷ `max_accounts`: 6,000 writes) are refused, so a day's total stays under about 600,000. |
 | `global_upload_bytes_per_day` | 5,000,000,000 | File bytes uploaded per UTC day, all accounts, replacements included. Past it, only accounts above their fair share (÷ `max_accounts`: 100,000,000 bytes) are refused, so a day's total stays under about 10,000,000,000. |
 
@@ -3547,6 +3559,7 @@ Every remote write still goes through `apply_remote`, which snapshots the versio
 | `QuotaExceeded(kind)` | report | "Account full" | "Your account is full (*which*: notes and notebooks / attachments / number of attachments / number of items). Delete something or ask the server's owner for more space." | Keeps running |
 | `ServerFull` | report (`server`) | "Server full" | "The server is out of space. Ask its owner." | Keeps running |
 | `Skipped { count }` | report (`skipped`: undecryptable documents not repaired) | "Some items skipped" | "*N* items on the server couldn't be read. They were skipped; your copies here are unchanged." | Keeps running |
+| `TooLarge { count }` | report (`too_large`: a note over the push cap, a file over its limit, or a file the server refused with 413 `too_large`) | "Some items not synced" | "*N* items are too large to sync. Attachments can be up to 10 MB and PDFs up to 50 MB. They stay on this device; everything else syncs." | Keeps running |
 | `UpdateKanso` | report (too new) | "Update Kanso" | "Another Mac uses a newer Kanso. Update this one to keep syncing." | Stops; Sync now retries |
 | `WrongKey` | key ID | "Keys don't match" | "The server's account keys don't match this Mac's. Sync is stopped; your notes are safe here. Sign out and in again." | Stops |
 | `ServerOutdated` | 404 health | "Server needs an update" | "That server doesn't run this version of Kanso sync." | Stops; Sync now retries |

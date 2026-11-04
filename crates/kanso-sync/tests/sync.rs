@@ -486,6 +486,11 @@ fn a_document_too_large_for_the_server_stays_pending_and_is_reported() {
     let report = a.sync(&server);
     assert_eq!(report.too_large, vec!["note:big".to_owned()]);
     assert_eq!((report.pushed, report.pending), (2, 1));
+    // Said, not silent: the status names it instead of "Synced".
+    assert_eq!(
+        report_problem(&report),
+        Some(SyncProblem::TooLarge { count: 1 })
+    );
 }
 
 #[test]
@@ -515,6 +520,49 @@ fn a_pdf_over_ten_mib_syncs_to_the_server_and_to_another_device() {
     let (kind, got) = b.store.attachment("file:bigpdf").unwrap().unwrap();
     assert_eq!(kind, "application/pdf");
     assert_eq!(got.data, pdf);
+}
+
+/// A server from before 50 MiB PDFs answers 413 `too_large` for the
+/// upload: the PDF stays here, said as too large, and everything else
+/// syncs, rather than every sync failing.
+// no-prop-test: one refused upload against the fake server.
+#[test]
+fn a_pdf_an_older_server_refuses_stays_here_and_the_rest_syncs() {
+    let server = MemoryServer::new();
+    let a = Mac::new(sign_up(&server, "alice", 1));
+    let mut pdf = b"%PDF-1.7".to_vec();
+    pdf.resize(12 * 1024 * 1024, 0);
+    put(
+        &a.store,
+        DocType::File,
+        json!({
+            "_id": "file:bigpdf", "name": "big.pdf", "contentType": "application/pdf",
+            "createdAt": 1,
+            "_attachments": {"index": {
+                "content_type": "application/pdf",
+                "data": base64::engine::general_purpose::STANDARD.encode(&pdf),
+            }},
+        }),
+    )
+    .unwrap();
+    file(&a.store, "file:small", b"\x89PNGsmall");
+    let old_server = Tap::new(&server, |event| match event {
+        Event::PutFile { sealed, .. } if sealed.len() > 10 * 1024 * 1024 + 41 + 4_096 => {
+            Err(ApiError::TooLarge)
+        }
+        _ => Ok(()),
+    });
+    let report = a.sync_with(&old_server, &SyncOptions::default()).unwrap();
+    assert_eq!(report.too_large, vec!["file:bigpdf".to_owned()]);
+    assert_eq!((report.pushed, report.pending), (1, 1));
+    assert_eq!(
+        report_problem(&report),
+        Some(SyncProblem::TooLarge { count: 1 })
+    );
+    // Once the server takes it, it goes.
+    let report = a.sync(&server);
+    assert!(report.too_large.is_empty(), "{:?}", report.too_large);
+    assert_eq!(report.pending, 0);
 }
 
 #[test]

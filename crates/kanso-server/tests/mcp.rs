@@ -788,6 +788,43 @@ async fn files_through_the_tools() {
         text(&read, 1),
         "The attachment is a image/svg+xml file, which cannot be displayed inline. Pass `outputPath` to write it to disk."
     );
+
+    // A PDF over the 10 MiB image limit comes by path, is typed from its
+    // extension and linked rather than embedded; one over 50 MiB is refused.
+    let mut pdf = b"%PDF-1.7\n".to_vec();
+    pdf.resize(12 * 1024 * 1024, b' ');
+    let pdf_path = dir.path().join("report.pdf");
+    std::fs::write(&pdf_path, &pdf).unwrap();
+    let created = tool(&app.router, "create-file", json!({ "filePath": pdf_path })).await;
+    let pdf_id = tool_json(&created)["id"].as_str().unwrap().to_owned();
+    assert_eq!(
+        text(&created, 1),
+        format!(
+            "Markdown to embed this attachment in a note body:\n\n[report.pdf](inkdrop://{pdf_id})"
+        )
+    );
+    let (_, doc) = get(&app.router, &format!("/{pdf_id}")).await;
+    assert_eq!(doc["contentType"], "application/pdf");
+    pdf.resize(kanso_core::model::MAX_PDF_SIZE + 1, b' ');
+    std::fs::write(&pdf_path, &pdf).unwrap();
+    let refused = tool(&app.router, "create-file", json!({ "filePath": pdf_path })).await;
+    assert!(
+        text(&refused, 0).contains("byte limit"),
+        "{}",
+        text(&refused, 0)
+    );
+    // Over 10 MiB but not a PDF: the image limit.
+    let fake = dir.path().join("fake.pdf");
+    std::fs::write(&fake, vec![b'x'; 11 * 1024 * 1024]).unwrap();
+    let refused = tool(&app.router, "create-file", json!({ "filePath": fake })).await;
+    assert!(
+        text(&refused, 0).contains(&format!(
+            "over the {} byte limit",
+            kanso_core::model::MAX_ATTACHMENT_SIZE
+        )),
+        "{}",
+        text(&refused, 0)
+    );
 }
 
 #[tokio::test]

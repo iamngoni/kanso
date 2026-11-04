@@ -8,7 +8,6 @@
 // Worker reads the account's usage afterwards to say what was over.
 
 import { type Session, withSession } from "./auth";
-import { sha256Hex } from "./crypto";
 import type { Env } from "./env";
 import {
 	JSON_TYPE,
@@ -326,6 +325,66 @@ function compensation(db: D1Database, accountId: string, id: string, size: numbe
 	];
 }
 
+/** What streaming a file into R2 came to. */
+type Streamed = "stored" | "checksum_mismatch" | "short" | "failed";
+
+/**
+ * Streams `body`, which must be exactly `size` bytes, into R2 under `key`,
+ * never holding the file in memory: a 50 MiB PDF buffered (and copied once
+ * more to join its chunks) would take most of an isolate's 128 MB, shared
+ * with every other request it serves. R2 checks `sha256` and
+ * FixedLengthStream the length before anything is stored, so a wrong
+ * checksum, a short body or a failed write leaves the stored bytes as they
+ * were. Our own digest of what passed says which of those it was.
+ */
+async function streamFile(env: Env, key: string, body: ReadableStream<Uint8Array>, size: number, sha256: string): Promise<Streamed> {
+	const digest = new crypto.DigestStream("SHA-256");
+	const digestWriter = digest.getWriter();
+	const tap = new TransformStream<Uint8Array, Uint8Array>({
+		async transform(chunk, controller) {
+			await digestWriter.write(chunk);
+			controller.enqueue(chunk);
+		},
+		async flush() {
+			await digestWriter.close();
+		},
+	});
+	const fixed = new FixedLengthStream(size);
+	const abort = new AbortController();
+	// Set from the pipe's callbacks, so in an object TypeScript doesn't narrow.
+	const state: { stopped: boolean; piped: "pending" | "done" | "short" | "stopped" } = { stopped: false, piped: "pending" };
+	const piping = body
+		.pipeThrough(tap)
+		.pipeTo(fixed.writable, { signal: abort.signal })
+		.then(
+			() => {
+				state.piped = "done";
+			},
+			() => {
+				state.piped = state.stopped ? "stopped" : "short";
+			},
+		);
+	try {
+		await env.FILES.put(key, fixed.readable, {
+			sha256,
+			httpMetadata: { contentType: "application/octet-stream" },
+		});
+		await piping;
+		return "stored";
+	} catch {
+		// R2 may give up without reading the rest; stop the pipe so it can't wait on it.
+		state.stopped = true;
+		abort.abort();
+		await piping;
+		if (state.piped === "short") return "short";
+		if (state.piped === "done") {
+			const actual = [...new Uint8Array(await digest.digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+			if (actual !== sha256) return "checksum_mismatch";
+		}
+		return "failed";
+	}
+}
+
 export function putFile(wireId: string) {
 	return withSession(async (request, env, now, session) => {
 		if (!isWireFileId(wireId)) return badRequest("Not a wire file ID.");
@@ -333,25 +392,30 @@ export function putFile(wireId: string) {
 		if (claimed === null || !isSha256Hex(claimed)) return badRequest("x-kanso-sha256 must be 64 lowercase hex digits.");
 		const limited = await count(env.DB, "writes-account", accountKey("writes-account", session.accountId), now, 1);
 		if (limited) return limited;
-		// The day's upload bytes, counted from Content-Length before the body is read
-		// (the largest file when it's missing; anything over the largest is refused anyway).
+		// The day's upload bytes, counted from Content-Length before the body is read,
+		// refused uploads included (the largest file when it's missing; anything over
+		// the largest counts as one byte more).
 		const declared = request.headers.get("content-length");
-		const counted = declared !== null && /^[0-9]{1,15}$/.test(declared) ? Math.min(Number(declared), MAX_SEALED_FILE + 1) : MAX_SEALED_FILE;
-		const uploadKey = accountKey("uploads-account", session.accountId);
-		const overBytes = await count(env.DB, "uploads-account", uploadKey, now, counted);
+		const known = declared !== null && /^[0-9]{1,15}$/.test(declared);
+		const counted = known ? Math.min(Number(declared), MAX_SEALED_FILE + 1) : MAX_SEALED_FILE;
+		const overBytes = await count(env.DB, "uploads-account", accountKey("uploads-account", session.accountId), now, counted);
 		if (overBytes) return overBytes;
-		const bytes = await readBody(request, MAX_SEALED_FILE);
-		if (!bytes) return tooLarge(`A file is at most ${MAX_SEALED_FILE} bytes.`);
-		if (bytes.length > counted) {
-			// A body longer than it said: count the rest too.
-			const overRest = await count(env.DB, "uploads-account", uploadKey, now, bytes.length - counted);
-			if (overRest) return overRest;
+		let size: number;
+		let body: ReadableStream<Uint8Array> | null;
+		if (known) {
+			// Every Kanso client says the length: the body is streamed to R2, never held.
+			size = Number(declared);
+			if (size > MAX_SEALED_FILE) return tooLarge(`A file is at most ${MAX_SEALED_FILE} bytes.`);
+			body = request.body;
+		} else {
+			// A body of unknown length (chunked) is read whole, up to the largest file, to learn it.
+			const bytes = await readBody(request, MAX_SEALED_FILE);
+			if (!bytes) return tooLarge(`A file is at most ${MAX_SEALED_FILE} bytes.`);
+			size = bytes.length;
+			body = new Response(bytes).body;
 		}
-		if (bytes.length < MIN_SEALED_FILE) return badRequest(`A sealed file is at least ${MIN_SEALED_FILE} bytes.`);
-		const actual = await sha256Hex(bytes);
-		if (actual !== claimed) return error(400, "checksum_mismatch", "The body doesn't match x-kanso-sha256.");
+		if (size < MIN_SEALED_FILE || !body) return badRequest(`A sealed file is at least ${MIN_SEALED_FILE} bytes.`);
 
-		const size = bytes.length;
 		let outcomes: D1Result[];
 		try {
 			outcomes = await env.DB.batch([
@@ -366,25 +430,35 @@ export function putFile(wireId: string) {
 		}
 		if (outcomes[1].results.length !== 1) return unauthorized("unknown");
 		const old = (outcomes[0].results as { size: number }[])[0]?.size ?? null;
-		try {
-			await env.FILES.put(fileKey(session.accountId, wireId), bytes, {
-				sha256: actual,
-				httpMetadata: { contentType: "application/octet-stream" },
-			});
-		} catch {
-			await env.DB.batch(compensation(env.DB, session.accountId, wireId, size, old, now));
-			return error(500, "internal", "Couldn't store the file.");
-		}
-		return json({ ok: true, size });
+		const streamed = await streamFile(env, fileKey(session.accountId, wireId), body, size, claimed);
+		if (streamed === "stored") return json({ ok: true, size });
+		// Nothing was stored: give back what the batch charged.
+		await env.DB.batch(compensation(env.DB, session.accountId, wireId, size, old, now));
+		if (streamed === "checksum_mismatch") return error(400, "checksum_mismatch", "The body doesn't match x-kanso-sha256.");
+		if (streamed === "short") return badRequest("The body doesn't match Content-Length.");
+		return error(500, "internal", "Couldn't store the file.");
 	});
 }
 
+/**
+ * The largest sealed file a client takes when it doesn't say
+ * (`x-kanso-max-file`): the 10 MiB container of every Kanso before 50 MiB
+ * PDFs. Such a client fails its whole sync on an answer over its cap, so a
+ * bigger file is a 404 to it, which it counts as missing and gets past.
+ */
+export const LEGACY_MAX_FILE = 10_485_760 + 41 + 4_096;
+
 /** The bytes only when the account has an `account_files` row for the ID, even if R2 holds an object. */
 export function getFile(wireId: string) {
-	return withSession(async (_request, env, _now, session) => {
+	return withSession(async (request, env, _now, session) => {
 		if (!isWireFileId(wireId)) return badRequest("Not a wire file ID.");
-		const row = await env.DB.prepare("SELECT size FROM account_files WHERE account_id = ?1 AND id = ?2").bind(session.accountId, wireId).first();
+		const row = await env.DB.prepare("SELECT size FROM account_files WHERE account_id = ?1 AND id = ?2")
+			.bind(session.accountId, wireId)
+			.first<{ size: number }>();
 		if (!row) return notFound();
+		const takes = request.headers.get("x-kanso-max-file");
+		const max = takes !== null && /^[0-9]{1,15}$/.test(takes) ? Number(takes) : LEGACY_MAX_FILE;
+		if (row.size > max) return error(404, "not_found", "This file is larger than this version of Kanso takes. Update Kanso to get it.");
 		const object = await env.FILES.get(fileKey(session.accountId, wireId));
 		if (!object) return notFound();
 		return new Response(object.body, {
