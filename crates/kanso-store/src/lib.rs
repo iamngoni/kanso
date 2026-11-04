@@ -28,6 +28,8 @@ mod ocr;
 mod overview;
 mod passage_embed;
 mod passages;
+mod pdf_text;
+mod pdf_text_model;
 mod plugin;
 mod query_view;
 mod read;
@@ -88,6 +90,7 @@ pub use passage_embed::{
     EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
 };
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
+pub use pdf_text_model::{MAX_PAGE_CHARS, MAX_PDF_CHARS, PdfToIndex};
 pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,
     agent_batch_id, plugin_data, set_plugin_data,
