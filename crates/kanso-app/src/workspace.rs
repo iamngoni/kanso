@@ -477,6 +477,9 @@ pub struct Workspace {
     /// Draft, Make Flashcards and Quiz Me (`learn_view.rs`).
     pub(crate) learn: Option<Entity<crate::learn_view::LearnView>>,
     pub(crate) learn_open: bool,
+    /// Make Flashcards or Quiz Me, while its dialog is open.
+    pub(crate) learn_modal: Option<WeakEntity<crate::learn_view::LearnView>>,
+    pub(crate) _learn_modal_events: Option<Subscription>,
     pub(crate) _learn_events: Option<Subscription>,
     pub(crate) _flashcards_events: Option<Subscription>,
     pub(crate) triage_open: bool,
@@ -875,6 +878,8 @@ impl Workspace {
             flashcards_open: false,
             learn: None,
             learn_open: false,
+            learn_modal: None,
+            _learn_modal_events: None,
             _learn_events: None,
             _flashcards_events: None,
             triage_open: false,
@@ -1594,18 +1599,12 @@ impl Workspace {
                 window,
                 cx,
             ),
-            NoteCommand::MakeFlashcards => self.show_learn(
-                crate::learn_model::Mode::Make,
-                vec![id.to_owned()],
-                window,
-                cx,
-            ),
-            NoteCommand::QuizMe => self.show_learn(
-                crate::learn_model::Mode::Quiz,
-                vec![id.to_owned()],
-                window,
-                cx,
-            ),
+            NoteCommand::MakeFlashcards => {
+                self.show_learn_modal(crate::learn_model::Mode::Make, id.to_owned(), window, cx);
+            }
+            NoteCommand::QuizMe => {
+                self.show_learn_modal(crate::learn_model::Mode::Quiz, id.to_owned(), window, cx);
+            }
             // These work on the open note, so the note opens first.
             NoteCommand::ShowHistory => {
                 if self.open_note(id, window, cx) {

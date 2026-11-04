@@ -2,6 +2,8 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../configs/kanso_colors.dart';
@@ -9,6 +11,7 @@ import '../../configs/kanso_motion.dart';
 import '../../configs/kanso_radii.dart';
 import '../../configs/kanso_shadows.dart';
 import '../../configs/kanso_sizes.dart';
+import '../../configs/kanso_spacing.dart';
 import '../../utils/context_extensions.dart';
 
 /// The panel of a sheet that rises from the foot of the screen: a rounded
@@ -18,12 +21,24 @@ import '../../utils/context_extensions.dart';
 /// keyboard, dismisses the keyboard when its body or a scrolling pane is
 /// touched, and goes down when its grab bar is dragged down.
 ///
+/// With [restingFraction] the panel opens that tall, whatever its content,
+/// and a drag up on the handle (or a tap on it) opens it to its full height;
+/// a drag down brings it back before the next one closes it.
+///
 /// The veil behind it and the way it moves in are the route's
 /// (`showKansoBottomSheet`).
 class KansoBottomSheet extends StatefulWidget {
-  const KansoBottomSheet({required this.child, super.key});
+  const KansoBottomSheet({
+    required this.child,
+    this.restingFraction,
+    super.key,
+  });
 
   final Widget child;
+
+  /// How much of the available height a sheet that can be expanded opens at;
+  /// none for a sheet as tall as its content.
+  final double? restingFraction;
 
   /// How much of the available screen height the panel may take.
   static const double heightFraction = 0.92;
@@ -34,6 +49,12 @@ class KansoBottomSheet extends StatefulWidget {
   /// How fast a flick closes the sheet, in points per second.
   static const double dismissVelocity = 700;
 
+  /// How far the handle is dragged up before letting go expands the sheet.
+  static const double expandDistance = 40;
+
+  /// How fast an upward flick expands the sheet, in points per second.
+  static const double expandVelocity = 500;
+
   /// The grab handle, for tests and for a steady place to drag from.
   static const Key handleKey = ValueKey<String>('kanso-sheet-handle');
 
@@ -43,6 +64,10 @@ class KansoBottomSheet extends StatefulWidget {
 
 class _KansoBottomSheetState extends State<KansoBottomSheet> {
   final ValueNotifier<double> _drag = ValueNotifier<double>(0);
+  bool _expanded = false;
+  double _lift = 0;
+
+  bool get _expandable => widget.restingFraction != null;
 
   @override
   void dispose() {
@@ -63,18 +88,44 @@ class _KansoBottomSheetState extends State<KansoBottomSheet> {
 
   void _dragged(DragUpdateDetails details) {
     final delta = details.primaryDelta ?? 0;
+    if (delta < 0 && _expandable && !_expanded) {
+      _lift -= delta;
+    }
     if (delta <= 0) return;
     _drag.value += delta;
   }
 
   void _dragEnded(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
-    if (_drag.value > KansoBottomSheet.dismissDistance ||
-        velocity > KansoBottomSheet.dismissVelocity) {
+    final lifted = _lift;
+    _lift = 0;
+    if (_expandable &&
+        !_expanded &&
+        (lifted > KansoBottomSheet.expandDistance ||
+            velocity < -KansoBottomSheet.expandVelocity)) {
+      _drag.value = 0;
+      setState(() => _expanded = true);
+      return;
+    }
+    final far = _drag.value > KansoBottomSheet.dismissDistance;
+    final fast = velocity > KansoBottomSheet.dismissVelocity;
+    if (_expanded && (far || fast)) {
+      // Down from the full height settles at the resting one.
+      _drag.value = 0;
+      setState(() => _expanded = false);
+      return;
+    }
+    if (far || fast) {
       Navigator.of(context).maybePop();
       return;
     }
     _drag.value = 0;
+  }
+
+  void _toggleExpanded() {
+    if (_expandable) {
+      setState(() => _expanded = !_expanded);
+    }
   }
 
   @override
@@ -88,7 +139,18 @@ class _KansoBottomSheetState extends State<KansoBottomSheet> {
           0.0,
           constraints.maxHeight,
         );
-        final maxHeight = available * KansoBottomSheet.heightFraction;
+        // Never into the status bar or the notch, whatever the fraction.
+        final top = media.padding.top + KansoSpacing.xs;
+        final maxHeight = math.min(
+          available * KansoBottomSheet.heightFraction,
+          math.max<double>(0, available - top),
+        );
+        final resting = widget.restingFraction;
+        final height = resting == null
+            ? null
+            : _expanded
+            ? maxHeight
+            : math.min(maxHeight, available * resting);
         return ValueListenableBuilder<double>(
           valueListenable: _drag,
           builder: (context, drag, _) {
@@ -96,6 +158,16 @@ class _KansoBottomSheetState extends State<KansoBottomSheet> {
             final duration = KansoMotion.resolve(
               context,
               settling ? KansoMotion.short : const Duration(milliseconds: 1),
+            );
+            final body = NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is ScrollStartNotification ||
+                    notification is UserScrollNotification) {
+                  _dismissKeyboard();
+                }
+                return false;
+              },
+              child: widget.child,
             );
             return Align(
               alignment: Alignment.bottomCenter,
@@ -106,6 +178,7 @@ class _KansoBottomSheetState extends State<KansoBottomSheet> {
                 child: AnimatedContainer(
                   duration: duration,
                   curve: KansoMotion.standard,
+                  height: height,
                   transform: Matrix4.translationValues(0, drag, 0),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
@@ -119,9 +192,7 @@ class _KansoBottomSheetState extends State<KansoBottomSheet> {
                           top: Radius.circular(KansoRadii.large),
                         ),
                         border: Border.all(color: colors.divider),
-                        boxShadow: KansoShadows.sheet(
-                          context.brightness,
-                        ),
+                        boxShadow: KansoShadows.sheet(context.brightness),
                       ),
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(
@@ -137,21 +208,12 @@ class _KansoBottomSheetState extends State<KansoBottomSheet> {
                                 onDragStart: _dragStarted,
                                 onDragUpdate: _dragged,
                                 onDragEnd: _dragEnded,
+                                onTap: _expandable ? _toggleExpanded : null,
                               ),
-                              Flexible(
-                                child: NotificationListener<ScrollNotification>(
-                                  onNotification: (notification) {
-                                    if (notification
-                                            is ScrollStartNotification ||
-                                        notification
-                                            is UserScrollNotification) {
-                                      _dismissKeyboard();
-                                    }
-                                    return false;
-                                  },
-                                  child: widget.child,
-                                ),
-                              ),
+                              if (resting == null)
+                                Flexible(child: body)
+                              else
+                                Expanded(child: body),
                             ],
                           ),
                         ),
@@ -177,6 +239,7 @@ class _SheetGrabBar extends StatelessWidget {
     required this.onDragStart,
     required this.onDragUpdate,
     required this.onDragEnd,
+    this.onTap,
   });
 
   final KansoColors colors;
@@ -184,11 +247,15 @@ class _SheetGrabBar extends StatelessWidget {
   final GestureDragUpdateCallback onDragUpdate;
   final GestureDragEndCallback onDragEnd;
 
+  /// Taps on the handle, when it expands the sheet.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       key: KansoBottomSheet.handleKey,
       behavior: HitTestBehavior.opaque,
+      onTap: onTap,
       onVerticalDragStart: onDragStart,
       onVerticalDragUpdate: onDragUpdate,
       onVerticalDragEnd: onDragEnd,

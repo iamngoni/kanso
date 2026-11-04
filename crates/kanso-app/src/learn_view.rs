@@ -1,6 +1,8 @@
-//! Draft from Notes, Make Flashcards and Quiz Me (issue #198) as one page
-//! over the window, like Inbox triage. The three share the header, the
-//! reading column and the card that says a model failed (`page_chrome`).
+//! Draft from Notes, Make Flashcards and Quiz Me (issue #198). Draft is a
+//! page over the window, like Inbox triage. Make Flashcards and Quiz Me
+//! are modals over the note (`modal.rs`), so closing them leaves the note
+//! as it was. The three share the reading column and the card that says a
+//! model failed (`page_chrome`).
 //!
 //! What a model is sent is only the notes the page names, and each is
 //! checked again on the worker through the one rule Ask uses, so a note
@@ -36,6 +38,11 @@ use crate::page_chrome::{self, ActionStyle, AiTrouble, HeaderAction};
 use crate::theme::Colors;
 use crate::workspace::{AppState, Workspace};
 use crate::zoom::px;
+
+mod modal;
+
+#[cfg(test)]
+pub use modal::{CARDS_WIDTH, QUIZ_WIDTH};
 
 actions!(
     kanso,
@@ -109,6 +116,12 @@ pub struct LearnView {
     // Make Flashcards
     picks: Vec<Pick>,
     added: Option<usize>,
+    /// The card being edited, with its two fields.
+    editing: Option<usize>,
+    edit_question: Entity<TextareaState>,
+    edit_answer: Entity<TextareaState>,
+    /// Drawn in a dialog over the note, not as the page.
+    modal: bool,
     // Quiz Me
     excerpts: Vec<Excerpt>,
     quiz: Quiz,
@@ -119,6 +132,13 @@ pub struct LearnView {
 }
 
 impl EventEmitter<LearnEvent> for LearnView {}
+
+impl Drop for LearnView {
+    /// A modal that goes away takes its model call with it.
+    fn drop(&mut self) {
+        self.cancel.store(true, Ordering::Relaxed);
+    }
+}
 
 impl Focusable for LearnView {
     fn focus_handle(&self, _: &App) -> FocusHandle {
@@ -145,6 +165,8 @@ impl LearnView {
                 .placeholder("Your answer…")
                 .submit_on_enter(true)
         });
+        let edit_question = cx.new(|cx| TextareaState::new(window, cx).placeholder("Question"));
+        let edit_answer = cx.new(|cx| TextareaState::new(window, cx).placeholder("Answer"));
         let subscriptions = vec![cx.subscribe_in(
             &answer,
             window,
@@ -180,6 +202,10 @@ impl LearnView {
             book: "book:inbox".into(),
             picks: Vec::new(),
             added: None,
+            editing: None,
+            edit_question,
+            edit_answer,
+            modal: false,
             excerpts: Vec::new(),
             quiz: Quiz::default(),
             answer,
@@ -223,6 +249,7 @@ impl LearnView {
         self.checked = CheckedDraft::default();
         self.picks.clear();
         self.added = None;
+        self.editing = None;
         self.quiz = Quiz::default();
         self.grading = false;
         self.list = engine::resolve(&self.store, &ids);
@@ -239,7 +266,11 @@ impl LearnView {
         } else if mode != Mode::Draft {
             self.start(cx);
         }
-        window.focus(&self.focus, cx);
+        // A modal takes the keyboard when its dialog opens, and the note
+        // gets it back when the dialog closes.
+        if !self.modal {
+            window.focus(&self.focus, cx);
+        }
         cx.notify();
     }
 
@@ -504,8 +535,41 @@ impl LearnView {
         cx.notify();
     }
 
+    /// Opens card `ix` for editing, keeping what was typed in another.
+    fn begin_edit(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        self.end_edit(cx);
+        let Some(pick) = self.picks.get(ix) else {
+            return;
+        };
+        let (question, answer) = (pick.question.clone(), pick.answer.clone());
+        self.edit_question
+            .update(cx, |q, cx| q.set_value(question, window, cx));
+        self.edit_answer
+            .update(cx, |a, cx| a.set_value(answer, window, cx));
+        self.editing = Some(ix);
+        cx.notify();
+    }
+
+    /// Keeps the edit in progress, unless it left the question or the
+    /// answer empty.
+    fn end_edit(&mut self, cx: &mut Context<Self>) {
+        let Some(ix) = self.editing.take() else {
+            return;
+        };
+        let question = self.edit_question.read(cx).value().trim().to_owned();
+        let answer = self.edit_answer.read(cx).value().trim().to_owned();
+        if let Some(pick) = self.picks.get_mut(ix)
+            && !question.is_empty()
+            && !answer.is_empty()
+        {
+            pick.question = question;
+            pick.answer = answer;
+        }
+    }
+
     /// Writes the ticked cards into the note, then says so.
     pub(crate) fn add_cards(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.end_edit(cx);
         let Some(id) = self.ids.first().cloned() else {
             return;
         };
@@ -656,46 +720,6 @@ impl LearnView {
                     .tooltip("Save the draft as a new note"),
                 );
             }
-            (Mode::Make, Phase::Ready) => {
-                let none = chosen(&self.picks).is_empty();
-                if let (Some(_), Some(id)) = (self.added, self.ids.first()) {
-                    let id = id.clone();
-                    let view = view.clone();
-                    actions.push(
-                        HeaderAction::new(
-                            "learn-open",
-                            Lucide::FileText,
-                            "Open Note",
-                            move |_, cx| {
-                                view.update(cx, |_, cx| cx.emit(LearnEvent::Open(id.clone())))
-                                    .ok();
-                            },
-                        )
-                        .style(ActionStyle::Primary),
-                    );
-                } else {
-                    actions.push(
-                        act(
-                            "learn-add",
-                            Lucide::Plus,
-                            add_label(&self.picks),
-                            |t, w, cx| t.add_cards(w, cx),
-                        )
-                        .style(ActionStyle::Primary)
-                        .disabled(none)
-                        .tooltip("Write the ticked cards under Flashcards in the note"),
-                    );
-                }
-            }
-            (Mode::Quiz, Phase::Ready) if self.quiz.is_done() => actions.push(
-                act(
-                    "learn-again",
-                    Lucide::RefreshCw,
-                    "Quiz Again".into(),
-                    |t, _, cx| t.start(cx),
-                )
-                .style(ActionStyle::Primary),
-            ),
             _ => {}
         }
         let close = HeaderAction::new("learn-close", Lucide::Close, "Close", |window, cx| {
@@ -714,6 +738,16 @@ impl LearnView {
         .border_b_1()
         .border_color(colors.divider)
         .bg(colors.list)
+    }
+
+    /// The column the content sits in: the page's reading column, or the
+    /// whole width of a modal.
+    fn column(&self) -> Div {
+        if self.modal {
+            v_flex().w_full()
+        } else {
+            page_chrome::column()
+        }
     }
 
     fn section_label(text: &'static str, colors: &Colors) -> Div {
@@ -1005,6 +1039,36 @@ impl LearnView {
         let colors = Colors::get(cx);
         let rows = self.picks.iter().enumerate().map(|(ix, pick)| {
             let view = cx.entity().downgrade();
+            if self.editing == Some(ix) {
+                let done = view.clone();
+                return v_flex()
+                    .debug_selector(move || format!("learn-card-{ix}"))
+                    .w_full()
+                    .p(px(12.))
+                    .gap(px(8.))
+                    .rounded(px(10.))
+                    .border_1()
+                    .border_color(colors.accent)
+                    .bg(colors.fill)
+                    .child(Textarea::new(&self.edit_question).h(px(64.)))
+                    .child(Textarea::new(&self.edit_answer).h(px(80.)))
+                    .child(
+                        h_flex().justify_end().child(
+                            Button::new(("learn-edit-done", ix))
+                                .primary()
+                                .small()
+                                .label("Done")
+                                .on_click(move |_, _, cx| {
+                                    done.update(cx, |this, cx| {
+                                        this.end_edit(cx);
+                                        cx.notify();
+                                    })
+                                    .ok();
+                                }),
+                        ),
+                    );
+            }
+            let edit = view.clone();
             v_flex()
                 .debug_selector(move || format!("learn-card-{ix}"))
                 .w_full()
@@ -1015,18 +1079,43 @@ impl LearnView {
                 .border_color(colors.divider)
                 .bg(colors.fill)
                 .child(
-                    Checkbox::new(ElementId::NamedInteger("learn-pick".into(), ix as u64))
-                        .checked(pick.on)
-                        .label(pick.question.clone())
-                        .on_click(move |on: &bool, _, cx| {
-                            let on = *on;
-                            view.update(cx, |this, cx| {
-                                if let Some(p) = this.picks.get_mut(ix) {
-                                    p.on = on;
-                                }
-                                cx.notify();
-                            })
-                            .ok();
+                    h_flex()
+                        .items_start()
+                        .gap(px(8.))
+                        .child(
+                            div().flex_1().min_w_0().child(
+                                Checkbox::new(ElementId::NamedInteger(
+                                    "learn-pick".into(),
+                                    ix as u64,
+                                ))
+                                .checked(pick.on)
+                                .label(pick.question.clone())
+                                .on_click(
+                                    move |on: &bool, _, cx| {
+                                        let on = *on;
+                                        view.update(cx, |this, cx| {
+                                            if let Some(p) = this.picks.get_mut(ix) {
+                                                p.on = on;
+                                            }
+                                            cx.notify();
+                                        })
+                                        .ok();
+                                    },
+                                ),
+                            ),
+                        )
+                        .when(self.added.is_none(), |el| {
+                            el.child(
+                                Button::new(("learn-edit", ix))
+                                    .ghost()
+                                    .small()
+                                    .icon(Lucide::Pencil)
+                                    .tooltip("Edit this card")
+                                    .on_click(move |_, window, cx| {
+                                        edit.update(cx, |this, cx| this.begin_edit(ix, window, cx))
+                                            .ok();
+                                    }),
+                            )
                         }),
                 )
                 .child(
@@ -1057,7 +1146,7 @@ impl LearnView {
                     )
                 })
         });
-        page_chrome::column()
+        self.column()
             .gap(px(10.))
             .pt(px(16.))
             .pb(px(24.))
@@ -1078,7 +1167,8 @@ impl LearnView {
     fn render_quiz(&self, cx: &mut Context<Self>) -> AnyElement {
         let colors = Colors::get(cx);
         if self.quiz.is_done() {
-            return page_chrome::column()
+            return self
+                .column()
                 .gap(px(10.))
                 .pt(px(24.))
                 .child(
@@ -1111,7 +1201,7 @@ impl LearnView {
             .map(|e| e.id.clone());
         let view = cx.entity().downgrade();
         let next_view = view.clone();
-        page_chrome::column()
+        self.column()
             .gap(px(12.))
             .pt(px(18.))
             .pb(px(24.))
@@ -1215,10 +1305,38 @@ impl LearnView {
             .into_any_element()
     }
 
+    /// What the view shows for its mode and phase, without a frame.
+    fn body(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+        let colors = Colors::get(cx);
+        match (self.phase, self.mode) {
+            (Phase::Failed, _) => self.render_failed(cx, window),
+            (Phase::Setup, Mode::Draft) => self.render_setup(cx),
+            (Phase::Working, Mode::Draft) | (Phase::Ready, Mode::Draft) => self.render_draft(cx),
+            (Phase::Working, _) => self
+                .column()
+                .pt(px(24.))
+                .child(self.render_working(
+                    if self.mode == Mode::Quiz {
+                        if self.grading {
+                            "Checking your answer…"
+                        } else {
+                            "Writing questions…"
+                        }
+                    } else {
+                        "Reading the note…"
+                    },
+                    colors,
+                ))
+                .into_any_element(),
+            (_, Mode::Make) => self.render_cards(cx),
+            (_, Mode::Quiz) => self.render_quiz(cx),
+        }
+    }
+
     fn render_failed(&self, cx: &mut Context<Self>, window: &mut Window) -> AnyElement {
         let colors = Colors::get(cx);
         let view = cx.entity().downgrade();
-        let column = page_chrome::column().pt(px(16.));
+        let column = self.column().pt(px(16.));
         if let Some(trouble) = &self.trouble {
             let retry = view.clone();
             let dismiss = view;
@@ -1287,36 +1405,20 @@ impl LearnView {
     }
 }
 
-impl Render for LearnView {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let colors = Colors::get(cx);
-        let body = match (self.phase, self.mode) {
-            (Phase::Failed, _) => self.render_failed(cx, window),
-            (Phase::Setup, Mode::Draft) => self.render_setup(cx),
-            (Phase::Working, Mode::Draft) | (Phase::Ready, Mode::Draft) => self.render_draft(cx),
-            (Phase::Working, _) => page_chrome::column()
-                .pt(px(24.))
-                .child(self.render_working(
-                    if self.mode == Mode::Quiz {
-                        if self.grading {
-                            "Checking your answer…"
-                        } else {
-                            "Writing questions…"
-                        }
-                    } else {
-                        "Reading the note…"
-                    },
-                    colors,
-                ))
-                .into_any_element(),
-            (_, Mode::Make) => self.render_cards(cx),
-            (_, Mode::Quiz) => self.render_quiz(cx),
-        };
-        let footer = match self.mode {
+impl LearnView {
+    /// The keys the view answers to, in a line.
+    fn hint(&self) -> &'static str {
+        match self.mode {
             Mode::Draft => "⌘↩ write · Esc close",
             Mode::Make => "Space ticks a card · Esc close",
             Mode::Quiz => "↩ check · Esc close",
-        };
+        }
+    }
+
+    fn render_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+        let colors = Colors::get(cx);
+        let body = self.body(window, cx);
+        let footer = self.hint();
         v_flex()
             .id("learn-view")
             .key_context("LearnView")
@@ -1360,6 +1462,17 @@ impl Render for LearnView {
                     .text_color(colors.text_muted)
                     .child(div().truncate().child(footer)),
             )
+            .into_any_element()
+    }
+}
+
+impl Render for LearnView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.modal {
+            self.render_modal(window, cx)
+        } else {
+            self.render_page(window, cx)
+        }
     }
 }
 
@@ -1456,12 +1569,12 @@ pub fn on_actions(el: Div, cx: &mut Context<Workspace>) -> Div {
         }))
         .on_action(cx.listener(|this, _: &MakeFlashcardsFromNote, window, cx| {
             if let Some(id) = this.open_note_id(cx) {
-                this.show_learn(Mode::Make, vec![id], window, cx);
+                this.show_learn_modal(Mode::Make, id, window, cx);
             }
         }))
         .on_action(cx.listener(|this, _: &QuizMeOnNote, window, cx| {
             if let Some(id) = this.open_note_id(cx) {
-                this.show_learn(Mode::Quiz, vec![id], window, cx);
+                this.show_learn_modal(Mode::Quiz, id, window, cx);
             }
         }))
 }

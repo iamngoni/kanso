@@ -13,21 +13,28 @@ import 'kanso_scrim.dart';
 /// veil, or the system's back, closes it.
 ///
 /// The sheet is above the pages' own providers: give it what it reads.
+///
+/// With [restingFraction] the sheet opens that tall and can be pulled up by
+/// its handle to its full height (`KansoBottomSheet.restingFraction`).
 Future<T?> showKansoBottomSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
+  double? restingFraction,
 }) {
-  return Navigator.of(
-    context,
-    rootNavigator: true,
-  ).push<T>(KansoBottomSheetRoute<T>(builder: builder));
+  return Navigator.of(context, rootNavigator: true).push<T>(
+    KansoBottomSheetRoute<T>(
+      builder: builder,
+      restingFraction: restingFraction,
+    ),
+  );
 }
 
 /// The route of [showKansoBottomSheet].
 class KansoBottomSheetRoute<T> extends PopupRoute<T> {
-  KansoBottomSheetRoute({required this.builder});
+  KansoBottomSheetRoute({required this.builder, this.restingFraction});
 
   final WidgetBuilder builder;
+  final double? restingFraction;
 
   @override
   Duration get transitionDuration => KansoMotion.content;
@@ -51,7 +58,10 @@ class KansoBottomSheetRoute<T> extends PopupRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    return KansoBottomSheet(child: builder(context));
+    return KansoBottomSheet(
+      restingFraction: restingFraction,
+      child: builder(context),
+    );
   }
 
   @override

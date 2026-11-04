@@ -27,7 +27,6 @@ import '../../digest/views/pages/review_page.dart';
 import '../../draft/views/pages/draft_page.dart';
 import '../../feedback/views/pages/my_feedback_page.dart';
 import '../../feedback/views/pages/send_feedback_page.dart';
-import '../../flashcards/views/pages/quiz_page.dart';
 import '../../flashcards/views/pages/review_page.dart';
 import '../../flashcards/views/pages/review_settings_page.dart';
 import '../../graph/views/pages/graph_page.dart';
@@ -200,15 +199,6 @@ class KansoRouter {
           pageBuilder: (context, state) => kansoPage<void>(
             key: state.pageKey,
             child: const ReviewSettingsPage(),
-          ),
-        ),
-        GoRoute(
-          path: KansoRoutes.quiz,
-          pageBuilder: (context, state) => kansoPage<void>(
-            key: state.pageKey,
-            child: QuizPage(
-              noteIds: (state.extra as List<String>?) ?? const <String>[],
-            ),
           ),
         ),
         GoRoute(

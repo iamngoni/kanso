@@ -3392,11 +3392,20 @@ fn make_flashcards_adds_the_ticked_cards(cx: &mut TestAppContext) {
     });
     assert!(vcx.debug_bounds("learn-card-0").is_some());
     assert!(vcx.debug_bounds("learn-card-1").is_some());
+    assert!(
+        vcx.debug_bounds("learn-overlay").is_none(),
+        "Make Flashcards is a dialog, not the page"
+    );
     // Only the note's own text was sent.
     let sent = model.sent();
     assert_eq!(sent.len(), 1);
 
-    let learn = f.workspace(&mut vcx, |w, _| w.learn.clone().unwrap());
+    let learn = f.workspace(&mut vcx, |w, _| {
+        w.learn_modal
+            .as_ref()
+            .and_then(|view| view.upgrade())
+            .unwrap()
+    });
     f.window
         .update(&mut vcx, |_, window, cx| {
             learn.update(cx, |learn, cx| learn.add_cards(window, cx))
@@ -3410,6 +3419,119 @@ fn make_flashcards_adds_the_ticked_cards(cx: &mut TestAppContext) {
         !body.contains("What do cats do?"),
         "a card whose source is not in the note starts unticked"
     );
+}
+
+/// Quiz Me and Make Flashcards open as dialogs over the note, from the
+/// actions the menu, the palette and the selection menu run, and closing
+/// one gives the note back as it was: the same editor, its text, its caret
+/// and the keyboard. Drawing each one is also the check that no view reads
+/// its own entity while it renders.
+// no-prop-test: drives one window; the logic under it is the engine's.
+#[gpui_kit::test]
+fn quiz_me_and_flashcards_open_over_the_note_and_close_back_to_it(cx: &mut TestAppContext) {
+    use crate::ai_feature::testing::{Injected, Recorder};
+
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    let body = "Capital of France is Paris.\nCats sleep a lot.\nWater boils at 100.\nThe end.\n";
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "body": body}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let model = Recorder::new(
+        r#"{"q":"What is the capital of France?","n":1}
+{"q":"Capital of France?","a":"Paris","source":"Capital of France is Paris."}"#,
+    );
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| config.ai.enabled = true);
+        cx.set_global(Injected(model.maker()));
+    });
+    f.select(cx, &id);
+    f.update_editor(cx, |editor, window, cx| {
+        editor.reveal_line(2, window, cx);
+        editor.focus_body(window, cx);
+    });
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    let caret = f.editor(&mut vcx, |e, cx| e.caret_line(cx));
+    assert_eq!(caret, 2);
+    let editor_id = f.workspace(&mut vcx, |w, _| w.editor.entity_id());
+    let editor = f.workspace(&mut vcx, |w, _| w.editor.clone());
+    let text = f.editor(&mut vcx, |e, cx| e.body_text(cx).to_string());
+    let focused = |vcx: &mut gpui_kit::VisualTestContext| {
+        f.window
+            .update(vcx, |_, window, cx| {
+                editor.read(cx).body_focused(window, cx)
+            })
+            .unwrap()
+    };
+    assert!(focused(&mut vcx));
+
+    // The action is what the Note menu, the palette and the selection menu
+    // all run; the command is what the menu bar and other windows send.
+    for (name, open, expect) in [
+        (
+            "quiz",
+            Box::new(|vcx: &mut gpui_kit::VisualTestContext| {
+                vcx.dispatch_action(crate::learn_view::QuizMeOnNote)
+            }) as Box<dyn Fn(&mut gpui_kit::VisualTestContext)>,
+            "learn-question",
+        ),
+        (
+            "cards",
+            Box::new(|vcx: &mut gpui_kit::VisualTestContext| {
+                vcx.dispatch_action(crate::learn_view::MakeFlashcardsFromNote)
+            }),
+            "learn-card-0",
+        ),
+    ] {
+        open(&mut vcx);
+        wait_until(&f, &mut vcx, |vcx| vcx.debug_bounds(expect).is_some());
+        assert!(vcx.debug_bounds(expect).is_some(), "{name} is drawn");
+        assert!(vcx.debug_bounds("dialog-0").is_some(), "{name} is a dialog");
+        assert!(
+            vcx.debug_bounds("learn-overlay").is_none(),
+            "{name} is not the page"
+        );
+        assert!(!f.workspace(&mut vcx, |w, _| w.learn_open));
+        assert!(!focused(&mut vcx), "the dialog holds the keyboard");
+
+        vcx.simulate_keystrokes("escape");
+        settle(&f, &mut vcx);
+        assert!(vcx.debug_bounds("dialog-0").is_none(), "{name} closed");
+        assert!(focused(&mut vcx), "{name}: the caret is back in the note");
+        assert_eq!(f.editor(&mut vcx, |e, cx| e.caret_line(cx)), caret);
+        assert_eq!(
+            f.editor(&mut vcx, |e, cx| e.body_text(cx).to_string()),
+            text
+        );
+        assert_eq!(
+            f.workspace(&mut vcx, |w, _| w.editor.entity_id()),
+            editor_id
+        );
+        assert_eq!(f.open_note(&mut vcx), Some(id.clone()));
+    }
+
+    // The note menu's command opens the same dialog.
+    f.window
+        .update(&mut vcx, |_, window, cx| {
+            f.workspace.update(cx, |workspace, cx| {
+                workspace.run_note_command(&id, crate::note_menu::NoteCommand::QuizMe, window, cx)
+            })
+        })
+        .unwrap();
+    wait_until(&f, &mut vcx, |vcx| {
+        vcx.debug_bounds("learn-question").is_some()
+    });
+    assert!(vcx.debug_bounds("dialog-0").is_some());
+    vcx.simulate_keystrokes("escape");
+    settle(&f, &mut vcx);
+    assert!(vcx.debug_bounds("dialog-0").is_none());
+    assert!(focused(&mut vcx));
 }
 
 /// A model that fails is told in words, with Try Again, never raw.
