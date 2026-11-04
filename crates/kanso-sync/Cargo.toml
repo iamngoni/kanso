@@ -9,8 +9,9 @@ rust-version.workspace = true
 [[bin]]
 name = "kanso-sync"
 path = "src/bin/kanso-sync.rs"
-# It reads the library's secrets from the system's store.
-required-features = ["system-keychain"]
+# It reads the library's secrets from the system's store, or from
+# `secrets.json` when the library's config says `"secretStore": "file"`.
+required-features = ["system-keychain", "file-secrets"]
 
 [dependencies]
 aes-gcm.workspace = true
@@ -59,12 +60,16 @@ keyring = { version = "3.6", features = ["windows-native"], optional = true }
 keyring = { version = "3.6", features = ["linux-native-sync-persistent", "crypto-rust"], optional = true }
 
 [features]
-default = ["system-keychain"]
+default = ["system-keychain", "file-secrets"]
 # `Keychain`, the desktop's `SecretStore`. The engine shared with the mobile
 # app leaves it out: a phone's secret store is the platform's, behind the
 # same trait. On iOS and Android the feature adds no code, as they have no
 # system store here.
 system-keychain = ["dep:keyring"]
+# `FileSecrets`, a `SecretStore` in one owner-only `secrets.json`, optionally
+# sealed: for computers with no secret service (a headless Linux server). The
+# phones leave it out, like `system-keychain`. It adds no dependencies.
+file-secrets = []
 # `TestAuthenticator`, a software passkey for tests in this crate and the app.
 test-support = []
 

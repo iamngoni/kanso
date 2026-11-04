@@ -82,6 +82,8 @@ pub use kanso_store::SyncDoc;
     any(target_os = "macos", target_os = "windows", target_os = "linux")
 ))]
 pub use keychain::Keychain;
+#[cfg(feature = "file-secrets")]
+pub use keychain::{FileSecrets, SECRETS_FILE, SECRETS_KEY_FILE_ENV};
 pub use keychain::{MemorySecrets, SecretError, SecretStore};
 pub use memory::{
     AccountSnapshot, DEFAULT_SETTINGS, Limits, MEMORY_PASSKEY_ORIGIN, MEMORY_PASSKEY_RP_ID,
@@ -134,6 +136,8 @@ const _: fn() = || {
         any(target_os = "macos", target_os = "windows", target_os = "linux")
     ))]
     send_sync::<Keychain>();
+    #[cfg(feature = "file-secrets")]
+    send_sync::<FileSecrets>();
     send_sync::<MemorySecrets>();
     send_sync::<SyncOptions>();
     send_sync::<DeviceIdentity>();

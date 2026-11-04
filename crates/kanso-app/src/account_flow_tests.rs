@@ -194,7 +194,7 @@ fn provider_signin_persists_a_locked_session_without_sync_or_account_events(
     assert!(cx.read(|cx| !cx.global::<Services>().signed_in()));
     assert!(cx.read(|cx| cx.global::<Services>().sync == SyncState::Off));
     assert!(cx.read(|cx| cx.global::<Services>().approval.event_stop.is_none()));
-    assert!(cx.update(|cx| cx.global_mut::<Services>().take_sync_handle().is_none()));
+    assert!(cx.update(|cx| cx.global_mut::<Services>().take_driver().is_none()));
     assert!(cx.read(|cx| cx.global::<AppState>().config.sync.account.is_none()));
     assert_eq!(a.bound_to(), None);
 }
@@ -231,7 +231,7 @@ fn pending_provider_session_restores_without_a_config_account(cx: &mut TestAppCo
         .expect("restore retains the provider token");
     assert_eq!(pending.device_id, login_device.id);
     assert!(cx.read(|cx| cx.global::<Services>().approval.event_stop.is_none()));
-    assert!(cx.update(|cx| cx.global_mut::<Services>().take_sync_handle().is_none()));
+    assert!(cx.update(|cx| cx.global_mut::<Services>().take_driver().is_none()));
 }
 
 #[gpui_kit::test]
@@ -2513,8 +2513,8 @@ fn relaunched(cx: &mut TestAppContext, server: &Arc<MemoryServer>, a: &Mac) {
 fn reset_runtime_without_signing_out(cx: &mut TestAppContext, server: &Arc<MemoryServer>, a: &Mac) {
     cx.update(|cx| {
         crate::device_approval::stop_events(cx);
-        if let Some(sync) = cx.global_mut::<Services>().take_sync_handle() {
-            sync.cancel_and_join();
+        if let Some(driver) = cx.global_mut::<Services>().take_driver() {
+            driver.stop();
         }
     });
     relaunched(cx, server, a);
@@ -2767,7 +2767,7 @@ fn a_chained_task_that_fails_starts_the_stopped_sync_again(cx: &mut TestAppConte
     let (window, pw) = (a.window, password(PASSWORD, "bob"));
     let (rx, started) = cx.update(|cx| {
         services::sync_now(cx);
-        let started = cx.global::<Services>().sync_starts;
+        let started = cx.global::<Services>().sync_starts();
         let rx = account_flow::sign_in(SERVER.into(), "bob".into(), pw, window, cx);
         (rx, started)
     });
@@ -2776,7 +2776,7 @@ fn a_chained_task_that_fails_starts_the_stopped_sync_again(cx: &mut TestAppConte
     assert!(!a.asking(cx), "no question was asked");
     assert!(Arc::ptr_eq(&session(cx), &alice), "still alice's session");
     assert_eq!(
-        cx.read(|cx| cx.global::<Services>().sync_starts),
+        cx.read(|cx| cx.global::<Services>().sync_starts()),
         started + 1,
         "the stopped sync started again"
     );
@@ -2852,14 +2852,14 @@ fn a_sync_asked_for_during_a_stale_one_still_runs(cx: &mut TestAppContext) {
 
     let started = cx.update(|cx| {
         services::resume_sync(cx);
-        let started = cx.global::<Services>().sync_starts;
+        let started = cx.global::<Services>().sync_starts();
         // Signed in again while it runs, and a sync asked for at once.
         cx.global_mut::<Services>().set_signed_in(Arc::new(newer));
         services::resume_sync(cx);
         started
     });
     wait_until(cx, "the queued sync", |cx| {
-        cx.read(|cx| cx.global::<Services>().sync_starts) == started + 1
+        cx.read(|cx| cx.global::<Services>().sync_starts()) == started + 1
     });
     assert!(ok(&synced(cx)), "the new session syncs");
 }

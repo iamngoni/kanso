@@ -6,6 +6,7 @@
 // console window; the commands borrow the console they were run from.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod account_cli;
 mod account_flow;
 #[cfg(test)]
 mod account_flow_tests;
@@ -159,8 +160,10 @@ mod resurface;
 mod review_queue;
 #[cfg(test)]
 mod review_tests;
+mod secrets;
 mod security_key_flow;
 mod selection;
+mod serve_cli;
 mod services;
 mod settings;
 mod settings_ai;
@@ -258,7 +261,11 @@ Commands:
   <file.md> ...     Open Markdown or text files as notes in the Inbox,
                     in the running Kanso if there is one
   serve             Run only the local API (REST and /mcp), without a
-                    window
+                    window; syncs with your account when signed in
+                    [--verbose]
+  account           Sign this library in to a Kanso account from the
+                    command line, see its status, list devices, sign
+                    out; `kanso account help` lists how
   import <kind> [path]
                     Import a folder of Markdown or another app's export
                     [--dry-run]; Apple Notes finds its library itself.
@@ -276,7 +283,8 @@ Commands:
                     Kanso if it's closed
   mcp               Serve Kanso's MCP tools over standard input and
                     output, for AI agents that start a program; needs
-                    Kanso open with its local API on
+                    Kanso open with its local API on, or `kanso serve`
+                    running
   theme             Work with themes; `kanso theme help` lists how
   icon-theme        Work with icon themes; `kanso icon-theme help` lists
                     how
@@ -412,7 +420,8 @@ fn main() -> Result<()> {
             forward_callback(&args.data_dir, url);
             Ok(())
         }
-        Some("serve") => serve(args.data_dir),
+        Some("serve") => serve_cli::run_cli(args.data_dir, &args.rest),
+        Some("account") => account_cli::run_cli(&args.data_dir, &args.rest),
         Some("import") => library_import::run_cli(&args.data_dir, &args.rest),
         Some("theme") => theme_import::run_cli(&args.data_dir, &args.rest),
         Some("icon-theme") => icon_theme_import::run_cli(&args.data_dir, &args.rest),
@@ -494,32 +503,6 @@ fn forced_x11(config: &AppConfig) -> Option<WindowingRequest> {
         wayland_display: None,
         ..session
     }))
-}
-
-/// Runs the local API until the process is stopped.
-fn serve(data_dir: PathBuf) -> Result<()> {
-    std::fs::create_dir_all(&data_dir)?;
-    let Some(_lock) = lock_data_dir(&data_dir)? else {
-        bail!(
-            "Kanso is already running with {}; its API is already on",
-            data_dir.display()
-        );
-    };
-    let config = load_config(&data_dir)?;
-    let server = services::server_config(&config.server).map_err(anyhow::Error::msg)?;
-    let store = Arc::new(Store::open(paths::db_path(&data_dir))?);
-    let handle = kanso_server::spawn(store, server);
-    match handle.bind_result() {
-        Ok(addr) => eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it."),
-        Err(err) => bail!(
-            "couldn't listen on {}:{}: {err}",
-            config.server.bind_address,
-            config.server.port
-        ),
-    }
-    loop {
-        std::thread::park();
-    }
 }
 
 /// Loads the settings, bringing an older file up to date and filling in API
@@ -632,8 +615,14 @@ fn run_app(
         services.backend = Some(Arc::new(kanso_sync::HttpBackend::new()));
         services.shares = Some(Arc::new(kanso_sync::share::HttpShares));
         services.collab = Some(Arc::new(kanso_collab::http::HttpCollab));
-        // Kanso Dev keeps its secrets under its own service.
-        services.secrets = Some(Arc::new(flavour::CURRENT.keychain()));
+        // Kanso Dev keeps its secrets under its own service; a library
+        // signed in with `kanso account sign-in --secrets file` keeps them in
+        // its data folder.
+        let secrets = secrets::open_secrets_or_refuse(
+            &cx.global::<AppState>().config,
+            &cx.global::<AppState>().data_dir,
+        );
+        services.secrets = Some(secrets.clone());
         cx.set_global(services);
         cx.set_global(touch_id::TouchId(Arc::new(touch_id::SystemTouchId)));
         // The saved zoom, before the first window is drawn.
@@ -685,7 +674,7 @@ fn run_app(
             store.clone(),
             &cx.global::<AppState>().data_dir.clone(),
             safe_mode,
-            Arc::new(flavour::CURRENT.keychain()),
+            secrets,
             cx,
         );
         reminders::init(store.clone(), open_main_window, cx);

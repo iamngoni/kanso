@@ -9,8 +9,12 @@
 //! ```
 //!
 //! Each command takes the data-directory lock, so quit Kanso first. `sync`
-//! and `verify` read the library's `sync-account` item from the Keychain
-//! (macOS asks once); `unbind` deletes it.
+//! and `verify` read the library's `sync-account` item from the library's
+//! secret store; `unbind` deletes it. The store is the system's (the
+//! Keychain, which on macOS asks once) unless the library's `config.json`
+//! says `"sync": {"secretStore": "file"}`: then it is `secrets.json` in the
+//! data directory, sealed under the key in `$KANSO_SECRETS_KEY_FILE` when
+//! that is set.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -18,8 +22,8 @@ use std::process::ExitCode;
 use anyhow::{Context, Result, anyhow, bail};
 use kanso_store::Store;
 use kanso_sync::{
-    DeviceIdentity, HttpBackend, Keychain, Session, SyncOptions, keychain, meta_keys, problem,
-    report_problem,
+    DeviceIdentity, FileSecrets, HttpBackend, Keychain, SECRETS_FILE, SECRETS_KEY_FILE_ENV,
+    SecretStore, Session, SyncOptions, keychain, meta_keys, problem, report_problem,
 };
 
 const USAGE: &str = "usage:
@@ -127,7 +131,7 @@ fn run(command: Command) -> Result<bool> {
         }
         Command::Sync { data_dir, full } => {
             let (_lock, store) = open(&data_dir)?;
-            let session = session(&store)?;
+            let session = session(&store, &*secrets(&data_dir)?)?;
             if full {
                 let pairs = kanso_sync::binding::guard_pairs(&session);
                 store.set_meta_if(
@@ -156,7 +160,7 @@ fn run(command: Command) -> Result<bool> {
             legacy,
         } => {
             let (_lock, store) = open(&data_dir)?;
-            let session = session(&store)?;
+            let session = session(&store, &*secrets(&data_dir)?)?;
             let manifest = legacy.as_ref().map(|(manifest, _)| manifest.as_path());
             let report = kanso_sync::verify(&store, &HttpBackend, &session, manifest, repair)?;
             println!("matched        {}", report.matched);
@@ -197,7 +201,7 @@ fn run(command: Command) -> Result<bool> {
         }
         Command::Unbind { data_dir } => {
             let (_lock, store) = open(&data_dir)?;
-            kanso_sync::unbind(&store, &Keychain::default())?;
+            kanso_sync::unbind(&store, &*secrets(&data_dir)?)?;
             println!(
                 "Unbound {}: signed out locally, live documents will go to the old server again, and its cursor is 0.",
                 data_dir.display()
@@ -232,11 +236,62 @@ fn binding(store: &Store) -> Result<Option<(String, String, String)>> {
     )
 }
 
-/// The library's session from the Keychain.
-fn session(store: &Store) -> Result<Session> {
+/// Where a library's secrets live: `sync.secretStore` in its `config.json`.
+#[derive(Debug, PartialEq, Eq)]
+enum StoreKind {
+    /// The Keychain, Credential Manager or Secret Service.
+    System,
+    /// `secrets.json` in the data directory.
+    File,
+}
+
+/// The store `config.json` names, given its text (`None` when there is no
+/// file). Only `"file"` picks the file; anything else, or nothing, is the
+/// system's store, as before the key existed.
+fn store_kind(config: Option<&str>) -> Result<StoreKind> {
+    let Some(config) = config else {
+        return Ok(StoreKind::System);
+    };
+    let config: serde_json::Value =
+        serde_json::from_str(config).context("config.json isn't valid JSON")?;
+    Ok(
+        match config
+            .pointer("/sync/secretStore")
+            .and_then(|kind| kind.as_str())
+        {
+            Some("file") => StoreKind::File,
+            _ => StoreKind::System,
+        },
+    )
+}
+
+/// The library's secret store, as its `config.json` says.
+fn secrets(data_dir: &Path) -> Result<Box<dyn SecretStore>> {
+    let path = data_dir.join("config.json");
+    let config = match std::fs::read_to_string(&path) {
+        Ok(text) => Some(text),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
+        Err(err) => return Err(err).with_context(|| format!("reading {}", path.display())),
+    };
+    Ok(match store_kind(config.as_deref())? {
+        StoreKind::System => Box::new(Keychain::default()),
+        StoreKind::File => {
+            let key_file = std::env::var_os(SECRETS_KEY_FILE_ENV)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from);
+            Box::new(FileSecrets::open(
+                data_dir.join(SECRETS_FILE),
+                key_file.as_deref(),
+            )?)
+        }
+    })
+}
+
+/// The library's session from its secret store.
+fn session(store: &Store, secrets: &dyn SecretStore) -> Result<Session> {
     let (library, origin, account) =
         binding(store)?.ok_or_else(|| anyhow!("this library isn't bound to an account"))?;
-    keychain::load_session(&Keychain::default(), &library, &origin, &account)?
+    keychain::load_session(secrets, &library, &origin, &account)?
         .ok_or_else(|| anyhow!("this library is signed out; sign in from Kanso first"))
 }
 
@@ -281,9 +336,9 @@ fn megabytes(bytes: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    // no-prop-test: argument plumbing; the commands' bodies are tested in
-    // the library (sync, verify, estimate, unbind). Nothing here touches the
-    // Keychain.
+    // no-prop-test: argument and config plumbing; the commands' bodies are
+    // tested in the library (sync, verify, estimate, unbind), and the stores
+    // in `keychain`. Nothing here touches the Keychain.
     use super::*;
 
     fn args(line: &str) -> Vec<String> {
@@ -338,6 +393,29 @@ mod tests {
         assert!(parse(&args("verify --data-dir /d --legacy m.json")).is_err());
         assert!(parse(&args("frobnicate --data-dir /d")).is_err());
         assert!(parse(&args("sync --data-dir")).is_err());
+    }
+
+    #[test]
+    fn the_config_picks_the_secret_store() {
+        assert_eq!(store_kind(None).unwrap(), StoreKind::System);
+        assert_eq!(store_kind(Some("{}")).unwrap(), StoreKind::System);
+        assert_eq!(
+            store_kind(Some(r#"{"sync":{"enabled":true}}"#)).unwrap(),
+            StoreKind::System
+        );
+        assert_eq!(
+            store_kind(Some(r#"{"sync":{"secretStore":"system"}}"#)).unwrap(),
+            StoreKind::System
+        );
+        assert_eq!(
+            store_kind(Some(r#"{"sync":{"secretStore":"file"}}"#)).unwrap(),
+            StoreKind::File
+        );
+        assert_eq!(
+            store_kind(Some(r#"{"sync":{"secretStore":1}}"#)).unwrap(),
+            StoreKind::System
+        );
+        assert!(store_kind(Some("{")).is_err());
     }
 
     #[test]

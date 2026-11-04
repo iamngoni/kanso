@@ -80,9 +80,10 @@ pub fn guard<'a>(pairs: &'a [(&'a str, &'a str)]) -> SyncGuard<'a> {
     SyncGuard { expect: pairs }
 }
 
-/// What this Mac reports about itself: its hardware UUID (from `ioreg -rd1
-/// -c IOPlatformExpertDevice`) and its ComputerName (`scutil --get
-/// ComputerName`). Tests build it directly.
+/// What this computer reports about itself: on a Mac its hardware UUID
+/// (from `ioreg -rd1 -c IOPlatformExpertDevice`) and its ComputerName
+/// (`scutil --get ComputerName`); on Linux its machine ID and host name.
+/// Tests build it directly.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Machine {
     pub hardware_uuid: Option<String>,
@@ -105,10 +106,21 @@ impl Machine {
                 .unwrap_or_default()
         };
         Machine {
-            hardware_uuid: platform_uuid(&run(
-                "/usr/sbin/ioreg",
-                &["-rd1", "-c", "IOPlatformExpertDevice"],
-            )),
+            hardware_uuid: if cfg!(target_os = "macos") {
+                platform_uuid(&run(
+                    "/usr/sbin/ioreg",
+                    &["-rd1", "-c", "IOPlatformExpertDevice"],
+                ))
+            } else if cfg!(windows) {
+                None
+            } else {
+                // systemd's machine ID (D-Bus's on older systems): a copied
+                // data folder on another server then reads as a copy. A
+                // library that recorded none before simply records it.
+                ["/etc/machine-id", "/var/lib/dbus/machine-id"]
+                    .iter()
+                    .find_map(|path| machine_id(&std::fs::read_to_string(path).ok()?))
+            },
             computer_name: if cfg!(target_os = "macos") {
                 run("/usr/sbin/scutil", &["--get", "ComputerName"])
             } else {
@@ -157,6 +169,14 @@ pub const DEFAULT_DEVICE_NAME: &str = if cfg!(target_os = "macos") {
 } else {
     "Computer"
 };
+
+/// The machine ID in `/etc/machine-id`: 32 hex digits on one line, or
+/// `None` for an empty or uninitialized one. Pure.
+pub fn machine_id(text: &str) -> Option<String> {
+    let id = text.trim();
+    (id.len() == 32 && id.bytes().all(|b| b.is_ascii_hexdigit()) && id.bytes().any(|b| b != b'0'))
+        .then(|| id.to_ascii_lowercase())
+}
 
 /// The `"IOPlatformUUID" = "…"` value in `ioreg` output.
 fn platform_uuid(ioreg: &str) -> Option<String> {
@@ -573,6 +593,37 @@ mod tests {
 
     fn gen_flow() -> impl Strategy<Value = Flow> {
         prop_oneof![Just(Flow::SignUp), Just(Flow::SignIn), Just(Flow::Recover)]
+    }
+
+    #[test]
+    fn machine_ids_are_read_or_refused() {
+        assert_eq!(
+            machine_id("0123456789ABCDEF0123456789abcdef\n").as_deref(),
+            Some("0123456789abcdef0123456789abcdef")
+        );
+        assert_eq!(machine_id(""), None);
+        assert_eq!(machine_id("uninitialized\n"), None);
+        assert_eq!(machine_id(&"0".repeat(32)), None);
+    }
+
+    proptest! {
+        /// Any 32 hex digits (not all zero) are an ID, whatever the case or
+        /// surrounding whitespace; anything shorter, longer or not hex isn't.
+        #[test]
+        fn prop_machine_id(id in "[0-9a-fA-F]{32}", pad in "[ \n\t]{0,3}", other in "[0-9a-z]{0,40}") {
+            let expected = id.bytes().any(|b| b != b'0').then(|| id.to_ascii_lowercase());
+            prop_assert_eq!(machine_id(&format!("{pad}{id}{pad}")), expected.clone());
+            if let Some(found) = machine_id(&other) {
+                prop_assert_eq!(found.len(), 32);
+                prop_assert_eq!(other.len(), 32);
+            }
+            // The same ID always hashes the same, and differs from none.
+            let machine = |uuid: Option<String>| Machine { hardware_uuid: uuid, computer_name: String::new() };
+            if let Some(found) = expected {
+                prop_assert_eq!(machine(Some(found.clone())).hardware_hash().len(), 32);
+                prop_assert_ne!(machine(Some(found)).hardware_hash(), machine(None).hardware_hash());
+            }
+        }
     }
 
     proptest! {

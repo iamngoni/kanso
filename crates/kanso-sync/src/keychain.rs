@@ -6,7 +6,8 @@
 //!
 //! The service is `Kanso`; item names carry the library ID, so data
 //! directories never share secrets. [`SecretStore`] is the seam: [`Keychain`]
-//! in the app, [`MemorySecrets`] in tests and snapshots.
+//! in the app, [`FileSecrets`] (`secrets.json`) on a computer with no
+//! secret service, [`MemorySecrets`] in tests and snapshots.
 
 use std::collections::BTreeMap;
 use std::sync::Mutex;
@@ -269,6 +270,355 @@ impl SecretStore for MemorySecrets {
         }
         self.items.lock().expect("secrets poisoned").remove(item);
         Ok(())
+    }
+}
+
+#[cfg(feature = "file-secrets")]
+pub use file_secrets::{FileSecrets, SECRETS_FILE, SECRETS_KEY_FILE_ENV};
+
+/// [`FileSecrets`]: the session in a file, for computers with no secret
+/// service (docs/ACCOUNTS.md › Keychain items).
+#[cfg(feature = "file-secrets")]
+mod file_secrets {
+    use std::collections::BTreeMap;
+    use std::io::{Read as _, Write as _};
+    use std::path::{Path, PathBuf};
+    use std::sync::Mutex;
+
+    use chacha20poly1305::aead::{Aead, KeyInit, Payload};
+    use chacha20poly1305::{XChaCha20Poly1305, XNonce};
+    use serde::{Deserialize, Serialize};
+    use zeroize::Zeroizing;
+
+    use super::{SecretError, SecretStore, zeroizing_string};
+    use crate::crypto::{NONCE_LEN, b64, random, unb64};
+
+    /// The file's name in the data directory.
+    pub const SECRETS_FILE: &str = "secrets.json";
+
+    /// The environment variable naming the key file that seals
+    /// [`SECRETS_FILE`] (a systemd credential, say).
+    pub const SECRETS_KEY_FILE_ENV: &str = "KANSO_SECRETS_KEY_FILE";
+
+    /// The AAD of a sealed file: the purpose, then the format byte.
+    const SEALED_AAD: &[u8] = b"kanso/v1/secrets-file\x01";
+
+    /// What a Poly1305 tag adds.
+    const TAG_LEN: usize = 16;
+
+    /// Secrets in one owner-only JSON file: for computers with no secret
+    /// service (a headless Linux server). Every write rewrites the file
+    /// atomically. Optionally sealed under a key read from a key file.
+    ///
+    /// Plain, the file is `{"v":1,"items":{"<item>":"<value>",…}}`, with the
+    /// same values the Keychain holds. Sealed, it is `{"v":1,"sealed":"…"}`:
+    /// unpadded base64url of `nonce(24) || XChaCha20-Poly1305(key, nonce,
+    /// "kanso/v1/secrets-file" || 0x01, plain file)`. A file that can't be
+    /// read is an error, never "no item": an unreadable session must not
+    /// read as signed out and let a sign-in overwrite it. A plain file read
+    /// with a key is sealed in place.
+    pub struct FileSecrets {
+        path: PathBuf,
+        key: Option<Zeroizing<[u8; 32]>>,
+        /// Held across each read, and each read-modify-write.
+        lock: Mutex<()>,
+    }
+
+    /// One item's value, zeroized on drop.
+    #[derive(Serialize, Deserialize)]
+    struct Value(#[serde(with = "zeroizing_string")] Zeroizing<String>);
+
+    type Items = BTreeMap<String, Value>;
+
+    /// The file, either shape.
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Stored {
+        v: u32,
+        #[serde(default)]
+        items: Option<Items>,
+        #[serde(default)]
+        sealed: Option<String>,
+    }
+
+    #[derive(Serialize)]
+    struct PlainOut<'a> {
+        v: u32,
+        items: &'a Items,
+    }
+
+    #[derive(Serialize)]
+    struct SealedOut<'a> {
+        v: u32,
+        sealed: &'a str,
+    }
+
+    fn error(message: impl Into<String>) -> SecretError {
+        SecretError(message.into())
+    }
+
+    fn io_error(what: &str, path: &Path, err: std::io::Error) -> SecretError {
+        error(format!("couldn't {what} {}: {err}", path.display()))
+    }
+
+    fn unreadable() -> SecretError {
+        error(format!("{SECRETS_FILE} can't be read"))
+    }
+
+    impl FileSecrets {
+        /// `path` is `<data-dir>/secrets.json`. `key_file`, when given, holds
+        /// exactly 32 raw bytes (or 64 hex digits, surrounding whitespace
+        /// allowed); the file is then sealed. Nothing is read from `path` yet.
+        pub fn open(path: PathBuf, key_file: Option<&Path>) -> Result<FileSecrets, SecretError> {
+            let key = match key_file {
+                Some(key_file) => Some(read_key(key_file)?),
+                None => None,
+            };
+            Ok(FileSecrets {
+                path,
+                key,
+                lock: Mutex::new(()),
+            })
+        }
+
+        pub fn path(&self) -> &Path {
+            &self.path
+        }
+
+        /// Whether a key was given, so the file is sealed.
+        pub fn sealed(&self) -> bool {
+            self.key.is_some()
+        }
+
+        /// The items, or `None` when there is no file.
+        fn read(&self) -> Result<Option<Items>, SecretError> {
+            let mut file = match std::fs::File::open(&self.path) {
+                Ok(file) => file,
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+                Err(err) => return Err(io_error("open", &self.path, err)),
+            };
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                let mode = file
+                    .metadata()
+                    .map_err(|err| io_error("read", &self.path, err))?
+                    .permissions()
+                    .mode();
+                if mode & 0o077 != 0 {
+                    return Err(error(format!(
+                        "{SECRETS_FILE} is readable by others; chmod 600 it"
+                    )));
+                }
+            }
+            let mut bytes = Zeroizing::new(Vec::new());
+            file.read_to_end(&mut bytes)
+                .map_err(|err| io_error("read", &self.path, err))?;
+            let stored: Stored = serde_json::from_slice(&bytes).map_err(|_| unreadable())?;
+            if stored.v != 1 {
+                return Err(error(format!(
+                    "{SECRETS_FILE} is from a newer Kanso (version {})",
+                    stored.v
+                )));
+            }
+            match (stored.items, stored.sealed, &self.key) {
+                (Some(items), None, None) => Ok(Some(items)),
+                // A key was set after the file was written (signed in, then
+                // sealed, the way the README goes): seal it now, so the
+                // plain copy is gone at once rather than at the next write.
+                (Some(items), None, Some(_)) => {
+                    self.write(&items)?;
+                    Ok(Some(items))
+                }
+                (None, Some(_), None) => Err(error(format!(
+                    "{SECRETS_FILE} is sealed and {SECRETS_KEY_FILE_ENV} isn't set; set it to the key file it was sealed with"
+                ))),
+                (None, Some(sealed), Some(key)) => open_sealed(key, &sealed).map(Some),
+                _ => Err(unreadable()),
+            }
+        }
+
+        /// Replaces the file with `items`: a temporary file, created `0600`,
+        /// synced, then renamed over it.
+        fn write(&self, items: &Items) -> Result<(), SecretError> {
+            let plain = Zeroizing::new(
+                serde_json::to_vec(&PlainOut { v: 1, items }).expect("the items serialize"),
+            );
+            let bytes = match &self.key {
+                None => plain,
+                Some(key) => {
+                    let sealed = seal(key, &plain);
+                    Zeroizing::new(
+                        serde_json::to_vec(&SealedOut {
+                            v: 1,
+                            sealed: &sealed,
+                        })
+                        .expect("the file serializes"),
+                    )
+                }
+            };
+            if let Some(dir) = self.path.parent().filter(|dir| !dir.as_os_str().is_empty()) {
+                let mut builder = std::fs::DirBuilder::new();
+                builder.recursive(true);
+                #[cfg(unix)]
+                std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+                builder
+                    .create(dir)
+                    .map_err(|err| io_error("create", dir, err))?;
+            }
+            // A name of its own, made new: another process (`kanso account
+            // status` beside `kanso serve`, which seals a plain file it
+            // reads) never writes into this one, and nothing left over from
+            // a crash is reused with its old mode.
+            let mut name = self.path.file_name().unwrap_or_default().to_os_string();
+            name.push(format!(
+                ".{}-{}.tmp",
+                std::process::id(),
+                b64(&random::<6>())
+            ));
+            let tmp = self.path.with_file_name(name);
+            let mut options = std::fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+            let mut file = options
+                .open(&tmp)
+                .map_err(|err| io_error("create", &tmp, err))?;
+            let written = file
+                .write_all(&bytes)
+                .and_then(|()| file.sync_all())
+                .map_err(|err| io_error("write", &tmp, err))
+                .and_then(|()| {
+                    std::fs::rename(&tmp, &self.path)
+                        .map_err(|err| io_error("replace", &self.path, err))
+                });
+            if let Err(err) = written {
+                std::fs::remove_file(&tmp).ok();
+                return Err(err);
+            }
+            // The rename itself survives a crash only once the folder is
+            // synced too.
+            #[cfg(unix)]
+            if let Some(dir) = self.path.parent() {
+                std::fs::File::open(dir)
+                    .and_then(|dir| dir.sync_all())
+                    .map_err(|err| io_error("sync", dir, err))?;
+            }
+            Ok(())
+        }
+    }
+
+    /// The key in `key_file`: exactly 32 bytes, or 64 hex digits with
+    /// whitespace around them.
+    fn read_key(key_file: &Path) -> Result<Zeroizing<[u8; 32]>, SecretError> {
+        let bytes =
+            Zeroizing::new(std::fs::read(key_file).map_err(|err| io_error("read", key_file, err))?);
+        let mut key = Zeroizing::new([0u8; 32]);
+        if bytes.len() == 32 {
+            key.copy_from_slice(&bytes);
+            return Ok(key);
+        }
+        let digits = bytes.trim_ascii();
+        let bad = || {
+            error(format!(
+                "{SECRETS_KEY_FILE_ENV} must name a file of 32 bytes or 64 hex digits"
+            ))
+        };
+        if digits.len() != 64 {
+            return Err(bad());
+        }
+        for (byte, &[hi, lo]) in key.iter_mut().zip(digits.as_chunks::<2>().0) {
+            *byte = hex_digit(hi).ok_or_else(bad)? << 4 | hex_digit(lo).ok_or_else(bad)?;
+        }
+        Ok(key)
+    }
+
+    fn hex_digit(c: u8) -> Option<u8> {
+        char::from(c)
+            .to_digit(16)
+            .and_then(|d| u8::try_from(d).ok())
+    }
+
+    /// `b64(nonce || XChaCha20-Poly1305(key, nonce, SEALED_AAD, plain))`.
+    fn seal(key: &[u8; 32], plain: &[u8]) -> String {
+        let nonce = random::<NONCE_LEN>();
+        let cipher = XChaCha20Poly1305::new_from_slice(key).expect("a 32-byte key");
+        let body = cipher
+            .encrypt(
+                &XNonce::from(nonce),
+                Payload {
+                    msg: plain,
+                    aad: SEALED_AAD,
+                },
+            )
+            .expect("XChaCha20-Poly1305 seals every length used here");
+        let mut out = Vec::with_capacity(NONCE_LEN + body.len());
+        out.extend_from_slice(&nonce);
+        out.extend_from_slice(&body);
+        b64(&out)
+    }
+
+    /// Opens [`seal`]'s output and reads the plain file inside.
+    fn open_sealed(key: &[u8; 32], sealed: &str) -> Result<Items, SecretError> {
+        let bytes = unb64(sealed).ok_or_else(unreadable)?;
+        if bytes.len() < NONCE_LEN + TAG_LEN {
+            return Err(unreadable());
+        }
+        let (nonce, body) = bytes.split_at(NONCE_LEN);
+        let mut nonce_bytes = [0u8; NONCE_LEN];
+        nonce_bytes.copy_from_slice(nonce);
+        let cipher = XChaCha20Poly1305::new_from_slice(key).expect("a 32-byte key");
+        let plain = Zeroizing::new(
+            cipher
+                .decrypt(
+                    &XNonce::from(nonce_bytes),
+                    Payload {
+                        msg: body,
+                        aad: SEALED_AAD,
+                    },
+                )
+                .map_err(|_| {
+                    error(format!(
+                        "{SECRETS_FILE} doesn't open with the key in {SECRETS_KEY_FILE_ENV}"
+                    ))
+                })?,
+        );
+        match serde_json::from_slice::<Stored>(&plain).map_err(|_| unreadable())? {
+            Stored {
+                v: 1,
+                items: Some(items),
+                sealed: None,
+            } => Ok(items),
+            _ => Err(unreadable()),
+        }
+    }
+
+    impl SecretStore for FileSecrets {
+        fn get(&self, item: &str) -> Result<Option<Zeroizing<String>>, SecretError> {
+            let _held = self.lock.lock().expect("secrets poisoned");
+            Ok(self
+                .read()?
+                .and_then(|mut items| items.remove(item))
+                .map(|Value(value)| value))
+        }
+
+        fn set(&self, item: &str, value: &str) -> Result<(), SecretError> {
+            let _held = self.lock.lock().expect("secrets poisoned");
+            let mut items = self.read()?.unwrap_or_default();
+            items.insert(item.to_owned(), Value(Zeroizing::new(value.to_owned())));
+            self.write(&items)
+        }
+
+        fn delete(&self, item: &str) -> Result<(), SecretError> {
+            let _held = self.lock.lock().expect("secrets poisoned");
+            let Some(mut items) = self.read()? else {
+                return Ok(());
+            };
+            if items.remove(item).is_none() {
+                return Ok(());
+            }
+            self.write(&items)
+        }
     }
 }
 
@@ -1371,6 +1721,298 @@ mod tests {
                     prop_assert_eq!(got, model.get(&name).cloned());
                 }
                 prop_assert_eq!(secrets.items(), model.keys().cloned().collect::<Vec<_>>());
+            }
+        }
+    }
+
+    /// `FileSecrets`, in a temporary directory.
+    #[cfg(feature = "file-secrets")]
+    mod file_secrets {
+        use super::*;
+        use std::path::{Path, PathBuf};
+
+        /// A store at `<dir>/data/secrets.json`, sealed when `key` is given
+        /// (written as raw bytes, or as hex with a newline).
+        fn store(dir: &Path, key: Option<([u8; 32], bool)>) -> FileSecrets {
+            let key_file = key.map(|(key, hex)| {
+                let path = dir.join("key");
+                if hex {
+                    let digits: String = key.iter().map(|b| format!("{b:02X}")).collect();
+                    std::fs::write(&path, format!("  {digits}\n")).unwrap();
+                } else {
+                    std::fs::write(&path, key).unwrap();
+                }
+                path
+            });
+            FileSecrets::open(secrets_path(dir), key_file.as_deref()).unwrap()
+        }
+
+        fn secrets_path(dir: &Path) -> PathBuf {
+            dir.join("data").join(SECRETS_FILE)
+        }
+
+        #[cfg(unix)]
+        fn mode(path: &Path) -> u32 {
+            use std::os::unix::fs::PermissionsExt as _;
+            std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+        }
+
+        #[test]
+        fn a_missing_file_holds_nothing() {
+            let dir = tempfile::tempdir().unwrap();
+            let secrets = store(dir.path(), None);
+            assert!(!secrets.sealed());
+            assert_eq!(secrets.path(), secrets_path(dir.path()));
+            assert!(secrets.get("item").unwrap().is_none());
+            secrets.delete("item").unwrap();
+            assert!(!secrets.path().exists());
+        }
+
+        /// The file is `0600` in a `0700` directory, beside a world-readable
+        /// leftover temporary file too, it leaves no temporary file behind,
+        /// and a plain one reads as the documented JSON.
+        #[cfg(unix)]
+        #[test]
+        fn the_file_is_owner_only() {
+            use std::os::unix::fs::PermissionsExt as _;
+            let dir = tempfile::tempdir().unwrap();
+            let secrets = store(dir.path(), None);
+            std::fs::create_dir(dir.path().join("data")).unwrap();
+            let tmp = dir.path().join("data").join("secrets.json.tmp");
+            std::fs::write(&tmp, b"old").unwrap();
+            std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o644)).unwrap();
+            secrets.set("a", "1").unwrap();
+            secrets.set("b", "2").unwrap();
+            assert_eq!(mode(secrets.path()), 0o600);
+            let names: Vec<_> = std::fs::read_dir(dir.path().join("data"))
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .collect();
+            assert_eq!(names.len(), 2, "{names:?}");
+            assert!(names.contains(&"secrets.json".to_owned()));
+
+            let fresh = tempfile::tempdir().unwrap();
+            let secrets = store(fresh.path(), None);
+            secrets.set("a", "\"1\"").unwrap();
+            assert_eq!(mode(secrets.path()), 0o600);
+            assert_eq!(mode(&fresh.path().join("data")), 0o700);
+            let raw: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(secrets.path()).unwrap()).unwrap();
+            assert_eq!(raw, serde_json::json!({"v": 1, "items": {"a": "\"1\""}}));
+            secrets.delete("a").unwrap();
+            let raw: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(secrets.path()).unwrap()).unwrap();
+            assert_eq!(raw, serde_json::json!({"v": 1, "items": {}}));
+        }
+
+        /// A file others can read is refused, for reads and writes alike.
+        #[cfg(unix)]
+        #[test]
+        fn a_file_others_can_read_is_refused() {
+            use std::os::unix::fs::PermissionsExt as _;
+            let dir = tempfile::tempdir().unwrap();
+            let secrets = store(dir.path(), None);
+            secrets.set("a", "1").unwrap();
+            std::fs::set_permissions(secrets.path(), std::fs::Permissions::from_mode(0o644))
+                .unwrap();
+            let err = secrets.get("a").unwrap_err();
+            assert_eq!(
+                err,
+                SecretError("secrets.json is readable by others; chmod 600 it".into())
+            );
+            assert!(secrets.set("b", "2").is_err());
+            assert!(secrets.delete("a").is_err());
+            assert_eq!(mode(secrets.path()), 0o644);
+        }
+
+        /// A file that doesn't parse, or isn't this version's, is an error,
+        /// never "no item".
+        #[test]
+        fn a_corrupt_file_is_an_error() {
+            let dir = tempfile::tempdir().unwrap();
+            let secrets = store(dir.path(), None);
+            secrets.set("a", "1").unwrap();
+            for corrupt in [
+                &b""[..],
+                b"{",
+                b"null",
+                b"{\"v\":1}",
+                b"{\"v\":2,\"items\":{}}",
+                b"{\"v\":1,\"items\":{\"a\":1}}",
+                b"{\"v\":1,\"items\":{},\"extra\":true}",
+                b"{\"v\":1,\"items\":{},\"sealed\":\"AA\"}",
+            ] {
+                std::fs::write(secrets.path(), corrupt).unwrap();
+                assert!(secrets.get("a").is_err(), "{corrupt:?}");
+                assert!(secrets.set("a", "2").is_err(), "{corrupt:?}");
+                assert!(secrets.delete("a").is_err(), "{corrupt:?}");
+            }
+        }
+
+        /// A sealed file opens only under its key, and a sealed file without
+        /// a key is an error.
+        #[test]
+        fn a_sealed_file_needs_its_key() {
+            let dir = tempfile::tempdir().unwrap();
+            let sealed = store(dir.path(), Some(([3; 32], false)));
+            assert!(sealed.sealed());
+            sealed.set("sync-account:l_1", "the-secret-value").unwrap();
+            let raw = std::fs::read_to_string(sealed.path()).unwrap();
+            assert!(!raw.contains("the-secret-value"));
+            assert!(!raw.contains("sync-account"));
+            assert!(raw.starts_with("{\"v\":1,\"sealed\":\""));
+
+            // The same key written as hex opens it.
+            let hex = store(dir.path(), Some(([3; 32], true)));
+            assert_eq!(
+                hex.get("sync-account:l_1")
+                    .unwrap()
+                    .as_deref()
+                    .map(String::as_str),
+                Some("the-secret-value")
+            );
+
+            let wrong = store(dir.path(), Some(([4; 32], false)));
+            assert!(wrong.get("sync-account:l_1").is_err());
+            assert!(wrong.set("x", "y").is_err());
+
+            let none = store(dir.path(), None);
+            assert_eq!(
+                none.get("sync-account:l_1").unwrap_err(),
+                SecretError(
+                    "secrets.json is sealed and KANSO_SECRETS_KEY_FILE isn't set; set it to the key file it was sealed with"
+                        .into()
+                )
+            );
+
+            // A tampered seal doesn't open.
+            let mut value: serde_json::Value = serde_json::from_str(&raw).unwrap();
+            let text = value["sealed"].as_str().unwrap().to_owned();
+            let flipped = if text.ends_with('A') { "B" } else { "A" };
+            value["sealed"] = format!("{}{flipped}", &text[..text.len() - 1]).into();
+            std::fs::write(sealed.path(), value.to_string()).unwrap();
+            assert!(sealed.get("sync-account:l_1").is_err());
+        }
+
+        /// A plain file read with a key (sealing turned on after sign-in)
+        /// is sealed in place on that first read, and keeps its items; from
+        /// then on it needs the key.
+        #[test]
+        fn a_plain_file_read_with_a_key_is_sealed_in_place() {
+            let dir = tempfile::tempdir().unwrap();
+            store(dir.path(), None)
+                .set("sync-account:l_1", "the-secret-value")
+                .unwrap();
+            let keyed = store(dir.path(), Some(([3; 32], false)));
+            assert_eq!(
+                keyed
+                    .get("sync-account:l_1")
+                    .unwrap()
+                    .as_deref()
+                    .map(String::as_str),
+                Some("the-secret-value")
+            );
+            let raw = std::fs::read_to_string(keyed.path()).unwrap();
+            assert!(raw.starts_with("{\"v\":1,\"sealed\":\""), "{raw}");
+            assert!(!raw.contains("the-secret-value"));
+            assert!(store(dir.path(), None).get("sync-account:l_1").is_err());
+            assert!(
+                store(dir.path(), Some(([4; 32], false)))
+                    .get("sync-account:l_1")
+                    .is_err()
+            );
+            #[cfg(unix)]
+            assert_eq!(mode(keyed.path()), 0o600);
+        }
+
+        #[test]
+        fn a_key_file_must_hold_32_bytes_or_64_hex_digits() {
+            let dir = tempfile::tempdir().unwrap();
+            let key = dir.path().join("key");
+            let path = secrets_path(dir.path());
+            for bad in [&b""[..], &[1; 31], &[1; 33], &[b'g'; 64], &[b'a'; 63]] {
+                std::fs::write(&key, bad).unwrap();
+                assert!(FileSecrets::open(path.clone(), Some(&key)).is_err());
+            }
+            assert!(FileSecrets::open(path.clone(), Some(&dir.path().join("missing"))).is_err());
+            std::fs::write(&key, [b'a'; 64]).unwrap();
+            assert!(FileSecrets::open(path, Some(&key)).unwrap().sealed());
+        }
+
+        /// The account item round-trips through the file, plain and sealed.
+        #[test]
+        fn a_session_round_trips() {
+            let origin = "https://a.example";
+            let account = "a_0123456789abcdef0123456789abcdef";
+            for key in [None, Some(([5; 32], true))] {
+                let dir = tempfile::tempdir().unwrap();
+                let session = Session::new(
+                    origin.into(),
+                    origin.into(),
+                    account.into(),
+                    "alice".into(),
+                    "d_0123456789abcdef0123456789abcdef".into(),
+                    SessionToken::new(format!("kanso_{}", b64(&[6; 32]))),
+                    DataKey::from_bytes([7; 32]),
+                );
+                save_session(&store(dir.path(), key), "l_1", &session).unwrap();
+                let loaded = load_session(&store(dir.path(), key), "l_1", origin, account)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(loaded.data_key().bytes(), session.data_key().bytes());
+                assert_eq!(loaded.token(), session.token());
+                assert_eq!(loaded.username, "alice");
+            }
+        }
+
+        #[derive(Clone, Debug)]
+        enum FileOp {
+            Set(u8, String),
+            Delete(u8),
+            /// Reopens the store, as a new process would.
+            Reopen,
+        }
+
+        fn gen_file_op() -> impl Strategy<Value = FileOp> {
+            prop_oneof![
+                (0..4u8, "\\PC{0,8}").prop_map(|(k, v)| FileOp::Set(k, v)),
+                (0..4u8).prop_map(FileOp::Delete),
+                Just(FileOp::Reopen),
+            ]
+        }
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(64))]
+
+            /// Model-based: `FileSecrets`, plain or sealed, behaves like a
+            /// map across reopens, and deleting a missing item succeeds.
+            #[test]
+            fn prop_file_secrets_follow_a_map(
+                ops in prop::collection::vec(gen_file_op(), 0..16),
+                key in proptest::option::of((any::<[u8; 32]>(), any::<bool>())),
+            ) {
+                let dir = tempfile::tempdir().unwrap();
+                let mut secrets = store(dir.path(), key);
+                prop_assert_eq!(secrets.sealed(), key.is_some());
+                let mut model = BTreeMap::new();
+                for op in ops {
+                    match op {
+                        FileOp::Set(k, v) => {
+                            secrets.set(&format!("item{k}"), &v).unwrap();
+                            model.insert(format!("item{k}"), v);
+                        }
+                        FileOp::Delete(k) => {
+                            secrets.delete(&format!("item{k}")).unwrap();
+                            model.remove(&format!("item{k}"));
+                        }
+                        FileOp::Reopen => secrets = store(dir.path(), key),
+                    }
+                    for k in 0..4u8 {
+                        let name = format!("item{k}");
+                        let got = secrets.get(&name).unwrap().map(|v| v.to_string());
+                        prop_assert_eq!(got, model.get(&name).cloned());
+                    }
+                }
             }
         }
     }
