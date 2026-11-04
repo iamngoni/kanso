@@ -30,12 +30,12 @@ import 'package:kanso/settings/state/word_goal_settings/word_goal_settings_bloc.
 import 'package:kanso/templates/state/daily_template/daily_template_bloc.dart';
 
 import 'close_bloc_later.dart';
-import 'fixture_feedback_repository.dart';
 import 'fixture_about_repository.dart';
 import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_digest_repository.dart';
 import 'fixture_discovery_repository.dart';
+import 'fixture_feedback_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_push_repository.dart';
 import 'fixture_reminders_repository.dart';

@@ -67,9 +67,10 @@ class FeedbackEntrySheet extends StatelessWidget {
       l10n.feedbackChipBuilding,
       l10n.feedbackChipFixProposed,
       l10n.feedbackChipMerged,
-      entry.release == null
-          ? l10n.feedbackChipReleased('')
-          : l10n.feedbackChipReleased(entry.release!),
+      if (entry.release == null)
+        l10n.feedbackChipReleased('')
+      else
+        l10n.feedbackChipReleased(entry.release!),
     ];
     final detail = l10n.feedbackChipDetail(entry);
     final url = entry.issueUrl;

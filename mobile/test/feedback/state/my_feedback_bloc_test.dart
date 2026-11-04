@@ -23,7 +23,6 @@ void main() {
           fresh: true,
         ),
         sampleFeedbackEntry(
-          id: 'fb_a',
           chip: FeedbackChip.filedAs,
           number: 241,
         ),
@@ -80,8 +79,9 @@ void main() {
       'Delete removes the report, then reads the list again',
       build: build,
       act: (bloc) async {
-        bloc.add(const MyFeedbackEvent.started());
-        bloc.add(const MyFeedbackEvent.deleteRequested('fb_a'));
+        bloc
+          ..add(const MyFeedbackEvent.started())
+          ..add(const MyFeedbackEvent.deleteRequested('fb_a'));
       },
       verify: (bloc) {
         expect(repository.deleted, <String>['fb_a']);
