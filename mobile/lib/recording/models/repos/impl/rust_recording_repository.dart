@@ -12,26 +12,47 @@ import '../../../../core/models/data/application_error.dart';
 import '../../../../core/models/data/library_folder.dart';
 import '../../../../core/services/external_changes.dart';
 import '../../../../core/utils/kanso_error_mapping.dart';
+import '../../../services/recording_audio_session.dart';
 import '../abs/recording_repository.dart';
 
 /// [RecordingRepository] over the Rust core's library.
 @LazySingleton(as: RecordingRepository)
 class RustRecordingRepository implements RecordingRepository {
-  RustRecordingRepository(this._library, this._folder, this._external);
+  RustRecordingRepository(
+    this._library,
+    this._folder,
+    this._external,
+    this._audio,
+  );
 
   final KansoLibrary _library;
   final LibraryFolder _folder;
   final ExternalChanges _external;
+  final RecordingAudioSession _audio;
 
   @override
-  Future<Either<ApplicationError, RecordingSession>> start({String? noteId}) =>
-      attempt(() async {
-        final recording = await _library.recorder().start(
-          dataDir: _folder.path,
-          noteId: noteId,
-        );
-        return _RustRecordingSession(recording, _external);
-      });
+  Future<Either<ApplicationError, RecordingSession>> start({
+    String? noteId,
+  }) async {
+    // The phone asks for the microphone and, on iOS, sets the audio
+    // session to record: the Rust recorder can do neither.
+    if (!await _audio.prepare()) {
+      return const Left(
+        ApplicationError.invalid(message: 'The microphone is not allowed.'),
+      );
+    }
+    final started = await attempt<RecordingSession>(() async {
+      final recording = await _library.recorder().start(
+        dataDir: _folder.path,
+        noteId: noteId,
+      );
+      return _RustRecordingSession(recording, _external, _audio);
+    });
+    if (started.isLeft()) {
+      await _audio.release();
+    }
+    return started;
+  }
 
   @override
   Future<Either<ApplicationError, List<RecordingFound>>> found() =>
@@ -57,10 +78,11 @@ class RustRecordingRepository implements RecordingRepository {
 }
 
 class _RustRecordingSession implements RecordingSession {
-  _RustRecordingSession(this._recording, this._external);
+  _RustRecordingSession(this._recording, this._external, this._audio);
 
   final KansoRecording _recording;
   final ExternalChanges _external;
+  final RecordingAudioSession _audio;
 
   @override
   RecordingStatus get status => _recording.status();
@@ -72,15 +94,23 @@ class _RustRecordingSession implements RecordingSession {
   void resume() => _recording.resume();
 
   @override
-  Future<Either<ApplicationError, RecordingSaved>> stop() => attempt(() async {
-    final saved = await _recording.stop();
-    _external.announce();
-    return saved;
-  });
+  Future<Either<ApplicationError, RecordingSaved>> stop() async {
+    final result = await attempt(() async {
+      final saved = await _recording.stop();
+      _external.announce();
+      return saved;
+    });
+    await _audio.release();
+    return result;
+  }
 
   @override
-  Future<Either<ApplicationError, Unit>> discard() => attempt(() async {
-    await _recording.discard();
-    return unit;
-  });
+  Future<Either<ApplicationError, Unit>> discard() async {
+    final result = await attempt(() async {
+      await _recording.discard();
+      return unit;
+    });
+    await _audio.release();
+    return result;
+  }
 }

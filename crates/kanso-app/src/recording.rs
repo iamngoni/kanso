@@ -13,7 +13,7 @@
 //! Quitting while recording asks, then stops first. A transcription cut off
 //! by a quit leaves a marker the next launch offers to finish.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use gpui_kit::component::WindowExt as _;
@@ -26,7 +26,7 @@ use kanso_audio::{
     StopReason,
 };
 use kanso_engine::recording_flow::{
-    self, Destination, Recorded, SavedRecording, WhatToRecord, save_recording,
+    self, Destination, Recorded, SavedRecording, WhatToRecord, save_recording_or_new,
 };
 use kanso_store::Origin;
 use kanso_voice::audio::meter_level;
@@ -159,7 +159,15 @@ impl Drop for Awake {
 
 // MARK: Starting
 
+/// Shows `notification` on the main window, or else the first one. It
+/// waits for the update in progress to end: a click or an action arrives
+/// inside its window's update, and that window can't be reached from in
+/// there (nor found by `main_workspace`), so the notice would be lost.
 fn notify(notification: Notification, cx: &mut App) {
+    cx.defer(move |cx| notify_now(notification, cx));
+}
+
+fn notify_now(notification: Notification, cx: &mut App) {
     if let Some((handle, _)) = workspace::main_workspace(cx) {
         handle
             .update(cx, |_, window, cx| {
@@ -241,6 +249,13 @@ pub fn start(plan: RecordPlan, cx: &mut App) {
 
 fn begin(plan: RecordPlan, cx: &mut App) {
     if busy(cx) {
+        return;
+    }
+    // A note that is gone or locked can't take the audio: say so now, not
+    // after an hour of recording.
+    let store = cx.global::<AppState>().store.clone();
+    if let Err(err) = recording_flow::check_destination(&store, &plan.destination) {
+        notify(Notification::error(err.to_string()), cx);
         return;
     }
     let root = in_progress_dir(&cx.global::<AppState>().data_dir);
@@ -398,7 +413,6 @@ pub(crate) struct Done {
 // no-prop-test: glue; `save_recording` and the recorder have the properties.
 pub fn finish(finish: Finish, cx: &mut App) {
     let store = cx.global::<AppState>().store.clone();
-    let root = in_progress_dir(&cx.global::<AppState>().data_dir);
     let recording = cx.default_global::<Recording>();
     let Some(active) = recording.active.take() else {
         if let Some(then) = finish.then {
@@ -419,7 +433,7 @@ pub fn finish(finish: Finish, cx: &mut App) {
     let spawned = std::thread::Builder::new()
         .name("kanso-recording-stop".into())
         .spawn(move || {
-            let result = stop_and_save(&store, &root, capture, &thread_id, &plan, started_ms);
+            let result = stop_and_save(&store, capture, &thread_id, &plan, started_ms);
             let _ = tx.try_send(result);
         });
     if spawned.is_err() {
@@ -465,21 +479,22 @@ pub fn finish(finish: Finish, cx: &mut App) {
 /// as a full disk can make it), saves it, and clears the session folder.
 fn stop_and_save(
     store: &kanso_store::Store,
-    root: &Path,
     capture: Capture,
     id: &str,
     plan: &RecordPlan,
     started_ms: u64,
 ) -> Result<Done, String> {
+    let dir = capture.dir().to_path_buf();
     let (finished, reason) = match capture.stop() {
         Ok(stopped) => (stopped.finished, stopped.reason),
         Err(err) => {
-            let found = recovery::scan(root, None)
-                .into_iter()
-                .find(|r| r.id == id)
-                .ok_or_else(|| err.to_string())?;
+            let found = recovery::find(&dir).ok_or_else(|| err.to_string())?;
             let finished = recovery::recover(&found).map_err(|e| e.to_string())?;
-            (finished, StopReason::Disk(err.to_string()))
+            let reason = match err {
+                kanso_audio::AudioError::Device(why) => StopReason::Device(why),
+                other => StopReason::Disk(other.to_string()),
+            };
+            (finished, reason)
         }
     };
     let done = save_finished(
@@ -517,7 +532,9 @@ fn save_finished(
         mic_only: what.mic_only(),
         when: recording_flow::when_text(started_ms as i64),
     };
-    let saved = match save_recording(store, &recorded, &destination, Origin::Ui) {
+    // A note deleted or locked while recording sends the audio to a new
+    // note rather than leaving it out of the library.
+    let saved = match save_recording_or_new(store, &recorded, &destination, Origin::Ui) {
         Ok(saved) => saved,
         Err(recording_flow::FlowError::Empty) => {
             let _ = remove_session(&finished.dir);
@@ -654,23 +671,9 @@ pub fn finish_transcribing(window: &mut Window, cx: &mut App) {
         );
         return;
     }
-    let Some((_, workspace)) = workspace::main_workspace(cx) else {
-        return;
-    };
-    let (library, editor) = {
-        let workspace = workspace.read(cx);
-        (workspace.library.clone(), workspace.editor.clone())
-    };
-    crate::journal::open_made(
-        &library,
-        &editor,
-        pending.note_id.clone(),
-        None,
-        false,
-        window,
-        cx,
-    );
-    start_transcription(&pending, editor, window, cx);
+    // The click arrives inside its window's update; the main window (often
+    // that same one) can only be reached once the update ends.
+    cx.defer(move |cx| open_and_transcribe(&pending, cx));
 }
 
 // MARK: After a crash
@@ -798,6 +801,12 @@ pub fn confirm_quit(cx: &App) -> bool {
 
 /// "Stop and keep the recording?" Stop finalises first, then quits.
 pub fn ask_before_quit(quit: fn(&mut App), cx: &mut App) {
+    // Quit arrives inside its window's update, where the main window can't
+    // be found or reached: asking from there would quit without asking.
+    cx.defer(move |cx| ask_now(quit, cx));
+}
+
+fn ask_now(quit: fn(&mut App), cx: &mut App) {
     let Some((handle, _)) = workspace::main_workspace(cx) else {
         finish(
             Finish {

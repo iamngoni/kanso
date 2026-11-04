@@ -29,6 +29,8 @@ class MainActivity : FlutterFragmentActivity() {
         KansoCrashes.register(flutterEngine)
         files.register(flutterEngine)
         KansoReminders.register(this, flutterEngine)
+        // `app.kanso.kanso/recording`: RECORD_AUDIO for the Record screen.
+        KansoRecordingSession.register(this, flutterEngine)
         // `app.kanso.kanso/widgets`: the app asks for the home-screen widget
         // to be drawn again once it has written its colors (`widget.json`).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.kanso.kanso/widgets")
@@ -80,6 +82,7 @@ class MainActivity : FlutterFragmentActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         KansoReminders.onPermissionResult(requestCode, grantResults)
+        KansoRecordingSession.onPermissionResult(requestCode, grantResults)
     }
 
     @Deprecated("The document picker result comes back through here.")

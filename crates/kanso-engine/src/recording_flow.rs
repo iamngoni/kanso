@@ -154,6 +154,47 @@ fn attach_part(
     Ok(id)
 }
 
+/// The note `note_id`, when a recording can go into it: it is there, and
+/// neither it nor its notebook is locked.
+fn usable_note(store: &Store, note_id: &str) -> Result<kanso_core::model::Note, FlowError> {
+    let note = store.note(note_id)?.ok_or(FlowError::Missing)?;
+    if note.is_locked() || store.locked_books()?.contains(&note.book_id) {
+        return Err(FlowError::Locked);
+    }
+    Ok(note)
+}
+
+/// Refuses, before anything is recorded, a note the recording couldn't be
+/// saved into: one that is gone, locked, or in a locked notebook. A new
+/// note is checked when it is saved (its notebook is made then).
+pub fn check_destination(store: &Store, destination: &Destination) -> Result<(), FlowError> {
+    match destination {
+        Destination::ThisNote { note_id } => usable_note(store, note_id).map(|_| ()),
+        Destination::NewNote { .. } => Ok(()),
+    }
+}
+
+/// [`save_recording`], but a recording whose note was deleted or locked
+/// while it ran (or before a crash was recovered) goes into a new note
+/// instead, so the audio is never kept out of the library for good.
+// no-prop-test: glue over `save_recording`; the example test covers it.
+pub fn save_recording_or_new(
+    store: &Store,
+    recorded: &Recorded,
+    destination: &Destination,
+    origin: Origin,
+) -> Result<SavedRecording, FlowError> {
+    match save_recording(store, recorded, destination, origin) {
+        Err(FlowError::Locked | FlowError::Missing)
+            if matches!(destination, Destination::ThisNote { .. }) =>
+        {
+            let new = Destination::NewNote { book_id: None };
+            save_recording(store, recorded, &new, origin)
+        }
+        other => other,
+    }
+}
+
 /// Attaches the parts of `recorded` and puts them in the note: a new one
 /// titled `Recording — …` (`Meeting — …` with system audio) holding the
 /// audio line, or the line at the end of an existing one. Refuses a locked
@@ -169,21 +210,14 @@ pub fn save_recording(
     if recorded.parts.is_empty() {
         return Err(FlowError::Empty);
     }
-    let locked_books = store.locked_books()?;
     let (existing, book) = match destination {
-        Destination::ThisNote { note_id } => {
-            let note = store.note(note_id)?.ok_or(FlowError::Missing)?;
-            if note.is_locked() || locked_books.contains(&note.book_id) {
-                return Err(FlowError::Locked);
-            }
-            (Some(note), None)
-        }
+        Destination::ThisNote { note_id } => (Some(usable_note(store, note_id)?), None),
         Destination::NewNote { book_id } => {
             let book = match book_id {
                 Some(book) => book.clone(),
                 None => store.role_book(Role::Inbox, origin)?,
             };
-            if locked_books.contains(&book) {
+            if store.locked_books()?.contains(&book) {
                 return Err(FlowError::Locked);
             }
             (None, Some(book))
@@ -403,6 +437,40 @@ mod tests {
             save_recording(&store, &none, &dest, Origin::Ui),
             Err(FlowError::Empty)
         ));
+    }
+
+    #[test]
+    fn a_locked_note_is_refused_up_front_and_its_recording_lands_in_a_new_note() {
+        let (dir, store) = store();
+        let book = store.role_book(Role::Inbox, Origin::Ui).unwrap();
+        let made = store
+            .put(
+                DocType::Note,
+                json!({"title": "Memo", "body": "My prose", "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        let dest = Destination::ThisNote {
+            note_id: made.id.clone(),
+        };
+        assert!(check_destination(&store, &dest).is_ok());
+        let gone = Destination::ThisNote {
+            note_id: "note:nope".into(),
+        };
+        assert!(matches!(
+            check_destination(&store, &gone),
+            Err(FlowError::Missing)
+        ));
+        // The note went away while recording: the audio still lands.
+        let rec = recorded(dir.path(), 1);
+        let saved = save_recording_or_new(&store, &rec, &gone, Origin::Ui).unwrap();
+        assert!(saved.created);
+        assert_eq!(saved.note_id, note_id("abc-1"));
+        // Saving again (a second Recover) adds nothing.
+        let again = save_recording_or_new(&store, &rec, &gone, Origin::Ui).unwrap();
+        assert!(!again.created);
+        assert_eq!(again.note_id, saved.note_id);
     }
 
     proptest! {

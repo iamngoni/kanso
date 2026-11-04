@@ -8,7 +8,7 @@
 //! The phone has no on-device speech model, so a recording's note holds the
 //! audio line and the transcript waits for the desktop's.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Mutex;
 
 use kanso_audio::session::{in_progress_dir, now_ms, remove_session};
@@ -16,7 +16,9 @@ use kanso_audio::{
     AudioError, Capture, Channels, Finished, RecordSource, RecorderOptions, StopReason,
     meter_level, recovery,
 };
-use kanso_engine::recording_flow::{self, Destination, Recorded, WhatToRecord, save_recording};
+use kanso_engine::recording_flow::{
+    self, Destination, Recorded, WhatToRecord, save_recording_or_new,
+};
 use kanso_store::Origin;
 
 use crate::errors::KansoError;
@@ -41,13 +43,34 @@ fn flow_words(err: recording_flow::FlowError) -> KansoError {
     }
 }
 
+/// The sessions recording now in this process. Every window (an iPad or
+/// Android note window runs its own engine, and its own recording bloc)
+/// asks for what a crash left; a recording that is still running must not
+/// be offered for Recover or Discard there.
+static ACTIVE: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+fn set_active(id: &str, on: bool) {
+    let mut active = ACTIVE.lock().unwrap_or_else(|e| e.into_inner());
+    active.retain(|a| a != id);
+    if on {
+        active.push(id.to_owned());
+    }
+}
+
+fn is_active(id: &str) -> bool {
+    ACTIVE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .any(|a| a == id)
+}
+
 /// A recording in progress. One at a time is the shell's rule.
 pub struct PhoneRecording {
     capture: Mutex<Option<Capture>>,
     id: String,
     destination: Destination,
     started_ms: u64,
-    root: PathBuf,
 }
 
 impl PhoneRecording {
@@ -98,14 +121,15 @@ impl PhoneRecording {
             .unwrap()
             .take()
             .ok_or_else(|| KansoError::invalid("The recording is finished."))?;
-        let finished = match capture.stop() {
+        let dir = capture.dir().to_path_buf();
+        let stopped = capture.stop();
+        // Stopped: from here a failure leaves the folder for Recover.
+        set_active(&self.id, false);
+        let finished = match stopped {
             Ok(stopped) => stopped.finished,
             // A full disk can fail the last write: finish what is there.
             Err(err) => {
-                let found = recovery::scan(&self.root, None)
-                    .into_iter()
-                    .find(|r| r.id == self.id)
-                    .ok_or_else(|| words(err))?;
+                let found = recovery::find(&dir).ok_or_else(|| words(err))?;
                 recovery::recover(&found).map_err(words)?
             }
         };
@@ -120,10 +144,23 @@ impl PhoneRecording {
 
     /// Stops and deletes the recording.
     pub fn discard(&self) -> Result<(), KansoError> {
-        match self.capture.lock().unwrap().take() {
+        let result = match self.capture.lock().unwrap().take() {
             Some(capture) => capture.discard().map_err(words),
             None => Ok(()),
+        };
+        set_active(&self.id, false);
+        result
+    }
+}
+
+impl Drop for PhoneRecording {
+    /// Dropped without Stop (the shell went away): the capture stops and
+    /// keeps its folder, which is then offered for Recover.
+    fn drop(&mut self) {
+        if let Ok(mut capture) = self.capture.lock() {
+            drop(capture.take());
         }
+        set_active(&self.id, false);
     }
 }
 
@@ -149,7 +186,9 @@ fn save_finished(
         mic_only: WhatToRecord::Microphone.mic_only(),
         when: recording_flow::when_text(started_ms as i64),
     };
-    match save_recording(&library.inner.store, &recorded, &destination, Origin::Ui) {
+    // A note deleted or locked while recording sends the audio to a new
+    // note rather than leaving it out of the library.
+    match save_recording_or_new(&library.inner.store, &recorded, &destination, Origin::Ui) {
         Ok(saved) => {
             let _ = remove_session(&finished.dir);
             Ok(RecordingSaved {
@@ -178,31 +217,24 @@ impl Library {
         note_id: Option<String>,
     ) -> Result<PhoneRecording, KansoError> {
         let destination = match note_id {
-            Some(note_id) => {
-                let note = self
-                    .inner
-                    .store
-                    .note(&note_id)?
-                    .ok_or(KansoError::NotFound)?;
-                if note.is_locked() {
-                    return Err(KansoError::Locked);
-                }
-                Destination::ThisNote { note_id }
-            }
+            Some(note_id) => Destination::ThisNote { note_id },
             None => Destination::NewNote { book_id: None },
         };
+        // A gone or locked note (or one in a locked notebook) is refused
+        // now, not after the recording.
+        recording_flow::check_destination(&self.inner.store, &destination).map_err(flow_words)?;
         let root = in_progress_dir(data_dir);
         let id = kanso_audio::session::new_id();
         let mut options = RecorderOptions::new(Channels::Mono, vec![RecordSource::Microphone]);
         options.id = Some(id.clone());
         options.note_id = destination.note_id().map(str::to_owned);
         let capture = Capture::start(&root, options).map_err(words)?;
+        set_active(&id, true);
         Ok(PhoneRecording {
             capture: Mutex::new(Some(capture)),
             id,
             destination,
             started_ms: now_ms(),
-            root,
         })
     }
 
@@ -210,6 +242,7 @@ impl Library {
     pub fn recording_found(&self, data_dir: &Path) -> Vec<RecordingFound> {
         recovery::scan(&in_progress_dir(data_dir), None)
             .into_iter()
+            .filter(|r| !is_active(&r.id))
             .map(|r| {
                 let started = r.session.as_ref().map_or(0, |s| s.started_at_ms);
                 let seconds = r.duration_secs() as u64;
@@ -231,9 +264,14 @@ impl Library {
         data_dir: &Path,
         id: &str,
     ) -> Result<RecordingSaved, KansoError> {
-        let found = recovery::scan(&in_progress_dir(data_dir), None)
-            .into_iter()
-            .find(|r| r.id == id)
+        if !kanso_audio::session::valid_id(id) {
+            return Err(KansoError::NotFound);
+        }
+        if is_active(id) {
+            return Err(KansoError::invalid("That recording is still running."));
+        }
+        let found = recovery::find(&in_progress_dir(data_dir).join(id))
+            .filter(|r| r.id == id)
             .ok_or(KansoError::NotFound)?;
         let finished = recovery::recover(&found).map_err(words)?;
         let session = finished.session.clone();
@@ -252,6 +290,9 @@ impl Library {
     pub fn recording_discard_found(&self, data_dir: &Path, id: &str) -> Result<(), KansoError> {
         if !kanso_audio::session::valid_id(id) {
             return Err(KansoError::invalid("That isn't a recording."));
+        }
+        if is_active(id) {
+            return Err(KansoError::invalid("That recording is still running."));
         }
         remove_session(&in_progress_dir(data_dir).join(id))
             .map_err(|e| KansoError::storage(e.to_string()))

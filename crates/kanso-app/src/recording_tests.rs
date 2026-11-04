@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use gpui_kit::component::WindowExt as _;
 use gpui_kit::{AppContext as _, TestAppContext};
 use kanso_audio::session::in_progress_dir;
 use kanso_audio::{Channels, RecordSource, Recorder, RecorderOptions};
@@ -19,6 +20,7 @@ use crate::workspace::{AppState, Workspace};
 struct Fixture {
     dir: tempfile::TempDir,
     store: Arc<Store>,
+    window: gpui_kit::AnyWindowHandle,
 }
 
 fn setup(cx: &mut TestAppContext) -> Fixture {
@@ -26,7 +28,7 @@ fn setup(cx: &mut TestAppContext) -> Fixture {
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
     let data_dir = dir.path().to_path_buf();
     let app_store = store.clone();
-    cx.update(|cx| {
+    let window = cx.update(|cx| {
         gpui_kit::init(cx);
         cx.set_global(AppState {
             store: app_store,
@@ -37,10 +39,11 @@ fn setup(cx: &mut TestAppContext) -> Fixture {
         gpui_kit::open_window(Default::default(), cx, |window, cx| {
             cx.new(|cx| Workspace::new(window, cx))
         })
-        .unwrap();
+        .unwrap()
+        .0
     });
     cx.run_until_parked();
-    Fixture { dir, store }
+    Fixture { dir, store, window }
 }
 
 /// A recording a crash left: five seconds of sound, never finished.
@@ -123,4 +126,81 @@ fn a_transcription_a_quit_cut_off_is_offered_again(cx: &mut TestAppContext) {
     cx.update(recording::clear_pending);
     assert_eq!(notice(cx), None);
     assert!(!dir.join("pending-transcript.json").exists());
+}
+
+/// Clicks what `selector` names in the main window, as a person would: the
+/// handler runs inside the window's own update.
+fn click(f: &Fixture, cx: &mut TestAppContext, selector: &'static str) {
+    f.window
+        .update(cx, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    cx.run_until_parked();
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let bounds = vcx
+        .debug_bounds(selector)
+        .unwrap_or_else(|| panic!("{selector} is drawn"));
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    cx.run_until_parked();
+}
+
+fn open_note(cx: &mut TestAppContext) -> Option<String> {
+    cx.update(|cx| {
+        let (_, workspace) = crate::workspace::main_workspace(cx)?;
+        let editor = workspace.read(cx).editor.clone();
+        editor.read(cx).note_id().map(str::to_owned)
+    })
+}
+
+#[gpui_kit::test]
+fn finish_transcribing_from_the_main_window_opens_the_note(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let book = f
+        .store
+        .role_book(kanso_core::roles::Role::Inbox, kanso_store::Origin::Ui)
+        .unwrap();
+    let made = f
+        .store
+        .put(
+            kanso_core::DocType::Note,
+            serde_json::json!({"title": "Memo", "body": "x", "bookId": book}),
+            kanso_store::Put::Upsert,
+            kanso_store::Origin::Ui,
+        )
+        .unwrap();
+    let dir = f.dir.path().join("recordings");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("pending-transcript.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "note_id": made.id, "file_ids": ["file:rec-a-1"], "duration_secs": 90
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    cx.update(recording::scan);
+    click(&f, cx, "recording-finish-transcribing");
+    assert_eq!(open_note(cx).as_deref(), Some(made.id.as_str()));
+}
+
+#[gpui_kit::test]
+fn the_quit_question_opens_when_quit_comes_from_the_main_window(cx: &mut TestAppContext) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static QUIT: AtomicBool = AtomicBool::new(false);
+    let f = setup(cx);
+    // As ⌘Q: the action runs inside the key window's update.
+    f.window
+        .update(cx, |_, _, cx| {
+            recording::ask_before_quit(|_| QUIT.store(true, Ordering::SeqCst), cx)
+        })
+        .unwrap();
+    cx.run_until_parked();
+    assert!(!QUIT.load(Ordering::SeqCst), "quit without asking");
+    assert!(
+        f.window
+            .update(cx, |_, window, cx| window.has_active_dialog(cx))
+            .unwrap()
+    );
 }

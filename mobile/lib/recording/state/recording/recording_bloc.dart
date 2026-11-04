@@ -29,8 +29,9 @@ part 'recording_state.dart';
 class RecordingBloc extends Bloc<RecordingEvent, RecordingState> {
   RecordingBloc(
     this._repository, {
-    // The tick is a named, public argument so tests can slow it down.
-    Duration tick = const Duration(milliseconds: 250),
+    // The tick is a named, public argument so tests can slow it down. Not
+    // injected: no Duration is registered, and asking for one throws.
+    @ignoreParam Duration tick = const Duration(milliseconds: 250),
     // ignore: prefer_initializing_formals
   }) : _tick = tick,
        super(const RecordingState()) {

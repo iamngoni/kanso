@@ -215,6 +215,7 @@ import 'push/state/push_registration/push_registration_bloc.dart' as _i250;
 import 'push/state/push_setting/push_setting_bloc.dart' as _i584;
 import 'recording/models/repos/abs/recording_repository.dart' as _i28;
 import 'recording/models/repos/impl/rust_recording_repository.dart' as _i804;
+import 'recording/services/recording_audio_session.dart' as _i133;
 import 'recording/state/recording/recording_bloc.dart' as _i181;
 import 'reminders/state/reminders_settings/reminders_settings_bloc.dart'
     as _i420;
@@ -294,6 +295,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i608.WidgetReloader>(() => _i608.WidgetReloader());
     gh.lazySingleton<_i33.KansoDictation>(() => dictationModule.kansoDictation);
     gh.lazySingleton<_i901.KansoPushHostApi>(() => pushModule.hostApi());
+    gh.lazySingleton<_i133.RecordingAudioSession>(
+      () => _i133.RecordingAudioSession(),
+    );
     gh.lazySingleton<_i984.DiagnosticsRepository>(
       () => _i1062.RustDiagnosticsRepository(),
     );
@@ -515,13 +519,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i288.CrashReportRepository>(),
       ),
     );
-    gh.lazySingleton<_i28.RecordingRepository>(
-      () => _i804.RustRecordingRepository(
-        gh<_i455.KansoLibrary>(),
-        gh<_i72.LibraryFolder>(),
-        gh<_i825.ExternalChanges>(),
-      ),
-    );
     gh.lazySingleton<_i704.PaletteRepository>(
       () => _i97.RustPaletteRepository(gh<_i455.KansoLibrary>()),
     );
@@ -644,12 +641,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i979.EditorRepository>(
       () => _i606.RustEditorRepository(gh<_i455.KansoLibrary>()),
     );
-    gh.lazySingleton<_i181.RecordingBloc>(
-      () => _i181.RecordingBloc(
-        gh<_i28.RecordingRepository>(),
-        tick: gh<Duration>(),
-      ),
-    );
     gh.factory<_i861.LibraryIndexBloc>(
       () => _i861.LibraryIndexBloc(gh<_i38.LibraryRepository>()),
     );
@@ -739,10 +730,21 @@ extension GetItInjectableX on _i174.GetIt {
       (_tabs, _) =>
           _i272.NavigationHistoryBloc(gh<_i38.LibraryRepository>(), _tabs),
     );
+    gh.lazySingleton<_i28.RecordingRepository>(
+      () => _i804.RustRecordingRepository(
+        gh<_i455.KansoLibrary>(),
+        gh<_i72.LibraryFolder>(),
+        gh<_i825.ExternalChanges>(),
+        gh<_i133.RecordingAudioSession>(),
+      ),
+    );
     gh.lazySingleton<_i1035.AccountRepository>(
       () =>
           _i450.RustAccountRepository(gh<_i578.KansoAccount>())
             ..startRelayingPasskeys(),
+    );
+    gh.lazySingleton<_i181.RecordingBloc>(
+      () => _i181.RecordingBloc(gh<_i28.RecordingRepository>()),
     );
     gh.factory<_i343.NotebookHomeBloc>(
       () => _i343.NotebookHomeBloc(gh<_i257.NotebookHomeRepository>()),
