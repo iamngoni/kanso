@@ -6076,6 +6076,81 @@ class AppLocalizationsEn extends AppLocalizations {
       'Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above.';
 
   @override
+  String get recordingTitle => 'Record';
+
+  @override
+  String get recordingStart => 'Start recording';
+
+  @override
+  String get recordingStop => 'Stop';
+
+  @override
+  String get recordingPause => 'Pause';
+
+  @override
+  String get recordingResume => 'Resume';
+
+  @override
+  String get recordingDiscard => 'Discard';
+
+  @override
+  String get recordingCancel => 'Cancel';
+
+  @override
+  String get recordingBack => 'Back';
+
+  @override
+  String get recordingSaving => 'Saving…';
+
+  @override
+  String get recordingClockLabel => 'Time recorded';
+
+  @override
+  String get recordingDiscardTitle => 'Discard this recording?';
+
+  @override
+  String get recordingDiscardBody =>
+      'The audio recorded so far is deleted and can\'t be brought back.';
+
+  @override
+  String get recordingRecover => 'Recover';
+
+  @override
+  String get recordingIntoNewNote => 'Into a new note';
+
+  @override
+  String get recordingIntoThisNote => 'Into this note';
+
+  @override
+  String get recordingReminder =>
+      'Tell everyone nearby you are recording. The rules differ by place. The audio stays on this device until you sync.';
+
+  @override
+  String get recordingProblemBusy =>
+      'A recording is already running. Stop it before starting another.';
+
+  @override
+  String get recordingProblemCannotStart =>
+      'Kanso couldn\'t use the microphone. Allow it in Settings, then try again.';
+
+  @override
+  String get recordingProblemLocked =>
+      'That note is locked. Unlock it first, then record into it.';
+
+  @override
+  String get recordingProblemNoteGone => 'That note is gone.';
+
+  @override
+  String get recordingProblemSaveFailed =>
+      'The recording couldn\'t be saved. Kanso keeps the audio and offers to recover it.';
+
+  @override
+  String get recordingMenuRecordHere => 'Record into this note';
+
+  @override
+  String get libraryRecord => 'Record';
+
+  @override
   String get feedbackSection => 'Feedback';
 
   @override

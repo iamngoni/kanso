@@ -28,6 +28,8 @@ import 'api/notebook_home_types.dart';
 import 'api/people.dart';
 import 'api/people_types.dart';
 import 'api/publish.dart';
+import 'api/recording.dart';
+import 'api/recording_types.dart';
 import 'api/renderer.dart';
 import 'api/shared.dart';
 import 'api/shortcuts.dart';
@@ -133,6 +135,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoPublisherPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisherPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoRecorderPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorderPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoRecordingPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoRendererPtr => wire
@@ -278,6 +288,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPublisher
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecorder
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecording
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     dynamic raw,
   );
 
@@ -434,6 +456,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPublisher
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecorder
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecording
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     dynamic raw,
   );
 
@@ -596,6 +630,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPublisher
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecorder
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecording
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     dynamic raw,
   );
 
@@ -1002,6 +1048,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Range16 dco_decode_box_autoadd_range_16(dynamic raw);
+
+  @protected
+  RecordingEnd dco_decode_box_autoadd_recording_end(dynamic raw);
 
   @protected
   RecoveryKeyText dco_decode_box_autoadd_recovery_key_text(dynamic raw);
@@ -1698,6 +1747,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<(int, int)> dco_decode_list_record_u_32_u_32(dynamic raw);
 
   @protected
+  List<RecordingFound> dco_decode_list_recording_found(dynamic raw);
+
+  @protected
   List<RelatedRow> dco_decode_list_related_row(dynamic raw);
 
   @protected
@@ -2058,6 +2110,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Range16? dco_decode_opt_box_autoadd_range_16(dynamic raw);
 
   @protected
+  RecordingEnd? dco_decode_opt_box_autoadd_recording_end(dynamic raw);
+
+  @protected
   RecoveryKeyText? dco_decode_opt_box_autoadd_recovery_key_text(dynamic raw);
 
   @protected
@@ -2286,6 +2341,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   (int, int) dco_decode_record_u_32_u_32(dynamic raw);
+
+  @protected
+  RecordingEnd dco_decode_recording_end(dynamic raw);
+
+  @protected
+  RecordingFound dco_decode_recording_found(dynamic raw);
+
+  @protected
+  RecordingSaved dco_decode_recording_saved(dynamic raw);
+
+  @protected
+  RecordingStatus dco_decode_recording_status(dynamic raw);
 
   @protected
   RecoveryKeyText dco_decode_recovery_key_text(dynamic raw);
@@ -2732,6 +2799,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoRecorder
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecording
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoRenderer
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     SseDeserializer deserializer,
@@ -2884,6 +2963,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPublisher
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecorder
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecording
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     SseDeserializer deserializer,
   );
 
@@ -3046,6 +3137,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPublisher
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecorder
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecording
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     SseDeserializer deserializer,
   );
 
@@ -3512,6 +3615,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Range16 sse_decode_box_autoadd_range_16(SseDeserializer deserializer);
+
+  @protected
+  RecordingEnd sse_decode_box_autoadd_recording_end(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RecoveryKeyText sse_decode_box_autoadd_recovery_key_text(
@@ -4322,6 +4430,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<RecordingFound> sse_decode_list_recording_found(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<RelatedRow> sse_decode_list_related_row(SseDeserializer deserializer);
 
   @protected
@@ -4756,6 +4869,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Range16? sse_decode_opt_box_autoadd_range_16(SseDeserializer deserializer);
 
   @protected
+  RecordingEnd? sse_decode_opt_box_autoadd_recording_end(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RecoveryKeyText? sse_decode_opt_box_autoadd_recovery_key_text(
     SseDeserializer deserializer,
   );
@@ -5012,6 +5130,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   (int, int) sse_decode_record_u_32_u_32(SseDeserializer deserializer);
+
+  @protected
+  RecordingEnd sse_decode_recording_end(SseDeserializer deserializer);
+
+  @protected
+  RecordingFound sse_decode_recording_found(SseDeserializer deserializer);
+
+  @protected
+  RecordingSaved sse_decode_recording_saved(SseDeserializer deserializer);
+
+  @protected
+  RecordingStatus sse_decode_recording_status(SseDeserializer deserializer);
 
   @protected
   RecoveryKeyText sse_decode_recovery_key_text(SseDeserializer deserializer);
@@ -5490,6 +5620,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    KansoRecorder self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    KansoRecording self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     KansoRenderer self,
     SseSerializer serializer,
@@ -5667,6 +5811,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     KansoPublisher self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    KansoRecorder self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    KansoRecording self,
     SseSerializer serializer,
   );
 
@@ -5855,6 +6013,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     KansoPublisher self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    KansoRecorder self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    KansoRecording self,
     SseSerializer serializer,
   );
 
@@ -6487,6 +6659,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_box_autoadd_range_16(Range16 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_recording_end(
+    RecordingEnd self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_recovery_key_text(
@@ -7542,6 +7720,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_recording_found(
+    List<RecordingFound> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_related_row(
     List<RelatedRow> self,
     SseSerializer serializer,
@@ -8100,6 +8284,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_recording_end(
+    RecordingEnd? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_recovery_key_text(
     RecoveryKeyText? self,
     SseSerializer serializer,
@@ -8425,6 +8615,27 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_record_u_32_u_32((int, int) self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_recording_end(RecordingEnd self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_recording_found(
+    RecordingFound self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_recording_saved(
+    RecordingSaved self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_recording_status(
+    RecordingStatus self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_recovery_key_text(
@@ -9494,6 +9705,74 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisherPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorderPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorderPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorderPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorder =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecorderPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

@@ -22,8 +22,8 @@ import 'lock_item_sheet.dart';
 import 'remove_lock_sheet.dart';
 
 /// A note's More menu: first what the note's bar had no room for, then the
-/// [show] caller's extra actions (Open in New Window), then Export as PDF,
-/// and as far as locks go Lock note…, Remove lock… (the note
+/// [show] caller's extra actions (Open in New Window, Record here), then
+/// Export as PDF, and as far as locks go Lock note…, Remove lock… (the note
 /// is locked and open) and Lock notes now (the notes are open). The choice
 /// closes the menu and then runs.
 class NoteMoreSheet extends StatelessWidget {
@@ -85,6 +85,7 @@ class NoteMoreSheet extends StatelessWidget {
         status.add(const LockStatusEvent.lockedNow());
       // Run above, from [moved] or [extra].
       case NoteMenuAction.openInNewWindow ||
+          NoteMenuAction.record ||
           NoteMenuAction.info ||
           NoteMenuAction.comments ||
           NoteMenuAction.share ||
@@ -124,6 +125,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.removeLock => KansoIcons.lockOpen,
                   NoteMenuAction.lockNow => KansoIcons.lock,
                   NoteMenuAction.openInNewWindow => KansoIcons.externalLink,
+                  NoteMenuAction.record => KansoIcons.mic,
                   NoteMenuAction.info => KansoIcons.info,
                   NoteMenuAction.comments => KansoIcons.messageSquare,
                   NoteMenuAction.share => KansoIcons.share,
@@ -139,6 +141,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.removeLock => l10n.lockRemoveNoteMenu,
                   NoteMenuAction.lockNow => l10n.lockNowMenu,
                   NoteMenuAction.openInNewWindow => l10n.noteOpenInNewWindow,
+                  NoteMenuAction.record => l10n.recordingMenuRecordHere,
                   NoteMenuAction.info => l10n.noteInfo,
                   NoteMenuAction.comments => l10n.commentsTitle,
                   NoteMenuAction.share => l10n.shareTitle,

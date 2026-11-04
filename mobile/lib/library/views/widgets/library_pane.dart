@@ -274,6 +274,12 @@ class _LibraryPaneState extends State<LibraryPane> {
                         onLongPress: () => _emptyTrash(context, index),
                       ),
                       KansoSidebarRow(
+                        icon: KansoIcons.mic,
+                        label: l10n.libraryRecord,
+                        onTap: () =>
+                            leave(() => context.push(KansoRoutes.record)),
+                      ),
+                      KansoSidebarRow(
                         icon: KansoIcons.replaceAll,
                         label: l10n.libraryReplace,
                         onTap: () => leave(

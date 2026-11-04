@@ -20,6 +20,9 @@ enum NoteMenuAction {
   /// one window.
   openInNewWindow,
 
+  /// Opens the Record screen with this note as where the recording goes.
+  record,
+
   /// What the note's bar would offer, had it room for it: in the menu when
   /// the bar gave way (see `KansoTopBar.hiddenOf`).
   info,

@@ -886,6 +886,10 @@ impl Render for NoteWindow {
         }
         let colors = Colors::get(cx);
         let editor = self.editor.clone();
+        // The recording bar tops the window while a recording runs; the
+        // layout is untouched when there is none.
+        let strip = crate::recording_bar::strip(cx).filter(|_| self.sticky.is_none());
+        let plain = self.sticky.is_none() && strip.is_none();
         div()
             .size_full()
             .relative()
@@ -996,6 +1000,10 @@ impl Render for NoteWindow {
             .on_action(cx.listener(|this, _: &Dictate, window, cx| {
                 crate::voice::press(this.editor.clone(), window, cx);
             }))
+            .on_action(cx.listener(|this, _: &crate::recording::RecordAudio, window, cx| {
+                let open = this.editor.read(cx).note_id().map(str::to_owned);
+                crate::record_sheet::open(open, window, cx);
+            }))
             .on_action(cx.listener(
                 |this, _: &crate::transcribe::TranscribeAudio, window, cx| {
                     let found = this.editor.read(cx).audio_source_on_caret_line(cx);
@@ -1017,7 +1025,17 @@ impl Render for NoteWindow {
             .on_action(|_: &OpenCommandPalette, _, cx| forward(OpenCommandPalette, cx))
             .on_action(|_: &OpenNotePicker, _, cx| forward(OpenNotePicker, cx))
             .on_action(|_: &SearchAllNotes, _, cx| forward(SearchAllNotes, cx))
-            .when(self.sticky.is_none(), |el| el.child(editor.clone()))
+            .when(plain, |el| el.child(editor.clone()))
+            .when_some(strip, |el, bar| {
+                el.flex().flex_col().child(bar).child(
+                    div()
+                        .flex_1()
+                        .min_h_0()
+                        .w_full()
+                        .relative()
+                        .child(editor.clone()),
+                )
+            })
             .when_some(self.sticky, |el, color| {
                 let base = Hsla::from(Colors::get(cx).editor);
                 el.flex()

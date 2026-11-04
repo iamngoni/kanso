@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import UIKit
 import UserNotifications
@@ -87,6 +88,7 @@ import kanso_push
       KansoReminders.shared.register(with: registrar.messenger())
     }
     registerWidgetChannel(engineBridge.pluginRegistry)
+    registerRecordingChannel(engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KansoFiles") {
       KansoFiles.shared.register(with: registrar.messenger())
     }
@@ -109,6 +111,45 @@ import kanso_push
       }
       WidgetCenter.shared.reloadAllTimelines()
       result(nil)
+    }
+  }
+
+  /// `app.kanso.kanso/recording`: the audio session for the Record screen
+  /// (issue #38). The recorder is the Rust core's (cpal), which neither asks
+  /// for the microphone nor sets a category; the default one (solo ambient)
+  /// has no input. `prepare` asks once, then sets play-and-record and
+  /// activates it, so recording also goes on in the background (the
+  /// `audio` background mode). `release` gives the audio back.
+  private func registerRecordingChannel(_ registry: FlutterPluginRegistry) {
+    guard let registrar = registry.registrar(forPlugin: "KansoRecording") else { return }
+    let channel = FlutterMethodChannel(
+      name: "app.kanso.kanso/recording", binaryMessenger: registrar.messenger())
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "prepare":
+        AVAudioApplication.requestRecordPermission { granted in
+          DispatchQueue.main.async {
+            guard granted else {
+              result(false)
+              return
+            }
+            do {
+              let session = AVAudioSession.sharedInstance()
+              try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+              try session.setActive(true)
+              result(true)
+            } catch {
+              result(false)
+            }
+          }
+        }
+      case "release":
+        try? AVAudioSession.sharedInstance().setActive(
+          false, options: .notifyOthersOnDeactivation)
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
   }
 

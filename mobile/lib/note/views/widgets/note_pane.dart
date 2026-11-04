@@ -218,6 +218,18 @@ class NotePane extends StatelessWidget {
                                 if (windows != null && windows.supported)
                                   NoteMenuAction.openInNewWindow: () =>
                                       unawaited(windows.open(shown.noteId)),
+                                if (readable)
+                                  NoteMenuAction.record: () => unawaited(
+                                    GoRouter.of(context).push(
+                                      Uri(
+                                        path: KansoRoutes.record,
+                                        queryParameters: <String, String>{
+                                          KansoRoutes.recordNoteParameter:
+                                              shown.noteId,
+                                        },
+                                      ).toString(),
+                                    ),
+                                  ),
                               },
                             ),
                           ],

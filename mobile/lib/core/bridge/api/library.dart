@@ -21,6 +21,7 @@ import 'notebook_home.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'people.dart';
 import 'publish.dart';
+import 'recording.dart';
 import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
@@ -271,6 +272,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<KansoPublisher> publisher();
 
   Future<Table> queryView({required String source, String? selfId});
+
+  /// Recording a note from the microphone, and what a crash left.
+  KansoRecorder recorder();
 
   Future<TaskPlace?> reminderAnswer({
     required String key,

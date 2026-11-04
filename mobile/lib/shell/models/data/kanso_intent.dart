@@ -84,6 +84,11 @@ class ReplaceInNotesIntent extends KansoIntent {
   const ReplaceInNotesIntent();
 }
 
+/// Open the Record screen (⇧⌘R on a hardware keyboard).
+class RecordAudioIntent extends KansoIntent {
+  const RecordAudioIntent();
+}
+
 /// Show the open note's information sheet.
 class ToggleInspectorIntent extends KansoIntent {
   const ToggleInspectorIntent();

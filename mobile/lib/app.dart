@@ -31,6 +31,7 @@ import 'injection.dart';
 import 'lock/views/widgets/lock_lifecycle_host.dart';
 import 'metrics/models/repos/abs/usage_metrics_repository.dart';
 import 'metrics/views/widgets/metrics_host.dart';
+import 'recording/views/widgets/recording_strip.dart';
 import 'reminders/utils/reminders_coordinator.dart';
 import 'reminders/views/widgets/reminders_host.dart';
 import 'settings/views/widgets/backup_notice_host.dart';
@@ -117,13 +118,16 @@ class _AppState extends State<App> {
               ),
             );
             final coordinator = widget.reminders;
-            final hosted = coordinator == null
-                ? content
-                : RemindersHost(
-                    coordinator: coordinator,
-                    router: widget.router.config,
-                    child: content,
-                  );
+            // The recording bar tops every screen while a recording runs.
+            final hosted = RecordingHost(
+              child: coordinator == null
+                  ? content
+                  : RemindersHost(
+                      coordinator: coordinator,
+                      router: widget.router.config,
+                      child: content,
+                    ),
+            );
             final brightness = switch (state.themeMode) {
               ThemeMode.light => Brightness.light,
               ThemeMode.dark => Brightness.dark,

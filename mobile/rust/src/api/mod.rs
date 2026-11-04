@@ -35,6 +35,8 @@ pub mod notebook_home_types;
 pub mod people;
 pub mod people_types;
 pub mod publish;
+pub mod recording;
+pub mod recording_types;
 pub mod reminders;
 pub mod renderer;
 pub mod shared;

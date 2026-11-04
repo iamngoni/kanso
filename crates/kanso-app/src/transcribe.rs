@@ -173,6 +173,13 @@ pub enum Source {
         /// Present when the open note had to decrypt the attachment first.
         bytes: Option<Vec<u8>>,
     },
+    /// A recording made in Kanso, kept as several attachments (its parts, in
+    /// playing order) that are read as one timeline. Every timestamp links
+    /// to the first part.
+    Recording {
+        file_ids: Vec<String>,
+        duration: Duration,
+    },
     /// A file on disk; `file_id` when it was attached too.
     Path {
         path: PathBuf,
@@ -185,11 +192,13 @@ impl Source {
     fn name(&self) -> &str {
         match self {
             Source::Attachment { name, .. } | Source::Path { name, .. } => name,
+            Source::Recording { .. } => "Recording",
         }
     }
 
     fn file_id(&self) -> Option<&str> {
         match self {
+            Source::Recording { file_ids, .. } => file_ids.first().map(String::as_str),
             Source::Attachment { file_id, .. } => Some(file_id),
             Source::Path { file_id, .. } => file_id.as_deref(),
         }
@@ -276,8 +285,17 @@ pub fn show_for_snapshot(
 pub fn cancel(cx: &mut App) {
     if let Some(job) = cx.default_global::<Transcription>().job.take() {
         job.cancel.store(true, Ordering::Relaxed);
+        forget_if_recording(&job, cx);
     }
     cx.refresh_windows();
+}
+
+/// A recording made in Kanso that is no longer being transcribed is no
+/// longer owed a transcript at the next launch.
+fn forget_if_recording(job: &Job, cx: &mut App) {
+    if matches!(job.source, Source::Recording { .. }) {
+        crate::recording::clear_pending(cx);
+    }
 }
 
 /// Transcribes `source` into the note open in `editor`, asking first to
@@ -287,6 +305,25 @@ pub fn start(editor: Entity<NoteEditor>, source: Source, window: &mut Window, cx
     let Some(note_id) = editor.read(cx).note_id().map(str::to_owned) else {
         return;
     };
+    start_for(note_id, editor, source, window, cx);
+}
+
+/// Whether a recording is being transcribed.
+pub fn busy(cx: &App) -> bool {
+    cx.try_global::<Transcription>()
+        .is_some_and(|t| t.job.is_some())
+}
+
+/// [`start`] into the note `note_id`, which `editor` is about to show (a
+/// note just opened may not be the editor's yet).
+// no-prop-test: glue.
+pub fn start_for(
+    note_id: String,
+    editor: Entity<NoteEditor>,
+    source: Source,
+    window: &mut Window,
+    cx: &mut App,
+) {
     if cx.default_global::<Transcription>().job.is_some() {
         window.push_notification(
             Notification::info(
@@ -368,6 +405,7 @@ fn wait_for_model(mut job: Job, cx: &mut App) {
                     cx.update(|cx| {
                         let job = cx.default_global::<Transcription>().job.take();
                         if let Some(job) = job {
+                            forget_if_recording(&job, cx);
                             notify(
                                 &job,
                                 Notification::error(
@@ -398,11 +436,24 @@ fn run(mut job: Job, cx: &mut App) {
     let spawned = std::thread::Builder::new()
         .name("kanso-transcribe".into())
         .spawn(move || {
-            let result = read_source(&store, &source).and_then(|(media, ext)| {
-                file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
-                    *progress.lock().unwrap() = at;
-                })
-            });
+            let result = match &source {
+                Source::Recording { file_ids, duration } => {
+                    read_parts(&store, file_ids).and_then(|parts| {
+                        file::transcribe_parts(
+                            parts,
+                            Some(*duration),
+                            &model_dir,
+                            &cancel,
+                            &mut |at| *progress.lock().unwrap() = at,
+                        )
+                    })
+                }
+                _ => read_source(&store, &source).and_then(|(media, ext)| {
+                    file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
+                        *progress.lock().unwrap() = at;
+                    })
+                }),
+            };
             let _ = done_tx.try_send(result);
         });
     if let Err(err) = spawned {
@@ -430,6 +481,7 @@ fn run(mut job: Job, cx: &mut App) {
             let Some(job) = cx.default_global::<Transcription>().job.take() else {
                 return;
             };
+            forget_if_recording(&job, cx);
             match result {
                 Ok(pieces) => insert(&job, &transcript_text(job.source.file_id(), &pieces), cx),
                 Err(err) => {
@@ -460,6 +512,23 @@ pub fn transcript_text(file_id: Option<&str>, pieces: &[file::Timed]) -> String 
         Some(block) => block,
         None => kanso_voice::text::join_pieces(pieces.iter().map(|p| p.text.as_str())),
     }
+}
+
+/// The parts of a recording made in Kanso, in order, as the decoder reads
+/// them.
+fn read_parts(store: &Store, file_ids: &[String]) -> Result<Vec<file::Part>, VoiceError> {
+    file_ids
+        .iter()
+        .map(|id| {
+            let data = store
+                .attachment(id)
+                .map_err(|e| VoiceError::Audio(e.to_string()))?
+                .ok_or_else(|| VoiceError::Audio("a part of the recording is gone".into()))?
+                .1
+                .data;
+            Ok((file::from_bytes(data), Some("opus".to_owned())))
+        })
+        .collect()
 }
 
 /// The recording to read, and its extension as a hint.
@@ -495,6 +564,9 @@ fn read_source(
                 .map(str::to_ascii_lowercase);
             Ok((file::from_path(path)?, ext))
         }
+        Source::Recording { .. } => Err(VoiceError::Audio(
+            "a recording in parts is read part by part".into(),
+        )),
     }
 }
 
