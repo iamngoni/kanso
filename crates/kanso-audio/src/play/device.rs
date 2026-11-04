@@ -103,7 +103,7 @@ fn run(
                 e.kind(),
                 cpal::ErrorKind::Xrun | cpal::ErrorKind::RealtimeDenied
             ) {
-                failure.fail(e.to_string());
+                failure.device_failed(e.to_string());
             }
         };
         let stream = match supported.sample_format() {

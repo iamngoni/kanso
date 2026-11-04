@@ -139,6 +139,15 @@ impl Shared {
         }
     }
 
+    /// The speaker went away (unplugged, or the system took it): nothing
+    /// will drain the ring again, so it stops playing as well as saying
+    /// why. Otherwise it would stay "playing" forever with the position
+    /// stuck, and the interface would keep polling it.
+    pub(crate) fn device_failed(&self, message: String) {
+        self.fail(message);
+        self.playing.store(false, Ordering::Relaxed);
+    }
+
     /// Sets the position and starts a new epoch.
     fn restart(&self, f: impl Fn(u64) -> u64) {
         let mut current = self.state.load(Ordering::Acquire);
@@ -762,5 +771,46 @@ impl Engine {
         let mut out = vec![0.0; frames * 2];
         self.output.render(&mut out, 2);
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use proptest::test_runner::{FileFailurePersistence, RngSeed};
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 128,
+            rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// Whatever it was doing, a lost speaker leaves it paused, saying
+        /// why (the first reason wins), where it was.
+        #[test]
+        fn prop_a_lost_speaker_pauses_and_says_why(
+            length in 0u64..10_000_000_000,
+            at in 0u64..20_000_000_000,
+            playing in any::<bool>(),
+            failures in proptest::collection::vec("[a-z ]{1,12}", 1..4),
+        ) {
+            let shared = Shared::new(length);
+            let control = Control::new(shared.clone());
+            control.seek_us(at);
+            if playing {
+                control.play();
+            }
+            let before = control.position_us();
+            for message in &failures {
+                shared.device_failed(message.clone());
+            }
+            let status = control.status();
+            prop_assert!(!status.playing);
+            prop_assert_eq!(status.error.as_deref(), Some(failures[0].as_str()));
+            prop_assert_eq!(status.position_us, before);
+        }
     }
 }
