@@ -315,7 +315,8 @@ mod file_secrets {
     /// unpadded base64url of `nonce(24) || XChaCha20-Poly1305(key, nonce,
     /// "kanso/v1/secrets-file" || 0x01, plain file)`. A file that can't be
     /// read is an error, never "no item": an unreadable session must not
-    /// read as signed out and let a sign-in overwrite it.
+    /// read as signed out and let a sign-in overwrite it. A plain file read
+    /// with a key is sealed in place.
     pub struct FileSecrets {
         path: PathBuf,
         key: Option<Zeroizing<[u8; 32]>>,
@@ -422,11 +423,15 @@ mod file_secrets {
             }
             match (stored.items, stored.sealed, &self.key) {
                 (Some(items), None, None) => Ok(Some(items)),
-                (Some(_), None, Some(_)) => Err(error(format!(
-                    "{SECRETS_FILE} isn't sealed but {SECRETS_KEY_FILE_ENV} is set"
-                ))),
+                // A key was set after the file was written (signed in, then
+                // sealed, the way the README goes): seal it now, so the
+                // plain copy is gone at once rather than at the next write.
+                (Some(items), None, Some(_)) => {
+                    self.write(&items)?;
+                    Ok(Some(items))
+                }
                 (None, Some(_), None) => Err(error(format!(
-                    "{SECRETS_FILE} is sealed and {SECRETS_KEY_FILE_ENV} isn't set"
+                    "{SECRETS_FILE} is sealed and {SECRETS_KEY_FILE_ENV} isn't set; set it to the key file it was sealed with"
                 ))),
                 (None, Some(sealed), Some(key)) => open_sealed(key, &sealed).map(Some),
                 _ => Err(unreadable()),
@@ -461,25 +466,36 @@ mod file_secrets {
                     .create(dir)
                     .map_err(|err| io_error("create", dir, err))?;
             }
+            // A name of its own, made new: another process (`kanso account
+            // status` beside `kanso serve`, which seals a plain file it
+            // reads) never writes into this one, and nothing left over from
+            // a crash is reused with its old mode.
             let mut name = self.path.file_name().unwrap_or_default().to_os_string();
-            name.push(".tmp");
+            name.push(format!(
+                ".{}-{}.tmp",
+                std::process::id(),
+                b64(&random::<6>())
+            ));
             let tmp = self.path.with_file_name(name);
             let mut options = std::fs::OpenOptions::new();
-            options.write(true).create(true).truncate(true);
+            options.write(true).create_new(true);
             #[cfg(unix)]
             std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
             let mut file = options
                 .open(&tmp)
                 .map_err(|err| io_error("create", &tmp, err))?;
-            // `mode` only applies to a new file; a leftover one keeps its own.
-            #[cfg(unix)]
-            file.set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))
-                .map_err(|err| io_error("protect", &tmp, err))?;
-            file.write_all(&bytes)
+            let written = file
+                .write_all(&bytes)
                 .and_then(|()| file.sync_all())
-                .map_err(|err| io_error("write", &tmp, err))?;
-            std::fs::rename(&tmp, &self.path)
-                .map_err(|err| io_error("replace", &self.path, err))?;
+                .map_err(|err| io_error("write", &tmp, err))
+                .and_then(|()| {
+                    std::fs::rename(&tmp, &self.path)
+                        .map_err(|err| io_error("replace", &self.path, err))
+                });
+            if let Err(err) = written {
+                std::fs::remove_file(&tmp).ok();
+                return Err(err);
+            }
             // The rename itself survives a crash only once the folder is
             // synced too.
             #[cfg(unix)]
@@ -1752,8 +1768,9 @@ mod tests {
             assert!(!secrets.path().exists());
         }
 
-        /// The file is `0600` in a `0700` directory, a leftover temporary
-        /// file included, and a plain one reads as the documented JSON.
+        /// The file is `0600` in a `0700` directory, beside a world-readable
+        /// leftover temporary file too, it leaves no temporary file behind,
+        /// and a plain one reads as the documented JSON.
         #[cfg(unix)]
         #[test]
         fn the_file_is_owner_only() {
@@ -1765,8 +1782,14 @@ mod tests {
             std::fs::write(&tmp, b"old").unwrap();
             std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o644)).unwrap();
             secrets.set("a", "1").unwrap();
+            secrets.set("b", "2").unwrap();
             assert_eq!(mode(secrets.path()), 0o600);
-            assert!(!tmp.exists());
+            let names: Vec<_> = std::fs::read_dir(dir.path().join("data"))
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .collect();
+            assert_eq!(names.len(), 2, "{names:?}");
+            assert!(names.contains(&"secrets.json".to_owned()));
 
             let fresh = tempfile::tempdir().unwrap();
             let secrets = store(fresh.path(), None);
@@ -1826,8 +1849,8 @@ mod tests {
             }
         }
 
-        /// A sealed file opens only under its key; a sealed file without a
-        /// key, or a plain one with a key, is an error.
+        /// A sealed file opens only under its key, and a sealed file without
+        /// a key is an error.
         #[test]
         fn a_sealed_file_needs_its_key() {
             let dir = tempfile::tempdir().unwrap();
@@ -1856,15 +1879,10 @@ mod tests {
             let none = store(dir.path(), None);
             assert_eq!(
                 none.get("sync-account:l_1").unwrap_err(),
-                SecretError("secrets.json is sealed and KANSO_SECRETS_KEY_FILE isn't set".into())
-            );
-
-            let plain_dir = tempfile::tempdir().unwrap();
-            store(plain_dir.path(), None).set("a", "1").unwrap();
-            assert!(
-                store(plain_dir.path(), Some(([3; 32], false)))
-                    .get("a")
-                    .is_err()
+                SecretError(
+                    "secrets.json is sealed and KANSO_SECRETS_KEY_FILE isn't set; set it to the key file it was sealed with"
+                        .into()
+                )
             );
 
             // A tampered seal doesn't open.
@@ -1874,6 +1892,37 @@ mod tests {
             value["sealed"] = format!("{}{flipped}", &text[..text.len() - 1]).into();
             std::fs::write(sealed.path(), value.to_string()).unwrap();
             assert!(sealed.get("sync-account:l_1").is_err());
+        }
+
+        /// A plain file read with a key (sealing turned on after sign-in)
+        /// is sealed in place on that first read, and keeps its items; from
+        /// then on it needs the key.
+        #[test]
+        fn a_plain_file_read_with_a_key_is_sealed_in_place() {
+            let dir = tempfile::tempdir().unwrap();
+            store(dir.path(), None)
+                .set("sync-account:l_1", "the-secret-value")
+                .unwrap();
+            let keyed = store(dir.path(), Some(([3; 32], false)));
+            assert_eq!(
+                keyed
+                    .get("sync-account:l_1")
+                    .unwrap()
+                    .as_deref()
+                    .map(String::as_str),
+                Some("the-secret-value")
+            );
+            let raw = std::fs::read_to_string(keyed.path()).unwrap();
+            assert!(raw.starts_with("{\"v\":1,\"sealed\":\""), "{raw}");
+            assert!(!raw.contains("the-secret-value"));
+            assert!(store(dir.path(), None).get("sync-account:l_1").is_err());
+            assert!(
+                store(dir.path(), Some(([4; 32], false)))
+                    .get("sync-account:l_1")
+                    .is_err()
+            );
+            #[cfg(unix)]
+            assert_eq!(mode(keyed.path()), 0o600);
         }
 
         #[test]

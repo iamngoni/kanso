@@ -476,6 +476,15 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
             "the Secret Service isn't available here. Pass --secrets file to keep the session in an owner-only file, or set one up.",
         );
     }
+    if kind == SecretStoreKind::File {
+        // The key goes in a file here: nobody else may reach into the folder.
+        crate::secrets::protect_data_dir(&world.data_dir).map_err(|err| {
+            Refusal(format!(
+                "couldn't make {} owner-only ({err}); chmod 700 it and sign in again.",
+                world.data_dir.display()
+            ))
+        })?;
+    }
     let store = Arc::new(Store::open(crate::paths::db_path(&world.data_dir))?);
     let mut machine = world.machine.clone();
     if let Some(name) = &args.device_name {

@@ -488,7 +488,12 @@ that decrypts your notes.** Kanso's sync server still never sees it, but anyone 
 server can read it. To keep it out of backups and snapshots, seal it under a key held elsewhere:
 point `KANSO_SECRETS_KEY_FILE` at a file of 32 random bytes (for example a systemd credential,
 `LoadCredentialEncrypted=kanso-secrets-key:…` with
-`Environment=KANSO_SECRETS_KEY_FILE=%d/kanso-secrets-key`). Before you delete the server, run
+`Environment=KANSO_SECRETS_KEY_FILE=%d/kanso-secrets-key`). A file written before the key was set is
+sealed the next time `kanso serve` starts with it; from then on, every command that reads it needs
+the same `KANSO_SECRETS_KEY_FILE`. A systemd credential exists only inside the service, so with one,
+`kanso account` can't read the file from a shell: run it in a transient unit given the service's
+`User=`, `LoadCredentialEncrypted=` and `Environment=` lines (`systemd-run --pty -p …`), or keep the
+key in a file only the `kanso` user can read instead. Before you delete the server, run
 `kanso account sign-out` (or sign it out from another device).
 
 An example unit is in [`assets/linux/kanso.service`](assets/linux/kanso.service). Keep `bindAddress`

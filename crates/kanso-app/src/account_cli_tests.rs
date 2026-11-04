@@ -161,8 +161,14 @@ fn a_fresh_library_signs_in_with_the_password_on_stdin() {
     let account = config.sync.account.expect("signed in");
     assert_eq!(account.username, "alice");
     assert!(config.sync.enabled);
-    // No system store answered here, so the file is the default.
-    assert_eq!(config.sync.secret_store, SecretStoreKind::File);
+    // No system store answered here, so on Linux the file is the default;
+    // macOS and Windows always use theirs.
+    let default = if cfg!(target_os = "linux") {
+        SecretStoreKind::File
+    } else {
+        SecretStoreKind::System
+    };
+    assert_eq!(config.sync.secret_store, default);
     assert!(
         lab.secrets
             .items()
@@ -213,14 +219,17 @@ fn a_fresh_library_signs_in_with_the_password_on_stdin() {
     let mut status = Script::new(false, &[]);
     assert!(lab.run(&["status"], &mut status).is_err());
     lab.secrets.fail_reads(false);
-    assert_eq!(lab.config().sync.secret_store, SecretStoreKind::File);
+    assert_eq!(lab.config().sync.secret_store, default);
 
     // Status, devices, revoke, sign-out.
     let mut status = Script::new(false, &[]);
     lab.run(&["status"], &mut status).unwrap();
     let said = status.transcript();
     assert!(said.contains("Account   alice"), "{said}");
-    assert!(said.contains("Secrets   file"), "{said}");
+    assert!(
+        said.contains(&format!("Secrets   {}", default.as_str())),
+        "{said}"
+    );
     assert!(said.contains("Last sync never"), "{said}");
 
     let mut listed = Script::new(false, &[]);
@@ -254,6 +263,50 @@ fn a_fresh_library_signs_in_with_the_password_on_stdin() {
     let mut status = Script::new(false, &[]);
     lab.run(&["status"], &mut status).unwrap();
     assert_eq!(status.transcript(), "Signed out");
+}
+
+/// `--secrets file` on any platform: the config names the file, status says
+/// so, and the data folder is made owner-only, as the key sits in it.
+#[test]
+fn the_file_store_is_chosen_and_its_folder_made_owner_only() {
+    let lab = Lab::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(lab.dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let mut console = Script::new(false, &[PASSWORD]);
+    lab.run(
+        &[
+            "sign-in",
+            "--username",
+            "alice",
+            "--password-stdin",
+            "--secrets",
+            "file",
+        ],
+        &mut console,
+    )
+    .unwrap();
+    assert_eq!(lab.config().sync.secret_store, SecretStoreKind::File);
+    let said = console.transcript();
+    assert!(said.contains("Secrets are in"), "{said}");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = std::fs::metadata(lab.dir.path())
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
+    let mut status = Script::new(false, &[]);
+    lab.run(&["status"], &mut status).unwrap();
+    assert!(
+        status.transcript().contains("Secrets   file"),
+        "{}",
+        status.transcript()
+    );
 }
 
 #[test]

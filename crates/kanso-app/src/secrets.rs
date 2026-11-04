@@ -18,6 +18,27 @@ pub fn secrets_path(data_dir: &Path) -> PathBuf {
     data_dir.join(SECRETS_FILE)
 }
 
+/// Makes the data folder owner-only (`0700`) when others can reach into it:
+/// with the file store, `secrets.json` (and the database) sit there, and the
+/// folder was made with the process's umask, usually `0755`. Returns whether
+/// it changed anything.
+#[cfg(unix)]
+pub fn protect_data_dir(data_dir: &Path) -> std::io::Result<bool> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let mode = std::fs::metadata(data_dir)?.permissions().mode();
+    if mode & 0o077 == 0 {
+        return Ok(false);
+    }
+    std::fs::set_permissions(data_dir, std::fs::Permissions::from_mode(0o700))?;
+    Ok(true)
+}
+
+/// Windows: the folder's ACL is the user's already.
+#[cfg(not(unix))]
+pub fn protect_data_dir(_: &Path) -> std::io::Result<bool> {
+    Ok(false)
+}
+
 /// The key file `KANSO_SECRETS_KEY_FILE` names, if it is set: a path, never
 /// key bytes, so the environment never holds the key.
 pub fn key_file() -> Option<PathBuf> {
@@ -125,6 +146,19 @@ mod tests {
         secrets.fail_reads(true);
         assert!(!store_works(&secrets));
         assert!(!store_works(&Unavailable("no".into())));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_data_folder_is_made_owner_only() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = tempfile::tempdir().unwrap();
+        let mode = || std::fs::metadata(dir.path()).unwrap().permissions().mode() & 0o777;
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(protect_data_dir(dir.path()).unwrap());
+        assert_eq!(mode(), 0o700);
+        assert!(!protect_data_dir(dir.path()).unwrap());
+        assert_eq!(mode(), 0o700);
     }
 
     #[test]

@@ -3593,13 +3593,17 @@ directories never share secrets.
 **The file store.** A library whose config says `"sync": {"secretStore": "file"}` keeps the same
 items, with the same values, in `secrets.json` in its data folder instead (`FileSecrets`, for a
 computer with no secret service, such as a server running `kanso serve`):
-`{"v":1,"items":{"<item name>":"<value>"}}`. It is written atomically (`secrets.json.tmp`, `fsync`,
-rename) with mode `0600` in a `0700` folder, and a file others can read is refused rather than used.
-With `KANSO_SECRETS_KEY_FILE` naming a file of 32 bytes (or 64 hex digits), it is sealed:
+`{"v":1,"items":{"<item name>":"<value>"}}`. It is written atomically (a temporary file of its own
+beside it, created `0600`, `fsync`, rename, then the folder is synced) with mode `0600`, and a file
+others can read is refused rather than used. `kanso account sign-in` with the file store makes the
+data folder `0700` when others could reach into it. With `KANSO_SECRETS_KEY_FILE` naming a file of
+32 bytes (or 64 hex digits), it is sealed:
 `{"v":1,"sealed":"<base64url(nonce(24) ‖ XChaCha20-Poly1305(key, nonce, aad, plain file))>"}`, `aad =
-"kanso/v1/secrets-file" ‖ 0x01`. A file that can't be read or opened is an error, never "signed
-out". Without the key the file holds the data key in the clear: anyone with root on that computer
-can read every note. `secretStore` absent is `"system"`.
+"kanso/v1/secrets-file" ‖ 0x01`. A plain file read with the key set is sealed in place on that
+read, so sealing can be turned on after signing in. A file that can't be read or opened (sealed and
+no key, or the wrong key) is an error, never "signed out". Without the key the file holds the data
+key in the clear: anyone with root on that computer can read every note. `secretStore` absent is
+`"system"`.
 
 On load, the item's `(origin, account_id)` must equal the library's `(sync.v2.origin,
 sync.v2.account_id)` and the config's account (security re-check 3). If it doesn't, the item is
