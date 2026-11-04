@@ -82,7 +82,7 @@ fn drawing_is_saved_when_asked_and_survives_reopening() {
     assert_eq!(view.strokes.len(), 1);
     assert!(view.dirty && view.can_undo);
     let stroke = &view.strokes[0];
-    assert!(stroke.outline.len() > 20 && stroke.outline.len() % 2 == 0);
+    assert!(stroke.outline.len() > 20 && stroke.outline.len().is_multiple_of(2));
     assert!(!stroke.known && stroke.color == "#e03131");
     // Nothing is written until save.
     let before = phone.library.note(&id).unwrap().rev;
@@ -364,8 +364,8 @@ fn canvases_have_their_own_place() {
             .map(|r| r.id)
             .collect()
     };
-    assert_eq!(ids(ListPlace::Canvases), [canvas.clone()]);
-    assert_eq!(ids(ListPlace::All), [plain.clone()]);
+    assert_eq!(ids(ListPlace::Canvases), std::slice::from_ref(&canvas));
+    assert_eq!(ids(ListPlace::All), std::slice::from_ref(&plain));
     let overview = phone.library.overview().unwrap();
     assert_eq!((overview.all, overview.canvases), (1, 1));
     let rows = phone.library.list(ListQuery::default()).unwrap().rows;
@@ -498,7 +498,7 @@ fn assert_send_sync<T: Send + Sync>() {}
 #[test]
 fn a_live_stroke_has_an_outline_without_touching_the_library() {
     let outline = kanso_mobile::ink_preview(pen(), line(0.0));
-    assert!(outline.len() > 20 && outline.len() % 2 == 0);
+    assert!(outline.len() > 20 && outline.len().is_multiple_of(2));
     assert!(outline.iter().all(|v| v.is_finite()));
     assert!(kanso_mobile::ink_preview(pen(), vec![]).is_empty());
     // One sample is a dot.

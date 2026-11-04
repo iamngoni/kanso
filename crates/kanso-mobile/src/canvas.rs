@@ -43,8 +43,10 @@ const UNDO_LIMIT: usize = 60;
 const CARD_W: f64 = 240.0;
 const CARD_H: f64 = 120.0;
 
-/// One undoable step.
+/// One undoable step. The steps sit in a short list, so the size of the
+/// largest is no cost worth boxing for.
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 enum Entry {
     Strokes(Action),
     Node {
