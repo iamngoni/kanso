@@ -140,6 +140,12 @@ pub trait Transport: Send + Sync {
     fn send(&self, request: &Request) -> Result<Response, String>;
 }
 
+impl<T: Transport + ?Sized> Transport for std::sync::Arc<T> {
+    fn send(&self, request: &Request) -> Result<Response, String> {
+        (**self).send(request)
+    }
+}
+
 /// How a feedback call went wrong.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FeedbackError {
@@ -351,13 +357,23 @@ impl HttpTransport {
         HttpTransport::to(ENDPOINT)
     }
 
+    /// Talks to Kanso's Worker, giving up after `seconds` (a notice that
+    /// can't wait for a slow network).
+    pub fn quick(seconds: u64) -> HttpTransport {
+        HttpTransport::build(ENDPOINT, Duration::from_secs(seconds))
+    }
+
     /// Talks to `base` (tests use a local server).
     pub fn to(base: &str) -> HttpTransport {
+        HttpTransport::build(base, Duration::from_secs(60))
+    }
+
+    fn build(base: &str, total: Duration) -> HttpTransport {
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .http_status_as_error(false)
             .max_redirects(0)
-            .timeout_connect(Some(Duration::from_secs(15)))
-            .timeout_global(Some(Duration::from_secs(60)))
+            .timeout_connect(Some(Duration::from_secs(15).min(total)))
+            .timeout_global(Some(total))
             .user_agent(concat!("kanso-sync/", env!("CARGO_PKG_VERSION")))
             .tls_config(kanso_tls::ureq_tls())
             .build()

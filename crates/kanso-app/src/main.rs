@@ -61,6 +61,10 @@ mod editor_footer;
 mod empty_state;
 mod export_html;
 mod export_style;
+mod feedback_app;
+mod feedback_sheet;
+#[cfg(test)]
+mod feedback_sheet_tests;
 mod flavour;
 mod fonts;
 mod fuzzy;
@@ -209,6 +213,7 @@ mod transcribe;
 mod triage_view;
 #[cfg(test)]
 mod ui_tests;
+mod my_feedback;
 mod updates;
 // macOS finishes Apple's sign-in in its own sheet: only the forwarding of a
 // `kanso://` argument and the tests reach the router there.
@@ -663,6 +668,8 @@ fn run_app(
         updates::init(cx);
         // The anonymous daily count: only a release, once the notice was seen.
         metrics::init(cx);
+        // Feedback reports that were waiting go once the session is back.
+        feedback_app::start(cx);
         hotkey::init(cx);
         let store = cx.global::<AppState>().store.clone();
         // Plugins: none starts here. Safe mode is settled before any could.

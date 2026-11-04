@@ -214,7 +214,7 @@ fn step<T: Transport>(
                 store.feedback_remove(&row.id)?;
                 Ok(Sent::Rejected { field })
             }
-            Err(FeedbackError::Conflict | FeedbackError::TooLarge) => {
+            Err(FeedbackError::TooLarge) => {
                 forget_file(row.screenshot_path.as_deref().map(Path::new));
                 store.feedback_remove(&row.id)?;
                 Ok(Sent::Rejected {
