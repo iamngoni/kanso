@@ -2151,7 +2151,7 @@ mod tests {
     use kanso_sync::{QuotaKind, SignOutReason, SyncProblem};
 
     /// Every label in the problems table, in its order.
-    const SYNC_PROBLEMS: [&str; 13] = [
+    const SYNC_PROBLEMS: [&str; 14] = [
         "Signed out",
         "Account turned off",
         "Sync paused",
@@ -2160,6 +2160,7 @@ mod tests {
         "Account full",
         "Server full",
         "Some items skipped",
+        "Some files not synced",
         "Update Kanso",
         "Keys don't match",
         "Server needs an update",
