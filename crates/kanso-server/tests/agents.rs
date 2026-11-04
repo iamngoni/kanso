@@ -31,7 +31,7 @@ struct Agents {
 fn agents_with(tokens: TokenStore) -> Agents {
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
-    let api = router_with_tokens(store.clone(), &config(), tokens.clone());
+    let api = router_with_tokens(store.clone(), &config(), tokens.clone(), keys_for(&store));
     let private = agents_router(store.clone(), tokens.clone());
     Agents {
         _dir: dir,

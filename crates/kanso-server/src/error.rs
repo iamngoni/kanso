@@ -45,8 +45,13 @@ impl ApiError {
         Self::new(
             StatusCode::UNAUTHORIZED,
             "unauthorized",
-            "Name or password is incorrect.",
+            "Kanso needs an API key. Create one in Settings \u{203a} Local API \u{203a} API keys.",
         )
+    }
+
+    /// A key that may not do this. The reason says which key would.
+    pub fn forbidden(reason: impl Into<String>) -> Self {
+        Self::new(StatusCode::FORBIDDEN, "forbidden", reason)
     }
 
     pub fn too_large() -> Self {

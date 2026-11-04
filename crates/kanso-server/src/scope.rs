@@ -1,8 +1,8 @@
 //! Kanso's agent visibility and permission boundary.
 //!
-//! A request signed in with the local API's credentials is [`Caller::Full`]:
-//! everything the API serves. One with an agent's token is
-//! [`Caller::Agent`]: `/mcp` only, the read tools its [`AgentScope`] names,
+//! A request signed in with an API key is [`Caller::Key`]: what its access
+//! allows, through the same [`Visibility`] as an agent. One with an agent's
+//! token is [`Caller::Agent`]: `/mcp` only, the read tools its [`AgentScope`] names,
 //! and only the notes [`Visibility`] lets through. A note is visible when it
 //! is live, not in the trash, not locked (sealed, or in a locked notebook),
 //! not tagged `#ai-exclude`, and in the scope's notebooks or the notebooks
@@ -313,15 +313,13 @@ impl AgentScope {
 /// Who sent a request.
 #[derive(Clone, Debug)]
 pub enum Caller {
-    /// The local API's credentials: everything.
-    Full,
     /// An agent's token.
     Agent {
         token: TokenId,
         scope: Arc<AgentScope>,
     },
-    /// An API key (issue #243): what it may do is its `access` and, for
-    /// reading, its `scope`. Nothing hands this out until step 4.
+    /// An API key (issue #243): what it may do is its `access`, and what it
+    /// may see its `scope`.
     Key {
         id: KeyId,
         access: KeyAccess,
@@ -366,6 +364,9 @@ pub(crate) struct Visibility<'a> {
     spent: std::cell::RefCell<HashSet<String>>,
     /// Where the lines shown are numbered, when a token is asking.
     numbering: Option<(crate::tokens::TokenStore, TokenId)>,
+    /// Whether a notebook keeps its note count: only for a caller that sees
+    /// every notebook, since the count includes notes it may not see.
+    keep_counts: bool,
 }
 
 /// `2026-10-14` for a time in milliseconds since the epoch.
@@ -423,7 +424,19 @@ impl<'a> Visibility<'a> {
             budget: None,
             spent: Default::default(),
             numbering: None,
+            keep_counts: false,
         })
+    }
+
+    /// Lets notebooks keep their note counts, for a caller that sees every
+    /// notebook.
+    pub(crate) fn with_counts(mut self) -> Visibility<'a> {
+        self.keep_counts = true;
+        self
+    }
+
+    pub(crate) fn keeps_counts(&self) -> bool {
+        self.keep_counts
     }
 
     /// Whether notebook `id` is one the agent may see.

@@ -13,6 +13,7 @@ use kanso_store::Store;
 use serde_json::Value;
 
 use crate::AppState;
+use crate::keyed::{self, Key};
 use crate::mcp::{READ_ONLY, suggest, task, tools};
 use crate::scope::{AgentScope, SUGGEST_TOOLS, TASK_TOOLS, Visibility};
 use crate::tokens::{TokenId, TokenStore};
@@ -30,7 +31,6 @@ pub fn call(
 ) -> Value {
     let state = AppState {
         store: store.clone(),
-        local_files: false,
         tokens: tokens.clone(),
     };
     call_with_state(&state, token, scope, name, arguments)
@@ -101,6 +101,60 @@ pub(crate) fn call_with_state(
     state.tokens.record(token, &visible.shown());
     answer
 }
+
+/// Runs tool `name` for an API key and answers as the MCP `tools/call`
+/// result would. A key that can write runs every tool, after the notes and
+/// notebooks it names are checked; a key that can suggest runs the reads,
+/// and its suggestions wait in the review queue under the key's name; a key
+/// that can read runs the reads. Attachments are never offered to the last
+/// two.
+pub(crate) fn call_for_key(
+    state: &AppState,
+    key: &Key,
+    name: &str,
+    arguments: Option<&Value>,
+) -> Value {
+    let Some(vis) = Visibility::new(&state.store, key.scope) else {
+        return tools::error_result("Couldn't read the notes.");
+    };
+    let vis = if key.scope.notebooks.is_none() {
+        vis.with_counts()
+    } else {
+        vis
+    };
+    if key.can_write() {
+        return tools::call_write(state, key, &vis, name, arguments);
+    }
+    if !key.scope.allows_tool(name) {
+        let message = if ATTACHMENT_TOOLS.contains(&name) {
+            keyed::cannot_attach(key.access)
+        } else {
+            keyed::cannot_write(key.access)
+        };
+        return tools::error_result(message);
+    }
+    if SUGGEST_TOOLS.contains(&name) {
+        return suggest::call(
+            state,
+            TokenId::for_key(key.id),
+            key.scope,
+            &vis,
+            name,
+            arguments,
+        );
+    }
+    tools::call(state, Some(&vis), name, arguments)
+}
+
+/// The tools that reach attachments: a key that can only read or suggest
+/// has none of them.
+const ATTACHMENT_TOOLS: [&str; 5] = [
+    "create-file",
+    "read-file",
+    "kanso-attach-file",
+    "kanso-list-attachments",
+    "kanso-read-attachment",
+];
 
 /// The notes a task has been shown so far, over all its tokens.
 fn task_reads(state: &AppState, token: TokenId, scope: &AgentScope) -> Vec<String> {

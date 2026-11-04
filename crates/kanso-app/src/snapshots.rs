@@ -1878,8 +1878,6 @@ fn show_settings(
         let config = &mut cx.global_mut::<AppState>().config;
         config.sync.server = None;
         config.sync.enabled = true;
-        config.server.username = "kanso".into();
-        config.server.password = "demo-password-not-real-7Q2x".into();
         let now = Clock::now_ms(cx);
         let services = cx.global_mut::<Services>();
         services.account = AccountState::SignedIn {

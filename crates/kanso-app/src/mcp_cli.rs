@@ -119,7 +119,10 @@ impl Relay {
     fn new(server: &ServerSettings) -> Relay {
         Relay {
             endpoint: crate::settings::mcp_endpoint(&server.bind_address, server.port),
-            authorization: kanso_server::basic_header(&server.username, &server.password),
+            authorization: format!(
+                "Bearer {}",
+                std::env::var(TOKEN_VAR).unwrap_or_default().trim()
+            ),
             enabled: server.enabled,
             agent: http_agent(),
         }

@@ -156,7 +156,7 @@ mod tests {
     fn setup() -> Setup {
         Setup {
             endpoint: "http://127.0.0.1:19840/mcp".into(),
-            authorization: kanso_server::basic_header("me", "secret"),
+            authorization: "Bearer kcl_example".to_owned(),
             program: "/Applications/Kanso.app/Contents/MacOS/kanso".into(),
         }
     }
@@ -166,7 +166,7 @@ mod tests {
         let setup = setup();
         assert_eq!(
             Agent::ClaudeCode.snippet(&setup),
-            "claude mcp add --transport http --scope user kanso http://127.0.0.1:19840/mcp --header \"Authorization: Basic bWU6c2VjcmV0\""
+            "claude mcp add --transport http --scope user kanso http://127.0.0.1:19840/mcp --header \"Authorization: Bearer kcl_example\""
         );
         assert_eq!(
             Agent::Codex.snippet(&setup),
@@ -218,13 +218,12 @@ mod tests {
         #[test]
         fn prop_snippets_carry_what_they_need(
             port in 1u16..,
-            user in "[a-zA-Z0-9._-]{1,16}",
-            pass in "[ -~]{1,24}",
+            key in "kcl_[A-Za-z0-9_-]{43}",
             program in r"(/[a-zA-Z0-9 ._-]{1,12}){1,4}|[A-Z]:(\\[a-zA-Z0-9 ._-]{1,12}){1,4}",
         ) {
             let setup = Setup {
                 endpoint: format!("http://127.0.0.1:{port}/mcp"),
-                authorization: kanso_server::basic_header(&user, &pass),
+                authorization: format!("Bearer {key}"),
                 program,
             };
             for agent in Agent::ALL {
