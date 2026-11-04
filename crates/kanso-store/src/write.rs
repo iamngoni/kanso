@@ -192,6 +192,7 @@ pub(crate) fn store_row(
             }
         }
         index_note(tx, id, (!deleted).then_some(fields), locked, in_locked)?;
+        record_overview(tx, id, fields, previous, deleted, locked, origin)?;
     }
     if let Some(before) = book_ids_before {
         books_changed(tx, before, origin)?;
@@ -221,6 +222,41 @@ pub(crate) fn store_row(
         deleted,
         origin,
     });
+    Ok(())
+}
+
+/// What Overview keeps about a write: a session that arrived by sync is
+/// placed by diffing the old and new text; a note that was deleted,
+/// trashed or locked is forgotten, and the snapshot (which holds titles)
+/// is dropped.
+fn record_overview(
+    tx: &Transaction,
+    id: &str,
+    fields: &Map<String, Value>,
+    previous: Option<&Row>,
+    deleted: bool,
+    locked: bool,
+    origin: Origin,
+) -> Result<()> {
+    let trashed = book_of(fields) == Some("trash");
+    let was_hidden = previous.is_some_and(|p| {
+        p.deleted || book_of(&p.fields) == Some("trash") || p.fields.contains_key(LOCK_FIELD)
+    });
+    if deleted || locked || trashed {
+        crate::overview::forget_note(tx, id)?;
+        if !was_hidden || deleted {
+            crate::overview::drop_snapshot(tx)?;
+        }
+        return Ok(());
+    }
+    if origin == Origin::Sync
+        && let Some(prev) = previous.filter(|p| !p.deleted)
+    {
+        let old = prev.fields.get("body").and_then(Value::as_str).unwrap_or("");
+        let new = fields.get("body").and_then(Value::as_str).unwrap_or("");
+        let updated = fields.get("updatedAt").and_then(Value::as_i64).unwrap_or(0);
+        crate::overview::record_synced_change(tx, id, old, new, updated, now_ms())?;
+    }
     Ok(())
 }
 

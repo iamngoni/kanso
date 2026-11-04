@@ -23,6 +23,7 @@ mod home_model;
 mod loops;
 mod meaning;
 mod ocr;
+mod overview;
 mod passage_embed;
 mod passages;
 mod plugin;
@@ -82,6 +83,7 @@ pub use ocr::{OCR_TYPES, UnreadImage};
 pub use passage_embed::{
     EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
 };
+pub use overview::{RevisitRow, WaitingRow, WritingPlace};
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
 pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,

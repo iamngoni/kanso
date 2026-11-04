@@ -105,6 +105,7 @@ pub mod loops_ai;
 pub mod navigate;
 pub mod notes;
 pub mod outline;
+pub mod overview;
 #[cfg(feature = "ai")]
 pub mod pages;
 pub mod palette;
