@@ -39,7 +39,10 @@ export type Rule =
 	| "approval-poll"
 	| "approval-respond"
 	| "crash-ip"
-	| "metrics-ip";
+	| "metrics-ip"
+	| "feedback-account"
+	| "feedback-ip"
+	| "feedback-global";
 
 /**
  * Window and maximum of each rule. The two per-account daily rules read their
@@ -76,6 +79,11 @@ export type Rule =
  * group: a device sends one an hour while it is open, plus one at launch and
  * one on quit, so 600 an hour leaves room for an office or a campus behind
  * one address.
+ *
+ * In-app feedback (docs/FEEDBACK.md): `feedback-account` counts each new report of a signed-in
+ * account (10 a day), `feedback-ip` each new report of an anonymous reporter, per IP group (5 a
+ * day), and `feedback-global` every new report against `settings.feedback_per_day` (200 by
+ * default; a missing setting refuses).
  */
 export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"signup-ip": { window: HOUR, max: 10 },
@@ -99,6 +107,9 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"approval-respond": { window: HOUR, max: 30 },
 	"crash-ip": { window: HOUR, max: 5 },
 	"metrics-ip": { window: HOUR, max: 600 },
+	"feedback-account": { window: DAY, max: 10 },
+	"feedback-ip": { window: DAY, max: 5 },
+	"feedback-global": { window: DAY, max: null },
 };
 
 /**
@@ -109,6 +120,7 @@ export const DAILY_MAX_SQL: Partial<Record<Rule, string>> = {
 	"writes-account": `SELECT coalesce((SELECT quota_writes_per_day FROM accounts WHERE id = ?1),
   (SELECT CAST(value AS INTEGER) FROM settings WHERE name = 'writes_per_day')) AS max`,
 	"uploads-account": "SELECT (SELECT CAST(value AS INTEGER) FROM settings WHERE name = 'upload_bytes_per_day') AS max",
+	"feedback-global": "SELECT (SELECT CAST(value AS INTEGER) FROM settings WHERE name = 'feedback_per_day') AS max",
 };
 
 /** The binding's window, which is also its `retry_after`. */

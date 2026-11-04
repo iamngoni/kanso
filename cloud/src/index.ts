@@ -76,6 +76,11 @@
 //
 //   POST   /v1/crash-reports            a crash report the person chose to send       (public, no session)
 //   POST   /v1/metrics                  an anonymous usage count, passed on to PostHog (public, no session)
+//   POST   /v1/feedback                 in-app feedback: a report, privately stored   (session + device proof, or an anonymous key)
+//   GET    /v1/feedback                 this reporter's reports and their status      (same)
+//   PUT    /v1/feedback/<id>/screenshot the report's declared PNG or JPEG              (same)
+//   DELETE /v1/feedback/<id>            delete a report and its screenshot            (same)
+//   POST   /v1/github/webhook           GitHub's events for the feedback status chain (HMAC-signed, no session)
 //
 // Every other /v1 path and every other path answer 404. Any request with an Origin header gets
 // 403 before anything else, except on the three public routes, which hold no
@@ -91,6 +96,8 @@ import * as approvals from "./approvals";
 import * as auth from "./auth";
 import * as collab from "./collab";
 import * as crashReports from "./crash_reports";
+import * as feedback from "./feedback";
+import * as githubWebhook from "./github_webhook";
 import { pepperKeys } from "./crypto";
 import type { Env } from "./env";
 import { error, isContentType, methodNotAllowed, notFound } from "./http";
@@ -118,8 +125,8 @@ type PepperHandler = (request: Request, env: Env, now: number, keys: import("./c
 
 interface Method {
 	handler: Handler | PepperHandler;
-	/** The Content-Type a body must have. */
-	body?: "json" | "bytes";
+	/** The Content-Type a body must have (`image`: PNG or JPEG; the handler checks which). */
+	body?: "json" | "bytes" | "image";
 	/** Needs AUTH_PEPPER: 503 `misconfigured` without a valid one. */
 	pepper?: boolean;
 }
@@ -144,6 +151,8 @@ const ROUTES: Record<string, Route> = {
 	"/v2/health": { name: "health", binding: true, methods: { GET: { handler: auth.health, pepper: true } } },
 	"/v1/crash-reports": { name: "crash_reports", methods: { POST: json(crashReports.submit, true) } },
 	"/v1/metrics": { name: "metrics", methods: { POST: json(metrics.submit, true) } },
+	"/v1/feedback": { name: "feedback", methods: { POST: json(feedback.submit, true), GET: { handler: feedback.list, pepper: true } } },
+	"/v1/github/webhook": { name: "github_webhook", methods: { POST: { handler: githubWebhook.receive } } },
 	"/v2/auth/prelogin": { name: "prelogin", binding: true, methods: { POST: json(auth.prelogin, true) } },
 	"/v2/auth/signup": { name: "signup", binding: true, methods: { POST: json(auth.signup, true) } },
 	"/v2/auth/login": { name: "login", binding: true, methods: { POST: json(auth.login, true) } },
@@ -247,6 +256,12 @@ function match(path: string): Route | null {
 		const id = segment(file[1]);
 		return { name: "files", methods: { GET: { handler: sync.getFile(id) }, PUT: { handler: sync.putFile(id), body: "bytes" } } };
 	}
+	const feedbackItem = /^\/v1\/feedback\/([^/]+)$/.exec(path);
+	if (feedbackItem) return { name: "feedback_item", methods: { DELETE: { handler: feedback.remove(segment(feedbackItem[1])), pepper: true } } };
+	const feedbackShot = /^\/v1\/feedback\/([^/]+)\/screenshot$/.exec(path);
+	if (feedbackShot) {
+		return { name: "feedback_screenshot", methods: { PUT: { handler: feedback.putScreenshot(segment(feedbackShot[1])), body: "image", pepper: true } } };
+	}
 	const share = /^\/v2\/shares\/([^/]+)$/.exec(path);
 	if (share) {
 		const id = segment(share[1]);
@@ -310,6 +325,9 @@ export async function handle(request: Request, env: Env, now: number, matched?: 
 		}
 		if (method.body === "bytes" && !isContentType(type, "application/octet-stream", false)) {
 			return error(415, "unsupported_media_type", "Send application/octet-stream.");
+		}
+		if (method.body === "image" && !isContentType(type, "image/png", false) && !isContentType(type, "image/jpeg", false)) {
+			return error(415, "unsupported_media_type", "Send image/png or image/jpeg.");
 		}
 		if (method.pepper) {
 			const keys = pepperKeys(env.AUTH_PEPPER);

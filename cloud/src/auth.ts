@@ -51,6 +51,7 @@ import {
 	isWrappedKey,
 	proof32,
 } from "./protocol";
+import { deletionStatements as feedbackDeletionStatements } from "./feedback";
 import { DELETE_PURGE_ROUNDS, accountPrefix, purgePrefix } from "./purge";
 import { accountShareStatements, runSharePurges } from "./shares";
 import { healthAuth, healthEvents } from "./sign_in";
@@ -852,10 +853,11 @@ export function deletionStatements(db: D1Database, accountId: string, now: numbe
 		bind(
 			`DELETE FROM limits WHERE (key IN ('login-user:' || ?1, 'password-account:' || ?1, 'writes-account:' || ?1, 'uploads-account:' || ?1,
   'lookup-account:' || ?1, 'join-account:' || ?1, 'notify-account:' || ?1, 'proof-account:' || ?1, 'passkey-manage:' || ?1,
-  'approval-create:' || ?1, 'approval-poll:' || ?1, 'approval-respond:' || ?1)
+  'approval-create:' || ?1, 'approval-poll:' || ?1, 'approval-respond:' || ?1, 'feedback-account:' || ?1)
   OR ${sessionLimitKeys(1)})
   AND ${where}`,
 		),
+		...feedbackDeletionStatements(db, accountId, where, guard.value, now),
 		db
 			.prepare(
 				`INSERT INTO purges (prefix, requested_at) SELECT 'accounts/' || ?1 || '/', ?3 WHERE ${where}

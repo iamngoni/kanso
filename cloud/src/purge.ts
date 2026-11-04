@@ -15,6 +15,8 @@ import { signOutSockets } from "./account_room";
 import { runCollabPurges } from "./collab";
 import { purgeCrashReports } from "./crash_reports";
 import type { Env } from "./env";
+import { housekeeping as feedbackHousekeeping } from "./feedback";
+import { runTriage } from "./feedback_triage";
 import { refusal } from "./http";
 import { expiredLimitsSql } from "./limits";
 import { DAY, FILE_ROW_COST, HOUR, MAX_SEALED_FILE, MIN_SEALED_FILE, REVOKED_KEEP_MS, SESSION_IDLE_MS } from "./protocol";
@@ -330,6 +332,13 @@ export async function runCron(env: Env, now: number): Promise<CronReport> {
 	const collabPurged = await runCollabPurges(env, now);
 	await env.DB.prepare(expiredLimitsSql()).bind(now).run();
 	await purgeCrashReports(env, now);
+	try {
+		await feedbackHousekeeping(env, now);
+		await runTriage(env, now);
+	} catch (err) {
+		// Feedback is best effort: a failure here never stops the other jobs.
+		console.error(JSON.stringify({ route: "feedback", outcome: "failed", kind: (err as Error)?.name ?? "error" }));
+	}
 	try {
 		await runServerStats(env, now);
 	} catch (err) {
