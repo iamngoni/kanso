@@ -32,7 +32,6 @@ import '../../graph/views/pages/graph_page.dart';
 import '../../history/views/pages/history_page.dart';
 import '../../import/views/pages/import_page.dart';
 import '../../injection.dart';
-import '../../note/views/pages/note_page.dart';
 import '../../note/views/widgets/no_note_selected_pane.dart';
 import '../../note_list/views/pages/note_list_page.dart';
 import '../../notebook_home/views/pages/notebook_home_page.dart';
