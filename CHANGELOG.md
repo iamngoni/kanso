@@ -3,12 +3,6 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
-## Unreleased
-
-### New
-
-- **canvas:** Import a vault's `.canvas` files as canvas notes, with file cards pointing at the imported notes and attachments, and export a canvas as a `.canvas` file with ink as PNG file cards or cards only (#45)
-
 ## [0.9.4](https://github.com/iamngoni/kanso/compare/v0.9.3...v0.9.4) - 2026-11-04
 
 ### New
