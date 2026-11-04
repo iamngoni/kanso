@@ -253,6 +253,8 @@ proptest! {
         }
         prop_assert!(event_lines(&DriverEvent::Started, verbose).is_empty());
         prop_assert!(event_lines(&DriverEvent::Stopped, verbose).is_empty());
+        prop_assert!(event_lines(&DriverEvent::SyncStarted, verbose).is_empty());
+        prop_assert!(event_lines(&DriverEvent::Cancelled, verbose).is_empty());
         prop_assert_eq!(
             event_lines(&DriverEvent::HookFailed("x".into()), verbose).len(),
             usize::from(verbose)

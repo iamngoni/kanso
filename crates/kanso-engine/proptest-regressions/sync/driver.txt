@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b246c24f6e7260020841c77e713a7a2612291455f844c392aa045ddc318b507a # shrinks to ops = [StopSync, Request(false), Request(false), Pause(3), Pause(3), Request(true), StopSync, Pause(1), Busy(false), StopSync, Request(true), Pause(2), Request(true), Request(true)]
+cc 3d3095c0d65c1a13871070422093abe22cd276112cb18e1d6ccbd257ce8be513 # shrinks to ops = [Request(true), Pause(3), Busy(false), Busy(false), Busy(false), Request(true), StopSync]
+cc b246c24f6e7260020841c77e713a7a2612291455f844c392aa045ddc318b507a # shrinks to ops = [StopSync, Request(false), Request(false), Pause(3), Pause(3), Request(true), StopSync, Pause(1), Busy(false), StopSync, Request(true), Pause(2), Request(true), Request(true)]

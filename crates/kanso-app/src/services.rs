@@ -2,22 +2,26 @@
 //! and sync (docs/ACCOUNTS.md › Services).
 //!
 //! The account's session lives here once loaded, shared with the sync
-//! thread as an `Arc`. The backend and the Keychain are seams: `main.rs`
+//! driver as an `Arc`. The library syncs through
+//! `kanso_engine::sync::driver`, the loop `kanso serve` runs too; its events
+//! come back to the main thread here. The backend and the Keychain are
+//! seams: `main.rs`
 //! puts the real ones in; tests and snapshots leave them out (nothing then
 //! reaches a server or the Keychain) or put `MemoryServer` and
 //! `MemorySecrets` in.
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use gpui_kit::*;
 use kanso_engine::sync::Request;
+use kanso_engine::sync::driver::{Driver, DriverEvent, DriverSeams, DriverStart, SyncStop};
 use kanso_server::{ServerConfig, ServerHandle, TokenStore};
 use kanso_sync::{
     Backend, Machine, PendingApproval, SecretStore, Session, SignOutReason, SignupState, Step,
-    SyncError, SyncProblem, SyncReport,
+    SyncProblem,
 };
 
 use crate::config::ServerSettings;
@@ -98,19 +102,53 @@ pub struct ApprovalUi {
 #[cfg(test)]
 pub use kanso_engine::sync::Hold;
 
-/// The running sync's thread, and the flag that stops it between pages,
-/// batches and files.
-pub struct SyncHandle {
-    cancel: Arc<AtomicBool>,
-    thread: std::thread::JoinHandle<()>,
+/// A sync an account task stopped, to wait for.
+pub struct StoppedSync(Option<SyncStop>);
+
+impl StoppedSync {
+    /// Waits for the cancelled sync's thread: every re-bind and sign-out
+    /// does this first, off the main thread (fix 2).
+    pub fn join(self) {
+        if let Some(stop) = self.0 {
+            stop.join();
+        }
+    }
 }
 
-impl SyncHandle {
-    /// Stops the sync and waits for its thread: every re-bind and sign-out
-    /// does this first, off the main thread (fix 2).
-    pub fn cancel_and_join(self) {
-        self.cancel.store(true, Ordering::SeqCst);
-        self.thread.join().ok();
+/// Numbers the drivers, so a replaced one's events are told apart.
+static DRIVERS: AtomicU64 = AtomicU64::new(0);
+
+/// The library's sync driver and the session it syncs. Dropping it
+/// silences the driver and stops it on a thread of its own: the window
+/// never waits for a cancelled sync to notice, and never hears from it
+/// again (not even once the app is gone).
+struct SyncDriver {
+    driver: Option<Driver>,
+    /// Its events carry this; any other driver's are dropped.
+    generation: u64,
+    session: Arc<Session>,
+    /// Cleared when dropped: the driver's events go nowhere after.
+    live: Arc<AtomicBool>,
+}
+
+impl SyncDriver {
+    fn get(&self) -> &Driver {
+        self.driver.as_ref().expect("a sync driver until dropped")
+    }
+}
+
+impl Drop for SyncDriver {
+    fn drop(&mut self) {
+        self.live.store(false, Ordering::SeqCst);
+        if let Some(driver) = self.driver.take() {
+            // If no thread starts, the driver is dropped (and stopped) here.
+            let stopping = std::thread::Builder::new()
+                .name("kanso-sync-stop".into())
+                .spawn(move || driver.stop());
+            if let Err(err) = stopping {
+                eprintln!("kanso: couldn't stop sync on its own thread: {err}");
+            }
+        }
     }
 }
 
@@ -195,8 +233,17 @@ pub struct Services {
     /// keep their edits unsaved until it is done (A10).
     pub writes_held: bool,
     session: Option<Arc<Session>>,
-    /// When syncs run, queue or are held back (`kanso_engine::sync`).
-    scheduler: kanso_engine::sync::Scheduler,
+    /// The library's sync, while signed in: it decides when syncs run,
+    /// queue or are held back (`kanso_engine::sync::driver`).
+    driver: Option<SyncDriver>,
+    /// Where drivers' events go, to reach the main thread.
+    driver_events: Option<async_channel::Sender<(u64, DriverEvent)>>,
+    /// A sync started and its end hasn't reached the main thread: what an
+    /// account task stops first.
+    sync_running: bool,
+    /// The problem the last sync finished with: the driver says it again
+    /// right after, and that is no failure.
+    expect_problem: Option<SyncProblem>,
     server: Option<ServerHandle>,
     /// The agents' read-only notes tokens (`ai_agent.rs`), accepted on the
     /// local API's `/mcp` while it listens on this computer only, and on
@@ -208,15 +255,15 @@ pub struct Services {
     /// reachable from other computers) and an agent may read the notes.
     pub(crate) agent_mcp: Option<ServerHandle>,
     port_retry: Option<Task<()>>,
+    /// Shared notes' periodic sync.
     sync_tasks: Vec<Task<()>>,
-    sync_after_edit: Option<Task<()>>,
-    sync_handle: Option<SyncHandle>,
     /// The session whose sync an account task stopped: it starts again
     /// when the last task of the chain ends with it still signed in (A8).
     pub(crate) stopped_for: Option<Arc<Session>>,
-    /// How many syncs started, for tests.
+    /// How many syncs started, for tests: counted on the driver's thread
+    /// as each starts.
     #[cfg(test)]
-    pub(crate) sync_starts: usize,
+    sync_starts: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl Global for Services {}
@@ -310,10 +357,31 @@ impl Services {
         }
     }
 
-    /// Takes the running sync out, for an account task to stop and join it
-    /// on its own thread. No sync starts while the task runs.
-    pub fn take_sync_handle(&mut self) -> Option<SyncHandle> {
-        self.sync_handle.take()
+    /// Stops the running sync for an account task, which joins it on its
+    /// own thread; `None` when none runs. No sync starts while the task
+    /// runs ([`Self::task_changed`]).
+    pub fn stop_sync(&mut self) -> Option<StoppedSync> {
+        if !self.sync_running {
+            return None;
+        }
+        let driver = self.driver.as_ref()?.get();
+        driver.set_busy(true);
+        self.sync_running = false;
+        Some(StoppedSync(driver.stop_sync()))
+    }
+
+    /// Tells the driver whether an account task runs: while one does,
+    /// nothing syncs, not even Sync now.
+    pub fn task_changed(&self) {
+        if let Some(driver) = &self.driver {
+            driver.get().set_busy(self.task.is_some());
+        }
+    }
+
+    /// Takes the sync driver out, to stop it and wait.
+    #[cfg(test)]
+    pub fn take_driver(&mut self) -> Option<Driver> {
+        self.driver.take().and_then(|mut sync| sync.driver.take())
     }
 
     /// Signs the window in with `session` (after the binding, the Keychain
@@ -328,7 +396,9 @@ impl Services {
             username: session.username.clone(),
         };
         self.session = Some(session);
-        self.scheduler.clear_hold();
+        // A new session starts without the old one's hold.
+        self.driver = None;
+        self.sync_running = false;
         self.details = AccountDetails::default();
         self.account_methods = AccountMethodsState::default();
     }
@@ -343,12 +413,13 @@ impl Services {
         self.approval.waiting = None;
         self.locked_replace_write_consent = false;
         self.account = account;
-        self.scheduler.clear_hold();
+        self.driver = None;
+        self.sync_running = false;
+        self.expect_problem = None;
         self.sync = SyncState::Off;
         self.details = AccountDetails::default();
         self.account_methods = AccountMethodsState::default();
         self.sync_tasks.clear();
-        self.sync_after_edit = None;
     }
 }
 
@@ -493,218 +564,296 @@ pub fn stop_server(cx: &mut App) {
 }
 
 /// Starts or stops background sync to match the settings: it runs while
-/// signed in with Sync automatically on.
+/// signed in, on its own with Sync automatically on. A driver already
+/// running is replaced, keeping its hold for the same session.
 pub fn apply_sync_settings(cx: &mut App) {
-    let state = cx.global::<AppState>();
-    let settings = state.config.sync.clone();
-    let store = state.store.clone();
+    let interval = kanso_engine::sync::interval(cx.global::<AppState>().config.sync.interval_secs);
     let services = cx.global_mut::<Services>();
     services.sync_tasks.clear();
-    services.sync_after_edit = None;
     if services.session.is_none() {
+        services.driver = None;
+        services.sync_running = false;
         services.sync = SyncState::Off;
         cx.refresh_windows();
         return;
     }
-    let interval = kanso_engine::sync::interval(settings.interval_secs);
     // Shared notes sync on the same cadence, whether or not the library
     // syncs on its own: invitations and mentions come that way.
     let shared = crate::collab::periodic(interval, cx);
-    if !settings.enabled {
-        cx.global_mut::<Services>().sync_tasks = vec![shared];
-        cx.refresh_windows();
-        return;
+    cx.global_mut::<Services>().sync_tasks = vec![shared];
+    start_driver(cx);
+    cx.refresh_windows();
+}
+
+/// How long the app's drivers wait between automatic syncs and after an
+/// edit: the settings', and in tests long enough never to come, as GPUI's
+/// fake time never let them.
+fn driver_waits(interval: Duration) -> (Duration, Duration) {
+    if cfg!(test) {
+        let never = Duration::from_secs(24 * 60 * 60);
+        (never, never)
+    } else {
+        (interval, kanso_engine::sync::AFTER_EDIT)
     }
-    let periodic = cx.spawn(async move |cx| {
-        loop {
-            cx.update(|cx| start_sync(false, cx));
-            cx.background_executor().timer(interval).await;
-        }
-    });
-    let changes = store.subscribe();
-    let after_edits = cx.spawn(async move |cx| {
-        while let Ok(change) = changes.recv().await {
-            if !kanso_engine::sync::is_local_edit(&change) {
-                continue;
-            }
-            cx.update(|cx| {
-                let delayed = cx.spawn(async move |cx| {
-                    cx.background_executor()
-                        .timer(kanso_engine::sync::AFTER_EDIT)
-                        .await;
-                    cx.update(|cx| start_sync(false, cx));
-                });
-                cx.global_mut::<Services>().sync_after_edit = Some(delayed);
-            });
-        }
-    });
+}
+
+/// Starts the signed-in session's driver, replacing any. Returns whether
+/// its start sync runs (Sync automatically on, no task, nothing held);
+/// the status then says Syncing at once.
+fn start_driver(cx: &mut App) -> bool {
+    let state = cx.global::<AppState>();
+    let settings = state.config.sync.clone();
+    let store = state.store.clone();
+    let events = driver_events(cx);
     let services = cx.global_mut::<Services>();
-    services.sync_tasks = vec![periodic, after_edits, shared];
-}
-
-/// Syncs once, now, on its own thread ("Sync now"): it runs whatever held
-/// automatic syncs back. A request during a sync runs right after it.
-pub fn sync_now(cx: &mut App) {
-    start_sync(true, cx);
-    crate::collab::sync_soon(cx);
-}
-
-/// Starts an automatic sync again after an account task stopped one and
-/// left the same session signed in: the holds still apply.
-pub fn resume_sync(cx: &mut App) {
-    start_sync(false, cx);
-}
-
-/// Starts a sync of the signed-in library. Nothing happens while signed
-/// out, while an account task runs, or (for automatic syncs) while a
-/// problem holds them.
-fn start_sync(manual: bool, cx: &mut App) {
-    let now = crate::clock::Clock::now_ms(cx);
-    let store = cx.global::<AppState>().store.clone();
-    let services = cx.global_mut::<Services>();
+    let old = services.driver.take();
+    // The replaced driver's sync is cancelled: it says nothing more.
+    services.sync_running = false;
+    services.expect_problem = None;
+    if matches!(services.sync, SyncState::Syncing) {
+        services.sync = SyncState::Off;
+    }
     let (Some(session), Some(backend)) = (services.session.clone(), services.backend.clone())
     else {
-        return;
+        return false;
     };
-    let busy = services.task.is_some();
-    match services.scheduler.request(manual, busy, now) {
-        Request::Refused | Request::Queued => return,
-        Request::Start => {}
-    }
-    let secrets = services.secrets.clone();
-    let library_id = services.library_id.clone();
-    services.sync = SyncState::Syncing;
-
-    let cancel = Arc::new(AtomicBool::new(false));
-    let thread_cancel = cancel.clone();
-    let (tx, rx) = async_channel::bounded(1);
-    let thread_session = session.clone();
-    let thread = std::thread::Builder::new()
-        .name("kanso-sync".into())
-        .spawn(move || {
-            let logouts = match (&secrets, &library_id) {
-                (Some(secrets), Some(library_id)) => Some((secrets.as_ref(), library_id.as_str())),
-                _ => None,
-            };
-            let result = kanso_engine::sync::run_once(
-                &store,
-                backend.as_ref(),
-                &thread_session,
-                logouts,
-                thread_cancel,
-            );
-            tx.try_send(result).ok();
-        });
-    match thread {
-        Ok(thread) => {
-            services.sync_handle = Some(SyncHandle { cancel, thread });
-            #[cfg(test)]
-            {
-                services.sync_starts += 1;
-            }
-        }
-        Err(err) => {
-            eprintln!("kanso: couldn't start the sync thread: {err}");
-            services.scheduler.start_failed();
-            services.sync = SyncState::Failed(SyncProblem::Other);
-            cx.refresh_windows();
+    // A hold belongs to its session.
+    let hold = old
+        .as_ref()
+        .filter(|old| Arc::ptr_eq(&old.session, &session))
+        .and_then(|old| old.get().hold());
+    drop(old);
+    let (interval, after_edit) = driver_waits(kanso_engine::sync::interval(settings.interval_secs));
+    let start = DriverStart {
+        automatic: settings.enabled,
+        hold,
+        busy: services.task.is_some(),
+    };
+    let seams = DriverSeams {
+        store,
+        backend,
+        // Without a Keychain (tests and snapshots) there are no logouts to
+        // flush and no item to forget.
+        secrets: services
+            .secrets
+            .clone()
+            .unwrap_or_else(|| Arc::new(kanso_sync::MemorySecrets::new())),
+        library_id: services.library_id.clone().unwrap_or_default(),
+        session: session.clone(),
+        interval,
+        after_edit,
+        now_ms: Arc::new(kanso_core::now_ms),
+        after_sync: None,
+    };
+    let generation = DRIVERS.fetch_add(1, Ordering::SeqCst);
+    let live = Arc::new(AtomicBool::new(true));
+    let driver_live = live.clone();
+    #[cfg(test)]
+    let starts = services.sync_starts.clone();
+    let on = Box::new(move |event: DriverEvent| {
+        if !driver_live.load(Ordering::SeqCst) {
             return;
         }
+        #[cfg(test)]
+        if event == DriverEvent::SyncStarted {
+            starts.fetch_add(1, Ordering::SeqCst);
+        }
+        events.try_send((generation, event)).ok();
+    });
+    match Driver::start_from(seams, start, on) {
+        Ok(driver) => {
+            services.driver = Some(SyncDriver {
+                driver: Some(driver),
+                generation,
+                session,
+                live,
+            });
+            let starts = start.automatic
+                && !start.busy
+                && !kanso_engine::sync::holds_at(hold, kanso_core::now_ms());
+            if starts {
+                services.sync = SyncState::Syncing;
+                services.sync_running = true;
+            }
+            starts
+        }
+        Err(err) => {
+            eprintln!("kanso: couldn't start syncing: {err}");
+            services.sync = SyncState::Failed(SyncProblem::Other);
+            false
+        }
     }
-    cx.refresh_windows();
-    cx.spawn(async move |cx| {
-        // A thread that panicked drops the sender: that reads as a failure.
-        let result = rx.recv().await.ok();
-        cx.update(|cx| finish_sync(session, result, cx));
-    })
-    .detach();
 }
 
-fn finish_sync(session: Arc<Session>, result: Option<Result<SyncReport, SyncError>>, cx: &mut App) {
-    let now = crate::clock::Clock::now_ms(cx);
+/// The sender drivers' events go to; the first call starts the main-thread
+/// task that reads them.
+fn driver_events(cx: &mut App) -> async_channel::Sender<(u64, DriverEvent)> {
+    if let Some(events) = &cx.global::<Services>().driver_events {
+        return events.clone();
+    }
+    let (tx, rx) = async_channel::unbounded::<(u64, DriverEvent)>();
+    cx.spawn(async move |cx| {
+        while let Ok((generation, event)) = rx.recv().await {
+            cx.update(|cx| driver_event(generation, event, cx));
+        }
+    })
+    .detach();
+    cx.global_mut::<Services>().driver_events = Some(tx.clone());
+    tx
+}
+
+/// A driver's event, on the main thread. A replaced driver's say nothing.
+fn driver_event(generation: u64, event: DriverEvent, cx: &mut App) {
+    if !cx.has_global::<Services>() {
+        return;
+    }
     let services = cx.global_mut::<Services>();
-    // The handle is gone already when an account task took it to stop us.
-    if services
-        .sync_handle
-        .as_ref()
-        .is_some_and(|handle| handle.thread.is_finished())
-    {
-        services.sync_handle = None;
-    }
-    let current = services
-        .session
-        .as_ref()
-        .is_some_and(|s| Arc::ptr_eq(s, &session));
-    let finished = services.scheduler.finished(current, result, now);
+    let current = services.driver.as_ref().is_some_and(|driver| {
+        driver.generation == generation
+            && services
+                .session
+                .as_ref()
+                .is_some_and(|session| Arc::ptr_eq(session, &driver.session))
+    });
     if !current {
-        cx.refresh_windows();
-        if let Some(manual) = finished.again {
-            start_sync(manual, cx);
-        }
         return;
     }
-    if let Some(reason) = finished.signed_out {
-        end_session(reason, cx);
-        return;
-    }
-    if finished.cancelled {
-        // Cancelled: whatever cancelled it says what happens next.
-        if matches!(services.sync, SyncState::Syncing) {
-            services.sync = SyncState::Off;
+    let expected = services.expect_problem.take();
+    match event {
+        DriverEvent::SyncStarted => {
+            services.sync = SyncState::Syncing;
+            services.sync_running = true;
         }
-    } else if let Some(state) = finished.state {
-        // Files kept here for their size are a standing state, not a
-        // failed sync: they'd count as an error on every run.
-        let failed = matches!(
-            state,
-            SyncState::Failed(_)
-                | SyncState::Synced {
-                    problem: Some(_),
-                    ..
-                }
-        ) && !matches!(
-            state,
-            SyncState::Synced {
-                problem: Some(SyncProblem::TooLarge { .. }),
-                ..
+        DriverEvent::Synced(report) => {
+            services.sync_running = false;
+            let storage_changed = kanso_engine::sync::changed_storage(&report);
+            let now = crate::clock::Clock::now_ms(cx);
+            if let Some(state) = kanso_engine::sync::sync_outcome(Ok(report), now) {
+                cx.global_mut::<Services>().expect_problem =
+                    kanso_engine::sync::state_problem(&state).cloned();
+                show_sync_state(state, cx);
             }
-        );
-        services.sync = state;
-        if failed {
-            crate::metrics::record_sync_error(cx);
+            // What the server holds changed: the Account page's storage
+            // line is fetched again.
+            if storage_changed {
+                crate::account_flow::refresh_details_after_sync(cx);
+            }
         }
-    }
-    if finished.remerged {
-        notify_windows(
+        DriverEvent::Problem(problem) => {
+            // The problem the sync just finished with, said again.
+            if expected.as_ref() == Some(&problem) {
+                return;
+            }
+            services.sync_running = false;
+            show_sync_state(SyncState::Failed(problem), cx);
+        }
+        DriverEvent::Cancelled => {
+            // Whatever cancelled it says what happens next.
+            services.sync_running = false;
+            if matches!(services.sync, SyncState::Syncing) {
+                services.sync = SyncState::Off;
+            }
+        }
+        DriverEvent::Remerged => notify_windows(
             || {
                 gpui_kit::component::notification::Notification::info(
                     crate::account_words::REMERGED,
                 )
             },
             cx,
-        );
-    }
-    if finished.storage_changed {
-        crate::account_flow::refresh_details_after_sync(cx);
+        ),
+        DriverEvent::SignedOut(reason) => {
+            services.sync_running = false;
+            end_session(reason, cx);
+        }
+        DriverEvent::Started | DriverEvent::HookFailed(_) | DriverEvent::Stopped => return,
     }
     cx.refresh_windows();
-    // Automatic requests stay automatic: the holds this sync just set
-    // apply to them.
-    if let Some(manual) = finished.again {
-        start_sync(manual, cx);
+}
+
+/// Shows how a sync ended, counting it as an error if it was one.
+fn show_sync_state(state: SyncState, cx: &mut App) {
+    // Files kept here for their size are a standing state, not a failed
+    // sync: they'd count as an error on every run.
+    let failed = matches!(
+        state,
+        SyncState::Failed(_)
+            | SyncState::Synced {
+                problem: Some(_),
+                ..
+            }
+    ) && !matches!(
+        state,
+        SyncState::Synced {
+            problem: Some(SyncProblem::TooLarge { .. }),
+            ..
+        }
+    );
+    cx.global_mut::<Services>().sync = state;
+    if failed {
+        crate::metrics::record_sync_error(cx);
+    }
+}
+
+/// Syncs once, now ("Sync now"): it runs whatever held automatic syncs
+/// back. A request during a sync runs right after it.
+pub fn sync_now(cx: &mut App) {
+    request_sync(true, cx);
+    crate::collab::sync_soon(cx);
+}
+
+/// Starts an automatic sync again after an account task stopped one and
+/// left the same session signed in: the holds still apply.
+pub fn resume_sync(cx: &mut App) {
+    request_sync(false, cx);
+}
+
+/// Asks the driver for a sync of the signed-in library. Nothing happens
+/// while signed out, while an account task runs, or (for automatic syncs)
+/// while a problem holds them. A session the driver doesn't sync gets a
+/// driver of its own first, whose start sync is this one.
+fn request_sync(manual: bool, cx: &mut App) {
+    let services = cx.global::<Services>();
+    let Some(session) = services.session.clone() else {
+        return;
+    };
+    let stale = services
+        .driver
+        .as_ref()
+        .is_none_or(|driver| !Arc::ptr_eq(&driver.session, &session));
+    if stale && start_driver(cx) {
+        cx.refresh_windows();
+        return;
+    }
+    let services = cx.global_mut::<Services>();
+    let Some(driver) = &services.driver else {
+        return;
+    };
+    // The driver answers once it has decided, and started what it starts.
+    if driver.get().request(manual) == Request::Start {
+        services.sync = SyncState::Syncing;
+        services.sync_running = true;
+        cx.refresh_windows();
     }
 }
 
 #[cfg(test)]
 impl Services {
-    // no-prop-test: delegates to kanso_engine::sync::Scheduler, tested there.
+    // no-prop-test: delegates to kanso_engine::sync::driver::Driver, tested there.
     pub fn set_hold(&mut self, hold: Option<Hold>) {
-        self.scheduler.set_hold(hold);
+        if let Some(driver) = &self.driver {
+            driver.get().set_hold(hold);
+        }
     }
 
-    // no-prop-test: delegates to kanso_engine::sync::Scheduler, tested there.
+    // no-prop-test: delegates to kanso_engine::sync::driver::Driver, tested there.
     pub fn hold(&self) -> Option<Hold> {
-        self.scheduler.hold()
+        self.driver.as_ref().and_then(|driver| driver.get().hold())
+    }
+
+    /// How many syncs started.
+    pub(crate) fn sync_starts(&self) -> usize {
+        self.sync_starts.load(Ordering::SeqCst)
     }
 }
 

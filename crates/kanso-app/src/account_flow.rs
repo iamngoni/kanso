@@ -105,7 +105,7 @@ fn run<T: Send + 'static>(
 ) {
     let services = cx.global_mut::<Services>();
     let sync = if stop_sync {
-        services.take_sync_handle()
+        services.stop_sync()
     } else {
         None
     };
@@ -119,6 +119,7 @@ fn run<T: Send + 'static>(
         first
     };
     services.task = Some(RunningTask { kind, step: first });
+    services.task_changed();
     if let Some(progress) = &progress {
         progress.try_send(Progress::Step(first)).ok();
     }
@@ -130,16 +131,18 @@ fn run<T: Send + 'static>(
                 tx.try_send(Message::Step(step)).ok();
             };
             if let Some(sync) = sync {
-                sync.cancel_and_join();
+                sync.join();
             }
             let result = work(&step);
             tx.try_send(Message::Done(result)).ok();
         });
     if let Err(err) = spawned {
-        // The sync handle went with the closure: that sync runs on,
-        // detached, to its end. Nothing was changed.
+        // The stopped sync went with the closure, cancelled; nothing
+        // waits for it. Nothing was changed.
         eprintln!("kanso: couldn't start an account task: {err}");
-        cx.global_mut::<Services>().task = None;
+        let services = cx.global_mut::<Services>();
+        services.task = None;
+        services.task_changed();
         finish(None, cx);
         resume_stopped_sync(cx);
         cx.refresh_windows();
@@ -168,7 +171,9 @@ fn run<T: Send + 'static>(
             }
         }
         cx.update(|cx| {
-            cx.global_mut::<Services>().task = None;
+            let services = cx.global_mut::<Services>();
+            services.task = None;
+            services.task_changed();
             finish(result, cx);
             resume_stopped_sync(cx);
             check_unconfirmed_key(cx);

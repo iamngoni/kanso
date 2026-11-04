@@ -1,18 +1,19 @@
-//! Sync without a window: the loop `kanso serve` runs (docs/ACCOUNTS.md ›
-//! Services). It does with plain threads what the desktop app does with
-//! its tasks: a sync at start, one every `interval`, one `after_edit` after
-//! the last local edit, and Sync now; [`Scheduler`] decides each time.
+//! Sync without a window: the loop `kanso serve` and the app run
+//! (docs/ACCOUNTS.md › Services). It does with plain threads: a sync at
+//! start, one every `interval`, one `after_edit` after the last local edit,
+//! and Sync now; [`Scheduler`] decides each time.
 //!
-//! One control thread owns the scheduler and the timers. A sync runs on a
+//! One control thread owns the timers and starts the syncs. A sync runs on a
 //! worker thread of its own, at most one at a time, and reports back to the
 //! control thread; a feed thread turns the store's local edits into wakes.
 //! The owner hears what happened through [`DriverEvent`]s, called on the
-//! control thread.
+//! control thread, and asks for syncs with [`Driver::request`], which
+//! answers once the control thread has decided.
 
 use std::io;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, Condvar, Mutex, PoisonError, mpsc};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -20,7 +21,9 @@ use kanso_store::{Change, Store};
 use kanso_sync::{Backend, Session, SignOutReason, SyncError, SyncProblem, SyncReport};
 use serde::{Deserialize, Serialize};
 
-use super::{Request, Scheduler, forget_ended_session, is_local_edit, run_once, state_problem};
+use super::{
+    Hold, Request, Scheduler, forget_ended_session, is_local_edit, run_once, state_problem,
+};
 use crate::Secrets;
 
 /// When the last sync that finished ended (ms), written after each sync.
@@ -49,16 +52,47 @@ pub struct DriverSeams {
     pub after_sync: Option<Arc<dyn Fn() -> Result<(), String> + Send + Sync>>,
 }
 
+/// How a driver starts. [`Driver::start`] takes the default: automatic,
+/// nothing held, not busy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DriverStart {
+    /// Syncs on its own: at start, every `interval` and `after_edit` after
+    /// a local edit. Without, only [`Driver::request`]s run (the app's
+    /// Sync now with Sync automatically off).
+    pub automatic: bool,
+    /// The hold to start with: a driver replacing one of the same session
+    /// keeps its [`Driver::hold`].
+    pub hold: Option<Hold>,
+    /// Whether an account task runs at start ([`Driver::set_busy`]).
+    pub busy: bool,
+}
+
+impl Default for DriverStart {
+    fn default() -> Self {
+        DriverStart {
+            automatic: true,
+            hold: None,
+            busy: false,
+        }
+    }
+}
+
 /// News the owner shows or logs. Carries no secrets. Rare enough that a
 /// report kept inline costs nothing.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DriverEvent {
     Started,
+    /// A library sync started; one of `Synced`, `Problem`, `Cancelled` or
+    /// `SignedOut` follows, unless the driver stops first.
+    SyncStarted,
     /// A sync finished; the owner decides whether it is worth a line.
     Synced(SyncReport),
     /// A sync failed, or finished with a problem.
     Problem(SyncProblem),
+    /// A library sync was cancelled ([`Driver::stop_sync`]): it changed
+    /// nothing, and whoever cancelled it says what happens next.
+    Cancelled,
     /// Another device's changes were merged with a fresh start of the
     /// library.
     Remerged,
@@ -106,7 +140,13 @@ type Hook = Arc<dyn Fn() -> Result<(), String> + Send + Sync>;
 /// What reaches the control thread.
 enum Msg {
     Edit,
-    Manual,
+    /// A sync asked for (`manual` for Sync now); the answer goes back.
+    Request {
+        manual: bool,
+        answer: mpsc::Sender<Request>,
+    },
+    /// Cancel the running sync; what waits for it goes back.
+    StopSync(mpsc::Sender<Option<SyncStop>>),
     Stop,
     Done(Box<Outcome>),
 }
@@ -118,10 +158,53 @@ struct Outcome {
     hook: Option<Result<(), String>>,
 }
 
+/// Set once a worker thread is done.
+#[derive(Default)]
+struct Ended {
+    done: Mutex<bool>,
+    changed: Condvar,
+}
+
+impl Ended {
+    fn set(&self) {
+        *self.done.lock().unwrap_or_else(PoisonError::into_inner) = true;
+        self.changed.notify_all();
+    }
+}
+
+/// Marks its worker done when the worker's thread ends, panicking or not.
+struct EndGuard(Arc<Ended>);
+
+impl Drop for EndGuard {
+    fn drop(&mut self) {
+        self.0.set();
+    }
+}
+
+/// A cancelled sync, to wait for ([`Driver::stop_sync`]).
+pub struct SyncStop(Arc<Ended>);
+
+impl SyncStop {
+    /// Waits until the cancelled sync's thread is done: it stops between
+    /// pages, batches and files.
+    pub fn join(self) {
+        let mut done = self.0.done.lock().unwrap_or_else(PoisonError::into_inner);
+        while !*done {
+            done = self
+                .0
+                .changed
+                .wait(done)
+                .unwrap_or_else(PoisonError::into_inner);
+        }
+    }
+}
+
 /// The running sync loop. Dropping it stops it, as [`Driver::stop`] does.
 pub struct Driver {
     stop: Arc<AtomicBool>,
     finished: Arc<AtomicBool>,
+    busy: Arc<AtomicBool>,
+    scheduler: Arc<Mutex<Scheduler>>,
     wake: mpsc::Sender<Msg>,
     thread: Option<JoinHandle<()>>,
 }
@@ -130,6 +213,16 @@ impl Driver {
     /// Starts the loop on a thread named `kanso-sync-driver`; `on` is called
     /// on that thread for every event.
     pub fn start(seams: DriverSeams, on: Box<dyn FnMut(DriverEvent) + Send>) -> io::Result<Driver> {
+        Driver::start_from(seams, DriverStart::default(), on)
+    }
+
+    /// [`Driver::start`] from `start`: the app's settings, and what a
+    /// driver it replaces left.
+    pub fn start_from(
+        seams: DriverSeams,
+        start: DriverStart,
+        on: Box<dyn FnMut(DriverEvent) + Send>,
+    ) -> io::Result<Driver> {
         let store = seams.store.clone();
         let backend = seams.backend.clone();
         let session = seams.session.clone();
@@ -144,18 +237,23 @@ impl Driver {
                 cancel,
             )
         });
-        Driver::start_with(seams, runner, on)
+        Driver::start_with(seams, start, runner, on)
     }
 
-    /// [`Driver::start`] with the sync itself given: tests count and script
-    /// it.
+    /// [`Driver::start_from`] with the sync itself given: tests count and
+    /// script it.
     fn start_with(
         seams: DriverSeams,
+        start: DriverStart,
         runner: Runner,
         on: Box<dyn FnMut(DriverEvent) + Send>,
     ) -> io::Result<Driver> {
         let stop = Arc::new(AtomicBool::new(false));
         let finished = Arc::new(AtomicBool::new(false));
+        let busy = Arc::new(AtomicBool::new(start.busy));
+        let mut scheduler = Scheduler::default();
+        scheduler.set_hold(start.hold);
+        let scheduler = Arc::new(Mutex::new(scheduler));
         let (wake, rx) = mpsc::channel();
         let changes = seams.store.subscribe();
         let feed_changes = changes.clone();
@@ -172,7 +270,9 @@ impl Driver {
             tx: wake.clone(),
             stop: stop.clone(),
             finished: finished.clone(),
-            scheduler: Scheduler::default(),
+            busy: busy.clone(),
+            automatic: start.automatic,
+            scheduler: scheduler.clone(),
             worker: None,
             start_pending: None,
             hook_next: false,
@@ -188,6 +288,8 @@ impl Driver {
             Ok(thread) => Ok(Driver {
                 stop,
                 finished,
+                busy,
+                scheduler,
                 wake,
                 thread: Some(thread),
             }),
@@ -199,9 +301,55 @@ impl Driver {
         }
     }
 
-    /// Sync now: a hold never stops it.
-    pub fn sync_now(&self) {
-        self.wake.send(Msg::Manual).ok();
+    /// Sync now: a hold never stops it (and is lifted). Returns the
+    /// scheduler's answer.
+    pub fn sync_now(&self) -> Request {
+        self.request(true)
+    }
+
+    /// Asks for a sync, `manual` for Sync now, and waits for the control
+    /// thread's answer: a started sync has started, and
+    /// [`DriverEvent::SyncStarted`] gone out, when this returns. An ended
+    /// or stopped driver refuses.
+    pub fn request(&self, manual: bool) -> Request {
+        let (answer, answered) = mpsc::channel();
+        if self.wake.send(Msg::Request { manual, answer }).is_err() {
+            return Request::Refused;
+        }
+        answered.recv().unwrap_or(Request::Refused)
+    }
+
+    /// An account task runs (`true`) or none does: while one runs, nothing
+    /// starts, not even Sync now, and a session that ends meanwhile leaves
+    /// the unsaved recovery key to the owner (its own recovery may have
+    /// made it). A sync already running runs on; [`Driver::stop_sync`]
+    /// stops it.
+    pub fn set_busy(&self, busy: bool) {
+        self.busy.store(busy, Ordering::SeqCst);
+    }
+
+    /// Cancels the running sync, if any, and returns what waits for it to
+    /// end; the loop runs on. A sync waiting to start is dropped.
+    pub fn stop_sync(&self) -> Option<SyncStop> {
+        let (answer, answered) = mpsc::channel();
+        self.wake.send(Msg::StopSync(answer)).ok()?;
+        answered.recv().ok().flatten()
+    }
+
+    /// What keeps automatic syncs from running now, if anything.
+    pub fn hold(&self) -> Option<Hold> {
+        self.scheduler().hold()
+    }
+
+    /// Sets the hold, as a sync's problem would.
+    pub fn set_hold(&self, hold: Option<Hold>) {
+        self.scheduler().set_hold(hold);
+    }
+
+    fn scheduler(&self) -> std::sync::MutexGuard<'_, Scheduler> {
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     /// Sets the stop flag, cancels a running sync between pages, batches
@@ -245,6 +393,7 @@ fn feed_loop(changes: async_channel::Receiver<Change>, wake: mpsc::Sender<Msg>) 
 /// The sync running on its own thread.
 struct Worker {
     cancel: Arc<AtomicBool>,
+    ended: Arc<Ended>,
     thread: JoinHandle<()>,
 }
 
@@ -258,7 +407,10 @@ struct Control {
     tx: mpsc::Sender<Msg>,
     stop: Arc<AtomicBool>,
     finished: Arc<AtomicBool>,
-    scheduler: Scheduler,
+    busy: Arc<AtomicBool>,
+    /// [`DriverStart::automatic`].
+    automatic: bool,
+    scheduler: Arc<Mutex<Scheduler>>,
     worker: Option<Worker>,
     /// A library sync the scheduler started while a hook-only worker ran:
     /// it starts when that one ends, running the hook if this is `true`.
@@ -277,7 +429,9 @@ impl Control {
     fn run(&mut self) {
         (self.on)(DriverEvent::Started);
         self.next_tick = Instant::now() + self.seams.interval;
-        self.request(false, false);
+        if self.automatic {
+            self.request(false, false);
+        }
         while !self.stop.load(Ordering::SeqCst) {
             let msg = match self.deadline() {
                 Some(at) => self
@@ -291,11 +445,18 @@ impl Control {
             match msg {
                 Ok(Msg::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
                 Ok(Msg::Edit) => {
-                    if !self.ended {
+                    if !self.ended && self.automatic {
                         self.edit_due = Some(Instant::now() + self.seams.after_edit);
                     }
                 }
-                Ok(Msg::Manual) => self.request(true, false),
+                Ok(Msg::Request { manual, answer }) => {
+                    let request = self.request(manual, false);
+                    answer.send(request).ok();
+                }
+                Ok(Msg::StopSync(answer)) => {
+                    let stop = self.stop_sync();
+                    answer.send(stop).ok();
+                }
                 Ok(Msg::Done(outcome)) => self.finish(*outcome),
                 Err(mpsc::RecvTimeoutError::Timeout) => self.timers(),
             }
@@ -310,9 +471,16 @@ impl Control {
         (self.on)(DriverEvent::Stopped);
     }
 
-    /// The next time a timer is due; `None` once the session ended.
+    fn scheduler(&self) -> std::sync::MutexGuard<'_, Scheduler> {
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The next time a timer is due; `None` once the session ended, or
+    /// when nothing syncs on its own.
     fn deadline(&self) -> Option<Instant> {
-        if self.ended {
+        if self.ended || !self.automatic {
             return None;
         }
         Some(match self.edit_due {
@@ -334,12 +502,14 @@ impl Control {
     }
 
     /// A sync is asked for: `manual` for Sync now, `tick` for the timer.
-    fn request(&mut self, manual: bool, tick: bool) {
+    fn request(&mut self, manual: bool, tick: bool) -> Request {
         if self.ended {
-            return;
+            return Request::Refused;
         }
         let now = (self.seams.now_ms)();
-        match self.scheduler.request(manual, false, now) {
+        let busy = self.busy.load(Ordering::SeqCst);
+        let request = self.scheduler().request(manual, busy, now);
+        match request {
             Request::Start => {
                 let hook = tick || std::mem::take(&mut self.hook_next);
                 if self.worker.is_some() {
@@ -352,33 +522,58 @@ impl Control {
             }
             Request::Queued => self.hook_next |= tick,
             Request::Refused => {
-                if tick && self.worker.is_none() && self.hook.is_some() {
+                if tick && !busy && self.worker.is_none() && self.hook.is_some() {
                     self.spawn(false, true);
                 }
             }
         }
+        request
+    }
+
+    /// Cancels the running worker and drops a library sync waiting for
+    /// it; returns what waits for the worker.
+    fn stop_sync(&mut self) -> Option<SyncStop> {
+        if self.start_pending.take().is_some() {
+            self.scheduler().start_failed();
+            (self.on)(DriverEvent::Cancelled);
+        }
+        let worker = self.worker.as_ref()?;
+        worker.cancel.store(true, Ordering::SeqCst);
+        Some(SyncStop(worker.ended.clone()))
     }
 
     /// Starts a worker: a library sync if `library`, then the hook after a
     /// successful one, or after any if `hook` (a timer tick).
     fn spawn(&mut self, library: bool, hook: bool) {
         let cancel = Arc::new(AtomicBool::new(false));
+        let ended = Arc::new(Ended::default());
         let worker_cancel = cancel.clone();
+        let guard = EndGuard(ended.clone());
         let runner = self.runner.clone();
         let after_sync = self.hook.clone();
         let tx = self.tx.clone();
         let thread = std::thread::Builder::new()
             .name("kanso-sync".into())
             .spawn(move || {
+                let _guard = guard;
                 let outcome = work(library, hook, &runner, after_sync.as_ref(), &worker_cancel);
                 tx.send(Msg::Done(Box::new(outcome))).ok();
             });
         match thread {
-            Ok(thread) => self.worker = Some(Worker { cancel, thread }),
+            Ok(thread) => {
+                self.worker = Some(Worker {
+                    cancel,
+                    ended,
+                    thread,
+                });
+                if library {
+                    (self.on)(DriverEvent::SyncStarted);
+                }
+            }
             Err(err) => {
                 eprintln!("kanso: couldn't start the sync thread: {err}");
                 if library {
-                    self.scheduler.start_failed();
+                    self.scheduler().start_failed();
                     (self.on)(DriverEvent::Problem(SyncProblem::Other));
                 }
             }
@@ -401,12 +596,14 @@ impl Control {
             _ => None,
         };
         let now = (self.seams.now_ms)();
-        let finished = self.scheduler.finished(true, result, now);
+        let finished = self.scheduler().finished(true, result, now);
         if let Some(reason) = finished.signed_out {
             self.end(reason);
             return;
         }
-        if !finished.cancelled {
+        if finished.cancelled {
+            (self.on)(DriverEvent::Cancelled);
+        } else {
             let problem = finished.state.as_ref().and_then(state_problem);
             self.write_last(now, &LastResult::new(report.as_ref(), problem));
             if let Some(report) = report {
@@ -433,7 +630,8 @@ impl Control {
     }
 
     /// The server ended the session: forget it, say so once, and sync no
-    /// more.
+    /// more. While an account task runs, the recovery key is the owner's
+    /// to judge ([`Driver::set_busy`]).
     fn end(&mut self, reason: SignOutReason) {
         self.ended = true;
         self.edit_due = None;
@@ -444,12 +642,11 @@ impl Control {
             &self.seams.library_id,
             reason,
             Some(&self.seams.session),
-            false,
+            self.busy.load(Ordering::SeqCst),
         );
         self.finished.store(true, Ordering::SeqCst);
         (self.on)(DriverEvent::SignedOut(reason));
     }
-
     /// Writes the last-sync keys under the session's guard: a library bound
     /// elsewhere meanwhile keeps its own.
     fn write_last(&self, now: i64, last: &LastResult) {
@@ -675,7 +872,7 @@ mod tests {
                 .all(|item| !item.starts_with("sync-account"))
         );
         // Nothing runs any more: not the timer, not an edit, not Sync now.
-        driver.sync_now();
+        assert_eq!(driver.sync_now(), Request::Refused);
         put(&lib.store, Origin::Api);
         std::thread::sleep(Duration::from_millis(100));
         driver.stop();
@@ -702,6 +899,7 @@ mod tests {
         let (started, running) = mpsc::channel();
         let driver = Driver::start_with(
             seams(&lib, Duration::from_secs(600), AFTER),
+            DriverStart::default(),
             until_cancelled(started),
             on,
         )
@@ -715,7 +913,14 @@ mod tests {
             at.elapsed()
         );
         let all: Vec<_> = events.try_iter().collect();
-        assert_eq!(all, vec![DriverEvent::Started, DriverEvent::Stopped]);
+        assert_eq!(
+            all,
+            vec![
+                DriverEvent::Started,
+                DriverEvent::SyncStarted,
+                DriverEvent::Stopped
+            ]
+        );
     }
 
     #[test]
@@ -726,9 +931,10 @@ mod tests {
         seams.after_sync = Some(Arc::new(|| Err("shared notes: offline".into())));
         let driver = Driver::start(seams, on).unwrap();
         let seen = wait_for(&events, |e| matches!(e, DriverEvent::HookFailed(_)));
-        assert!(matches!(seen[1], DriverEvent::Synced(_)), "{seen:?}");
+        assert_eq!(seen[1], DriverEvent::SyncStarted);
+        assert!(matches!(seen[2], DriverEvent::Synced(_)), "{seen:?}");
         assert_eq!(
-            seen[2..],
+            seen[3..],
             [
                 DriverEvent::Problem(SyncProblem::Other),
                 DriverEvent::HookFailed("shared notes: offline".into())
@@ -834,6 +1040,183 @@ mod tests {
         }
     }
 
+    /// A runner that counts its syncs, each taking `ms`, and stops early
+    /// when cancelled.
+    fn counting(runs: Arc<AtomicUsize>, ms: u64) -> Runner {
+        Arc::new(move |cancel: Arc<AtomicBool>| {
+            runs.fetch_add(1, Ordering::SeqCst);
+            let until = Instant::now() + Duration::from_millis(ms);
+            while Instant::now() < until {
+                if cancel.load(Ordering::SeqCst) {
+                    return Err(SyncError::Cancelled);
+                }
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            Ok(SyncReport::default())
+        })
+    }
+
+    fn manual_only() -> DriverStart {
+        DriverStart {
+            automatic: false,
+            ..DriverStart::default()
+        }
+    }
+
+    #[test]
+    fn a_started_sync_has_started_when_the_request_returns() {
+        let lib = lib();
+        let (on, events) = listen();
+        let runs = Arc::new(AtomicUsize::new(0));
+        let driver = Driver::start_with(
+            seams(&lib, Duration::from_secs(600), AFTER),
+            manual_only(),
+            counting(runs.clone(), 200),
+            on,
+        )
+        .unwrap();
+        assert_eq!(driver.request(false), Request::Start);
+        assert_eq!(
+            events.try_iter().collect::<Vec<_>>(),
+            vec![DriverEvent::Started, DriverEvent::SyncStarted]
+        );
+        assert_eq!(driver.request(false), Request::Queued);
+        assert_eq!(driver.sync_now(), Request::Queued);
+        let seen = wait_for(&events, synced);
+        assert_eq!(seen.len(), 1, "{seen:?}");
+        // The queued requests run once, after it.
+        assert_eq!(wait_for(&events, synced)[0], DriverEvent::SyncStarted);
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(runs.load(Ordering::SeqCst), 2);
+        driver.stop();
+    }
+
+    #[test]
+    fn without_automatic_syncs_only_requests_run() {
+        let lib = lib();
+        let (on, events) = listen();
+        let runs = Arc::new(AtomicUsize::new(0));
+        let seams = seams(&lib, Duration::from_millis(5), Duration::from_millis(2));
+        let driver =
+            Driver::start_with(seams, manual_only(), counting(runs.clone(), 0), on).unwrap();
+        put(&lib.store, Origin::Api);
+        std::thread::sleep(Duration::from_millis(60));
+        assert_eq!(
+            runs.load(Ordering::SeqCst),
+            0,
+            "no timer, no edit, no start"
+        );
+        assert_eq!(driver.sync_now(), Request::Start);
+        wait_for(&events, synced);
+        assert_eq!(runs.load(Ordering::SeqCst), 1);
+        driver.stop();
+    }
+
+    #[test]
+    fn a_driver_keeps_the_hold_it_starts_with() {
+        let lib = lib();
+        let (on, events) = listen();
+        let runs = Arc::new(AtomicUsize::new(0));
+        let start = DriverStart {
+            hold: Some(Hold::UntilSyncNow),
+            ..DriverStart::default()
+        };
+        let driver = Driver::start_with(
+            seams(&lib, Duration::from_secs(600), AFTER),
+            start,
+            counting(runs.clone(), 0),
+            on,
+        )
+        .unwrap();
+        assert_eq!(driver.request(false), Request::Refused);
+        assert_eq!(driver.hold(), Some(Hold::UntilSyncNow));
+        assert_eq!(runs.load(Ordering::SeqCst), 0, "the start sync waits too");
+        assert_eq!(driver.sync_now(), Request::Start);
+        assert_eq!(driver.hold(), None, "Sync now lifts it");
+        wait_for(&events, synced);
+        driver.set_hold(Some(Hold::Stopped));
+        assert_eq!(driver.request(false), Request::Refused);
+        driver.stop();
+    }
+
+    #[test]
+    fn busy_refuses_even_sync_now_until_it_ends() {
+        let lib = lib();
+        let (on, events) = listen();
+        let runs = Arc::new(AtomicUsize::new(0));
+        let start = DriverStart {
+            busy: true,
+            ..DriverStart::default()
+        };
+        let driver = Driver::start_with(
+            seams(&lib, Duration::from_secs(600), AFTER),
+            start,
+            counting(runs.clone(), 0),
+            on,
+        )
+        .unwrap();
+        assert_eq!(driver.sync_now(), Request::Refused);
+        assert_eq!(driver.request(false), Request::Refused);
+        assert_eq!(runs.load(Ordering::SeqCst), 0);
+        driver.set_busy(false);
+        assert_eq!(driver.request(false), Request::Start);
+        wait_for(&events, synced);
+        driver.stop();
+    }
+
+    #[test]
+    fn stop_sync_cancels_the_running_sync_and_the_loop_runs_on() {
+        let lib = lib();
+        let (on, events) = listen();
+        let (started, running) = mpsc::channel();
+        let driver = Driver::start_with(
+            seams(&lib, Duration::from_secs(600), AFTER),
+            DriverStart::default(),
+            until_cancelled(started),
+            on,
+        )
+        .unwrap();
+        running.recv_timeout(SLACK).unwrap();
+        driver.set_busy(true);
+        let stop = driver.stop_sync().expect("a sync runs");
+        let at = Instant::now();
+        stop.join();
+        assert!(at.elapsed() < Duration::from_millis(500));
+        let seen = wait_for(&events, |e| *e == DriverEvent::Cancelled);
+        assert_eq!(
+            seen,
+            vec![
+                DriverEvent::Started,
+                DriverEvent::SyncStarted,
+                DriverEvent::Cancelled
+            ]
+        );
+        assert!(driver.stop_sync().is_none(), "nothing runs now");
+        assert!(!driver.finished());
+        driver.set_busy(false);
+        assert_eq!(driver.request(false), Request::Start);
+        running.recv_timeout(SLACK).unwrap();
+        driver.stop();
+    }
+
+    /// What an owner does to a running driver.
+    #[derive(Clone, Copy, Debug)]
+    enum Op {
+        Request(bool),
+        Busy(bool),
+        StopSync,
+        Pause(u64),
+    }
+
+    fn op() -> impl Strategy<Value = Op> {
+        prop_oneof![
+            any::<bool>().prop_map(Op::Request),
+            any::<bool>().prop_map(Op::Busy),
+            Just(Op::StopSync),
+            (0u64..4).prop_map(Op::Pause),
+        ]
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(12))]
 
@@ -881,12 +1264,14 @@ mod tests {
                     tx.send(event).ok();
                 })
             };
-            let driver = Driver::start_with(seams, runner, on).unwrap();
+            let driver = Driver::start_with(seams, DriverStart::default(), runner, on).unwrap();
             for wake in wakes {
                 match wake {
                     Wake::Edit => put(&lib.store, Origin::Api),
                     Wake::SyncWrite => put(&lib.store, Origin::Sync),
-                    Wake::Manual => driver.sync_now(),
+                    Wake::Manual => {
+                        driver.sync_now();
+                    }
                     Wake::Pause(ms) => std::thread::sleep(Duration::from_millis(ms)),
                 }
             }
@@ -929,7 +1314,7 @@ mod tests {
             };
             let seams = seams(&lib, Duration::from_millis(5), Duration::from_millis(2));
             let (on, events) = listen();
-            let driver = Driver::start_with(seams, runner, on).unwrap();
+            let driver = Driver::start_with(seams, DriverStart::default(), runner, on).unwrap();
             wait_for(&events, |e| matches!(e, DriverEvent::Problem(_)));
             for _ in 0..edits {
                 put(&lib.store, Origin::Api);
@@ -942,6 +1327,63 @@ mod tests {
                 prop_assert_eq!(gauge.runs.load(Ordering::SeqCst), 2);
             }
             driver.stop();
+        }
+        /// For any requests, busy changes and stops: busy refuses every
+        /// request and an idle driver never does; each sync that ran was
+        /// announced by one SyncStarted; once a sync stopped while busy is
+        /// joined, nothing runs; and at most one runs at once.
+        #[test]
+        fn prop_requests_busy_and_stops(ops in prop::collection::vec(op(), 0..24)) {
+            let lib = lib();
+            let gauge = Arc::new(Gauge::default());
+            let runner: Runner = {
+                let gauge = gauge.clone();
+                Arc::new(move |cancel: Arc<AtomicBool>| {
+                    gauge.during(|| {
+                        gauge.runs.fetch_add(1, Ordering::SeqCst);
+                        for _ in 0..3 {
+                            if cancel.load(Ordering::SeqCst) {
+                                return Err(SyncError::Cancelled);
+                            }
+                            std::thread::sleep(Duration::from_millis(1));
+                        }
+                        Ok(SyncReport::default())
+                    })
+                })
+            };
+            let (on, events) = listen();
+            let seams = seams(&lib, Duration::from_secs(600), AFTER);
+            let driver = Driver::start_with(seams, manual_only(), runner, on).unwrap();
+            let mut busy = false;
+            for op in ops {
+                match op {
+                    Op::Request(manual) => {
+                        let answer = driver.request(manual);
+                        prop_assert_eq!(answer == Request::Refused, busy, "{:?}", answer);
+                    }
+                    Op::Busy(now) => {
+                        busy = now;
+                        driver.set_busy(now);
+                    }
+                    Op::StopSync => {
+                        // As an account task does: busy first, so nothing
+                        // queued starts once the stopped sync ends.
+                        driver.set_busy(true);
+                        if let Some(stop) = driver.stop_sync() {
+                            stop.join();
+                            prop_assert_eq!(gauge.now.load(Ordering::SeqCst), 0);
+                        }
+                        driver.set_busy(busy);
+                    }
+                    Op::Pause(ms) => std::thread::sleep(Duration::from_millis(ms)),
+                }
+            }
+            driver.stop();
+            let all: Vec<_> = events.try_iter().collect();
+            let started = all.iter().filter(|e| **e == DriverEvent::SyncStarted).count();
+            prop_assert_eq!(started, gauge.runs.load(Ordering::SeqCst));
+            prop_assert!(gauge.most.load(Ordering::SeqCst) <= 1);
+            prop_assert_eq!(all.last(), Some(&DriverEvent::Stopped));
         }
     }
 }

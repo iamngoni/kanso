@@ -289,7 +289,10 @@ fn shared_notes_hook(
 /// events carry only counts and problems. Pure.
 pub fn event_lines(event: &DriverEvent, verbose: bool) -> Vec<String> {
     match event {
-        DriverEvent::Started | DriverEvent::Stopped => Vec::new(),
+        DriverEvent::Started
+        | DriverEvent::SyncStarted
+        | DriverEvent::Cancelled
+        | DriverEvent::Stopped => Vec::new(),
         DriverEvent::Synced(report) => {
             if moved(report) || verbose {
                 vec![format!(
