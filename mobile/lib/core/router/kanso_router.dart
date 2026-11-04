@@ -19,6 +19,8 @@ import '../../board/views/pages/board_page.dart';
 import '../../capture/views/pages/daily_note_page.dart';
 import '../../capture/views/pages/new_note_page.dart';
 import '../../crash/views/pages/crash_reports_page.dart';
+import '../../feedback/views/pages/my_feedback_page.dart';
+import '../../feedback/views/pages/send_feedback_page.dart';
 import '../../design/views/pages/design_gallery_page.dart';
 import '../../dictation/views/pages/voice_note_page.dart';
 import '../../digest/views/pages/brief_page.dart';
@@ -423,6 +425,22 @@ class KansoRouter {
                     key: state.pageKey,
                     child: const CrashReportsPage(),
                   ),
+                ),
+                GoRoute(
+                  path: 'feedback',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const MyFeedbackPage(),
+                  ),
+                  routes: <RouteBase>[
+                    GoRoute(
+                      path: 'new',
+                      pageBuilder: (context, state) => kansoPage<void>(
+                        key: state.pageKey,
+                        child: const SendFeedbackPage(),
+                      ),
+                    ),
+                  ],
                 ),
                 GoRoute(
                   path: 'backups',

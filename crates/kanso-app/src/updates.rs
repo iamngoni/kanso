@@ -1217,20 +1217,17 @@ fn push_update_notice(notes: ReleaseNotes, fixed: usize, window: &mut Window, cx
                         .child(message.clone()),
                 )
                 .child(
-                    h_flex()
-                        .gap_2()
-                        .child(open(notes.clone()))
-                        .child(
-                            Button::new("my-feedback")
-                                .small()
-                                .label("My feedback")
-                                .on_click(|_, window, cx| {
-                                    window.dispatch_action(
-                                        Box::new(crate::feedback_sheet::MyFeedback),
-                                        cx,
-                                    )
-                                }),
-                        ),
+                    h_flex().gap_2().child(open(notes.clone())).child(
+                        Button::new("my-feedback")
+                            .small()
+                            .label("My feedback")
+                            .on_click(|_, window, cx| {
+                                window.dispatch_action(
+                                    Box::new(crate::feedback_sheet::MyFeedback),
+                                    cx,
+                                )
+                            }),
+                    ),
                 )
                 .into_any_element()
         })

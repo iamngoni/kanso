@@ -101,7 +101,9 @@ fn type_text(cx: &mut TestAppContext, rig: &Rig, sheet: &Entity<FeedbackSheet>, 
 fn press_send(cx: &mut TestAppContext, rig: &Rig, sheet: &Entity<FeedbackSheet>) {
     let target = sheet.clone();
     rig.window
-        .update(cx, move |_, window, cx| target.update(cx, |s, cx| s.send(window, cx)))
+        .update(cx, move |_, window, cx| {
+            target.update(cx, |s, cx| s.send(window, cx))
+        })
         .unwrap();
     // The send runs on a worker thread; wait for its answer to land.
     for _ in 0..300 {
@@ -117,7 +119,9 @@ fn press_send(cx: &mut TestAppContext, rig: &Rig, sheet: &Entity<FeedbackSheet>)
 fn the_action_opens_the_sheet_and_the_kind_changes_the_hint(cx: &mut TestAppContext) {
     let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
     rig.window
-        .update(cx, |_, window, cx| window.dispatch_action(Box::new(SendFeedback), cx))
+        .update(cx, |_, window, cx| {
+            window.dispatch_action(Box::new(SendFeedback), cx)
+        })
         .unwrap();
     cx.run_until_parked();
     let sheet = open_sheet(cx, &rig);
@@ -144,7 +148,10 @@ fn a_short_report_is_refused_and_nothing_is_saved(cx: &mut TestAppContext) {
     type_text(cx, &rig, &sheet, "too short");
     press_send(cx, &rig, &sheet);
     let error = cx.read(|cx| sheet.read(cx).error.clone());
-    assert_eq!(error.as_deref(), Some("Say a little more (at least 10 characters)."));
+    assert_eq!(
+        error.as_deref(),
+        Some("Say a little more (at least 10 characters).")
+    );
     assert!(rig.store.feedback_all().unwrap().is_empty());
     assert!(rig.fake.seen.lock().unwrap().is_empty());
 }
@@ -157,7 +164,10 @@ fn sending_saves_then_posts_once(cx: &mut TestAppContext) {
     press_send(cx, &rig, &sheet);
     let seen = rig.fake.seen.lock().unwrap().clone();
     assert_eq!(seen.len(), 1);
-    assert_eq!((seen[0].method, seen[0].path.as_str()), ("POST", "/v1/feedback"));
+    assert_eq!(
+        (seen[0].method, seen[0].path.as_str()),
+        ("POST", "/v1/feedback")
+    );
     let body: serde_json::Value = serde_json::from_slice(&seen[0].body).unwrap();
     assert_eq!(body["text"], "Export to PDF cuts off wide tables.");
     assert_eq!(body["kind"], "bug");
@@ -185,7 +195,10 @@ fn offline_keeps_the_report_waiting(cx: &mut TestAppContext) {
 
 #[gpui_kit::test]
 fn a_400_keeps_the_sheet_open_with_the_field(cx: &mut TestAppContext) {
-    let rig = rig(cx, reply(400, r#"{"error":"invalid","field":"app.version"}"#));
+    let rig = rig(
+        cx,
+        reply(400, r#"{"error":"invalid","field":"app.version"}"#),
+    );
     let sheet = open_sheet(cx, &rig);
     type_text(cx, &rig, &sheet, "Export to PDF cuts off wide tables.");
     press_send(cx, &rig, &sheet);

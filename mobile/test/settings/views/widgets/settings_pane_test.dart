@@ -24,6 +24,7 @@ import 'package:kanso/core/state/sync_status/sync_status_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_detail_row.dart';
 import 'package:kanso/core/views/widgets/kanso_settings_row.dart';
 import 'package:kanso/core/views/widgets/kanso_switch.dart';
+import 'package:kanso/feedback/state/my_feedback/my_feedback_bloc.dart';
 import 'package:kanso/lock/state/biometrics/biometrics_bloc.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/push/state/push_setting/push_setting_bloc.dart';
@@ -154,6 +155,7 @@ Future<_Settings> _pump(
         ),
         BlocProvider<AccountBloc>.value(value: accountBloc),
         BlocProvider<AboutBloc>.value(value: aboutBloc),
+        BlocProvider<MyFeedbackBloc>.value(value: blocs.myFeedback),
         BlocProvider<LockStatusBloc>.value(value: lockBloc),
         BlocProvider<BiometricsBloc>.value(value: biometricsBloc),
         BlocProvider<PushSettingBloc>.value(value: pushBloc),

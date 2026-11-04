@@ -69,10 +69,10 @@ impl Reporter {
     /// An anonymous reporter, with the install's key made on first use and
     /// kept in the secret store.
     pub fn anonymous(secrets: &dyn SecretStore) -> Result<Reporter, SecretError> {
-        if let Some(key) = secrets.get(ANONYMOUS_KEY_ITEM)? {
-            if valid_key(&key) {
-                return Ok(Reporter::Anonymous { key });
-            }
+        if let Some(key) = secrets.get(ANONYMOUS_KEY_ITEM)?
+            && valid_key(&key)
+        {
+            return Ok(Reporter::Anonymous { key });
         }
         let mut bytes = Zeroizing::new([0u8; 32]);
         getrandom::fill(&mut bytes[..]).map_err(|err| SecretError(err.to_string()))?;
@@ -243,7 +243,8 @@ impl<T: Transport> Client<T> {
             Some("application/json"),
             payload.as_bytes().to_vec(),
         )?;
-        let value: Value = serde_json::from_slice(&response.body).map_err(|_| FeedbackError::Server(response.status))?;
+        let value: Value = serde_json::from_slice(&response.body)
+            .map_err(|_| FeedbackError::Server(response.status))?;
         Ok(Submitted {
             id: str_of(&value, "id").unwrap_or_default(),
             status: str_of(&value, "status").unwrap_or_else(|| "received".into()),
@@ -278,7 +279,11 @@ impl<T: Transport> Client<T> {
     }
 
     /// `GET /v1/feedback[?released=X.Y.Z]`, newest first.
-    pub fn list(&self, reporter: &Reporter, released: Option<&str>) -> Result<Vec<RemoteReport>, FeedbackError> {
+    pub fn list(
+        &self,
+        reporter: &Reporter,
+        released: Option<&str>,
+    ) -> Result<Vec<RemoteReport>, FeedbackError> {
         let path = match released {
             Some(version) => format!("/v1/feedback?released={version}"),
             None => "/v1/feedback".to_owned(),
@@ -287,14 +292,24 @@ impl<T: Transport> Client<T> {
         if response.body.len() as u64 > MAX_LIST_BYTES {
             return Err(FeedbackError::Server(response.status));
         }
-        let value: Value = serde_json::from_slice(&response.body).map_err(|_| FeedbackError::Server(response.status))?;
-        let reports = value.get("reports").and_then(Value::as_array).ok_or(FeedbackError::Server(response.status))?;
+        let value: Value = serde_json::from_slice(&response.body)
+            .map_err(|_| FeedbackError::Server(response.status))?;
+        let reports = value
+            .get("reports")
+            .and_then(Value::as_array)
+            .ok_or(FeedbackError::Server(response.status))?;
         Ok(reports.iter().filter_map(remote_report).collect())
     }
 
     /// `DELETE /v1/feedback/<id>`. A 404 means it is already gone, which is done.
     pub fn delete(&self, reporter: &Reporter, id: &str) -> Result<(), FeedbackError> {
-        match self.call(reporter, "DELETE", format!("/v1/feedback/{id}"), None, Vec::new()) {
+        match self.call(
+            reporter,
+            "DELETE",
+            format!("/v1/feedback/{id}"),
+            None,
+            Vec::new(),
+        ) {
             Ok(_) | Err(FeedbackError::NotFound) => Ok(()),
             Err(err) => Err(err),
         }
@@ -306,7 +321,10 @@ fn str_of(value: &Value, key: &str) -> Option<String> {
 }
 
 fn number_of(value: &Value, key: &str) -> Option<u32> {
-    value.get(key).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok())
+    value
+        .get(key)
+        .and_then(Value::as_u64)
+        .and_then(|n| u32::try_from(n).ok())
 }
 
 fn remote_report(value: &Value) -> Option<RemoteReport> {
@@ -337,9 +355,15 @@ pub fn error_of(response: &Response) -> FeedbackError {
         410 => FeedbackError::Gone,
         413 | 415 => FeedbackError::TooLarge,
         429 => FeedbackError::RateLimited {
-            retry_after_ms: body.get("retry_after_ms").and_then(Value::as_i64).unwrap_or(60_000).max(0),
+            retry_after_ms: body
+                .get("retry_after_ms")
+                .and_then(Value::as_i64)
+                .unwrap_or(60_000)
+                .max(0),
         },
-        503 if str_of(&body, "error").as_deref() == Some("feedback_closed") => FeedbackError::Closed,
+        503 if str_of(&body, "error").as_deref() == Some("feedback_closed") => {
+            FeedbackError::Closed
+        }
         status => FeedbackError::Server(status),
     }
 }
@@ -484,15 +508,28 @@ mod tests {
 
     #[test]
     fn submit_sends_the_payload_with_the_device_headers() {
-        let fake = Fake::new(vec![ok(201, r#"{"id":"fb_x","status":"received","upload":{"url":"/v1/feedback/fb_x/screenshot","expires_ms":1}}"#)]);
+        let fake = Fake::new(vec![ok(
+            201,
+            r#"{"id":"fb_x","status":"received","upload":{"url":"/v1/feedback/fb_x/screenshot","expires_ms":1}}"#,
+        )]);
         let sent = Client::new(&fake).submit(&account(), "{\"v\":1}").unwrap();
-        assert_eq!(sent.upload_path.as_deref(), Some("/v1/feedback/fb_x/screenshot"));
+        assert_eq!(
+            sent.upload_path.as_deref(),
+            Some("/v1/feedback/fb_x/screenshot")
+        );
         assert!(!sent.repeat);
         let seen = fake.seen.lock().unwrap();
-        assert_eq!((seen[0].method, seen[0].path.as_str()), ("POST", "/v1/feedback"));
+        assert_eq!(
+            (seen[0].method, seen[0].path.as_str()),
+            ("POST", "/v1/feedback")
+        );
         assert_eq!(seen[0].body, b"{\"v\":1}");
         let names: Vec<&str> = seen[0].headers.iter().map(|(n, _)| *n).collect();
-        assert!(names.contains(&"authorization") && names.contains(&"x-kanso-device") && names.contains(&"x-kanso-device-proof"));
+        assert!(
+            names.contains(&"authorization")
+                && names.contains(&"x-kanso-device")
+                && names.contains(&"x-kanso-device-proof")
+        );
     }
 
     #[test]
@@ -506,12 +543,24 @@ mod tests {
     #[test]
     fn answers_map_to_errors() {
         let cases = [
-            (400, r#"{"error":"invalid","field":"app.version"}"#, FeedbackError::Invalid { field: "app.version".into() }),
+            (
+                400,
+                r#"{"error":"invalid","field":"app.version"}"#,
+                FeedbackError::Invalid {
+                    field: "app.version".into(),
+                },
+            ),
             (401, "{}", FeedbackError::Unauthorized),
             (403, "{}", FeedbackError::Unauthorized),
             (409, "{}", FeedbackError::Conflict),
             (413, "{}", FeedbackError::TooLarge),
-            (429, r#"{"error":"rate_limited","retry_after_ms":9000}"#, FeedbackError::RateLimited { retry_after_ms: 9000 }),
+            (
+                429,
+                r#"{"error":"rate_limited","retry_after_ms":9000}"#,
+                FeedbackError::RateLimited {
+                    retry_after_ms: 9000,
+                },
+            ),
             (503, r#"{"error":"feedback_closed"}"#, FeedbackError::Closed),
             (503, "{}", FeedbackError::Server(503)),
             (500, "oops", FeedbackError::Server(500)),
@@ -521,7 +570,10 @@ mod tests {
             assert_eq!(Client::new(&fake).submit(&account(), "{}"), Err(want));
         }
         let fake = Fake::new(vec![Err("dns".into())]);
-        assert_eq!(Client::new(&fake).submit(&account(), "{}"), Err(FeedbackError::Offline));
+        assert_eq!(
+            Client::new(&fake).submit(&account(), "{}"),
+            Err(FeedbackError::Offline)
+        );
     }
 
     #[test]
@@ -529,8 +581,14 @@ mod tests {
         let fake = Fake::new(vec![ok(404, "{}"), ok(409, "{}"), ok(410, "{}")]);
         let client = Client::new(&fake);
         assert_eq!(client.delete(&account(), "fb_x"), Ok(()));
-        assert_eq!(client.upload_screenshot(&account(), "fb_x", "image/png", b"x"), Ok(()));
-        assert_eq!(client.upload_screenshot(&account(), "fb_x", "image/png", b"x"), Err(FeedbackError::Gone));
+        assert_eq!(
+            client.upload_screenshot(&account(), "fb_x", "image/png", b"x"),
+            Ok(())
+        );
+        assert_eq!(
+            client.upload_screenshot(&account(), "fb_x", "image/png", b"x"),
+            Err(FeedbackError::Gone)
+        );
     }
 
     #[test]
@@ -541,16 +599,27 @@ mod tests {
         )]);
         let reports = Client::new(&fake).list(&account(), Some("0.9.2")).unwrap();
         assert_eq!(reports.len(), 1);
-        assert_eq!((reports[0].issue, reports[0].pr, reports[0].release.as_deref()), (Some(241), Some(252), Some("v0.9.2")));
-        assert_eq!(fake.seen.lock().unwrap()[0].path, "/v1/feedback?released=0.9.2");
+        assert_eq!(
+            (
+                reports[0].issue,
+                reports[0].pr,
+                reports[0].release.as_deref()
+            ),
+            (Some(241), Some(252), Some("v0.9.2"))
+        );
+        assert_eq!(
+            fake.seen.lock().unwrap()[0].path,
+            "/v1/feedback?released=0.9.2"
+        );
     }
 
     #[test]
     fn the_anonymous_key_is_made_once() {
         let secrets = MemorySecrets::new();
-        let (Reporter::Anonymous { key: a }, Reporter::Anonymous { key: b }) =
-            (Reporter::anonymous(&secrets).unwrap(), Reporter::anonymous(&secrets).unwrap())
-        else {
+        let (Reporter::Anonymous { key: a }, Reporter::Anonymous { key: b }) = (
+            Reporter::anonymous(&secrets).unwrap(),
+            Reporter::anonymous(&secrets).unwrap(),
+        ) else {
             panic!("anonymous")
         };
         assert_eq!(a.len(), 43);

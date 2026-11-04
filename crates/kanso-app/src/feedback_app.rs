@@ -177,7 +177,11 @@ fn system() -> (String, String, String) {
         .unwrap_or("")
         .trim_end_matches(']')
         .to_owned();
-    (digits, "pc".into(), std::env::var("LANG").unwrap_or_default())
+    (
+        digits,
+        "pc".into(),
+        std::env::var("LANG").unwrap_or_default(),
+    )
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -339,7 +343,8 @@ pub fn flush_soon(cx: &mut App, after: Duration) {
             let env = env.clone();
             cx.background_executor().spawn(async move {
                 let reporter = env.reporter()?;
-                feedback_flow::flush(&env.store, &env.client(), &reporter, kanso_core::now_ms()).ok()?;
+                feedback_flow::flush(&env.store, &env.client(), &reporter, kanso_core::now_ms())
+                    .ok()?;
                 // The next wait, from the longest-failing report.
                 let attempts = env
                     .store
@@ -369,7 +374,11 @@ pub fn start(cx: &mut App) {
     let Some(env) = Env::capture(cx) else {
         return;
     };
-    if env.store.feedback_all().map_or(true, |rows| rows.is_empty()) {
+    if env
+        .store
+        .feedback_all()
+        .map_or(true, |rows| rows.is_empty())
+    {
         return;
     }
     feedback_flow::store_retry_now(&env.store).ok();
@@ -384,26 +393,38 @@ mod tests {
         PAUSED, RATE_LIMITED, SAVED, chip_text, core_version, placeholder, recent_errors,
         rejected_text, sync_mode, update_message, wait_text,
     };
-    use kanso_engine::feedback::{self, Chip, Kind};
     use kanso_engine::feedback::SyncMode;
+    use kanso_engine::feedback::{self, Chip, Kind};
     use kanso_engine::feedback_flow::Wait;
     use proptest::prelude::*;
 
     #[test]
     fn the_words_match_the_spec() {
-        assert_eq!(placeholder(Kind::Bug), "What happened, and what did you expect?");
+        assert_eq!(
+            placeholder(Kind::Bug),
+            "What happened, and what did you expect?"
+        );
         assert_eq!(placeholder(Kind::Idea), "What would you like Kanso to do?");
         assert_eq!(chip_text(&Chip::FiledAs(241)), "Filed as #241");
-        assert_eq!(chip_text(&Chip::ReleasedIn("v0.9.2".into())), "Released in 0.9.2");
+        assert_eq!(
+            chip_text(&Chip::ReleasedIn("v0.9.2".into())),
+            "Released in 0.9.2"
+        );
         assert_eq!(chip_text(&Chip::SameAs(198)), "Same as #198");
         assert_eq!(update_message(0), "See what changed.");
-        assert_eq!(update_message(2), "See what changed. Fixes 2 of your reports.");
+        assert_eq!(
+            update_message(2),
+            "See what changed. Fixes 2 of your reports."
+        );
         assert_eq!(
             rejected_text("app.version"),
             "Kanso couldn't send this report (app.version). Edit it and try again."
         );
         assert_eq!(wait_text(&Wait::Paused), PAUSED);
-        assert_eq!(wait_text(&Wait::RateLimited { retry_after_ms: 1 }), RATE_LIMITED);
+        assert_eq!(
+            wait_text(&Wait::RateLimited { retry_after_ms: 1 }),
+            RATE_LIMITED
+        );
         assert_eq!(wait_text(&Wait::Offline), SAVED);
     }
 
@@ -424,7 +445,11 @@ mod tests {
             "1730000000000 check failed: timeout\n1730000001000 downloading /Users/me/x\n1730000002000 status 503\n",
         )
         .unwrap();
-        std::fs::write(logs.join("themes.log"), "1730000003000 install failed: signature\n").unwrap();
+        std::fs::write(
+            logs.join("themes.log"),
+            "1730000003000 install failed: signature\n",
+        )
+        .unwrap();
         let lines = recent_errors(dir.path());
         assert!(lines.contains(&"update: check failed: timeout".to_owned()));
         assert!(lines.contains(&"theme: install failed: signature".to_owned()));

@@ -28,10 +28,7 @@ class Dictated {
   final String text;
   final int caretUtf16;
 
-  const Dictated({
-    required this.text,
-    required this.caretUtf16,
-  });
+  const Dictated({required this.text, required this.caretUtf16});
 
   @override
   int get hashCode => text.hashCode ^ caretUtf16.hashCode;
@@ -82,8 +79,4 @@ class VoiceSettings {
 }
 
 /// Whether a voice note is tidied by the person's own AI.
-enum VoiceTidy {
-  off,
-  ask,
-  always,
-}
+enum VoiceTidy { off, ask, always }

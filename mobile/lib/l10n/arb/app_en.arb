@@ -7442,5 +7442,300 @@
   "notebookHomeSettingsShow": "Show notebook homepages",
   "notebookHomeSettingsShowHelp": "A card above a notebook's notes opens its homepage. Off hides the card and the page.",
   "notebookHomeSettingsAi": "Write notebook summaries with AI",
-  "notebookHomeSettingsAiHelp": "Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above."
+  "notebookHomeSettingsAiHelp": "Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above.",
+  "feedbackSection": "Feedback",
+  "@feedbackSection": {
+    "description": "A section of settings: sending feedback and seeing what became of it."
+  },
+  "feedbackSend": "Send feedback",
+  "@feedbackSend": {
+    "description": "The settings row that opens the page to send feedback, and that page's title."
+  },
+  "feedbackMine": "My feedback",
+  "@feedbackMine": {
+    "description": "The settings row that opens the list of feedback reports, and that page's title."
+  },
+  "feedbackFixedIn": "Fixed in {release}",
+  "@feedbackFixedIn": {
+    "description": "The value of the My feedback row when a report was fixed in a release.",
+    "placeholders": {
+      "release": {
+        "type": "String"
+      }
+    }
+  },
+  "feedbackSectionFooter": "Your words and screenshot stay private with Kanso. No notes are ever sent.",
+  "@feedbackSectionFooter": {
+    "description": "The footer under the Feedback section of settings."
+  },
+  "feedbackKindLabel": "What kind of feedback",
+  "@feedbackKindLabel": {
+    "description": "The accessibility label of the control that picks a kind of feedback."
+  },
+  "feedbackKindBug": "Something’s wrong",
+  "@feedbackKindBug": {
+    "description": "The kind of feedback for a problem."
+  },
+  "feedbackKindIdea": "Idea",
+  "@feedbackKindIdea": {
+    "description": "The kind of feedback for a suggestion."
+  },
+  "feedbackKindQuestion": "Question",
+  "@feedbackKindQuestion": {
+    "description": "The kind of feedback for a question."
+  },
+  "feedbackHintProblem": "What happened, and what did you expect?",
+  "@feedbackHintProblem": {
+    "description": "The hint in the feedback text box for a problem or a question."
+  },
+  "feedbackHintIdea": "What would you like Kanso to do?",
+  "@feedbackHintIdea": {
+    "description": "The hint in the feedback text box for an idea."
+  },
+  "feedbackCounter": "{count} / {max}",
+  "@feedbackCounter": {
+    "description": "The character counter under the feedback text box.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackAddScreenshot": "Add screenshot",
+  "@feedbackAddScreenshot": {
+    "description": "The button that opens the photo picker for a screenshot."
+  },
+  "feedbackRemoveScreenshot": "Remove",
+  "@feedbackRemoveScreenshot": {
+    "description": "The button that removes the chosen screenshot."
+  },
+  "feedbackScreenshotWarning": "Screenshots can show your notes. Check before sending.",
+  "@feedbackScreenshotWarning": {
+    "description": "The warning under the screenshot button."
+  },
+  "feedbackScreenshotAttached": "Screenshot: {name}",
+  "@feedbackScreenshotAttached": {
+    "description": "The row that names the screenshot chosen.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "feedbackIncludeAppInfo": "Include app info",
+  "@feedbackIncludeAppInfo": {
+    "description": "The switch for sending the version, system and recent errors with a report."
+  },
+  "feedbackIncludeAppInfoDetail": "Version, system and recent errors. Never your notes.",
+  "@feedbackIncludeAppInfoDetail": {
+    "description": "The detail under the app info switch."
+  },
+  "feedbackShowSent": "Show what’s sent",
+  "@feedbackShowSent": {
+    "description": "The button that shows the exact text a report sends."
+  },
+  "feedbackHideSent": "Hide what’s sent",
+  "@feedbackHideSent": {
+    "description": "The button that hides the exact text a report sends."
+  },
+  "feedbackSentEmpty": "The report appears here once it has at least 10 characters.",
+  "@feedbackSentEmpty": {
+    "description": "Shown where the exact text of a report goes, while the report is too short to send."
+  },
+  "feedbackCredit": "Credit me by name",
+  "@feedbackCredit": {
+    "description": "The switch for being named when a report is fixed."
+  },
+  "feedbackCreditDetail": "If this is fixed, your name is in the release notes. Never a link to you.",
+  "@feedbackCreditDetail": {
+    "description": "The detail under the credit switch."
+  },
+  "feedbackCreditName": "Your name",
+  "@feedbackCreditName": {
+    "description": "The hint in the field for the name to credit."
+  },
+  "feedbackFooter": "Your words and screenshot stay private with Kanso. A short summary may become a public GitHub issue. No notes are ever sent.",
+  "@feedbackFooter": {
+    "description": "The line under the feedback form that says what happens to a report."
+  },
+  "feedbackSendButton": "Send",
+  "@feedbackSendButton": {
+    "description": "The button that sends a report."
+  },
+  "feedbackSending": "Sending…",
+  "@feedbackSending": {
+    "description": "The label of the send button while a report is being sent."
+  },
+  "feedbackSentToast": "Thanks — feedback sent.",
+  "@feedbackSentToast": {
+    "description": "Said when a report reached the server."
+  },
+  "feedbackQueuedToast": "Saved — it will send when you’re back online.",
+  "@feedbackQueuedToast": {
+    "description": "Said when a report is saved on the phone to be sent later."
+  },
+  "feedbackPausedToast": "Feedback is paused for now. Your report is saved and will send later.",
+  "@feedbackPausedToast": {
+    "description": "Said when the server is not taking reports right now."
+  },
+  "feedbackRateLimitedToast": "You’ve sent a lot of feedback today. Try again tomorrow.",
+  "@feedbackRateLimitedToast": {
+    "description": "Said when too many reports were sent today."
+  },
+  "feedbackErrorTooShort": "Say a little more (at least 10 characters).",
+  "@feedbackErrorTooShort": {
+    "description": "Why a report is too short to send."
+  },
+  "feedbackErrorTooLong": "Keep it under 4,000 characters.",
+  "@feedbackErrorTooLong": {
+    "description": "Why a report is too long to send."
+  },
+  "feedbackErrorCharacter": "Take out the control characters and try again.",
+  "@feedbackErrorCharacter": {
+    "description": "Why a report holds a character that can not be sent."
+  },
+  "feedbackErrorCredit": "Use 1 to 39 letters, numbers, spaces, dots, dashes or underscores for your name.",
+  "@feedbackErrorCredit": {
+    "description": "Why the credit name can not be used."
+  },
+  "feedbackErrorScreenshot": "That image is over 5 MB. Choose a smaller one.",
+  "@feedbackErrorScreenshot": {
+    "description": "Why a screenshot can not be attached."
+  },
+  "feedbackErrorOther": "Kanso couldn’t build this report. Turn off app info and try again.",
+  "@feedbackErrorOther": {
+    "description": "Said when a report could not be built."
+  },
+  "feedbackErrorRejected": "Kanso couldn’t send this report ({field}). Edit it and try again.",
+  "@feedbackErrorRejected": {
+    "description": "Said when the server refused a part of a report. The field is a name such as text.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "feedbackErrorRejectedPlain": "Kanso couldn’t send this report. Edit it and try again.",
+  "@feedbackErrorRejectedPlain": {
+    "description": "Said when the server refused a report and named no part of it."
+  },
+  "feedbackMineIntro": "The feedback you sent and where each report stands. Pull down to check.",
+  "@feedbackMineIntro": {
+    "description": "The line at the top of the My feedback page."
+  },
+  "feedbackMineLoading": "Reading your feedback",
+  "@feedbackMineLoading": {
+    "description": "The accessibility label while the reports are read."
+  },
+  "feedbackMineFailed": "Kanso couldn’t read your feedback.",
+  "@feedbackMineFailed": {
+    "description": "Said when the list of reports could not be read."
+  },
+  "feedbackMineEmptyTitle": "No feedback yet",
+  "@feedbackMineEmptyTitle": {
+    "description": "The title of the empty My feedback page."
+  },
+  "feedbackMineEmptyMessage": "Reports you send from Settings › Send feedback show up here.",
+  "@feedbackMineEmptyMessage": {
+    "description": "The message of the empty My feedback page."
+  },
+  "feedbackChipWaiting": "Waiting to send",
+  "@feedbackChipWaiting": {
+    "description": "A report is saved on the phone and has not been sent."
+  },
+  "feedbackChipReceived": "Received",
+  "@feedbackChipReceived": {
+    "description": "A report reached the server."
+  },
+  "feedbackChipFiled": "Filed as #{number}",
+  "@feedbackChipFiled": {
+    "description": "A report was made into a GitHub issue.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackChipBuilding": "Building",
+  "@feedbackChipBuilding": {
+    "description": "A fix for a report is being built."
+  },
+  "feedbackChipFixProposed": "Fix proposed",
+  "@feedbackChipFixProposed": {
+    "description": "A fix for a report was proposed."
+  },
+  "feedbackChipMerged": "Merged",
+  "@feedbackChipMerged": {
+    "description": "A fix for a report was accepted and will ship in the next release."
+  },
+  "feedbackChipReleased": "Released in {release}",
+  "@feedbackChipReleased": {
+    "description": "A fix for a report shipped in a release.",
+    "placeholders": {
+      "release": {
+        "type": "String"
+      }
+    }
+  },
+  "feedbackChipNotFiled": "Not filed",
+  "@feedbackChipNotFiled": {
+    "description": "A report was not made into an issue."
+  },
+  "feedbackChipSame": "Same as #{number}",
+  "@feedbackChipSame": {
+    "description": "A report matched an issue that was already open.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackChipClosed": "Closed",
+  "@feedbackChipClosed": {
+    "description": "A report was closed without a fix."
+  },
+  "feedbackChipDeleting": "Deleting…",
+  "@feedbackChipDeleting": {
+    "description": "A report is being deleted and the server has not confirmed yet."
+  },
+  "feedbackDetailNotFiled": "Not filed — it didn’t look like a bug or an idea. Still kept privately for the owner to read.",
+  "@feedbackDetailNotFiled": {
+    "description": "The detail of a report that was not made into an issue."
+  },
+  "feedbackDetailSame": "Your report was added to issue #{number}.",
+  "@feedbackDetailSame": {
+    "description": "The detail of a report that matched an issue already open.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackOpenOnGithub": "Open on GitHub",
+  "@feedbackOpenOnGithub": {
+    "description": "The button that opens a report's issue on GitHub."
+  },
+  "feedbackDelete": "Delete",
+  "@feedbackDelete": {
+    "description": "The button that deletes a report."
+  },
+  "feedbackDeleteTitle": "Delete this report?",
+  "@feedbackDeleteTitle": {
+    "description": "The title of the question before a report is deleted."
+  },
+  "feedbackDeleteMessage": "Kanso removes your text, screenshot and app info from its server. A GitHub issue made from it stays, but holds no words of yours.",
+  "@feedbackDeleteMessage": {
+    "description": "What deleting a report does."
+  },
+  "feedbackTimeline": "Where it stands",
+  "@feedbackTimeline": {
+    "description": "The heading of the steps a report goes through."
+  },
+  "feedbackStepFiled": "Filed",
+  "@feedbackStepFiled": {
+    "description": "A step a report goes through: made into an issue."
+  }
 }

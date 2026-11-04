@@ -123,6 +123,12 @@ abstract final class KansoRoutes {
   static const String settingsCrashReports = '/settings/crash-reports';
   static const String settingsBackups = '/settings/backups';
 
+  /// My feedback: the reports sent from the app and where each stands.
+  static const String settingsFeedback = '/settings/feedback';
+
+  /// Send feedback: the page a report is written on.
+  static const String settingsFeedbackNew = '/settings/feedback/new';
+
   /// Shared with you, the notes other people shared with this account: a
   /// sheet on a tablet and a page on a phone, like Settings.
   static const String shared = '/shared';

@@ -19,8 +19,7 @@ use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{
-    Disableable as _, Selectable as _, Sizable as _, StyledExt as _, WindowExt as _, h_flex,
-    v_flex,
+    Disableable as _, Selectable as _, Sizable as _, StyledExt as _, WindowExt as _, h_flex, v_flex,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
@@ -59,7 +58,10 @@ pub fn can_send(chars: usize, credit: Option<&str>) -> bool {
 }
 
 /// A picked file as a screenshot, or the line that says why not. Pure.
-pub fn chosen_from_file(bytes: Vec<u8>, name: &str) -> Result<(ScreenshotDecl, String), &'static str> {
+pub fn chosen_from_file(
+    bytes: Vec<u8>,
+    name: &str,
+) -> Result<(ScreenshotDecl, String), &'static str> {
     if bytes.len() as u64 > MAX_SCREENSHOT {
         return Err(feedback_app::SCREENSHOT_TOO_BIG);
     }
@@ -93,7 +95,11 @@ fn capture_window() -> Option<Vec<u8>> {
         .args(["-l", "JavaScript", "-e", &script])
         .output()
         .ok()?;
-    let id: u32 = String::from_utf8_lossy(&out.stdout).trim().parse().ok().filter(|id| *id != 0)?;
+    let id: u32 = String::from_utf8_lossy(&out.stdout)
+        .trim()
+        .parse()
+        .ok()
+        .filter(|id| *id != 0)?;
     let dir = std::env::temp_dir().join(format!("kanso-capture-{pid}"));
     std::fs::create_dir_all(&dir).ok()?;
     let done = |bytes: Option<Vec<u8>>| {
@@ -149,7 +155,9 @@ pub struct FeedbackSheet {
 impl FeedbackSheet {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> FeedbackSheet {
         let env = Env::capture(cx);
-        let text = cx.new(|cx| TextareaState::new(window, cx).placeholder(feedback_app::placeholder(Kind::Bug)));
+        let text = cx.new(|cx| {
+            TextareaState::new(window, cx).placeholder(feedback_app::placeholder(Kind::Bug))
+        });
         let signed_in_name = env.as_ref().and_then(Env::username).unwrap_or_default();
         let name = cx.new(|cx| {
             let mut state = InputState::new(window, cx).placeholder("Your name");
@@ -267,13 +275,16 @@ impl FeedbackSheet {
 
     fn capture(&mut self, cx: &mut Context<Self>) {
         self.choosing = false;
-        let task = cx.background_executor().spawn(async move { capture_window() });
+        let task = cx
+            .background_executor()
+            .spawn(async move { capture_window() });
         cx.spawn(async move |this, cx| {
             let bytes = task.await;
             this.update(cx, |this, cx| match bytes {
                 Some(bytes) => this.set_picture(bytes, "Kanso window".into(), cx),
                 None => {
-                    this.error = Some("Kanso couldn't capture its window. Choose an image instead.".into());
+                    this.error =
+                        Some("Kanso couldn't capture its window. Choose an image instead.".into());
                     cx.notify();
                 }
             })
@@ -302,8 +313,14 @@ impl FeedbackSheet {
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "Image".into());
             // Check the size before reading it all.
-            let too_big = std::fs::metadata(&path).map(|m| m.len() > MAX_SCREENSHOT).unwrap_or(false);
-            let bytes = if too_big { None } else { std::fs::read(&path).ok() };
+            let too_big = std::fs::metadata(&path)
+                .map(|m| m.len() > MAX_SCREENSHOT)
+                .unwrap_or(false);
+            let bytes = if too_big {
+                None
+            } else {
+                std::fs::read(&path).ok()
+            };
             this.update(cx, |this, cx| match bytes {
                 Some(bytes) => this.set_picture(bytes, name, cx),
                 None => {
@@ -344,7 +361,9 @@ impl FeedbackSheet {
             .name("kanso-feedback".into())
             .spawn(move || {
                 let outcome = (|| {
-                    let reporter = env.reporter().ok_or(feedback_flow::Error::Draft(DraftError::BadId))?;
+                    let reporter = env
+                        .reporter()
+                        .ok_or(feedback_flow::Error::Draft(DraftError::BadId))?;
                     feedback_flow::send(
                         &env.store,
                         &env.client(),
@@ -361,7 +380,9 @@ impl FeedbackSheet {
                     Ok((_, sent)) => Ok(sent),
                     Err(feedback_flow::Error::Draft(err)) => Err(err),
                     // The outbox could not be written, or a file could not be kept.
-                    Err(_) => Ok(Sent::Rejected { field: String::new() }),
+                    Err(_) => Ok(Sent::Rejected {
+                        field: String::new(),
+                    }),
                 });
             })
             .ok();
@@ -383,7 +404,9 @@ impl FeedbackSheet {
                         this.error = Some(feedback_app::rejected_text(&field));
                     }
                     Ok(Err(err)) => this.error = Some(feedback_app::draft_error_text(&err)),
-                    Err(_) => this.error = Some("Kanso couldn't send this report. Try again.".into()),
+                    Err(_) => {
+                        this.error = Some("Kanso couldn't send this report. Try again.".into())
+                    }
                 }
                 cx.notify();
             })
@@ -396,14 +419,12 @@ impl FeedbackSheet {
 /// "Thanks — feedback sent" and the like, with a shortcut to My feedback.
 fn notify(window: &mut Window, message: &'static str, cx: &mut App) {
     window.push_notification(
-        Notification::new()
-            .message(message)
-            .action(|_, _, _| {
-                Button::new("feedback-mine")
-                    .small()
-                    .label("My feedback")
-                    .on_click(|_, window, cx| window.dispatch_action(Box::new(MyFeedback), cx))
-            }),
+        Notification::new().message(message).action(|_, _, _| {
+            Button::new("feedback-mine")
+                .small()
+                .label("My feedback")
+                .on_click(|_, window, cx| window.dispatch_action(Box::new(MyFeedback), cx))
+        }),
         cx,
     );
 }
@@ -417,7 +438,8 @@ impl Render for FeedbackSheet {
             let now = self.payload_text(cx);
             if now != self.shown {
                 self.shown = now.clone();
-                self.sent_view.update(cx, |view, cx| view.set_value(now, window, cx));
+                self.sent_view
+                    .update(cx, |view, cx| view.set_value(now, window, cx));
             }
         }
         let label = |text: &'static str| {
@@ -529,7 +551,11 @@ impl Render for FeedbackSheet {
                         el.child(
                             div()
                                 .text_size(px(12.))
-                                .text_color(if chars > MAX_TEXT { colors.warning } else { colors.text_secondary })
+                                .text_color(if chars > MAX_TEXT {
+                                    colors.warning
+                                } else {
+                                    colors.text_secondary
+                                })
                                 .child(counter),
                         )
                     }),
@@ -561,7 +587,11 @@ impl Render for FeedbackSheet {
                                 Button::new("feedback-show-sent")
                                     .small()
                                     .ghost()
-                                    .label(if self.show_sent { "Hide what's sent" } else { "Show what's sent" })
+                                    .label(if self.show_sent {
+                                        "Hide what's sent"
+                                    } else {
+                                        "Show what's sent"
+                                    })
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         this.show_sent = !this.show_sent;
                                         this.shown.clear();
@@ -714,10 +744,16 @@ mod tests {
     fn a_chosen_file_must_be_a_small_png_or_jpeg() {
         let png = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0];
         assert!(chosen_from_file(png, "a.png").is_ok());
-        assert_eq!(chosen_from_file(b"GIF89a".to_vec(), "a.gif").unwrap_err(), feedback_app::NOT_AN_IMAGE);
+        assert_eq!(
+            chosen_from_file(b"GIF89a".to_vec(), "a.gif").unwrap_err(),
+            feedback_app::NOT_AN_IMAGE
+        );
         let mut big = vec![0xff, 0xd8, 0xff];
         big.resize(MAX_SCREENSHOT as usize + 1, 0);
-        assert_eq!(chosen_from_file(big, "a.jpg").unwrap_err(), feedback_app::SCREENSHOT_TOO_BIG);
+        assert_eq!(
+            chosen_from_file(big, "a.jpg").unwrap_err(),
+            feedback_app::SCREENSHOT_TOO_BIG
+        );
     }
 
     #[test]

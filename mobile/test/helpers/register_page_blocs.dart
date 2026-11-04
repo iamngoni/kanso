@@ -10,6 +10,7 @@ import 'package:kanso/backups/state/backups/backups_bloc.dart';
 import 'package:kanso/board/state/board/board_bloc.dart';
 import 'package:kanso/core/state/undo_notice/undo_notice_bloc.dart';
 import 'package:kanso/editor/state/editor/editor_bloc.dart';
+import 'package:kanso/feedback/state/my_feedback/my_feedback_bloc.dart';
 import 'package:kanso/graph/state/graph/graph_bloc.dart';
 import 'package:kanso/history/models/repos/abs/history_repository.dart';
 import 'package:kanso/history/state/note_history/note_history_bloc.dart';
@@ -52,6 +53,7 @@ import 'fake_media_picker_repository.dart';
 import 'fake_web_link_repository.dart';
 import 'fixture_about_repository.dart';
 import 'fixture_digest_repository.dart';
+import 'fixture_feedback_repository.dart';
 import 'fixture_discovery_repository.dart';
 import 'fixture_file_picker_repository.dart';
 import 'fixture_gallery_repository.dart';
@@ -205,6 +207,12 @@ void _registerPageBlocs({
     getIt.unregister<AboutBloc>();
   }
   getIt.registerFactory<AboutBloc>(() => AboutBloc(FixtureAboutRepository()));
+  if (getIt.isRegistered<MyFeedbackBloc>()) {
+    getIt.unregister<MyFeedbackBloc>();
+  }
+  getIt.registerFactory<MyFeedbackBloc>(
+    () => MyFeedbackBloc(FixtureFeedbackRepository()),
+  );
   if (getIt.isRegistered<LicencesBloc>()) {
     getIt.unregister<LicencesBloc>();
   }

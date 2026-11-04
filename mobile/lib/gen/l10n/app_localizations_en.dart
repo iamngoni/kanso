@@ -3279,19 +3279,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 
@@ -6068,4 +6065,228 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notebookHomeSettingsAiHelp =>
       'Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above.';
+
+  @override
+  String get feedbackSection => 'Feedback';
+
+  @override
+  String get feedbackSend => 'Send feedback';
+
+  @override
+  String get feedbackMine => 'My feedback';
+
+  @override
+  String feedbackFixedIn(String release) {
+    return 'Fixed in $release';
+  }
+
+  @override
+  String get feedbackSectionFooter =>
+      'Your words and screenshot stay private with Kanso. No notes are ever sent.';
+
+  @override
+  String get feedbackKindLabel => 'What kind of feedback';
+
+  @override
+  String get feedbackKindBug => 'Something’s wrong';
+
+  @override
+  String get feedbackKindIdea => 'Idea';
+
+  @override
+  String get feedbackKindQuestion => 'Question';
+
+  @override
+  String get feedbackHintProblem => 'What happened, and what did you expect?';
+
+  @override
+  String get feedbackHintIdea => 'What would you like Kanso to do?';
+
+  @override
+  String feedbackCounter(int count, int max) {
+    return '$count / $max';
+  }
+
+  @override
+  String get feedbackAddScreenshot => 'Add screenshot';
+
+  @override
+  String get feedbackRemoveScreenshot => 'Remove';
+
+  @override
+  String get feedbackScreenshotWarning =>
+      'Screenshots can show your notes. Check before sending.';
+
+  @override
+  String feedbackScreenshotAttached(String name) {
+    return 'Screenshot: $name';
+  }
+
+  @override
+  String get feedbackIncludeAppInfo => 'Include app info';
+
+  @override
+  String get feedbackIncludeAppInfoDetail =>
+      'Version, system and recent errors. Never your notes.';
+
+  @override
+  String get feedbackShowSent => 'Show what’s sent';
+
+  @override
+  String get feedbackHideSent => 'Hide what’s sent';
+
+  @override
+  String get feedbackSentEmpty =>
+      'The report appears here once it has at least 10 characters.';
+
+  @override
+  String get feedbackCredit => 'Credit me by name';
+
+  @override
+  String get feedbackCreditDetail =>
+      'If this is fixed, your name is in the release notes. Never a link to you.';
+
+  @override
+  String get feedbackCreditName => 'Your name';
+
+  @override
+  String get feedbackFooter =>
+      'Your words and screenshot stay private with Kanso. A short summary may become a public GitHub issue. No notes are ever sent.';
+
+  @override
+  String get feedbackSendButton => 'Send';
+
+  @override
+  String get feedbackSending => 'Sending…';
+
+  @override
+  String get feedbackSentToast => 'Thanks — feedback sent.';
+
+  @override
+  String get feedbackQueuedToast =>
+      'Saved — it will send when you’re back online.';
+
+  @override
+  String get feedbackPausedToast =>
+      'Feedback is paused for now. Your report is saved and will send later.';
+
+  @override
+  String get feedbackRateLimitedToast =>
+      'You’ve sent a lot of feedback today. Try again tomorrow.';
+
+  @override
+  String get feedbackErrorTooShort =>
+      'Say a little more (at least 10 characters).';
+
+  @override
+  String get feedbackErrorTooLong => 'Keep it under 4,000 characters.';
+
+  @override
+  String get feedbackErrorCharacter =>
+      'Take out the control characters and try again.';
+
+  @override
+  String get feedbackErrorCredit =>
+      'Use 1 to 39 letters, numbers, spaces, dots, dashes or underscores for your name.';
+
+  @override
+  String get feedbackErrorScreenshot =>
+      'That image is over 5 MB. Choose a smaller one.';
+
+  @override
+  String get feedbackErrorOther =>
+      'Kanso couldn’t build this report. Turn off app info and try again.';
+
+  @override
+  String feedbackErrorRejected(String field) {
+    return 'Kanso couldn’t send this report ($field). Edit it and try again.';
+  }
+
+  @override
+  String get feedbackErrorRejectedPlain =>
+      'Kanso couldn’t send this report. Edit it and try again.';
+
+  @override
+  String get feedbackMineIntro =>
+      'The feedback you sent and where each report stands. Pull down to check.';
+
+  @override
+  String get feedbackMineLoading => 'Reading your feedback';
+
+  @override
+  String get feedbackMineFailed => 'Kanso couldn’t read your feedback.';
+
+  @override
+  String get feedbackMineEmptyTitle => 'No feedback yet';
+
+  @override
+  String get feedbackMineEmptyMessage =>
+      'Reports you send from Settings › Send feedback show up here.';
+
+  @override
+  String get feedbackChipWaiting => 'Waiting to send';
+
+  @override
+  String get feedbackChipReceived => 'Received';
+
+  @override
+  String feedbackChipFiled(int number) {
+    return 'Filed as #$number';
+  }
+
+  @override
+  String get feedbackChipBuilding => 'Building';
+
+  @override
+  String get feedbackChipFixProposed => 'Fix proposed';
+
+  @override
+  String get feedbackChipMerged => 'Merged';
+
+  @override
+  String feedbackChipReleased(String release) {
+    return 'Released in $release';
+  }
+
+  @override
+  String get feedbackChipNotFiled => 'Not filed';
+
+  @override
+  String feedbackChipSame(int number) {
+    return 'Same as #$number';
+  }
+
+  @override
+  String get feedbackChipClosed => 'Closed';
+
+  @override
+  String get feedbackChipDeleting => 'Deleting…';
+
+  @override
+  String get feedbackDetailNotFiled =>
+      'Not filed — it didn’t look like a bug or an idea. Still kept privately for the owner to read.';
+
+  @override
+  String feedbackDetailSame(int number) {
+    return 'Your report was added to issue #$number.';
+  }
+
+  @override
+  String get feedbackOpenOnGithub => 'Open on GitHub';
+
+  @override
+  String get feedbackDelete => 'Delete';
+
+  @override
+  String get feedbackDeleteTitle => 'Delete this report?';
+
+  @override
+  String get feedbackDeleteMessage =>
+      'Kanso removes your text, screenshot and app info from its server. A GitHub issue made from it stays, but holds no words of yours.';
+
+  @override
+  String get feedbackTimeline => 'Where it stands';
+
+  @override
+  String get feedbackStepFiled => 'Filed';
 }

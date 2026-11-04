@@ -55,8 +55,12 @@ pub fn new_id(entropy: [u8; 16]) -> String {
 
 /// Whether `id` is `fb_` and 26 characters of `[0-9a-z]`.
 pub fn is_id(id: &str) -> bool {
-    id.strip_prefix("fb_")
-        .is_some_and(|rest| rest.len() == 26 && rest.bytes().all(|b| b.is_ascii_digit() || b.is_ascii_lowercase()))
+    id.strip_prefix("fb_").is_some_and(|rest| {
+        rest.len() == 26
+            && rest
+                .bytes()
+                .all(|b| b.is_ascii_digit() || b.is_ascii_lowercase())
+    })
 }
 
 /// The report text as it will be sent: NFC, 10 to 4,000 characters, no
@@ -188,7 +192,9 @@ pub fn is_version(text: &str) -> bool {
 }
 
 fn is_os(text: &str) -> bool {
-    all_of(text, 32, |c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+    all_of(text, 32, |c| {
+        c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')
+    })
 }
 
 fn is_device(text: &str) -> bool {
@@ -225,7 +231,12 @@ fn sanitized(text: &str, max: usize, ok: impl Fn(char) -> bool, fallback: &str) 
 
 /// The operating system's version, cut to the Worker's pattern.
 pub fn clean_os(text: &str) -> String {
-    sanitized(text, 32, |c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'), "unknown")
+    sanitized(
+        text,
+        32,
+        |c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'),
+        "unknown",
+    )
 }
 
 /// The device's model, cut to the Worker's pattern.
@@ -241,13 +252,21 @@ pub fn clean_device(text: &str) -> String {
 /// The locale tag (`en-GB`), or `en` if it doesn't have the shape.
 pub fn clean_locale(text: &str) -> String {
     let text = text.split('.').next().unwrap_or("");
-    if is_locale(text) { text.to_owned() } else { "en".to_owned() }
+    if is_locale(text) {
+        text.to_owned()
+    } else {
+        "en".to_owned()
+    }
 }
 
 /// The build number's digits (at most 10), or `0`.
 pub fn clean_build(text: &str) -> String {
     let digits: String = text.chars().filter(char::is_ascii_digit).take(10).collect();
-    if digits.is_empty() { "0".to_owned() } else { digits }
+    if digits.is_empty() {
+        "0".to_owned()
+    } else {
+        digits
+    }
 }
 
 /// Checks every field against the Worker's patterns.
@@ -270,7 +289,8 @@ pub fn validate_app(app: &AppInfo) -> Result<(), DraftError> {
     if !is_locale(&app.locale) {
         return Err(DraftError::BadApp("app.locale"));
     }
-    if app.errors.len() > MAX_ERRORS || app.errors.iter().any(|l| l.len() > 200 || !is_log_line(l)) {
+    if app.errors.len() > MAX_ERRORS || app.errors.iter().any(|l| l.len() > 200 || !is_log_line(l))
+    {
         return Err(DraftError::BadApp("app.errors"));
     }
     Ok(())
@@ -313,7 +333,10 @@ pub fn build_payload(id: &str, draft: &Draft, app: Option<&AppInfo>) -> Result<S
     let screenshot = match &draft.screenshot {
         Some(shot) => {
             let sha_ok = shot.sha256.len() == 64
-                && shot.sha256.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+                && shot
+                    .sha256
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
             if !(1..=MAX_SCREENSHOT).contains(&shot.bytes)
                 || !matches!(shot.mime, "image/png" | "image/jpeg")
                 || !sha_ok
@@ -395,8 +418,7 @@ pub fn fixed_in(reports: &[ReportView], release: &str) -> usize {
     reports
         .iter()
         .filter(|r| {
-            r.status == Status::Released
-                && r.release.as_deref().map(release_name) == Some(release)
+            r.status == Status::Released && r.release.as_deref().map(release_name) == Some(release)
         })
         .count()
 }
@@ -465,7 +487,10 @@ mod tests {
         let out = build_payload(ID, &d, Some(&app())).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
         let keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
-        assert_eq!(keys, ["v", "id", "kind", "text", "credit", "app", "screenshot"]);
+        assert_eq!(
+            keys,
+            ["v", "id", "kind", "text", "credit", "app", "screenshot"]
+        );
         assert_eq!(v["v"], 1);
         assert_eq!(v["credit"]["name"], "tendai");
         assert_eq!(v["app"]["screen"], "editor");
@@ -475,7 +500,8 @@ mod tests {
 
     #[test]
     fn app_info_off_sends_null() {
-        let v: Value = serde_json::from_str(&build_payload(ID, &draft("0123456789"), None).unwrap()).unwrap();
+        let v: Value =
+            serde_json::from_str(&build_payload(ID, &draft("0123456789"), None).unwrap()).unwrap();
         assert_eq!(v["app"], Value::Null);
     }
 
@@ -485,11 +511,22 @@ mod tests {
         assert!(clean_text("1234567890").is_ok());
         assert!(clean_text(&"a".repeat(4000)).is_ok());
         assert_eq!(clean_text(&"a".repeat(4001)), Err(DraftError::TooLong));
-        assert_eq!(clean_text("hello\u{7}world!!"), Err(DraftError::BadCharacter));
+        assert_eq!(
+            clean_text("hello\u{7}world!!"),
+            Err(DraftError::BadCharacter)
+        );
         assert_eq!(clean_text("hello\rworld!!"), Err(DraftError::BadCharacter));
         assert!(clean_text("two\nlines here").is_ok());
         // Combining marks are composed before counting.
-        assert_eq!(clean_text("e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}").unwrap().chars().count(), 10);
+        assert_eq!(
+            clean_text(
+                "e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}e\u{301}"
+            )
+            .unwrap()
+            .chars()
+            .count(),
+            10
+        );
     }
 
     #[test]
@@ -507,9 +544,15 @@ mod tests {
     fn screenshots() {
         let png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2];
         let decl = declare_screenshot(&png).unwrap();
-        assert_eq!((decl.mime, decl.bytes, decl.sha256.len()), ("image/png", 10, 64));
+        assert_eq!(
+            (decl.mime, decl.bytes, decl.sha256.len()),
+            ("image/png", 10, 64)
+        );
         assert!(declare_screenshot(&[0xff, 0xd8, 0xff, 0]).is_ok());
-        assert_eq!(declare_screenshot(b"GIF89a"), Err(DraftError::BadScreenshot));
+        assert_eq!(
+            declare_screenshot(b"GIF89a"),
+            Err(DraftError::BadScreenshot)
+        );
         let mut big = vec![0xff, 0xd8, 0xff];
         big.resize(MAX_SCREENSHOT as usize + 1, 0);
         assert_eq!(declare_screenshot(&big), Err(DraftError::BadScreenshot));
@@ -551,12 +594,17 @@ mod tests {
         assert!(scrub_log_line("update: status 503").is_none());
         assert!(scrub_log_line("note: my secret title").is_none());
         assert!(scrub_log_line("update: ").is_none());
-        assert_eq!(scrub_log_line("sync: offline\n").as_deref(), Some("sync: offline"));
+        assert_eq!(
+            scrub_log_line("sync: offline\n").as_deref(),
+            Some("sync: offline")
+        );
     }
 
     #[test]
     fn only_the_last_twenty_lines_stay() {
-        let lines: Vec<String> = (0..30).map(|i| format!("sync: {}", ["a", "b", "c"][i % 3])).collect();
+        let lines: Vec<String> = (0..30)
+            .map(|i| format!("sync: {}", ["a", "b", "c"][i % 3]))
+            .collect();
         let kept = scrub_log_lines(lines.iter().map(String::as_str));
         assert_eq!(kept.len(), 20);
         assert_eq!(kept.last(), lines.last());
@@ -600,14 +648,23 @@ mod tests {
         assert_eq!(chip(&view(Status::Filed)), Chip::FiledAs(241));
         assert_eq!(chip(&view(Status::Duplicate)), Chip::SameAs(198));
         assert_eq!(chip(&view(Status::PrOpen)), Chip::FixProposed);
-        assert_eq!(chip(&view(Status::Released)), Chip::ReleasedIn("v0.9.2".into()));
+        assert_eq!(
+            chip(&view(Status::Released)),
+            Chip::ReleasedIn("v0.9.2".into())
+        );
         assert_eq!(chip(&view(Status::Noise)), Chip::NotFiled);
         let mut deleting = view(Status::Filed);
         deleting.deleting = true;
         assert_eq!(chip(&deleting), Chip::Deleting);
-        assert_eq!(issue_url(REPO, &view(Status::Filed)).unwrap(), "https://github.com/iamngoni/kanso/issues/241");
+        assert_eq!(
+            issue_url(REPO, &view(Status::Filed)).unwrap(),
+            "https://github.com/iamngoni/kanso/issues/241"
+        );
         assert_eq!(issue_url(REPO, &view(Status::Received)), None);
-        assert_eq!(fixed_in(&[view(Status::Released), view(Status::Filed)], "0.9.2"), 1);
+        assert_eq!(
+            fixed_in(&[view(Status::Released), view(Status::Filed)], "0.9.2"),
+            1
+        );
         assert_eq!(fixed_in(&[view(Status::Released)], "0.9.3"), 0);
     }
 

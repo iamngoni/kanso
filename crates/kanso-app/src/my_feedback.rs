@@ -8,7 +8,9 @@
 //! reach it shows "Deleting…" until it goes through.
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::{Disableable as _, Sizable as _, StyledExt as _, WindowExt as _, h_flex, v_flex};
+use gpui_kit::component::{
+    Disableable as _, Sizable as _, StyledExt as _, WindowExt as _, h_flex, v_flex,
+};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::feedback::{self, Chip, ReportView};
@@ -67,7 +69,8 @@ impl MyFeedbackSheet {
                     Some(reporter) => {
                         let client = env.client();
                         feedback_flow::flush(&env.store, &client, &reporter, now).ok();
-                        feedback_flow::refresh(&env.store, &client, &reporter, now).unwrap_or_default()
+                        feedback_flow::refresh(&env.store, &client, &reporter, now)
+                            .unwrap_or_default()
                     }
                     None => feedback_flow::views(&env.store).unwrap_or_default(),
                 };
@@ -103,7 +106,13 @@ impl MyFeedbackSheet {
             .name("kanso-feedback-delete".into())
             .spawn(move || {
                 if let Some(reporter) = env.reporter() {
-                    feedback_flow::flush(&env.store, &env.client(), &reporter, kanso_core::now_ms()).ok();
+                    feedback_flow::flush(
+                        &env.store,
+                        &env.client(),
+                        &reporter,
+                        kanso_core::now_ms(),
+                    )
+                    .ok();
                 }
                 let _ = tx.send_blocking(feedback_flow::views(&env.store).unwrap_or_default());
             })

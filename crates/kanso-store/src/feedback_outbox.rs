@@ -98,7 +98,13 @@ impl Store {
 
     /// A report the server lists that this device didn't make (another
     /// device of the account): kept so My feedback shows it.
-    pub fn feedback_adopt(&self, id: &str, kind: &str, preview: &str, created_ms: i64) -> Result<()> {
+    pub fn feedback_adopt(
+        &self,
+        id: &str,
+        kind: &str,
+        preview: &str,
+        created_ms: i64,
+    ) -> Result<()> {
         self.write(|tx, _| {
             tx.execute(
                 "INSERT OR IGNORE INTO feedback_outbox \
@@ -244,6 +250,9 @@ mod tests {
         assert_eq!(s.feedback_all().unwrap().len(), 1);
         assert_eq!(s.feedback_due(0).unwrap().len(), 1);
         s.feedback_mark_sent("fb_a", "received").unwrap();
+        // The photo still has to go up.
+        assert_eq!(s.feedback_due(i64::MAX).unwrap().len(), 1);
+        s.feedback_mark_screenshot_sent("fb_a").unwrap();
         assert!(s.feedback_due(i64::MAX).unwrap().is_empty());
         let row = s.feedback_get("fb_a").unwrap().unwrap();
         assert_eq!(row.state, OutboxState::Sent);
@@ -316,7 +325,12 @@ mod tests {
         .unwrap();
         let row = s.feedback_get("fb_a").unwrap().unwrap();
         assert_eq!(
-            (row.issue, row.pr, row.release.as_deref(), row.screenshot_path),
+            (
+                row.issue,
+                row.pr,
+                row.release.as_deref(),
+                row.screenshot_path
+            ),
             (Some(241), Some(252), Some("v0.9.2"), None)
         );
         assert!(row.screenshot_sent);

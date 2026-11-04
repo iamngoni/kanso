@@ -1933,7 +1933,10 @@ mod tests {
     /// and are found by the words people type for them.
     #[test]
     fn the_feedback_commands_are_in_the_app_group() {
-        for (id, label) in [("send-feedback", "Send feedback…"), ("my-feedback", "My feedback")] {
+        for (id, label) in [
+            ("send-feedback", "Send feedback…"),
+            ("my-feedback", "My feedback"),
+        ] {
             let command = all().iter().find(|c| c.id == id).expect(id);
             assert_eq!(command.label, label);
             assert_eq!(command.group, super::Group::App);

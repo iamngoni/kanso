@@ -18,6 +18,7 @@ import 'core/utils/context_extensions.dart';
 import 'core/utils/kanso_scroll_behavior.dart';
 import 'core/views/widgets/foreground_reporter.dart';
 import 'core/views/widgets/kanso_feedback.dart';
+import 'feedback/views/widgets/feedback_host.dart';
 import 'core/views/widgets/kanso_icon_set_scope.dart';
 import 'core/views/widgets/layout_class_reporter.dart';
 import 'core/views/widgets/review_prompt_host.dart';
@@ -91,19 +92,21 @@ class _AppState extends State<App> {
               child: LayoutClassReporter(
                 notifier: widget.router.layoutClass,
                 child: ForegroundReporter(
-                  child: CrashNoticeHost(
-                    child: LockLifecycleHost(
-                      child: BackupNoticeHost(
-                        child: OpenedDocumentsHost(
-                          router: widget.router.config,
-                          child: DeviceApprovalHost(
-                            child: widget.reviewPrompt == null
-                                ? child!
-                                : ReviewPromptHost(
-                                    prompt: widget.reviewPrompt!,
-                                    router: widget.router.config,
-                                    child: child!,
-                                  ),
+                  child: FeedbackHost(
+                    child: CrashNoticeHost(
+                      child: LockLifecycleHost(
+                        child: BackupNoticeHost(
+                          child: OpenedDocumentsHost(
+                            router: widget.router.config,
+                            child: DeviceApprovalHost(
+                              child: widget.reviewPrompt == null
+                                  ? child!
+                                  : ReviewPromptHost(
+                                      prompt: widget.reviewPrompt!,
+                                      router: widget.router.config,
+                                      child: child!,
+                                    ),
+                            ),
                           ),
                         ),
                       ),

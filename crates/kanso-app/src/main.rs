@@ -185,6 +185,7 @@ mod flashcards_model;
 mod flashcards_view;
 mod learn_model;
 mod learn_view;
+mod my_feedback;
 mod settings_flashcards;
 #[cfg(all(target_os = "macos", not(test)))]
 mod spellcheck_macos;
@@ -213,7 +214,6 @@ mod transcribe;
 mod triage_view;
 #[cfg(test)]
 mod ui_tests;
-mod my_feedback;
 mod updates;
 // macOS finishes Apple's sign-in in its own sheet: only the forwarding of a
 // `kanso://` argument and the tests reach the router there.

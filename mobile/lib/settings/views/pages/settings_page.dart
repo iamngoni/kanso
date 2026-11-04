@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_page.dart';
+import '../../../feedback/state/my_feedback/my_feedback_bloc.dart';
 import '../../../injection.dart';
 import '../../../lock/state/biometrics/biometrics_bloc.dart';
 import '../../../push/state/push_setting/push_setting_bloc.dart';
@@ -34,6 +35,10 @@ class SettingsPage extends StatelessWidget {
         BlocProvider<AboutBloc>(
           create: (context) =>
               getIt<AboutBloc>()..add(const AboutEvent.started()),
+        ),
+        BlocProvider<MyFeedbackBloc>(
+          create: (_) =>
+              getIt<MyFeedbackBloc>()..add(const MyFeedbackEvent.started()),
         ),
         BlocProvider<BiometricsBloc>(
           create: (context) => getIt<BiometricsBloc>(),

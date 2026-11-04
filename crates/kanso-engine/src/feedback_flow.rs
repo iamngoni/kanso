@@ -73,10 +73,7 @@ pub struct Picture<'a> {
 /// The payload the sheet shows under "Show what's sent": built the same way
 /// as the one that is sent (the id is a stand-in), so what is shown is what
 /// goes. Returns the draft's error while it can't be sent yet.
-pub fn preview_payload(
-    draft: &Draft,
-    app: Option<&AppInfo>,
-) -> Result<String, DraftError> {
+pub fn preview_payload(draft: &Draft, app: Option<&AppInfo>) -> Result<String, DraftError> {
     build_payload(&new_id([0; 16]), draft, app)
 }
 
@@ -104,7 +101,11 @@ pub fn send<T: Transport>(
         std::fs::create_dir_all(&dir).map_err(Error::Io)?;
         let file = dir.join(format!(
             "{id}.{}",
-            if decl.mime == "image/png" { "png" } else { "jpg" }
+            if decl.mime == "image/png" {
+                "png"
+            } else {
+                "jpg"
+            }
         ));
         std::fs::write(&file, picture.bytes).map_err(Error::Io)?;
         path = Some(file);
@@ -178,19 +179,17 @@ fn step<T: Transport>(
     now_ms: i64,
 ) -> Result<Sent, Error> {
     match row.state {
-        OutboxState::Deleting => {
-            match client.delete(reporter, &row.id) {
-                Ok(()) => {
-                    forget_file(row.screenshot_path.as_deref().map(Path::new));
-                    store.feedback_remove(&row.id)?;
-                    Ok(Sent::Done)
-                }
-                Err(err) => {
-                    store.feedback_failed(&row.id, next_try(row, &err, now_ms))?;
-                    Ok(Sent::Queued(wait_of(&err)))
-                }
+        OutboxState::Deleting => match client.delete(reporter, &row.id) {
+            Ok(()) => {
+                forget_file(row.screenshot_path.as_deref().map(Path::new));
+                store.feedback_remove(&row.id)?;
+                Ok(Sent::Done)
             }
-        }
+            Err(err) => {
+                store.feedback_failed(&row.id, next_try(row, &err, now_ms))?;
+                Ok(Sent::Queued(wait_of(&err)))
+            }
+        },
         OutboxState::Queued => match client.submit(reporter, &row.payload) {
             Ok(submitted) => {
                 store.feedback_mark_sent(&row.id, &submitted.status)?;
@@ -251,7 +250,13 @@ fn upload<T: Transport>(
     };
     let mime = feedback::sniff_image(&bytes).unwrap_or("image/png");
     match client.upload_screenshot(reporter, &row.id, mime, &bytes) {
-        Ok(()) | Err(FeedbackError::Gone | FeedbackError::Invalid { .. } | FeedbackError::TooLarge | FeedbackError::NotFound) => {
+        Ok(())
+        | Err(
+            FeedbackError::Gone
+            | FeedbackError::Invalid { .. }
+            | FeedbackError::TooLarge
+            | FeedbackError::NotFound,
+        ) => {
             forget_file(Some(&path));
             store.feedback_mark_screenshot_sent(&row.id)?;
         }
@@ -318,7 +323,10 @@ fn view(row: &OutboxRow) -> ReportView {
         issue: row.issue,
         duplicate_of: row.duplicate_of,
         pr: row.pr,
-        release: row.release.as_deref().map(|r| feedback::release_name(r).to_owned()),
+        release: row
+            .release
+            .as_deref()
+            .map(|r| feedback::release_name(r).to_owned()),
         deleting: row.state == OutboxState::Deleting,
     }
 }
@@ -342,10 +350,16 @@ pub fn refresh<T: Transport>(
     reporter: &Reporter,
     now_ms: i64,
 ) -> Result<Vec<ReportView>, Error> {
-    match client.list(reporter, None) {
-        Ok(remote) => {
+    // Offline or refused: show what the device last knew.
+    if let Ok(remote) = client.list(reporter, None) {
+        {
             for report in &remote {
-                store.feedback_adopt(&report.id, &report.kind, &report.preview, report.created_ms)?;
+                store.feedback_adopt(
+                    &report.id,
+                    &report.kind,
+                    &report.preview,
+                    report.created_ms,
+                )?;
                 store.feedback_record_status(
                     &report.id,
                     &ServerStatus {
@@ -359,8 +373,6 @@ pub fn refresh<T: Transport>(
             }
             store.set_meta(REFRESHED_KEY, &now_ms.to_string())?;
         }
-        // Offline or refused: show what the device last knew.
-        Err(_) => {}
     }
     views(store)
 }
@@ -388,20 +400,35 @@ mod tests {
             }
         }
         fn count(&self, method: &str) -> usize {
-            self.seen.lock().unwrap().iter().filter(|(m, _)| m == method).count()
+            self.seen
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|(m, _)| m == method)
+                .count()
         }
     }
 
     impl Transport for &Script {
         fn send(&self, request: &Request) -> Result<Response, String> {
-            self.seen.lock().unwrap().push((request.method.into(), request.path.clone()));
+            self.seen
+                .lock()
+                .unwrap()
+                .push((request.method.into(), request.path.clone()));
             let mut answers = self.answers.lock().unwrap();
-            if answers.len() > 1 { answers.remove(0) } else { answers[0].clone() }
+            if answers.len() > 1 {
+                answers.remove(0)
+            } else {
+                answers[0].clone()
+            }
         }
     }
 
     fn reply(status: u16, body: &str) -> Result<Response, String> {
-        Ok(Response { status, body: body.as_bytes().to_vec() })
+        Ok(Response {
+            status,
+            body: body.as_bytes().to_vec(),
+        })
     }
 
     fn reporter() -> Reporter {
@@ -415,7 +442,12 @@ mod tests {
     }
 
     fn draft(text: &str) -> Draft {
-        Draft { kind: feedback::Kind::Bug, text: text.into(), credit_name: None, screenshot: None }
+        Draft {
+            kind: feedback::Kind::Bug,
+            text: text.into(),
+            credit_name: None,
+            screenshot: None,
+        }
     }
 
     const PNG: [u8; 12] = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4];
@@ -444,18 +476,33 @@ mod tests {
     fn online_sends_once_with_its_screenshot() {
         let (dir, store) = setup();
         let script = Script::new(vec![
-            reply(201, r#"{"id":"x","status":"received","upload":{"url":"/v1/feedback/x/screenshot","expires_ms":1}}"#),
+            reply(
+                201,
+                r#"{"id":"x","status":"received","upload":{"url":"/v1/feedback/x/screenshot","expires_ms":1}}"#,
+            ),
             reply(204, ""),
         ]);
         let (id, sent) = go(&dir, &store, &script, Some(&PNG), 1_000).unwrap();
         assert_eq!(sent, Sent::Done);
         assert_eq!((script.count("POST"), script.count("PUT")), (1, 1));
         let row = store.feedback_get(&id).unwrap().unwrap();
-        assert_eq!((row.state, row.screenshot_path, row.screenshot_sent), (OutboxState::Sent, None, true));
+        assert_eq!(
+            (row.state, row.screenshot_path, row.screenshot_sent),
+            (OutboxState::Sent, None, true)
+        );
         // Nothing more is due, so a flush sends nothing again.
-        assert!(flush(&store, &Client::new(&script), &reporter(), i64::MAX / 4).unwrap().is_empty());
+        assert!(
+            flush(&store, &Client::new(&script), &reporter(), i64::MAX / 4)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(script.count("POST"), 1);
-        assert!(!dir.path().join("feedback").join(format!("{id}.png")).exists());
+        assert!(
+            !dir.path()
+                .join("feedback")
+                .join(format!("{id}.png"))
+                .exists()
+        );
     }
 
     #[test]
@@ -465,24 +512,46 @@ mod tests {
         let (id, sent) = go(&dir, &store, &offline, None, 1_000).unwrap();
         assert_eq!(sent, Sent::Queued(Wait::Offline));
         let row = store.feedback_get(&id).unwrap().unwrap();
-        assert_eq!((row.state, row.attempts, row.next_try_ms), (OutboxState::Queued, 1, 1_000 + 60_000));
+        assert_eq!(
+            (row.state, row.attempts, row.next_try_ms),
+            (OutboxState::Queued, 1, 1_000 + 60_000)
+        );
         // Not due before the wait ends; launch makes it due.
         let online = Script::new(vec![reply(201, r#"{"id":"x","status":"received"}"#)]);
-        assert!(flush(&store, &Client::new(&online), &reporter(), 2_000).unwrap().is_empty());
+        assert!(
+            flush(&store, &Client::new(&online), &reporter(), 2_000)
+                .unwrap()
+                .is_empty()
+        );
         store_retry_now(&store).unwrap();
         let done = flush(&store, &Client::new(&online), &reporter(), 2_000).unwrap();
         assert_eq!(done, vec![(id.clone(), Sent::Done)]);
-        assert!(flush(&store, &Client::new(&online), &reporter(), 3_000).unwrap().is_empty());
+        assert!(
+            flush(&store, &Client::new(&online), &reporter(), 3_000)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(online.count("POST"), 1);
     }
 
     #[test]
     fn a_rate_limit_waits_for_retry_after() {
         let (dir, store) = setup();
-        let script = Script::new(vec![reply(429, r#"{"error":"rate_limited","retry_after_ms":90000}"#)]);
+        let script = Script::new(vec![reply(
+            429,
+            r#"{"error":"rate_limited","retry_after_ms":90000}"#,
+        )]);
         let (id, sent) = go(&dir, &store, &script, None, 10).unwrap();
-        assert_eq!(sent, Sent::Queued(Wait::RateLimited { retry_after_ms: 90_000 }));
-        assert_eq!(store.feedback_get(&id).unwrap().unwrap().next_try_ms, 90_010);
+        assert_eq!(
+            sent,
+            Sent::Queued(Wait::RateLimited {
+                retry_after_ms: 90_000
+            })
+        );
+        assert_eq!(
+            store.feedback_get(&id).unwrap().unwrap().next_try_ms,
+            90_010
+        );
     }
 
     #[test]
@@ -490,9 +559,19 @@ mod tests {
         let (dir, store) = setup();
         let script = Script::new(vec![reply(400, r#"{"error":"invalid","field":"text"}"#)]);
         let (_, sent) = go(&dir, &store, &script, Some(&PNG), 10).unwrap();
-        assert_eq!(sent, Sent::Rejected { field: "text".into() });
+        assert_eq!(
+            sent,
+            Sent::Rejected {
+                field: "text".into()
+            }
+        );
         assert!(store.feedback_all().unwrap().is_empty());
-        assert!(std::fs::read_dir(dir.path().join("feedback")).unwrap().next().is_none());
+        assert!(
+            std::fs::read_dir(dir.path().join("feedback"))
+                .unwrap()
+                .next()
+                .is_none()
+        );
     }
 
     #[test]
@@ -508,7 +587,17 @@ mod tests {
     fn a_bad_draft_is_refused_before_anything_is_saved() {
         let (dir, store) = setup();
         let script = Script::new(vec![reply(201, "{}")]);
-        let err = send(&store, &Client::new(&script), &reporter(), dir.path(), [1; 16], draft("short"), None, None, 1);
+        let err = send(
+            &store,
+            &Client::new(&script),
+            &reporter(),
+            dir.path(),
+            [1; 16],
+            draft("short"),
+            None,
+            None,
+            1,
+        );
         assert!(matches!(err, Err(Error::Draft(DraftError::TooShort))));
         assert!(store.feedback_all().unwrap().is_empty());
         assert_eq!(script.count("POST"), 0);
@@ -551,7 +640,12 @@ mod tests {
         assert!(refresh_due(&store, 10 + REFRESH_EVERY_MS));
         // Offline: the last known state is shown.
         let down = Script::new(vec![Err("offline".into())]);
-        assert_eq!(refresh(&store, &Client::new(&down), &reporter(), 99).unwrap().len(), 2);
+        assert_eq!(
+            refresh(&store, &Client::new(&down), &reporter(), 99)
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     proptest! {
