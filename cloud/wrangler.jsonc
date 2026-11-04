@@ -101,12 +101,12 @@
     // nothing is sent.
     "POSTHOG_HOST": "https://eu.i.posthog.com",
     // In-app feedback (docs/FEEDBACK.md). Triage runs through Cloudflare AI Gateway on unified billing,
-    // so there is no Anthropic key. CF_ACCOUNT_ID is a PLACEHOLDER: set the real account ID (32 hex
-    // characters) before deploying; while it isn't one, reports are stored and triage does nothing.
+    // so there is no Anthropic key. CF_ACCOUNT_ID is the account that owns the
+    // gateway; while it isn't 32 hex characters, reports are stored and triage does nothing.
     // TRIAGE_MODEL is a var, so a new Haiku is a config change. Secrets, each `wrangler secret put NAME`:
     // AIG_TOKEN (the gateway's token), GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY (PKCS#8 PEM) and
     // GITHUB_WEBHOOK_SECRET. Without the App's secrets nothing is filed.
-    "CF_ACCOUNT_ID": "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID",
+    "CF_ACCOUNT_ID": "5425ee3677afb301418677cafaf53e59",
     "AIG_GATEWAY": "kanso-feedback",
     "TRIAGE_MODEL": "claude-haiku-5-5",
     "FEEDBACK_REPO": "iamngoni/kanso",

@@ -149,8 +149,9 @@ footer with the short report ID and, when the person opted in, `Reported by <nam
 
 ## The GitHub App
 
-"Kanso Feedback", installed on `iamngoni/kanso` only, **Issues: read & write** and **Metadata:
-read**, webhook events `issues`, `pull_request` and `release`. The Worker signs a JWT (RS256,
+"Kanso Feedback", installed on `iamngoni/kanso` only, **Issues: read & write**, **Metadata:
+read**, **Pull requests: read** and **Contents: read** (GitHub requires the last two for the
+`pull_request` and `release` events, and `compare` needs Contents), webhook events `issues`, `pull_request` and `release`. The Worker signs a JWT (RS256,
 WebCrypto) with the App's private key, trades it for a one-hour installation token (cached per
 isolate) and files issues as `kanso-feedback[bot]`. It can't push code or add `build`.
 
@@ -206,7 +207,7 @@ Statuses: `received`, `noise`, `duplicate`, `filed`, `building`, `pr_open`, `mer
 3. **Config:** in `cloud/wrangler.jsonc` replace the `CF_ACCOUNT_ID` placeholder with the account
    ID (32 hex characters). Until then triage does nothing and reports wait. `TRIAGE_MODEL`,
    `AIG_GATEWAY`, `FEEDBACK_REPO` and `FEEDBACK_OWNER` are already set.
-4. **GitHub App:** create "Kanso Feedback" (Issues: read & write, Metadata: read; webhook URL
+4. **GitHub App:** create "Kanso Feedback" (Issues: read & write, Metadata: read, Pull requests: read, Contents: read; webhook URL
    `https://sync.kansoapp.app/v1/github/webhook`, content type JSON, a webhook secret; events
    `issues`, `pull_request`, `release`). Install it on `iamngoni/kanso` only. Generate a private
    key and convert it: `openssl pkcs8 -topk8 -nocrypt -in app.pem -out app.pkcs8.pem`.
