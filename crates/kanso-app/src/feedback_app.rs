@@ -289,15 +289,41 @@ impl Env {
         sync_mode(self.session.as_deref())
     }
 
-    /// Signed in, or with the install's anonymous key. Blocking when the
-    /// machine has to be read.
+    /// Who sends a new report: the signed-in device when the session is
+    /// Kanso's own server's, else the install's anonymous key (made on first
+    /// use). A self-hosted server's token and device proof are never sent to
+    /// Kanso's Worker. Blocking when the machine has to be read.
     pub fn reporter(&self) -> Option<Reporter> {
-        if let Some(session) = &self.session {
-            let machine = self.machine.clone().unwrap_or_else(Machine::this_mac);
-            let device = kanso_sync::device_identity(&self.store, &machine).ok()?;
-            return Some(Reporter::from_session(session, &device));
+        if let Some(reporter) = self.account_reporter() {
+            return Some(reporter);
         }
         Reporter::anonymous(self.secrets.as_deref()?).ok()
+    }
+
+    fn account_reporter(&self) -> Option<Reporter> {
+        let session = self.session.as_ref()?;
+        if !kanso_sync::feedback::is_kanso_origin(&session.origin) {
+            return None;
+        }
+        let machine = self.machine.clone().unwrap_or_else(Machine::this_mac);
+        let device = kanso_sync::device_identity(&self.store, &machine).ok()?;
+        Reporter::from_session(session, &device)
+    }
+
+    /// Every reporter this device has: [`Env::reporter`], and the anonymous
+    /// key too when signed in and one was made, so reports sent before
+    /// signing in can still be listed, uploaded and deleted.
+    pub fn reporters(&self) -> Vec<Reporter> {
+        let mut out: Vec<Reporter> = self.reporter().into_iter().collect();
+        if out.first().is_some_and(Reporter::is_account)
+            && let Some(anonymous) = self
+                .secrets
+                .as_deref()
+                .and_then(Reporter::existing_anonymous)
+        {
+            out.push(anonymous);
+        }
+        out
     }
 
     pub fn client(&self) -> Client<Arc<dyn Transport>> {
@@ -342,9 +368,14 @@ pub fn flush_soon(cx: &mut App, after: Duration) {
         let job = {
             let env = env.clone();
             cx.background_executor().spawn(async move {
-                let reporter = env.reporter()?;
-                feedback_flow::flush(&env.store, &env.client(), &reporter, kanso_core::now_ms())
-                    .ok()?;
+                let reporters = env.reporters();
+                feedback_flow::flush_as(
+                    &env.store,
+                    &env.client(),
+                    &reporters,
+                    kanso_core::now_ms(),
+                )
+                .ok()?;
                 // The next wait, from the longest-failing report.
                 let attempts = env
                     .store

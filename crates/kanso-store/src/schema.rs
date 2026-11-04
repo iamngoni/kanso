@@ -380,7 +380,9 @@ CREATE TABLE IF NOT EXISTS feedback_outbox (
     release TEXT,
     attempts INTEGER NOT NULL DEFAULT 0,
     next_try_ms INTEGER NOT NULL DEFAULT 0,
-    created_ms INTEGER NOT NULL
+    created_ms INTEGER NOT NULL,
+    -- Who sent it: `anonymous` or `account:<id>`. Only that reporter can act on it.
+    sender TEXT NOT NULL DEFAULT ''
 ) WITHOUT ROWID;
 "#,
 ];

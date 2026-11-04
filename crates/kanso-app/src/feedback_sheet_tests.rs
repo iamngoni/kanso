@@ -3,7 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use gpui_kit::{AnyWindowHandle, AppContext as _, Entity, TestAppContext};
+use gpui_kit::{AnyWindowHandle, AppContext as _, Entity, TestAppContext, VisualTestContext};
 use kanso_engine::feedback::Kind;
 use kanso_store::{OutboxState, Store};
 use kanso_sync::MemorySecrets;
@@ -208,4 +208,41 @@ fn a_400_keeps_the_sheet_open_with_the_field(cx: &mut TestAppContext) {
         Some("Kanso couldn't send this report (app.version). Edit it and try again.")
     );
     assert!(rig.store.feedback_all().unwrap().is_empty());
+}
+
+/// A chosen picture is drawn in the sheet before anything is sent, and its
+/// EXIF (a photo's GPS position) is gone from what is declared and kept.
+#[gpui_kit::test]
+fn a_chosen_picture_is_shown_and_loses_its_exif(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    let sheet = open_sheet(cx, &rig);
+    let mut jpeg = vec![0xff, 0xd8];
+    let exif = b"Exif\0\0GPS-51.5,-0.12";
+    jpeg.extend([0xff, 0xe1]);
+    jpeg.extend(((exif.len() + 2) as u16).to_be_bytes());
+    jpeg.extend(exif);
+    jpeg.extend([0xff, 0xda, 0x00, 0x04, 9, 9, 0x12, 0x34, 0xff, 0xd9]);
+    let target = sheet.clone();
+    rig.window
+        .update(cx, move |_, _, cx| {
+            target.update(cx, |s, cx| s.set_picture(jpeg, "photo.jpg".into(), cx))
+        })
+        .unwrap();
+    rig.window
+        .update(cx, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    cx.run_until_parked();
+    let mut vcx = VisualTestContext::from_window(rig.window, cx);
+    assert!(vcx.debug_bounds("feedback-thumbnail").is_some());
+    type_text(cx, &rig, &sheet, "The export cuts off wide tables.");
+    press_send(cx, &rig, &sheet);
+    // Declared as the 12 bytes left once the EXIF segment is gone.
+    let row = &rig.store.feedback_all().unwrap()[0];
+    assert!(row.payload.contains("\"image/jpeg\""));
+    assert!(row.payload.contains("\"bytes\": 12"), "{}", row.payload);
+    let posted = &rig.fake.seen.lock().unwrap()[0];
+    assert!(!String::from_utf8_lossy(&posted.body).contains("GPS"));
 }

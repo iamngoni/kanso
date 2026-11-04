@@ -25,6 +25,16 @@ use crate::keychain::{SecretError, SecretStore};
 /// Where every feedback request goes.
 pub const ENDPOINT: &str = "https://sync.kansoapp.app";
 
+/// Whether a session belongs to Kanso's own server. Only such a session may
+/// sign a feedback request: a self-hosted server's token and device proof
+/// must never be sent to Kanso's Worker.
+pub fn is_kanso_origin(origin: &str) -> bool {
+    origin.trim_end_matches('/') == ENDPOINT
+}
+
+/// The outbox `sender` of an anonymous report.
+pub const ANONYMOUS_SENDER: &str = "anonymous";
+
 /// The Keychain item holding an install's anonymous key (43 base64url
 /// characters): the only way to list or delete reports made without an
 /// account. The Worker stores only a keyed hash of it.
@@ -38,6 +48,7 @@ const MAX_LIST_BYTES: u64 = 2 * 1024 * 1024;
 pub enum Reporter {
     /// A signed-in device: `Authorization: Bearer …` and the device's ID and proof.
     Account {
+        account_id: String,
         authorization: Zeroizing<String>,
         device_id: String,
         device_proof: Zeroizing<String>,
@@ -47,19 +58,31 @@ pub enum Reporter {
 }
 
 impl Reporter {
-    /// A signed-in reporter from the session and this library's device identity.
-    pub fn from_session(session: &crate::Session, device: &DeviceIdentity) -> Reporter {
+    /// A signed-in reporter from the session and this library's device
+    /// identity, or `None` when the session is another server's (a
+    /// self-hosted library): its credentials never go to Kanso's Worker.
+    pub fn from_session(session: &crate::Session, device: &DeviceIdentity) -> Option<Reporter> {
+        if !is_kanso_origin(&session.origin) {
+            return None;
+        }
         let login = session.login_device(device);
-        Reporter::Account {
+        Some(Reporter::Account {
+            account_id: session.account_id.clone(),
             authorization: session.authorization(),
             device_id: login.id.clone(),
             device_proof: Zeroizing::new(login.proof.clone()),
-        }
+        })
     }
 
-    /// A signed-in reporter from its parts (the header values).
-    pub fn account(authorization: &str, device_id: &str, device_proof: &str) -> Reporter {
+    /// A signed-in reporter from its parts (the account and the header values).
+    pub fn account(
+        account_id: &str,
+        authorization: &str,
+        device_id: &str,
+        device_proof: &str,
+    ) -> Reporter {
         Reporter::Account {
+            account_id: account_id.to_owned(),
             authorization: Zeroizing::new(authorization.to_owned()),
             device_id: device_id.to_owned(),
             device_proof: Zeroizing::new(device_proof.to_owned()),
@@ -81,6 +104,24 @@ impl Reporter {
         Ok(Reporter::Anonymous { key })
     }
 
+    /// The install's anonymous reporter if its key was ever made; never
+    /// makes one. A signed-in device uses it to reach the reports it sent
+    /// before signing in.
+    pub fn existing_anonymous(secrets: &dyn SecretStore) -> Option<Reporter> {
+        let key = secrets.get(ANONYMOUS_KEY_ITEM).ok()??;
+        valid_key(&key).then_some(Reporter::Anonymous { key })
+    }
+
+    /// Who this is, as the outbox records it: `anonymous` or
+    /// `account:<id>`. The server only lets the reporter that sent a report
+    /// list, upload to or delete it, so the outbox keeps this per report.
+    pub fn sender(&self) -> String {
+        match self {
+            Reporter::Account { account_id, .. } => format!("account:{account_id}"),
+            Reporter::Anonymous { .. } => ANONYMOUS_SENDER.to_owned(),
+        }
+    }
+
     /// The headers that say who is sending.
     fn headers(&self) -> Vec<(&'static str, String)> {
         match self {
@@ -88,6 +129,7 @@ impl Reporter {
                 authorization,
                 device_id,
                 device_proof,
+                ..
             } => vec![
                 ("authorization", authorization.to_string()),
                 ("x-kanso-device", device_id.clone()),
@@ -342,7 +384,8 @@ fn remote_report(value: &Value) -> Option<RemoteReport> {
 }
 
 /// What a non-2xx answer means. The body is read for its `field`,
-/// `retry_after_ms` and `error`; nothing else of it is kept.
+/// `retry_after` (seconds, as `http.ts` `rateLimited` sends it) and
+/// `error`; nothing else of it is kept.
 pub fn error_of(response: &Response) -> FeedbackError {
     let body: Value = serde_json::from_slice(&response.body).unwrap_or(Value::Null);
     match response.status {
@@ -356,8 +399,10 @@ pub fn error_of(response: &Response) -> FeedbackError {
         413 | 415 => FeedbackError::TooLarge,
         429 => FeedbackError::RateLimited {
             retry_after_ms: body
-                .get("retry_after_ms")
+                .get("retry_after")
                 .and_then(Value::as_i64)
+                .map(|seconds| seconds.saturating_mul(1000))
+                .or_else(|| body.get("retry_after_ms").and_then(Value::as_i64))
                 .unwrap_or(60_000)
                 .max(0),
         },
@@ -500,6 +545,7 @@ mod tests {
 
     fn account() -> Reporter {
         Reporter::Account {
+            account_id: "a_1".into(),
             authorization: Zeroizing::new("Bearer kanso_x".into()),
             device_id: "d_1".into(),
             device_proof: Zeroizing::new("p".into()),
@@ -554,6 +600,14 @@ mod tests {
             (403, "{}", FeedbackError::Unauthorized),
             (409, "{}", FeedbackError::Conflict),
             (413, "{}", FeedbackError::TooLarge),
+            // The Worker's shape: `retry_after` in seconds (http.ts `rateLimited`).
+            (
+                429,
+                r#"{"error":"rate_limited","message":"Too many requests.","limit":"feedback-ip","retry_after":86399}"#,
+                FeedbackError::RateLimited {
+                    retry_after_ms: 86_399_000,
+                },
+            ),
             (
                 429,
                 r#"{"error":"rate_limited","retry_after_ms":9000}"#,
@@ -625,5 +679,26 @@ mod tests {
         assert_eq!(a.len(), 43);
         assert_eq!(a, b);
         assert!(valid_key(&a));
+        assert_eq!(
+            Reporter::existing_anonymous(&secrets).map(|r| r.sender()),
+            Some("anonymous".to_owned())
+        );
+    }
+
+    #[test]
+    fn no_anonymous_key_is_made_by_looking() {
+        let secrets = MemorySecrets::new();
+        assert!(Reporter::existing_anonymous(&secrets).is_none());
+        assert!(secrets.get(ANONYMOUS_KEY_ITEM).unwrap().is_none());
+    }
+
+    #[test]
+    fn only_kanso_sessions_sign_feedback() {
+        assert!(is_kanso_origin("https://sync.kansoapp.app"));
+        assert!(is_kanso_origin("https://sync.kansoapp.app/"));
+        assert!(!is_kanso_origin("https://notes.example.com"));
+        assert!(!is_kanso_origin("https://sync.kansoapp.app.evil.example"));
+        assert!(!is_kanso_origin("http://sync.kansoapp.app"));
+        assert_eq!(account().sender(), "account:a_1");
     }
 }

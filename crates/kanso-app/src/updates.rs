@@ -1163,12 +1163,12 @@ pub fn announce(window: &mut Window, cx: &mut App) {
     };
     let version = notes.version.to_string();
     let task = cx.background_executor().spawn(async move {
-        let reporter = env.reporter()?;
+        let reporters = env.reporters();
         let client = env.quick_client(4);
-        let views = kanso_engine::feedback_flow::refresh(
+        let views = kanso_engine::feedback_flow::refresh_as(
             &env.store,
             &client,
-            &reporter,
+            &reporters,
             kanso_core::now_ms(),
         )
         .ok()?;

@@ -44,6 +44,9 @@ pub struct OutboxNew {
     /// A copy of the screenshot in the data folder, deleted after upload.
     pub screenshot_path: Option<String>,
     pub created_ms: i64,
+    /// Who sends it (`anonymous` or `account:<id>`): the server only lets
+    /// that reporter list, upload to or delete it.
+    pub sender: String,
 }
 
 /// One report on this device.
@@ -66,6 +69,8 @@ pub struct OutboxRow {
     pub attempts: u32,
     pub next_try_ms: i64,
     pub created_ms: i64,
+    /// Who sent it; empty for a row that doesn't say.
+    pub sender: String,
 }
 
 /// What the server last said about a report.

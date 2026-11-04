@@ -37,13 +37,18 @@ actions!(kanso, [SendFeedback, MyFeedback]);
 /// The sheet's width.
 pub const SHEET_WIDTH: f32 = 520.;
 
-/// An image the person chose or captured.
+/// An image the person chose or captured, without its metadata, and drawn
+/// in the sheet so they see what goes before sending.
 #[derive(Clone)]
 struct Chosen {
     bytes: Arc<Vec<u8>>,
     decl: ScreenshotDecl,
     label: String,
+    image: Arc<Image>,
 }
+
+/// The thumbnail's tallest size.
+const THUMBNAIL_HEIGHT: f32 = 180.;
 
 /// What the character counter says, once it shows. Pure.
 pub fn counter(chars: usize) -> Option<String> {
@@ -258,10 +263,18 @@ impl FeedbackSheet {
         cx.notify();
     }
 
-    fn set_picture(&mut self, bytes: Vec<u8>, label: String, cx: &mut Context<Self>) {
+    pub(crate) fn set_picture(&mut self, bytes: Vec<u8>, label: String, cx: &mut Context<Self>) {
+        // A photo's EXIF (GPS, camera) and text chunks never leave the Mac.
+        let bytes = feedback::strip_metadata(&bytes);
         match chosen_from_file(bytes.clone(), &label) {
             Ok((decl, label)) => {
+                let format = if decl.mime == "image/png" {
+                    ImageFormat::Png
+                } else {
+                    ImageFormat::Jpeg
+                };
                 self.picture = Some(Chosen {
+                    image: Arc::new(Image::from_bytes(format, bytes.clone())),
                     bytes: Arc::new(bytes),
                     decl,
                     label,
@@ -355,7 +368,13 @@ impl FeedbackSheet {
         self.error = None;
         cx.notify();
         let mut entropy = [0u8; 16];
-        getrandom::fill(&mut entropy).ok();
+        // A fixed id would collide with everyone else's: never send without one.
+        if getrandom::fill(&mut entropy).is_err() {
+            self.busy = false;
+            self.error = Some("Kanso couldn't send this report. Try again.".into());
+            cx.notify();
+            return;
+        }
         let (tx, rx) = async_channel::bounded::<Result<Sent, DraftError>>(1);
         std::thread::Builder::new()
             .name("kanso-feedback".into())
@@ -479,28 +498,46 @@ impl Render for FeedbackSheet {
                 }
             }));
         let screenshot = match &self.picture {
-            Some(picture) => h_flex()
+            Some(picture) => v_flex()
                 .gap_2()
-                .items_center()
                 .child(
                     div()
-                        .text_size(px(13.))
-                        .text_color(colors.text)
-                        .child(format!(
-                            "{} · {}",
-                            picture.label,
-                            size_label(picture.decl.bytes)
-                        )),
+                        .debug_selector(|| "feedback-thumbnail".into())
+                        .rounded(px(6.))
+                        .border_1()
+                        .border_color(colors.divider)
+                        .overflow_hidden()
+                        .child(
+                            img(ImageSource::Image(picture.image.clone()))
+                                .w_full()
+                                .max_h(px(THUMBNAIL_HEIGHT))
+                                .object_fit(ObjectFit::Contain),
+                        ),
                 )
                 .child(
-                    Button::new("feedback-remove-shot")
-                        .small()
-                        .label("Remove")
-                        .disabled(self.busy)
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.picture = None;
-                            cx.notify();
-                        })),
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            div()
+                                .text_size(px(13.))
+                                .text_color(colors.text)
+                                .child(format!(
+                                    "{} · {}",
+                                    picture.label,
+                                    size_label(picture.decl.bytes)
+                                )),
+                        )
+                        .child(
+                            Button::new("feedback-remove-shot")
+                                .small()
+                                .label("Remove")
+                                .disabled(self.busy)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.picture = None;
+                                    cx.notify();
+                                })),
+                        ),
                 )
                 .into_any_element(),
             None if self.choosing => h_flex()

@@ -126,6 +126,85 @@ pub fn declare_screenshot(bytes: &[u8]) -> Result<ScreenshotDecl, DraftError> {
     })
 }
 
+/// The image without the metadata a photo carries: a JPEG's EXIF and XMP
+/// (APP1, which holds GPS position and the camera), IPTC (APP13) and
+/// comments; a PNG's text, EXIF and time chunks. The pixels, colour profile
+/// and everything a decoder needs stay. Anything that doesn't parse cleanly
+/// is returned as it was. Idempotent, and never longer than the input.
+pub fn strip_metadata(bytes: &[u8]) -> Vec<u8> {
+    match sniff_image(bytes) {
+        Some("image/jpeg") => strip_jpeg(bytes),
+        Some("image/png") => strip_png(bytes),
+        _ => None,
+    }
+    .unwrap_or_else(|| bytes.to_vec())
+}
+
+fn strip_jpeg(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut out = Vec::with_capacity(bytes.len());
+    out.extend_from_slice(&bytes[..2]);
+    let mut at = 2;
+    loop {
+        if *bytes.get(at)? != 0xff {
+            return None;
+        }
+        let marker = *bytes.get(at + 1)?;
+        match marker {
+            // Fill bytes before a marker.
+            0xff => {
+                at += 1;
+                continue;
+            }
+            // Start of scan: the entropy-coded data and the rest go as they are.
+            0xda => {
+                out.extend_from_slice(&bytes[at..]);
+                return Some(out);
+            }
+            // Markers without a length.
+            0x01 | 0xd0..=0xd7 => {
+                out.extend_from_slice(&bytes[at..at + 2]);
+                at += 2;
+                continue;
+            }
+            0xd9 => {
+                out.extend_from_slice(&bytes[at..at + 2]);
+                return Some(out);
+            }
+            _ => {}
+        }
+        let len = u16::from_be_bytes([*bytes.get(at + 2)?, *bytes.get(at + 3)?]) as usize;
+        if len < 2 {
+            return None;
+        }
+        let end = at.checked_add(2 + len)?;
+        let segment = bytes.get(at..end)?;
+        // APP1 (EXIF, XMP), APP13 (IPTC), COM.
+        if !matches!(marker, 0xe1 | 0xed | 0xfe) {
+            out.extend_from_slice(segment);
+        }
+        at = end;
+    }
+}
+
+fn strip_png(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut out = Vec::with_capacity(bytes.len());
+    out.extend_from_slice(&bytes[..8]);
+    let mut at = 8;
+    loop {
+        let len = u32::from_be_bytes(bytes.get(at..at + 4)?.try_into().ok()?) as usize;
+        let end = at.checked_add(12)?.checked_add(len)?;
+        let chunk = bytes.get(at..end)?;
+        let kind = &chunk[4..8];
+        if !matches!(kind, b"tEXt" | b"zTXt" | b"iTXt" | b"eXIf" | b"tIME") {
+            out.extend_from_slice(chunk);
+        }
+        if kind == b"IEND" {
+            return Some(out);
+        }
+        at = end;
+    }
+}
+
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
@@ -251,7 +330,8 @@ pub fn clean_device(text: &str) -> String {
 
 /// The locale tag (`en-GB`), or `en` if it doesn't have the shape.
 pub fn clean_locale(text: &str) -> String {
-    let text = text.split('.').next().unwrap_or("");
+    // `en_GB.UTF-8`, and macOS's `en_GB@rg=zazzzz`: the tag is before either.
+    let text = text.split(['.', '@']).next().unwrap_or("");
     if is_locale(text) {
         text.to_owned()
     } else {
@@ -796,6 +876,81 @@ mod tests {
                 (None, Some(_)) => prop_assert!(false),
                 _ => {}
             }
+        }
+    }
+
+    /// A JPEG with EXIF (GPS) and a comment, between JFIF and the scan.
+    fn jpeg_with_exif() -> Vec<u8> {
+        let mut b = vec![0xff, 0xd8];
+        b.extend([0xff, 0xe0, 0x00, 0x07, b'J', b'F', b'I', b'F', 0]);
+        let exif = b"Exif\0\0GPS-51.5,-0.12";
+        b.extend([0xff, 0xe1]);
+        b.extend(((exif.len() + 2) as u16).to_be_bytes());
+        b.extend(exif);
+        b.extend([0xff, 0xfe, 0x00, 0x06, b'h', b'i', b'!', b'!']);
+        b.extend([0xff, 0xdb, 0x00, 0x04, 1, 2]);
+        b.extend([0xff, 0xda, 0x00, 0x04, 9, 9, 0x12, 0x34, 0xff, 0xd9]);
+        b
+    }
+
+    #[test]
+    fn a_photo_loses_its_exif_and_comments() {
+        let stripped = strip_metadata(&jpeg_with_exif());
+        assert_eq!(sniff_image(&stripped), Some("image/jpeg"));
+        assert!(!stripped.windows(4).any(|w| w == b"Exif"));
+        assert!(!stripped.windows(3).any(|w| w == b"GPS"));
+        assert!(!stripped.windows(3).any(|w| w == b"hi!"));
+        // JFIF, the table and the scan stay.
+        assert!(stripped.windows(4).any(|w| w == b"JFIF"));
+        assert!(stripped.ends_with(&[0x12, 0x34, 0xff, 0xd9]));
+        assert_eq!(strip_metadata(&stripped), stripped);
+    }
+
+    #[test]
+    fn a_png_loses_its_text_chunks() {
+        let chunk = |kind: &[u8; 4], data: &[u8]| {
+            let mut c = (data.len() as u32).to_be_bytes().to_vec();
+            c.extend(kind);
+            c.extend(data);
+            c.extend([0, 0, 0, 0]);
+            c
+        };
+        let mut png = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+        png.extend(chunk(b"IHDR", &[0; 13]));
+        png.extend(chunk(b"tEXt", b"Author\0Tendai"));
+        png.extend(chunk(b"eXIf", b"MM\0*GPS"));
+        png.extend(chunk(b"IDAT", &[1, 2, 3]));
+        png.extend(chunk(b"IEND", &[]));
+        let stripped = strip_metadata(&png);
+        assert!(!stripped.windows(6).any(|w| w == b"Tendai"));
+        assert!(!stripped.windows(3).any(|w| w == b"GPS"));
+        assert!(stripped.windows(4).any(|w| w == b"IDAT"));
+        assert_eq!(strip_metadata(&stripped), stripped);
+    }
+
+    #[test]
+    fn mac_locales_keep_their_tag() {
+        assert_eq!(clean_locale("en_GB@rg=zazzzz"), "en_GB");
+        assert_eq!(clean_locale("en_GB.UTF-8"), "en_GB");
+    }
+
+    proptest! {
+        #![proptest_config(config())]
+
+        /// Whatever the bytes, stripping never grows them, keeps the type,
+        /// and a second strip changes nothing.
+        #[test]
+        fn prop_strip_metadata_is_idempotent(tail in proptest::collection::vec(any::<u8>(), 0..200), png in any::<bool>()) {
+            let mut bytes = if png {
+                vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+            } else {
+                vec![0xff, 0xd8, 0xff]
+            };
+            bytes.extend(tail);
+            let once = strip_metadata(&bytes);
+            prop_assert!(once.len() <= bytes.len());
+            prop_assert_eq!(sniff_image(&once), sniff_image(&bytes));
+            prop_assert_eq!(strip_metadata(&once), once);
         }
     }
 }

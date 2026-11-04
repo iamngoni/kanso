@@ -65,15 +65,11 @@ impl MyFeedbackSheet {
             .name("kanso-feedback-list".into())
             .spawn(move || {
                 let now = kanso_core::now_ms();
-                let views = match env.reporter() {
-                    Some(reporter) => {
-                        let client = env.client();
-                        feedback_flow::flush(&env.store, &client, &reporter, now).ok();
-                        feedback_flow::refresh(&env.store, &client, &reporter, now)
-                            .unwrap_or_default()
-                    }
-                    None => feedback_flow::views(&env.store).unwrap_or_default(),
-                };
+                let reporters = env.reporters();
+                let client = env.client();
+                feedback_flow::flush_as(&env.store, &client, &reporters, now).ok();
+                let views = feedback_flow::refresh_as(&env.store, &client, &reporters, now)
+                    .unwrap_or_default();
                 let _ = tx.send_blocking(views);
             })
             .ok();
@@ -105,15 +101,13 @@ impl MyFeedbackSheet {
         std::thread::Builder::new()
             .name("kanso-feedback-delete".into())
             .spawn(move || {
-                if let Some(reporter) = env.reporter() {
-                    feedback_flow::flush(
-                        &env.store,
-                        &env.client(),
-                        &reporter,
-                        kanso_core::now_ms(),
-                    )
-                    .ok();
-                }
+                feedback_flow::flush_as(
+                    &env.store,
+                    &env.client(),
+                    &env.reporters(),
+                    kanso_core::now_ms(),
+                )
+                .ok();
                 let _ = tx.send_blocking(feedback_flow::views(&env.store).unwrap_or_default());
             })
             .ok();

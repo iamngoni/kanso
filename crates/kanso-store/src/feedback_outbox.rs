@@ -11,7 +11,7 @@ use crate::feedback_outbox_model::{OutboxNew, OutboxRow, OutboxState, ServerStat
 use crate::{Result, Store};
 
 const COLUMNS: &str = "id, payload, kind, preview, screenshot_path, screenshot_sent, state, \
-     server_status, issue, duplicate_of, pr, release, attempts, next_try_ms, created_ms";
+     server_status, issue, duplicate_of, pr, release, attempts, next_try_ms, created_ms, sender";
 
 fn read(row: &Row) -> rusqlite::Result<OutboxRow> {
     let state: String = row.get(6)?;
@@ -31,6 +31,7 @@ fn read(row: &Row) -> rusqlite::Result<OutboxRow> {
         attempts: row.get(12)?,
         next_try_ms: row.get(13)?,
         created_ms: row.get(14)?,
+        sender: row.get(15)?,
     })
 }
 
@@ -40,15 +41,16 @@ impl Store {
         self.write(|tx, _| {
             tx.execute(
                 "INSERT OR IGNORE INTO feedback_outbox \
-                 (id, payload, kind, preview, screenshot_path, screenshot_sent, state, attempts, next_try_ms, created_ms) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, 0, 'queued', 0, 0, ?6)",
+                 (id, payload, kind, preview, screenshot_path, screenshot_sent, state, attempts, next_try_ms, created_ms, sender) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, 0, 'queued', 0, 0, ?6, ?7)",
                 params![
                     new.id,
                     new.payload,
                     new.kind,
                     new.preview,
                     new.screenshot_path,
-                    new.created_ms
+                    new.created_ms,
+                    new.sender
                 ],
             )?;
             Ok(())
@@ -97,20 +99,22 @@ impl Store {
     }
 
     /// A report the server lists that this device didn't make (another
-    /// device of the account): kept so My feedback shows it.
+    /// device of the account): kept so My feedback shows it, and owned by
+    /// `sender`, the reporter whose list named it.
     pub fn feedback_adopt(
         &self,
         id: &str,
         kind: &str,
         preview: &str,
         created_ms: i64,
+        sender: &str,
     ) -> Result<()> {
         self.write(|tx, _| {
             tx.execute(
                 "INSERT OR IGNORE INTO feedback_outbox \
-                 (id, payload, kind, preview, screenshot_sent, state, attempts, next_try_ms, created_ms) \
-                 VALUES (?1, '', ?2, ?3, 1, 'sent', 0, 0, ?4)",
-                params![id, kind, preview, created_ms],
+                 (id, payload, kind, preview, screenshot_sent, state, attempts, next_try_ms, created_ms, sender) \
+                 VALUES (?1, '', ?2, ?3, 1, 'sent', 0, 0, ?4, ?5)",
+                params![id, kind, preview, created_ms, sender],
             )?;
             Ok(())
         })
@@ -150,11 +154,15 @@ impl Store {
         })
     }
 
-    /// Makes every waiting report due again (launch, or back online).
+    /// Makes every waiting report due again (launch, or back online),
+    /// screenshots still to upload included.
     pub fn feedback_retry_now(&self) -> Result<()> {
         self.write(|tx, _| {
             tx.execute(
-                "UPDATE feedback_outbox SET attempts = 0, next_try_ms = 0 WHERE state != 'sent'",
+                // `attempts` stays: it is also what says a report may have
+                // reached the server (`feedback_mark_deleting`).
+                "UPDATE feedback_outbox SET next_try_ms = 0 \
+                 WHERE state != 'sent' OR (screenshot_path IS NOT NULL AND screenshot_sent = 0)",
                 [],
             )?;
             Ok(())
@@ -238,6 +246,7 @@ mod tests {
             preview: "Export cuts off".into(),
             screenshot_path: Some("/data/feedback/x.png".into()),
             created_ms: at,
+            sender: "anonymous".into(),
         }
     }
 
@@ -269,7 +278,22 @@ mod tests {
         assert_eq!(s.feedback_get("fb_a").unwrap().unwrap().attempts, 1);
         s.feedback_retry_now().unwrap();
         assert_eq!(s.feedback_due(0).unwrap().len(), 1);
-        assert_eq!(s.feedback_get("fb_a").unwrap().unwrap().attempts, 0);
+        assert_eq!(s.feedback_get("fb_a").unwrap().unwrap().attempts, 1);
+        // Tried once, so the server may have it: a delete asks the server.
+        assert!(s.feedback_mark_deleting("fb_a").unwrap());
+    }
+
+    /// A screenshot upload that ran out of retries goes again at launch.
+    #[test]
+    fn launch_retries_a_screenshot_still_to_upload() {
+        let (_d, s) = store();
+        s.feedback_enqueue(&new("fb_a", 1)).unwrap();
+        s.feedback_mark_sent("fb_a", "received").unwrap();
+        s.feedback_failed("fb_a", i64::MAX / 2).unwrap();
+        assert!(s.feedback_due(1_000).unwrap().is_empty());
+        s.feedback_retry_now().unwrap();
+        assert_eq!(s.feedback_due(1_000).unwrap().len(), 1);
+        assert_eq!(s.feedback_get("fb_a").unwrap().unwrap().sender, "anonymous");
     }
 
     #[test]

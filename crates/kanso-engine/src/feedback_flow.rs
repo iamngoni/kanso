@@ -96,7 +96,10 @@ pub fn send<T: Transport>(
     let id = new_id(entropy);
     let mut path = None;
     if let Some(picture) = &picture {
-        let decl = declare_screenshot(picture.bytes).map_err(Error::Draft)?;
+        // What the apps showed was declared from stripped bytes too, and
+        // stripping twice changes nothing, so the declaration still matches.
+        let bytes = feedback::strip_metadata(picture.bytes);
+        let decl = declare_screenshot(&bytes).map_err(Error::Draft)?;
         let dir = data_dir.join("feedback");
         std::fs::create_dir_all(&dir).map_err(Error::Io)?;
         let file = dir.join(format!(
@@ -107,7 +110,7 @@ pub fn send<T: Transport>(
                 "jpg"
             }
         ));
-        std::fs::write(&file, picture.bytes).map_err(Error::Io)?;
+        std::fs::write(&file, &bytes).map_err(Error::Io)?;
         path = Some(file);
         draft.screenshot = Some(decl);
     } else {
@@ -136,6 +139,7 @@ pub fn send<T: Transport>(
         preview,
         screenshot_path: path.as_ref().map(|p| p.to_string_lossy().into_owned()),
         created_ms: now_ms,
+        sender: reporter.sender(),
     })?;
     let row = store.feedback_get(&id)?.expect("just saved");
     let outcome = step(store, client, reporter, &row, now_ms)?;
@@ -265,7 +269,16 @@ fn upload<T: Transport>(
     Ok(())
 }
 
-/// Does all the work that is due: sends, uploads and deletes. Call it after
+/// Whether `reporter` may act on `row`: the server answers 404 to anyone
+/// but the reporter that sent a report, and a 404 on a delete or an upload
+/// reads as "done". A row from before senders were kept is anyone's.
+fn owns(reporter: &Reporter, row: &OutboxRow) -> bool {
+    row.sender.is_empty() || row.sender == reporter.sender()
+}
+
+/// Does all the work that is due for `reporter`: sends, uploads and
+/// deletes of the reports it sent. Reports another reporter sent (before a
+/// sign-in, or by an account since signed out of) wait for it. Call it after
 /// a send, at launch (after [`store_retry_now`]) and when connectivity
 /// returns. Stops at the first rate limit or pause.
 pub fn flush<T: Transport>(
@@ -276,6 +289,9 @@ pub fn flush<T: Transport>(
 ) -> Result<Vec<(String, Sent)>, Error> {
     let mut out = Vec::new();
     for row in store.feedback_due(now_ms)? {
+        if !owns(reporter, &row) {
+            continue;
+        }
         let sent = step(store, client, reporter, &row, now_ms)?;
         let stop = matches!(
             sent,
@@ -289,6 +305,34 @@ pub fn flush<T: Transport>(
     Ok(out)
 }
 
+/// [`flush`] for each reporter this device has (the signed-in account and
+/// the install's anonymous key), so reports sent as either keep moving.
+pub fn flush_as<T: Transport>(
+    store: &Store,
+    client: &Client<T>,
+    reporters: &[Reporter],
+    now_ms: i64,
+) -> Result<Vec<(String, Sent)>, Error> {
+    let mut out = Vec::new();
+    for reporter in reporters {
+        out.extend(flush(store, client, reporter, now_ms)?);
+    }
+    Ok(out)
+}
+
+/// [`refresh`] for each reporter this device has.
+pub fn refresh_as<T: Transport>(
+    store: &Store,
+    client: &Client<T>,
+    reporters: &[Reporter],
+    now_ms: i64,
+) -> Result<Vec<ReportView>, Error> {
+    for reporter in reporters {
+        list_into(store, client, reporter, now_ms)?;
+    }
+    views(store)
+}
+
 /// At launch and when back online: every waiting report is due again.
 pub fn store_retry_now(store: &Store) -> Result<(), Error> {
     Ok(store.feedback_retry_now()?)
@@ -296,8 +340,14 @@ pub fn store_retry_now(store: &Store) -> Result<(), Error> {
 
 /// The person deleted a report. Returns whether the server still has to be
 /// asked (so the row shows "Deleting…"); [`flush`] then sends the delete.
+/// A report the server never saw goes at once, with its screenshot's copy.
 pub fn delete(store: &Store, id: &str) -> Result<bool, Error> {
-    Ok(store.feedback_mark_deleting(id)?)
+    let row = store.feedback_get(id)?;
+    let owed = store.feedback_mark_deleting(id)?;
+    if !owed && let Some(row) = row {
+        forget_file(row.screenshot_path.as_deref().map(Path::new));
+    }
+    Ok(owed)
 }
 
 /// The reports on this device, newest first, as My feedback shows them.
@@ -350,15 +400,28 @@ pub fn refresh<T: Transport>(
     reporter: &Reporter,
     now_ms: i64,
 ) -> Result<Vec<ReportView>, Error> {
-    // Offline or refused: show what the device last knew.
+    list_into(store, client, reporter, now_ms)?;
+    views(store)
+}
+
+/// Mirrors `reporter`'s list into the outbox. Offline or refused, nothing
+/// changes and the device shows what it last knew.
+fn list_into<T: Transport>(
+    store: &Store,
+    client: &Client<T>,
+    reporter: &Reporter,
+    now_ms: i64,
+) -> Result<(), Error> {
     if let Ok(remote) = client.list(reporter, None) {
         {
+            let sender = reporter.sender();
             for report in &remote {
                 store.feedback_adopt(
                     &report.id,
                     &report.kind,
                     &report.preview,
                     report.created_ms,
+                    &sender,
                 )?;
                 store.feedback_record_status(
                     &report.id,
@@ -374,7 +437,7 @@ pub fn refresh<T: Transport>(
             store.set_meta(REFRESHED_KEY, &now_ms.to_string())?;
         }
     }
-    views(store)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -432,7 +495,11 @@ mod tests {
     }
 
     fn reporter() -> Reporter {
-        Reporter::account("Bearer x", "d_1", "p")
+        Reporter::account("a_1", "Bearer x", "d_1", "p")
+    }
+
+    fn anonymous() -> Reporter {
+        Reporter::anonymous(&kanso_sync::MemorySecrets::new()).unwrap()
     }
 
     fn setup() -> (tempfile::TempDir, Store) {
@@ -618,6 +685,59 @@ mod tests {
         flush(&store, &Client::new(&up), &reporter(), 3).unwrap();
         assert!(views(&store).unwrap().is_empty());
         assert_eq!(up.count("DELETE"), 1);
+    }
+
+    /// A report sent before signing in belongs to the anonymous key: the
+    /// account can't delete it (the server would answer 404, which reads as
+    /// done), so it waits for the key, and `flush_as` with both gets it there.
+    #[test]
+    fn a_report_is_deleted_by_the_reporter_that_sent_it() {
+        let (dir, store) = setup();
+        let ok = Script::new(vec![reply(201, r#"{"id":"x","status":"received"}"#)]);
+        let before = anonymous();
+        let (id, _) = send(
+            &store,
+            &Client::new(&ok),
+            &before,
+            dir.path(),
+            [9; 16],
+            draft("Export to PDF cuts off tables."),
+            None,
+            None,
+            1,
+        )
+        .unwrap();
+        assert!(delete(&store, &id).unwrap());
+        let gone = Script::new(vec![reply(404, r#"{"error":"not_found"}"#)]);
+        flush(&store, &Client::new(&gone), &reporter(), 2).unwrap();
+        assert_eq!(gone.count("DELETE"), 0);
+        assert_eq!(views(&store).unwrap().len(), 1);
+        let up = Script::new(vec![reply(204, "")]);
+        flush_as(&store, &Client::new(&up), &[reporter(), before], 3).unwrap();
+        assert_eq!(up.count("DELETE"), 1);
+        assert!(views(&store).unwrap().is_empty());
+    }
+
+    /// Deleting a report that never went drops its screenshot's copy too.
+    #[test]
+    fn deleting_an_unsent_report_forgets_its_screenshot() {
+        let (dir, store) = setup();
+        let path = dir.path().join("fb_shot.png");
+        std::fs::write(&path, PNG).unwrap();
+        store
+            .feedback_enqueue(&OutboxNew {
+                id: "fb_0000000000000000000000000a".into(),
+                payload: "{}".into(),
+                kind: "bug".into(),
+                preview: "p".into(),
+                screenshot_path: Some(path.to_string_lossy().into_owned()),
+                created_ms: 1,
+                sender: reporter().sender(),
+            })
+            .unwrap();
+        assert!(!delete(&store, "fb_0000000000000000000000000a").unwrap());
+        assert!(!path.exists());
+        assert!(views(&store).unwrap().is_empty());
     }
 
     #[test]

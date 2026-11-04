@@ -112,7 +112,10 @@ pub(crate) fn app_info(context: &FeedbackContext, sync: SyncMode) -> AppInfo {
 fn draft_of(input: &FeedbackInput) -> Result<Draft, DraftError> {
     let kind = Kind::from_wire(&input.kind).unwrap_or(Kind::Bug);
     let screenshot = match &input.screenshot {
-        Some(bytes) => Some(feedback::declare_screenshot(bytes)?),
+        // Declared as it will be sent: without the photo's EXIF (GPS) and text.
+        Some(bytes) => Some(feedback::declare_screenshot(&feedback::strip_metadata(
+            bytes,
+        ))?),
         None => None,
     };
     Ok(Draft {
@@ -190,7 +193,9 @@ impl MobileFeedback {
         }
     }
 
-    /// The signed-in device, or the install's anonymous key.
+    /// Who sends a new report: the signed-in device when the session is
+    /// Kanso's own server's, else the install's anonymous key. A self-hosted
+    /// server's token and device proof never go to Kanso's Worker.
     fn reporter(&self) -> Result<Reporter, KansoError> {
         if let Some(session) = self.sync_handle().load_session()? {
             let machine = Machine {
@@ -198,10 +203,25 @@ impl MobileFeedback {
                 computer_name: String::new(),
             };
             let device = kanso_sync::device_identity(&self.inner.store, &machine)?;
-            return Ok(Reporter::from_session(&session, &device));
+            if let Some(reporter) = Reporter::from_session(&session, &device) {
+                return Ok(reporter);
+            }
         }
         let secrets: &dyn SecretStore = self.inner.secrets.as_ref();
         Reporter::anonymous(secrets).map_err(KansoError::from)
+    }
+
+    /// Every reporter this phone has: [`Self::reporter`], and the anonymous
+    /// key too when signed in and one was made, so reports sent before
+    /// signing in can still be listed, uploaded and deleted.
+    fn reporters(&self) -> Result<Vec<Reporter>, KansoError> {
+        let first = self.reporter()?;
+        let secrets: &dyn SecretStore = self.inner.secrets.as_ref();
+        let anonymous = first
+            .is_account()
+            .then(|| Reporter::existing_anonymous(secrets))
+            .flatten();
+        Ok(std::iter::once(first).chain(anonymous).collect())
     }
 
     fn data_dir(&self) -> std::path::PathBuf {
@@ -301,11 +321,11 @@ impl MobileFeedback {
     /// Sends what is waiting: at app resume and when connectivity returns.
     pub fn flush(&self) -> Result<(), KansoError> {
         guard(|| {
-            let reporter = self.reporter()?;
-            feedback_flow::flush(
+            let reporters = self.reporters()?;
+            feedback_flow::flush_as(
                 &self.inner.store,
                 &self.client(),
-                &reporter,
+                &reporters,
                 kanso_core::now_ms(),
             )
             .map(|_| ())
@@ -324,11 +344,11 @@ impl MobileFeedback {
     pub fn reports(&self, refresh: bool) -> Result<Vec<FeedbackReport>, KansoError> {
         guard(|| {
             if refresh {
-                let reporter = self.reporter()?;
+                let reporters = self.reporters()?;
                 let now = kanso_core::now_ms();
                 // What is waiting goes first, so a fresh report is listed as sent.
-                feedback_flow::flush(&self.inner.store, &self.client(), &reporter, now).ok();
-                feedback_flow::refresh(&self.inner.store, &self.client(), &reporter, now)
+                feedback_flow::flush_as(&self.inner.store, &self.client(), &reporters, now).ok();
+                feedback_flow::refresh_as(&self.inner.store, &self.client(), &reporters, now)
                     .map_err(flow_error)?;
             }
             let seen = self.seen();
