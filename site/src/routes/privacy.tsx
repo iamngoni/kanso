@@ -2,7 +2,7 @@
  * Privacy, in plain words: what this website collects (nothing), what
  * Kanso's sync server can and can't see, and what the apps send. It summarises
  * docs/ACCOUNTS.md ("What the server can and can't see"), docs/CRASH-REPORTS.md
- * and docs/METRICS.md (with its note, docs/METRICS-NOTE.md), and must change
+ * docs/FEEDBACK.md and docs/METRICS.md (with its note, docs/METRICS-NOTE.md), and must change
  * when they do.
  */
 import { createFileRoute } from "@tanstack/react-router";
@@ -50,6 +50,19 @@ const COUNTS_NEVER = [
   "The name of a theme or a plugin",
   "Your name, username or email address",
   "Your IP address",
+] as const;
+
+const FEEDBACK_SEND = [
+  "What you typed in the box, and whether it is a bug, an idea or a question",
+  "If you tick \"Include app info\": Kanso's version, your system and device model, your language, which screen you were on (a label such as \"editor\", never a note), whether sync is on, and up to 20 short lines about recent errors",
+  "If you tick \"Credit me by name\": the name you chose, as plain text",
+  "If you attach one: a screenshot you picked or captured, shown to you before it goes",
+] as const;
+
+const FEEDBACK_NEVER = [
+  "Note titles or text, notebook or tag names, file names or your library",
+  "Your email address, your IP address or a device ID",
+  "Anything at all until you press Send, after the app shows you the exact report",
 ] as const;
 
 export function Privacy() {
@@ -177,6 +190,73 @@ export function Privacy() {
             , and every field in{" "}
             <a href={`${REPOSITORY_URL}/blob/master/docs/METRICS.md`} className="ink-link">
               the usage counts document
+            </a>
+            .
+          </p>
+        </section>
+
+        <section id="feedback" aria-labelledby="feedback-heading" className="lg:col-span-7 lg:col-start-6">
+          <h2 id="feedback-heading" className="text-[clamp(1.5rem,1.25rem+0.9vw,2rem)] font-semibold tracking-[-0.02em]">
+            Feedback
+          </h2>
+          <p className="mt-4 text-fg-2">
+            You can send feedback from inside Kanso. It is sent only if you press Send, and the app shows you the exact report
+            first. Every report goes to Kanso's sync server, even if your own notes sync somewhere else.
+          </p>
+          <div className="mt-8 grid gap-8 sm:grid-cols-2">
+            <div>
+              <h3 className="text-[0.8125rem] font-semibold text-fg-3">It sends</h3>
+              <ul className="mt-4 grid gap-2.5">
+                {FEEDBACK_SEND.map((item) => (
+                  <li key={item} className="flex gap-3 text-fg">
+                    <span aria-hidden="true" className="mt-[0.6em] size-1.5 shrink-0 rounded-full bg-fg-3" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-[0.8125rem] font-semibold text-fg-3">It never sends</h3>
+              <ul className="mt-4 grid gap-2.5">
+                {FEEDBACK_NEVER.map((item) => (
+                  <li key={item} className="flex gap-3 text-fg">
+                    <span aria-hidden="true" className="mt-[0.6em] size-1.5 shrink-0 rounded-full bg-fg-3" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <h3 className="mt-12 text-[0.8125rem] font-semibold text-fg-3">Your report stays private</h3>
+          <p className="mt-4 text-fg-2">
+            The text and the screenshot are stored privately on Cloudflare, where only the developer can read them. They are never
+            put on GitHub. A screenshot can show your notes, so check it before you send it.
+          </p>
+          <h3 className="mt-12 text-[0.8125rem] font-semibold text-fg-3">How it is sorted</h3>
+          <p className="mt-4 text-fg-2">
+            To sort reports, an AI model (Claude Haiku, from Anthropic) reads each one through Cloudflare AI Gateway. The gateway
+            doesn't keep the report's text in its logs. The model can only answer with a short, fixed form: it can't act on
+            anything, and the server checks every field of the answer.
+          </p>
+          <h3 className="mt-12 text-[0.8125rem] font-semibold text-fg-3">What becomes public</h3>
+          <p className="mt-4 text-fg-2">
+            Unless the report is noise or a repeat, the server files a short summary as an issue on Kanso's GitHub, written by the
+            model and never your own words or your screenshot. If you chose to be credited, the issue and the release notes say
+            "Reported by" and your name as plain text, never as a GitHub account.
+          </p>
+          <h3 className="mt-12 text-[0.8125rem] font-semibold text-fg-3">How long it is kept, and deleting it</h3>
+          <p className="mt-4 text-fg-2">
+            The text, app info, name and screenshot are deleted 180 days after the report's last change. What remains is its
+            status, so you can still see that it was fixed. You can delete a report yourself at any time from My feedback in the
+            app, and deleting your account deletes your reports and takes your name off the issues. The summary on GitHub stays,
+            because it holds none of your words. A report sent without an account can be deleted from the device that sent it; if
+            you lost that device, email the developer with the report's ID.
+          </p>
+          <p className="mt-4 text-[0.9375rem] text-fg-3">
+            Cloudflare stores and processes reports, Anthropic reads them for sorting, and GitHub holds the public summaries. Every
+            detail is in{" "}
+            <a href={`${REPOSITORY_URL}/blob/master/docs/FEEDBACK.md`} className="ink-link">
+              the feedback document
             </a>
             .
           </p>
