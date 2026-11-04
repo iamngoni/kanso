@@ -190,7 +190,7 @@ fn event_rows(
 }
 
 fn day_label(date: Date) -> String {
-    format(&DateTime::at_midnight(date), "%A %-d %B").to_uppercase()
+    format(&DateTime::at_midnight(date), "%A %e %B").to_uppercase()
 }
 
 /// A person's day: the weekday and date, the all-day events after a dot.
@@ -448,7 +448,7 @@ fn revisit_line(store: &Store, now: Now, today: Date) -> Result<Option<AlsoLine>
                 let set = Date::from_days(
                     (r.set_at + now.offset_ms).div_euclid(DAY_MS),
                 );
-                let mut text = format!("Set on {}", format(&DateTime::at_midnight(set), "%-d %b"));
+                let mut text = format!("Set on {}", format(&DateTime::at_midnight(set), "%e %b"));
                 if !r.why.is_empty() {
                     text.push_str(&format!(" \u{b7} \u{201c}{}\u{201d}", r.why));
                 }
@@ -583,7 +583,7 @@ pub fn today(store: &Store, now: Now, opts: &Options) -> Result<Overview> {
             title: display_text(&row.text),
             context: format!(
                 "promised {} \u{b7} {}",
-                format(&DateTime::at_midnight(due), "%-d %b"),
+                format(&DateTime::at_midnight(due), "%e %b"),
                 row.note_title
             ),
             at_min: None,

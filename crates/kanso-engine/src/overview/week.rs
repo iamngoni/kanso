@@ -189,7 +189,7 @@ pub fn week(store: &Store, week_start: Date, now: Now, opts: &Options) -> Result
             room -= rows.len();
             let date = Date::parse_iso(&day).unwrap_or(first_ahead);
             ahead.push(AheadDay {
-                summary: format(&DateTime::at_midnight(date), "%A %-d"),
+                summary: format(&DateTime::at_midnight(date), "%A %e"),
                 day,
                 rows,
             });

@@ -368,7 +368,7 @@ pub fn ago(at: i64, now: i64, offset_ms: i64) -> String {
             let d = kanso_core::dates::Date::from_days(then);
             kanso_core::dates::format(
                 &kanso_core::dates::DateTime::at_midnight(d),
-                "%-d %b",
+                "%e %b",
             )
         }
     }
