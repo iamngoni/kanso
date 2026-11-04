@@ -73,9 +73,24 @@ pub struct SearchParams {
     /// The same for when the note was made (`created_at`).
     pub created_after: Option<i64>,
     pub created_before: Option<i64>,
+    /// Only notes of this `doctype` (`canvas`); with `not_doctype`, only
+    /// notes that are not. A query clause can't say this, so it is a
+    /// parameter: the library asks for it, the local API does not.
+    pub doctype: Option<String>,
+    pub not_doctype: bool,
 }
 
 impl SearchParams {
+    /// The SQL condition the doctype filter adds, and its value.
+    fn doctype_condition(&self) -> Option<(String, String)> {
+        let doctype = self.doctype.clone()?;
+        let op = if self.not_doctype { "IS NOT" } else { "IS" };
+        Some((
+            format!("IFNULL(json_extract(d.json, '$.doctype'), 'markdown') {op} ?"),
+            doctype,
+        ))
+    }
+
     /// The SQL conditions the date bounds add, and their values.
     fn date_conditions(&self) -> Vec<(&'static str, i64)> {
         [
@@ -103,6 +118,8 @@ impl Default for SearchParams {
             updated_before: None,
             created_after: None,
             created_before: None,
+            doctype: None,
+            not_doctype: false,
         }
     }
 }
@@ -126,6 +143,9 @@ pub struct NoteSummary {
     /// Whether the note's text is sealed under the lock password, or the
     /// note is in a locked notebook; its snippet is then empty.
     pub locked: bool,
+    /// Whether the note is a canvas (`doctype: "canvas"`): the list draws a
+    /// canvas glyph for it.
+    pub canvas: bool,
 }
 
 /// Note counts for the sidebar.
@@ -134,6 +154,9 @@ pub struct StatusCounts {
     pub all: u32,
     pub pinned: u32,
     pub trash: u32,
+    /// Live canvases outside the trash. They are counted in `all` too; the
+    /// sidebar's All Notes row shows `all - canvases`.
+    pub canvases: u32,
     pub by_status: HashMap<NoteStatus, u32>,
 }
 
@@ -319,6 +342,10 @@ fn search_sql(
         where_sql = format!("({where_sql}) AND {sql}");
         values.push(SqlValue::Integer(value));
     }
+    if let Some((sql, value)) = params.doctype_condition() {
+        where_sql = format!("({where_sql}) AND {sql}");
+        values.push(SqlValue::Text(value));
+    }
     let direction = if params.descending { "DESC" } else { "ASC" };
     // Notes without a title read "Untitled"; they go after the named ones
     // in either direction rather than first.
@@ -500,12 +527,21 @@ impl Store {
                 format!("kanso_window({BODY}, ?)")
             };
             let locked = crate::schema::note_locked!("d.");
+            // A canvas's body is JSON: its list row reads the words the search
+            // index holds for it, and nothing at all while it is locked.
+            let head = format!(
+                "CASE WHEN json_extract(d.json, '$.doctype') = 'canvas' THEN \
+                 CASE WHEN {locked} THEN '' ELSE substr(IFNULL((SELECT body FROM notes_fts \
+                 WHERE note_id = d.id), ''), 1, {HEAD_CHARS}) END \
+                 ELSE substr({BODY}, 1, {HEAD_CHARS}) END"
+            );
             // A note in a locked notebook counts no tasks, as a sealed one.
             let columns = format!(
-                "d.id, d.rev, d.title, substr({BODY}, 1, {HEAD_CHARS}), \
+                "d.id, d.rev, d.title, {head}, \
                  d.book_id, d.status, json_extract(d.json, '$.tags'), d.pinned, d.updated_at, d.created_at, \
                  {window}, CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfCheckedTasks') END, \
-                 CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfTasks') END, {locked}"
+                 CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfTasks') END, {locked}, \
+                 json_extract(d.json, '$.doctype') = 'canvas'"
             );
             let (sql, mut values) = search_sql(conn, &columns, params)?;
             // The window's term comes first: its column is before the rest.
@@ -535,6 +571,7 @@ impl Store {
                     tasks_done: row.get::<_, Option<u32>>(11)?.unwrap_or(0),
                     tasks_total: row.get::<_, Option<u32>>(12)?.unwrap_or(0),
                     locked: row.get(13)?,
+                    canvas: row.get::<_, Option<bool>>(14)?.unwrap_or(false),
                 })
             })?;
             Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -734,7 +771,8 @@ impl Store {
         self.read(|conn| {
             let mut counts = StatusCounts::default();
             let mut stmt = conn.prepare(
-                "SELECT book_id = 'trash', status, pinned, COUNT(*) FROM docs
+                "SELECT book_id = 'trash', status, pinned, COUNT(*),
+                        SUM(json_extract(json, '$.doctype') = 'canvas') FROM docs
                  WHERE type = 'note' AND deleted = 0 GROUP BY 1, 2, 3",
             )?;
             let rows = stmt.query_map([], |row| {
@@ -743,15 +781,17 @@ impl Store {
                     row.get::<_, Option<String>>(1)?,
                     row.get::<_, Option<bool>>(2)?.unwrap_or(false),
                     row.get::<_, u32>(3)?,
+                    row.get::<_, Option<u32>>(4)?.unwrap_or(0),
                 ))
             })?;
             for row in rows {
-                let (trash, status, pinned, n) = row?;
+                let (trash, status, pinned, n, canvases) = row?;
                 if trash {
                     counts.trash += n;
                     continue;
                 }
                 counts.all += n;
+                counts.canvases += canvases;
                 if pinned {
                     counts.pinned += n;
                 }

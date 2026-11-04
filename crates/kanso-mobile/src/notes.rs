@@ -74,6 +74,7 @@ impl Library {
             ListPlace::All => Filter::All,
             ListPlace::Pinned => Filter::Pinned,
             ListPlace::Recent => Filter::Recent,
+            ListPlace::Canvases => Filter::Canvases,
             ListPlace::Notebook { id } => Filter::Book(id.clone()),
             ListPlace::Tag { id } => Filter::Tag(id.clone()),
             ListPlace::Status { status } => Filter::Status(parse_status(status)?),
@@ -117,7 +118,8 @@ impl Library {
         guard(|| {
             let counts = self.inner.store.status_counts()?;
             Ok(LibraryOverview {
-                all: counts.all,
+                all: counts.all.saturating_sub(counts.canvases),
+                canvases: counts.canvases,
                 pinned: counts.pinned,
                 recent: self.inner.store.count_recent(recent_since())?,
                 trash: counts.trash,
@@ -534,12 +536,16 @@ impl Library {
     /// The notebook, tags and pin a new note starts with: what the engine
     /// decides for its place and preference, and the explicit notebook
     /// (which must exist) over it.
-    fn destination(&self, new: &NewNote) -> Result<(String, Vec<String>, bool), KansoError> {
+    pub(crate) fn destination(
+        &self,
+        new: &NewNote,
+    ) -> Result<(String, Vec<String>, bool), KansoError> {
         let books = self.inner.store.books()?;
         let filter = match &new.place {
             None | Some(ListPlace::All) => Filter::All,
             Some(ListPlace::Pinned) => Filter::Pinned,
             Some(ListPlace::Recent) => Filter::Recent,
+            Some(ListPlace::Canvases) => Filter::Canvases,
             Some(ListPlace::Notebook { id }) => Filter::Book(id.clone()),
             Some(ListPlace::Tag { id }) => Filter::Tag(id.clone()),
             Some(ListPlace::Status { status }) => Filter::Status(parse_status(status)?),
@@ -663,7 +669,8 @@ pub(crate) fn row(summary: kanso_store::NoteSummary) -> NoteRow {
         id: summary.id,
         rev: summary.rev,
         title: summary.title,
-        snippet: if locked {
+        // A canvas's text is JSON: its row has its glyph and title instead.
+        snippet: if locked || summary.canvas {
             String::new()
         } else {
             summary.snippet
@@ -681,6 +688,7 @@ pub(crate) fn row(summary: kanso_store::NoteSummary) -> NoteRow {
         tasks_done: if locked { 0 } else { summary.tasks_done },
         tasks_total: if locked { 0 } else { summary.tasks_total },
         locked,
+        canvas: summary.canvas,
     }
 }
 

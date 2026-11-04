@@ -11,16 +11,13 @@ import '../../core/bridge/api/types.dart';
 import '../../core/models/repos/abs/ai_repository.dart';
 import '../../core/models/repos/abs/digest_repository.dart';
 
-/// What the AI is doing for a brief, a review or the open loops.
+/// What the AI is doing for the open loops.
 enum DigestAiWork {
   /// Nothing.
   idle,
 
   /// Reading the recent notes for loops the rules missed.
   finding,
-
-  /// Writing a summary paragraph.
-  summarising,
 }
 
 /// What the AI parts of the digest pages show.
@@ -32,7 +29,6 @@ class DigestAiState {
     this.work = DigestAiWork.idle,
     this.found,
     this.picked = const <int>{},
-    this.summary,
     this.message,
     this.kept,
     this.empty,
@@ -52,9 +48,6 @@ class DigestAiState {
   /// Which of [found]'s proposals are ticked.
   final Set<int> picked;
 
-  /// The paragraph the model wrote, until the page is left.
-  final AiSummary? summary;
-
   /// Why the last request failed, or that it found nothing.
   final String? message;
 
@@ -73,7 +66,6 @@ class DigestAiState {
     DigestAiWork? work,
     Object? found = _keep,
     Set<int>? picked,
-    Object? summary = _keep,
     Object? message = _keep,
     Object? kept = _keep,
     Object? empty = _keep,
@@ -83,7 +75,6 @@ class DigestAiState {
     work: work ?? this.work,
     found: identical(found, _keep) ? this.found : found as LoopScan?,
     picked: picked ?? this.picked,
-    summary: identical(summary, _keep) ? this.summary : summary as AiSummary?,
     message: identical(message, _keep) ? this.message : message as String?,
     kept: identical(kept, _keep) ? this.kept : kept as int?,
     empty: identical(empty, _keep) ? this.empty : empty as LoopScan?,
@@ -97,7 +88,6 @@ class DigestAiState {
       other.work == work &&
       other.found == found &&
       setEquals(other.picked, picked) &&
-      other.summary == summary &&
       other.message == message &&
       other.kept == kept &&
       other.empty == empty;
@@ -109,7 +99,6 @@ class DigestAiState {
     work,
     found,
     Object.hashAllUnordered(picked),
-    summary,
     message,
     kept,
     empty,
@@ -118,9 +107,8 @@ class DigestAiState {
 
 const Object _keep = Object();
 
-/// The AI parts of the open loops, the morning brief and the weekly review:
-/// "Find more open loops…" (proposals the person ticks and keeps) and a
-/// summary paragraph. The calls run in the Rust core, off the UI isolate;
+/// The AI part of the open loops: "Find more open loops…" (proposals the
+/// person ticks and keeps). The calls run in the Rust core, off the UI isolate;
 /// this holds what they return. Nothing is kept without the person's say.
 class DigestAiCubit extends Cubit<DigestAiState> {
   DigestAiCubit(this._digest, this._ai) : super(const DigestAiState());
@@ -225,39 +213,8 @@ class DigestAiCubit extends Cubit<DigestAiState> {
     );
   }
 
-  /// Writes the paragraph over the brief ([review] false) or the review of
-  /// the week from [from].
-  Future<void> summarise({bool review = false, String? from}) async {
-    if (!state.ready || state.busy) {
-      return;
-    }
-    emit(
-      state.copyWith(
-        work: DigestAiWork.summarising,
-        summary: null,
-        message: null,
-      ),
-    );
-    final result = review
-        ? await _digest.summariseReview(from: from)
-        : await _digest.summariseBrief();
-    if (isClosed) {
-      return;
-    }
-    result.fold(
-      (error) => emit(
-        state.copyWith(work: DigestAiWork.idle, message: error.message),
-      ),
-      (summary) =>
-          emit(state.copyWith(work: DigestAiWork.idle, summary: summary)),
-    );
-  }
-
   /// Stops the request in flight.
   void stop() => _digest.stopAi();
-
-  /// Forgets the summary (the page it was for changed).
-  void clearSummary() => emit(state.copyWith(summary: null));
 
   @override
   Future<void> close() async {

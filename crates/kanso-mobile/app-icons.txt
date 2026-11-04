@@ -75,6 +75,7 @@ download
 droplet
 dumbbell
 ellipsis
+eraser
 external-link
 eye
 feather
@@ -98,12 +99,14 @@ globe
 graduation-cap
 guitar
 hammer
+hand
 hand-heart
 handshake
 hash
 headphones
 heart
 heart-pulse
+highlighter
 hourglass
 house
 image
@@ -113,6 +116,7 @@ info
 key
 landmark
 languages
+lasso
 layout-template
 leaf
 library
@@ -129,6 +133,7 @@ log-out
 mail
 map
 map-pin
+maximize
 megaphone
 menu
 minus
@@ -151,6 +156,7 @@ panel-left
 party-popper
 pause
 paw-print
+pen-line
 pen-tool
 pencil
 phone
@@ -163,6 +169,7 @@ plus
 presentation
 puzzle
 receipt
+redo-2
 refresh-cw
 regex
 replace-all

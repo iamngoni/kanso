@@ -17,7 +17,6 @@ import '../../../core/utils/ai_trouble_text.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
-import '../../../core/views/widgets/kanso_card.dart';
 import '../../../core/views/widgets/kanso_check_row.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_inline_message.dart';
@@ -53,23 +52,16 @@ class DigestAiScope extends StatelessWidget {
   }
 }
 
-/// The AI actions of a page and what they say: "Find more open loops…"
-/// and/or "Summarise" (for the brief, or for the review of the week from
-/// [from] when [review]), the paragraph written, and any failure. Nothing
-/// at all while AI is off or not set up.
+/// The AI action of the open loops and what it says: "Find more open
+/// loops…", what it found, and any failure. Nothing at all while AI is off
+/// or not set up.
 class DigestAiPanel extends StatelessWidget {
   const DigestAiPanel({
     this.find = false,
-    this.summarise = false,
-    this.review = false,
-    this.from,
     super.key,
   });
 
   final bool find;
-  final bool summarise;
-  final bool review;
-  final String? from;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +74,6 @@ class DigestAiPanel extends StatelessWidget {
           return const SizedBox.shrink();
         }
         final cubit = context.read<DigestAiCubit>();
-        final summary = state.summary;
         final empty = state.empty;
         final kept = state.kept;
         return Padding(
@@ -97,9 +88,7 @@ class DigestAiPanel extends StatelessWidget {
                     const SizedBox(width: KansoSpacing.sm),
                     Expanded(
                       child: Text(
-                        state.work == DigestAiWork.finding
-                            ? l10n.digestFinding
-                            : l10n.digestSummarising,
+                        l10n.digestFinding,
                         style: typography.meta.copyWith(
                           color: colors.textMuted,
                         ),
@@ -121,15 +110,6 @@ class DigestAiPanel extends StatelessWidget {
                     variant: KansoButtonVariant.secondary,
                     onPressed: () => unawaited(_ask(context, state.host)),
                   ),
-                if (find && summarise) const SizedBox(height: KansoSpacing.xs),
-                if (summarise)
-                  KansoButton(
-                    label: l10n.digestSummarise,
-                    variant: KansoButtonVariant.secondary,
-                    onPressed: () => unawaited(
-                      cubit.summarise(review: review, from: from),
-                    ),
-                  ),
               ],
               if (state.message case final message?)
                 Padding(
@@ -148,11 +128,7 @@ class DigestAiPanel extends StatelessWidget {
                             variant: KansoButtonVariant.secondary,
                             expanded: false,
                             compact: true,
-                            onPressed: () => unawaited(
-                              summarise
-                                  ? cubit.summarise(review: review, from: from)
-                                  : cubit.findLoops(),
-                            ),
+                            onPressed: () => unawaited(cubit.findLoops()),
                           ),
                           KansoButton(
                             label: l10n.aiTroubleSettings,
@@ -184,40 +160,6 @@ class DigestAiPanel extends StatelessWidget {
                   child: Text(
                     l10n.digestFoundKept(kept),
                     style: typography.meta.copyWith(color: colors.accent),
-                  ),
-                ),
-              if (summary != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: KansoSpacing.sm),
-                  child: KansoCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          l10n.digestSummaryLabel,
-                          style: typography.meta.copyWith(
-                            color: colors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: KansoSpacing.xxs),
-                        SelectableText(
-                          summary.text,
-                          style: typography.body.copyWith(color: colors.text),
-                        ),
-                        if (summary.warning case final warning?)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              top: KansoSpacing.xs,
-                            ),
-                            child: Text(
-                              warning,
-                              style: typography.meta.copyWith(
-                                color: colors.danger,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
                   ),
                 ),
             ],

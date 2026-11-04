@@ -10840,101 +10840,659 @@ abstract class AppLocalizations {
   /// **'Filed'**
   String get feedbackStepFiled;
 
-  /// The card over a recording in a note: its screen-reader name.
+  /// The library row and list for canvases.
   ///
   /// In en, this message translates to:
-  /// **'Recording player'**
-  String get playerCardLabel;
+  /// **'Canvases'**
+  String get libraryCanvases;
 
-  /// Starts playing a recording.
+  /// No description provided for @emptyCanvasesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Play'**
-  String get playerPlay;
+  /// **'No canvases yet'**
+  String get emptyCanvasesTitle;
 
-  /// Pauses a recording that is playing.
+  /// No description provided for @emptyCanvasesMessage.
   ///
   /// In en, this message translates to:
-  /// **'Pause'**
-  String get playerPause;
+  /// **'Draw, write and pin notes on an endless page. Tap New to start one.'**
+  String get emptyCanvasesMessage;
 
-  /// What a screen reader calls the scrubber.
+  /// No description provided for @canvasNew.
   ///
   /// In en, this message translates to:
-  /// **'Position in the recording'**
-  String get playerPosition;
+  /// **'New canvas'**
+  String get canvasNew;
 
-  /// The scrubber's value for a screen reader: how far along the recording is.
+  /// No description provided for @canvasUntitled.
   ///
   /// In en, this message translates to:
-  /// **'{elapsed} of {total}'**
-  String playerPositionValue(String elapsed, String total);
+  /// **'Untitled canvas'**
+  String get canvasUntitled;
 
-  /// Skips back in a recording.
+  /// No description provided for @canvasToolPen.
   ///
   /// In en, this message translates to:
-  /// **'Back 5 seconds'**
-  String get playerBack;
+  /// **'Pen'**
+  String get canvasToolPen;
 
-  /// Skips ahead in a recording.
+  /// No description provided for @canvasToolPencil.
   ///
   /// In en, this message translates to:
-  /// **'Forward 5 seconds'**
-  String get playerForward;
+  /// **'Pencil'**
+  String get canvasToolPencil;
 
-  /// The button that cycles a recording's speed: 0.75x, 1x, 1.25x, 1.5x, 2x.
+  /// No description provided for @canvasToolMarker.
   ///
   /// In en, this message translates to:
-  /// **'Playback speed'**
-  String get playerSpeed;
+  /// **'Marker'**
+  String get canvasToolMarker;
 
-  /// The recording player's volume slider.
+  /// No description provided for @canvasToolHighlighter.
   ///
   /// In en, this message translates to:
-  /// **'Volume'**
-  String get playerVolume;
+  /// **'Highlighter'**
+  String get canvasToolHighlighter;
 
-  /// Turns the recording's sound off.
+  /// No description provided for @canvasToolEraser.
   ///
   /// In en, this message translates to:
-  /// **'Mute'**
-  String get playerMute;
+  /// **'Eraser'**
+  String get canvasToolEraser;
 
-  /// Turns the recording's sound back on.
+  /// No description provided for @canvasToolPartialEraser.
   ///
   /// In en, this message translates to:
-  /// **'Unmute'**
-  String get playerUnmute;
+  /// **'Partial eraser'**
+  String get canvasToolPartialEraser;
 
-  /// Shown where a recording's player would be when its audio hasn't arrived by sync.
+  /// No description provided for @canvasToolLasso.
   ///
   /// In en, this message translates to:
-  /// **'Audio not on this device yet'**
-  String get playerNotHere;
+  /// **'Select'**
+  String get canvasToolLasso;
 
-  /// Fetches the audio that hasn't arrived yet.
+  /// No description provided for @canvasToolText.
   ///
   /// In en, this message translates to:
-  /// **'Sync Now'**
-  String get playerSyncNow;
+  /// **'Text card'**
+  String get canvasToolText;
 
-  /// Shown where the player would be when the audio is gone.
+  /// No description provided for @canvasToolArrow.
   ///
   /// In en, this message translates to:
-  /// **'This recording\'s audio is missing'**
-  String get playerMissing;
+  /// **'Arrow'**
+  String get canvasToolArrow;
 
-  /// Shown where the player would be when the speaker or the file failed.
+  /// No description provided for @canvasToolHand.
   ///
   /// In en, this message translates to:
-  /// **'Couldn\'t play the recording'**
-  String get playerFailed;
+  /// **'Move canvas'**
+  String get canvasToolHand;
 
-  /// Opens a recording that failed to play once more.
+  /// No description provided for @canvasUndo.
   ///
   /// In en, this message translates to:
-  /// **'Try Again'**
-  String get playerTryAgain;
+  /// **'Undo'**
+  String get canvasUndo;
+
+  /// No description provided for @canvasRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get canvasRedo;
+
+  /// No description provided for @canvasFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit to content'**
+  String get canvasFit;
+
+  /// No description provided for @canvasColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Ink color'**
+  String get canvasColor;
+
+  /// No description provided for @canvasWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Pen width'**
+  String get canvasWidth;
+
+  /// A switch: whether a finger draws or only pans the canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Finger draws'**
+  String get canvasFingerDraws;
+
+  /// No description provided for @canvasFingerDrawsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Off, a finger only moves and zooms the canvas. It turns off by itself when a pen is used.'**
+  String get canvasFingerDrawsHelp;
+
+  /// No description provided for @canvasMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get canvasMore;
+
+  /// The accessibility label of the drawing area.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas'**
+  String get canvasSurface;
+
+  /// No description provided for @canvasBudgetWarnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This canvas is getting large'**
+  String get canvasBudgetWarnTitle;
+
+  /// No description provided for @canvasBudgetWarnMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select some ink and move it to a new canvas before this one is full.'**
+  String get canvasBudgetWarnMessage;
+
+  /// No description provided for @canvasBudgetFullTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This canvas is full'**
+  String get canvasBudgetFullTitle;
+
+  /// No description provided for @canvasBudgetFullMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'New ink is refused until you move some to a new canvas.'**
+  String get canvasBudgetFullMessage;
+
+  /// No description provided for @canvasMoveToNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to a new canvas'**
+  String get canvasMoveToNew;
+
+  /// No description provided for @canvasMovedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved ink'**
+  String get canvasMovedTitle;
+
+  /// No description provided for @canvasSelectionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selection'**
+  String get canvasSelectionDelete;
+
+  /// No description provided for @canvasSelectionClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get canvasSelectionClear;
+
+  /// No description provided for @canvasCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text card'**
+  String get canvasCardTitle;
+
+  /// No description provided for @canvasCardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write on the card'**
+  String get canvasCardHint;
+
+  /// No description provided for @canvasCardSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get canvasCardSave;
+
+  /// No description provided for @canvasCardDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete card'**
+  String get canvasCardDelete;
+
+  /// No description provided for @canvasCardOpenNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Open note'**
+  String get canvasCardOpenNote;
+
+  /// No description provided for @canvasCardMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is gone.'**
+  String get canvasCardMissing;
+
+  /// No description provided for @canvasNotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Your drawing is kept here and will be saved again.'**
+  String get canvasNotSaved;
+
+  /// No description provided for @canvasFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open this canvas.'**
+  String get canvasFailed;
+
+  /// No description provided for @canvasLockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This canvas is locked'**
+  String get canvasLockedTitle;
+
+  /// No description provided for @canvasLockedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock it from the notes list to draw on it.'**
+  String get canvasLockedMessage;
+
+  /// No description provided for @canvasExportSvg.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as image'**
+  String get canvasExportSvg;
+
+  /// No description provided for @canvasExportExcalidraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to Excalidraw'**
+  String get canvasExportExcalidraw;
+
+  /// No description provided for @canvasExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to the clipboard.'**
+  String get canvasExported;
+
+  /// No description provided for @canvasExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t export this canvas.'**
+  String get canvasExportFailed;
+
+  /// No description provided for @canvasBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get canvasBack;
+
+  /// The title of Kanso's home page.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get overviewTitle;
+
+  /// The Today view of Overview, and the heading of its agenda.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get overviewToday;
+
+  /// The This week view of Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get overviewThisWeek;
+
+  /// The title of a past or future week on Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'That week'**
+  String get overviewThatWeek;
+
+  /// The button that leaves Overview for the notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get overviewNotes;
+
+  /// The button that has the model write a paragraph over Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise'**
+  String get overviewSummarise;
+
+  /// Overview's menu button.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get overviewMenu;
+
+  /// The menu item that opens today's Journal note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open today\'s note'**
+  String get overviewOpenTodayNote;
+
+  /// Keeps the week on Overview as a note in the Journal.
+  ///
+  /// In en, this message translates to:
+  /// **'Save week as note'**
+  String get overviewSaveWeek;
+
+  /// The menu item that opens Overview's settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview settings'**
+  String get overviewSettings;
+
+  /// Closes a sheet of Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get overviewCancel;
+
+  /// The title of the sheet that picks a day to bring a note back.
+  ///
+  /// In en, this message translates to:
+  /// **'Revisit in…'**
+  String get overviewRevisitTitle;
+
+  /// The action that brings a note back on Overview on a later day.
+  ///
+  /// In en, this message translates to:
+  /// **'Revisit in…'**
+  String get overviewRevisit;
+
+  /// Said after a revisit date is set.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll see this again on {day}.'**
+  String overviewRevisitSet(String day);
+
+  /// The spoken label of the box of an agenda task.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick off {title}'**
+  String overviewTick(String title);
+
+  /// The spoken action that ticks an agenda task.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick off'**
+  String get overviewTickOff;
+
+  /// The spoken action that opens the note of a row.
+  ///
+  /// In en, this message translates to:
+  /// **'Open note'**
+  String get overviewOpenNote;
+
+  /// The link from a calendar event to its note.
+  ///
+  /// In en, this message translates to:
+  /// **'Meeting note'**
+  String get overviewMeetingNote;
+
+  /// Hides a note from Pick up until it is written in again.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get overviewNotNow;
+
+  /// Marks a waiting item done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get overviewDone;
+
+  /// Asks again about a waiting item in three days.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get overviewNotYet;
+
+  /// How long a person has been quiet.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day quiet} other{{count} days quiet}}'**
+  String overviewQuietDays(int count);
+
+  /// The action on a row of agent changes waiting for review.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get overviewReview;
+
+  /// How many captures wait in the Inbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox {count}'**
+  String overviewInbox(int count);
+
+  /// How many promises are open.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 thing you said you\'d do} other{{count} things you said you\'d do}}'**
+  String overviewPromisesCount(int count);
+
+  /// How many waiting items were folded into one line.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} waiting'**
+  String overviewWaitingCount(int count);
+
+  /// How many flashcards are due.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 flashcard} other{{count} flashcards}}'**
+  String overviewFlashcards(int count);
+
+  /// The label over the note from the past, with why it is shown.
+  ///
+  /// In en, this message translates to:
+  /// **'A note from the past · {why}'**
+  String overviewFromThePast(String why);
+
+  /// Opens the note from the past.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get overviewOpen;
+
+  /// Hides the note from the past.
+  ///
+  /// In en, this message translates to:
+  /// **'Not useful'**
+  String get overviewNotUseful;
+
+  /// Shows the rest of the model's paragraph.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get overviewMore;
+
+  /// The footnote under the model's paragraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Written by your model at {time}'**
+  String overviewWrittenBy(String time);
+
+  /// Has the model write its paragraph again.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewrite'**
+  String get overviewRewrite;
+
+  /// Hides the model's paragraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get overviewHide;
+
+  /// The notice after a task is ticked from Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Done: {title}'**
+  String overviewTicked(String title);
+
+  /// What Overview is for, shown while the library is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'This is your Overview. As you write, it gathers today\'s meetings and tasks, the notes you\'re in the middle of, and the people you\'re waiting on.'**
+  String get overviewNewLede;
+
+  /// Opens today's note from an empty Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Write today\'s note'**
+  String get overviewWriteToday;
+
+  /// The line under a full agenda.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more today · All {total} in Tasks'**
+  String overviewAgendaMore(int count, int total);
+
+  /// The folded line of events that are over.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier today ({count})'**
+  String overviewEarlier(int count);
+
+  /// The heading of the short lines at the foot of Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Also'**
+  String get overviewAlso;
+
+  /// The heading of the notes the person was writing in.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick up where you left off'**
+  String get overviewPickUp;
+
+  /// The heading of the people the person is waiting on.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting on others'**
+  String get overviewWaiting;
+
+  /// The heading of changes by agents and by people in shared notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent and shared activity'**
+  String get overviewActivity;
+
+  /// How many rows a list holds past what shows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String overviewMoreRows(int count);
+
+  /// Opens Triage from the Inbox line.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage'**
+  String get overviewTriage;
+
+  /// Opens every open loop from the Promises line.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get overviewSeeAll;
+
+  /// Steps the week on Overview back.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous week'**
+  String get overviewPreviousWeek;
+
+  /// Steps the week on Overview forward.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get overviewNextWeek;
+
+  /// The heading of the notebooks the week went into.
+  ///
+  /// In en, this message translates to:
+  /// **'Active projects'**
+  String get overviewProjects;
+
+  /// How many notes of a project changed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 note changed} other{{count} notes changed}}'**
+  String overviewNotesChanged(int count);
+
+  /// The last note changed in a project.
+  ///
+  /// In en, this message translates to:
+  /// **'last: “{title}”'**
+  String overviewLast(String title);
+
+  /// A project's next task.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {task}'**
+  String overviewNext(String task);
+
+  /// The heading of what was finished this week.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get overviewFinished;
+
+  /// The heading of tasks still open this week.
+  ///
+  /// In en, this message translates to:
+  /// **'Still open'**
+  String get overviewStillOpen;
+
+  /// Opens the Tasks place.
+  ///
+  /// In en, this message translates to:
+  /// **'All {count} open tasks'**
+  String overviewAllOpenTasks(int count);
+
+  /// The heading of what is coming in the days ahead.
+  ///
+  /// In en, this message translates to:
+  /// **'Ahead'**
+  String get overviewAhead;
+
+  /// Said when this week is already saved as a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as “{title}”'**
+  String overviewSavedAs(String title);
+
+  /// The setting that makes Kanso open to Overview rather than the last note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open to Overview'**
+  String get settingsOverviewOpens;
+
+  /// The setting for how long a person must be quiet to be listed.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting on others after'**
+  String get settingsOverviewQuiet;
+
+  /// A number of days.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days'**
+  String settingsOverviewDays(int count);
+
+  /// Lowers the quiet days by one.
+  ///
+  /// In en, this message translates to:
+  /// **'One day fewer'**
+  String get settingsOverviewFewer;
+
+  /// Raises the quiet days by one.
+  ///
+  /// In en, this message translates to:
+  /// **'One day more'**
+  String get settingsOverviewMore;
 }
 
 class _AppLocalizationsDelegate

@@ -177,6 +177,7 @@ const LibraryOverview mockOverview = LibraryOverview(
   pinned: 3,
   recent: 11,
   trash: 4,
+  canvases: 3,
   byStatus: <StatusCount>[],
 );
 
@@ -192,8 +193,10 @@ NoteRow mockRow({
   List<String> tags = const <String>[],
   bool pinned = false,
   bool locked = false,
+  bool canvas = false,
 }) {
   return NoteRow(
+    canvas: canvas,
     id: id,
     rev: '1-$id',
     title: title,

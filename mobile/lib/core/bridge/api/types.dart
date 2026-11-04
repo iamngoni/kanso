@@ -421,6 +421,8 @@ class BriefPrefs {
   final bool notifyBrief;
   final bool notifyReview;
   final bool markDoneInNote;
+  final bool openToOverview;
+  final int quietDays;
 
   const BriefPrefs({
     required this.loops,
@@ -435,6 +437,8 @@ class BriefPrefs {
     required this.notifyBrief,
     required this.notifyReview,
     required this.markDoneInNote,
+    required this.openToOverview,
+    required this.quietDays,
   });
 
   @override
@@ -450,7 +454,9 @@ class BriefPrefs {
       reviewMinute.hashCode ^
       notifyBrief.hashCode ^
       notifyReview.hashCode ^
-      markDoneInNote.hashCode;
+      markDoneInNote.hashCode ^
+      openToOverview.hashCode ^
+      quietDays.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -468,7 +474,9 @@ class BriefPrefs {
           reviewMinute == other.reviewMinute &&
           notifyBrief == other.notifyBrief &&
           notifyReview == other.notifyReview &&
-          markDoneInNote == other.markDoneInNote;
+          markDoneInNote == other.markDoneInNote &&
+          openToOverview == other.openToOverview &&
+          quietDays == other.quietDays;
 }
 
 class BriefReminder {
@@ -2186,6 +2194,7 @@ sealed class KansoError with _$KansoError implements FrbException {
 
 class LibraryOverview {
   final int all;
+  final int canvases;
   final int pinned;
   final int recent;
   final int trash;
@@ -2193,6 +2202,7 @@ class LibraryOverview {
 
   const LibraryOverview({
     required this.all,
+    required this.canvases,
     required this.pinned,
     required this.recent,
     required this.trash,
@@ -2202,6 +2212,7 @@ class LibraryOverview {
   @override
   int get hashCode =>
       all.hashCode ^
+      canvases.hashCode ^
       pinned.hashCode ^
       recent.hashCode ^
       trash.hashCode ^
@@ -2213,6 +2224,7 @@ class LibraryOverview {
       other is LibraryOverview &&
           runtimeType == other.runtimeType &&
           all == other.all &&
+          canvases == other.canvases &&
           pinned == other.pinned &&
           recent == other.recent &&
           trash == other.trash &&
@@ -2262,6 +2274,7 @@ sealed class ListPlace with _$ListPlace {
   const factory ListPlace.all() = ListPlace_All;
   const factory ListPlace.pinned() = ListPlace_Pinned;
   const factory ListPlace.recent() = ListPlace_Recent;
+  const factory ListPlace.canvases() = ListPlace_Canvases;
   const factory ListPlace.notebook({
     required String id,
   }) = ListPlace_Notebook;
@@ -3226,6 +3239,7 @@ class NoteRow {
   final int tasksDone;
   final int tasksTotal;
   final bool locked;
+  final bool canvas;
 
   const NoteRow({
     required this.id,
@@ -3241,6 +3255,7 @@ class NoteRow {
     required this.tasksDone,
     required this.tasksTotal,
     required this.locked,
+    required this.canvas,
   });
 
   @override
@@ -3257,7 +3272,8 @@ class NoteRow {
       updatedMs.hashCode ^
       tasksDone.hashCode ^
       tasksTotal.hashCode ^
-      locked.hashCode;
+      locked.hashCode ^
+      canvas.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -3276,7 +3292,8 @@ class NoteRow {
           updatedMs == other.updatedMs &&
           tasksDone == other.tasksDone &&
           tasksTotal == other.tasksTotal &&
-          locked == other.locked;
+          locked == other.locked &&
+          canvas == other.canvas;
 }
 
 class NoteVersion {

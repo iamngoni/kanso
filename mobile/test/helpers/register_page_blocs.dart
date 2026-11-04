@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart' show addTearDown;
 import 'package:kanso/backups/models/repos/abs/backups_repository.dart';
 import 'package:kanso/backups/state/backups/backups_bloc.dart';
 import 'package:kanso/board/state/board/board_bloc.dart';
+import 'package:kanso/canvas/models/repos/abs/canvas_repository.dart';
+import 'package:kanso/canvas/state/canvas/canvas_bloc.dart';
 import 'package:kanso/core/state/undo_notice/undo_notice_bloc.dart';
 import 'package:kanso/editor/state/editor/editor_bloc.dart';
 import 'package:kanso/feedback/state/my_feedback/my_feedback_bloc.dart';
@@ -47,6 +49,7 @@ import 'package:kanso/themes/state/theme_gallery/theme_gallery_bloc.dart';
 import 'package:kanso/themes/state/theme_picker/theme_picker_bloc.dart';
 
 import 'browse_blocs.dart';
+import 'fake_canvas.dart';
 import 'fake_editor_document.dart';
 import 'fake_editor_repository.dart';
 import 'fake_media_picker_repository.dart';
@@ -170,6 +173,15 @@ void _registerPageBlocs({
       MemoryNotePlaceRepository(),
     ),
   );
+  if (getIt.isRegistered<CanvasRepository>()) {
+    getIt.unregister<CanvasRepository>();
+  }
+  final canvases = FakeCanvasRepository();
+  getIt.registerSingleton<CanvasRepository>(canvases);
+  if (getIt.isRegistered<CanvasBloc>()) {
+    getIt.unregister<CanvasBloc>();
+  }
+  getIt.registerFactory<CanvasBloc>(() => CanvasBloc(canvases));
   if (getIt.isRegistered<NewNotebookBloc>()) {
     getIt.unregister<NewNotebookBloc>();
   }

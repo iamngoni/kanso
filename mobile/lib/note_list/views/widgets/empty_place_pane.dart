@@ -44,6 +44,10 @@ class EmptyPlacePane extends StatelessWidget {
               l10n.emptyRecentTitle,
               l10n.emptyRecentMessage,
             ),
+            ListPlace_Canvases() => (
+              l10n.emptyCanvasesTitle,
+              l10n.emptyCanvasesMessage,
+            ),
             ListPlace_Trash() => (l10n.emptyTrashTitle, l10n.emptyTrashMessage),
             ListPlace_Notebook() => (
               l10n.emptyNotebookTitle(name),

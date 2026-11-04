@@ -70,6 +70,13 @@ abstract class KansoAi implements RustOpaqueInterface {
   /// A short paragraph over today's brief.
   Future<AiSummary> summariseBrief({required KansoAiRun run});
 
+  /// A short paragraph over Today, or over the week of `from` when `week`.
+  Future<AiSummary> summariseOverview({
+    String? from,
+    required bool week,
+    required KansoAiRun run,
+  });
+
   /// A short paragraph over the week from `from` (`YYYY-MM-DD`), or this
   /// week.
   Future<AiSummary> summariseReview({String? from, required KansoAiRun run});

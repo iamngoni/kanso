@@ -455,8 +455,8 @@ impl Sidebar {
             color,
         } = entry;
         let selected = !self.settings_open && self.library.read(cx).filter == filter;
-        // The brief and the review have nothing to count.
-        let counted = !matches!(filter, Filter::Brief | Filter::Review);
+        // Overview has nothing to count.
+        let counted = !matches!(filter, Filter::Overview);
         let colors = Colors::get(cx);
         let library = self.library.clone();
         div()
@@ -1589,6 +1589,13 @@ impl Sidebar {
                     .pt(px(12.))
                     .overflow_y_scroll()
                     .child(self.rail_place(
+                        "rail-overview",
+                        Lucide::Compass,
+                        "Overview",
+                        Filter::Overview,
+                        cx,
+                    ))
+                    .child(self.rail_place(
                         "rail-all",
                         library_icon(Slot::AllNotes),
                         "All Notes",
@@ -1607,6 +1614,13 @@ impl Sidebar {
                         library_icon(Slot::Recent),
                         "Recent",
                         Filter::Recent,
+                        cx,
+                    ))
+                    .child(self.rail_place(
+                        "rail-canvases",
+                        Icon::new(Lucide::PenTool),
+                        "Canvases",
+                        Filter::Canvases,
                         cx,
                     ))
                     .child(self.rail_place(
@@ -1706,6 +1720,20 @@ impl Render for Sidebar {
         let recent = library.recent;
 
         let mut list = v_flex().pb_4();
+        // Overview, Kanso's home (issue #240), first: it has nothing to count.
+        let icon = self.icon(Icon::new(Lucide::Compass), cx);
+        list = list.child(self.row(
+            "overview",
+            Filter::Overview,
+            Entry {
+                icon: Some(icon),
+                label: "Overview".into(),
+                count: 0,
+                depth: 0,
+                color: None,
+            },
+            cx,
+        ));
         let icon = self.icon(library_icon(Slot::AllNotes), cx);
         list = list.child(self.row(
             "all",
@@ -1713,7 +1741,8 @@ impl Render for Sidebar {
             Entry {
                 icon: Some(icon),
                 label: "All Notes".into(),
-                count: counts.all,
+                // Canvases have their own row.
+                count: counts.all.saturating_sub(counts.canvases),
                 depth: 0,
                 color: None,
             },
@@ -1745,6 +1774,19 @@ impl Render for Sidebar {
             },
             cx,
         ));
+        let icon = self.icon(Icon::new(Lucide::PenTool), cx);
+        list = list.child(self.row(
+            "canvases",
+            Filter::Canvases,
+            Entry {
+                icon: Some(icon),
+                label: "Canvases".into(),
+                count: counts.canvases,
+                depth: 0,
+                color: None,
+            },
+            cx,
+        ));
         list = list.child(self.tasks_row(cx));
         if let Some(waiting) = self.review {
             list = list.child(self.review_row(waiting, cx));
@@ -1766,32 +1808,6 @@ impl Render for Sidebar {
                 cx,
             ));
         }
-        let icon = self.icon(Icon::new(Lucide::Clock), cx);
-        list = list.child(self.row(
-            "morning-brief",
-            Filter::Brief,
-            Entry {
-                icon: Some(icon),
-                label: "Morning Brief".into(),
-                count: 0,
-                depth: 0,
-                color: None,
-            },
-            cx,
-        ));
-        let icon = self.icon(Icon::new(Lucide::CalendarDays), cx);
-        list = list.child(self.row(
-            "weekly-review",
-            Filter::Review,
-            Entry {
-                icon: Some(icon),
-                label: "Weekly Review".into(),
-                count: 0,
-                depth: 0,
-                color: None,
-            },
-            cx,
-        ));
         list = list.children(self.shared_row(cx));
 
         let add_book = self.add_button(

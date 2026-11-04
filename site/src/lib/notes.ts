@@ -104,9 +104,9 @@ Press <kbd>⌃⌥Space</kbd> anywhere and a quick note opens over whatever you'r
     id: "diagrams",
     notebook: "Inside Kanso",
     edited: 1440,
-    body: `# Diagrams and maths
+    body: `# Diagrams
 
-Mermaid diagrams, maths and Excalidraw drawings render right in the app's preview, in your note's theme. It's all still text you can read anywhere:
+Mermaid diagrams render right in the preview, in your note's theme. The diagram is still text you can read anywhere:
 
 \`\`\`mermaid
 flowchart LR

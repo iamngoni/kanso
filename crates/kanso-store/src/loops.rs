@@ -272,6 +272,14 @@ impl Store {
                     if next == loops && marked.is_none() {
                         return Ok(CheckOff::Unchanged);
                     }
+                    // What Overview learns from it: a dismissal counts against
+                    // the sentence's phrase family, a tick for it.
+                    let kind = loop_items(body)
+                        .into_iter()
+                        .find(|item| loop_key(id, &item.text) == key)
+                        .map_or(LoopKind::Mine, |item| item.kind);
+                    let (family, what) = crate::overview::feedback_for(kind, &text, dismissed);
+                    crate::overview::record_feedback(tx, family, what, now_ms)?;
                     rewrite_note(tx, id, origin, changes, |fields| {
                         fields.insert(LOOPS_FIELD.into(), loops_value(&next));
                         if let Some(body) = marked {

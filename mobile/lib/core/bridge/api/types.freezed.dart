@@ -5210,13 +5210,14 @@ extension ListPlacePatterns on ListPlace {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ListPlace_All value)?  all,TResult Function( ListPlace_Pinned value)?  pinned,TResult Function( ListPlace_Recent value)?  recent,TResult Function( ListPlace_Notebook value)?  notebook,TResult Function( ListPlace_Tag value)?  tag,TResult Function( ListPlace_Status value)?  status,TResult Function( ListPlace_TagPath value)?  tagPath,TResult Function( ListPlace_Trash value)?  trash,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( ListPlace_All value)?  all,TResult Function( ListPlace_Pinned value)?  pinned,TResult Function( ListPlace_Recent value)?  recent,TResult Function( ListPlace_Canvases value)?  canvases,TResult Function( ListPlace_Notebook value)?  notebook,TResult Function( ListPlace_Tag value)?  tag,TResult Function( ListPlace_Status value)?  status,TResult Function( ListPlace_TagPath value)?  tagPath,TResult Function( ListPlace_Trash value)?  trash,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case ListPlace_All() when all != null:
 return all(_that);case ListPlace_Pinned() when pinned != null:
 return pinned(_that);case ListPlace_Recent() when recent != null:
-return recent(_that);case ListPlace_Notebook() when notebook != null:
+return recent(_that);case ListPlace_Canvases() when canvases != null:
+return canvases(_that);case ListPlace_Notebook() when notebook != null:
 return notebook(_that);case ListPlace_Tag() when tag != null:
 return tag(_that);case ListPlace_Status() when status != null:
 return status(_that);case ListPlace_TagPath() when tagPath != null:
@@ -5239,13 +5240,14 @@ return trash(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ListPlace_All value)  all,required TResult Function( ListPlace_Pinned value)  pinned,required TResult Function( ListPlace_Recent value)  recent,required TResult Function( ListPlace_Notebook value)  notebook,required TResult Function( ListPlace_Tag value)  tag,required TResult Function( ListPlace_Status value)  status,required TResult Function( ListPlace_TagPath value)  tagPath,required TResult Function( ListPlace_Trash value)  trash,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( ListPlace_All value)  all,required TResult Function( ListPlace_Pinned value)  pinned,required TResult Function( ListPlace_Recent value)  recent,required TResult Function( ListPlace_Canvases value)  canvases,required TResult Function( ListPlace_Notebook value)  notebook,required TResult Function( ListPlace_Tag value)  tag,required TResult Function( ListPlace_Status value)  status,required TResult Function( ListPlace_TagPath value)  tagPath,required TResult Function( ListPlace_Trash value)  trash,}){
 final _that = this;
 switch (_that) {
 case ListPlace_All():
 return all(_that);case ListPlace_Pinned():
 return pinned(_that);case ListPlace_Recent():
-return recent(_that);case ListPlace_Notebook():
+return recent(_that);case ListPlace_Canvases():
+return canvases(_that);case ListPlace_Notebook():
 return notebook(_that);case ListPlace_Tag():
 return tag(_that);case ListPlace_Status():
 return status(_that);case ListPlace_TagPath():
@@ -5264,13 +5266,14 @@ return trash(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ListPlace_All value)?  all,TResult? Function( ListPlace_Pinned value)?  pinned,TResult? Function( ListPlace_Recent value)?  recent,TResult? Function( ListPlace_Notebook value)?  notebook,TResult? Function( ListPlace_Tag value)?  tag,TResult? Function( ListPlace_Status value)?  status,TResult? Function( ListPlace_TagPath value)?  tagPath,TResult? Function( ListPlace_Trash value)?  trash,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( ListPlace_All value)?  all,TResult? Function( ListPlace_Pinned value)?  pinned,TResult? Function( ListPlace_Recent value)?  recent,TResult? Function( ListPlace_Canvases value)?  canvases,TResult? Function( ListPlace_Notebook value)?  notebook,TResult? Function( ListPlace_Tag value)?  tag,TResult? Function( ListPlace_Status value)?  status,TResult? Function( ListPlace_TagPath value)?  tagPath,TResult? Function( ListPlace_Trash value)?  trash,}){
 final _that = this;
 switch (_that) {
 case ListPlace_All() when all != null:
 return all(_that);case ListPlace_Pinned() when pinned != null:
 return pinned(_that);case ListPlace_Recent() when recent != null:
-return recent(_that);case ListPlace_Notebook() when notebook != null:
+return recent(_that);case ListPlace_Canvases() when canvases != null:
+return canvases(_that);case ListPlace_Notebook() when notebook != null:
 return notebook(_that);case ListPlace_Tag() when tag != null:
 return tag(_that);case ListPlace_Status() when status != null:
 return status(_that);case ListPlace_TagPath() when tagPath != null:
@@ -5292,12 +5295,13 @@ return trash(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  all,TResult Function()?  pinned,TResult Function()?  recent,TResult Function( String id)?  notebook,TResult Function( String id)?  tag,TResult Function( String status)?  status,TResult Function( String path)?  tagPath,TResult Function()?  trash,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  all,TResult Function()?  pinned,TResult Function()?  recent,TResult Function()?  canvases,TResult Function( String id)?  notebook,TResult Function( String id)?  tag,TResult Function( String status)?  status,TResult Function( String path)?  tagPath,TResult Function()?  trash,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case ListPlace_All() when all != null:
 return all();case ListPlace_Pinned() when pinned != null:
 return pinned();case ListPlace_Recent() when recent != null:
-return recent();case ListPlace_Notebook() when notebook != null:
+return recent();case ListPlace_Canvases() when canvases != null:
+return canvases();case ListPlace_Notebook() when notebook != null:
 return notebook(_that.id);case ListPlace_Tag() when tag != null:
 return tag(_that.id);case ListPlace_Status() when status != null:
 return status(_that.status);case ListPlace_TagPath() when tagPath != null:
@@ -5320,12 +5324,13 @@ return trash();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  all,required TResult Function()  pinned,required TResult Function()  recent,required TResult Function( String id)  notebook,required TResult Function( String id)  tag,required TResult Function( String status)  status,required TResult Function( String path)  tagPath,required TResult Function()  trash,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  all,required TResult Function()  pinned,required TResult Function()  recent,required TResult Function()  canvases,required TResult Function( String id)  notebook,required TResult Function( String id)  tag,required TResult Function( String status)  status,required TResult Function( String path)  tagPath,required TResult Function()  trash,}) {final _that = this;
 switch (_that) {
 case ListPlace_All():
 return all();case ListPlace_Pinned():
 return pinned();case ListPlace_Recent():
-return recent();case ListPlace_Notebook():
+return recent();case ListPlace_Canvases():
+return canvases();case ListPlace_Notebook():
 return notebook(_that.id);case ListPlace_Tag():
 return tag(_that.id);case ListPlace_Status():
 return status(_that.status);case ListPlace_TagPath():
@@ -5344,12 +5349,13 @@ return trash();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  all,TResult? Function()?  pinned,TResult? Function()?  recent,TResult? Function( String id)?  notebook,TResult? Function( String id)?  tag,TResult? Function( String status)?  status,TResult? Function( String path)?  tagPath,TResult? Function()?  trash,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  all,TResult? Function()?  pinned,TResult? Function()?  recent,TResult? Function()?  canvases,TResult? Function( String id)?  notebook,TResult? Function( String id)?  tag,TResult? Function( String status)?  status,TResult? Function( String path)?  tagPath,TResult? Function()?  trash,}) {final _that = this;
 switch (_that) {
 case ListPlace_All() when all != null:
 return all();case ListPlace_Pinned() when pinned != null:
 return pinned();case ListPlace_Recent() when recent != null:
-return recent();case ListPlace_Notebook() when notebook != null:
+return recent();case ListPlace_Canvases() when canvases != null:
+return canvases();case ListPlace_Notebook() when notebook != null:
 return notebook(_that.id);case ListPlace_Tag() when tag != null:
 return tag(_that.id);case ListPlace_Status() when status != null:
 return status(_that.status);case ListPlace_TagPath() when tagPath != null:
@@ -5450,6 +5456,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'ListPlace.recent()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class ListPlace_Canvases extends ListPlace {
+  const ListPlace_Canvases(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListPlace_Canvases);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'ListPlace.canvases()';
 }
 
 

@@ -364,7 +364,7 @@ impl From<CoreAssistEvent> for AssistEvent {
 }
 
 #[frb(opaque)]
-pub struct KansoAi(AiHandle);
+pub struct KansoAi(pub(super) AiHandle);
 
 impl KansoAi {
     pub(super) fn new(handle: AiHandle) -> KansoAi {

@@ -12,7 +12,9 @@
 
 pub mod blocks;
 mod cache;
+pub mod canvas;
 pub mod excalidraw;
+pub mod freehand;
 pub mod html;
 mod js;
 pub mod markdown_safe;

@@ -16,14 +16,13 @@ import '../../ai_settings/views/pages/ai_settings_page.dart';
 import '../../ask/views/pages/ask_page.dart';
 import '../../backups/views/pages/backups_page.dart';
 import '../../board/views/pages/board_page.dart';
+import '../../canvas/views/pages/note_or_canvas_page.dart';
 import '../../capture/views/pages/daily_note_page.dart';
 import '../../capture/views/pages/new_note_page.dart';
 import '../../crash/views/pages/crash_reports_page.dart';
 import '../../design/views/pages/design_gallery_page.dart';
 import '../../dictation/views/pages/voice_note_page.dart';
-import '../../digest/views/pages/brief_page.dart';
 import '../../digest/views/pages/open_loops_page.dart';
-import '../../digest/views/pages/review_page.dart';
 import '../../draft/views/pages/draft_page.dart';
 import '../../feedback/views/pages/my_feedback_page.dart';
 import '../../feedback/views/pages/send_feedback_page.dart';
@@ -32,10 +31,11 @@ import '../../flashcards/views/pages/review_settings_page.dart';
 import '../../graph/views/pages/graph_page.dart';
 import '../../history/views/pages/history_page.dart';
 import '../../import/views/pages/import_page.dart';
-import '../../note/views/pages/note_page.dart';
+import '../../injection.dart';
 import '../../note/views/widgets/no_note_selected_pane.dart';
 import '../../note_list/views/pages/note_list_page.dart';
 import '../../notebook_home/views/pages/notebook_home_page.dart';
+import '../../overview/views/pages/overview_page.dart';
 import '../../people/views/pages/people_list_page.dart';
 import '../../people/views/pages/people_settings_page.dart';
 import '../../recording/views/pages/recording_page.dart';
@@ -62,6 +62,7 @@ import '../models/data/browse_location.dart';
 import '../models/data/design_gallery_access.dart';
 import '../models/data/layout_class.dart';
 import '../models/data/search_scope_kind.dart';
+import '../models/repos/abs/digest_repository.dart';
 import '../views/widgets/kanso_page_route.dart';
 import 'deep_links.dart';
 import 'kanso_routes.dart';
@@ -112,6 +113,9 @@ class KansoRouter {
   /// The router the app runs with.
   late final GoRouter config;
 
+  /// Whether the first address has been looked at.
+  bool _launched = false;
+
   GoRouter _build() {
     return GoRouter(
       navigatorKey: _rootKey,
@@ -119,8 +123,28 @@ class KansoRouter {
       refreshListenable: layoutClass,
       // The app's own links carry a scheme and a host, which the router
       // ignores; they are turned into addresses of the app here.
-      redirect: (context, state) =>
-          state.uri.hasScheme ? redirectLocation(state.uri) : null,
+      redirect: (context, state) async {
+        if (state.uri.hasScheme) {
+          return redirectLocation(state.uri);
+        }
+        // The first launch opens to Overview unless Settings says the last
+        // note; a link or a notification that names a place is not changed.
+        if (!_launched) {
+          _launched = true;
+          if (state.uri.path == KansoRoutes.notes &&
+              state.uri.queryParameters.isEmpty &&
+              getIt.isRegistered<DigestRepository>()) {
+            final prefs = (await getIt<DigestRepository>().prefs()).fold(
+              (_) => null,
+              (it) => it,
+            );
+            if (prefs != null && prefs.openToOverview) {
+              return KansoRoutes.overview;
+            }
+          }
+        }
+        return null;
+      },
       onException: (context, state, router) => router.go(KansoRoutes.notes),
       routes: <RouteBase>[
         GoRoute(
@@ -161,18 +185,25 @@ class KansoRouter {
           ),
         ),
         GoRoute(
-          path: KansoRoutes.brief,
+          path: KansoRoutes.overview,
           pageBuilder: (context, state) => kansoPage<void>(
             key: state.pageKey,
-            child: const BriefPage(),
+            child: OverviewPage(
+              week:
+                  state.uri.queryParameters[KansoRoutes
+                      .overviewWeekParameter] ==
+                  '1',
+            ),
           ),
         ),
         GoRoute(
+          path: KansoRoutes.brief,
+          redirect: (context, state) => KansoRoutes.overview,
+        ),
+        GoRoute(
           path: KansoRoutes.review,
-          pageBuilder: (context, state) => kansoPage<void>(
-            key: state.pageKey,
-            child: const ReviewPage(),
-          ),
+          redirect: (context, state) =>
+              '${KansoRoutes.overview}?${KansoRoutes.overviewWeekParameter}=1',
         ),
         GoRoute(
           path: KansoRoutes.replace,
@@ -299,6 +330,10 @@ class KansoRouter {
             _placeRoute(KansoRoutes.notes, (_) => const ListPlace.all()),
             _placeRoute(KansoRoutes.pinned, (_) => const ListPlace.pinned()),
             _placeRoute(KansoRoutes.recent, (_) => const ListPlace.recent()),
+            _placeRoute(
+              KansoRoutes.canvases,
+              (_) => const ListPlace.canvases(),
+            ),
             _placeRoute(KansoRoutes.trash, (_) => const ListPlace.trash()),
             _placeRoute(
               '${KansoRoutes.notebooks}/:notebookId',
@@ -667,7 +702,7 @@ class KansoRouter {
         return layoutClass.value == LayoutClass.single
             ? kansoPage<void>(
                 key: state.pageKey,
-                child: NotePage(
+                child: NoteOrCanvasPage(
                   noteId: noteId,
                   bodyLine: line,
                   bodyLineEnd: lineEnd,
@@ -677,7 +712,7 @@ class KansoRouter {
               )
             : NoTransitionPage<void>(
                 key: state.pageKey,
-                child: NotePage(
+                child: NoteOrCanvasPage(
                   noteId: noteId,
                   inPane: true,
                   bodyLine: line,

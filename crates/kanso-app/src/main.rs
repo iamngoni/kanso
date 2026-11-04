@@ -36,6 +36,10 @@ mod book_icons;
 mod briefs;
 mod calendar;
 mod calendar_view;
+mod canvas_state;
+#[cfg(test)]
+mod canvas_state_tests;
+mod canvas_view;
 mod capture;
 mod capture_cli;
 mod capture_voice;
@@ -127,6 +131,7 @@ mod palette;
 mod passkey_accounts;
 mod passkey_ceremony;
 mod paths;
+mod pen_input;
 mod people_data;
 mod people_view;
 mod player;
@@ -644,6 +649,8 @@ fn run_app(
         note_window::bind_keys(cx);
         capture::bind_keys(cx);
         graph_view::bind_keys(cx);
+        canvas_view::bind_keys(cx);
+        pen_input::install();
         board_view::bind_keys(cx);
         workspace::set_menus(cx);
         cx.on_action(|_: &Quit, cx| quit(cx));
@@ -746,6 +753,7 @@ fn open_main_window(cx: &mut App) {
             window
                 .update(cx, |_, window, cx| {
                     let editor = view.read(cx).editor.clone();
+                    view.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx));
                     window.on_window_should_close(cx, move |_, cx| {
                         editor.update(cx, |editor, cx| editor.flush(cx));
                         true

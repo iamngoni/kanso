@@ -45,6 +45,7 @@ actions!(
     kanso,
     [
         NewNote,
+        NewCanvas,
         NewNotebook,
         FocusSearch,
         SearchAllNotes,
@@ -168,6 +169,7 @@ pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("secondary-n", NewNote, None),
         KeyBinding::new("secondary-shift-n", NewNotebook, None),
+        KeyBinding::new("secondary-shift-0", crate::digest_view::OpenOverview, None),
         // ⌘L searches the list as it is; ⇧⌘F, global search, all notes.
         KeyBinding::new("secondary-l", FocusSearch, None),
         KeyBinding::new("secondary-shift-f", SearchAllNotes, None),
@@ -326,6 +328,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::os_submenu("Services", SystemMenuType::Services),
         ]),
         Menu::new("Note").items([
+            MenuItem::action("New Canvas", NewCanvas),
             MenuItem::action("Pin / Unpin Note", TogglePinned),
             MenuItem::action("Open in New Window", crate::note_window::OpenInNewWindow),
             MenuItem::action("Open as Sticky", crate::note_window::OpenAsSticky),
@@ -358,6 +361,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Go Back", GoBack),
             MenuItem::action("Go Forward", GoForward),
             MenuItem::action("Notebook Home", GoNotebookHome),
+            MenuItem::action("Overview", crate::digest_view::OpenOverview),
             MenuItem::separator(),
             MenuItem::action("Copy Note Link", CopyNoteLink),
             MenuItem::action("Copy Kanso Link", CopyKansoLink),
@@ -664,10 +668,16 @@ impl Workspace {
                     cx.defer_in(window, |this, window, cx| {
                         if matches!(
                             this.library.read(cx).filter,
-                            Filter::OpenLoops | Filter::Brief | Filter::Review
+                            Filter::OpenLoops | Filter::Overview
                         ) {
                             this.digest
                                 .update(cx, |digest, cx| digest.focus_list(window, cx));
+                        }
+                        if this.library.read(cx).filter == Filter::Overview
+                            && let Some(nav) = this.tabs.nav_mut()
+                        {
+                            nav.visit(crate::nav_history::OVERVIEW_VISIT);
+                            this.nav_reach = None;
                         }
                     });
                     this.leave_settings(window, cx);
@@ -943,6 +953,16 @@ impl Workspace {
     }
 
     fn new_note(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.create_note(false, window, cx);
+    }
+
+    /// A canvas note (`doctype: "canvas"`, an empty document) where a note
+    /// would go, opened as a surface to draw on.
+    fn new_canvas(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.create_note(true, window, cx);
+    }
+
+    fn create_note(&mut self, canvas: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.flush(cx);
         let library = self.library.read(cx);
         // The engine decides where the note goes and what it starts with;
@@ -962,6 +982,12 @@ impl Workspace {
             None => return,
         };
         let mut note = json!({"title": "", "body": "", "bookId": book});
+        if canvas {
+            note["doctype"] = json!("canvas");
+            note["body"] = json!(kanso_core::canvas::to_body(
+                &kanso_core::canvas::Canvas::default()
+            ));
+        }
         let mut tags = target.tags.clone();
         // A level of the tag tree: its own tag, made if only tags inside it
         // exist so far.
@@ -990,6 +1016,11 @@ impl Workspace {
         match self.store.put(DocType::Note, note, Put::Upsert, Origin::Ui) {
             Ok(created) => {
                 crate::metrics::record(cx, crate::metrics::Feature::NoteCreated);
+                // The Canvases list is where a new canvas shows.
+                if canvas && matches!(self.library.read(cx).filter, Filter::All) {
+                    self.library
+                        .update(cx, |library, cx| library.set_filter(Filter::Canvases, cx));
+                }
                 self.library
                     .update(cx, |library, cx| library.select(Some(created.id), cx));
                 self.editor
@@ -1193,6 +1224,50 @@ impl Workspace {
         open
     }
 
+    /// Kanso's first window opens to Overview unless Settings says the last
+    /// note. Existing users are told once. Files the system opened wait for
+    /// nothing: opening a note leaves the page.
+    pub fn launch_to_overview(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let briefs = cx.global::<AppState>().config.briefs.clone().sanitized();
+        if briefs.open_to != kanso_engine::brief::OpenTo::Overview {
+            return;
+        }
+        self.library
+            .update(cx, |library, cx| library.set_filter(Filter::Overview, cx));
+        let nudges = &cx.global::<AppState>().config.nudges;
+        let seen = nudges.overview_notice_seen;
+        let first_seen = nudges.first_seen_ms;
+        let veteran =
+            first_seen.is_some_and(|first| crate::clock::Clock::now_ms(cx) - first > 60_000);
+        if !seen {
+            AppState::update_config(cx, |config| config.nudges.overview_notice_seen = true);
+            if veteran {
+                // Closing the notice keeps Overview; its button goes back to
+                // the old launch and shows the note that was open.
+                let me = cx.entity().downgrade();
+                let notice = Notification::info(
+                    "Kanso now opens to Overview. You can change this in Settings \u{203a} General.",
+                )
+                .action(move |_, _, _| {
+                    let me = me.clone();
+                    gpui_kit::component::button::Button::new("overview-last-note")
+                        .label("Open my last note instead")
+                        .on_click(move |_, _, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.briefs.open_to = kanso_engine::brief::OpenTo::LastNote;
+                            });
+                            me.update(cx, |this, cx| {
+                                let selected = this.library.read(cx).selected.clone();
+                                this.leave_page_for(selected.as_deref(), cx);
+                            })
+                            .ok();
+                        })
+                });
+                window.push_notification(notice, cx);
+            }
+        }
+    }
+
     /// Opens a note from the loops, the brief or the review.
     fn on_digest_event(
         &mut self,
@@ -1217,6 +1292,18 @@ impl Workspace {
                 self.open_today(window, cx);
                 self.leave_page_for(None, cx);
             }
+            DigestEvent::Link(url) => match crate::preview::linked_note(url) {
+                Some(id) => {
+                    let id = id.split('#').next().unwrap_or(&id).to_owned();
+                    self.leave_page_for(Some(&id), cx);
+                    self.open_note_at(&id, 0, false, window, cx);
+                }
+                None if crate::preview::is_openable(url) => cx.open_url(url),
+                None => {}
+            },
+            DigestEvent::OpenSettings => {
+                self.open_settings(None, window, cx);
+            }
             DigestEvent::Close => {
                 let back = self.library.read(cx).previous.clone();
                 let selected = self.library.read(cx).selected.clone();
@@ -1235,7 +1322,7 @@ impl Workspace {
     fn leave_page_for(&mut self, note_id: Option<&str>, cx: &mut Context<Self>) {
         if !matches!(
             self.library.read(cx).filter,
-            Filter::OpenLoops | Filter::Brief | Filter::Review
+            Filter::OpenLoops | Filter::Overview
         ) {
             return;
         }
@@ -1371,6 +1458,9 @@ impl Workspace {
         let open = self.editor.read(cx).note_id() == Some(note_id);
         if open {
             self.leave_settings(window, cx);
+            // The note can be open behind a page (Overview loads the last
+            // note quietly at launch): a reminder for it must still show it.
+            self.leave_page_for(Some(note_id), cx);
             self.editor
                 .update(cx, |editor, cx| editor.reveal_line(line, window, cx));
         } else {
@@ -2658,7 +2748,7 @@ impl Render for Workspace {
         let home_shown = self.library.read(cx).home_book(cx).is_some();
         let digest_shown = matches!(
             self.library.read(cx).filter,
-            Filter::OpenLoops | Filter::Brief | Filter::Review
+            Filter::OpenLoops | Filter::Overview
         );
         if digest_shown {
             let page_width = window.viewport_size().width - px(leading);
@@ -2778,6 +2868,7 @@ impl Render for Workspace {
                 cx.listener(|this, _: &MouseUpEvent, _, _| this.band_drag.up()),
             )
             .on_action(cx.listener(|this, _: &NewNote, window, cx| this.new_note(window, cx)))
+            .on_action(cx.listener(|this, _: &NewCanvas, window, cx| this.new_canvas(window, cx)))
             .on_action(cx.listener(|this, _: &NewNotebook, window, cx| {
                 this.on_sidebar_event(&SidebarEvent::NewBook { parent: None }, window, cx);
             }))

@@ -598,6 +598,14 @@ impl NoteList {
                                         .children(glyph),
                                 )
                             })
+                            // A canvas wears a pen mark: it is drawn, not typed.
+                            .when(note.canvas, |el| {
+                                el.child(
+                                    Icon::new(Lucide::PenTool)
+                                        .size(px(12.))
+                                        .text_color(colors.quiet(selected)),
+                                )
+                            })
                             .child(
                                 div()
                                     .flex_1()
@@ -1101,6 +1109,13 @@ impl NoteList {
                 colors,
             )
             .into_any_element(),
+            Filter::Canvases => quiet_empty(
+                Icon::new(Lucide::PenTool),
+                "No canvases".into(),
+                Some("Choose Note › New Canvas to start one.".into()),
+                colors,
+            )
+            .into_any_element(),
             Filter::Recent => quiet_empty(
                 library_icon(Slot::Recent),
                 "No recent notes".into(),
@@ -1130,9 +1145,7 @@ impl NoteList {
             )
             .into_any_element(),
             // The Tasks view shows in the list's place.
-            Filter::Tasks | Filter::OpenLoops | Filter::Brief | Filter::Review => {
-                div().into_any_element()
-            }
+            Filter::Tasks | Filter::OpenLoops | Filter::Overview => div().into_any_element(),
             Filter::Shared => quiet_empty(
                 library_icon(Slot::Shared),
                 "Nothing shared with you yet".into(),

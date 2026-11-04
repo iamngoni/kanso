@@ -34,6 +34,9 @@ pub struct NoteRow {
     pub tasks_total: u32,
     /// Sealed under the lock password, or in a locked notebook.
     pub locked: bool,
+    /// A canvas (`doctype: "canvas"`): the list draws its glyph and opens
+    /// the canvas view.
+    pub canvas: bool,
 }
 
 /// What a note's lock allows.
@@ -86,6 +89,8 @@ pub enum ListPlace {
     Notebook {
         id: String,
     },
+    /// Canvases only: the Canvases row.
+    Canvases,
     /// Notes with this tag (its ID). A locked note is never listed here: a
     /// tag on it is its content.
     Tag {
@@ -161,8 +166,11 @@ pub struct NoteList {
 /// The counts the library's places show.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LibraryOverview {
-    /// Notes outside the trash.
+    /// Notes outside the trash that All Notes lists: canvases have their
+    /// own row, so they are not counted here.
     pub all: u32,
+    /// Canvases outside the trash.
+    pub canvases: u32,
     pub pinned: u32,
     /// Notes changed in the last seven days.
     pub recent: u32,

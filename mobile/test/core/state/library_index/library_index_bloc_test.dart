@@ -17,6 +17,7 @@ import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/mock_repositories.dart';
 
 const _overview = LibraryOverview(
+  canvases: 0,
   all: 7,
   pinned: 2,
   recent: 3,
@@ -131,6 +132,7 @@ void main() {
         notebooks = <NotebookRow>[];
         tags = <TagRow>[];
         overview = const LibraryOverview(
+          canvases: 0,
           all: 0,
           pinned: 0,
           recent: 0,
@@ -232,6 +234,7 @@ void main() {
         bloc.add(const LibraryIndexEvent.started());
         await Future<void>.delayed(const Duration(milliseconds: 20));
         overview = const LibraryOverview(
+          canvases: 0,
           all: 8,
           pinned: 2,
           recent: 4,

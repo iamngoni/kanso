@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../bridge/api/ai.dart';
 import '../../../bridge/api/library.dart';
+import '../../../bridge/api/overview_types.dart';
 import '../../../bridge/api/types.dart';
 import '../../../utils/kanso_error_mapping.dart';
 import '../../data/application_error.dart';
@@ -39,12 +40,72 @@ class RustDigestRepository implements DigestRepository {
   );
 
   @override
-  Future<Either<ApplicationError, BriefView>> brief() =>
-      attempt(_library.brief);
+  Future<Either<ApplicationError, bool>> doneLoop({
+    required String noteId,
+    required String key,
+    required int line,
+  }) => attempt(
+    () => _library.closeLoop(
+      noteId: noteId,
+      key: key,
+      line: line,
+      action: LoopAction.done,
+    ),
+  );
 
   @override
-  Future<Either<ApplicationError, ReviewView>> review({String? from}) =>
-      attempt(() => _library.review(from: from));
+  OverviewToday? overviewSnapshot() => _library.overviewSnapshot();
+
+  @override
+  Future<Either<ApplicationError, OverviewToday>> overviewToday() =>
+      attempt(_library.overviewToday);
+
+  @override
+  Future<Either<ApplicationError, OverviewWeek>> overviewWeek({
+    String? from,
+  }) => attempt(() => _library.overviewWeek(from: from));
+
+  @override
+  Future<Either<ApplicationError, void>> hidePlace(String noteId) =>
+      attempt(() => _library.overviewHidePlace(noteId: noteId));
+
+  @override
+  Future<Either<ApplicationError, void>> snoozeWaiting(String key) =>
+      attempt(() => _library.overviewSnoozeWaiting(key: key));
+
+  @override
+  Future<Either<ApplicationError, void>> dismissPast(String noteId) =>
+      attempt(() => _library.overviewDismissPast(noteId: noteId));
+
+  @override
+  List<RevisitOption> revisitOptions() => _library.revisitOptions();
+
+  @override
+  Future<Either<ApplicationError, String>> setRevisit({
+    required String noteId,
+    required RevisitChoice choice,
+  }) => attempt(() => _library.setRevisit(noteId: noteId, choice: choice));
+
+  @override
+  Future<Either<ApplicationError, void>> clearRevisit(String noteId) =>
+      attempt(() => _library.clearRevisit(noteId: noteId));
+
+  @override
+  Future<Either<ApplicationError, void>> noteWriting({
+    required String noteId,
+    required int line,
+    required int column,
+    required int typedChars,
+    required String body,
+  }) => attempt(
+    () => _library.noteWriting(
+      noteId: noteId,
+      line: line,
+      column: column,
+      typedChars: typedChars,
+      body: body,
+    ),
+  );
 
   @override
   Future<Either<ApplicationError, ReviewSaved>> saveReview({
@@ -80,13 +141,12 @@ class RustDigestRepository implements DigestRepository {
   ) => attempt(() => _library.approveAiLoops(picks: picks));
 
   @override
-  Future<Either<ApplicationError, AiSummary>> summariseBrief() =>
-      attempt(() => _ai.summariseBrief(run: _newRun()));
-
-  @override
-  Future<Either<ApplicationError, AiSummary>> summariseReview({
+  Future<Either<ApplicationError, AiSummary>> summariseOverview({
+    required bool week,
     String? from,
-  }) => attempt(() => _ai.summariseReview(from: from, run: _newRun()));
+  }) => attempt(
+    () => _ai.summariseOverview(from: from, week: week, run: _newRun()),
+  );
 
   @override
   void stopAi() => _run?.stop();

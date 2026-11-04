@@ -15,6 +15,9 @@ abstract final class KansoRoutes {
   static const String recent = '/recent';
   static const String trash = '/trash';
 
+  /// The canvases, in the list's place.
+  static const String canvases = '/canvases';
+
   /// Tasks, across the notes.
   static const String tasks = '/tasks';
 
@@ -173,10 +176,17 @@ abstract final class KansoRoutes {
   /// The open loops found in the notes.
   static const String loops = '/loops';
 
-  /// The morning brief.
+  /// Overview, Kanso's home: Today and This week.
+  static const String overview = '/overview';
+
+  /// `?week=1` opens Overview on This week.
+  static const String overviewWeekParameter = 'week';
+
+  /// The morning brief, now Overview's Today; kept so old links still work.
   static const String brief = '/brief';
 
-  /// The weekly review.
+  /// The weekly review, now Overview's This week; kept so old links still
+  /// work.
   static const String review = '/review';
 
   /// Replace text across the library.

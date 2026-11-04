@@ -23,6 +23,7 @@ mod home_model;
 mod loops;
 mod meaning;
 mod ocr;
+mod overview;
 mod passage_embed;
 mod passages;
 mod plugin;
@@ -79,6 +80,7 @@ pub use meaning::rank::{
     merged_tags, suggest_tags,
 };
 pub use ocr::{OCR_TYPES, UnreadImage};
+pub use overview::{RevisitRow, WaitingRow, WritingPlace};
 pub use passage_embed::{
     EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
 };

@@ -38,6 +38,9 @@ pub struct WriteResult {
 
 /// Minimum gap between snapshots of UI autosaves of one document.
 const UI_SNAPSHOT_INTERVAL_MS: i64 = 5 * 60 * 1000;
+/// While a canvas is drawn on without a pause, a snapshot is still taken this
+/// often.
+const CANVAS_DRAWING_SNAPSHOT_INTERVAL_MS: i64 = 15 * 60 * 1000;
 /// Snapshots kept per document.
 pub(crate) const SNAPSHOTS_PER_DOC: i64 = 50;
 /// Snapshots kept per canvas: it can be a megabyte, so fifty would be fifty
@@ -192,6 +195,7 @@ pub(crate) fn store_row(
             }
         }
         index_note(tx, id, (!deleted).then_some(fields), locked, in_locked)?;
+        record_overview(tx, id, fields, previous, deleted, locked, origin)?;
     }
     if let Some(before) = book_ids_before {
         books_changed(tx, before, origin)?;
@@ -221,6 +225,64 @@ pub(crate) fn store_row(
         deleted,
         origin,
     });
+    Ok(())
+}
+
+/// What Overview keeps about a write: a session that arrived by sync is
+/// placed by diffing the old and new text; a note that was deleted,
+/// trashed or locked is forgotten, and the snapshot (which holds titles)
+/// is dropped.
+fn record_overview(
+    tx: &Transaction,
+    id: &str,
+    fields: &Map<String, Value>,
+    previous: Option<&Row>,
+    deleted: bool,
+    locked: bool,
+    origin: Origin,
+) -> Result<()> {
+    let trashed = book_of(fields) == Some("trash");
+    let was_hidden = previous.is_some_and(|p| {
+        p.deleted || book_of(&p.fields) == Some("trash") || p.fields.contains_key(LOCK_FIELD)
+    });
+    if deleted || locked || trashed {
+        crate::overview::forget_note(tx, id)?;
+        if !was_hidden || deleted {
+            crate::overview::drop_snapshot(tx)?;
+        }
+        return Ok(());
+    }
+    // A note just tagged #ai-exclude: the AI paragraph may quote it, so it
+    // goes with the snapshot.
+    let tags_changed = previous.is_some_and(|p| p.fields.get("tags") != fields.get("tags"));
+    if tags_changed {
+        let excluded: Option<bool> = tx
+            .query_row(
+                concat!(
+                    "SELECT ",
+                    schema::ai_excluded!("d."),
+                    " FROM docs d WHERE d.id = ?"
+                ),
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if excluded == Some(true) {
+            crate::overview::drop_snapshot(tx)?;
+        }
+    }
+    if origin == Origin::Sync
+        && let Some(prev) = previous.filter(|p| !p.deleted)
+    {
+        let old = prev
+            .fields
+            .get("body")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let new = fields.get("body").and_then(Value::as_str).unwrap_or("");
+        let updated = fields.get("updatedAt").and_then(Value::as_i64).unwrap_or(0);
+        crate::overview::record_synced_change(tx, id, old, new, updated, now_ms())?;
+    }
     Ok(())
 }
 
@@ -514,16 +576,25 @@ fn snapshot(tx: &Transaction, id: &str, prev: &Row, origin: Origin) -> Result<()
             [id],
             |row| row.get(0),
         )?;
-        if last.is_some_and(|at| now_ms() - at < UI_SNAPSHOT_INTERVAL_MS) {
+        let since_last = last.map(|at| now_ms() - at);
+        if since_last.is_some_and(|d| d < UI_SNAPSHOT_INTERVAL_MS) {
             return Ok(());
         }
-        // A canvas is snapshotted only once it has been idle: while the pen
-        // is still moving, the version before this save is saved a moment ago.
+        // A canvas is snapshotted once it has been idle: while the pen is
+        // still moving, the version before this save is saved a moment ago.
+        // Continuous drawing still gets a snapshot every 15 minutes.
         let saved = prev.fields.get("updatedAt").and_then(Value::as_i64);
         // A time far ahead of this Mac's clock (another device's, synced)
         // is not "a moment ago", or a skewed clock would stop the history.
         if is_canvas(&prev.fields)
             && saved.is_some_and(|at| (now_ms() - at).abs() < UI_SNAPSHOT_INTERVAL_MS)
+            && since_last
+                .or_else(|| {
+                    // Never snapshotted: count from when the canvas was made.
+                    let made = prev.fields.get("createdAt").and_then(Value::as_i64)?;
+                    Some(now_ms() - made)
+                })
+                .is_none_or(|d| d < CANVAS_DRAWING_SNAPSHOT_INTERVAL_MS)
         {
             return Ok(());
         }

@@ -15,8 +15,8 @@ mod themes;
 pub use markdown::{iso_week_label, review_markdown, review_title};
 pub use save::{Saved, review_note_id, save_review, saved_review};
 pub use schedule::{
-    BriefSettings, GRACE_MS, NoticeKind, PLAN_DAYS, Planned, due_now, fire_at, next_wake, plan,
-    shown_key,
+    BriefSettings, GRACE_MS, NoticeKind, OpenTo, PLAN_DAYS, Planned, QUIET_DAYS_DEFAULT,
+    QUIET_DAYS_MAX, QUIET_DAYS_MIN, due_now, fire_at, next_wake, plan, shown_key,
 };
 pub use themes::{MAX_TAGS, MAX_TERMS, MIN_NOTES, Theme, ThemeKind, themes};
 

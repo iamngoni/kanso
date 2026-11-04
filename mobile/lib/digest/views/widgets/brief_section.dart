@@ -87,6 +87,8 @@ class _BriefSectionState extends State<BriefSection> {
     int? reviewHour,
     int? reviewMinute,
     bool? markDoneInNote,
+    bool? openToOverview,
+    int? quietDays,
   }) => BriefPrefs(
     loops: loops ?? p.loops,
     brief: brief ?? p.brief,
@@ -100,6 +102,8 @@ class _BriefSectionState extends State<BriefSection> {
     notifyBrief: p.notifyBrief,
     notifyReview: p.notifyReview,
     markDoneInNote: markDoneInNote ?? p.markDoneInNote,
+    openToOverview: openToOverview ?? p.openToOverview,
+    quietDays: quietDays ?? p.quietDays,
   );
 
   Widget stepper(
@@ -158,6 +162,54 @@ class _BriefSectionState extends State<BriefSection> {
         footer: l10n.settingsBriefDetail,
         dividerIndent: widget.dividerIndent,
         children: <Widget>[
+          KansoSettingsRow(
+            icon: KansoIcons.compass,
+            label: l10n.settingsOverviewOpens,
+            onTap: () => unawaited(
+              change(copy(p, openToOverview: !p.openToOverview)),
+            ),
+            trailing: KansoSwitch(
+              value: p.openToOverview,
+              onChanged: (on) => unawaited(change(copy(p, openToOverview: on))),
+            ),
+          ),
+          KansoSettingsRow(
+            icon: KansoIcons.users,
+            label: l10n.settingsOverviewQuiet,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                KansoIconButton(
+                  icon: KansoIcons.chevronLeft,
+                  semanticLabel: l10n.settingsOverviewFewer,
+                  onPressed: p.quietDays <= 3
+                      ? null
+                      : () => unawaited(
+                          change(copy(p, quietDays: p.quietDays - 1)),
+                        ),
+                ),
+                SizedBox(
+                  width: 64,
+                  child: Text(
+                    l10n.settingsOverviewDays(p.quietDays),
+                    textAlign: TextAlign.center,
+                    style: context.typography.body.copyWith(
+                      color: context.colors.text,
+                    ),
+                  ),
+                ),
+                KansoIconButton(
+                  icon: KansoIcons.chevronRight,
+                  semanticLabel: l10n.settingsOverviewMore,
+                  onPressed: p.quietDays >= 14
+                      ? null
+                      : () => unawaited(
+                          change(copy(p, quietDays: p.quietDays + 1)),
+                        ),
+                ),
+              ],
+            ),
+          ),
           KansoSettingsRow(
             icon: KansoIcons.circleHelp,
             label: l10n.settingsBriefLoops,

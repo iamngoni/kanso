@@ -32,6 +32,9 @@ import 'backups/models/repos/abs/backups_repository.dart' as _i1002;
 import 'backups/models/repos/impl/rust_backups_repository.dart' as _i270;
 import 'backups/state/backups/backups_bloc.dart' as _i770;
 import 'board/state/board/board_bloc.dart' as _i553;
+import 'canvas/models/repos/abs/canvas_repository.dart' as _i727;
+import 'canvas/models/repos/impl/rust_canvas_repository.dart' as _i890;
+import 'canvas/state/canvas/canvas_bloc.dart' as _i601;
 import 'capture/models/repos/abs/media_picker_repository.dart' as _i900;
 import 'capture/models/repos/impl/platform_media_picker_repository.dart'
     as _i598;
@@ -480,11 +483,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.HapticsRepository>(),
       ),
     );
+    gh.lazySingleton<_i727.CanvasRepository>(
+      () => _i890.RustCanvasRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.lazySingleton<_i673.DiscoveryRepository>(
       () => _i913.RustDiscoveryRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i815.CrashReportsBloc>(
       () => _i815.CrashReportsBloc(gh<_i288.CrashReportRepository>()),
+    );
+    gh.factory<_i601.CanvasBloc>(
+      () => _i601.CanvasBloc(gh<_i727.CanvasRepository>()),
     );
     gh.lazySingleton<_i731.TriageRepository>(
       () => _i975.RustTriageRepository(gh<_i455.KansoLibrary>()),

@@ -36,16 +36,17 @@ pub enum Filter {
     TagPath(String),
     Status(NoteStatus),
     Trash,
+    /// Canvases only (`doctype: "canvas"`): the Canvases row.
+    Canvases,
     /// The tasks across notes, in the Tasks view (`crate::tasks_view`),
     /// in the note list's place.
     Tasks,
     /// Open loops across notes (`crate::digest_view`), in the note list's
     /// place: things notes say they will do, wait for or check.
     OpenLoops,
-    /// The morning brief, in the note list's place.
-    Brief,
-    /// The weekly review, in the note list's place.
-    Review,
+    /// Overview, Kanso's home, in the note list's place: Today and This
+    /// week (the Morning Brief and Weekly Review it replaces).
+    Overview,
     /// Notes other accounts shared with this one (docs/ACCOUNTS.md ›
     /// Collaboration), with invitations waiting above them.
     Shared,
@@ -53,12 +54,9 @@ pub enum Filter {
 
 impl Filter {
     /// Whether this is a place with a view of its own in the list's place,
-    /// not a list of notes: Tasks, Open Loops, the brief and the review.
+    /// not a list of notes: Tasks, Open Loops and Overview.
     pub fn is_place(&self) -> bool {
-        matches!(
-            self,
-            Filter::Tasks | Filter::OpenLoops | Filter::Brief | Filter::Review
-        )
+        matches!(self, Filter::Tasks | Filter::OpenLoops | Filter::Overview)
     }
 
     /// The query clauses this filter adds to a search.
@@ -74,8 +72,8 @@ impl Filter {
             | Filter::Recent
             | Filter::Tasks
             | Filter::OpenLoops
-            | Filter::Brief
-            | Filter::Review
+            | Filter::Canvases
+            | Filter::Overview
             | Filter::Shared => Vec::new(),
             Filter::Book(id) => vec![clause(Field::BookId, id)],
             Filter::Tag(id) => vec![clause(Field::TagId, id)],
@@ -90,7 +88,18 @@ impl Filter {
 pub fn search_params(filter: &Filter, search: &str, sort: Sort, descending: bool) -> SearchParams {
     let mut query = Query::parse(search);
     query.clauses.extend(filter.clauses());
+    // Canvases have their own place: only the Canvases row lists nothing
+    // else, and All Notes leaves them out unless the search box has words
+    // (so a canvas stays findable). Notebooks, tags, Pinned and Recent keep
+    // them.
+    let (doctype, not_doctype) = match filter {
+        Filter::Canvases => (Some("canvas".to_owned()), false),
+        Filter::All if search.trim().is_empty() => (Some("canvas".to_owned()), true),
+        _ => (None, false),
+    };
     SearchParams {
+        doctype,
+        not_doctype,
         query,
         sort,
         descending,
@@ -436,6 +445,28 @@ mod tests {
     use kanso_store::{NoteSummary, Sort};
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
+
+    #[test]
+    fn canvases_have_their_own_place() {
+        let of = |filter: Filter, search: &str| {
+            let p = search_params(&filter, search, Sort::Title, false);
+            (p.doctype, p.not_doctype)
+        };
+        assert_eq!(of(Filter::Canvases, ""), (Some("canvas".into()), false));
+        assert_eq!(of(Filter::All, ""), (Some("canvas".into()), true));
+        assert_eq!(of(Filter::All, "  "), (Some("canvas".into()), true));
+        // A search in All Notes finds canvases; notebooks, tags, Pinned and
+        // Recent keep them.
+        assert_eq!(of(Filter::All, "plan"), (None, false));
+        for filter in [
+            Filter::Book("book:a".into()),
+            Filter::Tag("tag:a".into()),
+            Filter::Pinned,
+            Filter::Recent,
+        ] {
+            assert_eq!(of(filter, ""), (None, false));
+        }
+    }
     use serde_json::Map;
 
     fn config() -> ProptestConfig {
@@ -500,7 +531,7 @@ mod tests {
         /// Metamorphic: a filter only narrows a search, and its clauses come
         /// after the ones typed in the search box.
         #[test]
-        fn prop_filter_appends_its_clauses(search in "[a-z :\"-]{0,20}", which in 0usize..7) {
+        fn prop_filter_appends_its_clauses(search in "[a-z :\"-]{0,20}", which in 0usize..8) {
             let filter = [
                 Filter::All,
                 Filter::Pinned,
@@ -509,6 +540,7 @@ mod tests {
                 Filter::Status(NoteStatus::Active),
                 Filter::Trash,
                 Filter::Shared,
+                Filter::Canvases,
             ][which].clone();
             let typed = Query::parse(&search);
             let params = search_params(&filter, &search, Sort::Title, false);
@@ -680,6 +712,7 @@ mod tests {
             tasks_done: 0,
             tasks_total: 0,
             locked: false,
+            canvas: false,
         }
     }
 
