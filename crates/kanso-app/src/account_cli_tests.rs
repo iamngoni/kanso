@@ -185,7 +185,11 @@ fn a_fresh_library_signs_in_with_the_password_on_stdin() {
             &mut again,
         )
         .unwrap_err();
-    assert!(refused.0.contains("signed in as alice already"), "{}", refused.0);
+    assert!(
+        refused.0.contains("signed in as alice already"),
+        "{}",
+        refused.0
+    );
 
     // Status, devices, revoke, sign-out.
     let mut status = Script::new(false, &[]);
@@ -482,4 +486,157 @@ proptest! {
         }
         prop_assert_eq!(device_lines(&devices, 0).len(), devices.len());
     }
+}
+
+/// GitHub's device flow, then another device's approval with a code to
+/// compare: the whole headless sign-in against `MemoryServer`.
+#[test]
+fn github_sign_in_is_approved_by_another_device() {
+    use kanso_engine::account::approval::{ApproverKey, FrontStep, front_step};
+    use kanso_engine::account::provider::ProviderSignup;
+    let server = Arc::new(MemoryServer::new());
+    server.set_providers(vec![Provider::Github]);
+    server.set_github_device_flow("octocat", "ABCD-1234", 1);
+    server.push_github_answer("authorized");
+
+    // The laptop made the account with GitHub.
+    let laptop_dir = tempfile::tempdir().unwrap();
+    let laptop = Flow {
+        backend: server.clone(),
+        secrets: Arc::new(MemorySecrets::new()),
+        store: Arc::new(Store::open(laptop_dir.path().join("k.db")).unwrap()),
+        machine: Some(Machine {
+            hardware_uuid: None,
+            computer_name: "Laptop".into(),
+        }),
+        backups: laptop_dir.path().join("backups"),
+        now_ms: 0,
+    };
+    let login = LoginDevice::ephemeral();
+    let started = laptop
+        .start_provider(
+            &Headless,
+            kanso_sync::DEFAULT_SERVER,
+            &Provider::Github,
+            &login,
+            &|_| {},
+        )
+        .unwrap();
+    let ProviderTaskResult::NewAccount(account) = laptop
+        .finish_provider(
+            &Headless,
+            kanso_sync::DEFAULT_SERVER,
+            &Provider::Github,
+            &login,
+            started,
+            None,
+            Arc::new(AtomicBool::new(false)),
+            &|_| {},
+        )
+        .unwrap()
+    else {
+        panic!("a new GitHub identity is offered an account");
+    };
+    let library = laptop
+        .provider_sign_up_library(kanso_sync::DEFAULT_SERVER)
+        .unwrap();
+    let pending = ProviderSignup {
+        server: kanso_sync::DEFAULT_SERVER.to_owned(),
+        provider: Provider::Github,
+        ticket: account.ticket,
+        suggested_username: account.suggested_username,
+        login_device: login,
+    };
+    let alice = Arc::new(
+        laptop
+            .create_provider_signup(
+                kanso_sync::DEFAULT_SERVER,
+                &pending,
+                "octocat",
+                library,
+                &|_| {},
+            )
+            .unwrap()
+            .session,
+    );
+
+    // The server signs in with GitHub; each pause, the laptop takes the
+    // next step of approving it.
+    server.set_github_device_flow("octocat", "WXYZ-9876", 1);
+    server.push_github_answer("authorized");
+    let lab = Lab {
+        dir: tempfile::tempdir().unwrap(),
+        server: server.clone(),
+        secrets: Arc::new(MemorySecrets::new()),
+    };
+    let mut world = lab.world();
+    let key: Arc<std::sync::Mutex<Option<ApproverKey>>> = Arc::default();
+    let approver_code: Arc<std::sync::Mutex<Option<String>>> = Arc::default();
+    {
+        let (server, alice, key, approver_code) = (
+            server.clone(),
+            alice.clone(),
+            key.clone(),
+            approver_code.clone(),
+        );
+        world.pause = Box::new(move |_| {
+            let pending = kanso_sync::pending_approvals(server.as_ref(), &alice).unwrap();
+            let Some(request) = pending.first() else {
+                return;
+            };
+            let mut key = key.lock().unwrap();
+            match key.as_ref() {
+                None => {
+                    let made = ApproverKey::new(request);
+                    kanso_sync::challenge_request(server.as_ref(), &alice, request, &made.keys)
+                        .unwrap();
+                    *key = Some(made);
+                }
+                Some(made) => {
+                    if let FrontStep::Open(opened) = front_step(&alice, request, made, true) {
+                        *approver_code.lock().unwrap() = Some(opened.approval.code());
+                        kanso_sync::finish_approval(
+                            server.as_ref(),
+                            &alice,
+                            request,
+                            &opened.approval,
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+        });
+    }
+    let mut console = Script::new(false, &[]);
+    let args: Vec<String> = ["sign-in", "--provider", "github"]
+        .iter()
+        .map(|a| a.to_string())
+        .collect();
+    run(&world, parse(&args).unwrap(), &mut console).unwrap();
+    let said = console.transcript();
+    assert!(said.contains("enter WXYZ-9876"), "{said}");
+    assert!(said.contains("doesn't have your notes' key yet"), "{said}");
+    let code = approver_code
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("the laptop saw a code");
+    assert!(
+        said.contains(&format!("It should show {}.", spaced_code(&code))),
+        "both screens show one code: {said}"
+    );
+    assert!(said.contains("Signed in as octocat."), "{said}");
+    assert_eq!(lab.config().sync.account.unwrap().username, "octocat");
+    assert!(
+        lab.secrets
+            .items()
+            .iter()
+            .any(|item| item.starts_with("sync-account:"))
+    );
+    assert!(
+        !lab.secrets
+            .items()
+            .iter()
+            .any(|item| item.starts_with("sync-pending:"))
+    );
 }

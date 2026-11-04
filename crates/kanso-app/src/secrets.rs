@@ -81,7 +81,14 @@ impl SecretStore for Unavailable {
 pub fn store_works(store: &dyn SecretStore) -> bool {
     let item = format!("kanso-probe:{:016x}", fastrand::u64(..));
     let wrote = store.set(&item, "probe").is_ok();
-    let read = wrote && store.get(&item).ok().flatten().as_deref().map(String::as_str) == Some("probe");
+    let read = wrote
+        && store
+            .get(&item)
+            .ok()
+            .flatten()
+            .as_deref()
+            .map(String::as_str)
+            == Some("probe");
     let deleted = store.delete(&item).is_ok();
     wrote && read && deleted
 }

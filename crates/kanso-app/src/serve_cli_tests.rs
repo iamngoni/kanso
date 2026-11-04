@@ -94,7 +94,9 @@ impl Lab {
             username: session.username.clone(),
         });
         config.sync.enabled = true;
-        config.save(&crate::paths::config_path(self.dir.path())).unwrap();
+        config
+            .save(&crate::paths::config_path(self.dir.path()))
+            .unwrap();
         session
     }
 
@@ -145,7 +147,8 @@ fn not_signed_in_says_so_once_and_runs_no_driver() {
 fn signed_in_it_syncs_what_the_api_wrote() {
     let lab = Lab::new();
     let session = lab.sign_in();
-    let book = lab.store
+    let book = lab
+        .store
         .put(
             DocType::Book,
             serde_json::json!({"name": "Agents"}),
@@ -184,7 +187,9 @@ fn sync_turned_off_starts_nothing() {
     lab.sign_in();
     let mut config = lab.config();
     config.sync.enabled = false;
-    config.save(&crate::paths::config_path(lab.dir.path())).unwrap();
+    config
+        .save(&crate::paths::config_path(lab.dir.path()))
+        .unwrap();
     assert!(lab.start().is_none());
     assert!(lab.said().contains("sync is off"), "{}", lab.said());
 }

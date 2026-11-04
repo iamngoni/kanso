@@ -323,12 +323,7 @@ fn moved(report: &SyncReport) -> bool {
 pub fn problem_line(problem: &SyncProblem) -> String {
     let help = kanso_engine::sync::words::problem_help(problem, |until| {
         chrono::DateTime::from_timestamp_millis(until)
-            .map(|at| {
-                format!(
-                    "at {}",
-                    at.with_timezone(&chrono::Local).format("%H:%M")
-                )
-            })
+            .map(|at| format!("at {}", at.with_timezone(&chrono::Local).format("%H:%M")))
             .unwrap_or_else(|| "later".to_owned())
     });
     format!(

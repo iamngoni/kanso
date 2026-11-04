@@ -17,15 +17,15 @@ use anyhow::Result;
 use kanso_engine::Secrets;
 use kanso_engine::account::provider::{Browser, BrowserError, Listener};
 use kanso_engine::account::{
-    Flow, Next, NextUnlock, ProviderTaskResult, UnlockedCandidate, WaitEnd, WaitUpdate,
-    after_auth, after_unlock, words,
+    Flow, Next, NextUnlock, ProviderTaskResult, UnlockedCandidate, WaitEnd, WaitUpdate, after_auth,
+    after_unlock, words,
 };
 use kanso_store::{Store, lock_data_dir};
-use kanso_sync::{
-    Backend, Choice, DeviceIdentity, GithubStart, GoogleStart, Machine, Password,
-    Provider, Session, meta_keys,
-};
 use kanso_sync::api::LoginDevice;
+use kanso_sync::{
+    Backend, Choice, DeviceIdentity, GithubStart, GoogleStart, Machine, Password, Provider,
+    Session, meta_keys,
+};
 use zeroize::Zeroizing;
 
 use crate::config::{AccountRef, AppConfig, SecretStoreKind};
@@ -484,10 +484,7 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
             backup.display()
         ));
     }
-    let device = flow
-        .device()
-        .map(|device| device.name)
-        .unwrap_or_default();
+    let device = flow.device().map(|device| device.name).unwrap_or_default();
     console.say(&format!(
         "Signed in as {}. This computer is \"{device}\" in your devices.",
         session.username
@@ -616,7 +613,12 @@ fn ask_binding(
     }
     console.say("  [c] Cancel");
     loop {
-        match console.prompt("Choice: ")?.trim().to_ascii_lowercase().as_str() {
+        match console
+            .prompt("Choice: ")?
+            .trim()
+            .to_ascii_lowercase()
+            .as_str()
+        {
             "a" => return Ok(Some(Choice::Add)),
             "r" => return Ok(Some(Choice::Replace)),
             "c" | "" => return refuse("cancelled; nothing changed."),
@@ -824,7 +826,11 @@ pub fn spaced_code(code: &str) -> String {
     let digits: Vec<char> = code.chars().filter(|c| !c.is_whitespace()).collect();
     if digits.len() == 6 {
         let (a, b) = digits.split_at(3);
-        format!("{} {}", a.iter().collect::<String>(), b.iter().collect::<String>())
+        format!(
+            "{} {}",
+            a.iter().collect::<String>(),
+            b.iter().collect::<String>()
+        )
     } else {
         code.to_owned()
     }
@@ -872,8 +878,9 @@ fn status(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
         return Ok(());
     }
     let device_id = match (&library_id, meta(meta_keys::DEVICE_SECRET)) {
-        (Some(library_id), Some(secret)) => parse_hex32(&secret)
-            .map(|secret| DeviceIdentity::from_parts(library_id, "", secret).device_id(&account.id)),
+        (Some(library_id), Some(secret)) => parse_hex32(&secret).map(|secret| {
+            DeviceIdentity::from_parts(library_id, "", secret).device_id(&account.id)
+        }),
         _ => None,
     };
     let server = meta(meta_keys::SERVER).unwrap_or_else(|| account.origin.clone());
@@ -910,8 +917,9 @@ fn status(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
     let last = meta(kanso_engine::sync::driver::LAST_SYNC_MS)
         .and_then(|ms| ms.parse::<i64>().ok())
         .zip(
-            meta(kanso_engine::sync::driver::LAST_RESULT)
-                .and_then(|json| serde_json::from_str::<kanso_engine::sync::driver::LastResult>(&json).ok()),
+            meta(kanso_engine::sync::driver::LAST_RESULT).and_then(|json| {
+                serde_json::from_str::<kanso_engine::sync::driver::LastResult>(&json).ok()
+            }),
         );
     console.say(&match last {
         Some((at, result)) => format!(
