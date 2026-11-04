@@ -16,6 +16,10 @@ enum NoteMenuAction {
   removeLock,
   lockNow,
 
+  /// Shows the note in a window of its own, where the device has more than
+  /// one window.
+  openInNewWindow,
+
   /// What the note's bar would offer, had it room for it: in the menu when
   /// the bar gave way (see `KansoTopBar.hiddenOf`).
   info,

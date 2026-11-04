@@ -21,8 +21,9 @@ import '../../utils/note_menu_actions.dart';
 import 'lock_item_sheet.dart';
 import 'remove_lock_sheet.dart';
 
-/// A note's More menu: first what the note's bar had no room for, then
-/// Export as PDF, and as far as locks go Lock note…, Remove lock… (the note
+/// A note's More menu: first what the note's bar had no room for, then the
+/// [show] caller's extra actions (Open in New Window), then Export as PDF,
+/// and as far as locks go Lock note…, Remove lock… (the note
 /// is locked and open) and Lock notes now (the notes are open). The choice
 /// closes the menu and then runs.
 class NoteMoreSheet extends StatelessWidget {
@@ -32,17 +33,19 @@ class NoteMoreSheet extends StatelessWidget {
 
   /// Shows the menu of the note [noteId], whose lock is [lock], and runs
   /// what is chosen. [moved] are the actions the note's bar had no room
-  /// for, in order, and what each does. Nothing is shown when there is
-  /// nothing to offer.
+  /// for, in order, and what each does. [extra] are offered every time,
+  /// after them. Nothing is shown when there is nothing to offer.
   static Future<void> show(
     BuildContext context, {
     required String noteId,
     required LockState lock,
     required LockStatusBloc status,
     Map<NoteMenuAction, VoidCallback> moved = const {},
+    Map<NoteMenuAction, VoidCallback> extra = const {},
   }) async {
     final actions = <NoteMenuAction>[
       ...moved.keys,
+      ...extra.keys,
       ...noteMenuActions(lock: lock, unlocked: status.state.unlocked),
     ];
     if (actions.isEmpty) {
@@ -55,7 +58,7 @@ class NoteMoreSheet extends StatelessWidget {
     if (chosen == null || !context.mounted) {
       return;
     }
-    if (moved[chosen] case final run?) {
+    if (moved[chosen] ?? extra[chosen] case final run?) {
       run();
       return;
     }
@@ -80,8 +83,9 @@ class NoteMoreSheet extends StatelessWidget {
         );
       case NoteMenuAction.lockNow:
         status.add(const LockStatusEvent.lockedNow());
-      // Run above, from [moved]; only the bar offers them otherwise.
-      case NoteMenuAction.info ||
+      // Run above, from [moved] or [extra].
+      case NoteMenuAction.openInNewWindow ||
+          NoteMenuAction.info ||
           NoteMenuAction.comments ||
           NoteMenuAction.share ||
           NoteMenuAction.previousDay ||
@@ -119,6 +123,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.lockNote => KansoIcons.lock,
                   NoteMenuAction.removeLock => KansoIcons.lockOpen,
                   NoteMenuAction.lockNow => KansoIcons.lock,
+                  NoteMenuAction.openInNewWindow => KansoIcons.externalLink,
                   NoteMenuAction.info => KansoIcons.info,
                   NoteMenuAction.comments => KansoIcons.messageSquare,
                   NoteMenuAction.share => KansoIcons.share,
@@ -133,6 +138,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.lockNote => l10n.lockNoteMenu,
                   NoteMenuAction.removeLock => l10n.lockRemoveNoteMenu,
                   NoteMenuAction.lockNow => l10n.lockNowMenu,
+                  NoteMenuAction.openInNewWindow => l10n.noteOpenInNewWindow,
                   NoteMenuAction.info => l10n.noteInfo,
                   NoteMenuAction.comments => l10n.commentsTitle,
                   NoteMenuAction.share => l10n.shareTitle,

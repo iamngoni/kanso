@@ -87,7 +87,8 @@ void main() {
     await openLibrary(tester);
     await tester.tap(find.bySemanticsLabel('Settings'));
     await tester.pumpAndSettle();
-    expect(find.text('Appearance'), findsOneWidget);
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
 
     // Themes: the three sections and Theme files.
     await tester.tap(find.text('Theme'));

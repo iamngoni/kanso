@@ -17,14 +17,21 @@ import '../../state/note/note_bloc.dart';
 
 /// The More button of a note, which opens the menu of its lock actions, and
 /// of the actions in [moved] that the bar it is in had no room for (see
-/// `KansoTopBarItem`, whose id is the action). It is not there while the
-/// note is not read, or has no lock action to offer (a locked note that is
-/// closed).
+/// `KansoTopBarItem`, whose id is the action), and of the actions in [extra].
+/// It is not there while the note is not read, or has nothing to offer (a
+/// locked note that is closed, with no [extra]).
 class NoteLockMenuButton extends StatelessWidget {
-  const NoteLockMenuButton({this.moved = const {}, super.key});
+  const NoteLockMenuButton({
+    this.moved = const {},
+    this.extra = const {},
+    super.key,
+  });
 
   /// What each action the bar may have no room for does.
   final Map<NoteMenuAction, VoidCallback> moved;
+
+  /// Actions the menu always offers, and what each does.
+  final Map<NoteMenuAction, VoidCallback> extra;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +47,7 @@ class NoteLockMenuButton extends StatelessWidget {
               lock: view.lock,
               unlocked: lock.unlocked,
             );
-            if (actions.isEmpty) {
+            if (actions.isEmpty && extra.isEmpty) {
               return const SizedBox.shrink();
             }
             return KansoIconButton(
@@ -52,6 +59,7 @@ class NoteLockMenuButton extends StatelessWidget {
                 lock: view.lock,
                 status: context.read<LockStatusBloc>(),
                 moved: _hidden(context),
+                extra: extra,
               ),
             );
           },

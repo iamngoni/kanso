@@ -7,7 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/models/data/layout_class.dart';
-import 'package:kanso/settings/views/widgets/settings_pane.dart';
+import 'package:kanso/settings/views/widgets/journal_settings_pane.dart';
 
 import '../../helpers/app_golden.dart';
 import '../../helpers/kanso_viewport.dart';
@@ -41,7 +41,7 @@ Future<void> _openMove(WidgetTester tester, BrowseApp app) async {
 }
 
 Future<void> _scrollSettingsToEnd(WidgetTester tester, BrowseApp app) async {
-  unawaited(app.router.push<void>('/settings'));
+  unawaited(app.router.push<void>('/settings/journal'));
   await tester.pumpAndSettle();
   // Three panes keep the library and the list behind the sheet, so the
   // list to scroll is the settings pane's own.
@@ -49,7 +49,7 @@ Future<void> _scrollSettingsToEnd(WidgetTester tester, BrowseApp app) async {
     find.text('Remind me of tasks'),
     find
         .descendant(
-          of: find.byType(SettingsPane),
+          of: find.byType(JournalSettingsPane),
           matching: find.byType(ListView),
         )
         .first,

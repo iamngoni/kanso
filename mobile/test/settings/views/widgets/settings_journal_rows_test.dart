@@ -10,7 +10,7 @@ import 'package:kanso/core/models/data/reminder_permission.dart';
 import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_settings_row.dart';
 import 'package:kanso/core/views/widgets/kanso_switch.dart';
-import 'package:kanso/settings/views/widgets/settings_pane.dart';
+import 'package:kanso/settings/views/widgets/journal_settings_pane.dart';
 
 import '../../../helpers/close_bloc_later.dart';
 import '../../../helpers/fixture_library_repository.dart';
@@ -36,7 +36,7 @@ Future<SettingsBlocs> _pump(
     tester,
     BlocProvider<AppearanceBloc>.value(
       value: appearance,
-      child: blocs.provide(const SettingsPane()),
+      child: blocs.provide(const JournalSettingsPane()),
     ),
     size: const Size(393, 1600),
   );
@@ -52,7 +52,7 @@ void main() {
       await _pump(tester);
       expect(find.text('Daily notes'), findsOneWidget);
       expect(find.text('Daily template'), findsOneWidget);
-      expect(find.text('None'), findsNWidgets(2));
+      expect(find.text('None'), findsOneWidget);
       expect(
         find.text(
           'New daily notes start from this template, with {{date}}, {{time}} '
@@ -80,7 +80,7 @@ void main() {
       await tester.tap(find.text('Daily template'));
       await tester.pumpAndSettle();
       // None first, checked; then the templates.
-      expect(find.text('None'), findsNWidgets(3));
+      expect(find.text('None'), findsNWidgets(2));
       await tester.tap(find.text('Meeting notes'));
       await tester.pumpAndSettle();
       expect(fixtures.journal.daily, 'note:tpl-meeting');

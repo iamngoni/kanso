@@ -568,6 +568,18 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get settingsClose;
 
+  /// Settings: the row and page title of the category with the daily note template, task reminders and the brief and review.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily notes and reminders'**
+  String get settingsJournal;
+
+  /// Settings: the row and page title of the category with crash reports, device backups and locked notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy and security'**
+  String get settingsPrivacySecurity;
+
   /// A section of settings.
   ///
   /// In en, this message translates to:

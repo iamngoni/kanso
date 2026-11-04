@@ -45,6 +45,7 @@ import '../../settings/views/pages/default_notebook_page.dart';
 import '../../settings/views/pages/fonts_page.dart';
 import '../../settings/views/pages/icon_themes_page.dart' as icon_picker;
 import '../../settings/views/pages/licences_page.dart';
+import '../../settings/views/pages/settings_category_pages.dart';
 import '../../settings/views/pages/settings_page.dart';
 import '../../sharing/views/pages/join_link_page.dart';
 import '../../sharing/views/pages/shared_with_you_page.dart';
@@ -344,6 +345,48 @@ class KansoRouter {
                 child: const SettingsPage(),
               ),
               routes: <RouteBase>[
+                GoRoute(
+                  path: 'general',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const GeneralSettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'appearance',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const AppearanceSettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'journal',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const JournalSettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'discovery',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const DiscoverySettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'privacy',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const PrivacySettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'about',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const AboutSettingsPage(),
+                  ),
+                ),
                 GoRoute(
                   path: 'notebook',
                   pageBuilder: (context, state) => kansoPage<void>(

@@ -110,6 +110,14 @@ abstract final class KansoRoutes {
 
   /// Settings, a sheet on a tablet and a page on a phone.
   static const String settings = '/settings';
+
+  /// Settings' categories, each a page of its own.
+  static const String settingsGeneral = '/settings/general';
+  static const String settingsAppearance = '/settings/appearance';
+  static const String settingsJournal = '/settings/journal';
+  static const String settingsDiscovery = '/settings/discovery';
+  static const String settingsPrivacy = '/settings/privacy';
+  static const String settingsAbout = '/settings/about';
   static const String settingsAi = '/settings/ai';
   static const String settingsVoice = '/settings/voice';
   static const String settingsInbox = '/settings/inbox';

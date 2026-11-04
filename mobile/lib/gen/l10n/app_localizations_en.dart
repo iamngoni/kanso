@@ -269,6 +269,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsClose => 'Close';
 
   @override
+  String get settingsJournal => 'Daily notes and reminders';
+
+  @override
+  String get settingsPrivacySecurity => 'Privacy and security';
+
+  @override
   String get settingsGeneral => 'General';
 
   @override
