@@ -66,6 +66,7 @@ actions!(
         ExportNote,
         ExportHtml,
         ExportPdf,
+        AttachPdf,
         ExportLibrary,
         SyncNow,
         ShowSignIn,
@@ -307,6 +308,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::separator(),
             MenuItem::action("Open…", OpenFile),
             MenuItem::action("Import…", ImportLibrary),
+            MenuItem::action("Attach PDF…", AttachPdf),
             MenuItem::separator(),
             MenuItem::action("Save", SaveNote),
             MenuItem::action("Export Note…", ExportNote),
@@ -3020,6 +3022,11 @@ impl Render for Workspace {
             .on_action(cx.listener(|this, _: &ExportHtml, window, cx| {
                 this.close_settings(window, cx);
                 this.export_page(false, window, cx);
+            }))
+            .on_action(cx.listener(|this, _: &AttachPdf, window, cx| {
+                this.close_settings(window, cx);
+                this.editor
+                    .update(cx, |editor, cx| editor.attach_pdf_dialog(window, cx));
             }))
             .on_action(cx.listener(|this, _: &ExportPdf, window, cx| {
                 this.close_settings(window, cx);

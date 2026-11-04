@@ -551,10 +551,20 @@ fn image_resolver(
             let (content_type, bytes) = match opened {
                 Some(opened) => opened,
                 None => {
+                    // The type and length first, from the document alone:
+                    // a PDF (up to 50 MB) linked as an image must not be
+                    // read off disk on the UI thread to be thrown away.
+                    let meta = store.file_meta(&id).ok()??;
+                    if !is_drawable_image(&meta.content_type, meta.content_length) {
+                        return None;
+                    }
                     let (content_type, attachment) = store.attachment(&id).ok()??;
                     (content_type, attachment.data)
                 }
             };
+            if !is_drawable_image(&content_type, bytes.len() as u64) {
+                return None;
+            }
             let format = ImageFormat::from_mime_type(&content_type)?;
             Some(Arc::new(Image::from_bytes(format, bytes)))
         });
@@ -563,6 +573,13 @@ fn image_resolver(
             None => ImageSource::from(uri.clone()),
         }
     }
+}
+
+/// Whether an attachment of this type and length is one the preview draws:
+/// an image type GPUI decodes, within the 10 MB image limit.
+fn is_drawable_image(content_type: &str, length: u64) -> bool {
+    ImageFormat::from_mime_type(content_type).is_some()
+        && length <= kanso_core::model::MAX_ATTACHMENT_SIZE as u64
 }
 
 /// Where a clicked link goes: a note link to the editor, a web or mail link
@@ -1302,6 +1319,57 @@ impl Render for Preview {
             })
             .size_full(),
         )
+    }
+}
+
+#[cfg(test)]
+mod resolver_tests {
+    use super::{ImageSource, image_resolver, is_drawable_image};
+    use gpui_kit::SharedUri;
+    use kanso_core::links::FILE_LINK_PREFIX;
+    use kanso_store::Store;
+    use proptest::prelude::*;
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+
+    /// The smallest PNG: one transparent pixel.
+    const PIXEL: &[u8] = &[
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f,
+        0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00,
+        0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+        0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ];
+
+    proptest! {
+        /// Only an image type within the image limit is drawn; a PDF never
+        /// is, whatever its size.
+        #[test]
+        fn only_images_within_the_limit_are_drawn(length in 0u64..60 * 1024 * 1024) {
+            let limit = kanso_core::model::MAX_ATTACHMENT_SIZE as u64;
+            prop_assert_eq!(is_drawable_image("image/png", length), length <= limit);
+            prop_assert!(!is_drawable_image("application/pdf", length));
+        }
+    }
+
+    /// A PDF linked as an image resolves to its link (nothing is drawn, and
+    /// its bytes are not read), while an image resolves to its pixels.
+    // no-prop-test: store glue; `is_drawable_image` has the property.
+    #[test]
+    fn a_pdf_linked_as_an_image_is_not_loaded() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = Arc::new(Store::open(tmp.path().join("k.db")).unwrap());
+        let png = kanso_engine::attach::attach_image(&store, PIXEL, "png", None).unwrap();
+        let pdf =
+            kanso_engine::attach::attach_pdf(&store, b"%PDF-1.7\n%body", "a.pdf", None).unwrap();
+        let resolve = image_resolver(
+            store,
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+        );
+        let uri = |id: &str| SharedUri::from(format!("{FILE_LINK_PREFIX}{}", &id[5..]));
+        assert!(matches!(resolve(&uri(&png)), ImageSource::Image(_)));
+        assert!(!matches!(resolve(&uri(&pdf)), ImageSource::Image(_)));
     }
 }
 

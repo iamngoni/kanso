@@ -5,6 +5,7 @@
 import { createExecutionContext, createScheduledController, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sha256Hex } from "../src/crypto";
 import worker, { runCron } from "../src/index";
 import { MAX_PUSH_BODY, MAX_PUSH_DOCS, MAX_SEALED, MAX_SEALED_FILE, MIN_SEALED_FILE } from "../src/protocol";
 import { ORIGIN, type Account, type Client, START, call, callJson, client, r2Keys, resetServer, sealed, setSetting, signUp, testEnv, wireId, wireRev } from "./helpers";
@@ -149,14 +150,58 @@ describe("files", () => {
 		const large = await alice.putFile(id, new Uint8Array(MAX_SEALED_FILE + 1), "0".repeat(64));
 		expect(large.status).toBe(413);
 		expect(large.body.error).toBe("too_large");
-		const tenMiBContainer = new Uint8Array(10 * 1024 * 1024 + 41 + 4_096);
-		expect(tenMiBContainer.byteLength).toBe(MAX_SEALED_FILE);
-		expect((await alice.putFile(id, tenMiBContainer)).body).toEqual({ ok: true, size: MAX_SEALED_FILE });
+		const pdfContainer = new Uint8Array(50 * 1024 * 1024 + 41 + 4_096);
+		pdfContainer[pdfContainer.length - 1] = 7;
+		expect(pdfContainer.byteLength).toBe(MAX_SEALED_FILE);
+		expect((await alice.putFile(id, pdfContainer)).body).toEqual({ ok: true, size: MAX_SEALED_FILE });
 		// A percent-encoded path names the same file.
-		const got = await call(`/v2/files/file%3A${"F".repeat(22)}`, { token: a.token });
+		const got = await call(`/v2/files/file%3A${"F".repeat(22)}`, { token: a.token, headers: { "x-kanso-max-file": String(MAX_SEALED_FILE) } });
 		expect(got.status).toBe(200);
 		expect(got.headers.get("content-length")).toBe(String(MAX_SEALED_FILE));
+		// Compared by hash: toEqual on 50 M elements runs the isolate out of memory.
+		expect(await sha256Hex(new Uint8Array(await got.arrayBuffer()))).toBe(await sha256Hex(pdfContainer));
 		expect(await r2Keys()).toEqual([`accounts/${a.creds.accountId}/${id}`]);
+	});
+
+	it("streams an upload: a wrong checksum stores nothing and charges nothing; a chunked body still works", async () => {
+		const first = new Uint8Array(12 * 1024 * 1024).fill(1);
+		expect((await alice.putFile(id, first)).body).toEqual({ ok: true, size: first.length });
+		const other = new Uint8Array(12 * 1024 * 1024).fill(2);
+		const wrong = await alice.putFile(id, other, "0".repeat(64));
+		expect(wrong).toMatchObject({ status: 400, body: { error: "checksum_mismatch" } });
+		expect(await sha256Hex((await alice.getFile(id)).bytes)).toBe(await sha256Hex(first));
+		expect((await alice.account()).body.usage).toMatchObject({ files: 1, file_bytes: first.length + 1024 });
+		// A body of unknown length (chunked) is read whole to learn it, then stored the same way.
+		const chunk = new Uint8Array(64).fill(9);
+		const chunked = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(chunk);
+				controller.close();
+			},
+		});
+		const other64 = wireId("file");
+		const r = await callJson(`/v2/files/${other64}`, {
+			token: a.token,
+			method: "PUT",
+			body: chunked,
+			headers: { "content-type": "application/octet-stream", "x-kanso-sha256": await sha256Hex(chunk) },
+		});
+		expect(r).toMatchObject({ status: 200, body: { ok: true, size: 64 } });
+		expect((await alice.getFile(other64)).bytes).toEqual(chunk);
+	});
+
+	it("answers a file over a client's cap with a 404 it gets past, and assumes the old 10 MiB cap", async () => {
+		const legacyCap = 10 * 1024 * 1024 + 41 + 4_096;
+		const atCap = wireId("file");
+		const over = wireId("file");
+		expect((await alice.putFile(atCap, new Uint8Array(legacyCap))).status).toBe(200);
+		expect((await alice.putFile(over, new Uint8Array(legacyCap + 1))).status).toBe(200);
+		// A Kanso from before 50 MiB PDFs sends no header.
+		expect((await alice.getFile(atCap, null)).status).toBe(200);
+		expect((await alice.getFile(over, null)).status).toBe(404);
+		// One that says it takes more gets it; a smaller cap is honoured too.
+		expect((await alice.getFile(over)).bytes.length).toBe(legacyCap + 1);
+		expect((await alice.getFile(atCap, 1000)).status).toBe(404);
 	});
 
 	it("serves bytes only with an account_files row, even when R2 holds an object", async () => {

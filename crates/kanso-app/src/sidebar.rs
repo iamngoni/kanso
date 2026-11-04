@@ -2160,7 +2160,7 @@ mod tests {
         "Account full",
         "Server full",
         "Some items skipped",
-        "Some files not synced",
+        "Some items not synced",
         "Update Kanso",
         "Keys don't match",
         "Server needs an update",

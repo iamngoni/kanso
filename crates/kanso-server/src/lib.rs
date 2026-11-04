@@ -58,6 +58,43 @@ pub use tokens::{Minted, ShownNote, TokenId, TokenStore};
 /// Largest request body accepted. A 10 MB image is about 13.4 MB in base64.
 pub const MAX_BODY_BYTES: usize = 16 * 1024 * 1024;
 
+/// Largest body of a REST attachment upload (`POST /files`, `/file:<id>`,
+/// `/file/<id>`): a 50 MiB PDF is 69,905,068 bytes in base64, and this
+/// leaves about 5 MiB for the rest of the JSON. Every other route, `/mcp`
+/// included, keeps [`MAX_BODY_BYTES`].
+pub const MAX_ATTACHMENT_BODY_BYTES: usize = 72 * 1024 * 1024;
+
+/// Whether a request is a REST attachment upload, which may carry
+/// [`MAX_ATTACHMENT_BODY_BYTES`]. The path is the raw one, so a
+/// percent-encoded `:` counts too; the store still checks the size for the
+/// file's kind (10 MiB, or 50 MiB for a PDF).
+fn is_attachment_upload(method: &axum::http::Method, path: &str) -> bool {
+    let encoded_colon = path
+        .get(..8)
+        .is_some_and(|head| head.eq_ignore_ascii_case("/file%3a"));
+    method == axum::http::Method::POST
+        && (path == "/files"
+            || path.starts_with("/file:")
+            || path.starts_with("/file/")
+            || encoded_colon)
+}
+
+/// Caps every body at [`MAX_BODY_BYTES`] but an attachment upload's, which
+/// the router's [`DefaultBodyLimit`] caps at [`MAX_ATTACHMENT_BODY_BYTES`].
+/// Over the cap the extractors refuse with 413 (`too_large`) as before.
+async fn body_limit(
+    request: axum::extract::Request,
+    next: middleware::Next,
+) -> axum::response::Response {
+    if is_attachment_upload(request.method(), request.uri().path()) {
+        return next.run(request).await;
+    }
+    let (parts, body) = request.into_parts();
+    let body = axum::body::Body::new(http_body_util::Limited::new(body, MAX_BODY_BYTES));
+    next.run(axum::extract::Request::from_parts(parts, body))
+        .await
+}
+
 /// Where the server listens and the credentials it requires.
 #[derive(Clone, PartialEq, Eq)]
 pub struct ServerConfig {
@@ -114,7 +151,8 @@ pub fn router_with_tokens(store: Arc<Store>, config: &ServerConfig, tokens: Toke
         .fallback(rest::not_found)
         .method_not_allowed_fallback(rest::method_not_allowed)
         .with_state(state)
-        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+        .layer(DefaultBodyLimit::max(MAX_ATTACHMENT_BODY_BYTES))
+        .layer(middleware::from_fn(body_limit))
         .layer(middleware::from_fn_with_state(gate, auth::require_auth))
 }
 
@@ -338,5 +376,30 @@ impl fmt::Debug for ServerHandle {
             .field("bound", &self.bound)
             .field("running", &self.is_running())
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod body_limit_tests {
+    use super::is_attachment_upload;
+    use axum::http::Method;
+
+    // no-prop-test: a fixed table of the routes that create files.
+    #[test]
+    fn only_file_uploads_take_the_attachment_limit() {
+        for path in [
+            "/files",
+            "/file:abc",
+            "/file/abc",
+            "/file%3Aabc",
+            "/FILE%3aabc",
+        ] {
+            assert!(is_attachment_upload(&Method::POST, path), "{path}");
+        }
+        for path in ["/notes", "/note:abc", "/mcp", "/filesx", "/fil", "/books"] {
+            assert!(!is_attachment_upload(&Method::POST, path), "{path}");
+        }
+        assert!(!is_attachment_upload(&Method::GET, "/files"));
+        assert!(!is_attachment_upload(&Method::DELETE, "/file:abc"));
     }
 }

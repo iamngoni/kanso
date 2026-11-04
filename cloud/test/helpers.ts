@@ -6,7 +6,7 @@ import { env } from "cloudflare:workers";
 import { type AdminIO, type Report, type RestoreTarget, type StatementResult, admin } from "../src/accounts";
 import { hashToken, sha256Hex } from "../src/crypto";
 import { type Env, handle } from "../src/index";
-import { base64url, fromBase64url } from "../src/protocol";
+import { MAX_SEALED_FILE, base64url, fromBase64url } from "../src/protocol";
 
 /** The fixtures' start: a UTC midnight. */
 export const START = 1_800_057_600_000;
@@ -210,8 +210,10 @@ export function client(token: string, init: Call = {}) {
 			});
 			return { status: response.status, body: await response.json<any>() };
 		},
-		async getFile(id: string) {
-			const response = await call(`/v2/files/${id}`, { ...init, token });
+		async getFile(id: string, maxFile: number | null = MAX_SEALED_FILE) {
+			// As the native client sends it; `null` is a Kanso from before 50 MiB PDFs.
+			const headers: Record<string, string> = maxFile === null ? {} : { "x-kanso-max-file": String(maxFile) };
+			const response = await call(`/v2/files/${id}`, { ...init, token, headers });
 			return { status: response.status, bytes: new Uint8Array(await response.arrayBuffer()) };
 		},
 		async putShare(id: string, bytes: Uint8Array, options: { sha?: string; expiresAt?: number } = {}) {

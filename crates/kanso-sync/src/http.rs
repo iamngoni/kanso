@@ -196,6 +196,13 @@ impl HttpApi {
                 if let Some(auth) = &auth {
                     request = request.header("authorization", auth.as_str());
                 }
+                if matches!(route, Route::GetFile) {
+                    // The Worker answers 404 for a file over this, rather
+                    // than bytes the answer cap below would refuse; without
+                    // it, it assumes the 10 MiB cap of Kansos before 50 MiB
+                    // PDFs.
+                    request = request.header("x-kanso-max-file", MAX_FILE_RESPONSE.to_string());
+                }
                 request.config().timeout_global(timeout).build().call()
             }
             _ => {
