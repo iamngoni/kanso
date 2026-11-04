@@ -95,7 +95,7 @@ impl Engine {
                         && opened.role.may_edit()
                         && !past_its_epoch(loaded, opened.header.epoch, base_seq) =>
                 {
-                    if apply_safely(&loaded.doc, &opened.plain).is_some_and(|m| !m.is_empty()) {
+                    if apply_safely(&loaded.doc, &opened.plain).unwrap_or(false) {
                         merge.text = true;
                         merge.authors.push(opened.author_name);
                     }
@@ -136,8 +136,8 @@ impl Engine {
                     Kind::Update if opened.role.may_edit() => {
                         // An update that doesn't decode is skipped like a
                         // forged one: it must never stop the log.
-                        let merged = apply_safely(&loaded.doc, &opened.plain).unwrap_or_default();
-                        if !merged.is_empty() {
+                        let changed = apply_safely(&loaded.doc, &opened.plain).unwrap_or(false);
+                        if changed {
                             merge.text = true;
                             if !merge.authors.contains(&opened.author_name) {
                                 merge.authors.push(opened.author_name.clone());
@@ -474,6 +474,15 @@ impl Engine {
             {
                 return Ok(false);
             }
+            // A canvas first sends what trims its tombstones, then the
+            // snapshot is of the trimmed document.
+            if let Some(canvas) = guard.doc.canvas()
+                && let Some(trim) = canvas.trim_tombstones()
+            {
+                self.store.push_outbox(share_id, "u", &trim)?;
+                guard.canvas_dirty = true;
+                return Ok(false);
+            }
             let has_updates = self.store.outbox(share_id)?.iter().any(|o| o.kind == "u");
             if has_updates || !guard.inbox.is_empty() || guard.pending_snapshot.is_some() {
                 return Ok(false);
@@ -518,12 +527,25 @@ impl Engine {
         message: &str,
     ) -> Result<()> {
         if let Some(note) = self.store.note(&loaded.note.note_id)? {
-            let (title, body) = match text {
-                Some((title, body)) => (title.clone(), body.clone()),
-                None => (note.title, note.body),
+            let canvas = loaded.doc.canvas();
+            let (title, body) = match (text, canvas) {
+                (Some((title, body)), _) => (title.clone(), body.clone()),
+                // A canvas as this device has it, what it drew that never
+                // went included.
+                (None, Some(doc)) => (doc.title(), kanso_core::canvas::to_body(&doc.to_canvas())),
+                (None, None) => (note.title, note.body),
             };
             let title = format!("{} (not shared)", title.trim());
-            let (title, body) = super::clamp_text(title, body);
+            // A canvas is never cut short: one too big for a note isn't kept.
+            let (title, body) = if canvas.is_some() {
+                (super::clamp_text(title, String::new()).0, body)
+            } else {
+                super::clamp_text(title, body)
+            };
+            if canvas.is_some() && kanso_core::canvas::check_body(&body).is_err() {
+                self.add_problem(&loaded.note.share_id, message);
+                return Ok(());
+            }
             self.store.put(
                 kanso_core::id::DocType::Note,
                 serde_json::json!({
@@ -531,6 +553,7 @@ impl Engine {
                     "bookId": note.book_id,
                     "title": title,
                     "body": body,
+                    "doctype": if canvas.is_some() { "canvas" } else { note.doctype.as_str() },
                 }),
                 kanso_store::Put::Upsert,
                 kanso_store::Origin::Collab,
@@ -548,7 +571,11 @@ impl Engine {
                 self.store.drop_outbox(outgoing.id)?;
             }
         }
-        loaded.doc = crate::doc::CollabDoc::new();
+        loaded.doc = crate::shared_doc::SharedDoc::new(loaded.note.kind);
+        loaded.canvas_base = None;
+        // The library's canvas is the log's, once it has merged.
+        loaded.canvas_dirty = true;
+        loaded.canvas_full = false;
         loaded.note.applied_seq = 0;
         loaded.note.since_snapshot = 0;
         loaded.note.bytes_since_snapshot = 0;
@@ -615,10 +642,7 @@ impl Engine {
         };
         let (members, title) = {
             let guard = lock(&loaded);
-            (
-                guard.current.members.clone(),
-                guard.doc.text(crate::doc::Field::Title),
-            )
+            (guard.current.members.clone(), guard.doc.title())
         };
         let me = &self.account.caller.account_id;
         for event in events {
@@ -751,7 +775,7 @@ pub(crate) fn past_its_epoch(loaded: &Loaded, epoch: u32, seq: u64) -> bool {
 }
 
 /// Applies a Yrs update, `None` when it doesn't decode, or Yrs panics on it.
-fn apply_safely(doc: &crate::doc::CollabDoc, update: &[u8]) -> Option<crate::doc::Merged> {
+fn apply_safely(doc: &crate::shared_doc::SharedDoc, update: &[u8]) -> Option<bool> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| doc.apply(update)))
         .ok()?
         .ok()

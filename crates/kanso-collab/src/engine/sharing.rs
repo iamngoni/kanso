@@ -6,14 +6,16 @@
 
 use std::collections::{BTreeMap, HashSet};
 
+use kanso_core::canvas::{self, Canvas};
 use kanso_core::now_ms;
-use kanso_store::{SharedNote, SharedStatus, SharedText};
+use kanso_store::{SharedCanvas, SharedKind, SharedNote, SharedStatus, SharedText};
 
 use super::people::Pinned;
 use super::{Engine, lock};
 use crate::api::{
     AccountWrap, CollabError, Joined, NewEpoch, NewLink, NewShare, Result, ShareInfo,
 };
+use crate::canvas_doc::CanvasDoc;
 use crate::codec::{b64, new_id};
 use crate::doc::CollabDoc;
 use crate::envelope;
@@ -24,6 +26,7 @@ use crate::model::{
     Header, Invitation, Kind, LinkView, Member, MemberList, MemberView, Person, RequestView, Role,
     ShareView,
 };
+use crate::shared_doc::SharedDoc;
 
 /// The longest an invite link lasts.
 pub const MAX_LINK_DAYS: i64 = 30;
@@ -121,6 +124,28 @@ impl Engine {
         }
         let identity = self.identity()?;
         let note = self.store.note(note_id)?.expect("checked above");
+        // Text or canvas, by the note as it is now; the owner-signed list
+        // carries it from here on.
+        let kind = if note.doctype == "canvas" {
+            SharedKind::Canvas
+        } else {
+            SharedKind::Text
+        };
+        let doc = match kind {
+            SharedKind::Text => SharedDoc::Text(CollabDoc::from_text(&note.title, &note.body)),
+            SharedKind::Canvas => {
+                let canvas = if note.body.trim().is_empty() {
+                    Canvas::default()
+                } else {
+                    canvas::parse(&note.body).map_err(|why| {
+                        CollabError::NotShareable(format!(
+                            "The canvas can't be read, so it can't be shared yet: {why}"
+                        ))
+                    })?
+                };
+                SharedDoc::Canvas(CanvasDoc::from_canvas(&note.title, &canvas))
+            }
+        };
         let caller = &self.account.caller;
         let share_id = new_id();
         let key = NoteKey::generate();
@@ -138,8 +163,7 @@ impl Engine {
             let person = self.person(username)?;
             people.push((self.pinned(&person.account_id)?, *role));
         }
-        let (list, list_sig, wraps) = self.sign_epoch(&share_id, 1, &key, &people, None)?;
-        let doc = CollabDoc::from_text(&note.title, &note.body);
+        let (list, list_sig, wraps) = self.sign_epoch(&share_id, 1, &key, &people, None, kind)?;
         let state = doc.encode_state();
         let header = Header {
             kind: Kind::Snapshot,
@@ -172,6 +196,7 @@ impl Engine {
             owner_name: caller.username.clone(),
             role: Role::Owner.as_str().into(),
             status: SharedStatus::Active,
+            kind,
             epoch: 1,
             list,
             list_sig,
@@ -184,15 +209,31 @@ impl Engine {
             updated_at: now_ms(),
         };
         self.store.put_shared_note(&shared)?;
-        self.store.write_shared_text(&SharedText {
-            note_id,
-            title: &note.title,
-            body: &note.body,
-            mark: Some(Engine::mark(&shared)),
-            new_in: &note.book_id,
-            expected_rev: None,
-            authors: &[],
-        })?;
+        match &doc {
+            SharedDoc::Text(_) => {
+                self.store.write_shared_text(&SharedText {
+                    note_id,
+                    title: &note.title,
+                    body: &note.body,
+                    mark: Some(Engine::mark(&shared)),
+                    new_in: &note.book_id,
+                    expected_rev: None,
+                    authors: &[],
+                })?;
+            }
+            // What the library holds is the document as it was seeded.
+            SharedDoc::Canvas(canvas) => {
+                self.store.write_shared_canvas(&SharedCanvas {
+                    note_id,
+                    title: &note.title,
+                    canvas: &canvas.to_canvas(),
+                    mark: Some(Engine::mark(&shared)),
+                    new_in: &note.book_id,
+                    expected_rev: None,
+                    authors: &[],
+                })?;
+            }
+        }
         Ok(share_id)
     }
 
@@ -204,6 +245,7 @@ impl Engine {
         key: &NoteKey,
         people: &[(Verified, Role)],
         from_seq: Option<u64>,
+        kind: SharedKind,
     ) -> Result<(String, String, Vec<AccountWrap>)> {
         let identity = self.identity()?;
         let mut list = MemberList {
@@ -214,6 +256,7 @@ impl Engine {
             key_commit: key.commit(share_id, epoch),
             at: now_ms(),
             from_seq,
+            kind: (kind == SharedKind::Canvas).then(|| kind.as_str().to_owned()),
             members: people.iter().map(|(p, role)| member(p, *role)).collect(),
         };
         list.sort();
@@ -232,7 +275,7 @@ impl Engine {
     fn rotate(&self, share_id: &str, people: Vec<(Verified, Role)>) -> Result<()> {
         let loaded = self.loaded(share_id)?;
         let new_epoch;
-        let (identity, key, everyone, earlier_wraps, head) = {
+        let (identity, key, everyone, earlier_wraps, head, kind) = {
             let guard = lock(&loaded);
             if guard.role() != Role::Owner {
                 return Err(CollabError::Refused(
@@ -277,6 +320,7 @@ impl Engine {
                 everyone,
                 earlier_wraps,
                 guard.note.applied_seq,
+                guard.note.kind,
             )
         };
         // The list names the log's head the epoch starts from; the server
@@ -285,7 +329,7 @@ impl Engine {
         let mut attempt = 0;
         let (list, list_sig) = loop {
             let (list, list_sig, mut new_wraps) =
-                self.sign_epoch(share_id, new_epoch, &key, &everyone, Some(head))?;
+                self.sign_epoch(share_id, new_epoch, &key, &everyone, Some(head), kind)?;
             new_wraps.extend(earlier_wraps.iter().cloned());
             // Kept before the server hears of it, so a lost answer loses
             // no key.
@@ -890,6 +934,7 @@ impl Engine {
                     owner_name: info.owner_username.clone(),
                     role: role.as_str().into(),
                     status: SharedStatus::Active,
+                    kind: SharedKind::parse(list.kind.as_deref().unwrap_or("text")),
                     epoch: list.epoch,
                     list: info.list.clone(),
                     list_sig: info.list_sig.clone(),

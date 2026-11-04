@@ -147,7 +147,24 @@ impl Canvas {
     /// rounded for a compact document, given a fresh ID and put on top of the
     /// ink layer. Refused when it has no points, too many, or the canvas is
     /// full.
-    pub fn draw(&mut self, mut stroke: Stroke, now: i64) -> Result<(String, Action), Refused> {
+    pub fn draw(&mut self, stroke: Stroke, now: i64) -> Result<(String, Action), Refused> {
+        self.draw_with(stroke, now, false)
+    }
+
+    /// [`draw`](Self::draw) for a stroke that already has its ID: one whose
+    /// points were streamed to a shared canvas while the pen was down keeps
+    /// the ID they were streamed under. An ID that is empty or already taken
+    /// gets a fresh one, as `draw` gives.
+    pub fn draw_as(&mut self, stroke: Stroke, now: i64) -> Result<(String, Action), Refused> {
+        self.draw_with(stroke, now, true)
+    }
+
+    fn draw_with(
+        &mut self,
+        mut stroke: Stroke,
+        now: i64,
+        keep_id: bool,
+    ) -> Result<(String, Action), Refused> {
         if !TOOLS.contains(&stroke.tool.as_str()) {
             stroke.tool = "pen".into();
         }
@@ -168,7 +185,9 @@ impl Canvas {
             .into_iter()
             .map(str::to_owned)
             .collect::<HashSet<_>>();
-        stroke.id = unique_id("s", &taken);
+        if !(keep_id && !stroke.id.is_empty() && !taken.contains(&stroke.id)) {
+            stroke.id = unique_id("s", &taken);
+        }
         stroke.points = points
             .into_iter()
             .map(|p| Point {

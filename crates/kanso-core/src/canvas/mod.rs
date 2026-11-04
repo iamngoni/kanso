@@ -27,6 +27,7 @@ mod interop_tests;
 mod merge;
 mod model;
 mod ops;
+mod sanitize;
 pub mod sketch;
 #[cfg(test)]
 mod tests;
