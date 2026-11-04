@@ -189,6 +189,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// once; the work runs on a thread of its own.
   Stream<ImportEvent> importPlan({required String kind, required String path});
 
+  /// Whether note `id` is a canvas: the note route opens the canvas view
+  /// for it.
+  bool isCanvas({required String id});
+
   Future<MonthGrid> journalMonth({
     required int year,
     required int month,

@@ -132,6 +132,20 @@ fn the_erasers_and_undo() {
     assert_eq!(session.undo(vec![]).unwrap().strokes.len(), 2);
     assert_eq!(session.redo(vec![]).unwrap().strokes.len(), 1);
     session.undo(vec![]).unwrap();
+    // The stroke eraser dragged across both strokes is one step.
+    let v = session
+        .erase_strokes_along(
+            vec![
+                CanvasPoint { x: 40.0, y: -20.0 },
+                CanvasPoint { x: 40.0, y: 120.0 },
+            ],
+            3.0,
+            vec![],
+        )
+        .unwrap();
+    assert!(v.strokes.is_empty());
+    assert_eq!(session.undo(vec![]).unwrap().strokes.len(), 2);
+    assert!(phone.library.is_canvas(&id));
     // Partial eraser splits a stroke in two.
     let v = session
         .erase_along(

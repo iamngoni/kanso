@@ -503,6 +503,13 @@ impl KansoLibrary {
         self.0.canvas(&id).map(KansoCanvas::new)
     }
 
+    /// Whether note `id` is a canvas: the note route opens the canvas view
+    /// for it.
+    #[frb(sync)]
+    pub fn is_canvas(&self, id: String) -> bool {
+        self.0.is_canvas(&id)
+    }
+
     /// Makes an empty canvas note.
     pub fn create_canvas(
         &self,

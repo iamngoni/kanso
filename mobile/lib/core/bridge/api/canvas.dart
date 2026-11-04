@@ -61,6 +61,12 @@ abstract class KansoCanvas implements RustOpaqueInterface {
     required List<String> known,
   });
 
+  Future<CanvasView> eraseStrokesAlong({
+    required List<CanvasPoint> path,
+    required double radius,
+    required List<String> known,
+  });
+
   Future<String> exportExcalidraw();
 
   Future<String> exportSvg({required bool dark});

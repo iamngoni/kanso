@@ -42,6 +42,15 @@ impl KansoCanvas {
         self.0.erase_at(x, y, radius, known)
     }
 
+    pub fn erase_strokes_along(
+        &self,
+        path: Vec<CanvasPoint>,
+        radius: f64,
+        known: Vec<String>,
+    ) -> Result<CanvasView, KansoError> {
+        self.0.erase_strokes_along(path, radius, known)
+    }
+
     pub fn erase_along(
         &self,
         path: Vec<CanvasPoint>,

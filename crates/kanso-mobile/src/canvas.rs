@@ -96,6 +96,11 @@ impl Library {
         })
     }
 
+    /// Whether note `id` is a canvas. Reads nothing of a locked one.
+    pub fn is_canvas(&self, id: &str) -> bool {
+        self.stored(id).is_ok_and(|note| note.doctype == "canvas")
+    }
+
     /// Makes an empty canvas note in `notebook_id` (else the preferred
     /// notebook, else the first). A locked notebook refuses
     /// ([`KansoError::Locked`]).
@@ -306,6 +311,39 @@ impl CanvasSession {
         self.edit(known, |c| {
             c.erase_strokes_at(x, y, radius, now_ms())
                 .map(Entry::Strokes)
+        })
+    }
+
+    /// The stroke eraser dragged along `path`: removes every whole stroke the
+    /// disc touches on the way, as one step for undo.
+    pub fn erase_strokes_along(
+        &self,
+        path: Vec<CanvasPoint>,
+        radius: f64,
+        known: Vec<String>,
+    ) -> Result<CanvasView, KansoError> {
+        self.edit(known, |c| {
+            let mut hit: Vec<StrokeRef> = Vec::new();
+            let step = (radius / 2.0).max(1.0);
+            let mut probe = |x: f64, y: f64| {
+                for r in c.strokes_at(x, y, radius) {
+                    if !hit.contains(&r) {
+                        hit.push(r);
+                    }
+                }
+            };
+            for pair in path.windows(2) {
+                let (a, b) = (pair[0], pair[1]);
+                let steps = ((b.x - a.x).hypot(b.y - a.y) / step).ceil().max(1.0) as u32;
+                for i in 0..=steps {
+                    let t = f64::from(i) / f64::from(steps);
+                    probe(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+                }
+            }
+            if let [only] = path.as_slice() {
+                probe(only.x, only.y);
+            }
+            c.delete_strokes(&hit, now_ms()).map(Entry::Strokes)
         })
     }
 
