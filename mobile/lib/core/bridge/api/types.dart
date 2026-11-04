@@ -5524,6 +5524,11 @@ enum SyncProblemKind {
   serverNeedsUpdate,
   offline,
   other,
+
+  /// Files too large for the server stay on this device
+  /// (`skipped_count` says how many). Last, so earlier values keep
+  /// their index.
+  filesTooLarge,
 }
 
 class SyncReportRow {

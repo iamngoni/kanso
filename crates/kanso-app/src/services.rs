@@ -653,6 +653,8 @@ fn finish_sync(session: Arc<Session>, result: Option<Result<SyncReport, SyncErro
             services.sync = SyncState::Off;
         }
     } else if let Some(state) = finished.state {
+        // Files kept here for their size are a standing state, not a
+        // failed sync: they'd count as an error on every run.
         let failed = matches!(
             state,
             SyncState::Failed(_)
@@ -660,6 +662,12 @@ fn finish_sync(session: Arc<Session>, result: Option<Result<SyncReport, SyncErro
                     problem: Some(_),
                     ..
                 }
+        ) && !matches!(
+            state,
+            SyncState::Synced {
+                problem: Some(SyncProblem::TooLarge { .. }),
+                ..
+            }
         );
         services.sync = state;
         if failed {

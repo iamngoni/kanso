@@ -1246,32 +1246,54 @@ fn put_in(
     }
 
     if doc_type == DocType::File {
-        let merged_type = normalized
+        let content_type = normalized
             .get("contentType")
             .and_then(Value::as_str)
-            .map(str::to_owned);
-        let blob = match attachment {
+            .unwrap_or("")
+            .to_owned();
+        match attachment {
             Some(blob) => {
-                let content_type = merged_type.as_deref().unwrap_or("");
-                check_attachment_size(content_type, &blob.data).map_err(StoreError::Invalid)?;
-                blob
+                check_attachment_size(&content_type, &blob.data).map_err(StoreError::Invalid)?;
+                let md5 = blob.md5_hex();
+                normalized.insert("contentLength".into(), blob.data.len().into());
+                normalized.insert("md5digest".into(), md5.clone().into());
+                tx.execute(
+                    "INSERT INTO blobs (file_id, md5, data) VALUES (?1, ?2, ?3)
+                     ON CONFLICT (file_id) DO UPDATE SET md5 = excluded.md5, data = excluded.data",
+                    params![id, md5, blob.data],
+                )?;
             }
-            None => match live {
-                Some(_) => load_blob(tx, &id)?.ok_or(StoreError::NotFound)?,
-                None => {
+            None => {
+                if live.is_none() {
                     return Err(StoreError::Invalid(
                         "The file has no attachment data.".into(),
                     ));
                 }
-            },
-        };
-        normalized.insert("contentLength".into(), blob.data.len().into());
-        normalized.insert("md5digest".into(), blob.md5_hex().into());
-        tx.execute(
-            "INSERT INTO blobs (file_id, md5, data) VALUES (?1, ?2, ?3)
-             ON CONFLICT (file_id) DO UPDATE SET md5 = excluded.md5, data = excluded.data",
-            params![id, blob.md5_hex(), blob.data],
-        )?;
+                // The bytes stay as they are: read only their size, digest
+                // and first bytes, rather than copying up to 50 MiB out and
+                // back. The limit is checked again because the content type
+                // may have changed: a 45 MiB PDF can't become a 45 MiB image.
+                let (len, md5, head): (i64, String, Vec<u8>) = tx
+                    .query_row(
+                        // `substr` of an empty blob is NULL.
+                        "SELECT length(data), md5, ifnull(substr(data, 1, 8), x'')
+                         FROM blobs WHERE file_id = ?",
+                        [&id],
+                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                    )
+                    .optional()?
+                    .ok_or(StoreError::NotFound)?;
+                let len = usize::try_from(len).unwrap_or(usize::MAX);
+                let limit = kanso_core::model::attachment_limit(&content_type, &head);
+                if len > limit {
+                    return Err(StoreError::Invalid(format!(
+                        "The file is {len} bytes, over the {limit} byte limit."
+                    )));
+                }
+                normalized.insert("contentLength".into(), len.into());
+                normalized.insert("md5digest".into(), md5.into());
+            }
+        }
     }
 
     if let Some(prev) = live

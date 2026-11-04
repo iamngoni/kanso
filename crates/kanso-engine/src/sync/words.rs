@@ -23,6 +23,7 @@ pub fn problem_label(problem: &SyncProblem) -> &'static str {
         SyncProblem::QuotaExceeded(_) => "Account full",
         SyncProblem::ServerFull => "Server full",
         SyncProblem::Skipped { .. } => "Some items skipped",
+        SyncProblem::TooLarge { .. } => "Some files not synced",
         SyncProblem::UpdateKanso => "Update Kanso",
         SyncProblem::WrongKey => "Keys don't match",
         SyncProblem::ServerOutdated => "Server needs an update",
@@ -110,6 +111,13 @@ pub fn problem_help(problem: &SyncProblem, resume: impl FnOnce(i64) -> String) -
         }
         SyncProblem::Skipped { count } => format!(
             "{count} items on the server couldn't be read. They were skipped; your copies here are unchanged."
+        ),
+        SyncProblem::TooLarge { count: 1 } => {
+            "1 file is larger than the server takes (10 MB). It stays on this device; everything else syncs."
+                .to_owned()
+        }
+        SyncProblem::TooLarge { count } => format!(
+            "{count} files are larger than the server takes (10 MB). They stay on this device; everything else syncs."
         ),
         SyncProblem::UpdateKanso => {
             "Another device uses a newer Kanso. Update this one to keep syncing.".to_owned()
@@ -305,6 +313,10 @@ mod tests {
             (
                 SyncProblem::Skipped { count: 3 },
                 "3 items on the server couldn't be read. They were skipped; your copies here are unchanged.",
+            ),
+            (
+                SyncProblem::TooLarge { count: 2 },
+                "2 files are larger than the server takes (10 MB). They stay on this device; everything else syncs.",
             ),
             (
                 SyncProblem::UpdateKanso,

@@ -462,6 +462,10 @@ pub enum _SyncProblemKind {
     ServerNeedsUpdate,
     Offline,
     Other,
+    /// Files too large for the server stay on this device
+    /// (`skipped_count` says how many). Last, so earlier values keep
+    /// their index.
+    FilesTooLarge,
 }
 
 #[frb(mirror(SyncStatus))]

@@ -34532,6 +34532,7 @@ impl SseDecode for crate::api::types::SyncProblemKind {
             10 => crate::api::types::SyncProblemKind::ServerNeedsUpdate,
             11 => crate::api::types::SyncProblemKind::Offline,
             12 => crate::api::types::SyncProblemKind::Other,
+            13 => crate::api::types::SyncProblemKind::FilesTooLarge,
             _ => unreachable!("Invalid variant for SyncProblemKind: {}", inner),
         };
     }
@@ -45052,6 +45053,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::SyncProblem
             crate::api::types::SyncProblemKind::ServerNeedsUpdate => 10.into_dart(),
             crate::api::types::SyncProblemKind::Offline => 11.into_dart(),
             crate::api::types::SyncProblemKind::Other => 12.into_dart(),
+            crate::api::types::SyncProblemKind::FilesTooLarge => 13.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -52994,6 +52996,7 @@ impl SseEncode for crate::api::types::SyncProblemKind {
                 crate::api::types::SyncProblemKind::ServerNeedsUpdate => 10,
                 crate::api::types::SyncProblemKind::Offline => 11,
                 crate::api::types::SyncProblemKind::Other => 12,
+                crate::api::types::SyncProblemKind::FilesTooLarge => 13,
                 _ => {
                     unimplemented!("");
                 }

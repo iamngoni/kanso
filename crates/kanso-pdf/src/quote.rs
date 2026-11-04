@@ -28,10 +28,34 @@ impl Edit {
 /// >
 /// > — [p. 4](inkdrop://file:abc123#page=4&h=h7k2m9)
 /// ```
+///
+/// The words are the PDF's, so they are written as text: Markdown and HTML in
+/// them (`[x](https://…)`, `<img src=…>`, a leading `#`) is escaped and reads
+/// as the characters it is, never as a link, an image the preview would
+/// fetch, or a heading.
 pub fn render_quote(text: &str, link: &PdfLink) -> String {
     let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let page = link.page.unwrap_or(1);
-    format!("> {words}\n>\n> — [p. {page}]({})", link.to_url())
+    format!(
+        "> {}\n>\n> — [p. {page}]({})",
+        escape_markdown(&words),
+        link.to_url()
+    )
+}
+
+/// `text` with every character that could start Markdown or HTML escaped.
+pub fn escape_markdown(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        if matches!(
+            c,
+            '\\' | '`' | '*' | '_' | '[' | ']' | '<' | '>' | '#' | '!' | '|' | '~' | '&'
+        ) {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
 }
 
 #[derive(Clone, Copy)]
@@ -148,6 +172,19 @@ mod tests {
         assert_eq!(
             render_quote("Revenue rose  12 percent\non the quarter.", &link()),
             "> Revenue rose 12 percent on the quarter.\n>\n> — [p. 4](inkdrop://file:abc123#page=4&h=h7k2m9)"
+        );
+    }
+
+    #[test]
+    fn pdf_text_is_written_as_text() {
+        let q = render_quote(
+            "# Hi [x](https://e.test) <img src=https://e.test/b> *a*",
+            &link(),
+        );
+        let first = q.lines().next().unwrap();
+        assert_eq!(
+            first,
+            r"> \# Hi \[x\](https://e.test) \<img src=https://e.test/b\> \*a\*"
         );
     }
 

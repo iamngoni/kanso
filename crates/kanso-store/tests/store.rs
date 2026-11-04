@@ -521,6 +521,54 @@ fn pdfs_may_be_fifty_mib_and_other_files_stay_at_ten() {
 }
 
 #[test]
+fn a_big_pdf_cannot_be_relabelled_as_another_type() {
+    let (_dir, store) = store();
+    let mut pdf = b"%PDF-1.7".to_vec();
+    pdf.resize(20 * 1024 * 1024, 0);
+    let data = base64::engine::general_purpose::STANDARD.encode(&pdf);
+    let id = store
+        .put(
+            DocType::File,
+            json!({"name": "a.pdf", "contentType": "application/pdf",
+                   "_attachments": {"index": {"content_type": "application/pdf", "data": data}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let doc = store.get(&id).unwrap().unwrap();
+    // A rename keeps the bytes, their size and digest.
+    let mut renamed = doc.fields.clone();
+    renamed.insert("_id".into(), json!(id));
+    renamed.insert("_rev".into(), json!(doc.rev.to_string()));
+    renamed.insert("name".into(), json!("b.pdf"));
+    store
+        .put(
+            DocType::File,
+            serde_json::Value::Object(renamed.clone()),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap();
+    let after = store.get(&id).unwrap().unwrap();
+    assert_eq!(after.fields["contentLength"], json!(pdf.len()));
+    assert_eq!(after.fields["md5digest"], doc.fields["md5digest"]);
+    assert_eq!(store.attachment(&id).unwrap().unwrap().1.data, pdf);
+    // Calling the same bytes an image would make a 20 MiB image.
+    renamed.insert("_rev".into(), json!(after.rev.to_string()));
+    renamed.insert("contentType".into(), json!("image/png"));
+    let err = store
+        .put(
+            DocType::File,
+            serde_json::Value::Object(renamed),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap_err();
+    assert!(err.to_string().contains("limit"), "{err}");
+}
+
+#[test]
 fn api_writes_are_snapshotted_and_ui_autosaves_throttled() {
     let (_dir, store) = store();
     let book = create(&store, DocType::Book, json!({"name": "B"}));

@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use kanso_core::model::MAX_ATTACHMENT_SIZE;
+use kanso_core::model::{MAX_ATTACHMENT_SIZE, MAX_PDF_SIZE};
 use kanso_engine::attach::too_large_file;
 use kanso_engine::capture::{
     CaptureError, MAX_SHARED_FILES, Shared, SharedFile, is_drop_id, save_shared,
@@ -43,8 +43,13 @@ const PARTIAL_LIFE: Duration = Duration::from_secs(24 * 60 * 60);
 /// The largest `drop.json` read, in bytes.
 const MANIFEST_LIMIT: u64 = 8 * 1024 * 1024;
 /// A file larger than this is refused unread: converting it would not fit
-/// the attachment limit in any case.
-const READ_LIMIT: u64 = 4 * MAX_ATTACHMENT_SIZE as u64;
+/// the attachment limit in any case. PDFs may be up to 50 MiB, as on the
+/// desktop, so the bound is never below that.
+const READ_LIMIT: u64 = if MAX_PDF_SIZE > 4 * MAX_ATTACHMENT_SIZE {
+    MAX_PDF_SIZE as u64
+} else {
+    4 * MAX_ATTACHMENT_SIZE as u64
+};
 /// The largest `html` a drop carries, in bytes; more is read as plain text.
 const HTML_LIMIT: usize = 4 * 1024 * 1024;
 /// The name of a drop's description.
@@ -420,7 +425,15 @@ fn shared_from(manifest: &Value, folder: &Path) -> Result<(Shared, Vec<String>),
         if meta.len() > READ_LIMIT {
             problems.push(format!(
                 "{name}: {}",
-                too_large_file("file", meta.len() as usize, MAX_ATTACHMENT_SIZE)
+                too_large_file(
+                    "file",
+                    meta.len() as usize,
+                    if name.to_ascii_lowercase().ends_with(".pdf") {
+                        MAX_PDF_SIZE
+                    } else {
+                        MAX_ATTACHMENT_SIZE
+                    }
+                )
             ));
             continue;
         }

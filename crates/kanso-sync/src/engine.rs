@@ -75,7 +75,8 @@ pub struct SyncReport {
     /// Documents that had a conflict this sync, for the UI to flag.
     pub conflicted: Vec<String>,
     /// Documents too large for the server: `fields` JSON over 1,400,000
-    /// bytes (`wire::MAX_FIELDS_JSON`).
+    /// bytes (`wire::MAX_FIELDS_JSON`), or files over the server's per-file
+    /// limit (PDFs over 10 MiB). They stay on this device.
     pub too_large: Vec<String>,
     /// Remote documents the store could not accept, with the reason.
     pub invalid: Vec<(String, String)>,
@@ -1426,6 +1427,9 @@ pub enum SyncProblem {
     ServerFull,
     /// Feed documents skipped unrepaired: "Some items skipped". Keeps running.
     Skipped { count: usize },
+    /// Local files too large for the server stay on this device: "Some files
+    /// not synced". Keeps running; everything else syncs.
+    TooLarge { count: usize },
     /// A newer format in the feed: "Update Kanso". Stops; Sync now retries.
     UpdateKanso,
     /// The key ID differs: "Keys don't match". Stops.
@@ -1464,6 +1468,7 @@ impl SyncProblem {
             SyncProblem::QuotaExceeded(_)
             | SyncProblem::ServerFull
             | SyncProblem::Skipped { .. }
+            | SyncProblem::TooLarge { .. }
             | SyncProblem::Offline
             | SyncProblem::Other => Schedule::KeepsRunning,
         }
@@ -1496,7 +1501,7 @@ pub fn problem(err: &SyncError) -> Option<SyncProblem> {
 /// The problem a finished sync shows, in this order of precedence:
 /// `UpdateKanso`, `Paused` or `ServerBusy` (from `paused_until`:
 /// `ServerBusy` when `paused_limit` ends with `-global`), `ServerFull`,
-/// `QuotaExceeded`, `Skipped`. Rebased stale documents, repairs and an
+/// `QuotaExceeded`, `Skipped`, `TooLarge`. Rebased stale documents, repairs and an
 /// upload hold (`uploads_held_until`) aren't problems. Pure.
 pub fn report_problem(report: &SyncReport) -> Option<SyncProblem> {
     if report.too_new {
@@ -1521,6 +1526,11 @@ pub fn report_problem(report: &SyncReport) -> Option<SyncProblem> {
     if !report.skipped.is_empty() {
         return Some(SyncProblem::Skipped {
             count: report.skipped.len(),
+        });
+    }
+    if !report.too_large.is_empty() {
+        return Some(SyncProblem::TooLarge {
+            count: report.too_large.len(),
         });
     }
     None

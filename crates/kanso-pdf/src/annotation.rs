@@ -281,6 +281,15 @@ pub fn find_blocks(body: &str) -> Vec<BlockSpan> {
         }
         pos = end;
     }
+    // An unclosed fence runs to the end of the body (CommonMark). It is a
+    // block that can't be read, never a place to append after: text added
+    // below it would be inside it.
+    if let Some((_, _, true, start, content)) = open {
+        out.push(BlockSpan {
+            range: start..body.len(),
+            json: content.min(body.len())..body.len(),
+        });
+    }
     out
 }
 
@@ -300,10 +309,13 @@ pub fn upsert_block(body: &str, block: &PdfBlock) -> Result<Edit, PdfError> {
             }
             Ok(_) => {}
             Err(e) => {
-                let names_us = serde_json::from_str::<Value>(text)
-                    .ok()
-                    .and_then(|v| v.get("file").and_then(Value::as_str).map(str::to_string))
-                    .is_some_and(|f| f == block.file);
+                // Broken JSON (a hand edit, a lost brace) can't say which PDF
+                // it is for; if it mentions this one, keep away from it, or
+                // a second block would be added and the first left to rot.
+                let names_us = match serde_json::from_str::<Value>(text) {
+                    Ok(v) => v.get("file").and_then(Value::as_str) == Some(block.file.as_str()),
+                    Err(_) => text.contains(&json(&block.file)),
+                };
                 if names_us {
                     return Err(e);
                 }
@@ -479,6 +491,25 @@ mod tests {
         assert!(upsert_block(body, &b).is_err());
         let other = PdfBlock::new("file:other", "");
         assert!(upsert_block(body, &other).is_ok());
+    }
+
+    #[test]
+    fn a_broken_or_unclosed_block_for_the_same_pdf_is_not_appended_to() {
+        // A lost brace: not JSON, but it names the file.
+        let body = "```kanso-pdf\n{\"file\": \"file:abc\", \"version\": 1,\n```";
+        assert!(upsert_block(body, &PdfBlock::new("file:abc", "")).is_err());
+        assert!(upsert_block(body, &PdfBlock::new("file:other", "")).is_ok());
+        // A lost closing fence: what follows would be inside the block.
+        let open = format!("text\n\n```kanso-pdf\n{SPEC}\n");
+        assert_eq!(find_blocks(&open).len(), 1);
+        assert!(upsert_block(&open, &PdfBlock::new("file:abc123", "")).is_ok());
+        let e = upsert_block(&open, &PdfBlock::new("file:abc123", "")).unwrap();
+        // The readable unclosed block is replaced, closing it.
+        let fixed = e.apply(&open);
+        assert_eq!(find_blocks(&fixed).len(), 1);
+        assert!(fixed.ends_with("```"));
+        let broken = "```kanso-pdf\n{\"file\": \"file:abc\"\n";
+        assert!(upsert_block(broken, &PdfBlock::new("file:abc", "")).is_err());
     }
 
     #[test]

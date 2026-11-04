@@ -17,6 +17,7 @@ pub fn problem() -> impl Strategy<Value = SyncProblem> {
         prop::sample::select(QuotaKind::ALL.to_vec()).prop_map(SyncProblem::QuotaExceeded),
         Just(SyncProblem::ServerFull),
         (1usize..100).prop_map(|count| SyncProblem::Skipped { count }),
+        (1usize..100).prop_map(|count| SyncProblem::TooLarge { count }),
         Just(SyncProblem::UpdateKanso),
         Just(SyncProblem::WrongKey),
         Just(SyncProblem::ServerOutdated),
