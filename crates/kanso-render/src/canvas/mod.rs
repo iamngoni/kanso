@@ -204,10 +204,9 @@ fn card(
             let live = Canvas::note_id(node)
                 .and_then(|id| {
                     titles.and_then(|t| {
-                        t.get(
-                            id.strip_prefix(kanso_core::canvas::NOTE_PREFIX)
-                                .unwrap_or(id),
-                        )
+                        // By the whole ID, or without its `note:` prefix.
+                        t.get(id)
+                            .or_else(|| t.get(id.strip_prefix(kanso_core::canvas::NOTE_PREFIX)?))
                     })
                 })
                 .map(String::as_str);

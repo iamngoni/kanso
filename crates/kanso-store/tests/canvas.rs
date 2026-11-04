@@ -573,3 +573,20 @@ fn a_trashed_canvas_is_not_counted_or_listed_as_one() {
     assert!(store.canvas_ids().unwrap().is_empty());
     assert!(listed(&store, Some("canvas"), false, "").is_empty());
 }
+
+#[test]
+fn a_canvas_row_shows_its_words_not_its_json() {
+    let (_dir, store) = temp_store();
+    let b = book(&store);
+    put(
+        &store,
+        "note:board",
+        &fields(&b, &canvas_with("quarterly launch plan"), 10),
+        Origin::Ui,
+    )
+    .unwrap();
+    let rows = store.search_summaries(&SearchParams::default()).unwrap();
+    let snippet = &rows[0].snippet;
+    assert!(snippet.contains("quarterly launch plan"), "{snippet}");
+    assert!(!snippet.contains("kansoVersion") && !snippet.contains("nodes"));
+}

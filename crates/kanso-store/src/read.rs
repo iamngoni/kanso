@@ -527,9 +527,17 @@ impl Store {
                 format!("kanso_window({BODY}, ?)")
             };
             let locked = crate::schema::note_locked!("d.");
+            // A canvas's body is JSON: its list row reads the words the search
+            // index holds for it, and nothing at all while it is locked.
+            let head = format!(
+                "CASE WHEN json_extract(d.json, '$.doctype') = 'canvas' THEN \
+                 CASE WHEN {locked} THEN '' ELSE substr(IFNULL((SELECT body FROM notes_fts \
+                 WHERE note_id = d.id), ''), 1, {HEAD_CHARS}) END \
+                 ELSE substr({BODY}, 1, {HEAD_CHARS}) END"
+            );
             // A note in a locked notebook counts no tasks, as a sealed one.
             let columns = format!(
-                "d.id, d.rev, d.title, substr({BODY}, 1, {HEAD_CHARS}), \
+                "d.id, d.rev, d.title, {head}, \
                  d.book_id, d.status, json_extract(d.json, '$.tags'), d.pinned, d.updated_at, d.created_at, \
                  {window}, CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfCheckedTasks') END, \
                  CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfTasks') END, {locked}, \

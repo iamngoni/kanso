@@ -598,6 +598,14 @@ impl NoteList {
                                         .children(glyph),
                                 )
                             })
+                            // A canvas wears a pen mark: it is drawn, not typed.
+                            .when(note.canvas, |el| {
+                                el.child(
+                                    Icon::new(IconName::PenTool)
+                                        .size(px(12.))
+                                        .text_color(colors.quiet(selected)),
+                                )
+                            })
                             .child(
                                 div()
                                     .flex_1()
@@ -1102,7 +1110,7 @@ impl NoteList {
             )
             .into_any_element(),
             Filter::Canvases => quiet_empty(
-                library_icon(Slot::Canvas),
+                Icon::new(IconName::PenTool),
                 "No canvases".into(),
                 Some("Choose Note › New Canvas to start one.".into()),
                 colors,

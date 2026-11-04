@@ -1030,7 +1030,7 @@ impl Palette {
             place(
                 Filter::Canvases,
                 "Canvases".into(),
-                NotebookIcon::Slot(Slot::Canvas),
+                NotebookIcon::Choice(IconName::PenTool),
                 counts.canvases,
                 &["draw", "drawing", "ink", "whiteboard", "sketch", "board"],
             ),

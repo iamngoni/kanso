@@ -737,14 +737,14 @@ impl CanvasView {
                     .child(tool_button(
                         Tool::Highlighter,
                         "canvas-highlighter",
-                        Lucide::Highlighter,
+                        Lucide::Droplet,
                         cx,
                     ))
                     .child(divider())
                     .child(tool_button(
                         Tool::Eraser,
                         "canvas-eraser",
-                        Lucide::Eraser,
+                        Lucide::Trash,
                         cx,
                     ))
                     .child(tool_button(
@@ -753,7 +753,7 @@ impl CanvasView {
                         Lucide::Split,
                         cx,
                     ))
-                    .child(tool_button(Tool::Lasso, "canvas-lasso", Lucide::Lasso, cx))
+                    .child(tool_button(Tool::Lasso, "canvas-lasso", Lucide::Focus, cx))
                     .child(tool_button(Tool::Text, "canvas-text", Lucide::Type, cx))
                     .child(divider())
                     .children(COLORS.iter().map(|&c| swatch(c, cx).into_any_element()))

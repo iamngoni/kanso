@@ -1611,7 +1611,7 @@ impl Sidebar {
                     ))
                     .child(self.rail_place(
                         "rail-canvases",
-                        library_icon(Slot::Canvas),
+                        Icon::new(Lucide::PenTool),
                         "Canvases",
                         Filter::Canvases,
                         cx,
@@ -1753,7 +1753,7 @@ impl Render for Sidebar {
             },
             cx,
         ));
-        let icon = self.icon(library_icon(Slot::Canvas), cx);
+        let icon = self.icon(Icon::new(Lucide::PenTool), cx);
         list = list.child(self.row(
             "canvases",
             Filter::Canvases,
