@@ -128,6 +128,52 @@ void main() {
     expect(document.calls, contains('eraseStrokesAlong'));
   });
 
+  test('an erase gesture is one call and writes nothing until idle', () async {
+    await open();
+    bloc.add(const CanvasEvent.strokeCommitted(_samples));
+    await until(
+      (s) => (s.view?.strokes.length ?? 0) == 1 && !(s.view?.dirty ?? true),
+    );
+    final saved = document.saves;
+    final shown = bloc.state.edit;
+    bloc.add(
+      const CanvasEvent.erased(
+        path: <CanvasPoint>[
+          CanvasPoint(x: 10, y: 10),
+          CanvasPoint(x: 20, y: 20),
+          CanvasPoint(x: 30, y: 30),
+        ],
+        radius: 5,
+        partial: false,
+      ),
+    );
+    await until((s) => s.view?.strokes.isEmpty ?? false);
+    expect(
+      document.calls.where((c) => c == 'eraseStrokesAlong'),
+      hasLength(1),
+    );
+    expect(bloc.state.edit, shown + 1);
+    // Saved by the idle timer later, not by the erase itself.
+    expect(document.saves, saved);
+  });
+
+  test('an erase that touches nothing shows and saves nothing', () async {
+    await open();
+    final shown = bloc.state.edit;
+    bloc.add(
+      const CanvasEvent.erased(
+        path: <CanvasPoint>[CanvasPoint(x: 900, y: 900)],
+        radius: 5,
+        partial: false,
+      ),
+    );
+    await _settle();
+    await _settle();
+    expect(document.calls, contains('eraseStrokesAlong'));
+    expect(bloc.state.edit, shown);
+    expect(document.saves, 0);
+  });
+
   test('a partial erase uses the partial call', () async {
     await open();
     bloc.add(

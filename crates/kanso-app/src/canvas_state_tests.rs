@@ -299,6 +299,199 @@ proptest! {
             s.undo(now);
         }
         prop_assert_eq!(s.canvas.live_strokes().count(), 0);
+        prop_assert_eq!(s.canvas.live_nodes().filter(|n| n.kind != canvas::INK).count(), 0);
+        prop_assert!(s.canvas.validate().is_ok());
+    }
+}
+
+/// The cards as a person sees them: ID, kind, place and text, no stamps.
+fn cards(s: &CanvasState) -> Vec<(String, String, i64, i64, Option<String>)> {
+    let mut v: Vec<_> = s
+        .canvas
+        .live_nodes()
+        .filter(|n| n.kind != canvas::INK)
+        .map(|n| {
+            (
+                n.id.clone(),
+                n.kind.clone(),
+                n.x as i64,
+                n.y as i64,
+                n.text.clone(),
+            )
+        })
+        .collect();
+    v.sort();
+    v
+}
+
+#[test]
+fn card_edits_moves_and_deletes_undo_and_redo_as_single_steps() {
+    let mut s = state();
+    let id = s.add_text_card(40., 50., "Launch plan", 1);
+    let added = cards(&s);
+    assert!(s.set_card_text(&id, "Launch plan v2", 2));
+    let edited = cards(&s);
+    // A drag is many moves and one step.
+    for i in 1..=10 {
+        assert!(s.move_card(&id, 40. + f64::from(i) * 10., 50., 3));
+    }
+    s.end_card_drag();
+    let moved = cards(&s);
+    assert_eq!(moved[0].2, 140);
+    assert!(s.delete_card(&id, 4));
+    assert!(cards(&s).is_empty());
+
+    assert_eq!(s.undo(5), Outcome::Changed);
+    assert_eq!(cards(&s), moved);
+    assert_eq!(s.undo(6), Outcome::Changed);
+    assert_eq!(cards(&s), edited);
+    assert_eq!(s.undo(7), Outcome::Changed);
+    assert_eq!(cards(&s), added);
+    assert_eq!(s.undo(8), Outcome::Changed);
+    assert!(cards(&s).is_empty());
+    assert_eq!(s.undo(9), Outcome::Nothing);
+    for expect in [&added, &edited, &moved] {
+        assert_eq!(s.redo(10), Outcome::Changed);
+        assert_eq!(&cards(&s), expect);
+    }
+    assert_eq!(s.redo(11), Outcome::Changed);
+    assert!(cards(&s).is_empty());
+    assert!(s.canvas.validate().is_ok());
+}
+
+#[test]
+fn a_note_card_add_and_a_selected_card_delete_undo() {
+    let mut s = state();
+    let id = s.add_note_card(0., 0., "note:abc", "Abc", 1).unwrap();
+    s.select_card(Some(id.clone()));
+    assert_eq!(s.delete_selection(2), Outcome::Changed);
+    assert!(s.card_at(10., 10.).is_none());
+    s.undo(3);
+    assert_eq!(s.card_at(10., 10.).unwrap().id, id);
+    s.undo(4);
+    assert!(s.card_at(10., 10.).is_none());
+    assert!(s.add_note_card(0., 0., "other", "x", 5).is_none());
+}
+
+#[test]
+fn an_undone_card_delete_keeps_its_arrows() {
+    let mut s = state();
+    let a = s.add_text_card(0., 0., "a", 1);
+    let b = s.add_text_card(400., 0., "b", 1);
+    s.canvas.put_edge(
+        canvas::Edge {
+            id: "e1".into(),
+            from_node: a.clone(),
+            to_node: b,
+            ..canvas::Edge::default()
+        },
+        2,
+    );
+    assert!(s.delete_card(&a, 3));
+    s.undo(4);
+    assert!(s.canvas.node(&a).is_some());
+    assert!(s.canvas.edges.iter().any(|e| e.id == "e1" && !e.deleted));
+}
+
+/// Strokes and cards share one history: undo walks back through both in
+/// the order they were made, redo walks forward again, and a new edit after
+/// an undo drops the redo.
+#[test]
+fn strokes_and_cards_undo_in_the_order_they_were_made() {
+    let mut s = state();
+    drag(&mut s, (0., 300.), (80., 300.), 10, 1);
+    let card = s.add_text_card(40., 50., "a", 2);
+    drag(&mut s, (0., 400.), (80., 400.), 10, 3);
+    assert!(s.move_card(&card, 140., 50., 4));
+    s.end_card_drag();
+    let at = |s: &CanvasState| (live_count(s), s.canvas.node(&card).map(|n| n.x as i64));
+    assert_eq!(at(&s), (2, Some(140)));
+    let mut seen = vec![at(&s)];
+    for want in [(2, Some(40)), (1, Some(40)), (1, None), (0, None)] {
+        assert_eq!(s.undo(5), Outcome::Changed);
+        assert_eq!(at(&s), want);
+        seen.push(want);
+    }
+    assert_eq!(s.undo(5), Outcome::Nothing);
+    seen.pop();
+    for want in seen.iter().rev() {
+        assert_eq!(s.redo(6), Outcome::Changed);
+        assert_eq!(&at(&s), want);
+    }
+    s.undo(7);
+    s.undo(7);
+    assert!(s.can_redo());
+    s.add_text_card(0., 0., "b", 8);
+    assert!(!s.can_redo(), "a new card drops the redo");
+    assert!(s.canvas.validate().is_ok());
+}
+
+#[derive(Clone, Debug)]
+enum CardStep {
+    Add(i32, i32),
+    Edit(usize, u8),
+    Drag(usize, Vec<(i32, i32)>),
+    Delete(usize),
+}
+
+fn arb_card_step() -> impl Strategy<Value = CardStep> {
+    prop_oneof![
+        2 => (0i32..500, 0i32..500).prop_map(|(x, y)| CardStep::Add(x, y)),
+        2 => (0usize..8, any::<u8>()).prop_map(|(i, t)| CardStep::Edit(i, t)),
+        3 => (0usize..8, prop::collection::vec((0i32..500, 0i32..500), 1..6))
+            .prop_map(|(i, p)| CardStep::Drag(i, p)),
+        2 => (0usize..8).prop_map(CardStep::Delete),
+    ]
+}
+
+proptest! {
+    #![proptest_config(config(64))]
+
+    /// One user action is one undo step, whatever it was: undoing it gives
+    /// back exactly the cards before it, redoing exactly the cards after,
+    /// and undoing everything leaves none.
+    #[test]
+    fn prop_each_card_action_is_one_undo_step(steps in prop::collection::vec(arb_card_step(), 1..20)) {
+        let mut s = state();
+        let mut now = 1;
+        let mut history = vec![cards(&s)];
+        for step in steps {
+            now += 1;
+            let ids: Vec<String> = cards(&s).into_iter().map(|c| c.0).collect();
+            let pick = |i: usize| ids.get(i % ids.len().max(1)).cloned();
+            match step {
+                CardStep::Add(x, y) => { s.add_text_card(f64::from(x), f64::from(y), "c", now); }
+                CardStep::Edit(i, t) => {
+                    if let Some(id) = pick(i) { s.set_card_text(&id, &format!("t{t}"), now); }
+                }
+                CardStep::Drag(i, path) => {
+                    if let Some(id) = pick(i) {
+                        for (x, y) in path { s.move_card(&id, f64::from(x), f64::from(y), now); }
+                        s.end_card_drag();
+                    }
+                }
+                CardStep::Delete(i) => {
+                    if let Some(id) = pick(i) { s.delete_card(&id, now); }
+                }
+            }
+            let after = cards(&s);
+            if after != *history.last().unwrap() {
+                history.push(after);
+            }
+            prop_assert!(s.canvas.validate().is_ok());
+        }
+        // Back through every state, then forward again.
+        for want in history.iter().rev().skip(1) {
+            now += 1;
+            prop_assert_eq!(s.undo(now), Outcome::Changed);
+            prop_assert_eq!(&cards(&s), want);
+        }
+        prop_assert!(cards(&s).is_empty());
+        for want in history.iter().skip(1) {
+            now += 1;
+            prop_assert_eq!(s.redo(now), Outcome::Changed);
+            prop_assert_eq!(&cards(&s), want);
+        }
         prop_assert!(s.canvas.validate().is_ok());
     }
 }

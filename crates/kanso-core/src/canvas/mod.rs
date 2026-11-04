@@ -34,7 +34,9 @@ use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 
 pub use bounds::Bounds;
-pub use edit::{Action, MIN_SAMPLE_DISTANCE, Refused, StrokeRef, in_polygon, thin, unique_id};
+pub use edit::{
+    Action, CardChange, MIN_SAMPLE_DISTANCE, Refused, StrokeRef, in_polygon, thin, unique_id,
+};
 pub use ink::{Eraser, Split, covers, split_stroke};
 pub use merge::{merge, merge_bodies};
 pub use model::{Canvas, Edge, INK, InkOcr, Node, Point, Sketch, Stroke, TOOLS};
