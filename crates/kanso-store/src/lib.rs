@@ -288,6 +288,14 @@ impl Store {
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
         self.write(|tx, _| schema::set_meta(tx, key, value))
     }
+
+    /// Removes a value from the `meta` table. Missing is fine.
+    pub fn remove_meta(&self, key: &str) -> Result<()> {
+        self.write(|tx, _| {
+            tx.execute("DELETE FROM meta WHERE key = ?", [key])?;
+            Ok(())
+        })
+    }
 }
 
 /// Moves the write-ahead log into the database and empties it, so a note's
