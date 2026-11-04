@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::sync_channel;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::error::AudioError;
 use crate::mic::{self, Failure};
@@ -23,6 +23,9 @@ use crate::session::{Recorder, RecorderOptions, remove_session};
 const POLL: Duration = Duration::from_millis(20);
 /// The stretch of sound the level is measured over: 50 ms.
 const LEVEL_WINDOW: usize = SAMPLE_RATE as usize / 20;
+/// A microphone that sends nothing for this long, while not paused, is gone:
+/// some systems stop the stream on unplug without reporting an error.
+const SILENT_DEVICE: Duration = Duration::from_secs(3);
 
 /// Mono sound at the device's rate in, a recording on disk out: resample to
 /// 48 kHz, drop the audio while paused, hand the rest to the recorder.
@@ -265,6 +268,13 @@ impl Drop for Capture {
     }
 }
 
+/// Finishes a session folder from what is on disk: each part cut back to
+/// its last whole page.
+fn recover_written(dir: &Path) -> Result<Finished, AudioError> {
+    let found = crate::recovery::find(dir).ok_or(AudioError::NoSound)?;
+    crate::recovery::recover(&found)
+}
+
 /// The recorder thread.
 // no-prop-test: needs a microphone; `Pipeline`, the resampler and the recorder it drives have the properties.
 fn run(
@@ -292,10 +302,11 @@ fn run(
             return Err(e);
         }
     };
-    let _ = ready.send(Ok(dir));
+    let _ = ready.send(Ok(dir.clone()));
 
     let mut reason = StopReason::Requested;
     let mut chunk: Vec<f32> = Vec::new();
+    let mut last_sound = Instant::now();
     loop {
         thread::sleep(POLL);
         let stopping = shared.stop.load(Ordering::Relaxed);
@@ -313,6 +324,18 @@ fn run(
             chunk.extend_from_slice(a);
             chunk.extend_from_slice(b);
             read.commit_all();
+        }
+        // What the full queue dropped while the disk stalled comes back as
+        // silence, so later timestamps still match the clock.
+        let dropped = mic.dropped.swap(0, Ordering::Relaxed);
+        if !was_paused {
+            chunk.resize(chunk.len() + dropped as usize, 0.0);
+        }
+        if was_paused || !chunk.is_empty() {
+            last_sound = Instant::now();
+        } else if last_sound.elapsed() >= SILENT_DEVICE {
+            reason = StopReason::Device("the microphone stopped sending sound".into());
+            break;
         }
         match pipeline.feed(&chunk) {
             Ok(progress) => {
@@ -351,6 +374,21 @@ fn run(
         pipeline.discard()?;
         return Ok(None);
     }
-    let finished = pipeline.finish()?;
+    // After a refused write the open part may end in a torn page, and
+    // closing it would put good pages after the tear. A full (or failing)
+    // disk may refuse the closing pages and the sidecar too. Either way,
+    // what reached the disk is finished the way a crash is recovered.
+    let finished = if matches!(reason, StopReason::Disk(_)) {
+        drop(pipeline);
+        recover_written(&dir)?
+    } else {
+        match pipeline.finish() {
+            Ok(finished) => finished,
+            Err(e) => {
+                reason = StopReason::Disk(e.to_string());
+                recover_written(&dir).map_err(|_| e)?
+            }
+        }
+    };
     Ok(Some(Stopped { finished, reason }))
 }

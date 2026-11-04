@@ -1,6 +1,7 @@
 //! The default microphone through `cpal`, as one channel of `f32` at the
 //! device's own rate.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -19,6 +20,10 @@ const BUFFER_SECS: usize = 4;
 pub struct Microphone {
     pub stream: cpal::Stream,
     pub samples: rtrb::Consumer<f32>,
+    /// Samples the callback couldn't queue because the reader fell behind
+    /// (a stalled disk). The reader puts back as much silence, so the
+    /// recording's clock still matches the wall clock.
+    pub dropped: Arc<AtomicU64>,
     pub rate: u32,
 }
 
@@ -46,6 +51,7 @@ pub fn open(failure: Failure) -> Result<Microphone, AudioError> {
     let channels = usize::from(supported.channels()).max(1);
     let config = supported.config();
     let (producer, samples) = rtrb::RingBuffer::new((rate as usize * BUFFER_SECS).max(8_192));
+    let dropped = Arc::new(AtomicU64::new(0));
 
     let on_error = move |e: cpal::Error| {
         if matches!(
@@ -59,15 +65,78 @@ pub fn open(failure: Failure) -> Result<Microphone, AudioError> {
         }
     };
     let stream = match supported.sample_format() {
-        SampleFormat::F32 => build::<f32>(&device, config, channels, producer, on_error),
-        SampleFormat::F64 => build::<f64>(&device, config, channels, producer, on_error),
-        SampleFormat::I8 => build::<i8>(&device, config, channels, producer, on_error),
-        SampleFormat::I16 => build::<i16>(&device, config, channels, producer, on_error),
-        SampleFormat::I24 => build::<cpal::I24>(&device, config, channels, producer, on_error),
-        SampleFormat::I32 => build::<i32>(&device, config, channels, producer, on_error),
-        SampleFormat::U8 => build::<u8>(&device, config, channels, producer, on_error),
-        SampleFormat::U16 => build::<u16>(&device, config, channels, producer, on_error),
-        SampleFormat::U32 => build::<u32>(&device, config, channels, producer, on_error),
+        SampleFormat::F32 => build::<f32>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::F64 => build::<f64>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::I8 => build::<i8>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::I16 => build::<i16>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::I24 => build::<cpal::I24>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::I32 => build::<i32>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::U8 => build::<u8>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::U16 => build::<u16>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
+        SampleFormat::U32 => build::<u32>(
+            &device,
+            config,
+            channels,
+            producer,
+            dropped.clone(),
+            on_error,
+        ),
         other => {
             return Err(AudioError::Device(format!(
                 "the microphone sends {other} samples, which Kanso can't read"
@@ -79,6 +148,7 @@ pub fn open(failure: Failure) -> Result<Microphone, AudioError> {
     Ok(Microphone {
         stream,
         samples,
+        dropped,
         rate,
     })
 }
@@ -106,6 +176,7 @@ fn build<T>(
     config: cpal::StreamConfig,
     channels: usize,
     mut producer: rtrb::Producer<f32>,
+    dropped: Arc<AtomicU64>,
     on_error: impl FnMut(cpal::Error) + Send + 'static,
 ) -> Result<cpal::Stream, cpal::Error>
 where
@@ -120,7 +191,9 @@ where
                 channels,
                 |s| s.to_sample::<f32>(),
                 |mono| {
-                    let _ = producer.push(mono);
+                    if producer.push(mono).is_err() {
+                        dropped.fetch_add(1, Ordering::Relaxed);
+                    }
                 },
             );
         },

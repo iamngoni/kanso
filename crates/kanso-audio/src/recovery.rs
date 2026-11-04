@@ -50,41 +50,9 @@ pub fn scan(root: &Path, active: Option<&str>) -> Vec<Recoverable> {
         if !valid_id(&id) || Some(id.as_str()) == active || !entry.path().is_dir() {
             continue;
         }
-        let dir = entry.path();
-        let session = read_session(&dir).ok();
-        let mut parts = Vec::new();
-        for (index, path) in part_files(&dir).unwrap_or_default() {
-            let Ok(file) = File::open(&path) else {
-                continue;
-            };
-            let bytes = file.metadata().map_or(0, |m| m.len());
-            // A part whose headers never reached the disk has no audio.
-            let Ok(reader) = OpusReader::open(file) else {
-                continue;
-            };
-            let samples = reader.info().total_samples;
-            if samples > 0 {
-                parts.push((
-                    path,
-                    PartInfo {
-                        index,
-                        bytes,
-                        samples,
-                    },
-                ));
-            }
+        if let Some(recoverable) = find(&entry.path()) {
+            found.push(recoverable);
         }
-        if parts.is_empty() {
-            continue;
-        }
-        let samples = parts.iter().map(|(_, p)| p.samples).sum();
-        found.push(Recoverable {
-            id,
-            dir,
-            session,
-            parts,
-            samples,
-        });
     }
     found.sort_by(|a, b| {
         let key = |r: &Recoverable| {
@@ -96,6 +64,49 @@ pub fn scan(root: &Path, active: Option<&str>) -> Vec<Recoverable> {
         key(a).cmp(&key(b))
     });
     found
+}
+
+/// The audio left in one session folder, or `None` when there is none (or
+/// the folder isn't a session's). Nothing is changed.
+pub fn find(dir: &Path) -> Option<Recoverable> {
+    let id = dir.file_name()?.to_str()?.to_owned();
+    if !valid_id(&id) || !dir.is_dir() {
+        return None;
+    }
+    let session = read_session(dir).ok();
+    let mut parts = Vec::new();
+    for (index, path) in part_files(dir).unwrap_or_default() {
+        let Ok(file) = File::open(&path) else {
+            continue;
+        };
+        let bytes = file.metadata().map_or(0, |m| m.len());
+        // A part whose headers never reached the disk has no audio.
+        let Ok(reader) = OpusReader::open(file) else {
+            continue;
+        };
+        let samples = reader.info().total_samples;
+        if samples > 0 {
+            parts.push((
+                path,
+                PartInfo {
+                    index,
+                    bytes,
+                    samples,
+                },
+            ));
+        }
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    let samples = parts.iter().map(|(_, p)| p.samples).sum();
+    Some(Recoverable {
+        id,
+        dir: dir.to_path_buf(),
+        session,
+        parts,
+        samples,
+    })
 }
 
 /// Makes a left-behind recording whole: each part is cut back to its last
@@ -171,7 +182,13 @@ pub fn recover(found: &Recoverable) -> Result<Finished, AudioError> {
         })
         .collect();
     let json = serde_json::to_vec_pretty(&session).map_err(std::io::Error::other)?;
-    write_atomic(&found.dir.join(SESSION_FILE), &json)?;
+    // On a full disk the parts are whole after the truncation above; a
+    // sidecar left saying "recording" only means the folder is offered for
+    // recovery again if it isn't attached.
+    match write_atomic(&found.dir.join(SESSION_FILE), &json) {
+        Err(e) if e.kind() != std::io::ErrorKind::StorageFull => return Err(e.into()),
+        _ => {}
+    }
     Ok(Finished {
         dir: found.dir.clone(),
         session,

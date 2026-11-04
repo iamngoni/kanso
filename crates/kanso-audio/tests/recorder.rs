@@ -403,3 +403,32 @@ proptest! {
         }
     }
 }
+
+/// What `Capture` falls back on when the disk refuses a write: one folder,
+/// found and finished, with a torn page in flight cut off.
+#[test]
+fn one_session_folder_is_found_and_finished_after_a_refused_write() {
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let mut o = options();
+    o.id = Some("disk-full".into());
+    let mut recorder = Recorder::create(&root, o).unwrap();
+    recorder.push(&tone(secs(6), SAMPLE_RATE)).unwrap();
+    let dir = kill(recorder);
+    let part = dir.join(kanso_audio::session::part_file_name(0));
+    let whole = fs::metadata(&part).unwrap().len();
+    fs::OpenOptions::new()
+        .append(true)
+        .open(&part)
+        .unwrap()
+        .write_all(b"OggS\0\x00 half a page")
+        .unwrap();
+
+    assert!(kanso_audio::recovery::find(&root.join("missing")).is_none());
+    let found = kanso_audio::recovery::find(&dir).unwrap();
+    assert_eq!(found.id, "disk-full");
+    let finished = recover(&found).unwrap();
+    assert_eq!(fs::metadata(&part).unwrap().len(), whole);
+    assert!(finished.session.samples >= secs(5) as u64);
+    assert_eq!(finished.session.state, SessionState::Stopped);
+}
