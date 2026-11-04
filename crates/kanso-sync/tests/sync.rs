@@ -512,6 +512,11 @@ fn a_pdf_over_the_servers_file_limit_stays_on_this_device_and_is_reported() {
     assert_eq!(report.too_large, vec!["file:bigpdf".to_owned()]);
     assert_eq!(report.pending, 1);
     assert_eq!(report.pushed, 1);
+    // Said, not silent: the status names it instead of "Synced".
+    assert_eq!(
+        report_problem(&report),
+        Some(SyncProblem::TooLarge { count: 1 })
+    );
 }
 
 #[test]
