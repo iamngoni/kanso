@@ -28,6 +28,7 @@ mod passages;
 mod plugin;
 mod query_view;
 mod read;
+mod read_only;
 mod replace;
 mod roles;
 mod schema;
@@ -87,6 +88,7 @@ pub use plugin::{
     agent_batch_id, plugin_data, set_plugin_data,
 };
 pub use query_view::QueryNoteRow;
+pub use read_only::ReadOnlyStore;
 pub use read::{AttachmentState, NoteSummary, Revision, SearchParams, Sort, StatusCounts};
 pub use replace::{
     NoteMatches, PREVIEW_MATCHES_PER_NOTE, Planned, ReplaceReport, Skipped, UndoReport,

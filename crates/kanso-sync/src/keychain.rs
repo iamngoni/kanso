@@ -1754,11 +1754,10 @@ mod tests {
             use std::os::unix::fs::PermissionsExt as _;
             let dir = tempfile::tempdir().unwrap();
             let secrets = store(dir.path(), None);
-            std::fs::create_dir(dir.path().join("data")).ok();
+            std::fs::create_dir(dir.path().join("data")).unwrap();
             let tmp = dir.path().join("data").join("secrets.json.tmp");
             std::fs::write(&tmp, b"old").unwrap();
             std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o644)).unwrap();
-            std::fs::remove_dir(dir.path().join("data")).ok();
             secrets.set("a", "1").unwrap();
             assert_eq!(mode(secrets.path()), 0o600);
             assert!(!tmp.exists());
