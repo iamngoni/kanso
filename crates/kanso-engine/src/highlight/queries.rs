@@ -64,11 +64,17 @@ pub fn markdown_highlights(base: &str) -> String {
 }
 
 /// The Markdown injection query without the library's `injection.combined`
-/// directive, so each paragraph's inline text is parsed on its own.
+/// directive, so each paragraph's inline text is parsed on its own, and with
+/// its YAML injection for a rule, a block and a rule anchored to siblings
+/// that touch: unanchored, any block after a leading rule and before another
+/// was read as YAML.
 // no-prop-test: fixed edit to the library's query; the tests check what it
 // highlights.
 pub fn markdown_injections(base: &str) -> String {
-    base.replace("(#set! injection.combined)", "")
+    base.replace("(#set! injection.combined)", "").replace(
+        "(thematic_break) (_) @injection.content (thematic_break)",
+        "(thematic_break) . (_) @injection.content . (thematic_break)",
+    )
 }
 
 /// The inline Markdown highlight query with the link brackets added.
