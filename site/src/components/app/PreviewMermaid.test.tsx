@@ -42,8 +42,38 @@ describe("Preview mermaid blocks", () => {
     show(FLOW);
     await screen.findByTestId("mermaid-diagram");
     expect(mermaid.initialize).toHaveBeenCalledWith(
-      expect.objectContaining({ securityLevel: "strict", flowchart: { htmlLabels: false } }),
+      expect.objectContaining({ securityLevel: "strict", htmlLabels: false, secure: ["htmlLabels"], flowchart: { minNodeWidth: 0 } }),
     );
+  });
+
+  it("keeps the last drawing up while an edit redraws, then shows the new one", async () => {
+    let finish: (v: { svg: string }) => void = () => {};
+    mermaid.render.mockResolvedValueOnce({ svg: '<svg data-testid="first"></svg>' });
+    const { container, rerender } = show(FLOW);
+    await screen.findByTestId("first");
+    mermaid.render.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    rerender(<Preview source={FLOW.replace("Publish", "Ship")} onToggleTask={vi.fn()} onOpenWiki={vi.fn()} />);
+    await waitFor(() => expect(mermaid.render).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId("first")).toBeInTheDocument();
+    expect(container.querySelector("pre")).toBeNull();
+    finish({ svg: '<svg data-testid="second"></svg>' });
+    expect(await screen.findByTestId("second")).toBeInTheDocument();
+  });
+
+  it("skips drawings the text has already moved past", async () => {
+    let finish: (v: { svg: string }) => void = () => {};
+    mermaid.render.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    mermaid.render.mockResolvedValue({ svg: '<svg data-testid="latest"></svg>' });
+    const { rerender } = show(FLOW);
+    await waitFor(() => expect(mermaid.render).toHaveBeenCalledTimes(1));
+    // Two edits queue behind the drawing in progress; only the newest is drawn.
+    for (const name of ["Ship", "Release"]) {
+      rerender(<Preview source={FLOW.replace("Publish", name)} onToggleTask={vi.fn()} onOpenWiki={vi.fn()} />);
+    }
+    finish({ svg: "<svg></svg>" });
+    await screen.findByTestId("latest");
+    expect(mermaid.render).toHaveBeenCalledTimes(2);
+    expect(mermaid.render.mock.calls[1]?.[1]).toContain("Release");
   });
 
   it("leaves other fences as code blocks", () => {

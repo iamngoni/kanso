@@ -4,7 +4,7 @@
  * be copied. Headings carry ids so quick open can scroll to them.
  */
 import { Check, Copy } from "lucide-react";
-import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { renderMermaid } from "../../lib/mermaidRender";
 import { languageFor, scopeClass, tokenize } from "../../lib/codeHighlight";
 import { type Block, type Inline, parse } from "../../lib/markdown";
@@ -115,32 +115,46 @@ function useDark(): boolean {
   );
 }
 
+/** The smallest a diagram is scaled to fit its column; past that it scrolls, so labels stay readable in Split. */
+const MIN_DIAGRAM_SCALE = 0.75;
+
 /**
- * A mermaid diagram. The code block shows while mermaid loads and whenever it
- * can't draw the source, so there is never an error box or an empty gap.
+ * A mermaid diagram. The code block shows while mermaid first loads and
+ * whenever it can't draw the source, so there is never an error box or an
+ * empty gap. While a new drawing is on its way (typing, a theme change) the
+ * last one stays up, so the preview doesn't flicker to code on every key.
  */
 function MermaidBlock({ code }: { code: string }) {
   const dark = useDark();
-  const [drawn, setDrawn] = useState<{ code: string; svg: string } | null>(null);
+  // The latest outcome: an SVG, or null when mermaid couldn't draw that source.
+  const [drawn, setDrawn] = useState<{ svg: string | null } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let current = true;
-    renderMermaid(code, dark).then(
-      (svg) => current && setDrawn({ code, svg }),
-      () => current && setDrawn(null),
+    renderMermaid(code, dark, () => !current).then(
+      (svg) => current && setDrawn({ svg }),
+      () => current && setDrawn({ svg: null }),
     );
     return () => {
       current = false;
     };
   }, [code, dark]);
-  // Only a drawing of this exact source is shown; a theme change keeps the old drawing up until the new one is ready.
-  if (!drawn || drawn.code !== code) return <CodeBlock lang="mermaid" code={code} />;
+  const svg = drawn?.svg ?? null;
+  useLayoutEffect(() => {
+    // mermaid sizes the SVG as width 100% up to its natural width (max-width).
+    const el = box.current?.querySelector("svg");
+    const natural = el ? Number.parseFloat(el.style.maxWidth) : Number.NaN;
+    if (el && natural > 0) el.style.minWidth = `${Math.round(natural * MIN_DIAGRAM_SCALE)}px`;
+  }, [svg]);
+  if (svg === null) return <CodeBlock lang="mermaid" code={code} />;
   return (
     <div
+      ref={box}
       role="img"
       aria-label="Mermaid diagram"
       data-testid="mermaid-diagram"
       className="mermaid-diagram"
-      dangerouslySetInnerHTML={{ __html: drawn.svg }}
+      dangerouslySetInnerHTML={{ __html: svg }}
     />
   );
 }

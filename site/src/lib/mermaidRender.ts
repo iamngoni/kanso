@@ -1,7 +1,8 @@
 /**
  * Draws a ```mermaid fence as an SVG diagram in the demo's own colours.
  * mermaid is large, so it is fetched with a dynamic import the first time a
- * diagram is on screen and never sooner. Strict security level, no HTML
+ * diagram is on screen and never sooner, and never in the server build (the
+ * Worker would carry ~2 MB of it for nothing). Strict security level, no HTML
  * labels: visitors can edit the text, so a diagram can't carry markup or
  * click handlers.
  */
@@ -11,7 +12,10 @@ let queue: Promise<unknown> = Promise.resolve();
 let counter = 0;
 
 function loadMermaid() {
-  loading ??= import("mermaid").then((m) => m.default);
+  // import.meta.env.SSR is a build-time constant, so the server build drops the import.
+  loading ??= import.meta.env.SSR
+    ? Promise.reject(new Error("mermaid only draws in the browser"))
+    : import("mermaid").then((m) => m.default);
   loading.catch(() => {
     loading = null;
   });
@@ -41,6 +45,8 @@ export function themeVariables(dark: boolean): Record<string, string | boolean> 
     primaryBorderColor: fg3,
     secondaryColor: node,
     tertiaryColor: code,
+    // The base theme's light grey shadow glows around nodes on a dark page.
+    ...(dark ? { dropShadow: "none" } : {}),
     textColor: fg,
     lineColor: fg2,
     nodeBorder: fg3,
@@ -52,16 +58,28 @@ export function themeVariables(dark: boolean): Record<string, string | boolean> 
   };
 }
 
-/** Resolves with the diagram's SVG; rejects when mermaid can't parse or draw it. */
-export function renderMermaid(code: string, dark: boolean): Promise<string> {
+/**
+ * Resolves with the diagram's SVG; rejects when mermaid can't parse or draw it.
+ * `stale` is asked when this diagram's turn comes: true (the text or theme has
+ * moved on) skips the drawing, so typing never builds a queue of old drawings.
+ */
+export function renderMermaid(code: string, dark: boolean, stale: () => boolean = () => false): Promise<string> {
   const run = async () => {
+    if (stale()) throw new Error("superseded");
     const mermaid = await loadMermaid();
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "strict",
       theme: "base",
       themeVariables: themeVariables(dark),
-      flowchart: { htmlLabels: false },
+      // The root key; mermaid 12 ignores flowchart.htmlLabels when this is set,
+      // and labels default to HTML. `secure` (merged with mermaid's own list)
+      // stops a %%{init}%% directive in the text from turning them back on.
+      htmlLabels: false,
+      secure: ["htmlLabels"],
+      // mermaid 12 widens every flowchart node to 120px of label; sized to
+      // their text, Draft → Review → Publish fits the Split column without scrolling.
+      flowchart: { minNodeWidth: 0 },
       suppressErrorRendering: true,
     });
     const id = `kanso-mermaid-${++counter}`;
