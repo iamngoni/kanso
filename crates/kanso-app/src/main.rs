@@ -36,6 +36,10 @@ mod book_icons;
 mod briefs;
 mod calendar;
 mod calendar_view;
+mod canvas_state;
+#[cfg(test)]
+mod canvas_state_tests;
+mod canvas_view;
 mod capture;
 mod capture_cli;
 mod capture_voice;
@@ -127,6 +131,7 @@ mod palette;
 mod passkey_accounts;
 mod passkey_ceremony;
 mod paths;
+mod pen_input;
 mod people_data;
 mod people_view;
 mod plugin_panel;
@@ -640,6 +645,8 @@ fn run_app(
         note_window::bind_keys(cx);
         capture::bind_keys(cx);
         graph_view::bind_keys(cx);
+        canvas_view::bind_keys(cx);
+        pen_input::install();
         board_view::bind_keys(cx);
         workspace::set_menus(cx);
         cx.on_action(|_: &Quit, cx| quit(cx));

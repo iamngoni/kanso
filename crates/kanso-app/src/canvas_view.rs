@@ -1,0 +1,1328 @@
+//! The canvas, drawn: an endless surface with cards, arrows and ink, in the
+//! place of the text editor for a note whose `doctype` is `canvas`.
+//!
+//! The note editor owns the note (its title, notebook, tags, history,
+//! locking and saving); this view holds the canvas document being drawn on
+//! (`canvas_state.rs`) and tells the editor when it changed
+//! ([`CanvasEvent::Changed`]). Pan with two fingers, the wheel, middle-drag
+//! or Space-drag; zoom with ⌘-scroll or a pinch; Fit shows everything. Ink is
+//! filled outlines from `kanso_render::freehand` (the same ones the phone
+//! and the SVG export draw); only what is on screen is painted.
+
+use std::cell::Cell;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
+
+use gpui_kit::assets::IconName as Lucide;
+use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::{
+    Disableable as _, Selectable as _, Sizable as _, StyledExt as _, h_flex, v_flex,
+};
+use gpui_kit::prelude::FluentBuilder as _;
+use gpui_kit::*;
+use kanso_core::canvas::{self, Budget, Node, Refused};
+use kanso_render::canvas::{card_color, pen};
+use kanso_store::Store;
+
+use crate::canvas_state::{
+    COLORS, CanvasState, ERASER_RADIUS, Outcome, PenSample, Source, Tool, WIDTHS,
+};
+use crate::graph::Viewport;
+use crate::layout::TOP_BAND_HEIGHT;
+use crate::theme::Colors;
+use crate::zoom::px;
+
+actions!(
+    kanso,
+    [
+        CanvasUndo,
+        CanvasRedo,
+        CanvasDelete,
+        CanvasFit,
+        CanvasCancel
+    ]
+);
+
+/// How far one press of a zoom button zooms.
+const ZOOM_STEP: f32 = 1.4;
+/// Below this zoom the minimap shows.
+const MINIMAP_BELOW: f32 = 0.16;
+/// Cards draw no text below this zoom: it would be a smudge.
+const TEXT_ZOOM: f32 = 0.3;
+/// A new card's text, until it is edited.
+const NEW_CARD_TEXT: &str = "Text";
+
+pub fn bind_keys(cx: &mut App) {
+    cx.bind_keys([
+        KeyBinding::new("secondary-z", CanvasUndo, Some("CanvasView")),
+        KeyBinding::new("secondary-shift-z", CanvasRedo, Some("CanvasView")),
+        KeyBinding::new("secondary-y", CanvasRedo, Some("CanvasView")),
+        KeyBinding::new("backspace", CanvasDelete, Some("CanvasView")),
+        KeyBinding::new("delete", CanvasDelete, Some("CanvasView")),
+        KeyBinding::new("secondary-0", CanvasFit, Some("CanvasView")),
+        KeyBinding::new("escape", CanvasCancel, Some("CanvasView")),
+    ]);
+}
+
+/// What the view tells the note editor that holds it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CanvasEvent {
+    /// The document changed; `body` is the note body to save. `stroke_ended`
+    /// asks for a save now (a stroke or an erase just finished); otherwise
+    /// the editor waits for two quiet seconds.
+    Changed { body: String, stroke_ended: bool },
+    /// The person asked for the raw JSON, to repair it.
+    EditAsText,
+    /// A note card was opened: show that note.
+    OpenNote(String),
+    /// Something to tell the person.
+    Notice(String),
+}
+
+impl EventEmitter<CanvasEvent> for CanvasView {}
+
+/// A gesture that moves the view or a card instead of drawing.
+#[derive(Clone, Copy)]
+enum Grab {
+    Pan { last: [f32; 2] },
+    Card { last: [f32; 2], moved: bool },
+}
+
+pub struct CanvasView {
+    store: Arc<Store>,
+    note_id: Option<String>,
+    state: Option<CanvasState>,
+    /// Why the body isn't a canvas, when it isn't.
+    broken: Option<String>,
+    read_only: bool,
+    /// Live titles of note cards, by note ID.
+    titles: HashMap<String, String>,
+    grab: Option<Grab>,
+    /// The source of the gesture drawing now.
+    gesture: Option<Source>,
+    space: bool,
+    /// The eraser's ring under the pointer, in canvas coordinates.
+    hover: Option<(f64, f64)>,
+    bounds: Rc<Cell<Bounds<Pixels>>>,
+    /// Fit the view at the next paint.
+    fit: Rc<Cell<bool>>,
+    /// The card a double click edits is the one pressed.
+    pressed_card: Option<String>,
+    /// The pointer over the surface, in view points: where a drop lands.
+    pointer: [f32; 2],
+    focus: FocusHandle,
+}
+
+impl Focusable for CanvasView {
+    fn focus_handle(&self, _: &App) -> FocusHandle {
+        self.focus.clone()
+    }
+}
+
+impl CanvasView {
+    pub fn new(store: Arc<Store>, cx: &mut Context<Self>) -> Self {
+        CanvasView {
+            store,
+            note_id: None,
+            state: None,
+            broken: None,
+            read_only: false,
+            titles: HashMap::new(),
+            grab: None,
+            gesture: None,
+            space: false,
+            hover: None,
+            bounds: Rc::new(Cell::new(Bounds::default())),
+            fit: Rc::new(Cell::new(true)),
+            pressed_card: None,
+            pointer: [0., 0.],
+            focus: cx.focus_handle(),
+        }
+    }
+
+    /// Shows the canvas in `body` for note `id`. The same note again keeps
+    /// the view and the undo steps; a body that changed underneath (a sync)
+    /// is taken in.
+    pub fn open(&mut self, id: &str, body: &str, read_only: bool, cx: &mut Context<Self>) {
+        self.read_only = read_only;
+        let same = self.note_id.as_deref() == Some(id);
+        if same && self.state.as_ref().is_some_and(|s| s.body() == body) {
+            return;
+        }
+        self.note_id = Some(id.to_owned());
+        self.grab = None;
+        self.gesture = None;
+        self.refresh_titles();
+        match CanvasState::from_body(body) {
+            Ok(mut next) => {
+                if let Some(old) = self.state.take().filter(|_| same) {
+                    next.view = old.view;
+                    next.tool = old.tool;
+                    next.color = old.color;
+                    next.width = old.width;
+                } else {
+                    self.fit.set(true);
+                }
+                self.state = Some(next);
+                self.broken = None;
+            }
+            Err(why) => {
+                self.state = None;
+                self.broken = Some(why);
+            }
+        }
+        cx.notify();
+    }
+
+    /// Shows nothing: no canvas note is open.
+    pub fn clear(&mut self, cx: &mut Context<Self>) {
+        self.note_id = None;
+        self.state = None;
+        self.broken = None;
+        cx.notify();
+    }
+
+    fn refresh_titles(&mut self) {
+        self.titles = self
+            .store
+            .note_titles()
+            .map(|all| {
+                all.into_iter()
+                    .map(|(id, title)| (id.strip_prefix("note:").unwrap_or(&id).to_owned(), title))
+                    .collect()
+            })
+            .unwrap_or_default();
+    }
+
+    fn now(cx: &App) -> i64 {
+        crate::clock::Clock::now_ms(cx)
+    }
+
+    fn size(&self) -> [f32; 2] {
+        let b = self.bounds.get();
+        [f32::from(b.size.width), f32::from(b.size.height)]
+    }
+
+    /// `position` (in the window) in view points.
+    fn local(&self, position: Point<Pixels>) -> [f32; 2] {
+        let b = self.bounds.get();
+        [
+            f32::from(position.x - b.origin.x),
+            f32::from(position.y - b.origin.y),
+        ]
+    }
+
+    /// `position` on the canvas.
+    fn to_canvas(&self, position: Point<Pixels>) -> (f64, f64) {
+        let at = self.local(position);
+        let p = self
+            .state
+            .as_ref()
+            .map_or(Viewport::default(), |s| s.view)
+            .to_layout(at, self.size());
+        (f64::from(p[0]), f64::from(p[1]))
+    }
+
+    /// The eraser's radius on the canvas, from its size on the screen.
+    fn eraser_radius(&self) -> f64 {
+        let zoom = self.state.as_ref().map_or(1.0, |s| f64::from(s.view.zoom));
+        ERASER_RADIUS / zoom
+    }
+
+    fn report(&mut self, outcome: Outcome, ended: bool, cx: &mut Context<Self>) {
+        match outcome {
+            Outcome::Nothing => {}
+            Outcome::Changed => {
+                if let Some(state) = &self.state {
+                    cx.emit(CanvasEvent::Changed {
+                        body: state.body(),
+                        stroke_ended: ended,
+                    });
+                }
+            }
+            Outcome::Refused(why) => {
+                let words = match why {
+                    Refused::Full => {
+                        "This canvas is full (1 MB). Erase some ink or move cards to a new canvas."
+                    }
+                    Refused::TooLong => "That stroke is too long.",
+                    Refused::Empty => return,
+                };
+                cx.emit(CanvasEvent::Notice(words.into()));
+            }
+        }
+        cx.notify();
+    }
+
+    // ---- pointer ----
+
+    fn sample(&self, event_position: Point<Pixels>, source: Source) -> PenSample {
+        let (x, y) = self.to_canvas(event_position);
+        let mut sample = PenSample::mouse(x, y);
+        sample.source = source;
+        // A tablet's pressure and tilt, from the platform shim, when there is one.
+        if let Some(pen) = crate::pen_input::current() {
+            sample.pressure = pen.pressure;
+            sample.tilt = pen.tilt;
+            if pen.eraser {
+                sample.source = Source::PenEraser;
+            } else if pen.in_proximity {
+                sample.source = Source::Pen;
+            }
+        }
+        sample
+    }
+
+    fn on_mouse_down(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        window.focus(&self.focus, cx);
+        if self.state.is_none() {
+            return;
+        }
+        let at = self.local(event.position);
+        if event.button == MouseButton::Middle || self.space {
+            self.grab = Some(Grab::Pan { last: at });
+            cx.stop_propagation();
+            return;
+        }
+        if event.button != MouseButton::Left {
+            return;
+        }
+        let sample = self.sample(event.position, Source::Mouse);
+        let (x, y) = (sample.x, sample.y);
+        // A double click on a text card edits it, whatever the tool.
+        if event.click_count >= 2
+            && let Some(card) = self.state.as_ref().and_then(|s| s.card_at(x, y)).cloned()
+        {
+            if !self.read_only {
+                self.edit_card(&card, window, cx);
+            }
+            return;
+        }
+        if self.read_only {
+            self.grab = Some(Grab::Pan { last: at });
+            return;
+        }
+        let tool = self.state.as_ref().map(|s| s.tool).unwrap_or(Tool::Pen);
+        if tool == Tool::Text {
+            match self.state.as_ref().and_then(|s| s.card_at(x, y)).cloned() {
+                Some(card) => self.edit_card(&card, window, cx),
+                None => self.new_card(x, y, window, cx),
+            }
+            return;
+        }
+        // A press on a card with the lasso moves the card.
+        if tool == Tool::Lasso
+            && let Some(card) = self.state.as_ref().and_then(|s| s.card_at(x, y))
+            && !self.state.as_ref().is_some_and(|s| {
+                s.selection_bounds()
+                    .is_some_and(|b| x >= b.x && x <= b.right() && y >= b.y && y <= b.bottom())
+            })
+        {
+            self.pressed_card = Some(card.id.clone());
+            self.grab = Some(Grab::Card {
+                last: at,
+                moved: false,
+            });
+            return;
+        }
+        self.gesture = Some(sample.source);
+        let radius = self.eraser_radius();
+        let now = Self::now(cx);
+        if let Some(state) = &mut self.state {
+            let outcome = state.begin(sample, radius, now);
+            self.report(outcome, false, cx);
+        }
+        cx.stop_propagation();
+    }
+
+    fn on_mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let at = self.local(event.position);
+        self.pointer = at;
+        if let Some(grab) = self.grab {
+            if event.pressed_button.is_none() {
+                self.grab = None;
+                return;
+            }
+            match grab {
+                Grab::Pan { last } => {
+                    if let Some(state) = &mut self.state {
+                        state.view = state.view.panned([at[0] - last[0], at[1] - last[1]]);
+                    }
+                    self.grab = Some(Grab::Pan { last: at });
+                }
+                Grab::Card { last, .. } => {
+                    let zoom = self.state.as_ref().map_or(1.0, |s| f64::from(s.view.zoom));
+                    let (dx, dy) = (
+                        f64::from(at[0] - last[0]) / zoom,
+                        f64::from(at[1] - last[1]) / zoom,
+                    );
+                    let now = Self::now(cx);
+                    if let (Some(id), Some(state)) = (&self.pressed_card, &mut self.state)
+                        && let Some(node) = state.canvas.node(id).cloned()
+                    {
+                        state.move_card(id, node.x + dx, node.y + dy, now);
+                    }
+                    self.grab = Some(Grab::Card {
+                        last: at,
+                        moved: true,
+                    });
+                }
+            }
+            cx.notify();
+            return;
+        }
+        let (x, y) = self.to_canvas(event.position);
+        if self.gesture.is_some() && event.pressed_button == Some(MouseButton::Left) {
+            let sample = self.sample(event.position, self.gesture.unwrap_or(Source::Mouse));
+            let radius = self.eraser_radius();
+            let now = Self::now(cx);
+            if let Some(state) = &mut self.state {
+                let outcome = state.extend(sample, radius, now);
+                self.hover = Some((x, y));
+                self.report(outcome, false, cx);
+            }
+            return;
+        }
+        if self.gesture.is_some() {
+            // The button went up outside the view.
+            self.finish(cx);
+        }
+        let erasing = self
+            .state
+            .as_ref()
+            .is_some_and(|s| matches!(s.tool, Tool::Eraser | Tool::Partial));
+        let next = erasing.then_some((x, y));
+        if next != self.hover {
+            self.hover = next;
+            cx.notify();
+        }
+    }
+
+    fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(Grab::Card { moved, .. }) = self.grab.take() {
+            if moved && let Some(state) = &self.state {
+                cx.emit(CanvasEvent::Changed {
+                    body: state.body(),
+                    stroke_ended: true,
+                });
+            }
+            self.pressed_card = None;
+            cx.notify();
+            return;
+        }
+        self.grab = None;
+        self.finish(cx);
+    }
+
+    fn finish(&mut self, cx: &mut Context<Self>) {
+        if self.gesture.take().is_none() {
+            return;
+        }
+        let now = Self::now(cx);
+        if let Some(state) = &mut self.state {
+            let outcome = state.end(now);
+            // The stroke itself ends the gesture; an erase already reported
+            // each step, so only a save is asked for now.
+            let outcome = match outcome {
+                Outcome::Nothing if state.can_undo() => Outcome::Changed,
+                other => other,
+            };
+            if outcome == Outcome::Changed || matches!(outcome, Outcome::Refused(_)) {
+                self.report(outcome, true, cx);
+                return;
+            }
+        }
+        cx.notify();
+    }
+
+    fn on_scroll(&mut self, event: &ScrollWheelEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let size = self.size();
+        let at = self.local(event.position);
+        let Some(state) = &mut self.state else { return };
+        let view = state.view;
+        let zoom = matches!(event.delta, ScrollDelta::Lines(_))
+            || event.modifiers.platform
+            || event.modifiers.control;
+        let delta = event.delta.pixel_delta(px(20.));
+        let (dx, dy) = (f32::from(delta.x), f32::from(delta.y));
+        let next = if zoom {
+            view.zoom_at((dy * 0.006).exp(), at, size)
+        } else {
+            view.panned([dx, dy])
+        };
+        if next != view {
+            state.view = next;
+            cx.notify();
+        }
+        cx.stop_propagation();
+    }
+
+    fn on_pinch(&mut self, event: &PinchEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let size = self.size();
+        let at = self.local(event.position);
+        if let Some(state) = &mut self.state {
+            state.view = state.view.zoom_at(1.0 + event.delta, at, size);
+            cx.notify();
+        }
+        cx.stop_propagation();
+    }
+
+    fn on_key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if event.keystroke.key == "space" && !event.is_held {
+            self.space = true;
+            cx.notify();
+        }
+    }
+
+    fn on_key_up(&mut self, event: &KeyUpEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if event.keystroke.key == "space" {
+            self.space = false;
+            cx.notify();
+        }
+    }
+
+    // ---- cards ----
+
+    /// Notes dragged from the list become note cards where they are dropped.
+    /// A locked note, or one in a locked notebook, is refused: its title
+    /// would otherwise be written into the canvas in the clear.
+    pub(crate) fn drop_notes(&mut self, ids: &[String], cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
+        let at = self
+            .state
+            .as_ref()
+            .map_or(Viewport::default(), |s| s.view)
+            .to_layout(self.pointer, self.size());
+        let (mut x, y) = (f64::from(at[0]), f64::from(at[1]));
+        let locked_books = self.store.locked_books().unwrap_or_default();
+        let now = Self::now(cx);
+        let mut added = false;
+        let mut skipped = 0;
+        for id in ids {
+            if self.note_id.as_deref() == Some(id.as_str()) {
+                skipped += 1;
+                continue;
+            }
+            let Ok(Some(note)) = self.store.note(id) else {
+                continue;
+            };
+            if note.is_locked() || locked_books.contains(&note.book_id) || note.is_trashed() {
+                skipped += 1;
+                continue;
+            }
+            let title = if note.title.trim().is_empty() {
+                "Untitled".to_owned()
+            } else {
+                note.title.clone()
+            };
+            if let Some(state) = &mut self.state
+                && state.add_note_card(x, y, id, &title, now).is_some()
+            {
+                added = true;
+                x += 280.;
+            }
+        }
+        if added && let Some(state) = &self.state {
+            cx.emit(CanvasEvent::Changed {
+                body: state.body(),
+                stroke_ended: true,
+            });
+        }
+        if skipped > 0 {
+            cx.emit(CanvasEvent::Notice(
+                "A locked, trashed or this very note can't be a card.".into(),
+            ));
+        }
+        self.refresh_titles();
+        cx.notify();
+    }
+
+    fn new_card(&mut self, x: f64, y: f64, window: &mut Window, cx: &mut Context<Self>) {
+        let now = Self::now(cx);
+        let Some(state) = &mut self.state else { return };
+        let id = state.add_text_card(x, y, NEW_CARD_TEXT, now);
+        if let Some(card) = state.canvas.node(&id).cloned() {
+            cx.emit(CanvasEvent::Changed {
+                body: state.body(),
+                stroke_ended: true,
+            });
+            cx.notify();
+            self.edit_card(&card, window, cx);
+        }
+    }
+
+    fn edit_card(&mut self, card: &Node, window: &mut Window, cx: &mut Context<Self>) {
+        if card.kind != "text" {
+            // A note card opens its note.
+            if let Some(note) = canvas::Canvas::note_id(card) {
+                let id = format!("note:{}", note.trim_start_matches("note:"));
+                cx.emit(CanvasEvent::OpenNote(id));
+            }
+            return;
+        }
+        let this = cx.entity();
+        let id = card.id.clone();
+        crate::dialogs::prompt_text(
+            "Edit Card",
+            card.text.as_deref().unwrap_or(""),
+            "Save",
+            window,
+            cx,
+            move |text, _, cx| {
+                this.update(cx, |view, cx| {
+                    let now = Self::now(cx);
+                    if let Some(state) = &mut view.state
+                        && state.set_card_text(&id, &text, now)
+                    {
+                        cx.emit(CanvasEvent::Changed {
+                            body: state.body(),
+                            stroke_ended: true,
+                        });
+                        cx.notify();
+                    }
+                });
+            },
+        );
+    }
+
+    // ---- commands ----
+
+    pub(crate) fn undo(&mut self, cx: &mut Context<Self>) {
+        let now = Self::now(cx);
+        if let Some(state) = &mut self.state {
+            let outcome = state.undo(now);
+            self.report(outcome, true, cx);
+        }
+    }
+
+    fn redo(&mut self, cx: &mut Context<Self>) {
+        let now = Self::now(cx);
+        if let Some(state) = &mut self.state {
+            let outcome = state.redo(now);
+            self.report(outcome, true, cx);
+        }
+    }
+
+    fn delete(&mut self, cx: &mut Context<Self>) {
+        let now = Self::now(cx);
+        if self.read_only {
+            return;
+        }
+        if let Some(state) = &mut self.state {
+            let outcome = state.delete_selection(now);
+            self.report(outcome, true, cx);
+        }
+    }
+
+    pub(crate) fn set_tool(&mut self, tool: Tool, cx: &mut Context<Self>) {
+        if let Some(state) = &mut self.state {
+            state.cancel();
+            state.tool = tool;
+            state.selection.clear();
+            self.hover = None;
+            cx.notify();
+        }
+    }
+
+    fn zoom_by(&mut self, factor: f32, cx: &mut Context<Self>) {
+        let size = self.size();
+        if let Some(state) = &mut self.state {
+            state.view = state
+                .view
+                .zoom_at(factor, [size[0] / 2., size[1] / 2.], size);
+            cx.notify();
+        }
+    }
+
+    fn fit(&mut self, cx: &mut Context<Self>) {
+        self.fit.set(true);
+        cx.notify();
+    }
+
+    // ---- painting ----
+
+    fn render_toolbar(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let colors = Colors::get(cx);
+        let state = self.state.as_ref();
+        let tool = state.map(|s| s.tool);
+        let icon_button = |id: &'static str, icon: Lucide, tip: &'static str| {
+            Button::new(id).ghost().small().icon(icon).tooltip(tip)
+        };
+        let tool_button = |t: Tool, id: &'static str, icon: Lucide, cx: &mut Context<Self>| {
+            icon_button(id, icon, t.label())
+                .selected(tool == Some(t))
+                .on_click(cx.listener(move |this, _, _, cx| this.set_tool(t, cx)))
+        };
+        let swatch = |color: &'static str, cx: &mut Context<Self>| {
+            let chosen = state.is_some_and(|s| s.color == color);
+            let shade = pen::parse_hex(color).map_or(0, |(r, g, b)| {
+                (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b)
+            });
+            div()
+                .id(SharedString::from(format!("canvas-colour-{color}")))
+                .size(px(18.))
+                .rounded_full()
+                .bg(Hsla::from(rgb(shade)))
+                .border_2()
+                .border_color(if chosen {
+                    colors.accent
+                } else {
+                    colors.divider
+                })
+                .cursor_pointer()
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if let Some(s) = &mut this.state {
+                        s.color = color.into();
+                        cx.notify();
+                    }
+                }))
+        };
+        let width_dot = |w: f64, cx: &mut Context<Self>| {
+            let chosen = state.is_some_and(|s| (s.width - w).abs() < 1e-9);
+            div()
+                .id(SharedString::from(format!("canvas-width-{w}")))
+                .size(px(22.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(5.))
+                .when(chosen, |el| el.bg(colors.selected))
+                .cursor_pointer()
+                .child(
+                    div()
+                        .size(px((w as f32 + 2.).min(14.)))
+                        .rounded_full()
+                        .bg(colors.text),
+                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if let Some(s) = &mut this.state {
+                        s.width = w;
+                        cx.notify();
+                    }
+                }))
+        };
+        let divider = || div().w(px(1.)).h(px(18.)).mx(px(4.)).bg(colors.divider);
+        let (can_undo, can_redo) = state.map_or((false, false), |s| (s.can_undo(), s.can_redo()));
+        let budget = state.map(CanvasState::budget);
+        h_flex()
+            .h(px(TOP_BAND_HEIGHT - 8.))
+            .flex_none()
+            .px(px(12.))
+            .gap(px(2.))
+            .border_b_1()
+            .border_color(colors.divider)
+            .bg(colors.editor)
+            .when(!self.read_only, |el| {
+                el.child(tool_button(Tool::Pen, "canvas-pen", Lucide::PenTool, cx))
+                    .child(tool_button(
+                        Tool::Pencil,
+                        "canvas-pencil",
+                        Lucide::Pencil,
+                        cx,
+                    ))
+                    .child(tool_button(
+                        Tool::Marker,
+                        "canvas-marker",
+                        Lucide::Brush,
+                        cx,
+                    ))
+                    .child(tool_button(
+                        Tool::Highlighter,
+                        "canvas-highlighter",
+                        Lucide::Highlighter,
+                        cx,
+                    ))
+                    .child(divider())
+                    .child(tool_button(
+                        Tool::Eraser,
+                        "canvas-eraser",
+                        Lucide::Eraser,
+                        cx,
+                    ))
+                    .child(tool_button(
+                        Tool::Partial,
+                        "canvas-partial",
+                        Lucide::Split,
+                        cx,
+                    ))
+                    .child(tool_button(Tool::Lasso, "canvas-lasso", Lucide::Lasso, cx))
+                    .child(tool_button(Tool::Text, "canvas-text", Lucide::Type, cx))
+                    .child(divider())
+                    .children(COLORS.iter().map(|&c| swatch(c, cx).into_any_element()))
+                    .child(divider())
+                    .children(WIDTHS.iter().map(|w| width_dot(*w, cx).into_any_element()))
+                    .child(divider())
+                    .child(
+                        icon_button("canvas-undo", Lucide::Undo2, "Undo")
+                            .disabled(!can_undo)
+                            .on_click(cx.listener(|this, _, _, cx| this.undo(cx))),
+                    )
+                    .child(
+                        icon_button("canvas-redo", Lucide::Redo2, "Redo")
+                            .disabled(!can_redo)
+                            .on_click(cx.listener(|this, _, _, cx| this.redo(cx))),
+                    )
+            })
+            .child(div().flex_1())
+            .when(budget == Some(Budget::Warn), |el| {
+                el.child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(colors.text_muted)
+                        .child("Getting large: 700 KB of 1 MB"),
+                )
+            })
+            .when(budget == Some(Budget::Full), |el| {
+                el.child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(colors.text_muted)
+                        .child("Full: new ink is refused"),
+                )
+            })
+            .child(
+                icon_button("canvas-zoom-out", Lucide::ZoomOut, "Zoom out")
+                    .on_click(cx.listener(|this, _, _, cx| this.zoom_by(1. / ZOOM_STEP, cx))),
+            )
+            .child(
+                icon_button("canvas-zoom-in", Lucide::ZoomIn, "Zoom in")
+                    .on_click(cx.listener(|this, _, _, cx| this.zoom_by(ZOOM_STEP, cx))),
+            )
+            .child(
+                icon_button("canvas-fit", Lucide::Scan, "Fit")
+                    .on_click(cx.listener(|this, _, _, cx| this.fit(cx))),
+            )
+            .child(
+                icon_button("canvas-text-edit", Lucide::Code, "Edit as text")
+                    .on_click(cx.listener(|_, _, _, cx| cx.emit(CanvasEvent::EditAsText))),
+            )
+            .pl(px(
+                crate::layout::inset_after(0., window.is_fullscreen()).min(12.)
+            ))
+    }
+
+    /// Cards and groups, as elements placed over the surface.
+    fn cards(&self, view: Viewport, size: [f32; 2], colors: &Colors) -> Vec<AnyElement> {
+        let Some(state) = &self.state else {
+            return Vec::new();
+        };
+        let seen = view.visible(size, 40.);
+        let mut out = Vec::new();
+        for node in state.canvas.live_nodes() {
+            if node.kind == canvas::INK {
+                continue;
+            }
+            let b = node.bounds();
+            if (b.right() as f32) < seen.0[0]
+                || (b.x as f32) > seen.1[0]
+                || (b.bottom() as f32) < seen.0[1]
+                || (b.y as f32) > seen.1[1]
+            {
+                continue;
+            }
+            let tl = view.to_screen([b.x as f32, b.y as f32], size);
+            let (w, h) = (b.width as f32 * view.zoom, b.height as f32 * view.zoom);
+            let tint = card_color(node.color.as_deref())
+                .and_then(|c| pen::parse_hex(&c))
+                .map(|(r, g, b)| rgb((u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b)));
+            let border: Hsla = tint.map_or(Hsla::from(colors.divider), Hsla::from);
+            let group = node.kind == "group";
+            let text = match node.kind.as_str() {
+                "text" => node.text.clone().unwrap_or_default(),
+                "group" => node.label.clone().unwrap_or_default(),
+                _ => node
+                    .file
+                    .as_deref()
+                    .and_then(|f| f.strip_prefix(canvas::NOTE_PREFIX))
+                    .and_then(|id| self.titles.get(id).cloned())
+                    .or_else(|| node.title.clone())
+                    .or_else(|| node.url.clone())
+                    .or_else(|| node.file.clone())
+                    .unwrap_or_default(),
+            };
+            let font = (14. * view.zoom).clamp(1., 60.);
+            out.push(
+                div()
+                    .absolute()
+                    .left(gpui_kit::px(tl[0]))
+                    .top(gpui_kit::px(tl[1]))
+                    .w(gpui_kit::px(w))
+                    .h(gpui_kit::px(h))
+                    .overflow_hidden()
+                    .rounded(gpui_kit::px(8. * view.zoom))
+                    .border(gpui_kit::px((1.5 * view.zoom).max(0.5)))
+                    .border_color(border)
+                    .when(!group, |el| el.bg(colors.fill))
+                    .when(group, |el| el.bg(Hsla::from(border).opacity(0.06)))
+                    .when(view.zoom >= TEXT_ZOOM, |el| {
+                        el.p(gpui_kit::px(10. * view.zoom))
+                            .text_size(gpui_kit::px(font))
+                            .text_color(if group {
+                                colors.text_muted
+                            } else {
+                                colors.text
+                            })
+                            .when(node.kind == "file" || node.kind == "link", |el| {
+                                el.font_semibold()
+                            })
+                            .child(text)
+                    })
+                    .into_any_element(),
+            );
+        }
+        out
+    }
+
+    fn paint_surface(&mut self, dark: bool, size: [f32; 2]) -> Option<Surface> {
+        let view = self.state.as_ref()?.view;
+        let seen = view.visible(size, 24.);
+        let state = self.state.as_mut()?;
+        // Outlines of the strokes in view; the rest are culled by bounds.
+        let mut strokes: Vec<InkPaint> = Vec::new();
+        let mut selected: Vec<[f32; 4]> = Vec::new();
+        let layers: Vec<(String, f64, f64)> = state
+            .canvas
+            .live_nodes()
+            .filter(|n| n.kind == canvas::INK)
+            .map(|n| (n.id.clone(), n.x, n.y))
+            .collect();
+        for (id, ox, oy) in layers {
+            let list: Vec<canvas::Stroke> = state
+                .canvas
+                .node(&id)
+                .map(|n| n.strokes.iter().filter(|s| !s.deleted).cloned().collect())
+                .unwrap_or_default();
+            for stroke in list {
+                let Some(b) = stroke.bounds() else { continue };
+                if ((b.right() + ox) as f32) < seen.0[0]
+                    || ((b.x + ox) as f32) > seen.1[0]
+                    || ((b.bottom() + oy) as f32) < seen.0[1]
+                    || ((b.y + oy) as f32) > seen.1[1]
+                {
+                    continue;
+                }
+                let polygon = state.outline_of(&stroke);
+                let is_selected = state
+                    .selection
+                    .iter()
+                    .any(|r| r.stroke == stroke.id && r.node == id);
+                if is_selected {
+                    selected.push([
+                        (b.x + ox) as f32,
+                        (b.y + oy) as f32,
+                        (b.right() + ox) as f32,
+                        (b.bottom() + oy) as f32,
+                    ]);
+                }
+                strokes.push(InkPaint {
+                    polygon,
+                    origin: (ox, oy),
+                    color: ink_hsla(&stroke.color, dark),
+                    opacity: pen::opacity(&stroke.tool) as f32,
+                });
+            }
+        }
+        let live = state.live_outline(&[]).map(|(stroke, polygon)| InkPaint {
+            polygon: Arc::new(polygon),
+            origin: (0., 0.),
+            color: ink_hsla(&stroke.color, dark),
+            opacity: pen::opacity(&stroke.tool) as f32,
+        });
+        let edges = edge_lines(&state.canvas);
+        let minimap = (view.zoom < MINIMAP_BELOW)
+            .then(|| state.canvas.content_bounds())
+            .flatten()
+            .map(|b| [b.x as f32, b.y as f32, b.right() as f32, b.bottom() as f32]);
+        Some(Surface {
+            strokes,
+            live,
+            edges,
+            selected,
+            lasso: state.lasso.clone(),
+            minimap,
+        })
+    }
+}
+
+/// One stroke ready to fill.
+struct InkPaint {
+    polygon: Arc<Vec<[f64; 2]>>,
+    /// The ink layer's origin.
+    origin: (f64, f64),
+    color: Hsla,
+    opacity: f32,
+}
+
+/// What the surface paints this frame.
+struct Surface {
+    strokes: Vec<InkPaint>,
+    live: Option<InkPaint>,
+    edges: Vec<[f32; 4]>,
+    selected: Vec<[f32; 4]>,
+    lasso: Vec<(f64, f64)>,
+    minimap: Option<[f32; 4]>,
+}
+
+fn ink_hsla(color: &str, dark: bool) -> Hsla {
+    // A near-black pen on a dark page draws in the text colour, as the
+    // export does (`pen::ink_color`).
+    let palette = if dark {
+        kanso_render::Palette::DARK
+    } else {
+        kanso_render::Palette::LIGHT
+    };
+    let hex = pen::ink_color(color, &palette);
+    let (r, g, b) = pen::parse_hex(&hex).unwrap_or((0x1e, 0x1e, 0x1e));
+    Hsla::from(rgb((u32::from(r) << 16)
+        | (u32::from(g) << 8)
+        | u32::from(b)))
+}
+
+/// The arrows as straight segments between the cards' nearest sides.
+fn edge_lines(canvas: &canvas::Canvas) -> Vec<[f32; 4]> {
+    canvas
+        .edges
+        .iter()
+        .filter(|e| !e.deleted)
+        .filter_map(|e| {
+            let a = canvas.node(&e.from_node)?.bounds();
+            let b = canvas.node(&e.to_node)?.bounds();
+            let (ac, bc) = (
+                (a.x + a.width / 2., a.y + a.height / 2.),
+                (b.x + b.width / 2., b.y + b.height / 2.),
+            );
+            let from = edge_point(&a, bc);
+            let to = edge_point(&b, ac);
+            Some([from.0 as f32, from.1 as f32, to.0 as f32, to.1 as f32])
+        })
+        .collect()
+}
+
+/// Where the line from a card's middle toward `toward` leaves it.
+fn edge_point(b: &canvas::Bounds, toward: (f64, f64)) -> (f64, f64) {
+    let (cx, cy) = (b.x + b.width / 2., b.y + b.height / 2.);
+    let (dx, dy) = (toward.0 - cx, toward.1 - cy);
+    if dx == 0. && dy == 0. {
+        return (cx, cy);
+    }
+    let sx = if dx == 0. {
+        f64::MAX
+    } else {
+        (b.width / 2.) / dx.abs()
+    };
+    let sy = if dy == 0. {
+        f64::MAX
+    } else {
+        (b.height / 2.) / dy.abs()
+    };
+    let s = sx.min(sy);
+    (cx + dx * s, cy + dy * s)
+}
+
+/// A closed outline as one filled path, its corners rounded through the
+/// midpoints of its edges.
+fn fill_path(
+    polygon: &[[f64; 2]],
+    origin: (f64, f64),
+    to_px: &impl Fn(f64, f64) -> Point<Pixels>,
+) -> Option<Path<Pixels>> {
+    let n = polygon.len();
+    if n < 3 {
+        return None;
+    }
+    let at = |p: [f64; 2]| to_px(p[0] + origin.0, p[1] + origin.1);
+    let mid = |a: [f64; 2], b: [f64; 2]| [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2.];
+    let mut path = PathBuilder::fill();
+    path.move_to(at(mid(polygon[0], polygon[1])));
+    for i in 1..=n {
+        let (a, b) = (polygon[i % n], polygon[(i + 1) % n]);
+        path.curve_to(at(mid(a, b)), at(a));
+    }
+    path.close();
+    path.build().ok()
+}
+
+impl Render for CanvasView {
+    // no-prop-test: layout and painting; `canvas_state.rs` has the properties
+    // and the snapshots show the view.
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let colors = Colors::get(cx);
+        if let Some(why) = self.broken.clone() {
+            return v_flex()
+                .size_full()
+                .items_center()
+                .justify_center()
+                .gap(px(10.))
+                .bg(colors.editor)
+                .text_color(colors.text_muted)
+                .child("This canvas can't be opened.")
+                .child(div().text_size(px(12.)).child(why))
+                .child(
+                    Button::new("canvas-edit-text")
+                        .outline()
+                        .small()
+                        .label("Edit as text")
+                        .on_click(cx.listener(|_, _, _, cx| cx.emit(CanvasEvent::EditAsText))),
+                )
+                .into_any_element();
+        }
+        let size = {
+            let s = self.size();
+            if s[0] > 1. { s } else { [900., 600.] }
+        };
+        if self.fit.get() && self.bounds.get().size.width > px(1.) {
+            self.fit.set(false);
+            if let Some(state) = &mut self.state {
+                state.fit(size);
+            }
+        }
+        let view = self
+            .state
+            .as_ref()
+            .map_or(Viewport::default(), |state| state.view);
+        let dark = gpui_kit::component::Theme::global(cx).is_dark();
+        let surface = self.paint_surface(dark, size);
+        let cards = self.cards(view, size, colors);
+        let bounds_cell = self.bounds.clone();
+        let hover = self
+            .hover
+            .zip(self.state.as_ref())
+            .and_then(|(h, s)| matches!(s.tool, Tool::Eraser | Tool::Partial).then_some(h));
+        let eraser = ERASER_RADIUS as f32;
+        let accent: Hsla = colors.accent.into();
+        let muted: Hsla = colors.text_muted.into();
+        let grid: Hsla = Hsla::from(colors.divider).opacity(0.55);
+        let cursor = match self.state.as_ref().map(|s| s.tool) {
+            Some(Tool::Text) => CursorStyle::IBeam,
+            Some(Tool::Lasso) => CursorStyle::Arrow,
+            _ => CursorStyle::Crosshair,
+        };
+        let surface_el = canvas(
+            move |bounds, _, _| {
+                bounds_cell.set(bounds);
+            },
+            move |bounds, _, window, _cx| {
+                let origin = bounds.origin;
+                let extent = [f32::from(bounds.size.width), f32::from(bounds.size.height)];
+                let to_px = |x: f64, y: f64| {
+                    let s = view.to_screen([x as f32, y as f32], extent);
+                    point(origin.x + gpui_kit::px(s[0]), origin.y + gpui_kit::px(s[1]))
+                };
+                window.with_content_mask(Some(ContentMask { bounds }), |window| {
+                    // A dotted grid, so panning shows movement on an empty page.
+                    paint_grid(window, bounds, &view, extent, grid);
+                    let Some(surface) = &surface else { return };
+                    for ink in surface.strokes.iter().chain(surface.live.iter()) {
+                        if let Some(path) = fill_path(&ink.polygon, ink.origin, &to_px) {
+                            window.paint_path(path, ink.color.opacity(ink.opacity));
+                        }
+                    }
+                    if !surface.edges.is_empty() {
+                        let mut lines = PathBuilder::stroke(gpui_kit::px(1.5 * view.zoom.max(0.5)));
+                        for e in &surface.edges {
+                            lines.move_to(to_px(f64::from(e[0]), f64::from(e[1])));
+                            lines.line_to(to_px(f64::from(e[2]), f64::from(e[3])));
+                        }
+                        if let Ok(path) = lines.build() {
+                            window.paint_path(path, muted);
+                        }
+                    }
+                    for r in &surface.selected {
+                        let (a, b) = (
+                            to_px(f64::from(r[0]), f64::from(r[1])),
+                            to_px(f64::from(r[2]), f64::from(r[3])),
+                        );
+                        window.paint_quad(
+                            fill(Bounds::from_corners(a, b), accent.opacity(0.12))
+                                .corner_radii(gpui_kit::px(3.)),
+                        );
+                    }
+                    if surface.lasso.len() > 1 {
+                        let mut l = PathBuilder::stroke(gpui_kit::px(1.2));
+                        let mut it = surface.lasso.iter();
+                        if let Some(first) = it.next() {
+                            l.move_to(to_px(first.0, first.1));
+                            for p in it {
+                                l.line_to(to_px(p.0, p.1));
+                            }
+                        }
+                        if let Ok(path) = l.build() {
+                            window.paint_path(path, accent);
+                        }
+                    }
+                    if let Some(r) = surface.minimap {
+                        paint_minimap(window, bounds, r, &view, extent, accent, muted);
+                    }
+                });
+            },
+        )
+        .absolute()
+        .size_full();
+
+        let body = div()
+            .id("canvas-surface")
+            .debug_selector(|| "canvas-surface".into())
+            .key_context("CanvasView")
+            .track_focus(&self.focus)
+            .relative()
+            .flex_1()
+            .min_h_0()
+            .overflow_hidden()
+            .bg(colors.editor)
+            .cursor(
+                if self.space || matches!(self.grab, Some(Grab::Pan { .. })) {
+                    CursorStyle::OpenHand
+                } else {
+                    cursor
+                },
+            )
+            .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
+            .on_mouse_down(MouseButton::Middle, cx.listener(Self::on_mouse_down))
+            .on_mouse_move(cx.listener(Self::on_mouse_move))
+            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_mouse_up(MouseButton::Middle, cx.listener(Self::on_mouse_up))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_mouse_up))
+            .on_scroll_wheel(cx.listener(Self::on_scroll))
+            .on_pinch(cx.listener(Self::on_pinch))
+            .on_drop(
+                cx.listener(|this, notes: &crate::note_list::DraggedNotes, _, cx| {
+                    this.drop_notes(&notes.ids, cx)
+                }),
+            )
+            .on_key_down(cx.listener(Self::on_key_down))
+            .on_key_up(cx.listener(Self::on_key_up))
+            .on_action(cx.listener(|this, _: &CanvasUndo, _, cx| this.undo(cx)))
+            .on_action(cx.listener(|this, _: &CanvasRedo, _, cx| this.redo(cx)))
+            .on_action(cx.listener(|this, _: &CanvasDelete, _, cx| this.delete(cx)))
+            .on_action(cx.listener(|this, _: &CanvasFit, _, cx| this.fit(cx)))
+            .on_action(cx.listener(|this, _: &CanvasCancel, _, cx| {
+                if let Some(state) = &mut this.state {
+                    state.cancel();
+                    state.selection.clear();
+                }
+                this.gesture = None;
+                cx.notify();
+            }))
+            .child(surface_el)
+            .children(cards)
+            .when_some(hover, |el, (x, y)| {
+                let s = view.to_screen([x as f32, y as f32], size);
+                el.child(
+                    div()
+                        .absolute()
+                        .left(gpui_kit::px(s[0] - eraser))
+                        .top(gpui_kit::px(s[1] - eraser))
+                        .size(gpui_kit::px(eraser * 2.))
+                        .rounded_full()
+                        .border_1()
+                        .border_color(muted),
+                )
+            });
+
+        v_flex()
+            .size_full()
+            .bg(colors.editor)
+            .child(self.render_toolbar(window, cx))
+            .child(body)
+            .into_any_element()
+    }
+}
+
+fn paint_grid(
+    window: &mut Window,
+    bounds: Bounds<Pixels>,
+    view: &Viewport,
+    extent: [f32; 2],
+    color: Hsla,
+) {
+    // One dot every 32 points, thinned out as the view zooms out.
+    let mut step = 32.0_f32;
+    while step * view.zoom < 14. {
+        step *= 2.;
+    }
+    if step * view.zoom > 400. {
+        return;
+    }
+    let (lo, hi) = view.visible(extent, 0.);
+    let (x0, y0) = ((lo[0] / step).floor() * step, (lo[1] / step).floor() * step);
+    let mut x = x0;
+    let mut count = 0;
+    while x <= hi[0] && count < 6000 {
+        let mut y = y0;
+        while y <= hi[1] && count < 6000 {
+            let s = view.to_screen([x, y], extent);
+            window.paint_quad(
+                fill(
+                    Bounds::new(
+                        point(
+                            bounds.origin.x + gpui_kit::px(s[0] - 0.8),
+                            bounds.origin.y + gpui_kit::px(s[1] - 0.8),
+                        ),
+                        size(gpui_kit::px(1.6), gpui_kit::px(1.6)),
+                    ),
+                    color,
+                )
+                .corner_radii(gpui_kit::px(1.)),
+            );
+            count += 1;
+            y += step;
+        }
+        x += step;
+    }
+}
+
+/// A small map of the content with the view on it, when zoomed far out.
+fn paint_minimap(
+    window: &mut Window,
+    bounds: Bounds<Pixels>,
+    content: [f32; 4],
+    view: &Viewport,
+    extent: [f32; 2],
+    accent: Hsla,
+    muted: Hsla,
+) {
+    let (w, h) = (160.0_f32, 110.0_f32);
+    let origin = point(
+        bounds.origin.x + bounds.size.width - gpui_kit::px(w + 14.),
+        bounds.origin.y + bounds.size.height - gpui_kit::px(h + 14.),
+    );
+    window.paint_quad(
+        fill(
+            Bounds::new(origin, size(gpui_kit::px(w), gpui_kit::px(h))),
+            muted.opacity(0.1),
+        )
+        .corner_radii(gpui_kit::px(6.)),
+    );
+    let (cw, ch) = (
+        (content[2] - content[0]).max(1.),
+        (content[3] - content[1]).max(1.),
+    );
+    let scale = ((w - 12.) / cw).min((h - 12.) / ch);
+    let map = |x: f32, y: f32| {
+        point(
+            origin.x + gpui_kit::px(6. + (x - content[0]) * scale),
+            origin.y + gpui_kit::px(6. + (y - content[1]) * scale),
+        )
+    };
+    window.paint_quad(
+        fill(
+            Bounds::from_corners(map(content[0], content[1]), map(content[2], content[3])),
+            muted.opacity(0.3),
+        )
+        .corner_radii(gpui_kit::px(2.)),
+    );
+    let (lo, hi) = view.visible(extent, 0.);
+    window.paint_quad(outline(
+        Bounds::from_corners(map(lo[0], lo[1]), map(hi[0], hi[1])),
+        accent,
+        BorderStyle::Solid,
+    ));
+}

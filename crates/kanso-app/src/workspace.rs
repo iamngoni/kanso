@@ -45,6 +45,7 @@ actions!(
     kanso,
     [
         NewNote,
+        NewCanvas,
         NewNotebook,
         FocusSearch,
         SearchAllNotes,
@@ -326,6 +327,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::os_submenu("Services", SystemMenuType::Services),
         ]),
         Menu::new("Note").items([
+            MenuItem::action("New Canvas", NewCanvas),
             MenuItem::action("Pin / Unpin Note", TogglePinned),
             MenuItem::action("Open in New Window", crate::note_window::OpenInNewWindow),
             MenuItem::action("Open as Sticky", crate::note_window::OpenAsSticky),
@@ -943,6 +945,16 @@ impl Workspace {
     }
 
     fn new_note(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.create_note(false, window, cx);
+    }
+
+    /// A canvas note (`doctype: "canvas"`, an empty document) where a note
+    /// would go, opened as a surface to draw on.
+    fn new_canvas(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.create_note(true, window, cx);
+    }
+
+    fn create_note(&mut self, canvas: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.flush(cx);
         let library = self.library.read(cx);
         // The engine decides where the note goes and what it starts with;
@@ -962,6 +974,12 @@ impl Workspace {
             None => return,
         };
         let mut note = json!({"title": "", "body": "", "bookId": book});
+        if canvas {
+            note["doctype"] = json!("canvas");
+            note["body"] = json!(kanso_core::canvas::to_body(
+                &kanso_core::canvas::Canvas::default()
+            ));
+        }
         let mut tags = target.tags.clone();
         // A level of the tag tree: its own tag, made if only tags inside it
         // exist so far.
@@ -990,6 +1008,11 @@ impl Workspace {
         match self.store.put(DocType::Note, note, Put::Upsert, Origin::Ui) {
             Ok(created) => {
                 crate::metrics::record(cx, crate::metrics::Feature::NoteCreated);
+                // The Canvases list is where a new canvas shows.
+                if canvas && matches!(self.library.read(cx).filter, Filter::All) {
+                    self.library
+                        .update(cx, |library, cx| library.set_filter(Filter::Canvases, cx));
+                }
                 self.library
                     .update(cx, |library, cx| library.select(Some(created.id), cx));
                 self.editor
@@ -2778,6 +2801,7 @@ impl Render for Workspace {
                 cx.listener(|this, _: &MouseUpEvent, _, _| this.band_drag.up()),
             )
             .on_action(cx.listener(|this, _: &NewNote, window, cx| this.new_note(window, cx)))
+            .on_action(cx.listener(|this, _: &NewCanvas, window, cx| this.new_canvas(window, cx)))
             .on_action(cx.listener(|this, _: &NewNotebook, window, cx| {
                 this.on_sidebar_event(&SidebarEvent::NewBook { parent: None }, window, cx);
             }))
