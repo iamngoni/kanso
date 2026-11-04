@@ -496,6 +496,16 @@ fn a_locked_canvas_shows_nothing_while_its_lock_is_closed() {
 fn assert_send_sync<T: Send + Sync>() {}
 
 #[test]
+fn a_live_stroke_has_an_outline_without_touching_the_library() {
+    let outline = kanso_mobile::ink_preview(pen(), line(0.0));
+    assert!(outline.len() > 20 && outline.len() % 2 == 0);
+    assert!(outline.iter().all(|v| v.is_finite()));
+    assert!(kanso_mobile::ink_preview(pen(), vec![]).is_empty());
+    // One sample is a dot.
+    assert!(!kanso_mobile::ink_preview(pen(), line(0.0)[..1].to_vec()).is_empty());
+}
+
+#[test]
 fn a_session_can_cross_threads() {
     assert_send_sync::<CanvasSession>();
 }

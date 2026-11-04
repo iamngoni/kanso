@@ -669,7 +669,8 @@ pub(crate) fn row(summary: kanso_store::NoteSummary) -> NoteRow {
         id: summary.id,
         rev: summary.rev,
         title: summary.title,
-        snippet: if locked {
+        // A canvas's text is JSON: its row has its glyph and title instead.
+        snippet: if locked || summary.canvas {
             String::new()
         } else {
             summary.snippet

@@ -107,6 +107,9 @@ sealed class BrowseLocation with _$BrowseLocation {
       case 'recent':
         place = const ListPlace.recent();
         tail = rest;
+      case 'canvases':
+        place = const ListPlace.canvases();
+        tail = rest;
       case 'trash':
         place = const ListPlace.trash();
         tail = rest;
@@ -186,6 +189,7 @@ String _placePath(ListPlace place) => switch (place) {
   ListPlace_All() => '/notes',
   ListPlace_Pinned() => '/pinned',
   ListPlace_Recent() => '/recent',
+  ListPlace_Canvases() => '/canvases',
   ListPlace_Trash() => '/trash',
   ListPlace_Notebook(:final id) => '/notebooks/${Uri.encodeComponent(id)}',
   ListPlace_Tag(:final id) => '/tags/${Uri.encodeComponent(id)}',

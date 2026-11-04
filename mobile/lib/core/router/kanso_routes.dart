@@ -15,6 +15,9 @@ abstract final class KansoRoutes {
   static const String recent = '/recent';
   static const String trash = '/trash';
 
+  /// The canvases, in the list's place.
+  static const String canvases = '/canvases';
+
   /// Tasks, across the notes.
   static const String tasks = '/tasks';
 

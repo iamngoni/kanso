@@ -17,6 +17,7 @@ abstract class LibraryIndexState with _$LibraryIndexState {
     @Default(
       LibraryOverview(
         all: 0,
+        canvases: 0,
         pinned: 0,
         recent: 0,
         trash: 0,

@@ -15,4 +15,7 @@ enum NewChoice {
 
   /// A new, empty template.
   newTemplate,
+
+  /// A new, empty canvas.
+  canvas,
 }

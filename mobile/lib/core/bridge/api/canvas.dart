@@ -10,6 +10,16 @@ import 'types.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new`
 
+/// The outline of a stroke still being drawn, to paint under the pen each
+/// frame. Runs on the UI isolate in microseconds; stores nothing.
+Float64List canvasInkPreview({
+  required InkStyle style,
+  required List<PenSample> samples,
+}) => KansoCore.instance.api.crateApiCanvasCanvasInkPreview(
+  style: style,
+  samples: samples,
+);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>
 abstract class KansoCanvas implements RustOpaqueInterface {
   Future<CanvasView> addArrow({

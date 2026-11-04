@@ -192,7 +192,7 @@ pub use ai_model::*;
 pub use approvals::Approvals;
 pub use backups::BACKUPS_SUMMARY;
 pub use brief_model::*;
-pub use canvas::CanvasSession;
+pub use canvas::{CanvasSession, ink_preview};
 pub use canvas_model::*;
 pub use cards::Cards;
 pub use cards_model::*;

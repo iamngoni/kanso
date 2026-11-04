@@ -4,11 +4,18 @@
 //! carry an outline.
 
 use flutter_rust_bridge::frb;
-use kanso_mobile::{CanvasSession, KansoError, Saved};
+use kanso_mobile::{CanvasSession, KansoError, Saved, ink_preview};
 
 use super::canvas_types::{
     CanvasPoint, CanvasRect, CanvasSaved, CanvasView, InkStyle, PenSample, StrokeKey,
 };
+
+/// The outline of a stroke still being drawn, to paint under the pen each
+/// frame. Runs on the UI isolate in microseconds; stores nothing.
+#[frb(sync)]
+pub fn canvas_ink_preview(style: InkStyle, samples: Vec<PenSample>) -> Vec<f64> {
+    ink_preview(style, samples)
+}
 
 /// A canvas open for drawing. Cheap to clone on the Rust side; Dart holds one.
 #[frb(opaque)]

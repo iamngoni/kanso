@@ -130,6 +130,7 @@ class NoteListRow extends StatelessWidget {
         status: noteStatusOf(row.status),
         pinned: row.pinned,
         locked: row.locked,
+        canvas: row.canvas,
         unlocked: unlocked,
         selected: open,
         checked: checked,

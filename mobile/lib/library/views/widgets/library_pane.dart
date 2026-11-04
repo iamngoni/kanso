@@ -223,6 +223,13 @@ class _LibraryPaneState extends State<LibraryPane> {
                         label: l10n.libraryRecent,
                         selected: current == const ListPlace.recent(),
                       ),
+                      LibraryPlaceRow(
+                        place: const ListPlace.canvases(),
+                        icon: KansoIcons.infinity,
+                        label: l10n.libraryCanvases,
+                        count: index.overview.canvases,
+                        selected: current == const ListPlace.canvases(),
+                      ),
                       const AskLibraryRow(),
                       const AgentTasksLibraryRow(),
                       const ReviewLibraryRow(),

@@ -55,6 +55,11 @@ class NewMenuSheet extends StatelessWidget {
           label: l10n.newTemplate,
           onTap: () => choose(NewChoice.newTemplate),
         ),
+        KansoSettingsRow(
+          icon: KansoIcons.infinity,
+          label: l10n.canvasNew,
+          onTap: () => choose(NewChoice.canvas),
+        ),
       ],
     );
   }

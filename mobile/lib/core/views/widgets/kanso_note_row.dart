@@ -33,6 +33,7 @@ class KansoNoteRow extends StatelessWidget {
     this.tags = const <KansoTagChip>[],
     this.pinned = false,
     this.locked = false,
+    this.canvas = false,
     this.unlocked = false,
     this.selected = false,
     this.checked,
@@ -49,6 +50,9 @@ class KansoNoteRow extends StatelessWidget {
   final List<KansoTagChip> tags;
   final bool pinned;
   final bool locked;
+
+  /// Whether the note is a canvas: a small glyph stands before its title.
+  final bool canvas;
 
   /// Whether a locked note is open now: its lock is drawn open.
   final bool unlocked;
@@ -67,6 +71,14 @@ class KansoNoteRow extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
+            if (canvas) ...<Widget>[
+              KansoIcon(
+                KansoIcons.infinity,
+                size: KansoSizes.glyph,
+                color: colors.textMuted,
+              ),
+              const SizedBox(width: KansoSpacing.xxs),
+            ],
             Expanded(
               child: Text(
                 title,

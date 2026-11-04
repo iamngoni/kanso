@@ -7,6 +7,7 @@ import 'package:kanso/core/bridge/api/types.dart';
 /// A note row for tests: the facts a list shows.
 NoteRow noteRow(String id, {String? title, bool locked = false}) {
   return NoteRow(
+    canvas: false,
     id: id,
     rev: '1-$id',
     title: title ?? 'Note $id',

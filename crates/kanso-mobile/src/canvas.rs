@@ -74,6 +74,22 @@ pub struct CanvasSession {
     state: Arc<Mutex<State>>,
 }
 
+/// The outline of a stroke still being drawn, as `x0, y0, x1, y1, ...`: what
+/// the shell paints under the pen each frame. Nothing is stored. Pure.
+pub fn ink_preview(style: InkStyle, samples: Vec<PenSample>) -> Vec<f64> {
+    let stroke = Stroke {
+        tool: style.tool,
+        color: style.color,
+        width: style.width,
+        points: samples.iter().map(point).collect(),
+        ..Stroke::default()
+    };
+    pen::outline(&stroke, false)
+        .into_iter()
+        .flat_map(|p| [p[0], p[1]])
+        .collect()
+}
+
 impl Library {
     /// Opens canvas note `id` for drawing. [`KansoError::Locked`] while it is
     /// locked and closed, [`KansoError::Invalid`] for a note that isn't a

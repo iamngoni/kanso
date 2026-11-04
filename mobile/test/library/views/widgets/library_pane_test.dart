@@ -477,6 +477,7 @@ void main() {
       await pumpRouted(tester, _pane(bloc));
       expect(find.text('142'), findsOneWidget);
       library.overviewValue = const LibraryOverview(
+        canvases: 0,
         all: 150,
         pinned: 3,
         recent: 11,
