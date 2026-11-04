@@ -5134,12 +5134,21 @@ impl Render for NoteEditor {
         let body = match mode {
             _ if self.lock.is_closed() => self.render_locked(cx),
             _ if self.canvas_body.is_some() => self.canvas.clone().into_any_element(),
-            ViewMode::Edit | ViewMode::Live => h_flex()
+            // The recording's card stays above the text, so playback has
+            // its controls here too (it is nothing without a recording).
+            ViewMode::Edit | ViewMode::Live => v_flex()
                 .size_full()
-                .child(source)
-                // Past notes about the paragraph, when there is room; it
-                // takes no width while it has nothing to say.
-                .child(self.resurface.clone())
+                .child(self.preview.read(cx).player().clone())
+                .child(
+                    h_flex()
+                        .flex_1()
+                        .min_h_0()
+                        .w_full()
+                        .child(source)
+                        // Past notes about the paragraph, when there is room; it
+                        // takes no width while it has nothing to say.
+                        .child(self.resurface.clone()),
+                )
                 .into_any_element(),
             ViewMode::Preview => h_flex().size_full().child(preview).into_any_element(),
             ViewMode::Split => {
@@ -6856,6 +6865,28 @@ mod writing_tests {
         );
         open.keys(cx, "cmd-z");
         assert_eq!(open.text(cx).0, format!("Intro\n\n{source}\n\nEnd"));
+    }
+
+    /// The Edit view keeps a recording's card above the text, so playback
+    /// stays reachable while the preview is away.
+    // no-prop-test: drives one window's layout.
+    #[gpui_kit::test]
+    fn the_player_card_stays_in_the_edit_view(cx: &mut TestAppContext) {
+        let open = Open::new(
+            cx,
+            "[Audio \u{b7} 3 min](inkdrop://file:ghost-1)\n\nNotes\n",
+        );
+        let drawn = |open: &Open, cx: &mut TestAppContext| {
+            draw_window(open, cx);
+            let mut vcx = gpui_kit::VisualTestContext::from_window(open.window, cx);
+            vcx.debug_bounds("recording-player").is_some()
+        };
+        show_preview(&open, cx);
+        assert!(drawn(&open, cx), "in Split");
+        for mode in [crate::config::ViewMode::Edit, crate::config::ViewMode::Live] {
+            open.with(cx, |editor, _, cx| editor.set_view_mode(mode, cx));
+            assert!(drawn(&open, cx), "in {mode:?}");
+        }
     }
 
     /// A note for ticking tasks in the preview. The task list counts the

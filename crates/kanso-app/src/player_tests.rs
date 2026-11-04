@@ -340,3 +340,26 @@ fn another_note_does_not_take_the_last_notes_recording(cx: &mut TestAppContext) 
     assert!(cx.read(|cx| p.read(cx).has_recording()));
     assert_eq!(cx.read(|cx| p.read(cx).length_secs()), Some(5));
 }
+
+/// In a slideshow the card never takes a key, so the slides keep Space and
+/// the arrows even if the card is what was clicked.
+// no-prop-test: drives one view's keys.
+#[gpui_kit::test]
+fn the_player_in_a_slideshow_leaves_every_key_to_the_slides(cx: &mut TestAppContext) {
+    use gpui_kit::Keystroke;
+    let f = setup(cx);
+    let p = player(&f, cx);
+    p.update(cx, |p, _| {
+        p.silence();
+        p.leave_keys_to_slides();
+    });
+    for text in ["space", "left", "right", "shift-left", "shift-right"] {
+        let ks = Keystroke::parse(text).unwrap();
+        for on_card in [true, false] {
+            assert!(
+                !p.update(cx, |p, cx| p.key_for_test(&ks, on_card, cx)),
+                "{text}"
+            );
+        }
+    }
+}

@@ -24,6 +24,7 @@ class KansoRecordingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureChannel(this)
         val notification = notification(this)
+        val stopping = intent?.action == ACTION_STOP
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -38,17 +39,64 @@ class KansoRecordingService : Service() {
             // Android refuses the microphone service (no permission, or not
             // allowed to start from here): do not leak the service.
             stopSelf()
+            return START_NOT_STICKY
+        }
+        // A stop that arrived before the service reached the foreground: it
+        // got there just above (Android crashes the app if a service started
+        // with startForegroundService never calls startForeground), and now
+        // it can go.
+        if (stopping) {
+            stopForegroundCompat()
+            stopSelf()
         }
         return START_NOT_STICKY
+    }
+
+    /**
+     * The app's task was swiped away mid-recording. The recorder is the Rust
+     * core's and the process is about to be killed: what reached the disk is
+     * kept in its session folder, and the next launch offers it for Recover
+     * (the same way as after a crash). Nothing is deleted here; the service
+     * just lets go of the microphone and its notification.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        requested = false
+        stopForegroundCompat()
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
+
+    override fun onDestroy() {
+        requested = false
+        super.onDestroy()
+    }
+
+    private fun stopForegroundCompat() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (_: RuntimeException) {
+            // Not in the foreground: nothing to take down.
+        }
     }
 
     companion object {
         private const val CHANNEL_ID = "kanso_recording"
         private const val NOTIFICATION_ID = 4802
+        private const val ACTION_STOP = "app.kanso.kanso.action.STOP_RECORDING"
+
+        /** Whether a start was asked for and no stop has followed yet. */
+        @Volatile
+        private var requested = false
 
         fun start(context: Context) {
             val app = context.applicationContext
             val intent = Intent(app, KansoRecordingService::class.java)
+            requested = true
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     app.startForegroundService(intent)
@@ -61,8 +109,26 @@ class KansoRecordingService : Service() {
         }
 
         fun stop(context: Context) {
+            if (!requested) return
+            requested = false
             val app = context.applicationContext
-            app.stopService(Intent(app, KansoRecordingService::class.java))
+            // Not stopService: a service started but not yet in the
+            // foreground would be stopped without calling startForeground,
+            // which crashes the app on Android 8+. The stop is an intent in
+            // the same queue as the start, so the service always reaches the
+            // foreground first, then goes.
+            val intent = Intent(app, KansoRecordingService::class.java).setAction(ACTION_STOP)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    app.startForegroundService(intent)
+                } else {
+                    app.startService(intent)
+                }
+            } catch (_: RuntimeException) {
+                // Not allowed to start it from here: nothing more to do
+                // than ask it to stop.
+                app.stopService(Intent(app, KansoRecordingService::class.java))
+            }
         }
 
         private fun ensureChannel(context: Context) {
