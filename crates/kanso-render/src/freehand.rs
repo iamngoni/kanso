@@ -187,6 +187,12 @@ fn radius(size: f64, thinning: f64, pressure: f64) -> f64 {
 /// The outline of the stroke through `samples`, as a closed polygon. Empty
 /// for no samples. Pure.
 pub fn outline(samples: &[Sample], opts: &Options) -> Vec<[f64; 2]> {
+    let mut finite = samples
+        .iter()
+        .filter(|s| s.x.is_finite() && s.y.is_finite());
+    if let (Some(only), None) = (finite.next(), finite.next()) {
+        return circle(only, opts);
+    }
     let pts = stroke_points(samples, opts);
     if pts.is_empty() {
         return Vec::new();
@@ -226,8 +232,8 @@ pub fn outline(samples: &[Sample], opts: &Options) -> Vec<[f64; 2]> {
             if opts.simulate_pressure {
                 let sp = (p.distance / size).min(1.0);
                 let rp = (1.0 - sp).min(1.0);
-                pressure =
-                    (prev_pressure + (rp - prev_pressure) * (sp * RATE_OF_PRESSURE_CHANGE)).min(1.0);
+                pressure = (prev_pressure + (rp - prev_pressure) * (sp * RATE_OF_PRESSURE_CHANGE))
+                    .min(1.0);
             }
             rad = radius(size, opts.thinning, pressure);
         } else {
@@ -246,7 +252,11 @@ pub fn outline(samples: &[Sample], opts: &Options) -> Vec<[f64; 2]> {
         };
         rad = (rad * ts.min(te)).max(0.01);
 
-        let next_vector = if i < n - 1 { pts[i + 1].vector } else { p.vector };
+        let next_vector = if i < n - 1 {
+            pts[i + 1].vector
+        } else {
+            p.vector
+        };
         let next_dpr = if i < n - 1 {
             dot(p.vector, next_vector)
         } else {
@@ -336,6 +346,29 @@ pub fn outline(samples: &[Sample], opts: &Options) -> Vec<[f64; 2]> {
     out
 }
 
+/// A single sample: a circle as wide as the pen is at that pressure.
+fn circle(sample: &Sample, opts: &Options) -> Vec<[f64; 2]> {
+    let size = opts.size.max(0.01);
+    let pressure = if sample.pressure.is_finite() {
+        sample.pressure.clamp(0.0, 1.0)
+    } else {
+        0.5
+    };
+    let r = if opts.simulate_pressure || opts.thinning == 0.0 {
+        size / 2.0
+    } else {
+        radius(size, opts.thinning, pressure)
+    }
+    .max(0.01);
+    let c = [sample.x, sample.y];
+    (0..16)
+        .map(|i| {
+            let a = PI * 2.0 * i as f64 / 16.0;
+            [c[0] + r * a.cos(), c[1] + r * a.sin()]
+        })
+        .collect()
+}
+
 /// A closed SVG path through `polygon`, its corners rounded with quadratic
 /// curves through the midpoints of its edges (perfect-freehand's own way).
 /// Empty for fewer than four points.
@@ -391,10 +424,10 @@ mod tests {
             ..Options::default()
         };
         let o = outline(&[Sample::new(10.0, 10.0, 0.5)], &opts);
-        assert_eq!(o.len(), 13);
+        assert_eq!(o.len(), 16);
         for p in o {
             let d = dist(p, [10.0, 10.0]);
-            assert!(d > 0.5 && d < 8.0, "{d}");
+            assert!((d - 4.0).abs() < 1e-9, "{d}");
         }
     }
 
