@@ -531,3 +531,68 @@ proptest! {
         let _ = OpusReader::open(Cursor::new(bytes));
     }
 }
+
+/// Rewrites a mono part with its audio packet number `bad` swapped for one
+/// libopus rejects but whose length it can still read: a code 1 packet (two
+/// 10 ms frames) with an odd payload.
+fn with_a_rejected_packet(bytes: &[u8], bad: usize) -> Vec<u8> {
+    use ogg::{PacketWriteEndInfo, PacketWriter};
+    let mut reader = PacketReader::new(Cursor::new(bytes.to_vec()));
+    let mut packets = Vec::new();
+    while let Some(p) = reader.read_packet().unwrap() {
+        packets.push(p);
+    }
+    let serial = packets[0].stream_serial();
+    let last = packets.len() - 1;
+    let mut out = PacketWriter::new(Vec::new());
+    for (i, p) in packets.iter().enumerate() {
+        let data = if i == bad + 2 {
+            vec![0x01, 0, 0, 0]
+        } else {
+            p.data.clone()
+        };
+        let info = match i {
+            0 | 1 => PacketWriteEndInfo::EndPage,
+            _ if i == last => PacketWriteEndInfo::EndStream,
+            _ if (i - 1) % 50 == 0 => PacketWriteEndInfo::EndPage,
+            _ => PacketWriteEndInfo::NormalPacket,
+        };
+        // Audio packet n ends at (n + 1) frames; the last carries the
+        // original end granule, which trims the encoder's padding.
+        let granule = if i < 2 {
+            0
+        } else if i == last {
+            p.absgp_page()
+        } else {
+            (i as u64 - 1) * FRAME_SAMPLES as u64
+        };
+        out.write_packet(data, serial, info, granule).unwrap();
+    }
+    out.into_inner()
+}
+
+/// A packet libopus rejects must still move the position by the time it
+/// lasts, so every timestamp after it stays where it was.
+#[test]
+fn a_rejected_packet_keeps_the_timeline_in_place() {
+    let pcm = signal(SAMPLE_RATE as usize * 3, 1, 5);
+    let (memory, _) = record(&pcm, EncodeConfig::new(Channels::Mono), 960);
+    let clean = memory.bytes(0);
+    let (_, good) = decode(clean.clone());
+    let damaged = with_a_rejected_packet(&clean, 40);
+    let (reader, out) = decode(damaged);
+    // The same length: the gap was filled, not dropped.
+    assert_eq!(out.len(), good.len());
+    assert_eq!(reader.info().total_samples, 3 * 48_000);
+    assert!(out.iter().all(|s| s.is_finite()));
+    // Before the damage the audio is untouched.
+    let at = 40 * FRAME_SAMPLES - 312;
+    let first = out.iter().zip(&good).position(|(a, b)| a != b);
+    assert!(
+        first.is_none_or(|f| f >= at),
+        "first difference at {first:?}"
+    );
+    // After it, the tone is where it was (the decoder re-settles by then).
+    let tail = 60 * FRAME_SAMPLES - 312;
+    assert!(similarity(&good[tail..], &out[tail..]) > 0.95);
+}

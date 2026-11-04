@@ -99,6 +99,9 @@ pub struct PageIndex {
     pub entries: Vec<PageEntry>,
     /// The granule at the end of the last whole page.
     pub end_granule: u64,
+    /// The byte offset just past the last whole page: where a file cut short
+    /// by a crash can be truncated to be clean.
+    pub end_offset: u64,
 }
 
 impl PageIndex {
@@ -132,6 +135,7 @@ impl PageIndex {
             }
         }
         index.end_granule = granule;
+        index.end_offset = offset;
         Ok(index)
     }
 
@@ -162,6 +166,7 @@ mod tests {
         let index = PageIndex {
             entries: vec![entry(100, 0), entry(200, 50), entry(300, 100)],
             end_granule: 150,
+            ..PageIndex::default()
         };
         assert_eq!(index.locate(0), Some(entry(100, 0)));
         assert_eq!(index.locate(49), Some(entry(100, 0)));
@@ -198,7 +203,7 @@ mod tests {
                 entries.push(entry(i as u64 * 100, granule));
                 granule += step;
             }
-            let index = PageIndex { entries: entries.clone(), end_granule: granule };
+            let index = PageIndex { entries: entries.clone(), end_granule: granule, ..PageIndex::default() };
             let found = index.locate(target).unwrap();
             if target >= entries[0].granule {
                 prop_assert!(found.granule <= target);

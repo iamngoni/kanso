@@ -89,7 +89,8 @@ impl<R: Read + Seek> OpusReader<R> {
     /// Decodes the next packet and appends its interleaved samples to `out`,
     /// leaving out pre-skip, the run-up to a seek and anything past the end
     /// granule. Returns the samples per channel appended (possibly 0), or
-    /// `None` at the end. A damaged packet is skipped; a file cut short ends
+    /// `None` at the end. A packet libopus rejects counts for the time it
+    /// lasts and is concealed; a file cut short ends
     /// at the last whole page.
     pub fn read(&mut self, out: &mut Vec<f32>) -> Result<Option<usize>, AudioError> {
         let end = self.index.end_granule;
@@ -110,7 +111,13 @@ impl<R: Read + Seek> OpusReader<R> {
                 .decode_float(&packet.data, &mut self.scratch, false)
             {
                 Ok(n) => n as u64,
-                Err(_) => continue,
+                // libopus refused the packet. Its length is still in the
+                // header byte, so the position moves on by that much and the
+                // gap is concealed (or silent): later timestamps hold.
+                Err(_) => match self.conceal(&packet.data) {
+                    Some(n) => n,
+                    None => continue,
+                },
             };
             let start = self.position;
             self.position += decoded;
@@ -124,6 +131,22 @@ impl<R: Read + Seek> OpusReader<R> {
             out.extend_from_slice(&self.scratch[lo..hi]);
             return Ok(Some((to - from) as usize));
         }
+    }
+
+    /// Fills the scratch buffer with what a rejected packet would have
+    /// lasted: packet-loss concealment from the decoder, or silence when that
+    /// fails too. Returns the samples per channel, or `None` when even the
+    /// packet's length can't be read.
+    fn conceal(&mut self, data: &[u8]) -> Option<u64> {
+        let n = opus::packet::get_nb_samples(data, SAMPLE_RATE).ok()?;
+        if n == 0 || n > MAX_PACKET_SAMPLES {
+            return None;
+        }
+        let out = &mut self.scratch[..n * self.channels];
+        if !matches!(self.decoder.decode_float(&[], out, false), Ok(m) if m == n) {
+            out.fill(0.0);
+        }
+        Some(n as u64)
     }
 
     /// Moves to `sample` (per channel, after pre-skip). The next read
