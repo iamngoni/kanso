@@ -218,4 +218,27 @@ void main() {
     expect(ticking.state.playing, isFalse);
     expect(ticking.state.positionMs, ticking.state.lengthMs);
   });
+
+  test(
+    'another note in the same page stops the last one and finds its own',
+    () async {
+      const other = NoteRecording(
+        fileIds: <String>['file:rec-other-1'],
+        state: PartsState.ready,
+        lengthMs: 60000,
+      );
+      when(() => repository.noteRecording('note:b')).thenAnswer(
+        (_) async => const Right<ApplicationError, NoteRecording?>(other),
+      );
+      await send(const PlayerEvent.started('note:a'));
+      await send(const PlayerEvent.toggled());
+      expect(bloc.state.playing, isTrue);
+      await send(const PlayerEvent.started('note:b'));
+      expect(session.disposed, isTrue);
+      expect(bloc.state.noteId, 'note:b');
+      expect(bloc.state.fileIds, <String>['file:rec-other-1']);
+      expect(bloc.state.playing, isFalse);
+      expect(bloc.state.phase, PlayerPhase.idle);
+    },
+  );
 }

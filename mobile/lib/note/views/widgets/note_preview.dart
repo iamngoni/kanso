@@ -131,7 +131,11 @@ class _PlayerHostState extends State<_PlayerHost> {
   @override
   void didUpdateWidget(_PlayerHost oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.body != oldWidget.body) {
+    if (widget.noteId != oldWidget.noteId) {
+      // The same page now shows another note: its recording, not the last
+      // one's (starting again closes the old player, which stops it).
+      _bloc?.add(PlayerEvent.started(widget.noteId));
+    } else if (widget.body != oldWidget.body) {
       _bloc?.add(const PlayerEvent.refreshed());
     }
   }

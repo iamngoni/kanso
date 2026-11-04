@@ -2,6 +2,7 @@ package app.kanso.kanso
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -17,10 +18,13 @@ object KansoRecordingSession {
     private const val PERMISSION_REQUEST = 4802
 
     private var pending: MethodChannel.Result? = null
-    private var activity: Activity? = null
+    // The application's context, not the activity: this object outlives
+    // every activity (rotation makes a new one), and holding one would leak
+    // it. Starting and stopping the service only needs the application.
+    private var appContext: Context? = null
 
     fun register(activity: Activity, engine: FlutterEngine) {
-        this.activity = activity
+        appContext = activity.applicationContext
         MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -59,7 +63,7 @@ object KansoRecordingSession {
         pending = null
         val ok = grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
-        if (ok) activity?.let { KansoRecordingService.start(it) }
+        if (ok) appContext?.let { KansoRecordingService.start(it) }
         answer.success(ok)
     }
 }

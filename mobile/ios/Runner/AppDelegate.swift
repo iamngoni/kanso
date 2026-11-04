@@ -8,6 +8,12 @@ import kanso_push
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  /// The Record screen holds the session in play-and-record, between
+  /// `prepare` and `release`. Playing a note's recording meanwhile keeps
+  /// that category: switching to playback would cut the microphone off
+  /// mid-recording. Touched only on the main queue.
+  private var recordingSessionActive = false
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -138,6 +144,7 @@ import kanso_push
               let session = AVAudioSession.sharedInstance()
               try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
               try session.setActive(true)
+              self.recordingSessionActive = true
               result(true)
             } catch {
               result(false)
@@ -148,6 +155,12 @@ import kanso_push
         // A recording in a note plays (issue #38, step 5): the playback
         // category, so it is heard with the ringer switch off, as a voice
         // memo is.
+        if self.recordingSessionActive {
+          // Play-and-record already plays (to the speaker), and the
+          // recording goes on.
+          result(true)
+          return
+        }
         do {
           let session = AVAudioSession.sharedInstance()
           try session.setCategory(.playback, mode: .spokenAudio)
@@ -157,6 +170,7 @@ import kanso_push
           result(false)
         }
       case "release":
+        self.recordingSessionActive = false
         try? AVAudioSession.sharedInstance().setActive(
           false, options: .notifyOthersOnDeactivation)
         result(nil)
