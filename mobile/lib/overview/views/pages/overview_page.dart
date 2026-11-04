@@ -118,30 +118,6 @@ class _OverviewView extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      KansoSpacing.md,
-                      0,
-                      KansoSpacing.md,
-                      KansoSpacing.xs,
-                    ),
-                    child: KansoSegmented<OverviewPerspective>(
-                      expanded: true,
-                      semanticLabel: l10n.overviewTitle,
-                      selected: state.perspective,
-                      onChanged: (it) => unawaited(cubit.showPerspective(it)),
-                      segments: <KansoSegment<OverviewPerspective>>[
-                        KansoSegment<OverviewPerspective>(
-                          value: OverviewPerspective.today,
-                          label: l10n.overviewToday,
-                        ),
-                        KansoSegment<OverviewPerspective>(
-                          value: OverviewPerspective.week,
-                          label: l10n.overviewThisWeek,
-                        ),
-                      ],
-                    ),
-                  ),
                   Expanded(child: _Body(state: state)),
                 ],
               ),
@@ -220,17 +196,19 @@ class _Body extends StatelessWidget {
     final isWeek = state.perspective == OverviewPerspective.week;
     if (isWeek ? week == null : today == null) {
       if (state.failed) {
-        return KansoEmptyState(
-          title: l10n.digestError,
-          message: '',
-          action: KansoButton(
-            label: l10n.digestRetry,
-            expanded: false,
-            onPressed: () => unawaited(cubit.refresh()),
+        return _withSwitch(
+          KansoEmptyState(
+            title: l10n.digestError,
+            message: '',
+            action: KansoButton(
+              label: l10n.digestRetry,
+              expanded: false,
+              onPressed: () => unawaited(cubit.refresh()),
+            ),
           ),
         );
       }
-      return const Center(child: KansoSpinner());
+      return _withSwitch(const Center(child: KansoSpinner()));
     }
     return LayoutBuilder(
       builder: (context, box) => KansoSwipeHost(
@@ -248,6 +226,54 @@ class _Body extends StatelessWidget {
 }
 
 // MARK: Shared
+
+/// The page with the Today | This week switch above it, for when the
+/// masthead (which carries the switch) isn't there yet.
+Widget _withSwitch(Widget child) => Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: <Widget>[
+    const Padding(
+      padding: EdgeInsets.fromLTRB(
+        KansoSpacing.lg,
+        KansoSpacing.md,
+        KansoSpacing.lg,
+        0,
+      ),
+      child: _PerspectiveSwitch(),
+    ),
+    Expanded(child: child),
+  ],
+);
+
+/// The Today | This week switch. It sits under the date and greeting.
+class _PerspectiveSwitch extends StatelessWidget {
+  const _PerspectiveSwitch();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cubit = context.read<OverviewCubit>();
+    final perspective = context.select<OverviewCubit, OverviewPerspective>(
+      (it) => it.state.perspective,
+    );
+    return KansoSegmented<OverviewPerspective>(
+      expanded: true,
+      semanticLabel: l10n.overviewTitle,
+      selected: perspective,
+      onChanged: (it) => unawaited(cubit.showPerspective(it)),
+      segments: <KansoSegment<OverviewPerspective>>[
+        KansoSegment<OverviewPerspective>(
+          value: OverviewPerspective.today,
+          label: l10n.overviewToday,
+        ),
+        KansoSegment<OverviewPerspective>(
+          value: OverviewPerspective.week,
+          label: l10n.overviewThisWeek,
+        ),
+      ],
+    );
+  }
+}
 
 void _open(BuildContext context, String noteId, {int? line}) {
   if (noteId.isNotEmpty) {
@@ -299,6 +325,8 @@ Widget _masthead(
             height: 1.4,
           ),
         ),
+        const SizedBox(height: KansoSpacing.md),
+        const _PerspectiveSwitch(),
       ],
     ),
   );

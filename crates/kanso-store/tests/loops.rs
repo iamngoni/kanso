@@ -511,6 +511,41 @@ proptest! {
         }
     }
 
+    /// However the box is edited on the way to a tick (space deleted,
+    /// bracket removed, then the x typed), the tick is finished exactly
+    /// once, and the half-typed saves finish nothing.
+    #[test]
+    fn prop_a_tick_typed_over_several_saves_is_finished_once(
+        n in 1usize..5,
+        pick in 0usize..5,
+        steps in proptest::collection::vec(0usize..4, 0..4),
+    ) {
+        const HALF: [&str; 4] = ["[]", "[", "", "[ "];
+        let (_dir, store) = temp_store();
+        let b = book(&store, "book:a");
+        let pick = pick % n;
+        let with = |box_: &str| -> String {
+            (0..n)
+                .map(|i| {
+                    if i == pick {
+                        format!("- {box_} task {i}\n")
+                    } else {
+                        format!("- [ ] task {i}\n")
+                    }
+                })
+                .collect()
+        };
+        note(&store, "note:one", &with("[ ]"), &b);
+        for step in steps {
+            note(&store, "note:one", &with(HALF[step]), &b);
+            prop_assert!(store.finished_between(0, i64::MAX).unwrap().is_empty());
+        }
+        note(&store, "note:one", &with("[x]"), &b);
+        let done = store.finished_between(0, i64::MAX).unwrap();
+        prop_assert_eq!(done.len(), 1);
+        prop_assert_eq!(done[0].text.clone(), format!("task {pick}"));
+    }
+
     /// Ticking a task and unticking it leaves no history; ticking it
     /// leaves exactly one row.
     #[test]
@@ -528,4 +563,16 @@ proptest! {
         note(&store, "note:one", &open, &b);
         prop_assert!(store.finished_between(0, i64::MAX).unwrap().is_empty());
     }
+}
+
+#[test]
+fn a_checked_line_that_was_never_open_is_not_a_tick() {
+    let (_dir, store) = temp_store();
+    let b = book(&store, "book:a");
+    note(&store, "note:one", "- [ ] pay rent\n", &b);
+    note(&store, "note:one", "- [] pay rent\n", &b);
+    note(&store, "note:one", "- [x] pay rent\n- [x] never open\n", &b);
+    let done = store.finished_between(0, i64::MAX).unwrap();
+    assert_eq!(done.len(), 1);
+    assert_eq!(done[0].text, "pay rent");
 }

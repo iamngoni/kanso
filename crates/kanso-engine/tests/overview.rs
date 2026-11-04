@@ -376,3 +376,54 @@ fn bench_overview_of_fifty_thousand_notes() {
     overview::week(&store, monday, now(), &Options::new()).unwrap();
     assert!(start.elapsed().as_millis() < 800);
 }
+
+#[test]
+fn a_task_ticked_by_editing_the_text_is_finished_this_week() {
+    let (_dir, store) = store();
+    let wall = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let at = Now {
+        utc_ms: wall,
+        offset_ms: 0,
+    };
+    let monday = at.today().add_days(-(at.today().weekday() as i64));
+    note(
+        &store,
+        "note:a",
+        "Plan",
+        "- [ ] Ship it\n- [ ] Other\n",
+        wall,
+    );
+    note(
+        &store,
+        "note:a",
+        "Plan",
+        "- [x] Ship it\n- [ ] Other\n",
+        wall,
+    );
+    let week = overview::week(&store, monday, at, &Options::new()).unwrap();
+    assert_eq!(week.finished_count, 1);
+    assert_eq!(week.finished[0].text, "Ship it");
+}
+
+#[test]
+fn a_tick_typed_in_two_saves_is_still_finished() {
+    let (_dir, store) = store();
+    let wall = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let at = Now {
+        utc_ms: wall,
+        offset_ms: 0,
+    };
+    let monday = at.today().add_days(-(at.today().weekday() as i64));
+    note(&store, "note:a", "Plan", "- [ ] Ship it\n", wall);
+    // The space in the box is deleted, saved, then the x is typed.
+    note(&store, "note:a", "Plan", "- [] Ship it\n", wall);
+    note(&store, "note:a", "Plan", "- [x] Ship it\n", wall);
+    let week = overview::week(&store, monday, at, &Options::new()).unwrap();
+    assert_eq!(week.finished_count, 1);
+}
