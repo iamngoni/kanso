@@ -34,7 +34,11 @@ import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart
 import 'package:kanso/settings/state/discovery/discovery_settings_bloc.dart';
 import 'package:kanso/settings/state/sync_settings/sync_settings_bloc.dart';
 import 'package:kanso/settings/state/word_goal_settings/word_goal_settings_bloc.dart';
+import 'package:kanso/settings/views/widgets/about_settings_pane.dart';
+import 'package:kanso/settings/views/widgets/appearance_settings_pane.dart';
 import 'package:kanso/settings/views/widgets/discovery_setting_switch_row.dart';
+import 'package:kanso/settings/views/widgets/discovery_settings_pane.dart';
+import 'package:kanso/settings/views/widgets/general_settings_pane.dart';
 import 'package:kanso/settings/views/widgets/settings_pane.dart';
 import 'package:kanso/templates/state/daily_template/daily_template_bloc.dart';
 import 'package:mocktail/mocktail.dart';
@@ -98,6 +102,7 @@ Future<_Settings> _pump(
   AccountState account = const AccountState.signedOut(),
   Preferences preferences = const Preferences(),
   FixturePushRepository? push,
+  Widget pane = const SettingsPane(),
 }) async {
   final pushRepository = push ?? FixturePushRepository();
   final about = MockAboutRepository();
@@ -166,7 +171,7 @@ Future<_Settings> _pump(
         BlocProvider<DailyTemplateBloc>.value(value: blocs.dailyTemplate),
         BlocProvider<RemindersSettingsBloc>.value(value: blocs.reminders),
       ],
-      child: const SettingsPane(),
+      child: pane,
     ),
     size: const Size(393, 3200),
   );
@@ -204,53 +209,107 @@ Future<void> _scrollIntoView(WidgetTester tester, Finder finder) =>
 
 void main() {
   group('SettingsPane', () {
-    testWidgets('has the real rows and none that do not work yet', (
-      tester,
-    ) async {
+    testWidgets('has Sync and a row for each category, and none of their '
+        'rows', (tester) async {
       await _pump(tester);
       for (final label in <String>[
-        'General',
-        'Default notebook',
-        'Appearance',
-        'Theme',
-        'Icons',
-        'Fonts',
-        'Interface text size',
-        'Text size',
-        'Preview',
-        'Preview text size',
-        'Diagrams',
-        'AI',
-        'Voice',
         'Sync',
         'Sign in',
+        'General',
+        'Appearance',
+        'Daily notes and reminders',
+        'Discovery',
+        'AI',
+        'Voice',
+        'Privacy and security',
         'About',
-        'Version',
-        'Website',
-        'Release notes',
-        'Help',
-        'Licences',
       ]) {
         await _scrollIntoView(tester, find.text(label));
         expect(find.text(label), findsOneWidget, reason: label);
       }
       for (final label in <String>[
         'Sign out',
+        'Default notebook',
+        'Theme',
         'Locked notes',
+        'Version',
       ]) {
         expect(find.text(label), findsNothing, reason: label);
       }
       expect(find.textContaining('Wake this device'), findsNothing);
     });
 
+    testWidgets('each category row opens its page', (tester) async {
+      final screen = await _pump(tester);
+      for (final (label, route) in <(String, String)>[
+        ('General', '/settings/general'),
+        ('Appearance', '/settings/appearance'),
+        ('Daily notes and reminders', '/settings/journal'),
+        ('Discovery', '/settings/discovery'),
+        ('Privacy and security', '/settings/privacy'),
+        ('About', '/settings/about'),
+      ]) {
+        await _scrollIntoView(tester, find.text(label));
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+        expect(topOf(screen.router), route, reason: label);
+        screen.router.pop();
+        await tester.pumpAndSettle();
+      }
+    });
+
+    testWidgets('General has the default notebook, import and writing rows', (
+      tester,
+    ) async {
+      await _pump(tester, pane: const GeneralSettingsPane());
+      for (final label in <String>[
+        'General',
+        'Default notebook',
+        'Import notes',
+        'Default word goal',
+      ]) {
+        expect(find.text(label), findsWidgets, reason: label);
+      }
+    });
+
+    testWidgets('Appearance has its rows', (tester) async {
+      await _pump(tester, pane: const AppearanceSettingsPane());
+      for (final label in <String>[
+        'Theme',
+        'Icons',
+        'Icon themes',
+        'Fonts',
+        'Interface text size',
+        'Text size',
+        'Preview',
+        'Preview text size',
+        'Diagrams',
+      ]) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+    });
+
+    testWidgets('About has its rows', (tester) async {
+      await _pump(tester, pane: const AboutSettingsPane());
+      for (final label in <String>[
+        'Version',
+        'Website',
+        'Release notes',
+        'Help',
+        'Licences',
+      ]) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+    });
+
     testWidgets('Discovery switches update the live choices', (tester) async {
-      await _pump(tester);
+      await _pump(tester, pane: const DiscoverySettingsPane());
       await tester.ensureVisible(find.text('Related notes'));
       await tester.pumpAndSettle();
       await tester.tap(_discoverySwitchOf('Related notes'));
       await tester.pumpAndSettle();
       final discovery = tester
-          .element(find.byType(SettingsPane))
+          .element(find.byType(DiscoverySettingsPane))
           .read<DiscoverySettingsBloc>();
       expect(discovery.state.relatedEnabled, isTrue);
       await tester.ensureVisible(find.text('Search text in images'));
@@ -263,7 +322,7 @@ void main() {
 
     testWidgets('the Default notebook row says the first notebook until one '
         'is chosen, and opens the choice', (tester) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const GeneralSettingsPane());
       expect(find.text('First notebook'), findsOneWidget);
       await tester.tap(find.text('Default notebook'));
       await tester.pumpAndSettle();
@@ -274,11 +333,13 @@ void main() {
         'not one that is gone or locked', (tester) async {
       await _pump(
         tester,
+        pane: const GeneralSettingsPane(),
         preferences: const Preferences(defaultNotebookId: MockIds.garden),
       );
       expect(find.text('Garden'), findsOneWidget);
       await _pump(
         tester,
+        pane: const GeneralSettingsPane(),
         preferences: const Preferences(defaultNotebookId: 'book:gone'),
       );
       expect(find.text('First notebook'), findsOneWidget);
@@ -287,7 +348,7 @@ void main() {
     testWidgets('the Fonts row sums up the choice and follows it', (
       tester,
     ) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AppearanceSettingsPane());
       expect(
         find.text('Instrument Sans · JetBrains Mono'),
         findsOneWidget,
@@ -305,10 +366,11 @@ void main() {
     });
 
     testWidgets('the Icons row names the icon theme in use', (tester) async {
-      await _pump(tester);
+      await _pump(tester, pane: const AppearanceSettingsPane());
       expect(find.text('Lucide'), findsOneWidget);
       await _pump(
         tester,
+        pane: const AppearanceSettingsPane(),
         appearance: const AppearanceState(
           iconSet: KansoIconSet(id: 'phosphor', name: 'Phosphor'),
         ),
@@ -319,7 +381,7 @@ void main() {
 
     testWidgets('the text size rows show the interface and note sizes '
         'chosen', (tester) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AppearanceSettingsPane());
       // The interface, editor and preview text sizes.
       expect(find.text('100%'), findsNWidgets(3));
       screen.appearance.add(
@@ -337,7 +399,7 @@ void main() {
 
     testWidgets('the Preview text size row shows the size chosen apart from '
         'the editor’s', (tester) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AppearanceSettingsPane());
       screen.appearance.add(
         const AppearanceEvent.previewTextSizeChanged(0.9),
       );
@@ -348,7 +410,7 @@ void main() {
 
     testWidgets('the Diagrams row chooses between Pele and Kanso, Pele by '
         'default, with the desktop’s words', (tester) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AppearanceSettingsPane());
       expect(find.text('Pele'), findsOneWidget);
       expect(find.text('Kanso'), findsOneWidget);
       expect(
@@ -368,7 +430,7 @@ void main() {
 
     testWidgets('the Icon themes and Preview text size rows open their '
         'pages', (tester) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AppearanceSettingsPane());
       await tester.tap(find.text('Icon themes'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/icon-themes');
@@ -381,11 +443,12 @@ void main() {
 
     testWidgets('the Theme row names both themes while the system is '
         'followed, and the one theme otherwise', (tester) async {
-      await _pump(tester);
+      await _pump(tester, pane: const AppearanceSettingsPane());
       expect(find.text('Kanso Light, Kanso Dark'), findsOneWidget);
 
       await _pump(
         tester,
+        pane: const AppearanceSettingsPane(),
         appearance: AppearanceState(
           selection: const ThemeSelection(followSystem: false, ui: 'nord'),
           light: KansoPalette.kansoDark.copyWith(id: 'nord', name: 'Nord'),
@@ -630,13 +693,13 @@ void main() {
     });
 
     testWidgets('the Version row shows the version and build', (tester) async {
-      await _pump(tester);
+      await _pump(tester, pane: const AboutSettingsPane());
       await _scrollIntoView(tester, find.text('0.1.0 (3)'));
       expect(find.text('0.1.0 (3)'), findsOneWidget);
     });
 
     testWidgets('the Website row opens the website', (tester) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AboutSettingsPane());
       await tester.tap(find.text('Website'));
       await tester.pump();
       verify(screen.about.openWebsite).called(1);
@@ -645,7 +708,7 @@ void main() {
     testWidgets('the Release notes row opens the release notes', (
       tester,
     ) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AboutSettingsPane());
       await tester.tap(find.text('Release notes'));
       await tester.pump();
       verify(screen.about.openReleaseNotes).called(1);
@@ -655,7 +718,7 @@ void main() {
     testWidgets(
       'on iPhone and iPad, Rate Kanso Pocket opens the App Store review page',
       (tester) async {
-        final screen = await _pump(tester);
+        final screen = await _pump(tester, pane: const AboutSettingsPane());
         await _scrollIntoView(tester, find.text('Rate Kanso Pocket'));
         await tester.tap(find.text('Rate Kanso Pocket'));
         await tester.pump();
@@ -670,7 +733,7 @@ void main() {
       (
         tester,
       ) async {
-        await _pump(tester);
+        await _pump(tester, pane: const AboutSettingsPane());
         await _scrollIntoView(tester, find.text('Licences'));
         expect(find.text('Rate Kanso Pocket'), findsNothing);
       },
@@ -678,17 +741,17 @@ void main() {
     );
 
     testWidgets('the Help row opens the help page', (tester) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AboutSettingsPane());
       await tester.tap(find.text('Help'));
       await tester.pump();
       verify(screen.about.openHelp).called(1);
       verifyNever(screen.about.openWebsite);
     });
 
-    testWidgets('the rows go to Theme, Icons, Fonts, Text size and Licences', (
+    testWidgets('the rows go to Theme, Icons, Fonts and Text size', (
       tester,
     ) async {
-      final screen = await _pump(tester);
+      final screen = await _pump(tester, pane: const AppearanceSettingsPane());
       await tester.tap(find.text('Theme'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/theme');
@@ -712,8 +775,10 @@ void main() {
       await tester.tap(find.text('Text size'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/fonts');
-      screen.router.pop();
-      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the Licences row opens the licences', (tester) async {
+      final screen = await _pump(tester, pane: const AboutSettingsPane());
       await tester.tap(find.text('Licences'));
       await tester.pumpAndSettle();
       expect(topOf(screen.router), '/settings/licences');

@@ -14,7 +14,7 @@ import 'package:kanso/editor/views/widgets/editor_title_field.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/note_list/views/widgets/new_note_button.dart';
 import 'package:kanso/settings/views/widgets/default_notebook_pane.dart';
-import 'package:kanso/settings/views/widgets/settings_pane.dart';
+import 'package:kanso/settings/views/widgets/general_settings_pane.dart';
 
 import 'helpers/editor_driver.dart';
 import 'helpers/flow_driver.dart';
@@ -114,6 +114,8 @@ void main() {
     await openLibrary(tester);
     await tester.tap(find.bySemanticsLabel('Settings'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('General'));
+    await tester.pumpAndSettle();
     expect(find.text('First notebook'), findsOneWidget);
     await tester.tap(find.text('Default notebook'));
     await tester.pumpAndSettle();
@@ -128,11 +130,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.descendant(
-        of: find.byType(SettingsPane),
+        of: find.byType(GeneralSettingsPane),
         matching: find.text('Garden'),
       ),
       findsOneWidget,
     );
+    await tester.tap(find.bySemanticsLabel('Back').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsLabel('Close'));
     await tester.pumpAndSettle();
 

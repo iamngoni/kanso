@@ -344,6 +344,14 @@
   "@settingsClose": {
     "description": "Closes a page."
   },
+  "settingsJournal": "Daily notes and reminders",
+  "@settingsJournal": {
+    "description": "Settings: the row and page title of the category with the daily note template, task reminders and the brief and review."
+  },
+  "settingsPrivacySecurity": "Privacy and security",
+  "@settingsPrivacySecurity": {
+    "description": "Settings: the row and page title of the category with crash reports, device backups and locked notes."
+  },
   "settingsGeneral": "General",
   "@settingsGeneral": {
     "description": "A section of settings."

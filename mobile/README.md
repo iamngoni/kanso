@@ -284,7 +284,7 @@ draws the palette of each light and dark slot from the fitted tokens, so
 `palette.syntax` is the syntax theme's and `palette.preview` the preview
 theme's. The Theme files section imports a theme from the system file picker
 (`FilePickerRepository`) and lists the theme files that were left out. Icon
-themes (Settings › Icon themes) lists and imports icon themes; choosing one
+themes (Settings › Appearance › Icon themes) lists and imports icon themes; choosing one
 comes later. The gallery of themes to install needs the signed catalogue and
 a network, and is not here.
 
@@ -345,7 +345,7 @@ only drops raw files into `crash-reports/raw/` of the application support folder
 (`ios/Runner/CrashDiagnostics.swift`, `android/.../KansoCrashes.kt`, also the
 `app.kanso/crash` channel for the device model); the repository parses them,
 keeps the reports in `crash-reports/pending/`, and deletes the raw files. After
-a launch that finds reports a card asks; Settings › Privacy › Crash reports lists
+a launch that finds reports a card asks; Settings › Privacy and security › Crash reports lists
 them with the exact text.
 
 ## Design proposal
