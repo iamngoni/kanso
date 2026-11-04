@@ -235,3 +235,69 @@ proptest! {
         }
     }
 }
+
+/// A locked note's recording plays while the note is open, as on the
+/// desktop, and is out of reach once the lock closes.
+#[test]
+fn a_locked_notes_recording_plays_while_it_is_open() {
+    let phone = lone_phone();
+    let (note_id, file_ids) = recorded(&phone, "play-6", 2);
+    let locks = phone.library.locks();
+    locks.lock_note(&note_id, LOCK_PASSWORD.into()).unwrap();
+    // Its parts are sealed now.
+    let store = Store::open(phone.path()).unwrap();
+    assert_eq!(
+        store.attachment_state(&file_ids[0]).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    let open = expect_recording(phone.library.note_recording(&note_id).unwrap());
+    assert_eq!(open.state, PartsState::Ready);
+    let ms = open.length_ms.expect("the length is read through the lock");
+    assert!((1_900..=2_100).contains(&ms), "{ms} ms");
+    match phone.library.player_open(file_ids.clone()) {
+        Ok(player) => assert!((1_900..=2_100).contains(&player.status().length_ms)),
+        // A machine with no speaker says so in words, never "not found".
+        Err(KansoError::Invalid { message }) => assert!(message.contains("play"), "{message}"),
+        Err(other) => panic!("{other:?}"),
+    }
+}
+
+proptest! {
+    #![proptest_config(Config {
+        cases: 4,
+        rng_algorithm: RngAlgorithm::ChaCha,
+        rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+        failure_persistence: None,
+        ..Config::default()
+    })]
+
+    /// Whatever the order of locking and unlocking, a sealed recording is
+    /// ready exactly when its note is open, and can't be opened otherwise.
+    #[test]
+    fn prop_sealed_parts_are_ready_only_while_the_note_is_open(
+        unlocks in proptest::collection::vec(any::<bool>(), 1..4),
+    ) {
+        let phone = lone_phone();
+        let (note_id, file_ids) = recorded(&phone, "play-7", 1);
+        let locks = phone.library.locks();
+        locks.lock_note(&note_id, LOCK_PASSWORD.into()).unwrap();
+        for unlock in unlocks {
+            if unlock {
+                prop_assert!(locks.unlock(LOCK_PASSWORD.into()).unwrap());
+            } else {
+                locks.lock().unwrap();
+            }
+            let open = locks.is_note_unlocked(&note_id).unwrap();
+            let state = phone.library.parts_state(&file_ids);
+            prop_assert_eq!(state == PartsState::Ready, open, "{:?}", state);
+            if !open {
+                prop_assert_eq!(state, PartsState::Missing);
+                prop_assert_eq!(phone.library.note_recording(&note_id).unwrap(), None);
+                prop_assert!(matches!(
+                    phone.library.player_open(file_ids.clone()),
+                    Err(KansoError::NotFound)
+                ));
+            }
+        }
+    }
+}

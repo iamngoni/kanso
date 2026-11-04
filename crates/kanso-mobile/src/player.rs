@@ -6,12 +6,31 @@
 //! Which recording a note holds, and whether its bytes are here, come from
 //! the same code the desktop reads (`kanso_engine::recording_player`).
 
-use kanso_audio::play::{PartInput, Player, measure};
-use kanso_engine::recording_player::{self, RecordingRef};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
+use kanso_audio::play::{PartInput, Player, measure};
+use kanso_core::model::FileLock;
+use kanso_engine::recording_player::{self, RecordingRef};
+use kanso_store::AttachmentState;
+use kanso_sync::lock::SealId;
+
+use crate::boundary::held;
 use crate::errors::KansoError;
 use crate::library::Library;
 use crate::player_model::{NoteRecording, PartsState, PlayerStatus};
+
+/// Recordings measured already, by their parts. A file's bytes never change
+/// under its ID, so a length read once stands; the card asks again each
+/// time the note's text changes, which would otherwise read every part's
+/// bytes out of the database again. Bounded: cleared when it grows past
+/// [`LENGTHS_KEPT`].
+fn lengths() -> &'static Mutex<HashMap<Vec<String>, u64>> {
+    static LENGTHS: OnceLock<Mutex<HashMap<Vec<String>, u64>>> = OnceLock::new();
+    LENGTHS.get_or_init(Mutex::default)
+}
+
+const LENGTHS_KEPT: usize = 64;
 
 /// A recording on the speaker. One at a time is the shell's rule: dropping
 /// it stops the sound.
@@ -117,11 +136,7 @@ impl Library {
         };
         let state = self.parts_state(&recording.file_ids);
         let length_ms = match state {
-            PartsState::Ready => self
-                .part_inputs(&recording.file_ids)
-                .ok()
-                .and_then(|parts| measure(&parts).ok())
-                .map(|timeline| timeline.total_us() / 1_000),
+            PartsState::Ready => self.length_us(&recording.file_ids).map(|us| us / 1_000),
             _ => None,
         };
         Ok(Some(NoteRecording {
@@ -131,38 +146,74 @@ impl Library {
         }))
     }
 
+    /// The whole recording's length, read from its parts once and then
+    /// remembered. `None` when a part can't be read.
+    fn length_us(&self, file_ids: &[String]) -> Option<u64> {
+        if let Some(known) = lengths().lock().ok().and_then(|l| l.get(file_ids).copied()) {
+            return Some(known);
+        }
+        let parts = self.part_inputs(file_ids).ok()?;
+        let length = measure(&parts).ok()?.total_us();
+        if let Ok(mut known) = lengths().lock() {
+            if known.len() >= LENGTHS_KEPT {
+                known.clear();
+            }
+            known.insert(file_ids.to_vec(), length);
+        }
+        Some(length)
+    }
+
     /// Where the bytes of `file_ids` stand on this device: a part whose file
     /// document is known but whose bytes haven't been fetched is
-    /// [`PartsState::NotHere`]; one that is gone or sealed is
-    /// [`PartsState::Missing`].
+    /// [`PartsState::NotHere`]; one that is gone, or sealed under a lock
+    /// whose key this session doesn't hold, is [`PartsState::Missing`]. A
+    /// sealed part plays once its note is open, as on the desktop.
     pub fn parts_state(&self, file_ids: &[String]) -> PartsState {
         let store = &self.inner.store;
         let mut state = PartsState::Ready;
         for id in file_ids {
             match store.attachment_state(id) {
-                Ok(kanso_store::AttachmentState::Plain) => {
-                    if !matches!(store.blob_md5(id), Ok(Some(_))) {
-                        state = PartsState::NotHere;
-                    }
-                }
+                Ok(AttachmentState::Plain) => {}
+                Ok(AttachmentState::Sealed) if self.sealed_key_held(id) => {}
                 _ => return PartsState::Missing,
+            }
+            if !matches!(store.blob_md5(id), Ok(Some(_))) {
+                state = PartsState::NotHere;
             }
         }
         state
     }
 
+    /// Whether this session holds the key that opens sealed file `id`.
+    fn sealed_key_held(&self, id: &str) -> bool {
+        let Ok(Some(meta)) = self.inner.store.file_meta(id) else {
+            return false;
+        };
+        FileLock::from_extra(&meta.extra)
+            .and_then(|marker| SealId::decode(&marker.seal))
+            .is_some_and(|seal| held(&self.inner.keys).file_key(&seal).is_some())
+    }
+
     fn part_inputs(&self, file_ids: &[String]) -> Result<Vec<PartInput>, KansoError> {
         let mut parts = Vec::with_capacity(file_ids.len());
         for id in file_ids {
-            let (content_type, attachment) = self
-                .inner
-                .store
-                .attachment(id)?
-                .ok_or(KansoError::NotFound)?;
-            parts.push(PartInput::new(
-                attachment.data,
-                extension_for(&content_type),
-            ));
+            let (content_type, data) = match self.inner.store.attachment_state(id)? {
+                // Opened with the held key, and only for a note that can be
+                // read now (the viewer's own rule).
+                AttachmentState::Sealed => {
+                    let file = self.attachment(id)?;
+                    (file.content_type, file.bytes)
+                }
+                _ => {
+                    let (content_type, attachment) = self
+                        .inner
+                        .store
+                        .attachment(id)?
+                        .ok_or(KansoError::NotFound)?;
+                    (content_type, attachment.data)
+                }
+            };
+            parts.push(PartInput::new(data, extension_for(&content_type)));
         }
         Ok(parts)
     }
