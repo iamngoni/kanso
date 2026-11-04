@@ -155,12 +155,22 @@ describe("issues", () => {
 		expect((await row(id)).status).toBe("pr_open");
 	});
 
-	it("closing as not planned closes the report; closing as completed does not", async () => {
+	it("closing as not planned closes the report", async () => {
 		const id = await seed("filed", { issue: 7 });
-		await hook({ payload: { action: "closed", issue: { number: 7, state_reason: "completed" } } });
-		expect((await row(id)).status).toBe("filed");
 		await hook({ payload: { action: "closed", issue: { number: 7, state_reason: "not_planned" } } });
 		expect((await row(id)).status).toBe("closed");
+	});
+
+	it("closing as completed (or with no reason) also closes it, but leaves a report with an open PR to the PR", async () => {
+		const filed = await seed("filed", { issue: 7 });
+		const building = await seed("building", { issue: 8 });
+		const withPr = await seed("pr_open", { issue: 9, pr: 52 });
+		await hook({ payload: { action: "closed", issue: { number: 7, state_reason: "completed" } } });
+		await hook({ payload: { action: "closed", issue: { number: 8, state_reason: null } } });
+		await hook({ payload: { action: "closed", issue: { number: 9, state_reason: "completed" } } });
+		expect((await row(filed)).status).toBe("closed");
+		expect((await row(building)).status).toBe("closed");
+		expect((await row(withPr)).status).toBe("pr_open");
 	});
 
 	it("a merged or released report stays when its issue is closed as not planned", async () => {

@@ -57,7 +57,7 @@ const events = async (id: string) => (await env.DB.prepare("SELECT status, at FR
 
 beforeEach(async () => {
 	await resetServer();
-	await env.DB.batch([env.DB.prepare("DELETE FROM feedback_events"), env.DB.prepare("DELETE FROM feedback"), env.DB.prepare("DELETE FROM feedback_purges"), env.DB.prepare("DELETE FROM feedback_deliveries")]);
+	await env.DB.batch([env.DB.prepare("DELETE FROM feedback_events"), env.DB.prepare("DELETE FROM feedback"), env.DB.prepare("DELETE FROM feedback_purges"), env.DB.prepare("DELETE FROM feedback_deliveries"), env.DB.prepare("DELETE FROM feedback_credit_removals")]);
 });
 
 describe("accepting", () => {
@@ -462,6 +462,52 @@ describe("account deletion", () => {
 	});
 });
 
+describe("account deletion credit lines", () => {
+	const body = "**Summary.** x\n\n<sub>Filed from the app · report `fb_x…` · triage by Haiku · Reported by tendai</sub>";
+	const stripped = "**Summary.** x\n\n<sub>Filed from the app · report `fb_x…` · triage by Haiku</sub>";
+
+	it("queues each filed issue's credit removal with the account, and the cron retries through a GitHub outage", async () => {
+		const net = fakeNetwork();
+		try {
+			const a = await signUp("alice");
+			const r = report({ credit: { name: "tendai" } });
+			await post(r, { as: a });
+			await env.DB.prepare("UPDATE feedback SET status = 'filed', issue = 301 WHERE id = ?1").bind(r.id).run();
+			net.issueBodies.set(301, body);
+			const gone = await callJson("/v2/account/delete", { token: a.token, json: { auth_key: a.creds.authKey, username: "alice" } });
+			expect(gone.status).toBe(200);
+			expect((await env.DB.prepare("SELECT issue, name FROM feedback_credit_removals").all()).results).toEqual([{ issue: 301, name: "tendai" }]);
+			net.failing.push("/issues/301");
+			expect((await housekeeping(await configured(), clock.now + 1)).credits).toBe(0);
+			expect(net.issueBodies.get(301)).toBe(body);
+			expect((await env.DB.prepare("SELECT issue FROM feedback_credit_removals").all()).results).toHaveLength(1);
+			net.failing.length = 0;
+			expect((await housekeeping(await configured(), clock.now + 2)).credits).toBe(1);
+			expect(net.issueBodies.get(301)).toBe(stripped);
+			expect((await env.DB.prepare("SELECT issue FROM feedback_credit_removals").all()).results).toEqual([]);
+		} finally {
+			net.restore();
+		}
+	});
+
+	it("a single deletion during an outage is retried by the cron too", async () => {
+		const net = fakeNetwork();
+		try {
+			const r = report({ credit: { name: "tendai" } });
+			await post(r);
+			await env.DB.prepare("UPDATE feedback SET status = 'filed', issue = 301 WHERE id = ?1").bind(r.id).run();
+			net.issueBodies.set(301, body);
+			net.failing.push("/issues/301");
+			expect((await call(`${PATH}/${r.id}`, { method: "DELETE", headers: headersOf({}), env: await configured() })).status).toBe(204);
+			net.failing.length = 0;
+			await housekeeping(await configured(), START + 1);
+			expect(net.issueBodies.get(301)).toBe(stripped);
+		} finally {
+			net.restore();
+		}
+	});
+});
+
 describe("retention", () => {
 	const seed = async (id: string, status: string, createdAt: number, lastEvent: number, screenshot = false) => {
 		await env.DB.batch([
@@ -488,18 +534,18 @@ describe("retention", () => {
 		expect(await env.FILES.get(`feedback/${id}/screenshot`)).toBeNull();
 	});
 
-	it("counts noise and unprocessed reports from receipt, and never touches an open issue", async () => {
-		const noise = newId();
-		const open = newId();
-		const waiting = newId();
-		await seed(noise, "noise", START, START);
-		await seed(open, "filed", START, START);
-		await seed(waiting, "received", START, START);
+	it("purges every status 180 days after its last change, so nothing is kept forever", async () => {
+		const ids: Record<string, string> = {};
+		for (const status of ["noise", "received", "filed", "building", "pr_open", "closed", "duplicate"]) {
+			ids[status] = newId();
+			await seed(ids[status], status, START, START);
+		}
+		const recent = newId();
+		await seed(recent, "filed", START, START + 10 * DAY);
 		await housekeeping(await configured(), START + KEEP_DAYS * DAY + 1);
 		const byId = new Map((await rows()).map((x: any) => [x.id, x.purged_at]));
-		expect(byId.get(noise)).not.toBeNull();
-		expect(byId.get(waiting)).not.toBeNull();
-		expect(byId.get(open)).toBeNull();
+		for (const id of Object.values(ids)) expect(byId.get(id)).not.toBeNull();
+		expect(byId.get(recent)).toBeNull();
 	});
 
 	it("forgets webhook deliveries after a day", async () => {
@@ -528,7 +574,7 @@ describe("0016_feedback.sql", () => {
 		await applyD1Migrations(db, env.TEST_MIGRATIONS);
 		expect((await db.prepare("SELECT count(*) AS n FROM crash_reports").first<any>()).n).toBe(1);
 		const tables = (await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'feedback%' ORDER BY name").all<any>()).results.map((t) => t.name);
-		expect(tables).toEqual(["feedback", "feedback_deliveries", "feedback_events", "feedback_purges"]);
+		expect(tables).toEqual(["feedback", "feedback_credit_removals", "feedback_deliveries", "feedback_events", "feedback_purges"]);
 		const settings = (await db.prepare("SELECT name, value FROM settings WHERE name LIKE 'feedback%' ORDER BY name").all<any>()).results;
 		expect(settings).toEqual([
 			{ name: "feedback_issues_per_day", value: "50" },

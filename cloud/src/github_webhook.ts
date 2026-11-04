@@ -57,6 +57,11 @@ export async function apply(env: Env, event: string, p: Payload, now: number): P
 		if (p.action === "closed" && p.issue?.state_reason === "not_planned") {
 			return move(env, now, "closed", "issue = ?1 AND status IN ('received', 'filed', 'building', 'pr_open')", n);
 		}
+		// Closed for any other reason (completed, duplicate, none): finished, so retention can run. A
+		// report with an open PR is left to the PR's own events, which say whether it merged.
+		if (p.action === "closed") {
+			return move(env, now, "closed", "issue = ?1 AND status IN ('received', 'filed', 'building')", n);
+		}
 		return 0;
 	}
 	if (event === "pull_request") {

@@ -169,6 +169,7 @@ delivery that fails is forgotten so GitHub's retry is handled).
 | `pull_request.closed`, merged | `merged`, `merge_sha` |
 | `pull_request.closed`, not merged | back to `filed` |
 | `issues.closed`, `state_reason = not_planned` | `closed` (not from `merged`/`released`) |
+| `issues.closed`, any other reason (`completed`, none) | `closed` from `received`/`filed`/`building`; a report with an open PR is left to the PR's events |
 | `release.published`, tag `vX.Y.Z` | one `compare` call from the previous release's tag; every `merged` report whose `merge_sha` is in it becomes `released` with `release = vX.Y.Z`. With no earlier release, all merged ones. A silent wake-up push goes to each signed-in reporter |
 
 Statuses: `received`, `noise`, `duplicate`, `filed`, `building`, `pr_open`, `merged`, `released`,
@@ -176,17 +177,20 @@ Statuses: `received`, `noise`, `duplicate`, `filed`, `building`, `pr_open`, `mer
 
 ## Retention and deletion
 
-- **180 days** after a report reaches a terminal status (`noise`, `duplicate`, `closed`,
-  `merged`, `released`; `received` counts from receipt), the cron blanks `report` (text, app info,
-  credit), clears `triage`, deletes the screenshot and sets `purged_at`. The status chain stays,
-  so My feedback keeps showing "Released in v0.9.2". A report whose issue is still open is kept.
+- **180 days** after a report's last status change, whatever the status (an unprocessed report
+  counts from receipt), the cron blanks `report` (text, app info, credit), clears `triage`, deletes
+  the screenshot and sets `purged_at`. No status keeps raw words or a screenshot forever. The status
+  chain stays, so My feedback keeps showing "Released in v0.9.2".
 - **Upload slots** close an hour after the report (`screenshot_state = expired`).
 - **`DELETE /v1/feedback/<id>`** removes the row, its events and the screenshot, and edits the
-  "Reported by" credit out of the issue (the issue itself stays: it holds no raw words). GitHub
+  "Reported by" credit out of the issue (the issue itself stays: it holds no raw words). The edit
+  is queued in `feedback_credit_removals` first, so if GitHub is down the cron retries it. GitHub
   keeps an issue's edit history, so if a summary ever leaked something, delete the revision or
   the issue, not just the text.
 - **Account deletion** (`deletionStatements` in `auth.ts`) deletes the account's reports and
-  events and queues their screenshots for the cron.
+  events, queues their screenshots for the cron, and queues a credit removal for each filed issue
+  that carries the reporter's name. The cron edits them out through the App (Issues: write) and
+  retries any that GitHub refuses.
 - Anonymous reports are deletable with the install's key. If it is lost, the reporter emails the
   owner with the report ID.
 

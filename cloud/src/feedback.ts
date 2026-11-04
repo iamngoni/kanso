@@ -389,16 +389,18 @@ export function remove(id: string) {
 		if (!ID.test(id)) return notFound();
 		const row = await env.DB.prepare("SELECT * FROM feedback WHERE id = ?1").bind(id).first<Row>();
 		if (!row || !sameOwner(row, who)) return notFound();
+		const credit = row.issue !== null && row.credit_name !== null;
 		await env.DB.batch([
 			env.DB.prepare("INSERT OR REPLACE INTO feedback_purges (feedback_id, requested_at) VALUES (?1, ?2)").bind(id, now),
+			...(credit ? [env.DB.prepare(CREDIT_QUEUE_SQL).bind(row.issue, row.credit_name, now)] : []),
 			env.DB.prepare("DELETE FROM feedback_events WHERE feedback_id = ?1").bind(id),
 			env.DB.prepare("DELETE FROM feedback WHERE id = ?1").bind(id),
 		]);
 		try {
 			await purgeOne(env, id);
-			if (row.issue !== null && row.credit_name !== null) await github.removeCredit(env, row.issue, row.credit_name);
+			if (credit) await removeCreditOne(env, row.issue as number, row.credit_name as string, now);
 		} catch (err) {
-			// The cron finishes the R2 purge; a credit line that stays is logged and left for the owner.
+			// The cron finishes the R2 purge and retries the credit edit from their queues.
 			console.error(JSON.stringify({ route: "feedback", error: "delete_cleanup_failed", kind: (err as Error)?.name ?? typeof err }));
 		}
 		return new Response(null, { status: 204 });
@@ -414,13 +416,22 @@ export async function purgeOne(env: Env, id: string): Promise<void> {
 	await env.DB.prepare("DELETE FROM feedback_purges WHERE feedback_id = ?1").bind(id).run();
 }
 
+const CREDIT_QUEUE_SQL = "INSERT OR IGNORE INTO feedback_credit_removals (issue, name, requested_at) VALUES (?1, ?2, ?3)";
+
+/** Edits one queued credit line out of its issue and drops the queue row; throws (row kept) when GitHub fails. */
+async function removeCreditOne(env: Env, issue: number, name: string, now: number): Promise<void> {
+	if (!github.configOf(env)) return; // Kept queued until the App is set up.
+	await github.removeCredit(env, issue, name, now);
+	await env.DB.prepare("DELETE FROM feedback_credit_removals WHERE issue = ?1 AND name = ?2").bind(issue, name).run();
+}
+
 export interface Housekeeping {
 	slotsExpired: number;
 	purged: number;
 	retained: number;
+	credits: number;
 }
 
-const TERMINAL = "('received', 'noise', 'duplicate', 'closed', 'merged', 'released')";
 
 /** Closes upload slots, empties queued R2 prefixes, applies the retention, forgets old webhook deliveries. */
 export async function housekeeping(env: Env, now: number, limit = 50): Promise<Housekeeping> {
@@ -431,10 +442,22 @@ export async function housekeeping(env: Env, now: number, limit = 50): Promise<H
 		.all();
 	const queue = await env.DB.prepare("SELECT feedback_id FROM feedback_purges ORDER BY requested_at LIMIT ?1").bind(limit).all<{ feedback_id: string }>();
 	for (const { feedback_id } of queue.results) await purgeOne(env, feedback_id);
-	// Retention: the status chain stays, the raw words and the picture go.
+	let credits = 0;
+	const removals = await env.DB.prepare("SELECT issue, name FROM feedback_credit_removals ORDER BY requested_at LIMIT ?1").bind(limit).all<{ issue: number; name: string }>();
+	for (const { issue, name } of removals.results) {
+		try {
+			await removeCreditOne(env, issue, name, now);
+			credits += 1;
+		} catch (err) {
+			// Stays queued for the next run.
+			console.error(JSON.stringify({ route: "feedback", error: "credit_removal_failed", kind: (err as Error)?.name ?? typeof err }));
+		}
+	}
+	// Retention: 180 days after the last status change, whatever the status, so nothing is kept forever.
+	// The status chain stays, the raw words and the picture go.
 	const cutoff = now - KEEP_DAYS * DAY;
 	const due = await env.DB.prepare(
-		`SELECT f.id FROM feedback f WHERE f.purged_at IS NULL AND f.status IN ${TERMINAL}
+		`SELECT f.id FROM feedback f WHERE f.purged_at IS NULL
   AND coalesce((SELECT max(e.at) FROM feedback_events e WHERE e.feedback_id = f.id), f.created_at) <= ?1 ORDER BY f.created_at LIMIT ?2`,
 	)
 		.bind(cutoff, limit)
@@ -450,12 +473,19 @@ export async function housekeeping(env: Env, now: number, limit = 50): Promise<H
 		await env.FILES.delete(screenshotKey(id));
 	}
 	await env.DB.prepare("DELETE FROM feedback_deliveries WHERE at <= ?1").bind(now - DELIVERY_KEEP_MS).run();
-	return { slotsExpired: expired.results.length, purged: queue.results.length, retained: due.results.length };
+	return { slotsExpired: expired.results.length, purged: queue.results.length, retained: due.results.length, credits };
 }
 
 /** The statements that delete an account's feedback with the account (docs/FEEDBACK.md › GDPR); `where` guards each. */
 export function deletionStatements(db: D1Database, accountId: string, where: string, guard: string, now: number): D1PreparedStatement[] {
 	return [
+		// Credit lines on filed issues are edited out by the cron (retried until GitHub accepts).
+		db
+			.prepare(
+				`INSERT OR IGNORE INTO feedback_credit_removals (issue, name, requested_at) SELECT issue, credit_name, ?3 FROM feedback
+  WHERE account_id = ?1 AND issue IS NOT NULL AND credit_name IS NOT NULL AND ${where}`,
+			)
+			.bind(accountId, guard, now),
 		db
 			.prepare(
 				`INSERT OR REPLACE INTO feedback_purges (feedback_id, requested_at) SELECT id, ?3 FROM feedback WHERE account_id = ?1 AND has_screenshot = 1 AND ${where}`,

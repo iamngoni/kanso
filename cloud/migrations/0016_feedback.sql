@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS feedback_purges (
     requested_at INTEGER NOT NULL
 );
 
+-- "Reported by" credit lines to edit out of filed issues (a deleted report, a deleted account).
+-- The cron retries each until GitHub accepts the edit, so an outage delays it and never drops it.
+CREATE TABLE IF NOT EXISTS feedback_credit_removals (
+    issue INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    requested_at INTEGER NOT NULL,
+    PRIMARY KEY (issue, name)
+);
+
 -- GitHub webhook deliveries seen in the last 24 hours, so a redelivered event is a no-op.
 CREATE TABLE IF NOT EXISTS feedback_deliveries (
     id TEXT PRIMARY KEY NOT NULL CHECK (length(id) BETWEEN 1 AND 64),
