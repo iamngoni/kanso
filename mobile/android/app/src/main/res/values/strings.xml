@@ -20,4 +20,8 @@
     <string name="tile_voice_label">Voice note</string>
     <string name="tile_voice_idle">Tap to record</string>
     <string name="tile_voice_recording">Recording</string>
+
+    <string name="recording_channel_name">Recording</string>
+    <string name="recording_notification_title">Kanso is recording</string>
+    <string name="recording_notification_text">Tap to return to the recording.</string>
 </resources>

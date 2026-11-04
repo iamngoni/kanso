@@ -134,6 +134,12 @@
             android:name=".VoiceCaptureService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+        <!-- Keeps the Record screen's recording going in the background
+             (KansoRecordingService.kt). -->
+        <service
+            android:name=".KansoRecordingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
         <!-- The Quick Settings tile "Voice note". It is active while recording
              (the service asks it to refresh) and records from the lock screen. -->
         <service
