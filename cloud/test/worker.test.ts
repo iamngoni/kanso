@@ -149,7 +149,7 @@ describe("files", () => {
 		const large = await alice.putFile(id, new Uint8Array(MAX_SEALED_FILE + 1), "0".repeat(64));
 		expect(large.status).toBe(413);
 		expect(large.body.error).toBe("too_large");
-		const tenMiBContainer = new Uint8Array(10 * 1024 * 1024 + 41 + 4_096);
+		const tenMiBContainer = new Uint8Array(50 * 1024 * 1024 + 41 + 4_096);
 		expect(tenMiBContainer.byteLength).toBe(MAX_SEALED_FILE);
 		expect((await alice.putFile(id, tenMiBContainer)).body).toEqual({ ok: true, size: MAX_SEALED_FILE });
 		// A percent-encoded path names the same file.

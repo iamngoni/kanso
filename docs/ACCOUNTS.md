@@ -622,7 +622,7 @@ A file travels as `sealed = 0x01 || nonce(24) || XChaCha20-Poly1305(file_key, no
 sent raw.
 
 - **AAD.** `"kanso-file" || 0x01 || lp(account_id) || lp(wire_id)`.
-- **Size.** The plaintext limit is 10 MiB (`MAX_ATTACHMENT_SIZE`), and the container allowance is 4,096 bytes, so a sealed file is 41 to 10,489,897 bytes.
+- **Size.** The plaintext limit is 10 MiB (`MAX_ATTACHMENT_SIZE`), or 50 MiB for a PDF (`MAX_PDF_SIZE`); the server cannot tell them apart, so it allows the larger. With the container allowance of 4,096 bytes a sealed file is 41 to 52,432,937 bytes.
 - **Content type.** It stays inside the sealed file document. R2 objects are always `application/octet-stream`.
 - **Matching bytes to a version.** The opened bytes must match the file document's `md5digest`. A
   mismatch counts as missing, and a later ordinary sync fetches them again ("Sync with encryption ›
@@ -2244,11 +2244,11 @@ INSERT INTO settings (name, value) VALUES
     ('quota_docs', '50000'),
     ('quota_doc_bytes', '104857600'),
     ('quota_files', '10000'),
-    ('quota_file_bytes', '524288000'),
+    ('quota_file_bytes', '1073741824'),
     ('writes_per_day', '20000'),
     ('upload_bytes_per_day', '1073741824'),
     ('global_doc_bytes', '6000000000'),
-    ('global_file_bytes', '50000000000'),
+    ('global_file_bytes', '60000000000'),
     ('global_writes_per_day', '300000'),
     ('global_upload_bytes_per_day', '5000000000');
 
@@ -2754,7 +2754,7 @@ refuses rather than allows (security re-check 1).
 | `quota_docs` | 50,000 | Live documents of every kind; deleting frees space |
 | `quota_doc_bytes` | 100 MiB (104,857,600) | `length(sealed) + 512` per row, tombstones included. Real cost. |
 | `quota_files` | 10,000 | Stored file objects |
-| `quota_file_bytes` | 500 MiB (524,288,000) | `size + 1,024` per file |
+| `quota_file_bytes` | 1 GiB (1,073,741,824; 500 MiB before migration 0017) | `size + 1,024` per file |
 | `writes_per_day` | 20,000 | Pushed documents plus file uploads (and refused push bodies), per account, unless the account's `quota_writes_per_day` says otherwise (`quota <user> --writes-per-day`). A fifteenth of `global_writes_per_day`, so no one account can spend the server's day. A library that needs more in one day, like the owner's first upload or a re-merge of a large library, pauses at the cap and finishes after UTC midnight; the owner raises their own account instead. |
 | `upload_bytes_per_day` | 1 GiB (1,073,741,824) | Uploaded file bytes per account per UTC day, refused uploads included. Twice the default file bytes quota, under a fifth of `global_upload_bytes_per_day`. |
 | `global_doc_bytes` | 6,000,000,000 | Sum over all accounts |

@@ -65,7 +65,7 @@ const genLegacyDoc = fc.record({
 describe("0002_accounts.sql", () => {
 	it("applies after 0001 and seeds sign-ups closed", async () => {
 		await emptyDatabase();
-		await applyD1Migrations(db, env.TEST_MIGRATIONS);
+		await applyD1Migrations(db, env.TEST_MIGRATIONS.filter((m) => m.name < "0017"));
 		const settings = await db.prepare("SELECT name, value FROM settings").all<{ name: string; value: string }>();
 		expect(Object.fromEntries(settings.results.map((r) => [r.name, r.value]))).toMatchObject({ signup: "closed", max_accounts: "50" });
 		expect(Object.fromEntries(settings.results.map((r) => [r.name, r.value]))).toEqual(SEEDED_SETTINGS);
@@ -311,7 +311,7 @@ describe("0013_sealed_file_size.sql", () => {
 			.prepare("INSERT INTO account_files (account_id, id, size, uploaded_at) VALUES (?1, ?2, 41, 1)")
 			.bind(ACCOUNT_ID, fileId)
 			.run();
-		await applyD1Migrations(db, env.TEST_MIGRATIONS);
+		await applyD1Migrations(db, env.TEST_MIGRATIONS.filter((m) => m.name < "0014"));
 		expect(await db.prepare("SELECT size FROM account_files WHERE id = ?1").bind(fileId).first()).toEqual({ size: 41 });
 		expect(
 			(
@@ -329,5 +329,43 @@ describe("0013_sealed_file_size.sql", () => {
 			);
 		expect(await add("B", 10_489_897)).toBe("accepted");
 		expect(await add("C", 10_489_898)).toContain("CHECK constraint failed");
+	});
+});
+
+// ---------------------------------------------------------------------- 0017
+
+describe("0017_pdf_file_size.sql", () => {
+	it("widens the stored-file limit to a 50 MiB PDF container and raises only default quotas", async () => {
+		await emptyDatabase();
+		await applyD1Migrations(db, env.TEST_MIGRATIONS.filter((m) => m.name < "0017"));
+		await accountWithSession();
+		const fileId = `file:${"A".repeat(22)}`;
+		await db
+			.prepare("INSERT INTO account_files (account_id, id, size, uploaded_at) VALUES (?1, ?2, 10489897, 1)")
+			.bind(ACCOUNT_ID, fileId)
+			.run();
+		await db.prepare("UPDATE settings SET value = '777000000' WHERE name = 'global_file_bytes'").run();
+		await applyD1Migrations(db, env.TEST_MIGRATIONS);
+		expect(await db.prepare("SELECT size FROM account_files WHERE id = ?1").bind(fileId).first()).toEqual({ size: 10_489_897 });
+		expect(
+			(
+				await db
+					.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name IN ('uploads_global', 'uploads_count_insert', 'uploads_count_update') ORDER BY name")
+					.all()
+			).results,
+		).toEqual([{ name: "uploads_count_insert" }, { name: "uploads_count_update" }, { name: "uploads_global" }]);
+		const add = (letter: string, size: number) =>
+			refusal(
+				"INSERT INTO account_files (account_id, id, size, uploaded_at) VALUES (?1, ?2, ?3, 2)",
+				ACCOUNT_ID,
+				`file:${letter.repeat(22)}`,
+				size,
+			);
+		expect(await add("B", 52_432_937)).toBe("accepted");
+		expect(await add("C", 52_432_938)).toContain("CHECK constraint failed");
+		const setting = async (name: string) => (await db.prepare("SELECT value FROM settings WHERE name = ?1").bind(name).first<{ value: string }>())?.value;
+		expect(await setting("quota_file_bytes")).toBe("1073741824");
+		// An operator's own value is kept.
+		expect(await setting("global_file_bytes")).toBe("777000000");
 	});
 });

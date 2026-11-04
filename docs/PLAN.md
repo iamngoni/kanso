@@ -148,7 +148,7 @@ The full design, protocol and rollout are in [ACCOUNTS.md](ACCOUNTS.md). In shor
 - **Conflicts**: last writer by `updatedAt` wins; the losing version goes into `revisions` and the
   GUI flags the note.
 - **Limits** (defaults, changed with `npm run -s admin`): 50 accounts, 50,000 documents and 100 MiB
-  of documents, 10,000 files and 500 MiB of files per account; per account per UTC day 20,000
+  of documents, 10,000 files and 1 GiB of files per account; per account per UTC day 20,000
   writes and 1 GiB of uploads; server-wide per day 300,000 writes and 5 GB of uploads. Past a daily
   budget sync pauses until UTC midnight.
 - The deploy token comes from the `IMNGONII_CLOUDFLARE_API_TOKEN` environment variable

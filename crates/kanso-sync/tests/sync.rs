@@ -489,9 +489,8 @@ fn a_document_too_large_for_the_server_stays_pending_and_is_reported() {
 }
 
 #[test]
-fn a_pdf_over_the_servers_file_limit_stays_on_this_device_and_is_reported() {
-    let server = MemoryServer::new();
-    let a = Mac::new(sign_up(&server, "alice", 1));
+fn a_pdf_over_ten_mib_syncs_to_the_server_and_to_another_device() {
+    let (server, a, b) = two_synced();
     let mut pdf = b"%PDF-1.7".to_vec();
     pdf.resize(12 * 1024 * 1024, 0);
     put(
@@ -509,14 +508,13 @@ fn a_pdf_over_the_servers_file_limit_stays_on_this_device_and_is_reported() {
     .unwrap();
     file(&a.store, "file:small", b"\x89PNGsmall");
     let report = a.sync(&server);
-    assert_eq!(report.too_large, vec!["file:bigpdf".to_owned()]);
-    assert_eq!(report.pending, 1);
-    assert_eq!(report.pushed, 1);
-    // Said, not silent: the status names it instead of "Synced".
-    assert_eq!(
-        report_problem(&report),
-        Some(SyncProblem::TooLarge { count: 1 })
-    );
+    assert!(report.too_large.is_empty(), "{:?}", report.too_large);
+    assert_eq!(report.pending, 0);
+    assert_eq!(report.pushed, 2);
+    b.sync(&server);
+    let (kind, got) = b.store.attachment("file:bigpdf").unwrap().unwrap();
+    assert_eq!(kind, "application/pdf");
+    assert_eq!(got.data, pdf);
 }
 
 #[test]

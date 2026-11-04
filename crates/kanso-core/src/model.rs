@@ -470,12 +470,12 @@ pub fn check_attachment_size(content_type: &str, data: &[u8]) -> Result<(), Stri
     Ok(())
 }
 
-/// Largest sealed attachment the write path accepts, in bytes: the 10 MiB
-/// plaintext limit plus the sealed container's overhead and room for future
+/// Largest sealed attachment the write path accepts, in bytes: the 50 MiB
+/// PDF limit (the largest any attachment may be) plus the sealed container's overhead and room for future
 /// framing (4 KiB, covering a content segment, a metadata segment and a
-/// little spare). The user-facing plaintext limit stays
-/// [`MAX_ATTACHMENT_SIZE`]; this caps the stored container only.
-pub const MAX_SEALED_ATTACHMENT: usize = MAX_ATTACHMENT_SIZE + 4_096;
+/// little spare). The user-facing plaintext limits stay
+/// [`MAX_ATTACHMENT_SIZE`] and [`MAX_PDF_SIZE`]; this caps the stored container only.
+pub const MAX_SEALED_ATTACHMENT: usize = MAX_PDF_SIZE + 4_096;
 
 #[cfg(test)]
 mod tests {
@@ -568,6 +568,6 @@ mod tests {
 
     #[test]
     fn max_sealed_attachment_is_the_plain_limit_plus_the_overhead_budget() {
-        assert_eq!(MAX_SEALED_ATTACHMENT, MAX_ATTACHMENT_SIZE + 4_096);
+        assert_eq!(MAX_SEALED_ATTACHMENT, MAX_PDF_SIZE + 4_096);
     }
 }
