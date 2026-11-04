@@ -255,7 +255,10 @@ fn store_kind(config: Option<&str>) -> Result<StoreKind> {
     let config: serde_json::Value =
         serde_json::from_str(config).context("config.json isn't valid JSON")?;
     Ok(
-        match config.pointer("/sync/secretStore").and_then(|kind| kind.as_str()) {
+        match config
+            .pointer("/sync/secretStore")
+            .and_then(|kind| kind.as_str())
+        {
             Some("file") => StoreKind::File,
             _ => StoreKind::System,
         },

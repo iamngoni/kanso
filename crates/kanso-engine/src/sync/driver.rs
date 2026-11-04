@@ -49,7 +49,9 @@ pub struct DriverSeams {
     pub after_sync: Option<Arc<dyn Fn() -> Result<(), String> + Send + Sync>>,
 }
 
-/// News the owner shows or logs. Carries no secrets.
+/// News the owner shows or logs. Carries no secrets. Rare enough that a
+/// report kept inline costs nothing.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DriverEvent {
     Started,
@@ -106,7 +108,7 @@ enum Msg {
     Edit,
     Manual,
     Stop,
-    Done(Outcome),
+    Done(Box<Outcome>),
 }
 
 /// What a worker did: the library sync's answer (`Some(None)` when it
@@ -294,7 +296,7 @@ impl Control {
                     }
                 }
                 Ok(Msg::Manual) => self.request(true, false),
-                Ok(Msg::Done(outcome)) => self.finish(outcome),
+                Ok(Msg::Done(outcome)) => self.finish(*outcome),
                 Err(mpsc::RecvTimeoutError::Timeout) => self.timers(),
             }
         }
@@ -369,7 +371,7 @@ impl Control {
             .name("kanso-sync".into())
             .spawn(move || {
                 let outcome = work(library, hook, &runner, after_sync.as_ref(), &worker_cancel);
-                tx.send(Msg::Done(outcome)).ok();
+                tx.send(Msg::Done(Box::new(outcome))).ok();
             });
         match thread {
             Ok(thread) => self.worker = Some(Worker { cancel, thread }),
@@ -451,8 +453,8 @@ impl Control {
     /// Writes the last-sync keys under the session's guard: a library bound
     /// elsewhere meanwhile keeps its own.
     fn write_last(&self, now: i64, last: &LastResult) {
-        let pairs = kanso_sync::guard_pairs(&self.seams.session);
-        let guard = kanso_sync::guard(&pairs);
+        let pairs = kanso_sync::binding::guard_pairs(&self.seams.session);
+        let guard = kanso_sync::binding::guard(&pairs);
         let json = serde_json::to_string(last).expect("the result serializes");
         for (key, value) in [(LAST_SYNC_MS, now.to_string()), (LAST_RESULT, json)] {
             match self.seams.store.set_meta_if(key, &value, &guard) {
@@ -642,7 +644,13 @@ mod tests {
         let last: LastResult =
             serde_json::from_str(&lib.store.meta(LAST_RESULT).unwrap().unwrap()).unwrap();
         assert_eq!(last.problem, None);
-        assert!(!lib.store.meta(LAST_RESULT).unwrap().unwrap().contains("problem"));
+        assert!(
+            !lib.store
+                .meta(LAST_RESULT)
+                .unwrap()
+                .unwrap()
+                .contains("problem")
+        );
         driver.stop();
     }
 
@@ -701,7 +709,11 @@ mod tests {
         running.recv_timeout(SLACK).unwrap();
         let at = Instant::now();
         driver.stop();
-        assert!(at.elapsed() < Duration::from_millis(500), "{:?}", at.elapsed());
+        assert!(
+            at.elapsed() < Duration::from_millis(500),
+            "{:?}",
+            at.elapsed()
+        );
         let all: Vec<_> = events.try_iter().collect();
         assert_eq!(all, vec![DriverEvent::Started, DriverEvent::Stopped]);
     }

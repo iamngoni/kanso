@@ -890,10 +890,11 @@ fn status(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
     ));
     console.say(&match config.sync.secret_store {
         SecretStoreKind::File => format!(
-            "Secrets   file, {}",
+            "Secrets   {}, {}",
+            SecretStoreKind::File.as_str(),
             crate::secrets::secrets_path(&world.data_dir).display()
         ),
-        SecretStoreKind::System => "Secrets   system".to_owned(),
+        kind => format!("Secrets   {}", kind.as_str()),
     });
     console.say(&if config.sync.enabled {
         format!(

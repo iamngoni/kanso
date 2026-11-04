@@ -145,10 +145,18 @@ fn not_signed_in_says_so_once_and_runs_no_driver() {
 fn signed_in_it_syncs_what_the_api_wrote() {
     let lab = Lab::new();
     let session = lab.sign_in();
+    let book = lab.store
+        .put(
+            DocType::Book,
+            serde_json::json!({"name": "Agents"}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap();
     lab.store
         .put(
             DocType::Note,
-            serde_json::json!({"title": "from an agent"}),
+            serde_json::json!({"title": "from an agent", "bookId": book.id}),
             Put::Upsert,
             Origin::Api,
         )
@@ -162,7 +170,7 @@ fn signed_in_it_syncs_what_the_api_wrote() {
     driver.stop();
     let said = lab.said();
     assert!(said.contains("signed in as alice"), "{said}");
-    assert!(said.contains("synced, 0 pulled, 1 pushed."), "{said}");
+    assert!(said.contains("synced, 0 pulled, 2 pushed."), "{said}");
     // Nothing secret is ever said.
     for item in lab.secrets.items() {
         let raw = lab.secrets.get(&item).unwrap().unwrap();

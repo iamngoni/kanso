@@ -478,17 +478,15 @@ mod file_secrets {
             file.write_all(&bytes)
                 .and_then(|()| file.sync_all())
                 .map_err(|err| io_error("write", &tmp, err))?;
-            std::fs::rename(&tmp, &self.path)
-                .map_err(|err| io_error("replace", &self.path, err))
+            std::fs::rename(&tmp, &self.path).map_err(|err| io_error("replace", &self.path, err))
         }
     }
 
     /// The key in `key_file`: exactly 32 bytes, or 64 hex digits with
     /// whitespace around them.
     fn read_key(key_file: &Path) -> Result<Zeroizing<[u8; 32]>, SecretError> {
-        let bytes = Zeroizing::new(
-            std::fs::read(key_file).map_err(|err| io_error("read", key_file, err))?,
-        );
+        let bytes =
+            Zeroizing::new(std::fs::read(key_file).map_err(|err| io_error("read", key_file, err))?);
         let mut key = Zeroizing::new([0u8; 32]);
         if bytes.len() == 32 {
             key.copy_from_slice(&bytes);
@@ -503,10 +501,8 @@ mod file_secrets {
         if digits.len() != 64 {
             return Err(bad());
         }
-        for (byte, pair) in key.iter_mut().zip(digits.chunks_exact(2)) {
-            let hi = hex_digit(pair[0]).ok_or_else(bad)?;
-            let lo = hex_digit(pair[1]).ok_or_else(bad)?;
-            *byte = hi << 4 | lo;
+        for (byte, &[hi, lo]) in key.iter_mut().zip(digits.as_chunks::<2>().0) {
+            *byte = hex_digit(hi).ok_or_else(bad)? << 4 | hex_digit(lo).ok_or_else(bad)?;
         }
         Ok(key)
     }
@@ -1836,7 +1832,10 @@ mod tests {
             // The same key written as hex opens it.
             let hex = store(dir.path(), Some(([3; 32], true)));
             assert_eq!(
-                hex.get("sync-account:l_1").unwrap().as_deref().map(String::as_str),
+                hex.get("sync-account:l_1")
+                    .unwrap()
+                    .as_deref()
+                    .map(String::as_str),
                 Some("the-secret-value")
             );
 
@@ -1852,7 +1851,11 @@ mod tests {
 
             let plain_dir = tempfile::tempdir().unwrap();
             store(plain_dir.path(), None).set("a", "1").unwrap();
-            assert!(store(plain_dir.path(), Some(([3; 32], false))).get("a").is_err());
+            assert!(
+                store(plain_dir.path(), Some(([3; 32], false)))
+                    .get("a")
+                    .is_err()
+            );
 
             // A tampered seal doesn't open.
             let mut value: serde_json::Value = serde_json::from_str(&raw).unwrap();

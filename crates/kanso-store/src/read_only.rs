@@ -83,13 +83,16 @@ mod tests {
         store
             .put(
                 DocType::Note,
-                serde_json::json!({"_id": "n1", "bookId": "trash", "body": "v1", "updatedAt": 100}),
+                serde_json::json!({"_id": "note:ro1", "bookId": "trash", "body": "v1", "updatedAt": 100}),
                 Put::Upsert,
                 Origin::Api,
             )
             .unwrap();
         assert_eq!(view.meta("library_id").unwrap().as_deref(), Some("l_2"));
-        assert_eq!(view.pending_count().unwrap(), store.pending_count().unwrap());
+        assert_eq!(
+            view.pending_count().unwrap(),
+            store.pending_count().unwrap()
+        );
         assert_eq!(view.pending_count().unwrap(), 1);
 
         // Writing through it fails, and changes nothing.

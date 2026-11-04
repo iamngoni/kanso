@@ -127,10 +127,18 @@ impl Lab {
     /// A note written before sign-in, as an agent would.
     fn note(&self) {
         let store = Store::open(crate::paths::db_path(self.dir.path())).unwrap();
+        let book = store
+            .put(
+                DocType::Book,
+                serde_json::json!({"name": "Agents"}),
+                Put::Upsert,
+                Origin::Api,
+            )
+            .unwrap();
         store
             .put(
                 DocType::Note,
-                serde_json::json!({"title": "from an agent"}),
+                serde_json::json!({"title": "from an agent", "bookId": book.id}),
                 Put::Upsert,
                 Origin::Api,
             )
