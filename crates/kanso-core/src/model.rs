@@ -435,6 +435,41 @@ pub const SUPPORTED_DOCUMENT_TYPES: [&str; 1] = ["application/pdf"];
 /// Largest attachment the API accepts, in bytes.
 pub const MAX_ATTACHMENT_SIZE: usize = 10 * 1024 * 1024;
 
+/// Largest PDF, in bytes. It applies only when the content type is
+/// `application/pdf` and the bytes start with `%PDF-`; every other attachment
+/// keeps [`MAX_ATTACHMENT_SIZE`].
+pub const MAX_PDF_SIZE: usize = 50 * 1024 * 1024;
+
+/// The first bytes of every PDF.
+pub const PDF_MAGIC: &[u8] = b"%PDF-";
+
+/// Whether an attachment is a PDF for the purpose of its size limit: it says
+/// so and starts like one. A file merely named `.pdf` is not.
+pub fn is_pdf(content_type: &str, data: &[u8]) -> bool {
+    content_type.eq_ignore_ascii_case("application/pdf") && data.starts_with(PDF_MAGIC)
+}
+
+/// The size limit for one attachment, in bytes.
+pub fn attachment_limit(content_type: &str, data: &[u8]) -> usize {
+    if is_pdf(content_type, data) {
+        MAX_PDF_SIZE
+    } else {
+        MAX_ATTACHMENT_SIZE
+    }
+}
+
+/// `Err` with the plain message when the attachment is over its limit.
+pub fn check_attachment_size(content_type: &str, data: &[u8]) -> Result<(), String> {
+    let limit = attachment_limit(content_type, data);
+    if data.len() > limit {
+        return Err(format!(
+            "The file is {} bytes, over the {limit} byte limit.",
+            data.len()
+        ));
+    }
+    Ok(())
+}
+
 /// Largest sealed attachment the write path accepts, in bytes: the 10 MiB
 /// plaintext limit plus the sealed container's overhead and room for future
 /// framing (4 KiB, covering a content segment, a metadata segment and a
@@ -446,6 +481,22 @@ pub const MAX_SEALED_ATTACHMENT: usize = MAX_ATTACHMENT_SIZE + 4_096;
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn pdfs_get_fifty_mib_and_nothing_else_does() {
+        let mut pdf = b"%PDF-1.7".to_vec();
+        pdf.resize(45 * 1024 * 1024, 0);
+        assert!(check_attachment_size("application/pdf", &pdf).is_ok());
+        let mut big = pdf.clone();
+        big.resize(MAX_PDF_SIZE + 1, 0);
+        let err = check_attachment_size("application/pdf", &big).unwrap_err();
+        assert!(err.contains(&(MAX_PDF_SIZE + 1).to_string()), "{err}");
+        // A non-PDF of 45 MiB, and a "PDF" without the magic, get 10 MiB.
+        assert!(check_attachment_size("image/png", &pdf).is_err());
+        let no_magic = vec![0u8; MAX_ATTACHMENT_SIZE + 1];
+        assert!(check_attachment_size("application/pdf", &no_magic).is_err());
+        assert!(check_attachment_size("application/pdf", &no_magic[..MAX_ATTACHMENT_SIZE]).is_ok());
+    }
 
     #[test]
     fn note_round_trips_unknown_fields() {

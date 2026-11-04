@@ -49,6 +49,7 @@ const CORE_TIME_OFFSET_SECONDS: f64 = 978_307_200.0;
 const MAX_COMPRESSED_NOTE_BYTES: usize = 8 * 1024 * 1024;
 const MAX_NOTE_PROTO_BYTES: usize = 16 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES: u64 = kanso_core::model::MAX_ATTACHMENT_SIZE as u64;
+const MAX_PDF_BYTES: u64 = kanso_core::model::MAX_PDF_SIZE as u64;
 const INLINE_ATTACHMENT_PREFIX: &str = "com.apple.notes.inlinetextattachment.";
 
 /// A stable, read-only view of one Apple Notes database.
@@ -863,7 +864,12 @@ impl AppleNotesSource {
                     break;
                 }
             };
-            match read_limited_file(&path, MAX_ATTACHMENT_BYTES) {
+            let limit = if content_type_for(uti, name).as_deref() == Some("application/pdf") {
+                MAX_PDF_BYTES
+            } else {
+                MAX_ATTACHMENT_BYTES
+            };
+            match read_limited_file(&path, limit) {
                 Ok(data) => {
                     let key = embedded_key(&note.key, note.pk, identity);
                     let name = if name.is_empty() { "Attachment" } else { name };

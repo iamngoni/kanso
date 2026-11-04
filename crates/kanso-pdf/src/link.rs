@@ -35,10 +35,12 @@ impl PdfLink {
                 Some(("page", v)) => {
                     link.page = v.parse::<u32>().ok().filter(|p| *p >= 1);
                 }
-                Some(("h", v)) if !v.is_empty() && v.len() <= 16 => {
-                    if v.bytes().all(|b| b.is_ascii_alphanumeric()) {
-                        link.highlight = Some(v.to_string());
-                    }
+                Some(("h", v))
+                    if !v.is_empty()
+                        && v.len() <= 16
+                        && v.bytes().all(|b| b.is_ascii_alphanumeric()) =>
+                {
+                    link.highlight = Some(v.to_string());
                 }
                 _ => {}
             }

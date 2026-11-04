@@ -1149,6 +1149,20 @@ impl Run<'_> {
                     self.report.too_large.push(doc.id);
                     continue;
                 }
+                // The server takes files up to the old 10 MiB limit until it is
+                // upgraded for 50 MiB PDFs; a bigger one stays on this device,
+                // listed as too large, rather than failing every sync.
+                if !doc.deleted
+                    && is_file_id(&doc.id)
+                    && doc
+                        .fields
+                        .get("contentLength")
+                        .and_then(serde_json::Value::as_u64)
+                        .is_some_and(|n| n > kanso_core::model::MAX_ATTACHMENT_SIZE as u64)
+                {
+                    self.report.too_large.push(doc.id);
+                    continue;
+                }
                 let size = wire_size(&doc, fields);
                 let class = Class::of(&doc);
                 // Every live document is charged one potential slot: an edit

@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use base64::Engine as _;
 use kanso_core::DocType;
 use kanso_core::links::LINK_SCHEME;
-use kanso_core::model::MAX_ATTACHMENT_SIZE;
+use kanso_core::model::{MAX_ATTACHMENT_SIZE, MAX_PDF_SIZE};
 use kanso_store::{Origin, Put, Store, StoreError};
 
 /// What a pasted or dropped image is stored as: the API's image types as
@@ -207,8 +207,8 @@ fn prepare_pdf(bytes: &[u8], name: Option<&str>) -> Result<Prepared, String> {
     if !bytes.starts_with(b"%PDF-") {
         return Err("That file isn't a PDF Kanso can read.".into());
     }
-    if bytes.len() > MAX_ATTACHMENT_SIZE {
-        return Err(too_large_file("PDF", bytes.len(), MAX_ATTACHMENT_SIZE));
+    if bytes.len() > MAX_PDF_SIZE {
+        return Err(too_large_file("PDF", bytes.len(), MAX_PDF_SIZE));
     }
     Ok(Prepared {
         name: format!("{}.pdf", stem_of(name, "document")),
@@ -424,8 +424,8 @@ mod tests {
             "That image is 12 MB. Attachments can be up to 10 MB."
         );
         assert_eq!(
-            too_large_file("PDF", 12 * 1024 * 1024, 10 * 1024 * 1024),
-            "That PDF is 12 MB. Attachments can be up to 10 MB."
+            too_large_file("PDF", 55 * 1024 * 1024, 50 * 1024 * 1024),
+            "That PDF is 55 MB. Attachments can be up to 50 MB."
         );
         assert_eq!(megabytes(4_404_019), "4.2 MB");
     }
@@ -499,11 +499,14 @@ mod tests {
             "That file isn't a PDF Kanso can read."
         );
         let mut big = b"%PDF-".to_vec();
-        big.resize(11 * 1024 * 1024, 0);
+        big.resize(51 * 1024 * 1024, 0);
         assert_eq!(
             attach_pdf(&store, &big, "a.pdf", None).unwrap_err(),
-            "That PDF is 11 MB. Attachments can be up to 10 MB."
+            "That PDF is 51 MB. Attachments can be up to 50 MB."
         );
+        // Over the old 10 MB limit, under the PDF limit: attached.
+        big.truncate(12 * 1024 * 1024);
+        assert!(attach_pdf(&store, &big, "a.pdf", None).is_ok());
         let long = format!("{}.pdf", "n".repeat(300));
         let id = attach_pdf(&store, PDF_BYTES, &long, None).unwrap();
         let name = store.get(&id).unwrap().unwrap().fields["name"]

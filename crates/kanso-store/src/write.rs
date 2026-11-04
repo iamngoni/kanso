@@ -6,9 +6,9 @@ use base64::Engine as _;
 use kanso_core::id::is_valid_id;
 use kanso_core::model::FileMeta;
 use kanso_core::model::{
-    FILE_LOCK_FIELD, FileLock, KANSO_FILES_FIELD, LOCK_FIELD, MAX_ATTACHMENT_SIZE,
-    MAX_SEALED_ATTACHMENT, NoteFile, OCR_FIELD, TRASH_BOOK_ID, UNSEALED_FIELD,
-    note_files_from_extra, store_note_files,
+    FILE_LOCK_FIELD, FileLock, KANSO_FILES_FIELD, LOCK_FIELD, MAX_SEALED_ATTACHMENT, NoteFile,
+    OCR_FIELD, TRASH_BOOK_ID, UNSEALED_FIELD, check_attachment_size, note_files_from_extra,
+    store_note_files,
 };
 use kanso_core::tasks::linked_file_ids;
 use kanso_core::{DocType, Rev, new_id, now_ms};
@@ -797,11 +797,7 @@ impl Store {
     /// The plaintext must fit the ordinary attachment limit; the file's
     /// history and OCR text are dropped with the container.
     pub fn put_unsealed_file(&self, file: FileMeta, plaintext: Attachment) -> Result<WriteResult> {
-        if plaintext.data.len() > MAX_ATTACHMENT_SIZE {
-            return Err(StoreError::Invalid(format!(
-                "The file is larger than {MAX_ATTACHMENT_SIZE} bytes."
-            )));
-        }
+        check_attachment_size(&file.content_type, &plaintext.data).map_err(StoreError::Invalid)?;
         let lock = checked_file_lock(&file)?;
         let Value::Object(mut fields) = serde_json::to_value(file)? else {
             return Err(StoreError::Invalid("Expected a JSON object.".into()));
@@ -1250,13 +1246,14 @@ fn put_in(
     }
 
     if doc_type == DocType::File {
+        let merged_type = normalized
+            .get("contentType")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
         let blob = match attachment {
             Some(blob) => {
-                if blob.data.len() > MAX_ATTACHMENT_SIZE {
-                    return Err(StoreError::Invalid(format!(
-                        "The file is larger than {MAX_ATTACHMENT_SIZE} bytes."
-                    )));
-                }
+                let content_type = merged_type.as_deref().unwrap_or("");
+                check_attachment_size(content_type, &blob.data).map_err(StoreError::Invalid)?;
                 blob
             }
             None => match live {
