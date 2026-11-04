@@ -10,6 +10,8 @@ rust-version.workspace = true
 # The helper process (`kanso-pdf-worker`) and PDFium. The app depends on this
 # crate without it, so the UI binary never links PDFium.
 render = ["dep:pdfium-render"]
+# PDFs built in code, for this crate's tests and the app's.
+test-support = ["dep:md-5"]
 
 [[bin]]
 name = "kanso-pdf-worker"
@@ -26,6 +28,9 @@ thiserror.workspace = true
 # build scripts/fetch-pdfium.sh downloads: `pdfium_7881` is the API of build
 # 7881. No `image` feature: pages leave the worker as raw BGRA.
 pdfium-render = { version = "=0.9.4", default-features = false, features = ["pdfium_7881", "thread_safe"], optional = true }
+
+# Builds the encrypted PDF fixture (MD5 is the PDF 1.x key derivation; MIT OR Apache-2.0).
+md-5 = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
 # Resource limits and the process-group kill (MIT OR Apache-2.0).
@@ -50,7 +55,7 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
-# An encrypted PDF is built by hand in the worker tests.
-md-5.workspace = true
+# This crate's tests use its own fixtures.
+kanso-pdf = { path = ".", features = ["test-support"] }
 proptest.workspace = true
 tempfile.workspace = true

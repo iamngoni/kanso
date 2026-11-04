@@ -1,0 +1,144 @@
+//! PDFs for tests, built by hand so no binary fixture lives in the
+//! repository. Behind the `test-support` feature.
+
+/// A PDF of `pages` Letter pages; each says "Kanso page N" in 36 pt Helvetica.
+pub fn sample_pdf(pages: usize) -> Vec<u8> {
+    let mut objects: Vec<String> = Vec::new();
+    // 1 catalog, 2 pages, 3 font, then a page and a content stream each.
+    objects.push("<< /Type /Catalog /Pages 2 0 R >>".into());
+    let kids: Vec<String> = (0..pages).map(|i| format!("{} 0 R", 4 + 2 * i)).collect();
+    objects.push(format!(
+        "<< /Type /Pages /Kids [{}] /Count {pages} >>",
+        kids.join(" ")
+    ));
+    objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into());
+    for i in 0..pages {
+        objects.push(format!(
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents {} 0 R >>",
+            5 + 2 * i
+        ));
+        let content = format!("BT /F1 36 Tf 72 700 Td (Kanso page {}) Tj ET", i + 1);
+        objects.push(format!(
+            "<< /Length {} >>\nstream\n{content}\nendstream",
+            content.len()
+        ));
+    }
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, body) in objects.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{body}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(
+        format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).as_bytes(),
+    );
+    for offset in offsets {
+        out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n",
+            objects.len() + 1
+        )
+        .as_bytes(),
+    );
+    out
+}
+
+/// A one-page PDF encrypted with the standard handler (RC4, 40-bit, revision
+/// 2) under this user password, built by hand from the algorithms of the PDF
+/// specification (7.6.3) so the password paths are tested for real.
+pub fn encrypted_pdf(user_password: &str) -> Vec<u8> {
+    use md5::{Digest, Md5};
+    const PAD: [u8; 32] = [
+        0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41, 0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01,
+        0x08, 0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80, 0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53,
+        0x69, 0x7A,
+    ];
+    fn rc4(key: &[u8], data: &[u8]) -> Vec<u8> {
+        let mut s: Vec<u8> = (0..=255).collect();
+        let mut j = 0usize;
+        for i in 0..256 {
+            j = (j + s[i] as usize + key[i % key.len()] as usize) % 256;
+            s.swap(i, j);
+        }
+        let (mut i, mut j) = (0usize, 0usize);
+        data.iter()
+            .map(|byte| {
+                i = (i + 1) % 256;
+                j = (j + s[i] as usize) % 256;
+                s.swap(i, j);
+                byte ^ s[(s[i] as usize + s[j] as usize) % 256]
+            })
+            .collect()
+    }
+    let owner = [0x5Au8; 32];
+    let id = [0x11u8; 16];
+    let permissions: i32 = -4;
+    let mut padded = user_password.as_bytes().to_vec();
+    padded.extend_from_slice(&PAD);
+    padded.truncate(32);
+    let mut hash = Md5::new();
+    hash.update(&padded);
+    hash.update(owner);
+    hash.update(permissions.to_le_bytes());
+    hash.update(id);
+    let key = hash.finalize()[..5].to_vec();
+    let user = rc4(&key, &PAD);
+    let hex = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+
+    // The content stream is object 5, generation 0.
+    let mut object_key = key.clone();
+    object_key.extend_from_slice(&[5, 0, 0, 0, 0]);
+    let object_key = Md5::digest(&object_key)[..10].to_vec();
+    let content = rc4(&object_key, b"BT /F1 36 Tf 72 700 Td (Locked) Tj ET");
+
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    let mut object = |out: &mut Vec<u8>, number: usize, body: &[u8]| {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{number} 0 obj\n").as_bytes());
+        out.extend_from_slice(body);
+        out.extend_from_slice(b"\nendobj\n");
+    };
+    object(&mut out, 1, b"<< /Type /Catalog /Pages 2 0 R >>");
+    object(&mut out, 2, b"<< /Type /Pages /Kids [4 0 R] /Count 1 >>");
+    object(
+        &mut out,
+        3,
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    );
+    object(
+        &mut out,
+        4,
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>",
+    );
+    let mut stream = format!("<< /Length {} >>\nstream\n", content.len()).into_bytes();
+    stream.extend_from_slice(&content);
+    stream.extend_from_slice(b"\nendstream");
+    object(&mut out, 5, &stream);
+    object(
+        &mut out,
+        6,
+        format!(
+            "<< /Filter /Standard /V 1 /R 2 /O <{}> /U <{}> /P {permissions} >>",
+            hex(&owner),
+            hex(&user)
+        )
+        .as_bytes(),
+    );
+    let xref = out.len();
+    out.extend_from_slice(b"xref\n0 7\n0000000000 65535 f \n");
+    for offset in offsets {
+        out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(
+        format!(
+            "trailer\n<< /Size 7 /Root 1 0 R /Encrypt 6 0 R /ID [<{0}> <{0}>] >>\nstartxref\n{xref}\n%%EOF\n",
+            hex(&id)
+        )
+        .as_bytes(),
+    );
+    out
+}

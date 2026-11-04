@@ -121,15 +121,19 @@ impl std::fmt::Debug for RenderedPage {
     }
 }
 
-/// Finds the worker beside the running app, and in a development build the
-/// one `cargo build -p kanso-pdf --features render` left in the target
-/// folder, with the library `scripts/fetch-pdfium.sh` fetched.
+/// Finds the worker beside the running app (a macOS bundle's `MacOS`, the
+/// folder of `kanso.exe`), or in `../lib/kanso` as an installed Linux package
+/// has it, and in a development build the one `cargo build -p kanso-pdf
+/// --features render` left in the target folder, with the library
+/// `scripts/fetch-pdfium.sh` fetched.
 pub fn locate() -> Option<WorkerPaths> {
     let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-    let exe = exe_dir.join(WORKER_NAME);
-    if !exe.is_file() {
-        return None;
-    }
+    let exe = [
+        exe_dir.join(WORKER_NAME),
+        exe_dir.join("../lib/kanso").join(WORKER_NAME),
+    ]
+    .into_iter()
+    .find(|path| path.is_file())?;
     // Bundled: the worker finds its library by itself. In a development
     // build, the fetched one.
     let library = if cfg!(debug_assertions) {

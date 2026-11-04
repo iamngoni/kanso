@@ -11,6 +11,8 @@
 pub mod annotation;
 pub mod client;
 pub mod contain;
+#[cfg(feature = "test-support")]
+pub mod fixtures;
 pub mod link;
 pub mod model;
 pub mod protocol;

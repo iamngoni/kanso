@@ -282,6 +282,9 @@ pub struct NoteEditor {
     canvas_body: Option<String>,
     /// The person chose Edit as Text for this note: the raw JSON shows.
     canvas_as_text: bool,
+    /// The PDF reader in the preview's place, while a PDF is open (issue
+    /// #43). It closes when the note changes.
+    pdf: Option<(Entity<crate::pdf::PdfReader>, Subscription)>,
     autosave: Option<Task<()>>,
     /// The preview's interval, while typing goes on.
     preview_task: Option<Task<()>>,
@@ -479,6 +482,7 @@ impl NoteEditor {
                             replacement,
                         } => this.replace_block(&source, replacement, window, cx),
                         PreviewEdit::Task(tick) => this.tick_task(&tick, window, cx),
+                        PreviewEdit::OpenFile(url) => this.open_file_link(&url, window, cx),
                     })
                     .is_err()
                 {
@@ -663,6 +667,7 @@ impl NoteEditor {
             canvas: canvas.clone(),
             canvas_body: None,
             canvas_as_text: false,
+            pdf: None,
             autosave: None,
             preview_task: None,
             preview_stale: false,
@@ -1174,6 +1179,10 @@ impl NoteEditor {
     ) {
         self.incoming = None;
         self.from_peer = false;
+        // The reader belongs to the note it was opened from.
+        if note.as_ref().map(|n| n.id.as_str()) != self.note.as_ref().map(|n| n.id.as_str()) {
+            self.pdf = None;
+        }
         self.lock = note
             .as_mut()
             .map_or(LockView::Plain, |note| crate::locked::reveal(note, cx));
@@ -2449,6 +2458,65 @@ impl NoteEditor {
         self.body
             .update(cx, |state, cx| state.set_selected_range(range, cx));
         true
+    }
+
+    /// A link to an attachment was followed in the preview: a PDF opens in
+    /// the reader in the preview's place, at the page the link names.
+    // no-prop-test: glue over `PdfLink::parse` (which has the properties) and the reader.
+    fn open_file_link(&mut self, url: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(link) = kanso_pdf::PdfLink::parse(url) else {
+            return;
+        };
+        let id = format!("file:{}", link.file_id);
+        let Ok(Some(meta)) = self.store.file_meta(&id) else {
+            return;
+        };
+        if meta.content_type != "application/pdf" {
+            return;
+        }
+        // A locked note's PDF waits for sealed attachments (issue #43, step
+        // 12): the reader would show its pixels in the clear.
+        if self.note_is_locked() || self.lock != LockView::Plain {
+            cx.emit(EditorEvent::Notice(PDF_IN_LOCKED_NOTE_OPEN.to_owned()));
+            return;
+        }
+        let (store, name) = (self.store.clone(), meta.name);
+        let scale = window.scale_factor();
+        let page = link.page.unwrap_or(1);
+        let reader = cx.new(|cx| crate::pdf::PdfReader::new(store, id, name, page, scale, cx));
+        self.show_pdf(reader, window, cx);
+    }
+
+    /// Puts `reader` in the preview's place: Edit and Live give way to Split,
+    /// as for the recording player.
+    fn show_pdf(
+        &mut self,
+        reader: Entity<crate::pdf::PdfReader>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let subscription = cx.subscribe_in(
+            &reader,
+            window,
+            |this, _, event: &crate::pdf::PdfEvent, window, cx| match event {
+                crate::pdf::PdfEvent::Close => this.close_pdf(window, cx),
+            },
+        );
+        let focus = reader.read(cx).focus_handle().clone();
+        window.focus(&focus, cx);
+        self.pdf = Some((reader, subscription));
+        if matches!(self.view_mode, ViewMode::Edit | ViewMode::Live) {
+            self.set_view_mode(ViewMode::Split, cx);
+        }
+        cx.notify();
+    }
+
+    /// Back to the note: the reader goes, and the text has the cursor again.
+    fn close_pdf(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.pdf.take().is_some() {
+            self.body.update(cx, |body, cx| body.focus(window, cx));
+            cx.notify();
+        }
     }
 
     /// A timestamp link played a moment: the player sits in the preview, so
@@ -4615,6 +4683,9 @@ fn is_pdf_path(path: &std::path::Path) -> bool {
 /// warning.
 const PDF_IN_LOCKED_NOTE: &str = "PDFs can't be attached to a locked note yet, because attachments aren't sealed with the lock. Attach it to a note that isn't locked.";
 
+/// What opening a PDF in a locked note says, for the same reason.
+const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet, because attachments aren't sealed with the lock. Unlock the note's notebook, or move the PDF to a note that isn't locked.";
+
 /// [`attach`] for a note that is `locked` or not: a PDF is refused for a
 /// locked one.
 fn attach_to(store: &Store, locked: bool, image: Pasted) -> Result<String, String> {
@@ -5121,16 +5192,20 @@ impl Render for NoteEditor {
         let readable = self.readable_width;
         self.preview
             .update(cx, |preview, cx| preview.set_readable(readable, cx));
+        // A PDF's reader takes the preview's place while one is open.
         let preview = div()
             .flex_1()
             .h_full()
             .min_w_0()
             .debug_selector(|| "preview-pane".into())
-            .child(
-                self.preview
+            .child(match &self.pdf {
+                Some((reader, _)) => reader.clone().into_any_element(),
+                None => self
+                    .preview
                     .clone()
-                    .cached(StyleRefinement::default().size_full()),
-            );
+                    .cached(StyleRefinement::default().size_full())
+                    .into_any_element(),
+            });
         let body = match mode {
             _ if self.lock.is_closed() => self.render_locked(cx),
             _ if self.canvas_body.is_some() => self.canvas.clone().into_any_element(),
@@ -6887,6 +6962,115 @@ mod writing_tests {
             open.with(cx, |editor, _, cx| editor.set_view_mode(mode, cx));
             assert!(drawn(&open, cx), "in {mode:?}");
         }
+    }
+
+    /// Following a link to a PDF opens the reader in the preview's place
+    /// (Split, from Edit), at the page the link names; Close puts the note
+    /// back. A link to a file that is not a PDF, or to nothing, does nothing.
+    // no-prop-test: drives one window; `PdfLink::parse` has the properties.
+    #[gpui_kit::test]
+    fn following_a_pdf_link_opens_the_reader_and_close_returns(cx: &mut TestAppContext) {
+        let open = Open::new(cx, "[Report](inkdrop://file:ghost-1)\n");
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let note_file = open
+            .store
+            .put(
+                DocType::File,
+                json!({"name": "a.txt", "contentType": "text/plain", "contentLength": 1,
+                    "md5digest": "x", "publicIn": [], "createdAt": 0}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .map(|result| result.id)
+            .ok();
+        open.with(cx, |editor, _, cx| {
+            editor.set_view_mode(crate::config::ViewMode::Edit, cx)
+        });
+        let reads = |open: &Open, cx: &mut TestAppContext| {
+            open.with(cx, |editor, _, _| editor.pdf.is_some())
+        };
+
+        for other in [
+            "inkdrop://file:nothing-here".to_owned(),
+            note_file
+                .map(|id| format!("inkdrop://{id}"))
+                .unwrap_or_default(),
+            "https://example.com/a.pdf".to_owned(),
+        ] {
+            open.with(cx, move |editor, window, cx| {
+                editor.open_file_link(&other, window, cx)
+            });
+            assert!(!reads(&open, cx));
+        }
+
+        let url = format!("inkdrop://{pdf}#page=2");
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&url, window, cx)
+        });
+        assert!(reads(&open, cx), "the reader didn't open");
+        open.with(cx, |editor, _, _| {
+            assert_eq!(editor.view_mode, crate::config::ViewMode::Split);
+        });
+        draw_window(&open, cx);
+        let mut vcx = gpui_kit::VisualTestContext::from_window(open.window, cx);
+        assert!(vcx.debug_bounds("pdf-reader").is_some());
+        let back = vcx.debug_bounds("pdf-back").unwrap().center();
+
+        // Back to Note.
+        vcx.simulate_click(back, Default::default());
+        assert!(!reads(&open, cx), "Back to Note left the reader open");
+        draw_window(&open, cx);
+        let mut vcx = gpui_kit::VisualTestContext::from_window(open.window, cx);
+        assert!(vcx.debug_bounds("pdf-reader").is_none());
+    }
+
+    /// A locked note refuses to open its PDF in the reader, in words, and
+    /// the reader closes when the note changes.
+    // no-prop-test: drives one window.
+    #[gpui_kit::test]
+    fn a_locked_notes_pdf_stays_shut_and_the_reader_leaves_with_the_note(cx: &mut TestAppContext) {
+        let open = Open::new(cx, "[Report](inkdrop://file:ghost-1)\n");
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let url = format!("inkdrop://{pdf}");
+
+        // The reader leaves with its note.
+        let (shown, link) = (open.id.clone(), url.clone());
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&link, window, cx);
+            assert!(editor.pdf.is_some());
+            editor.open(None, window, cx);
+            assert!(editor.pdf.is_none(), "the reader outlived its note");
+            editor.open(Some(&shown), window, cx);
+            assert!(editor.pdf.is_none());
+        });
+
+        // A locked note refuses.
+        let notices = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let seen = notices.clone();
+        cx.update(|cx| {
+            cx.subscribe(&open.editor, move |_, event: &super::EditorEvent, _| {
+                if let super::EditorEvent::Notice(words) = event {
+                    seen.borrow_mut().push(words.clone());
+                }
+            })
+            .detach();
+        });
+        open.with(cx, move |editor, window, cx| {
+            let key = kanso_sync::lock::LockKey::create(
+                &kanso_sync::lock::LockPassword::new("long enough").unwrap(),
+                kanso_sync::KdfParams::TEST,
+            )
+            .unwrap();
+            editor.lock_with(&key, cx);
+            editor.open_file_link(&url, window, cx);
+            assert!(editor.pdf.is_none(), "a locked note's PDF opened");
+        });
+        cx.run_until_parked();
+        assert_eq!(*notices.borrow(), [super::PDF_IN_LOCKED_NOTE_OPEN]);
     }
 
     /// A note for ticking tasks in the preview. The task list counts the

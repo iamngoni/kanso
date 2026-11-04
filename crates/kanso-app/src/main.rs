@@ -131,6 +131,7 @@ mod palette;
 mod passkey_accounts;
 mod passkey_ceremony;
 mod paths;
+mod pdf;
 mod pen_input;
 mod people_data;
 mod people_view;
