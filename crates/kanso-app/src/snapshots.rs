@@ -56,6 +56,7 @@ mod learn_modals;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
+mod record_sheet;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -5547,6 +5548,25 @@ fn snapshots() {
         shot("dark-settings-general", Dark, Edit, settings_general),
         shot("light-settings-general", Light, Edit, settings_general),
         shot("dark-settings-editor", Dark, Edit, settings_editor),
+        // The Record sheet's system audio choices.
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "light-record-output-picker",
+                Light,
+                Edit,
+                record_sheet::output_picker,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "dark-record-no-monitor",
+                Dark,
+                Edit,
+                record_sheet::no_monitor,
+            )
+        },
         // Quiz Me and Make Flashcards as dialogs over the note.
         Shot {
             dialog_width: crate::learn_view::QUIZ_WIDTH,
