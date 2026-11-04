@@ -1,4 +1,6 @@
-//! Transcribing an audio file: decoded with Symphonia a packet at a time,
+//! Transcribing an audio file: decoded a packet at a time (Ogg Opus by
+//! libopus, found by its OpusHead; the rest by Symphonia, both in
+//! `kanso-audio`),
 //! mixed down and resampled to 16 kHz as it comes, and cut at pauses
 //! ([`chunk::plan_cut`]) into pieces the model takes one by one, so only a
 //! piece (at most 25 seconds) is ever held and progress can be told.
@@ -6,14 +8,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use symphonia::core::audio::SampleBuffer;
-use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
-use symphonia::core::errors::Error as DecodeError;
-use symphonia::core::formats::FormatOptions;
 pub use symphonia::core::io::MediaSource;
-use symphonia::core::io::MediaSourceStream;
-use symphonia::core::meta::MetadataOptions;
-use symphonia::core::probe::Hint;
 
 use crate::VoiceError;
 use crate::audio::{MODEL_RATE, Resampler16k, downmix};
@@ -22,7 +17,7 @@ use crate::engine::Parakeet;
 use crate::text::join_pieces;
 
 /// The audio files Kanso reads, by extension, with their content type.
-pub const FORMATS: [(&str, &str); 11] = [
+pub const FORMATS: [(&str, &str); 12] = [
     ("m4a", "audio/mp4"),
     ("mp4", "audio/mp4"),
     ("mp3", "audio/mpeg"),
@@ -33,6 +28,7 @@ pub const FORMATS: [(&str, &str); 11] = [
     ("flac", "audio/flac"),
     ("ogg", "audio/ogg"),
     ("oga", "audio/ogg"),
+    ("opus", "audio/ogg"),
     ("alac", "audio/mp4"),
 ];
 
@@ -95,42 +91,17 @@ pub fn decode_pieces(
     cancel: &AtomicBool,
     piece: &mut PieceSink<'_>,
 ) -> Result<(), VoiceError> {
-    let unreadable = |e: DecodeError| VoiceError::Audio(e.to_string());
-    let stream = MediaSourceStream::new(source, Default::default());
-    let mut hint = Hint::new();
-    if let Some(extension) = extension {
-        hint.with_extension(extension);
-    }
-    let probed = symphonia::default::get_probe()
-        .format(
-            &hint,
-            stream,
-            &FormatOptions::default(),
-            &MetadataOptions::default(),
-        )
-        .map_err(unreadable)?;
-    let mut format = probed.format;
-    let track = format
-        .tracks()
-        .iter()
-        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        .ok_or_else(|| VoiceError::Audio("there's no sound in it".into()))?;
-    let track_id = track.id;
-    let rate = track
-        .codec_params
-        .sample_rate
-        .filter(|rate| *rate > 0)
-        .ok_or_else(|| VoiceError::Audio("it doesn't say its sample rate".into()))?;
-    let total = track
-        .codec_params
-        .n_frames
+    let unreadable = |e: kanso_audio::AudioError| VoiceError::Audio(e.to_string());
+    // Ogg Opus (told by its OpusHead, whatever the extension) goes through
+    // libopus; everything else through Symphonia.
+    let mut audio = kanso_audio::open(source, extension).map_err(unreadable)?;
+    let rate = audio.sample_rate();
+    let total = audio
+        .total_frames()
         .map(|frames| Duration::from_secs_f64(frames as f64 / f64::from(rate)));
-    let mut decoder = symphonia::default::get_codecs()
-        .make(&track.codec_params, &DecoderOptions::default())
-        .map_err(unreadable)?;
     let mut resampler = Resampler16k::new(rate).map_err(VoiceError::Audio)?;
     let mut pending: Vec<f32> = Vec::new();
-    let mut buffer: Option<SampleBuffer<f32>> = None;
+    let mut samples: Vec<f32> = Vec::new();
     let mut frames_read = 0u64;
     let progress = |frames: u64| Progress {
         done: Duration::from_secs_f64(frames as f64 / f64::from(rate)),
@@ -140,31 +111,10 @@ pub fn decode_pieces(
         if cancel.load(Ordering::Relaxed) {
             return Err(VoiceError::Cancelled);
         }
-        let packet = match format.next_packet() {
-            Ok(packet) => packet,
-            Err(DecodeError::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                break;
-            }
-            Err(DecodeError::ResetRequired) => break,
-            Err(e) => return Err(unreadable(e)),
+        let Some(channels) = audio.read(&mut samples).map_err(unreadable)? else {
+            break;
         };
-        if packet.track_id() != track_id {
-            continue;
-        }
-        let decoded = match decoder.decode(&packet) {
-            Ok(decoded) => decoded,
-            // A damaged packet is skipped, as players do.
-            Err(DecodeError::DecodeError(_)) => continue,
-            Err(e) => return Err(unreadable(e)),
-        };
-        let spec = *decoded.spec();
-        let channels = spec.channels.count().max(1);
-        let samples = match &mut buffer {
-            Some(b) if b.capacity() >= decoded.capacity() * channels => b,
-            slot => slot.insert(SampleBuffer::new(decoded.capacity() as u64, spec)),
-        };
-        samples.copy_interleaved_ref(decoded);
-        let mono = downmix(samples.samples(), channels);
+        let mono = downmix(&samples, channels);
         frames_read += mono.len() as u64;
         resampler.push(&mono, &mut pending);
         while let Some(cut) = plan_cut(&pending, MODEL_RATE) {
@@ -333,8 +283,70 @@ mod tests {
         assert!(matches!(err, VoiceError::Cancelled));
     }
 
+    /// Two seconds of tone as an Ogg Opus recording.
+    fn opus_recording(channels: kanso_audio::Channels) -> Vec<u8> {
+        use std::sync::{Arc, Mutex};
+
+        struct Out(Arc<Mutex<Vec<u8>>>);
+        impl std::io::Write for Out {
+            fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(b);
+                Ok(b.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        impl kanso_audio::DurableWrite for Out {
+            fn sync(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let n = channels.count();
+        let pcm: Vec<f32> = (0..96_000 * n)
+            .map(|i| ((i / n) as f32 * 0.03).sin() * 0.3)
+            .collect();
+        let shared = Arc::new(Mutex::new(Vec::new()));
+        let handle = shared.clone();
+        let mut writer = kanso_audio::PartWriter::new(
+            move |_| Ok(Out(handle.clone())),
+            kanso_audio::EncodeConfig::new(channels),
+        )
+        .unwrap();
+        writer.push(&pcm).unwrap();
+        writer.finish().unwrap();
+        shared.lock().unwrap().clone()
+    }
+
+    #[test]
+    fn ogg_opus_decodes_by_its_magic_whatever_the_extension() {
+        for channels in [kanso_audio::Channels::Mono, kanso_audio::Channels::Stereo] {
+            let bytes = opus_recording(channels);
+            for extension in [Some("opus"), Some("ogg"), None] {
+                let mut seen = Vec::new();
+                decode_pieces(
+                    from_bytes(bytes.clone()),
+                    extension,
+                    &AtomicBool::new(false),
+                    &mut |samples, at| {
+                        seen.push((samples.len(), at));
+                        Ok(())
+                    },
+                )
+                .unwrap();
+                // Two seconds at 16 kHz, give or take the resampler's edge.
+                let total: usize = seen.iter().map(|(n, _)| n).sum();
+                assert!((31_000..=33_000).contains(&total), "{total}");
+                assert_eq!(seen.last().unwrap().1.share(), Some(1.));
+            }
+        }
+    }
+
     #[test]
     fn formats_go_both_ways() {
+        assert_eq!(content_type("opus"), Some("audio/ogg"));
+        assert_eq!(extension("audio/ogg"), Some("ogg"));
         assert_eq!(content_type("M4A"), Some("audio/mp4"));
         assert_eq!(content_type("txt"), None);
         assert_eq!(extension("audio/x-m4a"), Some("m4a"));

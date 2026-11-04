@@ -10,6 +10,8 @@ rust-version.workspace = true
 async-channel.workspace = true
 # The microphone on every platform: Core Audio, WASAPI and ALSA.
 cpal = "0.18"
+# Decoding a file: Ogg Opus through libopus, the rest through Symphonia.
+kanso-audio.workspace = true
 # ONNX Runtime 1.31, linked statically from pyke's prebuilt archives (the
 # build script downloads and checks them). Only the CPU execution provider
 # runs; telemetry is off. On macOS the archive also carries Core ML, and on
