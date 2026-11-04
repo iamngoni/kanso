@@ -20,7 +20,6 @@ use std::collections::HashSet;
 
 use kanso_core::model::FILE_LOCK_FIELD;
 use kanso_core::now_ms;
-use kanso_core::tasks::linked_file_ids;
 use rusqlite::{Connection, params};
 use serde_json::{Map, Value};
 
@@ -79,30 +78,23 @@ pub(crate) fn sync_file(
     Ok((!joined.trim().is_empty()).then_some((joined, md5)))
 }
 
-/// Of `wanted` file ids, the ones a note that may be read links.
-fn shown_among(conn: &Connection, mut wanted: HashSet<String>) -> Result<HashSet<String>> {
-    let mut shown = HashSet::new();
+/// Of `wanted` file ids, the ones a note that may be read links. Reads the
+/// `note_files` index (the files each note's body links, kept with every
+/// write), so it costs a lookup per file, not a pass over every note.
+fn shown_among(conn: &Connection, wanted: HashSet<String>) -> Result<HashSet<String>> {
     if wanted.is_empty() {
-        return Ok(shown);
+        return Ok(HashSet::new());
     }
-    let mut notes = conn.prepare(concat!(
-        "SELECT ",
-        schema::readable_body!("d."),
-        " FROM docs d WHERE ",
+    let wanted = serde_json::to_string(&wanted.into_iter().collect::<Vec<_>>())
+        .expect("a list of strings serialises");
+    let mut stmt = conn.prepare_cached(concat!(
+        "SELECT DISTINCT f.file_id FROM note_files f JOIN docs d ON d.id = f.note_id
+         WHERE f.file_id IN (SELECT value FROM json_each(?1)) AND ",
         schema::discoverable!("d.")
     ))?;
-    let mut rows = notes.query([])?;
-    while let Some(row) = rows.next()? {
-        let body: Option<String> = row.get(0)?;
-        for id in linked_file_ids(body.as_deref().unwrap_or("")) {
-            if wanted.remove(id.as_str()) {
-                shown.insert(id);
-            }
-        }
-        if wanted.is_empty() {
-            break;
-        }
-    }
+    let shown = stmt
+        .query_map([wanted], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
     Ok(shown)
 }
 
