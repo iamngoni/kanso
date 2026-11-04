@@ -147,12 +147,27 @@ fn normalize_note(id: &str, f: &mut Map<String, Value>, now: i64, refs: Refs) ->
     };
     f.insert("pinned".into(), pinned.into());
     let doctype = string_or(f, "doctype", "markdown")?;
+    // A canvas note's body is one `canvas` block that parses (empty is a new
+    // canvas, or one sealed by a lock), so an API client, an import or a bad
+    // sync can't make a note the canvas view can't open. A Markdown note's
+    // sketches stay within their size caps.
+    let note_body = f.get("body").and_then(Value::as_str).unwrap_or_default();
+    let is_canvas = doctype == "canvas";
+    if is_canvas {
+        if let Err(why) = kanso_core::canvas::check_body(note_body) {
+            return invalid(format!("The canvas '{id}' can't be saved: {why}"));
+        }
+    } else if let Err(why) = kanso_core::canvas::sketch::check_budget(note_body) {
+        return invalid(why);
+    }
     f.insert("doctype".into(), doctype.into());
 
     let updated_at = timestamp(f, "updatedAt")?.unwrap_or(now);
     f.insert("updatedAt".into(), updated_at.into());
     let stamp = timestamp(f, "timestamp")?.unwrap_or(updated_at);
     f.insert("timestamp".into(), stamp.into());
+    // A canvas has no tasks, whatever its cards say.
+    let tasks = if is_canvas { Default::default() } else { tasks };
     f.insert("numOfTasks".into(), tasks.total.into());
     f.insert("numOfCheckedTasks".into(), tasks.checked.into());
     Ok(())

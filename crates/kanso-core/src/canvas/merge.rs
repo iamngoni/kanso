@@ -186,7 +186,7 @@ fn merge_extra(a: &Map<String, Value>, b: &Map<String, Value>) -> Map<String, Va
     let mut out = a.clone();
     for (key, value) in b {
         match out.get(key) {
-            Some(mine) if mine.to_string() >= value.to_string() => {}
+            Some(mine) if json(mine) >= json(value) => {}
             _ => {
                 out.insert(key.clone(), value.clone());
             }

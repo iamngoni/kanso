@@ -154,7 +154,7 @@ enum Op {
     Erase(usize, usize, Vec<(i32, i32)>, u32),
     Move(usize, i32, i32),
     Delete(usize),
-    DeleteEdge(usize),
+    DeleteEdge,
 }
 
 fn arb_op() -> impl Strategy<Value = Op> {
@@ -170,7 +170,7 @@ fn arb_op() -> impl Strategy<Value = Op> {
             .prop_map(|(n, s, p, r)| Op::Erase(n, s, p, r)),
         (0usize..4, -900i32..900, -900i32..900).prop_map(|(n, x, y)| Op::Move(n, x, y)),
         (0usize..4).prop_map(Op::Delete),
-        (0usize..3).prop_map(Op::DeleteEdge),
+        Just(Op::DeleteEdge),
     ]
 }
 
@@ -268,7 +268,7 @@ fn edit(mut c: Canvas, who: &str, ops: &[Op], clock: i64) -> Canvas {
             Op::Delete(node) => {
                 c.remove_node(NODES[*node], now);
             }
-            Op::DeleteEdge(_) => {
+            Op::DeleteEdge => {
                 c.remove_edge("e1", now);
             }
         }

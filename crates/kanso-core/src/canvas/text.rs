@@ -14,7 +14,7 @@ impl Canvas {
         let mut lines: Vec<String> = Vec::new();
         for node in self.live_nodes() {
             let line = match node.kind.as_str() {
-                "text" => node.text.as_deref().map(|t| one_line(t)),
+                "text" => node.text.as_deref().map(one_line),
                 "file" => node
                     .title
                     .as_deref()

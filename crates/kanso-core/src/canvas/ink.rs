@@ -36,7 +36,7 @@ pub fn split_stroke(
     mut fresh_id: impl FnMut() -> String,
 ) -> Split {
     let pts = &stroke.points;
-    if pts.is_empty() || eraser.path.is_empty() || !(eraser.radius > 0.0) {
+    if pts.is_empty() || eraser.path.is_empty() || eraser.radius.is_nan() || eraser.radius <= 0.0 {
         return Split::Untouched;
     }
     let mut removed: Vec<(f64, f64)> = Vec::new();
@@ -81,9 +81,7 @@ pub fn split_stroke(
             let mut points = vec![at(pts, a)];
             let first = a.floor() as usize + 1;
             let end = b.ceil() as usize;
-            for k in first..end {
-                points.push(pts[k]);
-            }
+            points.extend_from_slice(&pts[first..end]);
             points.push(at(pts, b));
             Stroke {
                 id: fresh_id(),
