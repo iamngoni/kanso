@@ -425,6 +425,26 @@ CREATE TABLE IF NOT EXISTS note_revisit (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS note_revisit_day ON note_revisit (on_day);
 "#,
+    // Text in PDFs (issue #43 step 7): the words on each page of a PDF,
+    // extracted on this device and never synced, and what each PDF's
+    // extraction was made from. `file_text` mirrors the joined pages.
+    r#"
+CREATE TABLE IF NOT EXISTS pdf_state (
+    file_id TEXT PRIMARY KEY NOT NULL,
+    -- The MD5 of the bytes the pages were read from.
+    md5 TEXT NOT NULL,
+    pages INTEGER NOT NULL,
+    engine TEXT NOT NULL,
+    at INTEGER NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS pdf_page_text (
+    file_id TEXT NOT NULL,
+    -- From 1.
+    page INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (file_id, page)
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
