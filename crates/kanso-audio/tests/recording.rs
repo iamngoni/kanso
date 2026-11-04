@@ -441,3 +441,93 @@ proptest! {
         }
     }
 }
+
+/// A last page that is all there but torn inside (the length reached the
+/// disk, not every byte) fails its checksum: it is left out of the length
+/// as well as the audio, so the duration matches what plays.
+#[test]
+fn a_torn_last_page_is_left_out_of_the_length() {
+    let pcm = signal(SAMPLE_RATE as usize * 6, 1, 9);
+    let (memory, _) = record(&pcm, EncodeConfig::new(Channels::Mono), 1_000);
+    let mut bytes = memory.bytes(0);
+    let last = Index::of(&bytes).entries.last().unwrap().offset as usize;
+    let n = bytes.len();
+    bytes[n - 3] ^= 0x55;
+    let mut reader = OpusReader::open(Cursor::new(bytes)).unwrap();
+    let out = reader.read_to_end().unwrap();
+    assert_eq!(out.len() as u64, reader.info().total_samples);
+    assert!(
+        reader
+            .index()
+            .entries
+            .iter()
+            .all(|e| (e.offset as usize) < last)
+    );
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+        ..ProptestConfig::with_cases(256)
+    })]
+
+    /// Flipped, cut or overwritten bytes anywhere in a recording never
+    /// panic: opening, reading, seeking and Symphonia's fallback all return.
+    #[test]
+    fn prop_damaged_recordings_never_panic(
+        flips in proptest::collection::vec((any::<prop::sample::Index>(), any::<u8>()), 0..12),
+        cut in any::<prop::sample::Index>(),
+        seek in 0u64..200_000,
+        stereo in any::<bool>(),
+    ) {
+        let channels = if stereo { Channels::Stereo } else { Channels::Mono };
+        let pcm = signal(SAMPLE_RATE as usize * 3, channels.count(), 3);
+        let (memory, _) = record(&pcm, EncodeConfig::new(channels), 4_000);
+        let mut bytes = memory.bytes(0);
+        for (at, b) in &flips {
+            let i = at.index(bytes.len());
+            bytes[i] ^= b | 1;
+        }
+        bytes.truncate(cut.index(bytes.len() + 1));
+        if let Ok(mut reader) = OpusReader::open(Cursor::new(bytes.clone())) {
+            let total = reader.info().total_samples;
+            let out = reader.read_to_end();
+            if let Ok(out) = out {
+                prop_assert!(out.len() as u64 <= total * channels.count() as u64);
+            }
+            let _ = reader.seek(seek);
+            let _ = reader.read_to_end();
+        }
+        if let Ok(mut source) = open_bytes(bytes, None) {
+            let mut buf = Vec::new();
+            for _ in 0..10_000 {
+                match source.read(&mut buf) {
+                    Ok(Some(_)) => {}
+                    _ => break,
+                }
+            }
+            let _ = source.seek(seek);
+        }
+    }
+
+    /// Pages forged with the largest sizes and granules Ogg can declare
+    /// never make the scanner allocate or read past the bytes there.
+    #[test]
+    fn prop_forged_pages_are_bounded(
+        pages in proptest::collection::vec((any::<u64>(), any::<u8>(), any::<u8>()), 1..20),
+    ) {
+        let mut bytes = Vec::new();
+        for (granule, flags, segments) in pages {
+            bytes.extend_from_slice(b"OggS\0");
+            bytes.push(flags);
+            bytes.extend_from_slice(&granule.to_le_bytes());
+            bytes.extend_from_slice(&[0; 12]);
+            bytes.push(segments);
+            bytes.extend(std::iter::repeat_n(255u8, usize::from(segments)));
+            bytes.extend_from_slice(&[0; 100]);
+        }
+        let index = PageIndex::scan(&mut Cursor::new(bytes.clone())).unwrap();
+        prop_assert!(index.entries.iter().all(|e| (e.offset as usize) < bytes.len()));
+        let _ = OpusReader::open(Cursor::new(bytes));
+    }
+}

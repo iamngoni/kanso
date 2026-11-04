@@ -111,6 +111,8 @@ jobs:
       # with CMake (Linux has it from linux-deps.sh).
       - name: CMake (libopus)
         run: scripts/cmake-deps.sh
+        # Windows' default shell is PowerShell, which can't run the script.
+        shell: bash
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - run: cargo clippy --workspace --locked -- -D warnings
       # Everything but the app runs here too: the store, sync, server,

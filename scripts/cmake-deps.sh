@@ -22,18 +22,34 @@ Darwin)
 	fi
 	;;
 MINGW* | MSYS* | CYGWIN*)
-	for dir in "${ProgramFiles:-/c/Program Files}/CMake/bin" "${LOCALAPPDATA:-}/Programs/CMake/bin"; do
-		if [ -x "$dir/cmake.exe" ]; then
-			echo "Using cmake from $dir."
-			if [ -n "${GITHUB_PATH:-}" ]; then
-				(cd "$dir" && pwd -W) >>"$GITHUB_PATH"
+	# ProgramFiles and LOCALAPPDATA are Windows paths (C:\...); cygpath
+	# turns them into ones Git Bash's tests understand.
+	unix() { cygpath -u "$1" 2>/dev/null || printf '%s' "$1"; }
+	program_files=$(unix "${ProgramFiles:-C:\Program Files}")
+	local_app_data=$(unix "${LOCALAPPDATA:-}")
+	use_dir() {
+		for dir in "$program_files/CMake/bin" "$local_app_data/Programs/CMake/bin"; do
+			if [ -x "$dir/cmake.exe" ]; then
+				echo "Using cmake from $dir."
+				# Later steps start new shells: put it on their PATH too.
+				if [ -n "${GITHUB_PATH:-}" ]; then
+					(cd "$dir" && pwd -W) >>"$GITHUB_PATH"
+				fi
+				return 0
 			fi
-			exit 0
-		fi
-	done
+		done
+		return 1
+	}
+	if use_dir; then
+		exit 0
+	fi
 	if command -v choco >/dev/null 2>&1; then
 		choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-		exit 0
+		# The installer's System PATH only reaches new logins, not this
+		# runner's later steps.
+		if use_dir; then
+			exit 0
+		fi
 	fi
 	;;
 esac

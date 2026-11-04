@@ -4,7 +4,10 @@
 //!
 //! Scanning reads each page's 27-byte header and segment table and skips its
 //! body, so a 10 MB part takes milliseconds. A last page cut short by a crash
-//! is left out, as every Ogg reader leaves it out.
+//! is left out, as every Ogg reader leaves it out, and so is a page that is
+//! all there but fails its checksum (the length reached the disk before
+//! every byte did): the decoder stops at such a page, so the index must too,
+//! or the duration would count audio that never plays.
 
 use std::io::{self, Read, Seek, SeekFrom};
 
@@ -13,6 +16,24 @@ use crate::model::PageEntry;
 const CAPTURE: &[u8; 4] = b"OggS";
 const HEADER_LEN: u64 = 27;
 const CONTINUED: u8 = 0x01;
+/// The largest body a page can declare: 255 lacing values of 255.
+const MAX_BODY: usize = 255 * 255;
+
+/// The Ogg page checksum: CRC-32, polynomial 0x04c11db7, not reflected,
+/// starting at 0, over the page with its checksum field zeroed.
+fn crc_update(mut crc: u32, bytes: &[u8]) -> u32 {
+    for &b in bytes {
+        crc ^= u32::from(b) << 24;
+        for _ in 0..8 {
+            crc = if crc & 0x8000_0000 != 0 {
+                (crc << 1) ^ 0x04c1_1db7
+            } else {
+                crc << 1
+            };
+        }
+    }
+    crc
+}
 
 /// One page header, as far as the index needs it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,8 +47,8 @@ pub struct PageHeader {
 }
 
 /// Reads the page header at the reader's position and moves past the page.
-/// `None` at the end of the file, at a page that isn't there whole, or at
-/// bytes that aren't a page.
+/// `None` at the end of the file, at a page that isn't there whole, at a
+/// page that fails its checksum, or at bytes that aren't a page.
 pub fn read_page_header<R: Read + Seek>(
     reader: &mut R,
     offset: u64,
@@ -49,7 +70,18 @@ pub fn read_page_header<R: Read + Seek>(
     if offset + len > file_len {
         return Ok(None);
     }
-    reader.seek(SeekFrom::Current(body as i64))?;
+    let mut data = vec![0u8; body as usize];
+    debug_assert!(data.len() <= MAX_BODY);
+    reader.read_exact(&mut data)?;
+    let stored = u32::from_le_bytes(header[22..26].try_into().unwrap());
+    header[22..26].fill(0);
+    let crc = crc_update(
+        crc_update(crc_update(0, &header), &table[..segments]),
+        &data,
+    );
+    if crc != stored {
+        return Ok(None);
+    }
     let granule = i64::from_le_bytes(header[6..14].try_into().unwrap());
     Ok(Some(PageHeader {
         offset,
