@@ -11,6 +11,7 @@ license = "AGPL-3.0-or-later"
 [workspace.dependencies]
 kanso-acp = { path = "crates/kanso-acp" }
 kanso-ai = { path = "crates/kanso-ai" }
+kanso-audio = { path = "crates/kanso-audio" }
 kanso-core = { path = "crates/kanso-core" }
 kanso-engine = { path = "crates/kanso-engine" }
 kanso-store = { path = "crates/kanso-store" }
