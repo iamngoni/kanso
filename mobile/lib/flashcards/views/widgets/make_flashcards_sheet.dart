@@ -10,12 +10,19 @@ import '../../../core/bridge/api/ai.dart';
 import '../../../core/bridge/api/cards.dart';
 import '../../../core/bridge/api/cards_types.dart';
 import '../../../core/bridge/api/library.dart';
+import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/kanso_error_mapping.dart';
-import '../../../core/views/widgets/kanso_bottom_sheet.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
+import '../../../core/views/widgets/kanso_card.dart';
+import '../../../core/views/widgets/kanso_checkbox.dart';
+import '../../../core/views/widgets/kanso_icon_button.dart';
+import '../../../core/views/widgets/kanso_inline_message.dart';
+import '../../../core/views/widgets/kanso_progress.dart';
+import '../../../core/views/widgets/kanso_text_field.dart';
+import '../../../core/views/widgets/sheet_header.dart';
 import '../../../injection.dart';
 import '../../utils/flashcards_text.dart';
 
@@ -25,9 +32,8 @@ import '../../utils/flashcards_text.dart';
 Future<void> showMakeFlashcards(BuildContext context, String noteId) {
   return showKansoBottomSheet<void>(
     context,
-    builder: (context) => KansoBottomSheet(
-      child: MakeFlashcardsSheet(noteId: noteId),
-    ),
+    restingFraction: MakeFlashcardsSheet.restingFraction,
+    builder: (context) => MakeFlashcardsSheet(noteId: noteId),
   );
 }
 
@@ -43,6 +49,9 @@ class MakeFlashcardsSheet extends StatefulWidget {
 
   final String noteId;
 
+  /// How tall it opens; its handle pulls it up to the full height.
+  static const double restingFraction = 0.78;
+
   @override
   State<MakeFlashcardsSheet> createState() => _MakeFlashcardsSheetState();
 }
@@ -56,6 +65,9 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
   String? _error;
   bool _working = true;
   bool _adding = false;
+  final TextEditingController _question = TextEditingController();
+  final TextEditingController _answer = TextEditingController();
+  _Row? _editing;
 
   @override
   void initState() {
@@ -90,60 +102,45 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
   void dispose() {
     _run.stop();
     unawaited(_events?.cancel());
+    _question.dispose();
+    _answer.dispose();
     super.dispose();
   }
 
-  Future<void> _edit(_Row row) async {
-    final q = TextEditingController(text: row.card.question);
-    final a = TextEditingController(text: row.card.answer);
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            TextField(
-              controller: q,
-              decoration: const InputDecoration(labelText: 'Question'),
-              maxLines: null,
-            ),
-            TextField(
-              controller: a,
-              decoration: const InputDecoration(labelText: 'Answer'),
-              maxLines: null,
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-    );
-    if ((saved ?? false) &&
-        q.text.trim().isNotEmpty &&
-        a.text.trim().isNotEmpty) {
-      setState(() {
+  /// Opens card [row] for editing in place, keeping what was typed in
+  /// another.
+  void _edit(_Row row) {
+    _finishEdit();
+    _question.text = row.card.question;
+    _answer.text = row.card.answer;
+    setState(() => _editing = row);
+  }
+
+  /// Keeps the edit in progress, unless it left the question or the answer
+  /// empty.
+  void _finishEdit() {
+    final row = _editing;
+    if (row == null) {
+      return;
+    }
+    final q = _question.text.trim();
+    final a = _answer.text.trim();
+    setState(() {
+      _editing = null;
+      if (q.isNotEmpty && a.isNotEmpty) {
         row.card = SuggestedCard(
-          question: q.text.trim(),
-          answer: a.text.trim(),
+          question: q,
+          answer: a,
           source: row.card.source,
           line: row.card.line,
           sourceMissing: row.card.sourceMissing,
         );
-      });
-    }
-    q.dispose();
-    a.dispose();
+      }
+    });
   }
 
   Future<void> _add() async {
+    _finishEdit();
     final picked = _rows.where((r) => r.on).toList();
     setState(() => _adding = true);
     try {
@@ -176,80 +173,161 @@ class _MakeFlashcardsSheetState extends State<MakeFlashcardsSheet> {
     final type = context.typography;
     final ticked = _rows.where((r) => r.on).length;
     return Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Text(context.l10n.flashcardsMakeCards, style: type.heading2),
-        const SizedBox(height: KansoSpacing.sm),
-        if (_working)
+        SheetHeader(
+          title: context.l10n.flashcardsMakeCards,
+          actionLabel: context.l10n.settingsClose,
+        ),
+        if (_working) ...<Widget>[
+          const KansoProgressBar(),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: KansoSpacing.lg),
-            child: Row(
-              children: <Widget>[
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: KansoSpacing.sm),
-                Text(
-                  _status.isEmpty
-                      ? context.l10n.flashcardsMakeReading
-                      : _status,
-                  style: type.secondary,
-                ),
-              ],
+            padding: const EdgeInsets.all(KansoSpacing.md),
+            child: Text(
+              _status.isEmpty ? context.l10n.flashcardsMakeReading : _status,
+              style: type.secondary.copyWith(color: colors.textSecondary),
             ),
           ),
+        ],
         if (_error case final message?)
           Padding(
-            padding: const EdgeInsets.only(bottom: KansoSpacing.sm),
-            child: Text(
-              message,
-              style: type.secondary.copyWith(color: colors.danger),
+            padding: const EdgeInsets.fromLTRB(
+              KansoSpacing.md,
+              KansoSpacing.xs,
+              KansoSpacing.md,
+              0,
             ),
+            child: KansoInlineMessage(message: message),
           ),
-        Flexible(
+        Expanded(
           child: ListView(
-            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(
+              KansoSpacing.md,
+              KansoSpacing.xs,
+              KansoSpacing.md,
+              KansoSpacing.md,
+            ),
             children: <Widget>[
               for (final row in _rows)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: row.on,
-                  onChanged: (v) => setState(() => row.on = v ?? false),
-                  title: Text(
-                    '${row.card.question} → ${row.card.answer}',
-                    style: type.body,
-                  ),
-                  subtitle: row.card.sourceMissing
-                      ? Text(
-                          context.l10n.flashcardsSourceNotFound,
-                          style: type.meta.copyWith(color: colors.warning),
-                        )
-                      : row.card.line == null
-                      ? null
-                      : Text(
-                          'from line ${row.card.line! + 1}',
-                          style: type.meta.copyWith(
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                  secondary: IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _edit(row),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: KansoSpacing.xs),
+                  child: identical(row, _editing)
+                      ? _editor(context)
+                      : _card(context, row),
                 ),
             ],
           ),
         ),
-        const SizedBox(height: KansoSpacing.sm),
-        KansoButton(
-          label: context.l10n.flashcardsAddCards(ticked),
-          onPressed: ticked == 0 || _adding || _working ? null : _add,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            KansoSpacing.md,
+            KansoSpacing.xs,
+            KansoSpacing.md,
+            KansoSpacing.md,
+          ),
+          child: KansoButton(
+            label: context.l10n.flashcardsAddCards(ticked),
+            onPressed: ticked == 0 || _adding || _working ? null : _add,
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _card(BuildContext context, _Row row) {
+    final colors = context.colors;
+    final type = context.typography;
+    return KansoCard(
+      padding: const EdgeInsets.all(KansoSpacing.sm),
+      borderColor: row.on ? colors.accent : null,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: KansoCheckbox(
+              value: row.on,
+              onChanged: (v) => setState(() => row.on = v),
+            ),
+          ),
+          const SizedBox(width: KansoSpacing.sm),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => row.on = !row.on),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(row.card.question, style: type.body),
+                  const SizedBox(height: KansoSpacing.xxs),
+                  Text(
+                    row.card.answer,
+                    style: type.secondary.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                  if (row.card.sourceMissing)
+                    Padding(
+                      padding: const EdgeInsets.only(top: KansoSpacing.xxs),
+                      child: Text(
+                        context.l10n.flashcardsSourceNotFound,
+                        style: type.meta.copyWith(color: colors.warning),
+                      ),
+                    )
+                  else if (row.card.line != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: KansoSpacing.xxs),
+                      child: Text(
+                        'from line ${row.card.line! + 1}',
+                        style: type.meta.copyWith(color: colors.textSecondary),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          KansoIconButton(
+            icon: KansoIcons.pencil,
+            semanticLabel: 'Edit card',
+            onPressed: () => _edit(row),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _editor(BuildContext context) {
+    final colors = context.colors;
+    return KansoCard(
+      padding: const EdgeInsets.all(KansoSpacing.sm),
+      borderColor: colors.accent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          KansoTextField(
+            controller: _question,
+            hint: 'Question',
+            autofocus: true,
+            maxLines: 4,
+          ),
+          const Divider(height: KansoSpacing.md),
+          KansoTextField(
+            controller: _answer,
+            hint: 'Answer',
+            maxLines: 6,
+          ),
+          const SizedBox(height: KansoSpacing.xs),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: KansoButton(
+              label: context.l10n.noteListDone,
+              compact: true,
+              expanded: false,
+              onPressed: _finishEdit,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

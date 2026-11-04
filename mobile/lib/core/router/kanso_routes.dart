@@ -102,9 +102,6 @@ abstract final class KansoRoutes {
   /// Settings > Flashcards.
   static const String flashcardsSettings = '/flashcards/settings';
 
-  /// Quiz Me, with the note IDs as `extra`.
-  static const String quiz = '/quiz';
-
   /// Draft from notes, with the note IDs as `extra`.
   static const String draft = '/draft';
 

@@ -13,6 +13,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../injection.dart';
 import 'make_flashcards_sheet.dart';
+import 'quiz_sheet.dart';
 
 /// "Draft from This Note…", "Make Flashcards…" and "Quiz Me" for a note's
 /// info menu. They are drawn only while AI is on. A note kept out of AI
@@ -94,11 +95,10 @@ class _LearnNoteActionsState extends State<LearnNoteActions> {
               onTap: _blocked != null
                   ? null
                   : () {
-                      Navigator.of(context).pop();
-                      router.push(
-                        KansoRoutes.quiz,
-                        extra: <String>[widget.noteId],
-                      );
+                      final navigator = Navigator.of(context);
+                      final host = navigator.context;
+                      navigator.pop();
+                      showQuizMe(host, <String>[widget.noteId]);
                     },
             ),
           ],

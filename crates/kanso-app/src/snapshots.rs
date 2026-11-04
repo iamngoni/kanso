@@ -52,6 +52,7 @@ use crate::workspace::{AppState, Workspace, apply_theme};
 mod ai;
 pub(crate) mod ask;
 mod discovery;
+mod learn_modals;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
@@ -5271,6 +5272,30 @@ fn snapshots() {
         shot("dark-settings-general", Dark, Edit, settings_general),
         shot("light-settings-general", Light, Edit, settings_general),
         shot("dark-settings-editor", Dark, Edit, settings_editor),
+        // Quiz Me and Make Flashcards as dialogs over the note.
+        Shot {
+            dialog_width: crate::learn_view::QUIZ_WIDTH,
+            dialog_sample_y: Some(160.),
+            ..shot("light-quiz-modal", Light, Edit, learn_modals::quiz_question)
+        },
+        Shot {
+            dialog_width: crate::learn_view::QUIZ_WIDTH,
+            dialog_sample_y: Some(160.),
+            ..shot("dark-quiz-modal", Dark, Edit, learn_modals::quiz_graded)
+        },
+        Shot {
+            dialog_width: crate::learn_view::CARDS_WIDTH,
+            ..shot("light-flashcards-modal", Light, Edit, learn_modals::cards)
+        },
+        Shot {
+            dialog_width: crate::learn_view::CARDS_WIDTH,
+            ..shot(
+                "dark-flashcards-modal",
+                Dark,
+                Edit,
+                learn_modals::cards_editing,
+            )
+        },
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
         shot("dark-voice-listening", Dark, Edit, voice::editor_listening),

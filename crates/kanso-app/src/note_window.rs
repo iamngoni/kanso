@@ -486,6 +486,8 @@ pub struct NoteWindow {
     /// Draws stand-ins for the traffic lights in headless snapshots.
     #[cfg(test)]
     pub(crate) placeholder_traffic_lights: bool,
+    /// Make Flashcards or Quiz Me, over this window's note.
+    pub(crate) learn_modal: crate::learn_view::ModalSlot,
     _subscriptions: Vec<Subscription>,
     _links: Task<()>,
 }
@@ -590,6 +592,7 @@ impl NoteWindow {
             fixed_frame: None,
             #[cfg(test)]
             placeholder_traffic_lights: false,
+            learn_modal: Default::default(),
             _subscriptions: subscriptions,
             _links: links,
         }
@@ -703,7 +706,16 @@ impl NoteWindow {
             NoteCommand::Present => {
                 crate::presentation::present(self.note_id.clone(), window, cx);
             }
-            NoteCommand::DraftFrom | NoteCommand::MakeFlashcards | NoteCommand::QuizMe => {
+            // Over this window's note, as in the main window.
+            NoteCommand::MakeFlashcards | NoteCommand::QuizMe => {
+                let mode = if matches!(command, NoteCommand::QuizMe) {
+                    crate::learn_model::Mode::Quiz
+                } else {
+                    crate::learn_model::Mode::Make
+                };
+                self.show_learn_modal(mode, window, cx);
+            }
+            NoteCommand::DraftFrom => {
                 let id = self.note_id.clone();
                 in_main_window(cx, move |workspace, window, cx| {
                     workspace.run_note_command(&id, command, window, cx)
@@ -729,6 +741,31 @@ impl NoteWindow {
                 });
             }
         }
+    }
+
+    /// Make Flashcards or Quiz Me as a dialog over this window's note.
+    pub(crate) fn show_learn_modal(
+        &mut self,
+        mode: crate::learn_model::Mode,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<Entity<crate::learn_view::LearnView>> {
+        // The model reads the saved note.
+        self.editor.update(cx, |editor, cx| editor.flush(cx));
+        let id = self.note_id.clone();
+        crate::learn_view::open_modal(
+            self,
+            |this| &mut this.learn_modal,
+            mode,
+            id,
+            window,
+            cx,
+            // The note is the one already open here.
+            |this, _, window, cx| {
+                this.editor
+                    .update(cx, |editor, cx| editor.focus_body(window, cx));
+            },
+        )
     }
 
     fn show_history(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1020,6 +1057,19 @@ impl Render for NoteWindow {
                     }
                 },
             ))
+            // The Note menu's Draft, Make Flashcards and Quiz Me act on
+            // this window's note, as its More menu does.
+            .on_action(cx.listener(|this, _: &crate::learn_view::DraftFromNote, window, cx| {
+                this.run_command(NoteCommand::DraftFrom, window, cx);
+            }))
+            .on_action(cx.listener(
+                |this, _: &crate::learn_view::MakeFlashcardsFromNote, window, cx| {
+                    this.run_command(NoteCommand::MakeFlashcards, window, cx);
+                },
+            ))
+            .on_action(cx.listener(|this, _: &crate::learn_view::QuizMeOnNote, window, cx| {
+                this.run_command(NoteCommand::QuizMe, window, cx);
+            }))
             // What only the main window has, it does there.
             .on_action(|_: &NewNote, _, cx| forward(NewNote, cx))
             .on_action(|_: &OpenCommandPalette, _, cx| forward(OpenCommandPalette, cx))
@@ -1061,6 +1111,8 @@ impl Render for NoteWindow {
                         el.children(resize_handles())
                     })
             })
+            // Quiz Me hides the note under its dialog.
+            .children(self.learn_modal.cover(cx))
             .children(self.render_placeholder_traffic_lights())
     }
 }
