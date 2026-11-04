@@ -26,7 +26,8 @@ import 'package:kanso/settings/state/about/about_bloc.dart';
 import 'package:kanso/settings/state/default_notebook/default_notebook_bloc.dart';
 import 'package:kanso/settings/state/sync_settings/sync_settings_bloc.dart';
 import 'package:kanso/settings/state/word_goal_settings/word_goal_settings_bloc.dart';
-import 'package:kanso/settings/views/widgets/settings_pane.dart';
+import 'package:kanso/settings/views/widgets/about_settings_pane.dart';
+import 'package:kanso/settings/views/widgets/privacy_settings_pane.dart';
 import 'package:kanso/templates/state/daily_template/daily_template_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -43,7 +44,11 @@ import '../../helpers/seeded_appearance_bloc.dart';
 import '../../helpers/settings_blocs.dart';
 import '../../helpers/sync_settings_blocs.dart';
 
-Future<GoRouter> _pump(WidgetTester tester, {int? patch}) async {
+Future<GoRouter> _pump(
+  WidgetTester tester, {
+  Widget pane = const PrivacySettingsPane(),
+  int? patch,
+}) async {
   final about = MockAboutRepository();
   when(about.version).thenAnswer(
     (_) async => Right<ApplicationError, AppVersion>(
@@ -101,7 +106,7 @@ Future<GoRouter> _pump(WidgetTester tester, {int? patch}) async {
         BlocProvider<RemindersSettingsBloc>.value(value: settings.reminders),
         BlocProvider<AiStatusBloc>.value(value: settings.aiStatus),
       ],
-      child: const SettingsPane(),
+      child: pane,
     ),
     size: const Size(393, 1700),
   );
@@ -153,13 +158,13 @@ void main() {
     testWidgets('the Version row adds the patch when there is one', (
       tester,
     ) async {
-      await _pump(tester, patch: 2);
+      await _pump(tester, patch: 2, pane: const AboutSettingsPane());
       await _showVersion(tester);
       expect(find.text('0.9.0 (57), patch 2'), findsOneWidget);
     });
 
     testWidgets('and is as it was without one', (tester) async {
-      await _pump(tester);
+      await _pump(tester, pane: const AboutSettingsPane());
       await _showVersion(tester);
       expect(find.text('0.9.0 (57)'), findsOneWidget);
     });

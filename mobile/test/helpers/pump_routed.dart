@@ -59,6 +59,12 @@ Future<GoRouter> pumpRouted(
         path: '/settings',
         builder: empty,
         routes: <RouteBase>[
+          GoRoute(path: 'general', builder: empty),
+          GoRoute(path: 'appearance', builder: empty),
+          GoRoute(path: 'journal', builder: empty),
+          GoRoute(path: 'discovery', builder: empty),
+          GoRoute(path: 'privacy', builder: empty),
+          GoRoute(path: 'about', builder: empty),
           GoRoute(path: 'notebook', builder: empty),
           GoRoute(path: 'theme', builder: empty),
           GoRoute(path: 'icons', builder: empty),

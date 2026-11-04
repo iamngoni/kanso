@@ -36,7 +36,8 @@ void main() {
     await openLibrary(tester);
     await tester.tap(find.bySemanticsLabel('Settings').first);
     await tester.pumpAndSettle();
-    expect(find.text('Appearance'), findsOneWidget);
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
     expect(find.text('Icons'), findsOneWidget);
     expect(find.text('Lucide'), findsOneWidget);
 

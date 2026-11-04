@@ -12,12 +12,12 @@ desktop is the reference: `crates/kanso-app/src/locked.rs` and
 | Lock note… (sets the lock password the first time, typed twice; asks for it when the notes are closed; only confirms when they are open) | Note › More › Lock note… |
 | Unlock note (Touch ID when on, else the password) | The locked note's card: Unlock with Face ID / Touch ID / fingerprint, and Use password |
 | Remove lock… (confirm; refused in a locked notebook) | Note › More › Remove lock… |
-| Lock notes now | Note › More › Lock notes now, and Settings › Locked notes › Lock notes now |
-| Change lock password… (current, new, again; notes the old password doesn't open keep theirs and are counted) | Settings › Locked notes › Change lock password… |
+| Lock notes now | Note › More › Lock notes now, and Settings › Privacy and security › Locked notes › Lock notes now |
+| Change lock password… (current, new, again; notes the old password doesn't open keep theirs and are counted) | Settings › Privacy and security › Locked notes › Change lock password… |
 | Lock notebook… (same three ways as a note) | A notebook's menu in the library › Lock notebook… |
 | Opening a locked notebook asks once | Showing a locked notebook's list asks once (biometrics, else the password) |
 | Remove notebook lock… (the notebook must be open) | A notebook's menu › Remove lock… |
-| Turn on / off Touch ID; offered once after the first password unlock | Settings › Locked notes › Unlock with Face ID (Touch ID, fingerprint); offered once after the first password unlock |
+| Turn on / off Touch ID; offered once after the first password unlock | Settings › Privacy and security › Locked notes › Unlock with Face ID (Touch ID, fingerprint); offered once after the first password unlock |
 | Auto-lock 10 minutes after unlocking or the last save of a locked note | The same (`kanso_engine::lock::AUTO_LOCK`), and at once when the app goes to the background |
 | — | The app switcher shows a blurred cover while a locked note is open (iOS); `FLAG_SECURE` while a locked note is open (Android: no screenshots, blank recents thumbnail) |
 

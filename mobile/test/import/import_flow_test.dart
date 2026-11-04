@@ -137,6 +137,8 @@ void main() {
         devicePixelRatio: KansoViewport.phone.devicePixelRatio,
         safeArea: KansoViewport.phone.safeArea,
       );
+      await tester.tap(find.text('General'));
+      await tester.pumpAndSettle();
       final importRow = find.text('Import notes').first;
       await tester.ensureVisible(importRow);
       await tester.tap(importRow);

@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
-import 'package:kanso/settings/views/widgets/settings_pane.dart';
+import 'package:kanso/settings/views/widgets/privacy_settings_pane.dart';
 import 'package:kanso_lock/kanso_lock.dart';
 
 import '../../../helpers/browse_blocs.dart';
@@ -315,7 +315,7 @@ void main() {
 
   group('Settings › Locked notes', () {
     Future<void> settings(WidgetTester tester, BrowseApp app) async {
-      unawaited(app.router.push<void>('/settings'));
+      unawaited(app.router.push<void>('/settings/privacy'));
       await tester.pumpAndSettle();
       // The page is a lazily built list, so the row has to be scrolled to
       // before it exists to be found.
@@ -323,7 +323,7 @@ void main() {
         find.text('Change lock password…'),
         200,
         scrollable: find.descendant(
-          of: find.byType(SettingsPane),
+          of: find.byType(PrivacySettingsPane),
           matching: find.byType(Scrollable),
         ),
       );
@@ -336,7 +336,7 @@ void main() {
         at: '/notes',
         session: FixtureSessionRepository(hasLockPassword: false),
       );
-      unawaited(app.router.push<void>('/settings'));
+      unawaited(app.router.push<void>('/settings/privacy'));
       await tester.pumpAndSettle();
       expect(find.text('Locked notes'), findsNothing);
       expect(find.text('Change lock password…'), findsNothing);
