@@ -136,7 +136,7 @@ export function fakeNetwork(): Network & { restore: () => void } {
 		}
 		if (/\/issues\/\d+\/(comments|reactions)$/.test(path)) return jsonResponse({}, 201);
 		if (path.startsWith(`/repos/${REPO}/releases`)) return jsonResponse(net.releases);
-		const compare = /\/compare\/(.+)\.\.\.(.+)$/.exec(path);
+		const compare = /\/compare\/(.+)\.\.\.([^?]+)(?:\?.*)?$/.exec(path);
 		if (compare) return jsonResponse({ commits: (net.commits[decodeURIComponent(compare[2])] ?? []).map((sha) => ({ sha })) });
 		return jsonResponse({ message: "unexpected" }, 404);
 	};

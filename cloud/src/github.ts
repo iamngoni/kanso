@@ -185,16 +185,24 @@ export async function previousTag(env: Env, tag: string, nowMs = Date.now()): Pr
 	return published.find((t) => t !== tag) ?? null;
 }
 
-/** The commit SHAs between two tags (one call, as the compare endpoint answers it). */
+/**
+ * The commit SHAs between two tags. Unpaginated, compare lists at most 250 commits, so a release with
+ * more would leave its merged reports `merged` forever; pages of 100 are read until `total_commits`.
+ */
 export async function commitsBetween(env: Env, base: string, head: string, nowMs = Date.now()): Promise<Set<string>> {
-	const compared = await call<{ commits: { sha: string }[] }>(
-		env,
-		"GET",
-		`/repos/{repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
-		undefined,
-		nowMs,
-	);
-	return new Set(compared.commits.map((c) => c.sha));
+	const out = new Set<string>();
+	for (let page = 1; page <= 30; page++) {
+		const compared = await call<{ total_commits?: number; commits: { sha: string }[] }>(
+			env,
+			"GET",
+			`/repos/{repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}?per_page=100&page=${page}`,
+			undefined,
+			nowMs,
+		);
+		for (const c of compared.commits) out.add(c.sha);
+		if (compared.commits.length < 100 || out.size >= (compared.total_commits ?? 0)) break;
+	}
+	return out;
 }
 
 // ------------------------------------------------------------------- signature

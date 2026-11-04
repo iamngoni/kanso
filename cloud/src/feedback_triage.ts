@@ -95,6 +95,10 @@ const PHONE = /(?:\+?\d[\s().-]?){7,}/;
 const LONG_RUN = /[A-Za-z0-9+/]{20,}/;
 const DOMAIN = /\b[\p{L}\p{N}-]+\.(?:com|org|net|io|app|dev|co|me|ai|xyz|ly|sh|gg|cc)\b/iu;
 const PATH = /(?:[\w.-]+\/){2,}[\w.-]+|[A-Za-z]:\\|(?:^|\s)[~/][\w.-]+\//;
+/** GitHub decodes entities before it finds mentions and links: `&#64;owner` pings, `&#x3a;//` links. */
+const ENTITY = /&(?:#|[A-Za-z][A-Za-z0-9]*;)/;
+/** GFM autolinks `www.` with any top-level domain, so the DOMAIN list alone can't catch it. */
+const WWW = /\bwww\./i;
 
 /** Whether `text` holds anything a public issue must not: a mention, link, markup, code, number to call, secret or path. */
 export function unsafeText(text: string): boolean {
@@ -110,6 +114,8 @@ export function unsafeText(text: string): boolean {
 		PHONE.test(text) ||
 		LONG_RUN.test(text) ||
 		DOMAIN.test(text) ||
+		WWW.test(text) ||
+		ENTITY.test(text) ||
 		PATH.test(text) ||
 		HIDDEN.test(text)
 	);
@@ -194,8 +200,13 @@ export interface IssueDraft {
 	labels: string[];
 }
 
-const footer = (report: Report, credit: boolean): string =>
-	`<sub>Filed from the app · report \`${shortId(report.id)}\` · triage by Haiku${credit && report.credit ? ` · Reported by ${report.credit.name}` : ""}</sub>`;
+/** The credit name as the footer may show it: the reporter's own words, so it passes the same checks (`www.x.y` autolinks). */
+export const creditOf = (report: Report): string | null => (report.credit && !unsafeText(report.credit.name) ? report.credit.name : null);
+
+const footer = (report: Report, credit: boolean): string => {
+	const name = credit ? creditOf(report) : null;
+	return `<sub>Filed from the app · report \`${shortId(report.id)}\` · triage by Haiku${name ? ` · Reported by ${name}` : ""}</sub>`;
+};
 
 const appLine = (app: AppInfo | null): string => (app ? `${app.version} (${app.platform})` : "unknown");
 
@@ -392,20 +403,22 @@ export async function runTriage(env: Env, now: number, limit = BATCH): Promise<T
 		try {
 			let triage: Triage | null = row.triage ? (JSON.parse(row.triage) as Triage) : null;
 			let draft: IssueDraft | null = null;
+			if (!triage && row.triage_attempts < MAX_ATTEMPTS && room <= 0) {
+				// Past today's issue cap, reports wait as `received`; noise would wait too, which costs nothing.
+				report.capped = true;
+				break;
+			}
+			// Every row is claimed before anything leaves the Worker, so an overlapping cron run (or a
+			// retry of a row whose triage is already kept) can't call the model or file on GitHub twice.
+			const claimed = await env.DB.prepare(
+				"UPDATE feedback SET triage_attempts = triage_attempts + 1 WHERE id = ?1 AND status = 'received' AND triage_attempts = ?2 RETURNING id",
+			)
+				.bind(row.id, row.triage_attempts)
+				.first();
+			if (!claimed) continue;
 			if (!triage && row.triage_attempts >= MAX_ATTEMPTS) {
 				draft = bareIssue(r);
 			} else if (!triage) {
-				if (room <= 0) {
-					// Past today's issue cap, reports wait as `received`; noise would wait too, which costs nothing.
-					report.capped = true;
-					break;
-				}
-				const claimed = await env.DB.prepare(
-					"UPDATE feedback SET triage_attempts = triage_attempts + 1 WHERE id = ?1 AND status = 'received' AND triage_attempts = ?2 RETURNING id",
-				)
-					.bind(row.id, row.triage_attempts)
-					.first();
-				if (!claimed) continue;
 				try {
 					issues ??= await github.openIssues(env, now);
 					const verdict = validateTriage(await callGateway(gateway, r, issues, await modelImage(env, row)), r.text, issues.map((i) => i.number));
@@ -427,7 +440,8 @@ export async function runTriage(env: Env, now: number, limit = BATCH): Promise<T
 			}
 			if (triage && triage.duplicate_of !== null && !triage.injection_suspected && !triage.contains_personal_data) {
 				await github.commentOnIssue(env, triage.duplicate_of, duplicateComment(triage, r), now);
-				await github.thumbsUp(env, triage.duplicate_of, now);
+				// The comment is the record; a failed reaction must not post the comment again next run.
+				await github.thumbsUp(env, triage.duplicate_of, now).catch(() => {});
 				await settle(env, row.id, now, "duplicate", { duplicate_of: triage.duplicate_of }, `#${triage.duplicate_of}`);
 				report.duplicate += 1;
 				continue;

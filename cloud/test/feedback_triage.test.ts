@@ -318,6 +318,37 @@ describe("failing", () => {
 		expect(gatewayCalls()).toHaveLength(1);
 	});
 
+	it("two overlapping runs over a kept triage file one issue, not two", async () => {
+		net.gateway = [toolAnswer(TRIAGE_OK)];
+		net.failing.push(`POST /repos/${REPO}/issues`);
+		const r = await submit(report());
+		await runTriage(await configured(), NOW);
+		net.failing.length = 0;
+		net.sent.length = 0;
+		const [a, b] = await Promise.all([runTriage(await configured(), NOW + 900_000), runTriage(await configured(), NOW + 900_000)]);
+		expect(a.filed + b.filed).toBe(1);
+		expect(posted(/\/issues$/)).toHaveLength(1);
+		expect(await row(r.id)).toMatchObject({ status: "filed" });
+	});
+
+	it("a failed thumbs-up doesn't post the duplicate comment again on the next run", async () => {
+		net.issues = ISSUES;
+		net.gateway = [toolAnswer({ ...TRIAGE_OK, duplicate_of: 12 })];
+		net.failing.push("/reactions");
+		const r = await submit(report());
+		expect((await runTriage(await configured(), NOW)).duplicate).toBe(1);
+		await runTriage(await configured(), NOW + 900_000);
+		expect(posted(/\/issues\/12\/comments$/)).toHaveLength(1);
+		expect(await row(r.id)).toMatchObject({ status: "duplicate" });
+	});
+
+	it("leaves out a credit name GitHub would turn into a link", async () => {
+		net.gateway = [toolAnswer(TRIAGE_OK)];
+		await submit(report({ credit: { name: "www.evil.example" } }));
+		await runTriage(await configured(), NOW);
+		expect(posted(/\/issues$/)[0].body.body).not.toContain("Reported by");
+	});
+
 	it("stops filing at the day's issue cap and leaves the rest received", async () => {
 		await setSetting("feedback_issues_per_day", "2");
 		net.gateway = [toolAnswer(TRIAGE_OK)];
@@ -473,7 +504,7 @@ describe("properties", () => {
 
 	it("poison anywhere in a field is refused", () => {
 		fc.assert(
-			fc.property(fc.constantFrom("@x", "http", "://", "`", "<", ">", "[", "](", "#7"), text, text, (bit, a, b) => {
+			fc.property(fc.constantFrom("@x", "http", "://", "`", "<", ">", "[", "](", "#7", "&#64;", "&commat;", " www.x "), text, text, (bit, a, b) => {
 				const field = `${a}${bit}${b}`;
 				expect(unsafeText(field)).toBe(true);
 				expect(validateTriage(good({ summary: field }), "", []).ok).toBe(false);
