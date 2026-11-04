@@ -307,6 +307,7 @@ fn summary(note: &Note, locked: bool) -> NoteSummary {
         tasks_done: note.num_of_checked_tasks,
         tasks_total: note.num_of_tasks,
         locked,
+        canvas: note.doctype == "canvas",
     }
 }
 

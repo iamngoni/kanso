@@ -481,3 +481,95 @@ proptest! {
         prop_assert!(merged.validate().is_ok());
     }
 }
+
+/// A plain Markdown note in the same book.
+fn markdown(store: &Store, id: &str, b: &str, body: &str) {
+    let f = json!({"bookId": b, "title": "Plain", "body": body, "updatedAt": 1})
+        .as_object()
+        .unwrap()
+        .clone();
+    put(store, id, &f, Origin::Ui).unwrap();
+}
+
+fn listed(store: &Store, doctype: Option<&str>, not: bool, q: &str) -> Vec<String> {
+    let params = SearchParams {
+        query: Query::parse(q),
+        doctype: doctype.map(str::to_owned),
+        not_doctype: not,
+        ..SearchParams::default()
+    };
+    let mut ids: Vec<String> = store
+        .search_summaries(&params)
+        .unwrap()
+        .into_iter()
+        .map(|s| s.id)
+        .collect();
+    ids.sort();
+    ids
+}
+
+#[test]
+fn canvases_have_their_own_list_and_leave_all_notes() {
+    let (_dir, store) = temp_store();
+    let b = book(&store);
+    put(
+        &store,
+        "note:board",
+        &fields(&b, &canvas_with("shared words"), 10),
+        Origin::Ui,
+    )
+    .unwrap();
+    markdown(&store, "note:plain", &b, "shared words too");
+
+    assert_eq!(listed(&store, Some("canvas"), false, ""), ["note:board"]);
+    // All Notes with no search leaves canvases out ...
+    assert_eq!(listed(&store, Some("canvas"), true, ""), ["note:plain"]);
+    // ... and no filter (a search, a notebook, a tag) finds both.
+    assert_eq!(
+        listed(&store, None, false, "shared"),
+        ["note:board", "note:plain"]
+    );
+
+    let summaries = store.search_summaries(&SearchParams::default()).unwrap();
+    assert!(
+        summaries
+            .iter()
+            .find(|s| s.id == "note:board")
+            .unwrap()
+            .canvas
+    );
+    assert!(
+        !summaries
+            .iter()
+            .find(|s| s.id == "note:plain")
+            .unwrap()
+            .canvas
+    );
+
+    let counts = store.status_counts().unwrap();
+    assert_eq!((counts.all, counts.canvases), (2, 1));
+    assert_eq!(
+        store.canvas_ids().unwrap().into_iter().collect::<Vec<_>>(),
+        ["note:board"]
+    );
+}
+
+#[test]
+fn a_trashed_canvas_is_not_counted_or_listed_as_one() {
+    let (_dir, store) = temp_store();
+    let b = book(&store);
+    put(
+        &store,
+        "note:board",
+        &fields(&b, &canvas_with("x"), 10),
+        Origin::Ui,
+    )
+    .unwrap();
+    let mut f = fields(&b, &canvas_with("x"), 11);
+    f.insert("bookId".into(), "trash".into());
+    put(&store, "note:board", &f, Origin::Ui).unwrap();
+    let counts = store.status_counts().unwrap();
+    assert_eq!((counts.canvases, counts.trash), (0, 1));
+    assert!(store.canvas_ids().unwrap().is_empty());
+    assert!(listed(&store, Some("canvas"), false, "").is_empty());
+}
