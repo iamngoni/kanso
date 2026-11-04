@@ -9,6 +9,7 @@ pub mod annotation;
 pub mod link;
 pub mod model;
 pub mod quote;
+pub mod text;
 
 pub use annotation::{BlockSpan, find_blocks, new_highlight_id, upsert_block};
 pub use link::PdfLink;
@@ -17,6 +18,10 @@ pub use model::{
     PdfBlock, Quad,
 };
 pub use quote::{Edit, append_quote, render_quote};
+pub use text::{
+    CharPos, FindIndex, Glyph, HighlightParts, PageLayout, PageText, Point, Selection, TextChar,
+    TextDoc,
+};
 
 /// Why a block, a highlight or a link was refused.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
