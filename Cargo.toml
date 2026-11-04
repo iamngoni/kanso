@@ -13,6 +13,7 @@ kanso-acp = { path = "crates/kanso-acp" }
 kanso-ai = { path = "crates/kanso-ai" }
 kanso-audio = { path = "crates/kanso-audio" }
 kanso-core = { path = "crates/kanso-core" }
+kanso-pdf = { path = "crates/kanso-pdf" }
 kanso-engine = { path = "crates/kanso-engine" }
 kanso-store = { path = "crates/kanso-store" }
 kanso-import = { path = "crates/kanso-import" }

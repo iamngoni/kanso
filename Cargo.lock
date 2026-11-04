@@ -4779,6 +4779,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kanso-pdf"
+version = "0.9.4"
+dependencies = [
+ "fastrand",
+ "kanso-core",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "kanso-plugin-host"
 version = "0.9.4"
 dependencies = [
