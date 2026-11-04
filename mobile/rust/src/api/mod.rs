@@ -13,6 +13,8 @@ pub mod agent_tasks;
 pub mod ai;
 pub mod approvals;
 pub mod board;
+pub mod canvas;
+pub mod canvas_types;
 pub mod brief;
 pub mod cards;
 pub mod cards_types;

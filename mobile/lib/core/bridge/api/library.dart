@@ -8,6 +8,7 @@ import 'account.dart';
 import 'account_settings.dart';
 import 'ai.dart';
 import 'approvals.dart';
+import 'canvas.dart';
 import 'cards.dart';
 import 'discovery.dart';
 import 'draft.dart';
@@ -75,6 +76,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<BriefPrefs> briefPrefs();
 
+  /// Opens canvas note `id` for drawing.
+  Future<KansoCanvas> canvas({required String id});
+
   /// Saves something shared from inside the app as a note in the Inbox.
   Future<CaptureOutcome> capture({required Share share});
 
@@ -96,6 +100,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   });
 
   Future<Saved> create({required NewNote note});
+
+  /// Makes an empty canvas note.
+  Future<Saved> createCanvas({
+    String? notebookId,
+    String? preferredNotebookId,
+    required String title,
+  });
 
   Future<Saved> createLinkedNote({
     required String title,
@@ -164,6 +175,14 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Imports `path` as a `kind`: progress, then one summary or one
   /// failure. Returns at once; the notes written reach `changes`.
   Stream<ImportEvent> import_({required String kind, required String path});
+
+  /// Makes a canvas note from an Excalidraw scene.
+  Future<Saved> importExcalidraw({
+    required String source,
+    String? notebookId,
+    String? preferredNotebookId,
+    required String title,
+  });
 
   /// What importing `path` as a `kind` would do (one of `import_sources`):
   /// progress, then one summary or one failure. Writes nothing. Returns at
