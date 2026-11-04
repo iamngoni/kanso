@@ -129,6 +129,10 @@ mod passkey_ceremony;
 mod paths;
 mod people_data;
 mod people_view;
+mod player;
+mod player_model;
+#[cfg(test)]
+mod player_tests;
 mod plugin_panel;
 mod plugin_panel_model;
 mod plugin_sheets;

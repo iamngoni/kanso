@@ -499,8 +499,8 @@ impl Decoder {
             self.out.clear();
             return Step::Worked;
         };
-        let speed_milli = (reading.stretch.as_ref().map_or(1.0, Stretcher::speed) * 1_000.0)
-            .round() as u32;
+        let speed_milli =
+            (reading.stretch.as_ref().map_or(1.0, Stretcher::speed) * 1_000.0).round() as u32;
         let start_us = reading.origin_us
             + (reading.emitted as f64 * f64::from(speed_milli) / 1_000.0 * MICROS as f64
                 / f64::from(self.rate)) as u64;
@@ -596,7 +596,11 @@ impl Output {
                 self.played = 0;
             }
             let n = (self.left as usize).min(frames - written);
-            self.copy(&mut out[written * channels..(written + n) * channels], channels, n);
+            self.copy(
+                &mut out[written * channels..(written + n) * channels],
+                channels,
+                n,
+            );
             self.left -= n as u32;
             self.played += n as u64;
             written += n;

@@ -45,7 +45,9 @@ pub struct Resample {
 impl Resample {
     pub fn new(from: u32, to: u32) -> Result<Self, AudioError> {
         if !SUPPORTED_RATES.contains(&from) || !SUPPORTED_RATES.contains(&to) {
-            return Err(AudioError::Device(format!("can't resample {from} Hz to {to} Hz")));
+            return Err(AudioError::Device(format!(
+                "can't resample {from} Hz to {to} Hz"
+            )));
         }
         let inner = if from == to {
             None

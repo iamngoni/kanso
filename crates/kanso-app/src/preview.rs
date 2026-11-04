@@ -126,6 +126,9 @@ pub struct Preview {
     note: Arc<Mutex<Option<String>>>,
     /// Draws math and diagrams, and wakes the preview when they are drawn.
     rich: Arc<Rich>,
+    /// The card over a recording's audio line, and the one player the
+    /// window has.
+    player: Entity<RecordingPlayer>,
 }
 
 impl Preview {
@@ -136,7 +139,11 @@ impl Preview {
         cx: &mut Context<Self>,
     ) -> Self {
         let images: Arc<Mutex<HashMap<String, Option<Arc<Image>>>>> = Arc::default();
-        let opened_files = Arc::new(Mutex::new(HashMap::new()));
+        let opened_files: OpenedFiles = Arc::new(Mutex::new(HashMap::new()));
+        let player = {
+            let (store, opened) = (store.clone(), opened_files.clone());
+            cx.new(|cx| RecordingPlayer::new(store, opened, cx))
+        };
         let resolver: ImageResolver = Arc::new(image_resolver(
             store.clone(),
             images.clone(),
@@ -153,7 +160,7 @@ impl Preview {
         });
         let edits = resizes.clone();
         let extensions = quote_extensions(
-            Arc::new(Links(links.clone())),
+            Arc::new(Links::new(links.clone(), Some(player.downgrade()))),
             resolver,
             resizes,
             rich.clone(),
@@ -185,12 +192,25 @@ impl Preview {
             _rich: rich_task,
             note,
             rich,
+            player,
         }
+    }
+
+    /// The recording player this preview has.
+    pub fn player(&self) -> &Entity<RecordingPlayer> {
+        &self.player
     }
 
     /// The note the preview shows, so a query view can leave it out.
     pub fn set_note(&mut self, id: Option<String>, cx: &mut Context<Self>) {
         let changed_id = id.clone();
+        // Another note stops the player; the text that follows (or the text
+        // already here) tells it what the new note holds.
+        let text = self.text.clone();
+        self.player.update(cx, |player, cx| {
+            player.set_note(id.as_deref(), cx);
+            player.set_body(&text, cx);
+        });
         let changed = self.note.lock().map(|mut note| {
             if *note == id {
                 false
@@ -258,6 +278,9 @@ impl Preview {
             return;
         }
         self.text = text;
+        let body = self.text.clone();
+        self.player
+            .update(cx, |player, cx| player.set_body(&body, cx));
         if self.splitting.is_some() {
             return;
         }
@@ -433,6 +456,9 @@ impl Preview {
     pub fn show_at_once(&mut self, text: SharedString, cx: &mut Context<Self>) {
         self.splitting = None;
         self.text = text;
+        let body = self.text.clone();
+        self.player
+            .update(cx, |player, cx| player.set_body(&body, cx));
         let prepared = preview_chunks::prepare(&self.text);
         self.apply(self.text.clone(), prepared, cx);
         self.list.scroll_to(ListOffset::default());
@@ -467,7 +493,10 @@ impl Preview {
     pub fn live_renderer(&self) -> crate::live_marks::MarkdownRenderer {
         let extensions = self.extensions.clone();
         let resolver: ImageResolver = Arc::new(self.image_resolver());
-        let links = Arc::new(Links(self.links.clone()));
+        let links = Arc::new(Links::new(
+            self.links.clone(),
+            Some(self.player.downgrade()),
+        ));
         std::rc::Rc::new(move |state, _window, cx| {
             let ty = preview_type(cx);
             let colors = Colors::get(cx);
@@ -515,7 +544,7 @@ type ImageResolver = Arc<dyn Fn(&SharedUri) -> ImageSource + Send + Sync>;
 
 /// The bytes of the files a locked note opened with the password it was
 /// unlocked with, by file id, with each file's content type.
-type OpenedFiles = Arc<Mutex<HashMap<String, (String, Vec<u8>)>>>;
+use crate::player::{OpenedFiles, RecordingPlayer};
 
 /// Decrypts the attachments of a locked note whose keys this session holds,
 /// so the preview can draw them. Only called from `set_note`.
@@ -584,10 +613,31 @@ fn is_drawable_image(content_type: &str, length: u64) -> bool {
 
 /// Where a clicked link goes: a note link to the editor, a web or mail link
 /// to the system, anything else nowhere.
-struct Links(LinkSender);
+struct Links {
+    sender: LinkSender,
+    /// Where a timestamp link (`kanso-audio://file:…?t=12`) goes: the
+    /// preview's own player.
+    player: Option<WeakEntity<RecordingPlayer>>,
+}
 
 impl Links {
+    fn new(sender: LinkSender, player: Option<WeakEntity<RecordingPlayer>>) -> Self {
+        Links { sender, player }
+    }
+
     fn open(&self, url: &str, cx: &mut App) {
+        if url.starts_with(kanso_engine::recording_note::AUDIO_SCHEME) {
+            if let Some(moment) = kanso_engine::recording_player::parse_moment(url)
+                && let Some(player) = &self.player
+            {
+                player
+                    .update(cx, |player, cx| player.play_moment(&moment, cx))
+                    .ok();
+            }
+            // Never handed to the system.
+            return;
+        }
+        let sender = &self.sender;
         match linked_note(url) {
             Some(id) => {
                 // A line anchor (`#L12-14`) rides along for the workspace to
@@ -600,11 +650,11 @@ impl Links {
                     }
                     _ => id,
                 };
-                self.0.try_send(id).ok();
+                sender.try_send(id).ok();
             }
             // An unresolved wiki-link: the workspace creates its note.
             None if url.starts_with(crate::wikilinks::NEW_NOTE_SCHEME) => {
-                self.0.try_send(url.to_owned()).ok();
+                sender.try_send(url.to_owned()).ok();
             }
             None if is_openable(url) => cx.open_url(url),
             None => {}
@@ -972,12 +1022,12 @@ fn quote_extensions(
     let picture_resizes = resizes.clone();
     let picture_rich = rich.clone();
     let quote_rich = rich.clone();
-    let query_links = links.0.clone();
+    let query_links = links.sender.clone();
     let extensions = MarkdownExtensions::default()
         .parser_revision(QUOTE_PARSER_REVISION)
         .frontmatter()
         // Unresolved wiki-links, drawn dashed (see `crate::wikilinks`).
-        .plugin(crate::wikilinks::UnresolvedLink::new(links.0.clone()))
+        .plugin(crate::wikilinks::UnresolvedLink::new(links.sender.clone()))
         // Tasks' due dates, as chips (see `crate::due`).
         .plugin(crate::due::DueChip)
         .block_parser(parse)
@@ -1268,57 +1318,73 @@ impl Render for Preview {
             .collect();
         let preview = cx.entity().downgrade();
         let resolver: ImageResolver = Arc::new(self.image_resolver());
-        let links = Arc::new(Links(self.links.clone()));
+        let links = Arc::new(Links::new(
+            self.links.clone(),
+            Some(self.player.downgrade()),
+        ));
         let extensions = self.extensions.clone();
-        div().id("preview").size_full().bg(colors.editor).child(
-            list(self.list.clone(), move |ix, window, _| {
-                let Some((state, start, end, key)) = chunks.get(ix).cloned() else {
-                    return div().into_any_element();
-                };
-                let preview = preview.clone();
-                let rem = window.rem_size();
-                let resolver = resolver.clone();
-                let links = links.clone();
-                let extensions = extensions.clone();
-                let ty = ty.clone();
-                div()
-                    .w_full()
-                    .pl(px(TEXT_INSET))
-                    .pr_8()
-                    .pt(room_above(start, ix == 0, ty.size, rem))
-                    .pb(room_below(end, ty.size, rem))
-                    .child(
+        div()
+            .id("preview")
+            .size_full()
+            .bg(colors.editor)
+            .flex()
+            .flex_col()
+            // A recording's player sits above the text; with none it is
+            // nothing at all.
+            .child(self.player.clone())
+            .child(
+                div().flex_1().min_h_0().w_full().child(
+                    list(self.list.clone(), move |ix, window, _| {
+                        let Some((state, start, end, key)) = chunks.get(ix).cloned() else {
+                            return div().into_any_element();
+                        };
+                        let preview = preview.clone();
+                        let rem = window.rem_size();
+                        let resolver = resolver.clone();
+                        let links = links.clone();
+                        let extensions = extensions.clone();
+                        let ty = ty.clone();
                         div()
                             .w_full()
-                            .when(readable, |el| el.max_w(px(readable_width(ty.size, false))))
+                            .pl(px(TEXT_INSET))
+                            .pr_8()
+                            .pt(room_above(start, ix == 0, ty.size, rem))
+                            .pb(room_below(end, ty.size, rem))
                             .child(
-                                TextView::new(&state)
-                                    .style(style.clone())
-                                    .font_family(ty.family)
-                                    .text_size(px(ty.size))
-                                    .line_height(relative(typography::LINE_HEIGHT))
-                                    .text_color(text_color)
-                                    .selectable(true)
-                                    .markdown_extensions(extensions)
-                                    .code_block_actions(code_block_actions)
-                                    .image_source(move |uri| resolver(uri))
-                                    .on_link_click(move |url, _, _, cx| links.open(url, cx))
-                                    // Only here: a quote's or a query's own
-                                    // text view has no map from its text back
-                                    // to the note, so its boxes take no clicks.
-                                    .on_task_click(move |offset, _, cx| {
-                                        preview
-                                            .update(cx, |this, _| {
-                                                this.task_clicked(ix, key, offset)
-                                            })
-                                            .ok();
-                                    }),
-                            ),
-                    )
-                    .into_any_element()
-            })
-            .size_full(),
-        )
+                                div()
+                                    .w_full()
+                                    .when(readable, |el| {
+                                        el.max_w(px(readable_width(ty.size, false)))
+                                    })
+                                    .child(
+                                        TextView::new(&state)
+                                            .style(style.clone())
+                                            .font_family(ty.family)
+                                            .text_size(px(ty.size))
+                                            .line_height(relative(typography::LINE_HEIGHT))
+                                            .text_color(text_color)
+                                            .selectable(true)
+                                            .markdown_extensions(extensions)
+                                            .code_block_actions(code_block_actions)
+                                            .image_source(move |uri| resolver(uri))
+                                            .on_link_click(move |url, _, _, cx| links.open(url, cx))
+                                            // Only here: a quote's or a query's own
+                                            // text view has no map from its text back
+                                            // to the note, so its boxes take no clicks.
+                                            .on_task_click(move |offset, _, cx| {
+                                                preview
+                                                    .update(cx, |this, _| {
+                                                        this.task_clicked(ix, key, offset)
+                                                    })
+                                                    .ok();
+                                            }),
+                                    ),
+                            )
+                            .into_any_element()
+                    })
+                    .size_full(),
+                ),
+            )
     }
 }
 

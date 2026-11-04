@@ -113,6 +113,8 @@ pub mod recording_flow;
 pub mod recording_flow_model;
 pub mod recording_note;
 pub mod recording_note_model;
+pub mod recording_player;
+pub mod recording_player_model;
 pub mod replace;
 pub mod saving;
 pub mod shortcuts;

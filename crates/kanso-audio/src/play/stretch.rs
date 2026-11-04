@@ -116,8 +116,8 @@ impl Stretcher {
             self.prev = Some(q);
             self.next_in += self.hs as f64 * self.speed;
             // Keep what the next search and window can still reach.
-            let keep_from = (q + self.hs as u64)
-                .min((self.next_in as u64).saturating_sub(self.tol as u64));
+            let keep_from =
+                (q + self.hs as u64).min((self.next_in as u64).saturating_sub(self.tol as u64));
             if keep_from > self.base {
                 let drop = ((keep_from - self.base) as usize).min(self.input.len() / 2);
                 self.input.drain(..drop * 2);

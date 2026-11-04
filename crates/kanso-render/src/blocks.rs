@@ -870,7 +870,9 @@ impl<'a> Walk<'a> {
             }
             return;
         }
-        if !html::is_allowed_link(&url) {
+        // A moment in a recording stays a link: the app seeks its player. The
+        // exported page, which has no player, still drops it.
+        if !html::is_allowed_link(&url) && !is_audio_moment(&url) {
             out.extend(inlines);
             return;
         }
@@ -887,6 +889,18 @@ impl<'a> Walk<'a> {
         }
         out.push(Inline::Link { url, inlines });
     }
+}
+
+/// The scheme of a link to a moment in a recording
+/// (`kanso_engine::recording_note::AUDIO_SCHEME`).
+pub const AUDIO_LINK_PREFIX: &str = "kanso-audio://file:";
+
+/// Whether `url` is a link to a moment in a recording, as the app's player
+/// follows. Pure.
+pub fn is_audio_moment(url: &str) -> bool {
+    url.to_ascii_lowercase()
+        .strip_prefix(AUDIO_LINK_PREFIX)
+        .is_some_and(|rest| !rest.is_empty())
 }
 
 /// Prose, with a wiki-link left over (`[[…]]`, naming no note) as its label.
