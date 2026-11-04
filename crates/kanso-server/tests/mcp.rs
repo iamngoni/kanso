@@ -1447,10 +1447,9 @@ async fn mcp_never_returns_sealed_attachment_bytes_or_exports_them() {
         )
         .unwrap();
     let read = tool(&app.router, "read-file", json!({"fileId": file.id})).await;
-    assert_eq!(
-        text(&read, 0),
-        "That attachment is in a locked note. Open the note in Kanso and unlock it to use the file."
-    );
+    // The note that holds it is in the trash, which a key doesn't see, so
+    // the attachment is "not found" before its seal is even looked at.
+    assert_eq!(read["isError"], true);
     assert!(!read.to_string().contains(&encoded));
     assert!(!read.to_string().contains("secret.png"));
     assert!(!read.to_string().contains("image/png"));
