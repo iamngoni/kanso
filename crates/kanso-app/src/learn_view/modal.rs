@@ -138,6 +138,124 @@ impl Render for LearnFooter {
     }
 }
 
+/// What a window keeps of the Make Flashcards or Quiz Me dialog it shows.
+/// The main window and every note window have one, so each opens the
+/// dialog over its own note and never stacks a second one on the first.
+#[derive(Default)]
+pub(crate) struct ModalSlot {
+    view: Option<WeakEntity<LearnView>>,
+    /// Quiz Me is up: the window hides what is under the dialog.
+    cover: bool,
+    _subscriptions: Vec<Subscription>,
+}
+
+impl ModalSlot {
+    /// The view in the open dialog, if one is open.
+    pub(crate) fn view(&self) -> Option<Entity<LearnView>> {
+        self.view.as_ref().and_then(|view| view.upgrade())
+    }
+
+    /// What the window draws over everything it has, under the dialog,
+    /// while Quiz Me is open: the window's own paper, fully opaque. The
+    /// note holds the answers, and the standard dialog overlay leaves it
+    /// readable; even 96% paper left the text legible on a bright screen.
+    pub(crate) fn cover(&self, cx: &App) -> Option<Div> {
+        self.cover.then(|| {
+            let paper = Colors::get(cx).app;
+            div()
+                .debug_selector(|| "learn-quiz-cover".into())
+                .absolute()
+                .inset_0()
+                .bg(paper)
+        })
+    }
+}
+
+/// Opens Make Flashcards or Quiz Me for the note `id` as a dialog in
+/// `window`, kept in the `slot` of `this`, the view that owns the window.
+/// `on_open` runs, once the dialog has closed, when its Open Note button is
+/// pressed. With one already open, that one is returned and nothing new
+/// opens, so two ways in can't stack two dialogs.
+pub(crate) fn open<T: 'static>(
+    this: &mut T,
+    slot: fn(&mut T) -> &mut ModalSlot,
+    mode: Mode,
+    id: String,
+    window: &mut Window,
+    cx: &mut Context<T>,
+    on_open: impl Fn(&mut T, &str, &mut Window, &mut Context<T>) + 'static,
+) -> Option<Entity<LearnView>> {
+    if !cx.global::<AppState>().config.ai.enabled {
+        window.push_notification(
+            Notification::info("Turn on AI in Settings › AI to use this."),
+            cx,
+        );
+        return None;
+    }
+    // A view still alive with no dialog up (something kept a handle to it)
+    // is stale: open a new one rather than refuse.
+    if let Some(view) = slot(this).view()
+        && window.has_active_dialog(cx)
+    {
+        return Some(view);
+    }
+    let store = cx.global::<AppState>().store.clone();
+    let view = cx.new(|cx| {
+        let mut view = LearnView::new(store, window, cx);
+        view.mark_modal();
+        view
+    });
+    let opened = cx.subscribe_in(
+        &view,
+        window,
+        move |this, _, event: &LearnEvent, window, cx| match event {
+            LearnEvent::Open(id) => {
+                window.close_dialog(cx);
+                on_open(this, id, window, cx);
+            }
+        },
+    );
+    // The dialog owns the view: when it closes, the view goes, and with it
+    // the cover.
+    let closed = cx.observe_release(&view, move |this, _, cx| {
+        let slot = slot(this);
+        slot.view = None;
+        slot.cover = false;
+        cx.notify();
+    });
+    *slot(this) = ModalSlot {
+        view: Some(view.downgrade()),
+        cover: mode == Mode::Quiz,
+        _subscriptions: vec![opened, closed],
+    };
+    view.update(cx, |view, cx| view.show(mode, vec![id], window, cx));
+    let footer = cx.new(|cx| LearnFooter {
+        view: view.clone(),
+        _observing: cx.observe(&view, |_, _, cx| cx.notify()),
+    });
+    let body = view.clone();
+    window.open_alert_dialog(cx, move |alert, window, _| {
+        let height = window.viewport_size().height;
+        // Centred in the window for the short card; the tall one keeps
+        // a tenth of the window above it and takes up to 0.8 of it.
+        let top = match mode {
+            Mode::Make => height * 0.1,
+            _ => height * 0.16,
+        };
+        alert
+            .title(mode.title())
+            .width(px(width_of(mode)))
+            .margin_top(top)
+            .close_button(true)
+            .entrance(DialogEntrance::FadeSlide)
+            .child(body.clone())
+            .footer(footer.clone())
+            .on_cancel(|_, _, _| true)
+    });
+    cx.notify();
+    Some(view)
+}
+
 impl Workspace {
     /// Opens Make Flashcards or Quiz Me for the note `id` as a dialog over
     /// the open note. Returns the view in the dialog, for tests and
@@ -149,61 +267,23 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<Entity<LearnView>> {
-        if !cx.global::<AppState>().config.ai.enabled {
-            window.push_notification(
-                Notification::info("Turn on AI in Settings › AI to use this."),
-                cx,
-            );
-            return None;
-        }
         // The model reads the saved note, so what was just typed is saved.
         self.flush(cx);
-        let store = cx.global::<AppState>().store.clone();
-        let view = cx.new(|cx| {
-            let mut view = LearnView::new(store, window, cx);
-            view.mark_modal();
-            view
-        });
-        self._learn_modal_events = Some(cx.subscribe_in(
-            &view,
+        open(
+            self,
+            |this| &mut this.learn_modal,
+            mode,
+            id,
             window,
-            |this, _, event: &LearnEvent, window, cx| match event {
-                LearnEvent::Open(id) => {
-                    window.close_dialog(cx);
-                    let id = id.clone();
-                    this.library
-                        .update(cx, |library, cx| library.select(Some(id), cx));
-                    this.editor
-                        .update(cx, |editor, cx| editor.focus_body(window, cx));
-                }
+            cx,
+            |this, id, window, cx| {
+                let id = id.to_owned();
+                this.library
+                    .update(cx, |library, cx| library.select(Some(id), cx));
+                this.editor
+                    .update(cx, |editor, cx| editor.focus_body(window, cx));
             },
-        ));
-        self.learn_modal = Some(view.downgrade());
-        view.update(cx, |view, cx| view.show(mode, vec![id], window, cx));
-        let footer = cx.new(|cx| LearnFooter {
-            view: view.clone(),
-            _observing: cx.observe(&view, |_, _, cx| cx.notify()),
-        });
-        let body = view.clone();
-        window.open_alert_dialog(cx, move |alert, window, _| {
-            let height = window.viewport_size().height;
-            // Centred in the window for the short card; the tall one keeps
-            // a tenth of the window above it and takes up to 0.8 of it.
-            let top = match mode {
-                Mode::Make => height * 0.1,
-                _ => height * 0.16,
-            };
-            alert
-                .title(mode.title())
-                .width(px(width_of(mode)))
-                .margin_top(top)
-                .close_button(true)
-                .entrance(DialogEntrance::FadeSlide)
-                .child(body.clone())
-                .footer(footer.clone())
-                .on_cancel(|_, _, _| true)
-        });
-        Some(view)
+        )
     }
 }
 

@@ -41,6 +41,8 @@ use crate::zoom::px;
 
 mod modal;
 
+pub(crate) use modal::{ModalSlot, open as open_modal};
+
 #[cfg(test)]
 pub use modal::{CARDS_WIDTH, QUIZ_WIDTH};
 
@@ -353,6 +355,8 @@ impl LearnView {
                     );
                 } else {
                     self.picks = picks_from(found);
+                    // An edit names a card by place, and these are new.
+                    self.editing = None;
                     self.phase = Phase::Ready;
                 }
             }
