@@ -1101,6 +1101,13 @@ impl NoteList {
                 colors,
             )
             .into_any_element(),
+            Filter::Canvases => quiet_empty(
+                library_icon(Slot::Canvas),
+                "No canvases".into(),
+                Some("Choose Note › New Canvas to start one.".into()),
+                colors,
+            )
+            .into_any_element(),
             Filter::Recent => quiet_empty(
                 library_icon(Slot::Recent),
                 "No recent notes".into(),

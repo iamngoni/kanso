@@ -27,6 +27,7 @@ pub enum Slot {
     AllNotes,
     Pinned,
     Recent,
+    Canvas,
     Tasks,
     Shared,
     Trash,
@@ -51,7 +52,7 @@ pub enum Fallback {
 
 impl Slot {
     /// Every slot, in the order the format documents them.
-    pub const ALL: [Slot; 28] = [
+    pub const ALL: [Slot; 29] = [
         Slot::Notebook,
         Slot::NotebookOpen,
         Slot::NotebookLocked,
@@ -69,6 +70,7 @@ impl Slot {
         Slot::AllNotes,
         Slot::Pinned,
         Slot::Recent,
+        Slot::Canvas,
         Slot::Tasks,
         Slot::Shared,
         Slot::Trash,
@@ -167,6 +169,11 @@ impl Slot {
                 "recent",
                 "Recent notes, in the sidebar and the palette.",
                 Icon("clock"),
+            ),
+            Slot::Canvas => (
+                "canvas",
+                "Canvases, in the sidebar and beside a canvas in lists.",
+                Icon("pen-tool"),
             ),
             Slot::Tasks => (
                 "tasks",

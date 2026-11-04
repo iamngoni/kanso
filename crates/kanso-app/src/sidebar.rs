@@ -1610,6 +1610,13 @@ impl Sidebar {
                         cx,
                     ))
                     .child(self.rail_place(
+                        "rail-canvases",
+                        library_icon(Slot::Canvas),
+                        "Canvases",
+                        Filter::Canvases,
+                        cx,
+                    ))
+                    .child(self.rail_place(
                         "rail-tasks",
                         library_icon(Slot::Tasks),
                         "Tasks",
@@ -1713,7 +1720,8 @@ impl Render for Sidebar {
             Entry {
                 icon: Some(icon),
                 label: "All Notes".into(),
-                count: counts.all,
+                // Canvases have their own row.
+                count: counts.all.saturating_sub(counts.canvases),
                 depth: 0,
                 color: None,
             },
@@ -1740,6 +1748,19 @@ impl Render for Sidebar {
                 icon: Some(icon),
                 label: "Recent".into(),
                 count: recent,
+                depth: 0,
+                color: None,
+            },
+            cx,
+        ));
+        let icon = self.icon(library_icon(Slot::Canvas), cx);
+        list = list.child(self.row(
+            "canvases",
+            Filter::Canvases,
+            Entry {
+                icon: Some(icon),
+                label: "Canvases".into(),
+                count: counts.canvases,
                 depth: 0,
                 color: None,
             },

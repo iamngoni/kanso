@@ -52,6 +52,22 @@ impl Action {
     pub fn is_empty(&self) -> bool {
         self.removed.is_empty() && self.added.is_empty()
     }
+
+    /// The one action that does what `self` did and then `next`: a drag of
+    /// the eraser is many small edits and one undo step. A stroke `self`
+    /// added that `next` removed again cancels out.
+    pub fn then(mut self, next: Action) -> Action {
+        for (node, stroke) in next.removed {
+            match self.added.iter().position(|(_, s)| s.id == stroke.id) {
+                Some(at) => {
+                    self.added.remove(at);
+                }
+                None => self.removed.push((node, stroke)),
+            }
+        }
+        self.added.extend(next.added);
+        self
+    }
 }
 
 /// Why a stroke wasn't drawn.

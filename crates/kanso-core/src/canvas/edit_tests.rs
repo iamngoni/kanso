@@ -281,3 +281,32 @@ proptest! {
         }
     }
 }
+
+proptest! {
+    #![proptest_config(config(64))]
+
+    /// Invariant: a drag of the partial eraser, many small edits joined with
+    /// `then`, undoes in one step back to the live strokes it started with.
+    #[test]
+    fn prop_a_joined_drag_undoes_in_one_step(
+        steps in prop::collection::vec((0f64..100., -6f64..6.), 1..12),
+    ) {
+        let mut c = Canvas::default();
+        c.draw(pen(&line(0.0)), 1).unwrap();
+        c.draw(pen(&line(4.0)), 2).unwrap();
+        let before = live(&c);
+        let mut joined = Action::default();
+        let mut last = (0.0, 0.0);
+        for (i, (x, y)) in steps.into_iter().enumerate() {
+            if let Some(a) = c.erase_along(&[last, (x, y)], 3.0, 10 + i as i64) {
+                joined = joined.then(a);
+            }
+            last = (x, y);
+        }
+        if !joined.is_empty() {
+            prop_assert!(c.apply(&joined, false, 100));
+        }
+        prop_assert_eq!(live(&c), before);
+        prop_assert!(c.validate().is_ok());
+    }
+}

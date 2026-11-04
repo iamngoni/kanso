@@ -224,6 +224,7 @@ fn summary_of(note: &kanso_core::Note) -> NoteSummary {
         tasks_done: note.num_of_checked_tasks,
         tasks_total: note.num_of_tasks,
         locked: false,
+        canvas: note.doctype == "canvas",
     }
 }
 
