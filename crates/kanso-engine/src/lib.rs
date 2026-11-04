@@ -89,6 +89,7 @@ pub mod export;
 #[cfg(feature = "ai")]
 pub mod flashcards;
 pub mod feedback;
+pub mod feedback_flow;
 pub mod feedback_model;
 pub mod fuzzy;
 #[cfg(feature = "highlight")]

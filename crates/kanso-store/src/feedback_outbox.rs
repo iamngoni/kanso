@@ -84,14 +84,29 @@ impl Store {
         self.read(|conn| {
             let mut stmt = conn.prepare(&format!(
                 "SELECT {COLUMNS} FROM feedback_outbox \
-                 WHERE (state = 'queued' AND next_try_ms <= ?1) \
-                    OR (state = 'deleting' AND next_try_ms <= ?1) \
+                 WHERE (state IN ('queued', 'deleting') AND next_try_ms <= ?1) \
+                    OR (state = 'sent' AND screenshot_path IS NOT NULL AND screenshot_sent = 0 \
+                        AND next_try_ms <= ?1) \
                  ORDER BY created_ms, id"
             ))?;
             let rows = stmt
                 .query_map([now_ms], read)?
                 .collect::<rusqlite::Result<_>>()?;
             Ok(rows)
+        })
+    }
+
+    /// A report the server lists that this device didn't make (another
+    /// device of the account): kept so My feedback shows it.
+    pub fn feedback_adopt(&self, id: &str, kind: &str, preview: &str, created_ms: i64) -> Result<()> {
+        self.write(|tx, _| {
+            tx.execute(
+                "INSERT OR IGNORE INTO feedback_outbox \
+                 (id, payload, kind, preview, screenshot_sent, state, attempts, next_try_ms, created_ms) \
+                 VALUES (?1, '', ?2, ?3, 1, 'sent', 0, 0, ?4)",
+                params![id, kind, preview, created_ms],
+            )?;
+            Ok(())
         })
     }
 
