@@ -7,6 +7,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
+use kanso_core::canvas::{Canvas, EXTENSION as CANVAS_EXTENSION};
 use kanso_core::tags::inline_tag_names;
 
 use crate::library::frontmatter;
@@ -22,7 +23,7 @@ pub enum Flavor {
     /// the file's name.
     Plain,
     /// A title is the front matter's, else the file's name, as Obsidian
-    /// shows it. `.obsidian/`, `.trash/` and canvases are skipped.
+    /// shows it. `.obsidian/` and `.trash/` are skipped.
     Obsidian,
     /// Pages and journals; `title::`, `tags::` and `alias::` properties;
     /// `a___b.md` is the page `a/b`. Logseq's own `logseq/` folder is skipped.
@@ -182,12 +183,7 @@ impl MarkdownSource {
                 }
                 continue;
             }
-            if ext == "canvas" {
-                self.skipped.push(Skipped::new(
-                    file.path,
-                    "Canvas files are boards, not notes; Kanso can't import them",
-                ));
-            } else if is_note_path(&file.path) {
+            if ext == CANVAS_EXTENSION || is_note_path(&file.path) {
                 if file.size > MAX_NOTE_FILE {
                     self.skipped
                         .push(Skipped::new(file.path, "too large for a note"));
@@ -231,7 +227,20 @@ impl Source for MarkdownSource {
                 Ok(text) => text,
                 Err(err) => anyhow::bail!("cannot read {}: {err}", file.path),
             };
-            let mut note = parse_note(&file, &text, self.flavor);
+            let mut note = if extension(&file.path) == CANVAS_EXTENSION {
+                match canvas_note(&file, &text) {
+                    Ok(note) => note,
+                    Err(why) => {
+                        // Both passes meet it; it is reported once.
+                        if !self.skipped.iter().any(|s| s.path == file.path) {
+                            self.skipped.push(Skipped::new(file.path.clone(), why));
+                        }
+                        continue;
+                    }
+                }
+            } else {
+                parse_note(&file, &text, self.flavor)
+            };
             if let Some(key) = &self.single_key {
                 note.key = key.clone();
                 note.folder.clear();
@@ -325,6 +334,29 @@ pub fn parse_note(file: &TreeFile, text: &str, flavor: Flavor) -> SourceNote {
         status: meta.status,
         ..SourceNote::default()
     }
+}
+
+/// The canvas in a canvas file: a note of the file's name whose body is the
+/// file, for the import to point at what it made. Why it can't be one, if it
+/// can't.
+pub fn canvas_note(file: &TreeFile, text: &str) -> Result<SourceNote, String> {
+    Canvas::from_obsidian(text).map_err(|why| format!("Not a canvas Kanso can open: {why}"))?;
+    let folder = parent_of(&file.path)
+        .split('/')
+        .filter(|p| !p.is_empty())
+        .map(str::to_owned)
+        .collect();
+    Ok(SourceNote {
+        key: file.path.clone(),
+        path: Some(file.path.clone()),
+        folder,
+        title: stem(file_name(&file.path)).to_owned(),
+        body: text.to_owned(),
+        created: file.created.or(file.modified),
+        updated: file.modified,
+        canvas: true,
+        ..SourceNote::default()
+    })
 }
 
 /// The first non-blank line when it is a `# Heading`: its text and the
