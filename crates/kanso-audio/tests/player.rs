@@ -320,3 +320,59 @@ proptest! {
         );
     }
 }
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 16,
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+        failure_persistence: None,
+        ..ProptestConfig::default()
+    })]
+
+    /// The edges of the timeline: a seek to the very end (or past it, or to
+    /// a part's seam) while playing ends it there, quietly; Play after the
+    /// end starts again from the top; an empty recording ends at once.
+    #[test]
+    fn prop_the_end_and_the_seams_are_safe(
+        seam in 0usize..3,
+        past in 0u64..5_000_000,
+        rate in prop::sample::select(vec![44_100u32, 48_000]),
+    ) {
+        let parts = recording(3, 1);
+        let mut engine = Engine::headless(parts, rate).unwrap();
+        let length = engine.control.length_us();
+        engine.control.play();
+        // A seam: the start of part `seam` plays from there.
+        let at = length * seam as u64 / 3;
+        engine.control.seek_us(at);
+        engine.render(480);
+        let heard = engine.control.position_us();
+        prop_assert!(heard >= at && heard <= at + 40_000, "{at} -> {heard}");
+        // The end, or past it.
+        engine.control.seek_us(length + past);
+        let mut out = Vec::new();
+        for _ in 0..20 {
+            out.extend(engine.render(480));
+        }
+        let status = engine.control.status();
+        prop_assert!(status.ended && !status.playing);
+        prop_assert_eq!(status.position_us, length);
+        prop_assert!(out.iter().all(|s| *s == 0.0));
+        engine.control.play();
+        prop_assert_eq!(engine.control.position_us(), 0);
+        engine.render(480);
+        prop_assert!(engine.control.status().playing);
+    }
+}
+
+#[test]
+fn an_empty_recording_ends_at_once() {
+    let parts = recording(0, 1);
+    let mut engine = Engine::headless(parts, SAMPLE_RATE).unwrap();
+    assert_eq!(engine.control.length_us(), 0);
+    let all = play_through(&mut engine, 480);
+    assert!(all.iter().all(|s| *s == 0.0));
+    let status = engine.control.status();
+    assert!(status.ended && !status.playing);
+    assert_eq!(status.position_us, 0);
+}
