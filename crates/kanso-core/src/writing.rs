@@ -95,6 +95,17 @@ fn paragraph(lines: &[&str], start: usize) -> (String, Vec<(usize, usize)>) {
     (text, offsets)
 }
 
+/// The anchor hash of the paragraph holding `line` of `body`: what is stored
+/// with the caret's place, so [`find`] can tell the paragraph is the same.
+pub fn anchor_at(body: &str, line: u32) -> String {
+    let lines: Vec<&str> = body.lines().collect();
+    if lines.is_empty() {
+        return String::new();
+    }
+    let start = paragraph_start(&lines, line as usize);
+    anchor_hash(&paragraph(&lines, start).0)
+}
+
 /// The paragraph where the person stopped. `line` and `col` (characters)
 /// are where the caret was; `anchor` is the hash stored with it. When the
 /// paragraph at `line` no longer starts with the stored words, the body is
@@ -234,6 +245,19 @@ mod tests {
             prop_assert!(shown.chars().count() <= EXCERPT_CHARS + 1);
             let body = shown.trim_start_matches('\u{2026}');
             prop_assert!(text.contains(body.trim()));
+        }
+
+        /// The anchor taken at a line is the one `find` accepts for it.
+        #[test]
+        fn anchor_at_is_accepted_by_find(
+            lines in prop::collection::vec("[a-c ]{0,12}", 1..8),
+            line in 0u32..8,
+        ) {
+            let body = lines.join("\n");
+            let anchor = anchor_at(&body, line);
+            if let Some(found) = find(&body, line, 0, &anchor) {
+                prop_assert!(!found.text.is_empty());
+            }
         }
 
         /// The last changed line is always a line of the new text, and an

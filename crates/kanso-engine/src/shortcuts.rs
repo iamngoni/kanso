@@ -511,6 +511,15 @@ pub const SHORTCUTS: &[Shortcut] = &[
         on_mobile: true,
     },
     Shortcut {
+        id: "open_overview",
+        mac: "secondary-shift-0",
+        other: "secondary-shift-0",
+        context: ShortcutContext::Global,
+        label: "Overview",
+        group: ShortcutGroup::Go,
+        on_mobile: false,
+    },
+    Shortcut {
         id: "go_back",
         mac: "cmd-[",
         other: "alt-left",

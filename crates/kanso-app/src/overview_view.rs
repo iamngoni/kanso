@@ -236,6 +236,42 @@ impl DigestView {
         }
     }
 
+    #[cfg(test)]
+    pub fn agenda_titles_for_test(&self) -> Vec<String> {
+        self.overview
+            .as_ref()
+            .map(|o| {
+                o.today
+                    .agenda
+                    .rows
+                    .iter()
+                    .map(|r| r.title.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    #[cfg(test)]
+    pub fn tick_first_for_test(&mut self, cx: &mut Context<Self>) {
+        if let Some(row) = self
+            .overview
+            .as_ref()
+            .and_then(|o| o.today.agenda.rows.first().cloned())
+        {
+            self.tick_agenda(&row, cx);
+        }
+    }
+
+    #[cfg(test)]
+    pub fn undo_for_test(&mut self, cx: &mut Context<Self>) {
+        self.undo_tick(cx);
+    }
+
+    #[cfg(test)]
+    pub fn can_undo_for_test(&self) -> bool {
+        self.undo.is_some()
+    }
+
     // MARK: Actions
 
     pub(crate) fn show_perspective(&mut self, perspective: Perspective, cx: &mut Context<Self>) {
@@ -390,6 +426,15 @@ impl DigestView {
                 format(&DateTime::at_midnight(choice.date(today)), "%A %e %B")
             ))),
             Err(err) => cx.emit(DigestEvent::Notice(format!("Couldn't set that: {err}"))),
+        }
+        self.reload(cx);
+    }
+
+    /// Clears a note's revisit date.
+    pub(crate) fn clear_revisit(&mut self, note_id: &str, cx: &mut Context<Self>) {
+        match self.store.set_revisit(note_id, None) {
+            Ok(_) => cx.emit(DigestEvent::Notice("Revisit date cleared.".into())),
+            Err(err) => cx.emit(DigestEvent::Notice(format!("Couldn't clear that: {err}"))),
         }
         self.reload(cx);
     }

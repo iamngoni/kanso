@@ -20,10 +20,10 @@ use gpui_kit::component::{
     Disableable as _, Icon, Sizable as _, StyledExt as _, VirtualListScrollHandle, h_flex, v_flex,
     v_virtual_list,
 };
-use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::dates::Date;
 use kanso_core::loops::{AiLoop, LoopKind, age_label};
+use kanso_core::revisit::Choice;
 use kanso_engine::brief::{self, Now};
 use kanso_engine::loops_ai::{self, Proposal, Scan};
 use kanso_engine::overview::Overview;
@@ -56,6 +56,13 @@ actions!(
         OpenOverviewWeek,
         SummariseOverview,
         SaveWeekAsNote,
+        RevisitTomorrow,
+        RevisitInThreeDays,
+        RevisitNextWeek,
+        RevisitInTwoWeeks,
+        RevisitInAMonth,
+        RevisitInThreeMonths,
+        ClearRevisit,
         OpenMorningBrief,
         OpenWeeklyReview,
         OpenOpenLoops,
@@ -116,12 +123,48 @@ pub fn on_actions(el: Div, cx: &mut Context<crate::workspace::Workspace>) -> Div
                 digest.save_week(false, window, cx);
             });
         }))
+        .on_action(
+            cx.listener(|this, _: &RevisitTomorrow, _, cx| this.revisit_open(Choice::Tomorrow, cx)),
+        )
+        .on_action(cx.listener(|this, _: &RevisitInThreeDays, _, cx| {
+            this.revisit_open(Choice::InThreeDays, cx)
+        }))
+        .on_action(
+            cx.listener(|this, _: &RevisitNextWeek, _, cx| this.revisit_open(Choice::NextWeek, cx)),
+        )
+        .on_action(cx.listener(|this, _: &RevisitInTwoWeeks, _, cx| {
+            this.revisit_open(Choice::InTwoWeeks, cx)
+        }))
+        .on_action(
+            cx.listener(|this, _: &RevisitInAMonth, _, cx| this.revisit_open(Choice::InAMonth, cx)),
+        )
+        .on_action(cx.listener(|this, _: &RevisitInThreeMonths, _, cx| {
+            this.revisit_open(Choice::InThreeMonths, cx)
+        }))
+        .on_action(cx.listener(|this, _: &ClearRevisit, _, cx| {
+            let Some(id) = this.editor.read(cx).note_id().map(str::to_owned) else {
+                return;
+            };
+            this.digest
+                .update(cx, |digest, cx| digest.clear_revisit(&id, cx));
+        }))
         .on_action(cx.listener(move |this, _: &OpenOpenLoops, window, cx| loops(this, window, cx)))
         .on_action(cx.listener(move |this, _: &FindMoreOpenLoops, window, cx| {
             loops_again(this, window, cx);
             this.digest
                 .update(cx, |digest, cx| digest.ask_find_more(window, cx));
         }))
+}
+
+impl crate::workspace::Workspace {
+    /// Revisit in…: sets the open note's revisit date.
+    fn revisit_open(&mut self, choice: Choice, cx: &mut Context<Self>) {
+        let Some(id) = self.editor.read(cx).note_id().map(str::to_owned) else {
+            return;
+        };
+        self.digest
+            .update(cx, |digest, cx| digest.revisit_note(&id, choice, cx));
+    }
 }
 
 /// What the view tells the workspace.

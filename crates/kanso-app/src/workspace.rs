@@ -168,6 +168,7 @@ pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("secondary-n", NewNote, None),
         KeyBinding::new("secondary-shift-n", NewNotebook, None),
+        KeyBinding::new("secondary-shift-0", crate::digest_view::OpenOverview, None),
         // ⌘L searches the list as it is; ⇧⌘F, global search, all notes.
         KeyBinding::new("secondary-l", FocusSearch, None),
         KeyBinding::new("secondary-shift-f", SearchAllNotes, None),
@@ -358,6 +359,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Go Back", GoBack),
             MenuItem::action("Go Forward", GoForward),
             MenuItem::action("Notebook Home", GoNotebookHome),
+            MenuItem::action("Overview", crate::digest_view::OpenOverview),
             MenuItem::separator(),
             MenuItem::action("Copy Note Link", CopyNoteLink),
             MenuItem::action("Copy Kanso Link", CopyKansoLink),
@@ -668,6 +670,12 @@ impl Workspace {
                         ) {
                             this.digest
                                 .update(cx, |digest, cx| digest.focus_list(window, cx));
+                        }
+                        if this.library.read(cx).filter == Filter::Overview
+                            && let Some(nav) = this.tabs.nav_mut()
+                        {
+                            nav.visit(crate::nav_history::OVERVIEW_VISIT);
+                            this.nav_reach = None;
                         }
                     });
                     this.leave_settings(window, cx);
@@ -1191,6 +1199,34 @@ impl Workspace {
             self.editor.update(cx, f);
         }
         open
+    }
+
+    /// Kanso's first window opens to Overview unless Settings says the last
+    /// note. Existing users are told once. Files the system opened wait for
+    /// nothing: opening a note leaves the page.
+    pub fn launch_to_overview(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let briefs = cx.global::<AppState>().config.briefs.clone().sanitized();
+        if briefs.open_to != kanso_engine::brief::OpenTo::Overview {
+            return;
+        }
+        self.library
+            .update(cx, |library, cx| library.set_filter(Filter::Overview, cx));
+        let nudges = &cx.global::<AppState>().config.nudges;
+        let seen = nudges.overview_notice_seen;
+        let first_seen = nudges.first_seen_ms;
+        let veteran =
+            first_seen.is_some_and(|first| crate::clock::Clock::now_ms(cx) - first > 60_000);
+        if !seen {
+            AppState::update_config(cx, |config| config.nudges.overview_notice_seen = true);
+            if veteran {
+                window.push_notification(
+                    Notification::info(
+                        "Kanso now opens to Overview. Change it in Settings, General, Overview.",
+                    ),
+                    cx,
+                );
+            }
+        }
     }
 
     /// Opens a note from the loops, the brief or the review.

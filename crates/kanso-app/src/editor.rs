@@ -307,6 +307,11 @@ pub struct NoteEditor {
     /// Counts the body's edits and loads, so the outline can tell its text
     /// changed.
     text_version: u64,
+    /// Typing counted for Overview's Pick up: the text's length at the last
+    /// change, the characters typed since the last write, and when it was.
+    typing_len: usize,
+    typed_chars: u32,
+    typing_at: i64,
     /// Whether the inspector beside the editor is open, for its button.
     pub inspector_open: bool,
     /// Where the empty-notebook block sends its actions from while no note
@@ -550,6 +555,7 @@ impl NoteEditor {
                     // Text from another editor of the note is saved there.
                     if !this.peer_change(cx) {
                         this.schedule_autosave(cx);
+                        this.note_typing(cx);
                     }
                     this.schedule_preview(window, cx);
                     let (body, me) = (this.body.clone(), cx.entity().downgrade());
@@ -646,6 +652,9 @@ impl NoteEditor {
             left_place: None,
             title_on_focus: None,
             text_version: 0,
+            typing_len: 0,
+            typed_chars: 0,
+            typing_at: 0,
             inspector_open: false,
             empty_focus: cx.focus_handle(),
             focus_mode: false,
@@ -1498,6 +1507,36 @@ impl NoteEditor {
     pub fn outline_source(&self, cx: &App) -> Option<(String, u64, SharedString)> {
         let (id, version) = self.outline_version()?;
         Some((id, version, self.body_text(cx)))
+    }
+
+    /// Typing in the open note, for *Pick up where you left off* on
+    /// Overview: the characters typed are counted as they come and written,
+    /// with where the caret is, at most once every ten seconds.
+    fn note_typing(&mut self, cx: &mut Context<Self>) {
+        const EVERY_MS: i64 = 10_000;
+        let Some(id) = self.note_id().map(str::to_owned) else {
+            return;
+        };
+        let len = self.body.read(cx).text().len();
+        // A paste or a note switch is not typing: one change counts for 80
+        // characters at most.
+        let typed = len.abs_diff(self.typing_len).min(80) as u32;
+        self.typing_len = len;
+        self.typed_chars = self.typed_chars.saturating_add(typed.max(1));
+        let now = crate::clock::Clock::now_ms(cx);
+        if now - self.typing_at < EVERY_MS {
+            return;
+        }
+        self.typing_at = now;
+        let caret = self.body.read(cx).cursor_position();
+        let anchor = kanso_core::writing::anchor_at(&self.body_text(cx), caret.line);
+        let typed = std::mem::take(&mut self.typed_chars);
+        if let Some(state) = cx.try_global::<crate::workspace::AppState>() {
+            state
+                .store
+                .note_writing(&id, caret.line, caret.character, typed, &anchor, now)
+                .ok();
+        }
     }
 
     /// The line (0-based) the caret is on.

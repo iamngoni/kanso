@@ -123,8 +123,8 @@ impl NoticeKind {
 
     pub fn title(self) -> &'static str {
         match self {
-            NoticeKind::Brief => "Your morning brief",
-            NoticeKind::Review => "Your weekly review",
+            NoticeKind::Brief => "Today",
+            NoticeKind::Review => "Your week",
         }
     }
 
@@ -132,8 +132,8 @@ impl NoticeKind {
     /// ahead on a phone, or the review).
     pub fn fixed_body(self) -> &'static str {
         match self {
-            NoticeKind::Brief => "Your morning brief is ready",
-            NoticeKind::Review => "Your weekly review is ready",
+            NoticeKind::Brief => "Your day is ready on Overview",
+            NoticeKind::Review => "Your week is ready on Overview",
         }
     }
 }

@@ -3920,3 +3920,110 @@ fn a_new_home_note_returns_to_the_homepage_when_its_tab_closes(cx: &mut TestAppC
         "back on the homepage"
     );
 }
+
+/// The first window opens to Overview (and says so once), Back from a note
+/// returns to it, and Escape leaves it for the place before.
+// no-prop-test: drives one window.
+#[gpui_kit::test]
+fn kanso_opens_to_overview_and_back_returns_to_it(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let workspace = f.workspace.clone();
+    vcx.update(|window, cx| {
+        workspace.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx))
+    });
+    settle(&f, &mut vcx);
+    assert_eq!(
+        vcx.read(|cx| library.read(cx).filter.clone()),
+        crate::library::Filter::Overview
+    );
+    assert!(vcx.debug_bounds("page-pane").is_some());
+    assert_eq!(vcx.debug_bounds("editor-pane"), None);
+
+    // Open a note, then go back: Overview is a visit.
+    let other = f.notes[1].clone();
+    library.update(&mut vcx, |library, cx| {
+        library.select(Some(other.clone()), cx)
+    });
+    settle(&f, &mut vcx);
+    assert!(vcx.debug_bounds("editor-pane").is_some());
+    vcx.update(|_, cx| workspace.update(cx, |workspace, cx| workspace.go_back(cx)));
+    settle(&f, &mut vcx);
+    assert_eq!(
+        vcx.read(|cx| library.read(cx).filter.clone()),
+        crate::library::Filter::Overview
+    );
+
+    vcx.simulate_keystrokes("escape");
+    settle(&f, &mut vcx);
+    assert_ne!(
+        vcx.read(|cx| library.read(cx).filter.clone()),
+        crate::library::Filter::Overview
+    );
+}
+
+/// With "Last note" chosen, the first window opens to the note.
+// no-prop-test: drives one window.
+#[gpui_kit::test]
+fn last_note_keeps_the_old_launch(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| {
+            config.briefs.open_to = kanso_engine::brief::OpenTo::LastNote
+        })
+    });
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let workspace = f.workspace.clone();
+    vcx.update(|window, cx| {
+        workspace.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx))
+    });
+    settle(&f, &mut vcx);
+    assert_ne!(
+        vcx.read(|cx| library.read(cx).filter.clone()),
+        crate::library::Filter::Overview
+    );
+    assert!(vcx.debug_bounds("editor-pane").is_some());
+}
+
+/// A task due today is on Today; ticking it checks it in its note and
+/// offers Undo, which unchecks it.
+// no-prop-test: drives one window over a real store.
+#[gpui_kit::test]
+fn a_due_task_is_ticked_from_overview_and_undone(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let today = cx.update(|cx| crate::journal::now(cx).date.iso());
+    let id = f.notes[0].clone();
+    let doc = f.store.get(&id).unwrap().unwrap();
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "_rev": doc.rev, "body": format!("- [ ] Send the deck @{today}\n")}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Overview, cx)
+    });
+    let digest = f.workspace(cx, |w, _| w.digest.clone());
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    wait_until(&f, &mut vcx, |vcx| {
+        vcx.read(|cx| !digest.read(cx).agenda_titles_for_test().is_empty())
+    });
+    assert_eq!(
+        vcx.read(|cx| digest.read(cx).agenda_titles_for_test()),
+        ["Send the deck"]
+    );
+    vcx.update(|_, cx| digest.update(cx, |d, cx| d.tick_first_for_test(cx)));
+    let body = f.store.note(&id).unwrap().unwrap().body;
+    assert!(body.contains("- [x] Send the deck"), "{body}");
+    assert!(vcx.read(|cx| digest.read(cx).can_undo_for_test()));
+    vcx.update(|_, cx| digest.update(cx, |d, cx| d.undo_for_test(cx)));
+    let body = f.store.note(&id).unwrap().unwrap().body;
+    assert!(body.contains("- [ ] Send the deck"), "{body}");
+}
