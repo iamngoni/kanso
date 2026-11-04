@@ -4339,3 +4339,99 @@ fn notes_dropped_on_a_canvas_become_cards(cx: &mut TestAppContext) {
         .collect();
     assert_eq!(cards, [(f.notes[0].clone(), "a".to_owned())]);
 }
+
+/// The notices this test puts in front of the app: two that always apply.
+fn test_notices() -> &'static [kanso_core::notices::Notice] {
+    use kanso_core::notices::{Notice, NoticeAction, NoticePage, Platforms};
+    Box::leak(Box::new([
+        Notice {
+            id: "fixture-first-0.9",
+            since: semver::Version::new(0, 9, 0),
+            title: "First fixture",
+            what_changed: "Something changed.",
+            steps: &["Do this.", "Then that."],
+            action: Some(NoticeAction::OpenSettings(NoticePage::LocalApi)),
+            applies: |_| true,
+            platforms: Platforms::Desktop,
+        },
+        Notice {
+            id: "fixture-second-0.9",
+            since: semver::Version::new(0, 9, 0),
+            title: "Second fixture",
+            what_changed: "Something else changed.",
+            steps: &["Do it."],
+            action: None,
+            applies: |_| true,
+            platforms: Platforms::Both,
+        },
+    ]))
+}
+
+/// An update notice shows as a banner across the window, counts the ones
+/// waiting, and Dismiss hides it for good: the next one shows, the choice is
+/// in `config.json`, and the palette still lists it. How to fix opens the
+/// steps.
+// no-prop-test: drives one window; the rules are properties in kanso-core.
+#[gpui_kit::test]
+fn an_update_notice_shows_until_it_is_dismissed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    // Nothing is listed yet, so there is no banner.
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert!(vcx.read(crate::notices::banner).is_none());
+
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: test_notices(),
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, "fixture-first-0.9");
+    assert_eq!(pick.total, 2);
+    assert!(vcx.debug_bounds("notice-count").is_some());
+    assert!(vcx.debug_bounds("notice-action").is_some());
+
+    let click = |vcx: &mut gpui_kit::VisualTestContext, selector: &'static str| {
+        let bounds = vcx
+            .debug_bounds(selector)
+            .unwrap_or_else(|| panic!("{selector} is drawn"));
+        vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    };
+
+    // How to fix: the sheet has what changed and the steps.
+    click(&mut vcx, "notice-how-to-fix");
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-what-changed").is_some());
+    assert!(vcx.debug_bounds("notice-steps").is_some());
+    vcx.simulate_keystrokes("escape");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-steps"), None);
+
+    // Dismiss: the next notice takes the banner, alone now.
+    click(&mut vcx, "notice-dismiss");
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, "fixture-second-0.9");
+    assert_eq!(pick.total, 1);
+    assert_eq!(vcx.debug_bounds("notice-count"), None);
+    assert_eq!(f.saved_config().notices.dismissed, ["fixture-first-0.9"]);
+    // The palette still lists the dismissed one.
+    assert_eq!(vcx.read(crate::notices::listed).len(), 2);
+
+    // The last one: no banner, and the palette keeps both until fixed.
+    click(&mut vcx, "notice-dismiss");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(vcx.read(crate::notices::listed).len(), 2);
+    vcx.update(|_, cx| crate::notices::mark_fixed("fixture-first-0.9", cx));
+    assert_eq!(vcx.read(crate::notices::listed).len(), 1);
+    let saved = f.saved_config().notices;
+    assert_eq!(saved.fixed, ["fixture-first-0.9"]);
+    assert_eq!(saved.dismissed.len(), 2);
+}

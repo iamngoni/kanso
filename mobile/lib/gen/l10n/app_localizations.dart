@@ -11589,6 +11589,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try Again'**
   String get playerTryAgain;
+
+  /// The small heading on the card that says an update changed something the person may need to fix.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs your attention'**
+  String get noticeNeedsAttention;
+
+  /// Opens the steps that fix what an update changed.
+  ///
+  /// In en, this message translates to:
+  /// **'How to fix'**
+  String get noticeHowToFix;
+
+  /// Hides an update notice on this phone for good.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get noticeDismiss;
+
+  /// Hides an update notice because the person fixed what it said.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as fixed'**
+  String get noticeMarkFixed;
+
+  /// The title of the sheet that shows an update notice's steps.
+  ///
+  /// In en, this message translates to:
+  /// **'Update notice'**
+  String get noticeSheetTitle;
+
+  /// Closes the sheet of an update notice's steps.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get noticeSheetDone;
 }
 
 class _AppLocalizationsDelegate

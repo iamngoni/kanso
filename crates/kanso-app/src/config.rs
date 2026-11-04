@@ -791,6 +791,10 @@ pub struct AppConfig {
     pub locked: LockedSettings,
     pub ai: AiSettings,
     pub nudges: Nudges,
+    /// Update notices put away on this computer: dismissed (the banner is
+    /// hidden) and marked fixed (the palette drops them too). Both stay in
+    /// What's new (issue #243).
+    pub notices: kanso_core::notices::NoticeState,
     pub linux: LinuxSettings,
     /// The anonymous daily count's bookkeeping (docs/METRICS.md): this
     /// install's ID and what was counted today. A damaged entry reads as
@@ -842,6 +846,7 @@ impl Default for AppConfig {
             locked: LockedSettings::default(),
             ai: AiSettings::default(),
             nudges: Nudges::default(),
+            notices: Default::default(),
             linux: LinuxSettings::default(),
             metrics: kanso_metrics::Ledger::default(),
         }
@@ -1321,6 +1326,18 @@ mod tests {
                         metrics_notice_version: u8::try_from(version % 4).unwrap_or(0),
                         overview_notice_seen: version % 2 == 1,
                     },
+                    notices: kanso_core::notices::NoticeState {
+                        dismissed: if login {
+                            vec![format!("n-{version}")]
+                        } else {
+                            vec![]
+                        },
+                        fixed: if numbers {
+                            vec!["fixed-1".to_owned()]
+                        } else {
+                            vec![]
+                        },
+                    },
                     linux: super::LinuxSettings {
                         backend: if numbers {
                             super::LinuxBackend::X11
@@ -1601,6 +1618,27 @@ mod tests {
             let debug = format!("{settings:?}");
             prop_assert!(!debug.contains(&password));
         }
+    }
+
+    /// Dismissing an update notice is written to `config.json` and read
+    /// back, and a file from before notices has none put away.
+    #[test]
+    fn dismissed_notices_survive_a_restart() {
+        let old: AppConfig = serde_json::from_str(r#"{"version": 5}"#).unwrap();
+        assert!(old.notices.dismissed.is_empty() && old.notices.fixed.is_empty());
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let mut config = AppConfig::default();
+        config.notices.dismiss("api-keys-0.10");
+        config.notices.dismiss("api-keys-0.10");
+        config.notices.mark_fixed("library-key-0.10");
+        config.save(&path).unwrap();
+        let back = AppConfig::load(&path).unwrap();
+        assert_eq!(back.notices.dismissed, ["api-keys-0.10"]);
+        assert_eq!(back.notices.fixed, ["library-key-0.10"]);
+        let written: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(written["notices"]["dismissed"][0], "api-keys-0.10");
     }
 
     /// A file from before usage metrics hasn't seen the notice and has no

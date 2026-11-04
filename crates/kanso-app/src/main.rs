@@ -120,6 +120,8 @@ mod note_window;
 #[cfg(test)]
 mod note_window_tests;
 mod notebook_lock;
+mod notice_views;
+mod notices;
 mod notify_support;
 mod ocr;
 mod open_documents;
