@@ -64,6 +64,37 @@ pub struct SyncSettings {
     /// The version 1 Worker URL, kept untouched so a rolled-back app finds
     /// it (docs/ACCOUNTS.md › Rollback).
     pub endpoint: Option<String>,
+    /// Where this library's session and keys live (docs/ACCOUNTS.md ›
+    /// Keychain items). An older file has none: the system's store.
+    pub secret_store: SecretStoreKind,
+}
+
+/// Which secret store holds a library's session: the Keychain, Credential
+/// Manager or Secret Service (`System`), or `secrets.json` in the data folder
+/// (`File`), for computers without one, such as a headless Linux server.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SecretStoreKind {
+    #[default]
+    System,
+    File,
+}
+
+impl SecretStoreKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SecretStoreKind::System => "system",
+            SecretStoreKind::File => "file",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<SecretStoreKind> {
+        match text {
+            "system" => Some(SecretStoreKind::System),
+            "file" => Some(SecretStoreKind::File),
+            _ => None,
+        }
+    }
 }
 
 impl Default for SyncSettings {
@@ -74,6 +105,7 @@ impl Default for SyncSettings {
             server: None,
             account: None,
             endpoint: None,
+            secret_store: SecretStoreKind::System,
         }
     }
 }
@@ -1331,14 +1363,16 @@ mod tests {
             prop::option::of("https://[a-z.]{1,20}"),
             prop::option::of(account),
             prop::option::of(url),
+            prop::sample::select(vec![SecretStoreKind::System, SecretStoreKind::File]),
         )
             .prop_map(
-                |(enabled, interval_secs, server, account, endpoint)| SyncSettings {
+                |(enabled, interval_secs, server, account, endpoint, secret_store)| SyncSettings {
                     enabled,
                     interval_secs,
                     server,
                     account,
                     endpoint,
+                    secret_store,
                 },
             )
     }
@@ -1815,6 +1849,24 @@ mod tests {
         assert_eq!(value["appearance"]["viewMode"], "live");
     }
 
+    proptest! {
+        /// The secret store is written by name and read back; any other name
+        /// is no store at all, and the config field round-trips.
+        #[test]
+        fn prop_secret_store_kind_round_trips(sync in gen_sync(), other in "[a-z]{0,8}") {
+            for kind in [SecretStoreKind::System, SecretStoreKind::File] {
+                prop_assert_eq!(SecretStoreKind::parse(kind.as_str()), Some(kind));
+            }
+            if other != "system" && other != "file" {
+                prop_assert_eq!(SecretStoreKind::parse(&other), None);
+            }
+            let json = serde_json::to_value(&sync).unwrap();
+            prop_assert_eq!(json["secretStore"].as_str(), Some(sync.secret_store.as_str()));
+            let back: SyncSettings = serde_json::from_value(json).unwrap();
+            prop_assert_eq!(back, sync);
+        }
+    }
+
     #[test]
     fn missing_fields_take_defaults_and_file_is_private() {
         let dir = tempfile::tempdir().unwrap();
@@ -1831,6 +1883,8 @@ mod tests {
         assert_eq!(config.appearance.diagram_renderer, DiagramRenderer::Pele);
         // Spelling is checked, though the file predates the setting.
         assert!(config.editor.spellcheck);
+        // A file from before the setting keeps its secrets where they were.
+        assert_eq!(config.sync.secret_store, SecretStoreKind::System);
         assert!(config.ensure_credentials());
         assert!(!config.ensure_credentials());
         config.save(&path).unwrap();

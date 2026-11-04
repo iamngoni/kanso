@@ -3588,6 +3588,17 @@ directories never share secrets.
 | `sync-logout:<library_id>` | `{"v":1,"pending":[{"server","token"}]}` | Until each logout succeeds |
 | `sync-token` (legacy) | The old shared token | Never read or deleted by the new app; the owner removes it after the purge |
 
+**The file store.** A library whose config says `"sync": {"secretStore": "file"}` keeps the same
+items, with the same values, in `secrets.json` in its data folder instead (`FileSecrets`, for a
+computer with no secret service, such as a server running `kanso serve`):
+`{"v":1,"items":{"<item name>":"<value>"}}`. It is written atomically (`secrets.json.tmp`, `fsync`,
+rename) with mode `0600` in a `0700` folder, and a file others can read is refused rather than used.
+With `KANSO_SECRETS_KEY_FILE` naming a file of 32 bytes (or 64 hex digits), it is sealed:
+`{"v":1,"sealed":"<base64url(nonce(24) ‖ XChaCha20-Poly1305(key, nonce, aad, plain file))>"}`, `aad =
+"kanso/v1/secrets-file" ‖ 0x01`. A file that can't be read or opened is an error, never "signed
+out". Without the key the file holds the data key in the clear: anyone with root on that computer
+can read every note. `secretStore` absent is `"system"`.
+
 On load, the item's `(origin, account_id)` must equal the library's `(sync.v2.origin,
 sync.v2.account_id)` and the config's account (security re-check 3). If it doesn't, the item is
 ignored, and the Mac counts as signed out. The same pair decides everywhere else whether two
@@ -3730,9 +3741,33 @@ Startup counts the Mac as signed in only when the config, the Keychain item and 
 
 ### Command line
 
-Run `cargo run --release -p kanso-sync -- <command>` from the deployed commit. Each command takes
-the data-directory lock, so quit Kanso first. macOS asks once to let `kanso-sync` read the
-`sync-account` item.
+`kanso account` signs a library in without a window, for `kanso serve` on a server:
+
+```text
+sign-in   [--username N] [--password-stdin] [--server URL] [--provider github]
+          [--device-name N] [--secrets file|system] [--add | --replace]
+status                      account, server, device, secret store, last sync (no lock)
+devices                     the account's devices
+revoke    <device id>       sign another device out (an ID or a unique start of one)
+sign-out                    sign this library out; its notes stay
+```
+
+`sign-in` uses the engine's `Flow`, as the app does: a password sign-in, or GitHub's device flow
+followed by this device's approval (the code is printed to compare), or the account's password to
+unlock it. Google, Apple, passkeys and security keys are refused, and it never signs up or
+recovers. A library with notes needs `--add` or `--replace` without a terminal; otherwise the new
+session is logged out and nothing is written. Exit status: 0 signed in, 1 refused, 2 a bad command
+line. Every command but `status` takes the data-directory lock, so stop `kanso serve` first.
+
+`kanso serve` restores the session at start and runs `kanso_engine::sync::driver`: one sync at a
+time through the same `Scheduler`, at start, every interval, and 20 s after an API or MCP write, with
+shared notes after each. It writes `sync.v2.last_sync_ms` and `sync.v2.last_result` (guarded by the
+binding) for `kanso account status`. A 401 forgets the session as the app does, clears the config's
+account and leaves the API running.
+
+The manual tools: run `cargo run --release -p kanso-sync -- <command>` from the deployed commit.
+Each command takes the data-directory lock, so quit Kanso first. macOS asks once to let `kanso-sync`
+read the `sync-account` item; a library with `secretStore: "file"` is read from its `secrets.json`.
 
 ```text
 status   --data-dir DIR                             account, server, device, cursor, pending changes

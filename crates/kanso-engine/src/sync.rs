@@ -21,6 +21,7 @@ use kanso_sync::{
 
 use crate::Secrets;
 
+pub mod driver;
 pub mod model;
 pub mod words;
 
@@ -381,7 +382,7 @@ mod tests {
 
     /// A library on `server` for `username`, signed in from Mac `n` and
     /// bound fresh: its store, session and folder.
-    fn library(
+    pub(super) fn library(
         server: &kanso_sync::MemoryServer,
         username: &str,
         n: u8,

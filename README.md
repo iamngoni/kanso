@@ -442,8 +442,10 @@ in Insert mode. They are in Note › Format and in the toolbar's tooltips.
 
 ```bash
 kanso                       # open the app
-kanso serve                 # only the API (REST and /mcp), no window
-kanso mcp                   # MCP over stdin/stdout, for agents that start a program (Kanso open)
+kanso serve                 # only the API (REST and /mcp), no window; syncs when signed in
+kanso account sign-in --username ngoni   # sign a headless library in; then kanso serve syncs it
+kanso account status        # account, this device, last sync (works while serve runs)
+kanso mcp                   # MCP over stdin/stdout, for agents that start a program (Kanso open, or kanso serve)
 kanso import obsidian ~/Vault --dry-run   # what an import would bring in
 kanso import notion ~/Downloads/Export.zip  # markdown, obsidian, notion, evernote, …
 kanso import apple-notes                  # the Notes library on this Mac
@@ -455,6 +457,46 @@ pbpaste | kanso capture     # with no text, it reads standard input
 Every command takes `--data-dir <dir>`. The default is `$KANSO_DATA_DIR` when set, otherwise
 `~/Library/Application Support/Kanso` on macOS, `%APPDATA%\Kanso` on Windows and
 `~/.local/share/kanso` (`$XDG_DATA_HOME/kanso`) on Linux.
+
+### Headless / VPS
+
+`kanso serve` runs the API and `/mcp` without a window, so an agent on a server (Codex, say) can use
+your notes. Sign the server's library in to your account once, with the service stopped, and
+`kanso serve` syncs it while it runs: at start, every `sync.intervalSecs` (5 minutes), and 20
+seconds after any API or MCP write.
+
+```bash
+sudo systemctl stop kanso
+sudo -u kanso KANSO_DATA_DIR=/var/lib/kanso kanso account sign-in --username ngoni
+sudo systemctl start kanso
+```
+
+Sign in with your password (typed, or on the first line of standard input with
+`--password-stdin`), or with `--provider github`, approved from a device that's already signed in
+with a code you compare on both. Google, Apple, passkeys and security keys need a browser on the
+server and are refused; the command never creates or recovers an account. `kanso account devices`,
+`revoke <id>` and `sign-out` do the rest. If another device signs the server out, `kanso serve`
+says so once and keeps serving the library.
+
+A server has no keyring, so the session goes in `secrets.json` in the data folder (owner-only,
+`0600`; `--secrets file`, the default when no Secret Service answers). **That file holds the key
+that decrypts your notes.** Kanso's sync server still never sees it, but anyone with root on the
+server can read it. To keep it out of backups and snapshots, seal it under a key held elsewhere:
+point `KANSO_SECRETS_KEY_FILE` at a file of 32 random bytes (for example a systemd credential,
+`LoadCredentialEncrypted=kanso-secrets-key:…` with
+`Environment=KANSO_SECRETS_KEY_FILE=%d/kanso-secrets-key`). Before you delete the server, run
+`kanso account sign-out` (or sign it out from another device).
+
+An example unit is in [`assets/linux/kanso.service`](assets/linux/kanso.service). Keep `bindAddress`
+at `127.0.0.1` and reach the API through an SSH tunnel (`ssh -L 19840:127.0.0.1:19840 vps`) or a TLS
+proxy; agents on the server itself use `kanso mcp`. The binary still links the desktop's shared
+libraries, so install them even without a display:
+
+```bash
+sudo apt install libwayland-client0 libxkbcommon0 libxkbcommon-x11-0 libvulkan1 libegl1 libx11-6 \
+  libx11-xcb1 libxcb1 libxcb-randr0 libxcb-shape0 libxcb-shm0 libxcb-xfixes0 libfontconfig1 \
+  libfreetype6 libssl3 libasound2 libdbus-1-3 libzstd1 libfido2-1
+```
 
 ## Development
 

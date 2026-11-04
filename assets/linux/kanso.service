@@ -1,0 +1,40 @@
+# Kanso's local API and sync on a headless Linux server (README › Headless / VPS).
+# Install the binary at /usr/local/bin/kanso, create the user
+# (`sudo useradd --system --home /var/lib/kanso kanso`), then sign in once with
+# the service stopped:
+#   sudo -u kanso KANSO_DATA_DIR=/var/lib/kanso kanso account sign-in --username <you>
+[Unit]
+Description=Kanso local API and sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kanso
+Group=kanso
+StateDirectory=kanso
+Environment=KANSO_DATA_DIR=/var/lib/kanso
+ExecStart=/usr/local/bin/kanso serve
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Optional: seal secrets.json under a key kept outside the data folder
+# (create it with `systemd-creds encrypt`).
+#LoadCredentialEncrypted=kanso-secrets-key:/etc/credstore.encrypted/kanso-secrets-key
+#Environment=KANSO_SECRETS_KEY_FILE=%d/kanso-secrets-key
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/kanso
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
