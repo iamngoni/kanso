@@ -12,10 +12,16 @@
 //! | suggest | the same                       | MCP suggestions, for review |
 //! | write   | the same, and attachments      | every route and tool        |
 //!
-//! Read and suggest keys never see attachments. A write key's writes are
-//! checked against the same visibility ([`check_write`]), so a key limited
-//! to some notebooks writes only there, and no key writes a locked note.
+//! Read and suggest keys never see attachments. A write key sees an
+//! attachment only when it sees every note that holds it
+//! ([`file_visible`]). Notebooks and tags carry a count of the notes the key
+//! sees, never the library's ([`Counts`]); a tag only hidden notes carry,
+//! and the `#ai-exclude` tag itself, are not shown. A write key's writes
+//! are checked against the same visibility ([`check_write`]), so a key
+//! limited to some notebooks writes only there, no key writes a locked note,
+//! and no key renames or deletes `#ai-exclude`.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use kanso_core::DocType;
@@ -105,27 +111,101 @@ impl<'a> Key<'a> {
         match DocType::of_id(id) {
             Some(DocType::Note) => vis.allows(id),
             Some(DocType::Book) => vis.book_visible(id),
-            Some(DocType::Tag) => true,
-            Some(DocType::File) => self.sees_files(),
+            Some(DocType::Tag) => !vis.tag_is_ai_exclude(id),
+            Some(DocType::File) => self.sees_files() && file_visible(self.scope, vis, id),
             _ => false,
         }
     }
 }
 
+/// Whether attachment `id` may be shown to a key that sees attachments:
+/// every note that holds it is one the key sees (so not locked, not in a
+/// locked notebook, not trashed, not `#ai-exclude`, and in the key's
+/// notebooks). An attachment no note holds is shown only to a key for all
+/// notebooks, since nothing says which notebook it belongs to.
+pub(crate) fn file_visible(scope: &AgentScope, vis: &Visibility, id: &str) -> bool {
+    match vis.store().file_owners(id) {
+        Ok(owners) if owners.is_empty() => scope.notebooks.is_none(),
+        Ok(owners) => owners.iter().all(|note| vis.note(note).is_some()),
+        Err(_) => false,
+    }
+}
+
+/// How many notes a key sees in each notebook and with each tag. The
+/// library's own counts include locked, trashed, `#ai-exclude` and
+/// out-of-scope notes, so a key never gets them.
+#[derive(Default)]
+pub(crate) struct Counts {
+    pub books: HashMap<String, u64>,
+    pub tags: HashMap<String, u64>,
+    /// The tags any live note carries, the trash included.
+    pub carried: std::collections::HashSet<String>,
+}
+
+impl Counts {
+    pub fn of(store: &Store, vis: &Visibility) -> ApiResult<Counts> {
+        let rows = store
+            .query_view_notes_with_body(false)
+            .map_err(|err| ApiError::internal(err.to_string()))?;
+        let mut counts = Counts::default();
+        for row in rows {
+            counts.carried.extend(row.tag_ids.iter().cloned());
+            if row.locked || row.trashed || !vis.book_visible(&row.book_id) {
+                continue;
+            }
+            if vis.note(&row.id).is_none() {
+                continue;
+            }
+            *counts.books.entry(row.book_id).or_default() += 1;
+            for tag in row.tag_ids {
+                *counts.tags.entry(tag).or_default() += 1;
+            }
+        }
+        Ok(counts)
+    }
+
+    /// Whether tag `id` is carried only by notes the key doesn't see.
+    pub fn hides_tag(&self, id: &str) -> bool {
+        self.carried.contains(id) && !self.tags.contains_key(id)
+    }
+
+    /// Replaces the library's `count` of notebook or tag `doc` with the
+    /// key's own.
+    pub fn apply(&self, doc: &mut Value) {
+        let Some(id) = doc.get("_id").and_then(Value::as_str).map(str::to_owned) else {
+            return;
+        };
+        let count = match DocType::of_id(&id) {
+            Some(DocType::Book) => self.books.get(&id),
+            Some(DocType::Tag) => self.tags.get(&id),
+            _ => return,
+        };
+        if let Some(fields) = doc.as_object_mut()
+            && fields.contains_key("count")
+        {
+            fields.insert("count".into(), count.copied().unwrap_or(0).into());
+        }
+    }
+}
+
 /// A document as a key is shown it: without publish, share and lock fields,
-/// and, for a notebook of a key limited to some notebooks, without the
-/// count, which counts notes it may not see.
-fn shaped(key: &Key, mut doc: Value) -> Value {
-    doc = scope::strip(doc);
-    if key.scope.notebooks.is_some()
-        && doc
-            .get("_id")
-            .and_then(Value::as_str)
-            .and_then(DocType::of_id)
-            == Some(DocType::Book)
-        && let Some(fields) = doc.as_object_mut()
-    {
-        fields.remove("count");
+/// and a notebook's or tag's count of the notes the key sees (`counts`),
+/// or none at all.
+fn shaped(doc: Value, counts: Option<&Counts>) -> Value {
+    let mut doc = scope::strip(doc);
+    match counts {
+        Some(counts) => counts.apply(&mut doc),
+        None => {
+            if matches!(
+                doc.get("_id")
+                    .and_then(Value::as_str)
+                    .and_then(DocType::of_id),
+                Some(DocType::Book | DocType::Tag)
+            ) && let Some(fields) = doc.as_object_mut()
+            {
+                fields.remove("count");
+            }
+        }
     }
     doc
 }
@@ -144,7 +224,17 @@ pub(crate) fn get_doc(
     }
     // A sealed file is served as a stub, without its bytes, whoever asks.
     let attachments = attachments && key.sees_files();
-    Ok(shaped(key, api::get_doc(store, id, rev, attachments)?))
+    let doc = api::get_doc(store, id, rev, attachments)?;
+    let counts = match DocType::of_id(id) {
+        Some(DocType::Book | DocType::Tag) => Some(Counts::of(store, &vis)?),
+        _ => None,
+    };
+    if let Some(counts) = &counts
+        && counts.hides_tag(id)
+    {
+        return Err(ApiError::not_found());
+    }
+    Ok(shaped(doc, counts.as_ref()))
 }
 
 /// `GET /notes` for a key: the notes it sees that match, `skip` and `limit`
@@ -178,7 +268,7 @@ pub(crate) fn list_notes(store: &Store, key: &Key, query: &NoteQuery) -> ApiResu
                 continue;
             }
             if seen >= query.skip {
-                out.push(shaped(key, row));
+                out.push(shaped(row, None));
                 if out.len() == want {
                     return Ok(out);
                 }
@@ -226,21 +316,37 @@ pub(crate) fn list_docs(
     }
     let vis = key.visibility(store)?;
     let docs = api::list_docs(store, doc_type, None, 0)?;
+    let counts = match doc_type {
+        DocType::Book | DocType::Tag => Some(Counts::of(store, &vis)?),
+        _ => None,
+    };
     Ok(docs
         .into_iter()
         .filter(|doc| {
-            doc.get("_id")
+            let Some(id) = doc.get("_id").and_then(Value::as_str) else {
+                return false;
+            };
+            if !key.sees(&vis, id) {
+                return false;
+            }
+            if doc_type != DocType::Tag {
+                return true;
+            }
+            if doc
+                .get("name")
                 .and_then(Value::as_str)
-                .is_some_and(|id| key.sees(&vis, id))
-                && !(doc_type == DocType::Tag
-                    && doc
-                        .get("name")
-                        .and_then(Value::as_str)
-                        .is_some_and(kanso_core::tags::is_ai_exclude))
+                .is_some_and(kanso_core::tags::is_ai_exclude)
+            {
+                return false;
+            }
+            // A tag only hidden notes carry would name what they are about:
+            // it is listed when the key sees one of its notes, or when no
+            // live note carries it at all.
+            counts.as_ref().is_none_or(|counts| !counts.hides_tag(id))
         })
         .skip(skip)
         .take(limit.unwrap_or(usize::MAX))
-        .map(|doc| shaped(key, doc))
+        .map(|doc| shaped(doc, counts.as_ref()))
         .collect())
 }
 
@@ -258,6 +364,17 @@ pub(crate) fn changes(
     let vis = key.visibility(store)?;
     let mut answer = api::changes(store, since, limit, descending, include_docs)?;
     if let Some(results) = answer.get_mut("results").and_then(Value::as_array_mut) {
+        let tags_shown = results.iter().any(|row| {
+            row.get("id")
+                .and_then(Value::as_str)
+                .and_then(DocType::of_id)
+                == Some(DocType::Tag)
+        });
+        let counts = if tags_shown {
+            Some(Counts::of(store, &vis)?)
+        } else {
+            None
+        };
         results.retain(|row| {
             let Some(id) = row.get("id").and_then(Value::as_str) else {
                 return false;
@@ -272,11 +389,11 @@ pub(crate) fn changes(
                     _ => false,
                 };
             }
-            key.sees(&vis, id)
+            key.sees(&vis, id) && counts.as_ref().is_none_or(|counts| !counts.hides_tag(id))
         });
         for row in results.iter_mut() {
             if let Some(doc) = row.get_mut("doc") {
-                *doc = shaped(key, doc.take());
+                *doc = shaped(doc.take(), None);
             }
         }
     }
@@ -284,15 +401,19 @@ pub(crate) fn changes(
 }
 
 /// Whether a write may touch note `id`: it is not there yet, or it is not
-/// locked and the key may see it (a trashed note counts, so it can be
-/// restored or emptied).
-fn note_target_ok(store: &Store, vis: &Visibility, id: &str) -> bool {
+/// locked and the key may see it. A trashed note counts for a key that sees
+/// every notebook, so it can be restored or emptied, unless it is tagged
+/// `#ai-exclude`: nothing says which notebook it came from, and a key
+/// limited to some could otherwise restore it into one of its own and read
+/// it.
+fn note_target_ok(store: &Store, vis: &Visibility, scope: &AgentScope, id: &str) -> bool {
     match store.note(id) {
         Ok(None) => true,
         Ok(Some(note)) => {
             !store.note_is_locked(id).unwrap_or(true)
                 && !store.note_in_locked_book(id).unwrap_or(true)
-                && (note.is_trashed() || vis.note(id).is_some())
+                && (vis.note(id).is_some()
+                    || (note.is_trashed() && scope.notebooks.is_none() && !vis.excluded(&note)))
         }
         Err(_) => false,
     }
@@ -329,9 +450,16 @@ pub(crate) fn check_write(
         && DocType::of_id(id) == Some(doc_type)
     {
         let ok = match doc_type {
-            DocType::Note => note_target_ok(store, vis, id),
+            DocType::Note => note_target_ok(store, vis, key.scope, id),
             DocType::Book => book_target_ok(store, vis, id),
-            DocType::Tag | DocType::File => true,
+            // The `#ai-exclude` tag, renamed or deleted, would show the
+            // notes it hides.
+            DocType::Tag => !vis.tag_is_ai_exclude(id),
+            DocType::File => match store.get(id) {
+                Ok(None) => true,
+                Ok(Some(_)) => file_visible(key.scope, vis, id),
+                Err(_) => false,
+            },
             _ => false,
         };
         if !ok {

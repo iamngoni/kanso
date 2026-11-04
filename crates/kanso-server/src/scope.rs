@@ -364,8 +364,8 @@ pub(crate) struct Visibility<'a> {
     spent: std::cell::RefCell<HashSet<String>>,
     /// Where the lines shown are numbered, when a token is asking.
     numbering: Option<(crate::tokens::TokenStore, TokenId)>,
-    /// Whether a notebook keeps its note count: only for a caller that sees
-    /// every notebook, since the count includes notes it may not see.
+    /// Whether notebooks and tags carry a note count, of the notes this
+    /// caller sees (API keys). Agents get none.
     keep_counts: bool,
 }
 
@@ -428,8 +428,9 @@ impl<'a> Visibility<'a> {
         })
     }
 
-    /// Lets notebooks keep their note counts, for a caller that sees every
-    /// notebook.
+    /// Gives notebooks and tags a count of the notes this caller sees,
+    /// never the library's own count, which includes locked, trashed,
+    /// excluded and out-of-scope notes.
     pub(crate) fn with_counts(mut self) -> Visibility<'a> {
         self.keep_counts = true;
         self
@@ -483,14 +484,27 @@ impl<'a> Visibility<'a> {
         if note.is_trashed() || !self.book_visible(&note.book_id) {
             return None;
         }
-        let excluded = note.tags.iter().any(|tag| {
-            kanso_core::tags::is_ai_exclude(tag)
-                || self
-                    .tag_names
-                    .get(tag)
-                    .is_some_and(|name| kanso_core::tags::is_ai_exclude(name))
-        });
-        (!excluded).then_some(note)
+        (!self.excluded(&note)).then_some(note)
+    }
+
+    /// Whether `note` is tagged `#ai-exclude`.
+    pub(crate) fn excluded(&self, note: &Note) -> bool {
+        note.tags
+            .iter()
+            .any(|tag| kanso_core::tags::is_ai_exclude(tag) || self.tag_is_ai_exclude(tag))
+    }
+
+    /// Whether tag `id` is the `#ai-exclude` tag, which no caller sees or
+    /// changes: renaming or deleting it would show the notes it hides.
+    pub(crate) fn tag_is_ai_exclude(&self, id: &str) -> bool {
+        self.tag_names
+            .get(id)
+            .is_some_and(|name| kanso_core::tags::is_ai_exclude(name))
+    }
+
+    /// The store this visibility reads.
+    pub(crate) fn store(&self) -> &'a Store {
+        self.store
     }
 
     /// Limits this request to the notes left of a read budget: `read` are

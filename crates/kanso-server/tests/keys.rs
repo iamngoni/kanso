@@ -6,6 +6,7 @@ mod common;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
+use base64::Engine as _;
 use common::*;
 use kanso_core::DocType;
 use kanso_server::{KeyAccess, KeyId, NewKey};
@@ -600,7 +601,8 @@ async fn a_key_limited_to_a_notebook_reads_and_writes_only_there() {
     assert_eq!(status, StatusCode::NOT_FOUND);
     let (_, books, _) = call_as(&app.router, &key, Method::GET, "/books", None).await;
     assert_eq!(books.as_array().unwrap().len(), 1);
-    assert!(books[0].get("count").is_none());
+    // The open note only: the locked one beside it isn't counted.
+    assert_eq!(books[0]["count"], 1);
     // Not written into, moved into, or edited there.
     let (status, answer, _) = call_as(
         &app.router,
@@ -694,4 +696,336 @@ async fn a_session_token_opens_mcp_alone_and_a_key_opens_both() {
             "{bad}"
         );
     }
+}
+
+/// An attachment, uploaded with a key for every notebook. Nothing holds it
+/// until a note links it.
+async fn upload_png(app: &App) -> String {
+    let (_, writer) = mint(app, KeyAccess::Write, None);
+    let data = base64::engine::general_purpose::STANDARD.encode(PNG);
+    let (status, answer, _) = call_as(
+        &app.router,
+        &writer,
+        Method::POST,
+        "/files",
+        Some(&json!({
+            "name": "pixel.png", "contentType": "image/png", "contentLength": PNG.len(), "publicIn": [],
+            "_attachments": { "index": { "content_type": "image/png", "data": data } }
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    answer["id"].as_str().unwrap().to_owned()
+}
+
+fn link(file: &str) -> String {
+    format!(
+        "![pixel]({}{})",
+        kanso_core::links::FILE_LINK_PREFIX,
+        file.trim_start_matches("file:")
+    )
+}
+
+/// A key that can write sees an attachment only when it sees every note
+/// that holds it: never one held by a note in a locked notebook, or by a
+/// note outside its notebooks, over REST, `_changes` or a tool.
+#[tokio::test]
+async fn a_write_key_never_reaches_an_attachment_of_a_note_it_cannot_see() {
+    let app = app();
+    let seeded = seed(&app.store, "qwertyuiopas");
+    let vaulted = upload_png(&app).await;
+    let elsewhere_file = upload_png(&app).await;
+    let orphan = upload_png(&app).await;
+    let mine = upload_png(&app).await;
+    let put = |doc: Value| {
+        app.store
+            .put(DocType::Note, doc, Put::Upsert, Origin::Sync)
+            .unwrap()
+            .id
+    };
+    let vault = app
+        .store
+        .get_api(&seeded.locked_book_note, None, false)
+        .unwrap()["bookId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    put(json!({ "title": "in the vault", "body": link(&vaulted), "bookId": vault }));
+    let other = app
+        .store
+        .put(
+            DocType::Book,
+            json!({ "name": "Elsewhere" }),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    put(json!({ "title": "elsewhere", "body": link(&elsewhere_file), "bookId": other }));
+    put(json!({ "title": "mine", "body": link(&mine), "bookId": seeded.book }));
+
+    let (_, everywhere) = mint(&app, KeyAccess::Write, None);
+    let (_, limited) = mint(&app, KeyAccess::Write, Some(vec![seeded.book.clone()]));
+    // (key, files it sees, files it doesn't)
+    let cases = [
+        (
+            &everywhere,
+            vec![&elsewhere_file, &orphan, &mine],
+            vec![&vaulted],
+        ),
+        (
+            &limited,
+            vec![&mine],
+            vec![&vaulted, &elsewhere_file, &orphan],
+        ),
+    ];
+    for (key, shown, hidden) in cases {
+        let (_, files, _) = call_as(&app.router, key, Method::GET, "/files", None).await;
+        let listed: Vec<&str> = files
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|file| file["_id"].as_str().unwrap())
+            .collect();
+        let (_, feed, _) = call_as(&app.router, key, Method::GET, "/_changes", None).await;
+        let fed: Vec<&str> = feed["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["id"].as_str().unwrap())
+            .collect();
+        for file in &shown {
+            assert!(listed.contains(&file.as_str()), "{file} in {listed:?}");
+            let (status, _, _) =
+                call_as(&app.router, key, Method::GET, &format!("/{file}"), None).await;
+            assert_eq!(status, StatusCode::OK, "{file}");
+        }
+        for file in &hidden {
+            assert!(!listed.contains(&file.as_str()), "{file}");
+            assert!(!fed.contains(&file.as_str()), "{file}");
+            let (status, _, _) = call_as(
+                &app.router,
+                key,
+                Method::GET,
+                &format!("/{file}?attachments=true"),
+                None,
+            )
+            .await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{file}");
+            let read = tool_as(&app.router, key, "read-file", json!({ "fileId": file })).await;
+            assert_eq!(read["isError"], true, "{file}: {read}");
+            // Nor overwritten or deleted.
+            let (status, _, _) =
+                call_as(&app.router, key, Method::DELETE, &format!("/{file}"), None).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{file}");
+        }
+    }
+    // Linking a hidden attachment into a note it sees doesn't open it.
+    let (status, _, _) = call_as(
+        &app.router,
+        &limited,
+        Method::POST,
+        &format!("/{}", seeded.note),
+        Some(&json!({ "body": link(&elsewhere_file) })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let read = tool_as(
+        &app.router,
+        &limited,
+        "kanso-read-attachment",
+        json!({ "noteId": seeded.note, "fileId": elsewhere_file }),
+    )
+    .await;
+    assert_eq!(read["isError"], true, "{read}");
+    let listed = tool_as(
+        &app.router,
+        &limited,
+        "kanso-list-attachments",
+        json!({ "noteId": seeded.note }),
+    )
+    .await;
+    assert!(!listed.to_string().contains(&elsewhere_file), "{listed}");
+}
+
+/// No key reads, renames or deletes the `#ai-exclude` tag, which would show
+/// the notes it hides; and no key hears of a tag only hidden notes carry,
+/// or a count that includes them.
+#[tokio::test]
+async fn keys_never_reach_the_ai_exclude_tag_or_hidden_counts() {
+    let app = app();
+    let seeded = seed(&app.store, "zxcvbnmasdfg");
+    let tag = |name: &str| {
+        app.store
+            .put(
+                DocType::Tag,
+                json!({ "name": name }),
+                Put::Upsert,
+                Origin::Sync,
+            )
+            .unwrap()
+            .id
+    };
+    let exclude = tag("ai-exclude");
+    let secret_tag = tag("divorce-lawyer");
+    let open_tag = tag("work");
+    let put = |doc: Value| {
+        app.store
+            .put(DocType::Note, doc, Put::Upsert, Origin::Sync)
+            .unwrap()
+            .id
+    };
+    let excluded = put(json!({
+        "title": "excluded", "body": "private", "bookId": seeded.book, "tags": [exclude]
+    }));
+    // The tag a locked note alone carries.
+    app.store
+        .put(
+            DocType::Note,
+            json!({ "_id": seeded.locked, "tags": [secret_tag] }),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    app.store
+        .put(
+            DocType::Note,
+            json!({ "_id": seeded.note, "tags": [open_tag] }),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    let (_, key) = mint(&app, KeyAccess::Write, None);
+
+    let (_, tags, text) = call_as(&app.router, &key, Method::GET, "/tags", None).await;
+    assert!(!text.contains("ai-exclude"), "{text}");
+    assert!(!text.contains("divorce-lawyer"), "{text}");
+    let work: Vec<&Value> = tags
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|tag| tag["_id"] == json!(open_tag))
+        .collect();
+    assert_eq!(work.len(), 1);
+    let (_, feed, _) = call_as(&app.router, &key, Method::GET, "/_changes", None).await;
+    assert!(!feed.to_string().contains(&exclude));
+    assert!(!feed.to_string().contains(&secret_tag));
+    let (_, books, _) = call_as(&app.router, &key, Method::GET, "/books", None).await;
+    let work_book = books
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|book| book["_id"] == json!(seeded.book))
+        .unwrap();
+    // The open note alone: not the locked or the excluded one.
+    assert_eq!(work_book["count"], 1, "{work_book}");
+    let listed = tool_as(&app.router, &key, "list-tags", json!({})).await;
+    assert!(!listed.to_string().contains("divorce-lawyer"), "{listed}");
+    assert!(!listed.to_string().contains("ai-exclude"), "{listed}");
+
+    for hidden in [&exclude, &secret_tag] {
+        let (status, _, _) =
+            call_as(&app.router, &key, Method::GET, &format!("/{hidden}"), None).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{hidden}");
+    }
+    let (status, _, _) = call_as(
+        &app.router,
+        &key,
+        Method::POST,
+        &format!("/{exclude}"),
+        Some(&json!({ "name": "renamed" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _, _) = call_as(
+        &app.router,
+        &key,
+        Method::DELETE,
+        &format!("/{exclude}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let renamed = tool_as(
+        &app.router,
+        &key,
+        "update-tag",
+        json!({ "_id": exclude, "name": "renamed" }),
+    )
+    .await;
+    assert_eq!(renamed["isError"], true, "{renamed}");
+    assert_eq!(
+        app.store.get_api(&exclude, None, false).unwrap()["name"],
+        "ai-exclude"
+    );
+    let (status, _, _) = call_as(
+        &app.router,
+        &key,
+        Method::GET,
+        &format!("/{excluded}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+/// A key limited to some notebooks can't restore a trashed note, which may
+/// have come from any notebook, into one of its own; nor can any key reach
+/// a trashed `#ai-exclude` note.
+#[tokio::test]
+async fn a_trashed_note_is_written_only_by_a_key_for_every_notebook() {
+    let app = app();
+    let seeded = seed(&app.store, "poiuytrewqlk");
+    let exclude = app
+        .store
+        .put(
+            DocType::Tag,
+            json!({ "name": "ai-exclude" }),
+            Put::Upsert,
+            Origin::Sync,
+        )
+        .unwrap()
+        .id;
+    let put = |doc: Value| {
+        app.store
+            .put(DocType::Note, doc, Put::Upsert, Origin::Sync)
+            .unwrap()
+            .id
+    };
+    let trashed = put(json!({ "title": "from elsewhere", "body": "x", "bookId": "trash" }));
+    let trashed_excluded = put(json!({
+        "title": "excluded", "body": "y", "bookId": "trash", "tags": [exclude]
+    }));
+    let (_, limited) = mint(&app, KeyAccess::Write, Some(vec![seeded.book.clone()]));
+    let (_, everywhere) = mint(&app, KeyAccess::Write, None);
+    let restore = json!({ "bookId": seeded.book });
+    let (status, _, _) = call_as(
+        &app.router,
+        &limited,
+        Method::POST,
+        &format!("/{trashed}"),
+        Some(&restore),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _, _) = call_as(
+        &app.router,
+        &everywhere,
+        Method::POST,
+        &format!("/{trashed_excluded}"),
+        Some(&json!({ "tags": [] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(app.store.note(&trashed).unwrap().unwrap().book_id, "trash");
+    // A key for every notebook restores an ordinary one.
+    let (status, answer, _) = call_as(
+        &app.router,
+        &everywhere,
+        Method::POST,
+        &format!("/{trashed}"),
+        Some(&restore),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
 }

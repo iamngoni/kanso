@@ -126,7 +126,7 @@ pub(crate) fn call_write(
         }
     };
     let result = guard_write(&state.store, key, vis, name, &args)
-        .and_then(|()| call_full(state, vis, name, args));
+        .and_then(|()| call_full(state, key, vis, name, args));
     result.unwrap_or_else(|ToolError(message)| error_result(message))
 }
 
@@ -173,10 +173,26 @@ fn guard_write(
                 return Err(ApiError::not_found().into());
             }
         }
+        "update-tag" => {
+            let id = str_arg(args, "_id");
+            keyed::check_write(store, key, vis, DocType::Tag, Some(id), args)?;
+        }
+        "read-file" => {
+            let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+            if !keyed::file_visible(key.scope, vis, &file) {
+                return Err(ApiError::not_found().into());
+            }
+        }
+        "kanso-read-attachment" => {
+            sees(&note("noteId"))?;
+            let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+            if !keyed::file_visible(key.scope, vis, &file) {
+                return Err(ApiError::not_found().into());
+            }
+        }
         "kanso-set-task-done"
         | "kanso-attach-file"
         | "kanso-list-attachments"
-        | "kanso-read-attachment"
         | "kanso-export-html" => sees(&note("noteId"))?,
         "kanso-move-note" => {
             sees(&note("noteId"))?;
@@ -184,8 +200,16 @@ fn guard_write(
         }
         "kanso-create-from-template" => {
             sees(&note("templateId"))?;
-            if let Some(book) = opt_str(args, "bookId") {
-                dest(&keyed::book_arg(book))?;
+            match opt_str(args, "bookId") {
+                Some(book) => dest(&keyed::book_arg(book))?,
+                // Without one the note goes to the Inbox, which may not be
+                // one of the key's notebooks.
+                None if key.scope.notebooks.is_some() => {
+                    return Err(ToolError(
+                        "This key is limited to some notebooks: pass `bookId`, one of them, to say where the note goes.".into(),
+                    ));
+                }
+                None => {}
             }
         }
         "kanso-create-daily-note" if key.scope.notebooks.is_some() => {
@@ -200,30 +224,31 @@ fn guard_write(
 }
 
 /// The tools only a key that can write reaches. `vis` is the key's.
-fn call_full(state: &AppState, vis: &Visibility, name: &str, args: Args) -> ToolResult {
+fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Args) -> ToolResult {
     let store = &*state.store;
+    let file_shown = |id: &str| keyed::file_visible(key.scope, vis, id);
     match name {
         "read-backlinks" => read_backlinks(store, vis, &args),
         "create-note" => upsert(store, DocType::Note, args),
         "update-note" => update_note(store, args),
         "patch-note" => patch_note(store, &args),
-        "list-tags" => list(store, DocType::Tag),
-        "read-tag" => read(store, vis, DocType::Tag, &args, "tagId"),
+        "list-tags" => list(keyed::list_docs(store, key, DocType::Tag, None, 0)?),
+        "read-tag" => read(store, key, DocType::Tag, &args, "tagId"),
         "create-tag" => upsert(store, DocType::Tag, args),
         "update-tag" => merge(store, args, false),
-        "list-notebooks" => list(store, DocType::Book),
-        "read-book" => read(store, vis, DocType::Book, &args, "bookId"),
+        "list-notebooks" => list(keyed::list_docs(store, key, DocType::Book, None, 0)?),
+        "read-book" => read(store, key, DocType::Book, &args, "bookId"),
         "create-book" => upsert(store, DocType::Book, args),
         "update-book" => merge(store, args, true),
         "create-file" => create_file(store, &args),
         "read-file" => read_file(store, &args),
         "kanso-create-daily-note" => create_daily_note(store, &args),
         "kanso-create-from-template" => create_from_template(store, &args),
-        "kanso-export-html" => export_html(store, &args),
+        "kanso-export-html" => export_html(store, &args, &file_shown),
         "kanso-set-task-done" => set_task_done(store, &args),
         "kanso-move-note" => move_note(store, &args),
         "kanso-attach-file" => attach_file(store, &args),
-        "kanso-list-attachments" => list_attachments(store, &args),
+        "kanso-list-attachments" => list_attachments(store, &args, &file_shown),
         "kanso-read-attachment" => read_attachment(store, &args),
         _ => Err(ToolError(format!(
             "MCP error -32602: Tool {name} not found"
@@ -287,12 +312,24 @@ fn list_visible_books(store: &Store, vis: &Visibility) -> ToolResult {
                 .and_then(Value::as_str)
                 .is_some_and(|id| vis.book_visible(id))
         })
-        .map(|book| {
-            let mut book = scope::strip(book);
-            if !vis.keeps_counts()
-                && let Some(fields) = book.as_object_mut()
-            {
-                fields.remove("count");
+        .map(scope::strip)
+        .collect();
+    // Agents get no count; a key the count of the notes it sees.
+    let counts = if vis.keeps_counts() {
+        Some(keyed::Counts::of(store, vis)?)
+    } else {
+        None
+    };
+    let books: Vec<Value> = books
+        .into_iter()
+        .map(|mut book| {
+            match &counts {
+                Some(counts) => counts.apply(&mut book),
+                None => {
+                    if let Some(fields) = book.as_object_mut() {
+                        fields.remove("count");
+                    }
+                }
             }
             book
         })
@@ -385,7 +422,7 @@ fn create_from_template(store: &Store, args: &Args) -> ToolResult {
 
 /// `kanso-export-html`: the note as a standalone page, in Kanso's light or
 /// dark theme.
-fn export_html(store: &Store, args: &Args) -> ToolResult {
+fn export_html(store: &Store, args: &Args, file_shown: &dyn Fn(&str) -> bool) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
     let note = api::get_doc(store, &id, None, false)?;
     let palette = match opt_str(args, "theme") {
@@ -393,7 +430,7 @@ fn export_html(store: &Store, args: &Args) -> ToolResult {
         _ => kanso_render::Palette::LIGHT,
     };
     let attachments = |id: &str| {
-        if store.attachment_state(id).ok() == Some(AttachmentState::Sealed) {
+        if !file_shown(id) || store.attachment_state(id).ok() == Some(AttachmentState::Sealed) {
             return None;
         }
         store
@@ -708,12 +745,13 @@ fn attach_file(store: &Store, args: &Args) -> ToolResult {
 }
 
 /// Lists attachment metadata for files embedded in a visible note.
-fn list_attachments(store: &Store, args: &Args) -> ToolResult {
+fn list_attachments(store: &Store, args: &Args, file_shown: &dyn Fn(&str) -> bool) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
     let note = native_visible_note(store, None, &id)?;
     let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
     let files: Vec<Value> = kanso_core::tasks::linked_file_ids(body)
         .into_iter()
+        .filter(|file_id| file_shown(file_id))
         .filter_map(|file_id| {
             api::get_doc(store, &file_id, None, false).ok().map(|file| {
                 json!({
@@ -1438,21 +1476,17 @@ fn patch_note(store: &Store, args: &Args) -> ToolResult {
     upsert_note(store, note)
 }
 
-fn list(store: &Store, doc_type: DocType) -> ToolResult {
-    let docs = Value::Array(api::list_docs(store, doc_type, None, 0)?);
-    result(vec![text(pretty(&docs))])
+/// `list-tags` and `list-notebooks` for a key: what it sees, counted as
+/// it sees them.
+fn list(docs: Vec<Value>) -> ToolResult {
+    result(vec![text(pretty(&Value::Array(docs)))])
 }
 
-fn read(store: &Store, vis: &Visibility, doc_type: DocType, args: &Args, key: &str) -> ToolResult {
-    let id = with_prefix(doc_type, str_arg(args, key));
-    let mut doc = scope::strip(api::get_doc(store, &id, None, false)?);
-    if doc_type == DocType::Book
-        && !vis.keeps_counts()
-        && let Some(fields) = doc.as_object_mut()
-    {
-        // The count includes notes the caller may not see.
-        fields.remove("count");
-    }
+/// `read-tag` and `read-book` for a key: "not found" for one it doesn't
+/// see, and the count of the notes it sees.
+fn read(store: &Store, key: &Key, doc_type: DocType, args: &Args, field: &str) -> ToolResult {
+    let id = with_prefix(doc_type, str_arg(args, field));
+    let doc = keyed::get_doc(store, key, &id, None, false)?;
     result(vec![text(pretty(&doc))])
 }
 

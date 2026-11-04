@@ -117,11 +117,8 @@ pub(crate) fn call_for_key(
     let Some(vis) = Visibility::new(&state.store, key.scope) else {
         return tools::error_result("Couldn't read the notes.");
     };
-    let vis = if key.scope.notebooks.is_none() {
-        vis.with_counts()
-    } else {
-        vis
-    };
+    // A key's notebooks and tags count only the notes it sees.
+    let vis = vis.with_counts();
     if key.can_write() {
         return tools::call_write(state, key, &vis, name, arguments);
     }
