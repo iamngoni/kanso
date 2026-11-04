@@ -23,6 +23,7 @@ import 'core/views/widgets/layout_class_reporter.dart';
 import 'core/views/widgets/review_prompt_host.dart';
 import 'crash/views/widgets/crash_notice_host.dart';
 import 'dictation/views/widgets/dictation_scope.dart';
+import 'feedback/views/widgets/feedback_host.dart';
 import 'gen/l10n/app_localizations.dart';
 import 'import/views/widgets/opened_documents_host.dart';
 import 'injection.dart';
@@ -91,19 +92,21 @@ class _AppState extends State<App> {
               child: LayoutClassReporter(
                 notifier: widget.router.layoutClass,
                 child: ForegroundReporter(
-                  child: CrashNoticeHost(
-                    child: LockLifecycleHost(
-                      child: BackupNoticeHost(
-                        child: OpenedDocumentsHost(
-                          router: widget.router.config,
-                          child: DeviceApprovalHost(
-                            child: widget.reviewPrompt == null
-                                ? child!
-                                : ReviewPromptHost(
-                                    prompt: widget.reviewPrompt!,
-                                    router: widget.router.config,
-                                    child: child!,
-                                  ),
+                  child: FeedbackHost(
+                    child: CrashNoticeHost(
+                      child: LockLifecycleHost(
+                        child: BackupNoticeHost(
+                          child: OpenedDocumentsHost(
+                            router: widget.router.config,
+                            child: DeviceApprovalHost(
+                              child: widget.reviewPrompt == null
+                                  ? child!
+                                  : ReviewPromptHost(
+                                      prompt: widget.reviewPrompt!,
+                                      router: widget.router.config,
+                                      child: child!,
+                                    ),
+                            ),
                           ),
                         ),
                       ),

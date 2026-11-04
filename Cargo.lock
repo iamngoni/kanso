@@ -4634,6 +4634,7 @@ dependencies = [
  "tree-sitter-toml-ng",
  "tree-sitter-typescript",
  "tree-sitter-yaml",
+ "unicode-normalization",
  "unicode-segmentation",
  "unicode-width",
  "ureq",
