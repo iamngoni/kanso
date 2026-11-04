@@ -57,11 +57,7 @@ class CanvasArrow {
           label == other.label;
 }
 
-enum CanvasBudget {
-  ok,
-  warn,
-  full,
-}
+enum CanvasBudget { ok, warn, full }
 
 class CanvasCard {
   final String id;
@@ -138,10 +134,7 @@ class CanvasPoint {
   final double x;
   final double y;
 
-  const CanvasPoint({
-    required this.x,
-    required this.y,
-  });
+  const CanvasPoint({required this.x, required this.y});
 
   @override
   int get hashCode => x.hashCode ^ y.hashCode;
@@ -388,10 +381,7 @@ class StrokeKey {
   final String nodeId;
   final String strokeId;
 
-  const StrokeKey({
-    required this.nodeId,
-    required this.strokeId,
-  });
+  const StrokeKey({required this.nodeId, required this.strokeId});
 
   @override
   int get hashCode => nodeId.hashCode ^ strokeId.hashCode;

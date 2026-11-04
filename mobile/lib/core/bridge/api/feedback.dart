@@ -138,10 +138,7 @@ class FeedbackPreview {
   final String json;
   final FeedbackProblem? problem;
 
-  const FeedbackPreview({
-    required this.json,
-    this.problem,
-  });
+  const FeedbackPreview({required this.json, this.problem});
 
   @override
   int get hashCode => json.hashCode ^ problem.hashCode;
@@ -235,10 +232,8 @@ sealed class FeedbackSent with _$FeedbackSent {
   const factory FeedbackSent.queued() = FeedbackSent_Queued;
   const factory FeedbackSent.paused() = FeedbackSent_Paused;
   const factory FeedbackSent.rateLimited() = FeedbackSent_RateLimited;
-  const factory FeedbackSent.rejected({
-    required String field,
-  }) = FeedbackSent_Rejected;
-  const factory FeedbackSent.invalid({
-    required FeedbackProblem problem,
-  }) = FeedbackSent_Invalid;
+  const factory FeedbackSent.rejected({required String field}) =
+      FeedbackSent_Rejected;
+  const factory FeedbackSent.invalid({required FeedbackProblem problem}) =
+      FeedbackSent_Invalid;
 }

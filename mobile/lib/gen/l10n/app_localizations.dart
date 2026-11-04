@@ -10839,6 +10839,288 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Filed'**
   String get feedbackStepFiled;
+
+  /// The library row and list for canvases.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvases'**
+  String get libraryCanvases;
+
+  /// No description provided for @emptyCanvasesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No canvases yet'**
+  String get emptyCanvasesTitle;
+
+  /// No description provided for @emptyCanvasesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw, write and pin notes on an endless page. Tap New to start one.'**
+  String get emptyCanvasesMessage;
+
+  /// No description provided for @canvasNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New canvas'**
+  String get canvasNew;
+
+  /// No description provided for @canvasUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled canvas'**
+  String get canvasUntitled;
+
+  /// No description provided for @canvasToolPen.
+  ///
+  /// In en, this message translates to:
+  /// **'Pen'**
+  String get canvasToolPen;
+
+  /// No description provided for @canvasToolPencil.
+  ///
+  /// In en, this message translates to:
+  /// **'Pencil'**
+  String get canvasToolPencil;
+
+  /// No description provided for @canvasToolMarker.
+  ///
+  /// In en, this message translates to:
+  /// **'Marker'**
+  String get canvasToolMarker;
+
+  /// No description provided for @canvasToolHighlighter.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlighter'**
+  String get canvasToolHighlighter;
+
+  /// No description provided for @canvasToolEraser.
+  ///
+  /// In en, this message translates to:
+  /// **'Eraser'**
+  String get canvasToolEraser;
+
+  /// No description provided for @canvasToolPartialEraser.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial eraser'**
+  String get canvasToolPartialEraser;
+
+  /// No description provided for @canvasToolLasso.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get canvasToolLasso;
+
+  /// No description provided for @canvasToolText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text card'**
+  String get canvasToolText;
+
+  /// No description provided for @canvasToolArrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrow'**
+  String get canvasToolArrow;
+
+  /// No description provided for @canvasToolHand.
+  ///
+  /// In en, this message translates to:
+  /// **'Move canvas'**
+  String get canvasToolHand;
+
+  /// No description provided for @canvasUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get canvasUndo;
+
+  /// No description provided for @canvasRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get canvasRedo;
+
+  /// No description provided for @canvasFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit to content'**
+  String get canvasFit;
+
+  /// No description provided for @canvasColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Ink color'**
+  String get canvasColor;
+
+  /// No description provided for @canvasWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Pen width'**
+  String get canvasWidth;
+
+  /// A switch: whether a finger draws or only pans the canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Finger draws'**
+  String get canvasFingerDraws;
+
+  /// No description provided for @canvasFingerDrawsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Off, a finger only moves and zooms the canvas. It turns off by itself when a pen is used.'**
+  String get canvasFingerDrawsHelp;
+
+  /// No description provided for @canvasMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get canvasMore;
+
+  /// The accessibility label of the drawing area.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas'**
+  String get canvasSurface;
+
+  /// No description provided for @canvasBudgetWarnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This canvas is getting large'**
+  String get canvasBudgetWarnTitle;
+
+  /// No description provided for @canvasBudgetWarnMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select some ink and move it to a new canvas before this one is full.'**
+  String get canvasBudgetWarnMessage;
+
+  /// No description provided for @canvasBudgetFullTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This canvas is full'**
+  String get canvasBudgetFullTitle;
+
+  /// No description provided for @canvasBudgetFullMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'New ink is refused until you move some to a new canvas.'**
+  String get canvasBudgetFullMessage;
+
+  /// No description provided for @canvasMoveToNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to a new canvas'**
+  String get canvasMoveToNew;
+
+  /// No description provided for @canvasMovedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved ink'**
+  String get canvasMovedTitle;
+
+  /// No description provided for @canvasSelectionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete selection'**
+  String get canvasSelectionDelete;
+
+  /// No description provided for @canvasSelectionClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get canvasSelectionClear;
+
+  /// No description provided for @canvasCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text card'**
+  String get canvasCardTitle;
+
+  /// No description provided for @canvasCardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write on the card'**
+  String get canvasCardHint;
+
+  /// No description provided for @canvasCardSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get canvasCardSave;
+
+  /// No description provided for @canvasCardDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete card'**
+  String get canvasCardDelete;
+
+  /// No description provided for @canvasCardOpenNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Open note'**
+  String get canvasCardOpenNote;
+
+  /// No description provided for @canvasCardMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is gone.'**
+  String get canvasCardMissing;
+
+  /// No description provided for @canvasNotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save. Your drawing is kept here and will be saved again.'**
+  String get canvasNotSaved;
+
+  /// No description provided for @canvasFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open this canvas.'**
+  String get canvasFailed;
+
+  /// No description provided for @canvasLockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This canvas is locked'**
+  String get canvasLockedTitle;
+
+  /// No description provided for @canvasLockedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock it from the notes list to draw on it.'**
+  String get canvasLockedMessage;
+
+  /// No description provided for @canvasExportSvg.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as image'**
+  String get canvasExportSvg;
+
+  /// No description provided for @canvasExportExcalidraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to Excalidraw'**
+  String get canvasExportExcalidraw;
+
+  /// No description provided for @canvasExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to the clipboard.'**
+  String get canvasExported;
+
+  /// No description provided for @canvasExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t export this canvas.'**
+  String get canvasExportFailed;
+
+  /// No description provided for @canvasBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get canvasBack;
 }
 
 class _AppLocalizationsDelegate

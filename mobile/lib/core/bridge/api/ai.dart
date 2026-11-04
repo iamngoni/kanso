@@ -338,21 +338,11 @@ sealed class AskEvent with _$AskEvent {
   const AskEvent._();
 
   const factory AskEvent.searching() = AskEvent_Searching;
-  const factory AskEvent.used({
-    required List<AskNote> notes,
-  }) = AskEvent_Used;
-  const factory AskEvent.status({
-    required String line,
-  }) = AskEvent_Status;
-  const factory AskEvent.answer({
-    required String markdown,
-  }) = AskEvent_Answer;
-  const factory AskEvent.time({
-    required AskTime time,
-  }) = AskEvent_Time;
-  const factory AskEvent.restarted({
-    required String line,
-  }) = AskEvent_Restarted;
+  const factory AskEvent.used({required List<AskNote> notes}) = AskEvent_Used;
+  const factory AskEvent.status({required String line}) = AskEvent_Status;
+  const factory AskEvent.answer({required String markdown}) = AskEvent_Answer;
+  const factory AskEvent.time({required AskTime time}) = AskEvent_Time;
+  const factory AskEvent.restarted({required String line}) = AskEvent_Restarted;
   const factory AskEvent.done({
     required String markdown,
     required List<AskNote> notes,
@@ -369,12 +359,8 @@ sealed class AskEvent with _$AskEvent {
     required String message,
     required bool narrow,
   }) = AskEvent_NothingMatches;
-  const factory AskEvent.cutOff({
-    required String message,
-  }) = AskEvent_CutOff;
-  const factory AskEvent.failed({
-    required String message,
-  }) = AskEvent_Failed;
+  const factory AskEvent.cutOff({required String message}) = AskEvent_CutOff;
+  const factory AskEvent.failed({required String message}) = AskEvent_Failed;
   const factory AskEvent.stopped() = AskEvent_Stopped;
 }
 
@@ -383,10 +369,7 @@ class AskLines {
   final int start;
   final int end;
 
-  const AskLines({
-    required this.start,
-    required this.end,
-  });
+  const AskLines({required this.start, required this.end});
 
   @override
   int get hashCode => start.hashCode ^ end.hashCode;
@@ -406,10 +389,7 @@ class AskNote {
   final String id;
   final String title;
 
-  const AskNote({
-    required this.id,
-    required this.title,
-  });
+  const AskNote({required this.id, required this.title});
 
   @override
   int get hashCode => id.hashCode ^ title.hashCode;
@@ -472,10 +452,7 @@ class AskScopeInput {
   final String kind;
   final String value;
 
-  const AskScopeInput({
-    required this.kind,
-    required this.value,
-  });
+  const AskScopeInput({required this.kind, required this.value});
 
   @override
   int get hashCode => kind.hashCode ^ value.hashCode;
@@ -519,10 +496,7 @@ class AskTime {
   final String label;
   final String relaxedLine;
 
-  const AskTime({
-    required this.label,
-    required this.relaxedLine,
-  });
+  const AskTime({required this.label, required this.relaxedLine});
 
   @override
   int get hashCode => label.hashCode ^ relaxedLine.hashCode;
@@ -540,20 +514,12 @@ class AskTime {
 sealed class AssistEvent with _$AssistEvent {
   const AssistEvent._();
 
-  const factory AssistEvent.status({
-    required String line,
-  }) = AssistEvent_Status;
-  const factory AssistEvent.text({
-    required String text,
-  }) = AssistEvent_Text;
-  const factory AssistEvent.done({
-    required String text,
-  }) = AssistEvent_Done;
-  const factory AssistEvent.cutOff({
-    required String message,
-  }) = AssistEvent_CutOff;
-  const factory AssistEvent.failed({
-    required String message,
-  }) = AssistEvent_Failed;
+  const factory AssistEvent.status({required String line}) = AssistEvent_Status;
+  const factory AssistEvent.text({required String text}) = AssistEvent_Text;
+  const factory AssistEvent.done({required String text}) = AssistEvent_Done;
+  const factory AssistEvent.cutOff({required String message}) =
+      AssistEvent_CutOff;
+  const factory AssistEvent.failed({required String message}) =
+      AssistEvent_Failed;
   const factory AssistEvent.stopped() = AssistEvent_Stopped;
 }
