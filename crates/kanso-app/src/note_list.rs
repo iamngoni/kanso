@@ -601,7 +601,7 @@ impl NoteList {
                             // A canvas wears a pen mark: it is drawn, not typed.
                             .when(note.canvas, |el| {
                                 el.child(
-                                    Icon::new(IconName::PenTool)
+                                    Icon::new(Lucide::PenTool)
                                         .size(px(12.))
                                         .text_color(colors.quiet(selected)),
                                 )
@@ -1110,7 +1110,7 @@ impl NoteList {
             )
             .into_any_element(),
             Filter::Canvases => quiet_empty(
-                Icon::new(IconName::PenTool),
+                Icon::new(Lucide::PenTool),
                 "No canvases".into(),
                 Some("Choose Note › New Canvas to start one.".into()),
                 colors,
