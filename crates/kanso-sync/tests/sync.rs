@@ -489,6 +489,37 @@ fn a_document_too_large_for_the_server_stays_pending_and_is_reported() {
 }
 
 #[test]
+fn a_pdf_over_the_servers_file_limit_stays_on_this_device_and_is_reported() {
+    let server = MemoryServer::new();
+    let a = Mac::new(sign_up(&server, "alice", 1));
+    let mut pdf = b"%PDF-1.7".to_vec();
+    pdf.resize(12 * 1024 * 1024, 0);
+    put(
+        &a.store,
+        DocType::File,
+        json!({
+            "_id": "file:bigpdf", "name": "big.pdf", "contentType": "application/pdf",
+            "createdAt": 1,
+            "_attachments": {"index": {
+                "content_type": "application/pdf",
+                "data": base64::engine::general_purpose::STANDARD.encode(&pdf),
+            }},
+        }),
+    )
+    .unwrap();
+    file(&a.store, "file:small", b"\x89PNGsmall");
+    let report = a.sync(&server);
+    assert_eq!(report.too_large, vec!["file:bigpdf".to_owned()]);
+    assert_eq!(report.pending, 1);
+    assert_eq!(report.pushed, 1);
+    // Said, not silent: the status names it instead of "Synced".
+    assert_eq!(
+        report_problem(&report),
+        Some(SyncProblem::TooLarge { count: 1 })
+    );
+}
+
+#[test]
 fn the_cursor_is_saved_after_each_page() {
     let server = MemoryServer::new();
     let a = Mac::new(sign_up(&server, "alice", 1));

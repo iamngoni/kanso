@@ -51,7 +51,9 @@ use std::path::Path;
 use anyhow::Context as _;
 use base64::Engine as _;
 use kanso_core::links::{FILE_LINK_PREFIX, NOTE_LINK_PREFIX};
-use kanso_core::model::{MAX_ATTACHMENT_SIZE, MAX_BODY_LEN, MAX_NAME_LEN, MAX_TITLE_LEN};
+use kanso_core::model::{
+    MAX_ATTACHMENT_SIZE, MAX_BODY_LEN, MAX_NAME_LEN, MAX_PDF_SIZE, MAX_TITLE_LEN,
+};
 use kanso_core::roles::Role;
 use kanso_core::{DocType, Rev, TRASH_BOOK_ID};
 use kanso_store::{Attachment, Origin, Store, StoreError};
@@ -628,17 +630,18 @@ pub fn run(
                 continue;
             }
             report.found.attachments += 1;
-            if file.data.len() > MAX_ATTACHMENT_SIZE {
-                report.skipped.push(Skipped::new(
-                    format!("{} › {}", entry.title, file.name),
-                    format!("larger than {} MB", MAX_ATTACHMENT_SIZE / (1024 * 1024)),
-                ));
-                continue;
-            }
             let content_type = file
                 .content_type
                 .clone()
                 .unwrap_or_else(|| content_type(&file.name).to_owned());
+            let limit = kanso_core::model::attachment_limit(&content_type, &file.data);
+            if file.data.len() > limit {
+                report.skipped.push(Skipped::new(
+                    format!("{} › {}", entry.title, file.name),
+                    format!("larger than {} MB", limit / (1024 * 1024)),
+                ));
+                continue;
+            }
             let fields = file_fields(&file.name, &content_type, note.created);
             let attachment = Attachment::new(file.data.clone());
             let outcome = writer.write(
@@ -714,7 +717,7 @@ pub fn run(
         let blob = if options.dry_run {
             Blob::Planned(file.size)
         } else {
-            match source.read(&file.path, MAX_ATTACHMENT_SIZE as u64) {
+            match source.read(&file.path, size_limit_for(&file.path) as u64) {
                 Ok(data) => Blob::Bytes(Attachment::new(data)),
                 Err(err) => {
                     report
@@ -732,7 +735,7 @@ pub fn run(
             files[ix].path.clone(),
             format!(
                 "larger than {} MB, the most an attachment can be",
-                MAX_ATTACHMENT_SIZE / (1024 * 1024)
+                size_limit_for(&files[ix].path) / (1024 * 1024)
             ),
         ));
     }
@@ -994,6 +997,16 @@ fn file_fields(name: &str, content_type: &str, created: Option<i64>) -> Map<Stri
     fields
 }
 
+/// The most a file may be, judged by its name: a PDF gets the PDF limit. The
+/// store checks the bytes themselves when it writes the file.
+fn size_limit_for(name: &str) -> usize {
+    if content_type(name) == "application/pdf" {
+        MAX_PDF_SIZE
+    } else {
+        MAX_ATTACHMENT_SIZE
+    }
+}
+
 /// The content type of a file, by its extension.
 pub fn content_type(name: &str) -> &'static str {
     match extension(name).as_str() {
@@ -1071,7 +1084,7 @@ impl Rewriter<'_> {
         let mut edits = Vec::new();
         for found in links::scan(&note.body) {
             let mut file_target = |ix: usize, needed: &mut BTreeSet<usize>| -> Option<String> {
-                if self.files[ix].size > MAX_ATTACHMENT_SIZE as u64 {
+                if self.files[ix].size > size_limit_for(&self.files[ix].path) as u64 {
                     too_big.insert(ix);
                     return None;
                 }

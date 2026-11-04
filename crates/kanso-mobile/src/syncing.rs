@@ -455,6 +455,7 @@ pub(crate) fn problem_kind(problem: &SyncProblem) -> SyncProblemKind {
         SyncProblem::QuotaExceeded(_) => SyncProblemKind::AccountFull,
         SyncProblem::ServerFull => SyncProblemKind::ServerFull,
         SyncProblem::Skipped { .. } => SyncProblemKind::SomeItemsSkipped,
+        SyncProblem::TooLarge { .. } => SyncProblemKind::FilesTooLarge,
         SyncProblem::UpdateKanso => SyncProblemKind::UpdateKanso,
         SyncProblem::WrongKey => SyncProblemKind::KeysDontMatch,
         SyncProblem::ServerOutdated => SyncProblemKind::ServerNeedsUpdate,

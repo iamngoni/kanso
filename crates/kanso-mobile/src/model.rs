@@ -566,6 +566,10 @@ pub enum SyncProblemKind {
     ServerNeedsUpdate,
     Offline,
     Other,
+    /// Files too large for the server stay on this device
+    /// (`skipped_count` says how many). Last, so earlier values keep
+    /// their index.
+    FilesTooLarge,
 }
 
 /// The sync status the sidebar shows.
@@ -585,7 +589,8 @@ pub struct SyncStatus {
     pub conflicted_title: Option<String>,
     /// When a pause ends (`Paused`, `ServerBusy`, `BackOff`).
     pub resume_at_ms: Option<i64>,
-    /// How many items were skipped (`SomeItemsSkipped`).
+    /// How many items were skipped (`SomeItemsSkipped`), or how many files
+    /// stay on this device (`FilesTooLarge`).
     pub skipped_count: u32,
     /// What is full (`AccountFull`).
     pub quota: Option<QuotaLimit>,

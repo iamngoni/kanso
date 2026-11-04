@@ -4418,7 +4418,7 @@ fn is_drawing(path: &std::path::Path) -> bool {
 /// Markdown, or a drawing's fenced block (kept in the note itself, so it
 /// syncs and versions with it).
 fn attach(store: &Store, image: Pasted) -> Result<String, String> {
-    use kanso_core::model::MAX_ATTACHMENT_SIZE;
+    use kanso_core::model::{MAX_ATTACHMENT_SIZE, MAX_PDF_SIZE};
     match image {
         Pasted::Bytes(bytes, ext) => smart_paste::attach_image(store, &bytes, ext, None)
             .map(|id| smart_paste::image_markdown(&id)),
@@ -4436,13 +4436,15 @@ fn attach(store: &Store, image: Pasted) -> Result<String, String> {
                 .and_then(|e| e.to_str())
                 .unwrap_or_default();
             let name = path.file_name().and_then(|n| n.to_str());
+            let limit = if ext.eq_ignore_ascii_case("pdf") {
+                MAX_PDF_SIZE
+            } else {
+                MAX_ATTACHMENT_SIZE
+            };
             if let Ok(meta) = std::fs::metadata(&path)
-                && meta.len() > MAX_ATTACHMENT_SIZE as u64
+                && meta.len() > limit as u64
             {
-                return Err(smart_paste::too_large(
-                    meta.len() as usize,
-                    MAX_ATTACHMENT_SIZE,
-                ));
+                return Err(smart_paste::too_large(meta.len() as usize, limit));
             }
             let bytes =
                 std::fs::read(&path).map_err(|err| format!("Couldn't read the image: {err}"))?;

@@ -1,0 +1,17 @@
+[package]
+name = "kanso-pdf"
+description = "PDF reading in Kanso: the annotation block, page links and quotes. Pure types; no PDF engine."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+fastrand.workspace = true
+kanso-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

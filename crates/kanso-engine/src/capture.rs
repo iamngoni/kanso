@@ -863,13 +863,13 @@ mod tests {
 
         let drop = "e".repeat(32);
         let mut big = b"%PDF-".to_vec();
-        big.resize(10 * 1024 * 1024 + 1, 0);
+        big.resize(50 * 1024 * 1024 + 1, 0);
         let mut share = shared(Some("Big"), None, None);
         share.files = vec![file("big.pdf", &big)];
         let saved = save_shared(&store, &share, &drop, Origin::Ui).unwrap();
         assert_eq!(
             saved.problems,
-            vec!["big.pdf: That PDF is 10 MB. Attachments can be up to 10 MB.".to_owned()]
+            vec!["big.pdf: That PDF is 50 MB. Attachments can be up to 50 MB.".to_owned()]
         );
     }
 

@@ -215,6 +215,9 @@ pub(crate) fn problem_of(status: &SyncStatus) -> Option<SyncProblem> {
             SyncProblem::QuotaExceeded(status.quota.map_or(QuotaKind::Docs, quota_of))
         }
         SyncProblemKind::ServerFull => SyncProblem::ServerFull,
+        SyncProblemKind::FilesTooLarge => SyncProblem::TooLarge {
+            count: status.skipped_count as usize,
+        },
         SyncProblemKind::SomeItemsSkipped => SyncProblem::Skipped {
             count: status.skipped_count as usize,
         },
@@ -241,7 +244,7 @@ pub(crate) fn details_of(problem: &SyncProblem) -> ProblemDetails {
         SyncProblem::Paused { until }
         | SyncProblem::ServerBusy { until }
         | SyncProblem::BackOff { until } => details.resume_at_ms = Some(*until),
-        SyncProblem::Skipped { count } => {
+        SyncProblem::Skipped { count } | SyncProblem::TooLarge { count } => {
             details.skipped_count = u32::try_from(*count).unwrap_or(u32::MAX);
         }
         SyncProblem::QuotaExceeded(kind) => details.quota = Some(quota_limit(*kind)),
