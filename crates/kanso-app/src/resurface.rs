@@ -604,12 +604,13 @@ impl Job {
 
 // MARK: Views
 
-/// The list of items, as the margin and the inspector draw it. Handlers
-/// reach the state through `view`.
+/// The list of items, as the margin and the inspector draw it. `state` is
+/// `view`'s state, passed in rather than read: the margin draws this from
+/// inside its own `render`, where reading `view` again panics (the entity is
+/// already being updated). Handlers reach the state through `view`.
 // no-prop-test: drawing; the resurface tests exercise the state it shows.
-pub fn item_list(view: &Entity<Resurface>, cx: &App) -> Div {
+pub fn item_list(view: &Entity<Resurface>, state: &Resurface, cx: &App) -> Div {
     let colors = Colors::get(cx);
-    let state = view.read(cx);
     let mut list = v_flex().w_full().gap(px(2.));
     if state.shows_day(cx) {
         list = list.child(day_section(&state.day, colors));
@@ -916,7 +917,7 @@ impl Render for Resurface {
                         ),
                 )
             })
-            .child(item_list(&view, cx))
+            .child(item_list(&view, self, cx))
             .into_any_element()
     }
 }

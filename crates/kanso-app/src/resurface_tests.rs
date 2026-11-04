@@ -323,3 +323,25 @@ fn a_replaced_search_leaves_the_paragraph_to_be_asked_again(cx: &mut TestAppCont
     });
     assert!(job(cx).is_none(), "a finished search is not asked again");
 }
+
+/// The margin draws its own list while it is being rendered: drawing must
+/// never read the margin's entity again, which GPUI refuses with a panic
+/// ("cannot read Resurface while it is already being updated"). That panic
+/// crashed 0.9.4 on the first click in a note with related past notes.
+// no-prop-test: drives the editor and draws one view.
+#[gpui_kit::test]
+fn the_margin_draws_its_items_without_reading_itself(cx: &mut TestAppContext) {
+    use gpui_kit::{IntoElement, Render};
+    let (open, _) = open_with_past_notes(cx);
+    open.input(cx, WRITING);
+    pause(cx);
+    assert_eq!(items(&open, cx).len(), 1);
+    open.with(cx, |editor, window, cx| {
+        let resurface = editor.resurface().clone();
+        resurface.update(cx, |margin, cx| {
+            margin.set_room(true, cx);
+            assert!(margin.in_margin(cx), "the margin should be showing");
+            let _ = margin.render(window, cx).into_any_element();
+        });
+    });
+}

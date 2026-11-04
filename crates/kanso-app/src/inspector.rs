@@ -1071,7 +1071,7 @@ impl Inspector {
                         .pb(px(6.))
                         .child("About this paragraph"),
                 )
-                .child(crate::resurface::item_list(&resurface, cx))
+                .child(crate::resurface::item_list(&resurface, state, cx))
                 .into_any_element(),
         )
     }
