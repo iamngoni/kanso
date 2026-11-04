@@ -45,7 +45,8 @@ pub fn anchor_hash(paragraph: &str) -> String {
 /// blank lines (and a heading or a fence line ends one).
 fn paragraph_start(lines: &[&str], line: usize) -> usize {
     let mut at = line.min(lines.len().saturating_sub(1));
-    while at > 0 && !lines[at - 1].trim().is_empty() && !lines[at - 1].trim_start().starts_with('#') {
+    while at > 0 && !lines[at - 1].trim().is_empty() && !lines[at - 1].trim_start().starts_with('#')
+    {
         at -= 1;
     }
     at
@@ -276,7 +277,8 @@ mod tests {
     #[test]
     fn the_excerpt_ends_where_the_caret_was() {
         let body = "# Title\n\nFirst paragraph.\n\nand the arrow tool should snap to the shape's edge, not its centre, so that";
-        let col = "and the arrow tool should snap to the shape's edge, not its centre, so that".len() as u32;
+        let col = "and the arrow tool should snap to the shape's edge, not its centre, so that"
+            .len() as u32;
         let found = find(body, 4, col, "").unwrap();
         assert_eq!(found.start_line, 4);
         assert!(excerpt(&found, 140).ends_with("so that"));

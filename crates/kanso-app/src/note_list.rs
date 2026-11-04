@@ -1130,9 +1130,7 @@ impl NoteList {
             )
             .into_any_element(),
             // The Tasks view shows in the list's place.
-            Filter::Tasks | Filter::OpenLoops | Filter::Brief | Filter::Review => {
-                div().into_any_element()
-            }
+            Filter::Tasks | Filter::OpenLoops | Filter::Overview => div().into_any_element(),
             Filter::Shared => quiet_empty(
                 library_icon(Slot::Shared),
                 "Nothing shared with you yet".into(),

@@ -28,7 +28,13 @@ fn range_label(from: Date, to: Date) -> String {
     if from.month == to.month {
         format!("{} \u{2013} {} {}", from.day, to.day, month(to))
     } else {
-        format!("{} {} \u{2013} {} {}", from.day, month(from), to.day, month(to))
+        format!(
+            "{} {} \u{2013} {} {}",
+            from.day,
+            month(from),
+            to.day,
+            month(to)
+        )
     }
 }
 
@@ -80,7 +86,10 @@ pub fn week(store: &Store, week_start: Date, now: Now, opts: &Options) -> Result
             last_title: last.map(|n| n.title.clone()).unwrap_or_default(),
             last_note: last.map(|n| n.id.clone()).unwrap_or_default(),
             last_at: last.map_or(0, |n| n.updated_at),
-            next_task: next.as_ref().map(|t| display_text(&t.text)).unwrap_or_default(),
+            next_task: next
+                .as_ref()
+                .map(|t| display_text(&t.text))
+                .unwrap_or_default(),
             next_due: next.and_then(|t| t.due).unwrap_or_default(),
         });
     }
@@ -216,11 +225,8 @@ pub fn week(store: &Store, week_start: Date, now: Now, opts: &Options) -> Result
         });
     }
     let week_end = week_start.add_days(6);
-    let revisits = store.revisits_between(
-        Some(&week_start.add_days(-1).iso()),
-        &week_end.iso(),
-        50,
-    )?;
+    let revisits =
+        store.revisits_between(Some(&week_start.add_days(-1).iso()), &week_end.iso(), 50)?;
     let cards = store
         .due_cards(&CardScope::All, now.utc_ms, now.start_of(today))?
         .len() as u32;

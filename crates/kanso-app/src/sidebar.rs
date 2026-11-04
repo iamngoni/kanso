@@ -455,8 +455,8 @@ impl Sidebar {
             color,
         } = entry;
         let selected = !self.settings_open && self.library.read(cx).filter == filter;
-        // The brief and the review have nothing to count.
-        let counted = !matches!(filter, Filter::Brief | Filter::Review);
+        // Overview has nothing to count.
+        let counted = !matches!(filter, Filter::Overview);
         let colors = Colors::get(cx);
         let library = self.library.clone();
         div()
@@ -1766,32 +1766,6 @@ impl Render for Sidebar {
                 cx,
             ));
         }
-        let icon = self.icon(Icon::new(Lucide::Clock), cx);
-        list = list.child(self.row(
-            "morning-brief",
-            Filter::Brief,
-            Entry {
-                icon: Some(icon),
-                label: "Morning Brief".into(),
-                count: 0,
-                depth: 0,
-                color: None,
-            },
-            cx,
-        ));
-        let icon = self.icon(Icon::new(Lucide::CalendarDays), cx);
-        list = list.child(self.row(
-            "weekly-review",
-            Filter::Review,
-            Entry {
-                icon: Some(icon),
-                label: "Weekly Review".into(),
-                count: 0,
-                depth: 0,
-                color: None,
-            },
-            cx,
-        ));
         list = list.children(self.shared_row(cx));
 
         let add_book = self.add_button(

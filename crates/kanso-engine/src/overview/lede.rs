@@ -9,9 +9,27 @@
 use super::model::clock;
 
 const WORDS: [&str; 21] = [
-    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
-    "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
-    "nineteen", "twenty",
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
 ];
 
 /// `n` in words when it is small, in digits otherwise; capitalised at the
@@ -22,11 +40,7 @@ pub fn spell(n: u32, max_word: u32, start: bool) -> String {
     } else {
         n.to_string()
     };
-    if start {
-        capital(&text)
-    } else {
-        text
-    }
+    if start { capital(&text) } else { text }
 }
 
 fn capital(text: &str) -> String {
@@ -101,7 +115,10 @@ pub fn today_lede(f: &TodayFacts) -> String {
     let mut first = format!("{} today", parts.join(" and "));
     if f.late > 0 && f.tasks > 0 {
         if f.late == 1 {
-            first.push_str(&format!(", one of them {} late", days_phrase(f.oldest_late_days)));
+            first.push_str(&format!(
+                ", one of them {} late",
+                days_phrase(f.oldest_late_days)
+            ));
         } else if f.late >= f.tasks {
             first.push_str(", all of them late");
         } else {
@@ -153,7 +170,11 @@ pub fn week_lede(f: &WeekFacts) -> String {
     let mut sentences = Vec::new();
     let mut did = Vec::new();
     if f.wrote > 0 {
-        did.push(format!("wrote {} {}", f.wrote, plural(f.wrote, "note", "notes")));
+        did.push(format!(
+            "wrote {} {}",
+            f.wrote,
+            plural(f.wrote, "note", "notes")
+        ));
     }
     if f.changed > 0 {
         let noun = if f.wrote > 0 {
@@ -194,7 +215,10 @@ pub fn week_lede(f: &WeekFacts) -> String {
             plural(meetings, "meeting", "meetings")
         );
         if with_notes > 0 {
-            sentences.push(format!("{first}, {} with notes.", spell(with_notes, 20, false)));
+            sentences.push(format!(
+                "{first}, {} with notes.",
+                spell(with_notes, 20, false)
+            ));
         } else {
             sentences.push(format!("{first}."));
         }
@@ -217,13 +241,22 @@ mod tests {
     use proptest::prelude::*;
 
     fn facts(meetings: u32, tasks: u32, late: u32, days: u32) -> TodayFacts {
-        TodayFacts { meetings, tasks, late, oldest_late_days: days, ..TodayFacts::default() }
+        TodayFacts {
+            meetings,
+            tasks,
+            late,
+            oldest_late_days: days,
+            ..TodayFacts::default()
+        }
     }
 
     #[test]
     fn the_spec_examples() {
         let mut f = facts(3, 4, 1, 2);
-        f.next = Some(Next::At { title: "Call with Tendai".into(), at_min: 11 * 60 + 30 });
+        f.next = Some(Next::At {
+            title: "Call with Tendai".into(),
+            at_min: 11 * 60 + 30,
+        });
         assert_eq!(
             today_lede(&f),
             "Three meetings and four tasks today, one of them two days late. Next: Call with Tendai at 11:30."
@@ -233,14 +266,32 @@ mod tests {
         assert_eq!(today_lede(&facts(0, 0, 0, 0)), "Nothing on today.");
         let mut quiet = facts(0, 0, 0, 0);
         quiet.pick_up = true;
-        assert_eq!(today_lede(&quiet), "Nothing on today. Pick up where you left off below.");
+        assert_eq!(
+            today_lede(&quiet),
+            "Nothing on today. Pick up where you left off below."
+        );
         let mut soon = facts(1, 0, 0, 0);
-        soon.next = Some(Next::In { title: "Design review".into(), minutes: 20 });
-        assert_eq!(today_lede(&soon), "One meeting today. Next: Design review in 20 minutes.");
+        soon.next = Some(Next::In {
+            title: "Design review".into(),
+            minutes: 20,
+        });
+        assert_eq!(
+            today_lede(&soon),
+            "One meeting today. Next: Design review in 20 minutes."
+        );
         let mut now = facts(1, 0, 0, 0);
-        now.next = Some(Next::Now { title: "Call with Tendai".into(), until_min: 720 });
-        assert_eq!(today_lede(&now), "One meeting today. Now: Call with Tendai, until 12:00.");
-        assert_eq!(today_lede(&facts(0, 1, 1, 1)), "One task today, one of them a day late.");
+        now.next = Some(Next::Now {
+            title: "Call with Tendai".into(),
+            until_min: 720,
+        });
+        assert_eq!(
+            today_lede(&now),
+            "One meeting today. Now: Call with Tendai, until 12:00."
+        );
+        assert_eq!(
+            today_lede(&facts(0, 1, 1, 1)),
+            "One task today, one of them a day late."
+        );
         assert_eq!(today_lede(&facts(0, 12, 0, 0)), "12 tasks today.");
     }
 
@@ -258,7 +309,10 @@ mod tests {
             "You wrote 16 notes, changed 3 and finished 11 tasks. Most of it went into Kanso and S4VO. Eleven meetings, eight with notes."
         );
         assert_eq!(week_lede(&WeekFacts::default()), "A quiet week.");
-        let only = WeekFacts { changed: 1, ..WeekFacts::default() };
+        let only = WeekFacts {
+            changed: 1,
+            ..WeekFacts::default()
+        };
         assert_eq!(week_lede(&only), "You changed 1 note.");
     }
 

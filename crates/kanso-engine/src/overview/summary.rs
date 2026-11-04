@@ -68,7 +68,9 @@ pub fn shown(text: &str) -> (String, bool) {
     // Do not end inside `[label](url)`.
     let head = &text[..cut];
     if let Some(open) = head.rfind('[') {
-        let closed = head[open..].find("](").and_then(|p| head[open + p..].find(')'));
+        let closed = head[open..]
+            .find("](")
+            .and_then(|p| head[open + p..].find(')'));
         if closed.is_none() {
             cut = open;
         }
@@ -77,10 +79,7 @@ pub fn shown(text: &str) -> (String, bool) {
     let end = head
         .rfind(['.', '!', '?'])
         .filter(|i| *i > SHOWN_CHARS / 2)
-        .map_or_else(
-            || head.rfind(' ').unwrap_or(head.len()),
-            |i| i + 1,
-        );
+        .map_or_else(|| head.rfind(' ').unwrap_or(head.len()), |i| i + 1);
     (text[..end].trim_end().to_owned(), true)
 }
 
@@ -91,7 +90,10 @@ mod tests {
 
     fn pairs() -> Vec<(String, String)> {
         vec![
-            ("note:aaa".into(), "Excalidraw in Kanso: better rendering".into()),
+            (
+                "note:aaa".into(),
+                "Excalidraw in Kanso: better rendering".into(),
+            ),
             ("note:bbb".into(), "Kanvoya Build Sequence".into()),
         ]
     }
@@ -100,7 +102,9 @@ mod tests {
     fn known_titles_become_links_and_unknown_ones_plain_words() {
         let text = "See [[Excalidraw in Kanso: better rendering]] and [[kanvoya build sequence|the sequence]] but not [[Made Up]].";
         let got = link_citations(text, &pairs());
-        assert!(got.contains("[Excalidraw in Kanso: better rendering](") && got.contains("note/aaa)"));
+        assert!(
+            got.contains("[Excalidraw in Kanso: better rendering](") && got.contains("note/aaa)")
+        );
         assert!(got.contains("[the sequence](") && got.contains("note/bbb)"));
         assert!(got.ends_with("but not Made Up."));
         assert!(!got.contains("[["));

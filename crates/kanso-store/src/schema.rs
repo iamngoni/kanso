@@ -885,7 +885,12 @@ mod overview_tests {
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .unwrap();
         assert_eq!(after, MIGRATIONS.len() as i64);
-        for table in ["writing_places", "loop_feedback", "waiting_snoozed", "note_revisit"] {
+        for table in [
+            "writing_places",
+            "loop_feedback",
+            "waiting_snoozed",
+            "note_revisit",
+        ] {
             assert!(has_table(&conn, table), "{table}");
         }
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));

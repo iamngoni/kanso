@@ -252,7 +252,11 @@ fn record_overview(
     if origin == Origin::Sync
         && let Some(prev) = previous.filter(|p| !p.deleted)
     {
-        let old = prev.fields.get("body").and_then(Value::as_str).unwrap_or("");
+        let old = prev
+            .fields
+            .get("body")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let new = fields.get("body").and_then(Value::as_str).unwrap_or("");
         let updated = fields.get("updatedAt").and_then(Value::as_i64).unwrap_or(0);
         crate::overview::record_synced_change(tx, id, old, new, updated, now_ms())?;

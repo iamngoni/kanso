@@ -664,7 +664,7 @@ impl Workspace {
                     cx.defer_in(window, |this, window, cx| {
                         if matches!(
                             this.library.read(cx).filter,
-                            Filter::OpenLoops | Filter::Brief | Filter::Review
+                            Filter::OpenLoops | Filter::Overview
                         ) {
                             this.digest
                                 .update(cx, |digest, cx| digest.focus_list(window, cx));
@@ -1217,6 +1217,18 @@ impl Workspace {
                 self.open_today(window, cx);
                 self.leave_page_for(None, cx);
             }
+            DigestEvent::Link(url) => match crate::preview::linked_note(url) {
+                Some(id) => {
+                    let id = id.split('#').next().unwrap_or(&id).to_owned();
+                    self.leave_page_for(Some(&id), cx);
+                    self.open_note_at(&id, 0, false, window, cx);
+                }
+                None if crate::preview::is_openable(url) => cx.open_url(url),
+                None => {}
+            },
+            DigestEvent::OpenSettings => {
+                self.open_settings(None, window, cx);
+            }
             DigestEvent::Close => {
                 let back = self.library.read(cx).previous.clone();
                 let selected = self.library.read(cx).selected.clone();
@@ -1235,7 +1247,7 @@ impl Workspace {
     fn leave_page_for(&mut self, note_id: Option<&str>, cx: &mut Context<Self>) {
         if !matches!(
             self.library.read(cx).filter,
-            Filter::OpenLoops | Filter::Brief | Filter::Review
+            Filter::OpenLoops | Filter::Overview
         ) {
             return;
         }
@@ -2658,7 +2670,7 @@ impl Render for Workspace {
         let home_shown = self.library.read(cx).home_book(cx).is_some();
         let digest_shown = matches!(
             self.library.read(cx).filter,
-            Filter::OpenLoops | Filter::Brief | Filter::Review
+            Filter::OpenLoops | Filter::Overview
         );
         if digest_shown {
             let page_width = window.viewport_size().width - px(leading);

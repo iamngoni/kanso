@@ -1042,23 +1042,27 @@ impl Palette {
                 &["promises", "waiting", "follow up", "commitments", "loops"],
             ),
             place(
-                Filter::Brief,
-                "Morning Brief".into(),
-                NotebookIcon::Choice(IconName::Clock),
+                Filter::Overview,
+                "Overview".into(),
+                NotebookIcon::Choice(IconName::Compass),
                 0,
-                &["today", "digest", "agenda", "open morning brief"],
-            ),
-            place(
-                Filter::Review,
-                "Weekly Review".into(),
-                NotebookIcon::Choice(IconName::CalendarDays),
-                0,
-                &["week", "retrospective", "open weekly review"],
+                &[
+                    "brief",
+                    "today",
+                    "digest",
+                    "agenda",
+                    "morning",
+                    "review",
+                    "week",
+                    "retrospective",
+                    "home",
+                    "open overview",
+                ],
             ),
         ];
-        // The brief and the review have nothing to count.
+        // Overview has nothing to count.
         for (item, _) in &mut places {
-            if matches!(&item.target, Target::Show(Filter::Brief | Filter::Review)) {
+            if matches!(&item.target, Target::Show(Filter::Overview)) {
                 item.hint = None;
             }
         }
@@ -1682,8 +1686,7 @@ impl Palette {
                         }
                         Filter::Tasks => "Shows the open tasks in every note, overdue first, then today's, the upcoming ones and those without a date.".to_owned(),
                         Filter::OpenLoops => "Shows what your notes say you will do, are waiting on or have to check, that are not checkboxes.".to_owned(),
-                        Filter::Brief => "Shows what is due today, the open loops and notes from the past that matter today.".to_owned(),
-                        Filter::Review => "Shows the last seven days: what you wrote, what you finished, what is still open and the themes that came up.".to_owned(),
+                        Filter::Overview => "Kanso's home: what is on today, the notes you were writing, who you are waiting on, and the week's shape. Today and This week.".to_owned(),
                         Filter::Shared => "Shows the notes other people shared with you, with invitations waiting above them.".to_owned(),
                     }
                     .into(),
@@ -1702,7 +1705,7 @@ impl Palette {
                             format!("{count} open").into(),
                         ));
                     }
-                } else if matches!(filter, Filter::Brief | Filter::Review) {
+                } else if matches!(filter, Filter::Overview) {
                 } else if let Some(count) = &item.hint {
                     detail
                         .meta

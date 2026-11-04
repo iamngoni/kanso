@@ -60,9 +60,15 @@ fn a_writing_session_needs_forty_characters_or_two_minutes() {
     note(&store, "note:short", "Hello there");
     note(&store, "note:long", "Hello there");
     note(&store, "note:slow", "Hello there");
-    store.note_writing("note:short", 0, 5, 12, "h", NOW).unwrap();
-    store.note_writing("note:long", 0, 5, MIN_CHARS, "h", NOW).unwrap();
-    store.note_writing("note:slow", 0, 5, 3, "h", NOW - 130_000).unwrap();
+    store
+        .note_writing("note:short", 0, 5, 12, "h", NOW)
+        .unwrap();
+    store
+        .note_writing("note:long", 0, 5, MIN_CHARS, "h", NOW)
+        .unwrap();
+    store
+        .note_writing("note:slow", 0, 5, 3, "h", NOW - 130_000)
+        .unwrap();
     store.note_writing("note:slow", 0, 6, 3, "h", NOW).unwrap();
     let rows = store.pick_up_places(NOW, &[], 5).unwrap();
     let got = ids(&rows);
@@ -78,18 +84,34 @@ fn typing_after_a_gap_starts_a_new_session() {
     note(&store, "note:a", "Hello there");
     store.note_writing("note:a", 0, 5, 30, "h", NOW).unwrap();
     // Within the gap: the session grows past the bar.
-    store.note_writing("note:a", 0, 9, 30, "h", NOW + GAP_MS).unwrap();
+    store
+        .note_writing("note:a", 0, 9, 30, "h", NOW + GAP_MS)
+        .unwrap();
     assert_eq!(store.pick_up_places(NOW + GAP_MS, &[], 5).unwrap().len(), 1);
     // After the gap: a new session of 5 characters does not qualify.
-    store.note_writing("note:a", 0, 9, 5, "h", NOW + 3 * GAP_MS).unwrap();
-    assert!(store.pick_up_places(NOW + 3 * GAP_MS, &[], 5).unwrap().is_empty());
+    store
+        .note_writing("note:a", 0, 9, 5, "h", NOW + 3 * GAP_MS)
+        .unwrap();
+    assert!(
+        store
+            .pick_up_places(NOW + 3 * GAP_MS, &[], 5)
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
 fn pick_up_leaves_out_daily_done_stale_hidden_and_excluded_notes() {
     let (_dir, store) = temp_store();
     book(&store, "book:a");
-    for id in ["note:daily-2026-11-04", "note:done", "note:stale", "note:hidden", "note:open", "note:skip"] {
+    for id in [
+        "note:daily-2026-11-04",
+        "note:done",
+        "note:stale",
+        "note:hidden",
+        "note:open",
+        "note:skip",
+    ] {
         note(&store, id, "Some words to carry on with");
         store.note_writing(id, 0, 5, 80, "h", NOW).unwrap();
     }
@@ -104,13 +126,21 @@ fn pick_up_leaves_out_daily_done_stale_hidden_and_excluded_notes() {
             Origin::Ui,
         )
         .unwrap();
-    store.note_writing("note:stale", 0, 5, 80, "h", NOW - 15 * DAY).unwrap();
+    store
+        .note_writing("note:stale", 0, 5, 80, "h", NOW - 15 * DAY)
+        .unwrap();
     store.hide_writing_place("note:hidden", NOW + 1).unwrap();
-    let rows = store.pick_up_places(NOW + 5, &["note:skip".into()], 5).unwrap();
+    let rows = store
+        .pick_up_places(NOW + 5, &["note:skip".into()], 5)
+        .unwrap();
     assert_eq!(ids(&rows), ["note:open"]);
     // Writing again brings a hidden one back.
-    store.note_writing("note:hidden", 0, 6, 80, "h", NOW + 10).unwrap();
-    let again = store.pick_up_places(NOW + 20, &["note:skip".into()], 5).unwrap();
+    store
+        .note_writing("note:hidden", 0, 6, 80, "h", NOW + 10)
+        .unwrap();
+    let again = store
+        .pick_up_places(NOW + 20, &["note:skip".into()], 5)
+        .unwrap();
     assert!(ids(&again).contains(&"note:hidden"));
 }
 
@@ -143,7 +173,14 @@ fn a_session_on_another_device_is_placed_by_the_synced_change() {
     let (_dir, store) = temp_store();
     book(&store, "book:a");
     let now = kanso_core::now_ms();
-    note_at(&store, "note:a", "First paragraph.\n\nSecond paragraph.", "book:a", now - 5000, Origin::Ui);
+    note_at(
+        &store,
+        "note:a",
+        "First paragraph.\n\nSecond paragraph.",
+        "book:a",
+        now - 5000,
+        Origin::Ui,
+    );
     note_at(
         &store,
         "note:a",
@@ -168,7 +205,14 @@ fn two_dismissals_of_one_family_suppress_it() {
     assert!(store.suppressed_loop_families(now).unwrap().is_empty());
     for item in loop_items(body).into_iter().take(2) {
         store
-            .close_loop("note:a", &loop_key("note:a", &item.text), item.line, LoopClose::Dismissed, now, Origin::Ui)
+            .close_loop(
+                "note:a",
+                &loop_key("note:a", &item.text),
+                item.line,
+                LoopClose::Dismissed,
+                now,
+                Origin::Ui,
+            )
             .unwrap();
     }
     assert_eq!(store.suppressed_loop_families(now).unwrap(), [Family::Will]);
@@ -177,7 +221,16 @@ fn two_dismissals_of_one_family_suppress_it() {
     // A tick takes one back.
     let third = loop_items(body).into_iter().nth(2).unwrap();
     store
-        .close_loop("note:a", &loop_key("note:a", &third.text), third.line, LoopClose::Done { mark_in_note: false }, now, Origin::Ui)
+        .close_loop(
+            "note:a",
+            &loop_key("note:a", &third.text),
+            third.line,
+            LoopClose::Done {
+                mark_in_note: false,
+            },
+            now,
+            Origin::Ui,
+        )
         .unwrap();
     assert!(store.suppressed_loop_families(now).unwrap().is_empty());
 }
@@ -209,7 +262,12 @@ fn waiting_on_a_person_with_a_page_shows_once_quiet_and_not_when_snoozed() {
         "Waiting on Rudo for the sign-off.\n\n- [ ] Get the keys from @Rudo\n\nWaiting on Nobody for the thing.",
     );
     // Fresh: not quiet yet.
-    assert!(store.waiting_items(1000 + 2 * DAY, 5, 5).unwrap().is_empty());
+    assert!(
+        store
+            .waiting_items(1000 + 2 * DAY, 5, 5)
+            .unwrap()
+            .is_empty()
+    );
     let rows = store.waiting_items(1000 + 9 * DAY, 5, 5).unwrap();
     assert_eq!(rows.len(), 2, "{rows:?}");
     assert!(rows.iter().all(|r| r.person == "Rudo"));
@@ -236,7 +294,12 @@ fn a_locked_note_is_never_waited_on() {
             Origin::Ui,
         )
         .unwrap();
-    assert!(store.waiting_items(1000 + 20 * DAY, 5, 5).unwrap().is_empty());
+    assert!(
+        store
+            .waiting_items(1000 + 20 * DAY, 5, 5)
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
@@ -246,7 +309,11 @@ fn a_revisit_is_not_an_edit_and_shows_when_due() {
     note(&store, "note:a", "Check the protocol");
     let before = store.get("note:a").unwrap().unwrap();
     let revisions_before = store.revisions("note:a").unwrap().len();
-    let set = Revisit { on: "2026-11-18".into(), set_at: 5, why: "see if it survived".into() };
+    let set = Revisit {
+        on: "2026-11-18".into(),
+        set_at: 5,
+        why: "see if it survived".into(),
+    };
     assert!(store.set_revisit("note:a", Some(&set)).unwrap());
     let after = store.get("note:a").unwrap().unwrap();
     assert_eq!(after.fields["updatedAt"], before.fields["updatedAt"]);
@@ -269,7 +336,11 @@ fn a_locked_note_cannot_be_revisited_and_never_shows() {
     let (_dir, store) = temp_store();
     book(&store, "book:a");
     note(&store, "note:a", "Secret");
-    let set = Revisit { on: "2026-11-01".into(), set_at: 5, why: String::new() };
+    let set = Revisit {
+        on: "2026-11-01".into(),
+        set_at: 5,
+        why: String::new(),
+    };
     store.set_revisit("note:a", Some(&set)).unwrap();
     let doc = store.get("note:a").unwrap().unwrap();
     store

@@ -91,6 +91,8 @@ pub struct AgendaRow {
     /// A promise in a note whose date passed ("promised 3 Nov"), not a task:
     /// ticking it closes the loop.
     pub is_loop: bool,
+    /// The task's words as written in its note, for ticking it.
+    pub raw: String,
     /// The task's due text (`YYYY-MM-DD[THH:MM]`).
     pub due: String,
     pub meeting: Option<MeetingLink>,
@@ -179,6 +181,8 @@ pub struct ListRow {
     pub key: String,
     /// The People page, for a waiting row.
     pub person: String,
+    /// For a waiting task, its words as written, for ticking it.
+    pub raw: String,
     /// Where the caret was in `detail`, in characters, to draw the caret.
     pub caret: bool,
     /// For activity: how many changes or suggestions.
@@ -366,10 +370,7 @@ pub fn ago(at: i64, now: i64, offset_ms: i64) -> String {
         2..=6 => format!("{} d ago", today - then),
         _ => {
             let d = kanso_core::dates::Date::from_days(then);
-            kanso_core::dates::format(
-                &kanso_core::dates::DateTime::at_midnight(d),
-                "%e %b",
-            )
+            kanso_core::dates::format(&kanso_core::dates::DateTime::at_midnight(d), "%e %b")
         }
     }
 }

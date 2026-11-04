@@ -199,7 +199,13 @@ mod tests {
 
     #[test]
     fn also_holds_four_lines_with_the_fold_first() {
-        let line = |kind| AlsoLine { kind, count: 1, cards: 0, items: vec![], detail: vec![] };
+        let line = |kind| AlsoLine {
+            kind,
+            count: 1,
+            cards: 0,
+            items: vec![],
+            detail: vec![],
+        };
         let block = also_block(
             Some(line(AlsoKind::Folded(ListKind::Activity))),
             vec![

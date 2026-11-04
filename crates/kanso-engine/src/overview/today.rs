@@ -107,6 +107,7 @@ pub(super) fn task_row(task: &TaskRow, today: Date) -> Option<AgendaRow> {
         note_id: task.note_id.clone(),
         line: task.line,
         is_loop: false,
+        raw: task.text.clone(),
         due,
         meeting: None,
         color: String::new(),
@@ -180,6 +181,7 @@ fn event_rows(
             note_id: String::new(),
             line: 0,
             is_loop: false,
+            raw: String::new(),
             due: String::new(),
             meeting: meetings.get(&key).cloned(),
             color: event.color.clone(),
@@ -224,7 +226,11 @@ fn cut(text: &str, chars: usize) -> String {
     out
 }
 
-pub(super) fn book_name(store: &Store, cache: &mut HashMap<String, String>, id: &str) -> Result<String> {
+pub(super) fn book_name(
+    store: &Store,
+    cache: &mut HashMap<String, String>,
+    id: &str,
+) -> Result<String> {
     if let Some(name) = cache.get(id) {
         return Ok(name.clone());
     }
@@ -273,6 +279,7 @@ fn pick_up_list(
             quiet_days: 0,
             key: String::new(),
             person: String::new(),
+            raw: String::new(),
             caret,
             count: 0,
         });
@@ -302,6 +309,7 @@ pub(super) fn waiting_row(row: WaitingRow, now: i64) -> ListRow {
         quiet_days: ((now - row.quiet_since).max(0) / DAY_MS) as u32,
         key: row.key,
         person: row.person_id,
+        raw: row.text.clone(),
         caret: false,
         count: 0,
     }
@@ -312,7 +320,10 @@ fn activity_rows(store: &Store, opts: &Options) -> Result<Vec<ListRow>> {
     let mut rows: Vec<ListRow> = Vec::new();
     for item in &opts.agent {
         let what = match item.kind {
-            RowKind::AgentTask => format!("{} has changes to review in \u{201c}{}\u{201d}", item.who, item.title),
+            RowKind::AgentTask => format!(
+                "{} has changes to review in \u{201c}{}\u{201d}",
+                item.who, item.title
+            ),
             _ => format!(
                 "{} suggests {} {} in \u{201c}{}\u{201d}",
                 item.who,
@@ -332,6 +343,7 @@ fn activity_rows(store: &Store, opts: &Options) -> Result<Vec<ListRow>> {
             quiet_days: 0,
             key: String::new(),
             person: String::new(),
+            raw: String::new(),
             caret: false,
             count: item.count,
         });
@@ -376,6 +388,7 @@ fn activity_rows(store: &Store, opts: &Options) -> Result<Vec<ListRow>> {
             quiet_days: 0,
             key: String::new(),
             person: String::new(),
+            raw: String::new(),
             caret: false,
             count: authors.len() as u32,
         });
@@ -395,13 +408,15 @@ fn activity_rows(store: &Store, opts: &Options) -> Result<Vec<ListRow>> {
             quiet_days: 0,
             key: notice.share_id,
             person: String::new(),
+            raw: String::new(),
             caret: false,
             count: 1,
         });
     }
     // Anything waiting for approval first, then the newest.
     rows.sort_by(|a, b| {
-        let waiting = |r: &ListRow| !matches!(r.kind, RowKind::AgentSuggestion | RowKind::AgentTask);
+        let waiting =
+            |r: &ListRow| !matches!(r.kind, RowKind::AgentSuggestion | RowKind::AgentTask);
         waiting(a).cmp(&waiting(b)).then(b.at.cmp(&a.at))
     });
     Ok(rows)
@@ -445,9 +460,7 @@ fn revisit_line(store: &Store, now: Now, today: Date) -> Result<Option<AlsoLine>
         detail: due
             .iter()
             .map(|r| {
-                let set = Date::from_days(
-                    (r.set_at + now.offset_ms).div_euclid(DAY_MS),
-                );
+                let set = Date::from_days((r.set_at + now.offset_ms).div_euclid(DAY_MS));
                 let mut text = format!("Set on {}", format(&DateTime::at_midnight(set), "%e %b"));
                 if !r.why.is_empty() {
                     text.push_str(&format!(" \u{b7} \u{201c}{}\u{201d}", r.why));
@@ -594,6 +607,7 @@ pub fn today(store: &Store, now: Now, opts: &Options) -> Result<Overview> {
             note_id: row.note_id.clone(),
             line: row.line,
             is_loop: true,
+            raw: String::new(),
             due: row.due.clone().unwrap_or_default(),
             meeting: None,
             color: String::new(),
@@ -677,10 +691,7 @@ pub fn today(store: &Store, now: Now, opts: &Options) -> Result<Overview> {
         .get(&DocType::Note)
         .copied()
         .unwrap_or_default();
-    let busy = !agenda.is_empty()
-        || !lists.is_empty()
-        || !also.is_empty()
-        || past.is_some();
+    let busy = !agenda.is_empty() || !lists.is_empty() || !also.is_empty() || past.is_some();
     let state = if notes == 0 {
         State::New
     } else if busy {
@@ -787,14 +798,24 @@ fn past_seeds(lists: &[List], agenda: &Agenda) -> Vec<past::Seed> {
         for row in &list.rows {
             seeds.push(past::Seed {
                 note_id: row.note_id.clone(),
-                why: format!("Related to what you were writing in \u{201c}{}\u{201d}", row.title),
+                why: format!(
+                    "Related to what you were writing in \u{201c}{}\u{201d}",
+                    row.title
+                ),
             });
         }
     }
-    for row in agenda.rows.iter().filter(|r| r.is_task() && !r.note_id.is_empty()) {
+    for row in agenda
+        .rows
+        .iter()
+        .filter(|r| r.is_task() && !r.note_id.is_empty())
+    {
         seeds.push(past::Seed {
             note_id: row.note_id.clone(),
-            why: format!("Related to your task \u{201c}{}\u{201d}", cut(&row.title, 40)),
+            why: format!(
+                "Related to your task \u{201c}{}\u{201d}",
+                cut(&row.title, 40)
+            ),
         });
     }
     let mut seen = HashSet::new();

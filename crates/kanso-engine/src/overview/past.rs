@@ -102,9 +102,7 @@ fn sub_months(date: Date, months: u32) -> Date {
     let index = i64::from(date.year) * 12 + (i64::from(date.month) - 1) - i64::from(months);
     let year = index.div_euclid(12) as i32;
     let month = index.rem_euclid(12) as u32 + 1;
-    let day = date
-        .day
-        .min(kanso_core::dates::days_in_month(year, month));
+    let day = date.day.min(kanso_core::dates::days_in_month(year, month));
     Date::new(year, month, day).unwrap_or(date)
 }
 
@@ -186,7 +184,12 @@ fn choose(
     for months in [12u32, 6, 1] {
         let id = daily_id(sub_months(today, months));
         if id != daily && !linked.contains(&id) {
-            candidates.push((id, ANNIVERSARY_SCORE, anniversary_label(months).to_owned(), Vec::new()));
+            candidates.push((
+                id,
+                ANNIVERSARY_SCORE,
+                anniversary_label(months).to_owned(),
+                Vec::new(),
+            ));
         }
     }
     candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -197,7 +200,11 @@ fn choose(
         }
         let anniversary = for_seeds.is_empty();
         // Locked, trashed and `#ai-exclude` notes are not returned.
-        let Some(note) = store.brief_notes(std::slice::from_ref(&id))?.into_iter().next() else {
+        let Some(note) = store
+            .brief_notes(std::slice::from_ref(&id))?
+            .into_iter()
+            .next()
+        else {
             continue;
         };
         if !anniversary && now.utc_ms - note.updated_at < MIN_AGE_DAYS * DAY_MS {
@@ -250,8 +257,14 @@ mod tests {
     fn own_words_skip_the_template() {
         let body = "---\nkanso: person\n---\n# Title\n\none two three\n\n```\ncode here\n```\nfour";
         assert_eq!(own_words(body), 4);
-        assert_eq!(sub_months(Date::new(2026, 3, 31).unwrap(), 1).iso(), "2026-02-28");
-        assert_eq!(sub_months(Date::new(2026, 11, 4).unwrap(), 12).iso(), "2025-11-04");
+        assert_eq!(
+            sub_months(Date::new(2026, 3, 31).unwrap(), 1).iso(),
+            "2026-02-28"
+        );
+        assert_eq!(
+            sub_months(Date::new(2026, 11, 4).unwrap(), 12).iso(),
+            "2025-11-04"
+        );
     }
 
     #[test]

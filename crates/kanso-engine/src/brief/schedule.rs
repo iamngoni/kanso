@@ -22,7 +22,24 @@ pub const GRACE_MS: i64 = 3 * 60 * MINUTE_MS;
 /// How many days ahead a phone plans its notifications.
 pub const PLAN_DAYS: i64 = 7;
 
-/// The settings of Settings › Tasks › Brief and review.
+/// What the main window opens on (Settings › General › When Kanso opens).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OpenTo {
+    /// Overview, Kanso's home.
+    #[default]
+    Overview,
+    /// The note that was open.
+    LastNote,
+}
+
+/// Days of quiet after which something you are waiting on shows up.
+pub const QUIET_DAYS_DEFAULT: u32 = 5;
+pub const QUIET_DAYS_MIN: u32 = 3;
+pub const QUIET_DAYS_MAX: u32 = 14;
+
+/// The settings of Overview (and, on disk, of the brief and review it
+/// replaces: the serde names are unchanged).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct BriefSettings {
@@ -46,6 +63,11 @@ pub struct BriefSettings {
     pub notify_review: bool,
     /// Add a tick after a loop's sentence in the note when it is done.
     pub mark_done_in_note: bool,
+    /// What the main window opens on.
+    pub open_to: OpenTo,
+    /// Days before an item you are waiting on shows up in *Waiting on
+    /// others* (3 to 14).
+    pub quiet_days: u32,
 }
 
 impl Default for BriefSettings {
@@ -63,6 +85,8 @@ impl Default for BriefSettings {
             notify_brief: true,
             notify_review: true,
             mark_done_in_note: false,
+            open_to: OpenTo::Overview,
+            quiet_days: QUIET_DAYS_DEFAULT,
         }
     }
 }
@@ -75,6 +99,7 @@ impl BriefSettings {
         self.review_hour = self.review_hour.min(23);
         self.review_minute = self.review_minute.min(59);
         self.review_day = self.review_day.min(6);
+        self.quiet_days = self.quiet_days.clamp(QUIET_DAYS_MIN, QUIET_DAYS_MAX);
         self
     }
 }

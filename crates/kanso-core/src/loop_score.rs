@@ -148,17 +148,13 @@ pub fn family(text: &str, kind: LoopKind) -> Family {
     if starts_with_phrase(&w, &["follow up with", "follow up on"]) {
         return Family::FollowUp;
     }
-    if starts_with_phrase(
-        &w,
-        &[
-            "remember to",
-            "don't forget to",
-            "do not forget to",
-        ],
-    ) {
+    if starts_with_phrase(&w, &["remember to", "don't forget to", "do not forget to"]) {
         return Family::Remember;
     }
-    if starts_with_phrase(&w, &["todo:", "todo", "fixme:", "fixme", "to do:", "action:"]) {
+    if starts_with_phrase(
+        &w,
+        &["todo:", "todo", "fixme:", "fixme", "to do:", "action:"],
+    ) {
         return Family::Todo;
     }
     if starts_with_phrase(&w, &["check whether", "check if", "find out"]) {
@@ -334,27 +330,72 @@ mod tests {
 
     #[test]
     fn families_follow_the_phrase() {
-        assert_eq!(family("I'll send Farai the design.", LoopKind::Mine), Family::Will);
-        assert_eq!(family("need to book the venue", LoopKind::Mine), Family::Need);
-        assert_eq!(family("We should revisit the plan", LoopKind::Mine), Family::Need);
-        assert_eq!(family("should call Tendai", LoopKind::Mine), Family::MustShould);
-        assert_eq!(family("Waiting on Rudo for the quote.", LoopKind::Waiting), Family::WaitingPhrase);
+        assert_eq!(
+            family("I'll send Farai the design.", LoopKind::Mine),
+            Family::Will
+        );
+        assert_eq!(
+            family("need to book the venue", LoopKind::Mine),
+            Family::Need
+        );
+        assert_eq!(
+            family("We should revisit the plan", LoopKind::Mine),
+            Family::Need
+        );
+        assert_eq!(
+            family("should call Tendai", LoopKind::Mine),
+            Family::MustShould
+        );
+        assert_eq!(
+            family("Waiting on Rudo for the quote.", LoopKind::Waiting),
+            Family::WaitingPhrase
+        );
         assert_eq!(family("TODO: renew passport", LoopKind::Mine), Family::Todo);
-        assert_eq!(family("Check whether the protocol survived", LoopKind::Question), Family::Check);
-        assert_eq!(family("Ask Tendai about MT5", LoopKind::Question), Family::Ask);
-        assert_eq!(family("Rudo will reply by Friday.", LoopKind::Waiting), Family::NameThen);
-        assert_eq!(family("remember to water the plants", LoopKind::Mine), Family::Remember);
-        assert_eq!(family("follow up with Farai", LoopKind::Mine), Family::FollowUp);
+        assert_eq!(
+            family("Check whether the protocol survived", LoopKind::Question),
+            Family::Check
+        );
+        assert_eq!(
+            family("Ask Tendai about MT5", LoopKind::Question),
+            Family::Ask
+        );
+        assert_eq!(
+            family("Rudo will reply by Friday.", LoopKind::Waiting),
+            Family::NameThen
+        );
+        assert_eq!(
+            family("remember to water the plants", LoopKind::Mine),
+            Family::Remember
+        );
+        assert_eq!(
+            family("follow up with Farai", LoopKind::Mine),
+            Family::FollowUp
+        );
     }
 
     #[test]
     fn first_person_with_a_name_is_confident() {
-        let ctx = Context { names_something: true, note_recent: true, ..Context::default() };
-        let s = score("I'll send Farai the kit_capture design today.", LoopKind::Mine, ctx);
+        let ctx = Context {
+            names_something: true,
+            note_recent: true,
+            ..Context::default()
+        };
+        let s = score(
+            "I'll send Farai the kit_capture design today.",
+            LoopKind::Mine,
+            ctx,
+        );
         assert!(is_confident(s), "{s}");
         let weak = score("Check if it works?", LoopKind::Question, Context::default());
         assert!(!is_confident(weak));
-        let hushed = score("I'll send Farai the kit_capture design today.", LoopKind::Mine, Context { suppressed: true, ..ctx });
+        let hushed = score(
+            "I'll send Farai the kit_capture design today.",
+            LoopKind::Mine,
+            Context {
+                suppressed: true,
+                ..ctx
+            },
+        );
         assert!(!is_confident(hushed), "{hushed}");
     }
 }

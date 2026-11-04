@@ -123,12 +123,23 @@ fn the_agenda_merges_tasks_and_events_in_time_order() {
     let titles: Vec<&str> = t.agenda.rows.iter().map(|r| r.title.as_str()).collect();
     assert_eq!(
         titles,
-        ["Late thing", "Standup", "Call with Tendai", "Call Rudo", "Done thing", "Send the deck"]
+        [
+            "Late thing",
+            "Standup",
+            "Call with Tendai",
+            "Call Rudo",
+            "Done thing",
+            "Send the deck"
+        ]
     );
     assert_eq!(t.agenda.rows[0].kind, AgendaKind::Overdue);
     assert_eq!(t.agenda.rows[0].days_late, 3);
     assert_eq!(t.all_day, ["Sprint 45 ends"]);
-    assert!(t.overline.starts_with("WEDNESDAY 4 NOVEMBER"), "{}", t.overline);
+    assert!(
+        t.overline.starts_with("WEDNESDAY 4 NOVEMBER"),
+        "{}",
+        t.overline
+    );
     assert!(t.overline.contains("Sprint 45 ends"));
     assert_eq!(
         t.agenda.rows[2].context,
@@ -145,7 +156,13 @@ fn the_agenda_merges_tasks_and_events_in_time_order() {
 fn locked_notes_never_reach_the_page() {
     let (_dir, store) = store();
     let today = today_iso();
-    note(&store, "note:secret", "Secret", &format!("- [ ] Hide me @{today}\n"), 1000);
+    note(
+        &store,
+        "note:secret",
+        "Secret",
+        &format!("- [ ] Hide me @{today}\n"),
+        1000,
+    );
     let doc = store.get("note:secret").unwrap().unwrap();
     store
         .put(
@@ -165,7 +182,13 @@ fn locked_notes_never_reach_the_page() {
 fn pick_up_shows_the_words_where_the_caret_was() {
     let (_dir, store) = store();
     let text = "and the arrow tool should snap to the shape's edge, not its centre, so that";
-    note(&store, "note:a", "Excalidraw in Kanso", &format!("# T\n\nFirst.\n\n{text}"), 1000);
+    note(
+        &store,
+        "note:a",
+        "Excalidraw in Kanso",
+        &format!("# T\n\nFirst.\n\n{text}"),
+        1000,
+    );
     store
         .note_writing(
             "note:a",
@@ -200,9 +223,23 @@ fn the_third_list_folds_into_also() {
     let (_dir, store) = store();
     let person = "---\nkanso: person\n---\nRudo page.\n";
     note(&store, "note:rudo", "Rudo", person, 1000);
-    note(&store, "note:w", "Work", "Waiting on Rudo for the sign-off.", 1000);
-    note(&store, "note:p", "Draft", "A long enough paragraph of my own words that I was writing.", 5000);
-    store.note_writing("note:p", 0, 20, 100, "", NOW_MS - 3_600_000).unwrap();
+    note(
+        &store,
+        "note:w",
+        "Work",
+        "Waiting on Rudo for the sign-off.",
+        1000,
+    );
+    note(
+        &store,
+        "note:p",
+        "Draft",
+        "A long enough paragraph of my own words that I was writing.",
+        5000,
+    );
+    store
+        .note_writing("note:p", 0, 20, 100, "", NOW_MS - 3_600_000)
+        .unwrap();
     let mut opts = Options::new();
     opts.agent = vec![overview::ActivityItem {
         kind: overview::RowKind::AgentSuggestion,
@@ -215,11 +252,12 @@ fn the_third_list_folds_into_also() {
     let page = overview::today(&store, now(), &opts).unwrap();
     let kinds: Vec<ListKind> = page.today.lists.iter().map(|l| l.kind).collect();
     assert_eq!(kinds, [ListKind::PickUp, ListKind::Waiting]);
-    assert!(page
-        .today
-        .also
-        .iter()
-        .any(|l| l.kind == overview::AlsoKind::Folded(ListKind::Activity)));
+    assert!(
+        page.today
+            .also
+            .iter()
+            .any(|l| l.kind == overview::AlsoKind::Folded(ListKind::Activity))
+    );
     assert_eq!(page.today.lists[1].rows[0].title, "Rudo");
     assert!(page.today.lists[1].rows[0].quiet_days >= 5);
 }
@@ -230,7 +268,10 @@ fn the_snapshot_round_trips_and_belongs_to_one_day() {
     note(&store, "note:a", "A", "- [ ] Thing @2026-11-04\n", 1000);
     let page = overview::today(&store, now(), &Options::new()).unwrap();
     overview::save_snapshot(&store, &page).unwrap();
-    assert_eq!(overview::load_snapshot(&store, &page.day), Some(page.clone()));
+    assert_eq!(
+        overview::load_snapshot(&store, &page.day),
+        Some(page.clone())
+    );
     assert_eq!(overview::load_snapshot(&store, "2026-11-05"), None);
 }
 
@@ -239,8 +280,20 @@ fn the_week_counts_what_was_written_and_what_is_ahead() {
     let (_dir, store) = store();
     let monday = Date::parse_iso("2026-11-02").unwrap();
     let start = now().start_of(monday);
-    note(&store, "note:a", "Excalidraw", "- [x] Shipped it\n\nWords.", start + 3_600_000);
-    note(&store, "note:b", "Another", "- [ ] Next thing @2026-11-06\n", start + DAY + 3_600_000);
+    note(
+        &store,
+        "note:a",
+        "Excalidraw",
+        "- [x] Shipped it\n\nWords.",
+        start + 3_600_000,
+    );
+    note(
+        &store,
+        "note:b",
+        "Another",
+        "- [ ] Next thing @2026-11-06\n",
+        start + DAY + 3_600_000,
+    );
     let week = overview::week(&store, monday, now(), &Options::new()).unwrap();
     assert_eq!(week.from, "2026-11-02");
     assert_eq!(week.range_label, "2 \u{2013} 8 NOVEMBER");
@@ -269,7 +322,13 @@ fn bench_overview_of_fifty_thousand_notes() {
         } else {
             format!("Some words of note {i}. I'll look at it again.")
         };
-        note(&store, &format!("note:n{i}"), &format!("Note {i}"), &body, 1000 + i);
+        note(
+            &store,
+            &format!("note:n{i}"),
+            &format!("Note {i}"),
+            &body,
+            1000 + i,
+        );
     }
     let start = Instant::now();
     let page = overview::today(&store, now(), &Options::new()).unwrap();

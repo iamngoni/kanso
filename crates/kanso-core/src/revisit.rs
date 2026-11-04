@@ -181,21 +181,40 @@ mod tests {
         let got: Vec<String> = Choice::ALL.iter().map(|c| c.date(today).iso()).collect();
         assert_eq!(
             got,
-            ["2026-11-05", "2026-11-07", "2026-11-09", "2026-11-18", "2026-12-04", "2027-02-04"]
+            [
+                "2026-11-05",
+                "2026-11-07",
+                "2026-11-09",
+                "2026-11-18",
+                "2026-12-04",
+                "2027-02-04"
+            ]
         );
     }
 
     #[test]
     fn a_month_from_the_thirty_first_is_cut() {
-        assert_eq!(add_months(Date::new(2026, 1, 31).unwrap(), 1).iso(), "2026-02-28");
+        assert_eq!(
+            add_months(Date::new(2026, 1, 31).unwrap(), 1).iso(),
+            "2026-02-28"
+        );
     }
 
     #[test]
     fn standing_turns_overdue_after_a_week() {
         let r = Revisit::new(Date::new(2026, 11, 4).unwrap(), 0, "");
-        assert_eq!(standing(&r, Date::new(2026, 11, 3).unwrap()), Standing::Later);
+        assert_eq!(
+            standing(&r, Date::new(2026, 11, 3).unwrap()),
+            Standing::Later
+        );
         assert_eq!(standing(&r, Date::new(2026, 11, 4).unwrap()), Standing::Due);
-        assert_eq!(standing(&r, Date::new(2026, 11, 11).unwrap()), Standing::Due);
-        assert_eq!(standing(&r, Date::new(2026, 11, 12).unwrap()), Standing::Overdue);
+        assert_eq!(
+            standing(&r, Date::new(2026, 11, 11).unwrap()),
+            Standing::Due
+        );
+        assert_eq!(
+            standing(&r, Date::new(2026, 11, 12).unwrap()),
+            Standing::Overdue
+        );
     }
 }

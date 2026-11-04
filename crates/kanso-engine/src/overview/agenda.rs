@@ -108,6 +108,7 @@ mod tests {
             note_id: String::new(),
             line: 0,
             is_loop: false,
+            raw: String::new(),
             due: String::new(),
             meeting: None,
             color: String::new(),
@@ -134,7 +135,11 @@ mod tests {
                     AgendaKind::Overdue => None,
                     AgendaKind::Due => at,
                 };
-                let late = if kind == AgendaKind::Overdue { late.max(1) } else { 0 };
+                let late = if kind == AgendaKind::Overdue {
+                    late.max(1)
+                } else {
+                    0
+                };
                 let mut r = row(kind, &title, at, late);
                 r.now = now && kind == AgendaKind::Event;
                 r
@@ -204,6 +209,9 @@ mod tests {
         let agenda = build(rows, 600);
         assert_eq!(agenda.earlier.len(), 1);
         assert_eq!(agenda.rows.len(), 8);
-        assert_eq!((agenda.more, agenda.more_tasks, agenda.task_total), (2, 2, 10));
+        assert_eq!(
+            (agenda.more, agenda.more_tasks, agenda.task_total),
+            (2, 2, 10)
+        );
     }
 }

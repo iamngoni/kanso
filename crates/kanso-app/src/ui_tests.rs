@@ -3116,19 +3116,18 @@ fn the_inbox_settings_default_as_specified() {
     assert_eq!(opts.inbox_id, "book:inbox");
 }
 
-/// The weekly review takes the list's and the editor's place, and its
-/// header never clips: through every width, each action is on screen
-/// inside the page or in the More menu.
-// no-prop-test: drives one window through widths; the fitting rule is a
-// property in page_chrome.rs.
+/// Overview takes the list's and the editor's place, and its header never
+/// clips: through every width, the switch and the menu are on screen inside
+/// the page.
+// no-prop-test: drives one window through widths.
 #[gpui_kit::test]
-fn page_headers_fit_every_width(cx: &mut TestAppContext) {
+fn the_overview_header_fits_every_width(cx: &mut TestAppContext) {
     let f = setup(cx);
     cx.update(|cx| AppState::update_config(cx, |config| config.ai.enabled = true));
     f.select(cx, &f.notes[0]);
     let library = f.workspace(cx, |w, _| w.library.clone());
     library.update(cx, |library, cx| {
-        library.set_filter(crate::library::Filter::Review, cx)
+        library.set_filter(crate::library::Filter::Overview, cx)
     });
     let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
     for width in [1600., 1100., 820., 700., 600., 520.] {
@@ -3139,29 +3138,19 @@ fn page_headers_fit_every_width(cx: &mut TestAppContext) {
         }
         let pane = vcx
             .debug_bounds("page-pane")
-            .expect("the review fills the content area");
+            .expect("Overview fills the content area");
         assert_eq!(vcx.debug_bounds("list-pane"), None, "{width}");
         assert_eq!(vcx.debug_bounds("editor-pane"), None, "{width}");
-        let header = vcx.debug_bounds("page-header").unwrap();
+        let header = vcx.debug_bounds("overview-header").unwrap();
         assert!(header.right() <= pane.right(), "{width}");
-        let title = vcx.debug_bounds("page-title").expect("the title shows");
-        assert!(
-            f32::from(title.size.width) >= 96.,
-            "title squeezed to {:?} at {width}",
-            title.size.width
-        );
-        let more = vcx.debug_bounds("page-more");
-        if let Some(more) = more {
-            assert!(more.right() <= pane.right(), "{width}");
-        }
-        for id in ["review-themes", "review-save"] {
-            match vcx.debug_bounds(id) {
-                Some(b) => assert!(
-                    b.right() <= pane.right() && b.left() >= pane.left(),
-                    "{id} clipped at {width}"
-                ),
-                None => assert!(more.is_some(), "{id} unreachable at {width}"),
-            }
+        for id in ["overview-switch", "overview-more"] {
+            let b = vcx
+                .debug_bounds(id)
+                .unwrap_or_else(|| panic!("{id} missing at {width}"));
+            assert!(
+                b.right() <= pane.right() && b.left() >= pane.left(),
+                "{id} clipped at {width}"
+            );
         }
     }
 }
@@ -3201,7 +3190,7 @@ fn opening_a_note_leaves_the_page(cx: &mut TestAppContext) {
     f.select(cx, &f.notes[0]);
     let library = f.workspace(cx, |w, _| w.library.clone());
     library.update(cx, |library, cx| {
-        library.set_filter(crate::library::Filter::Review, cx)
+        library.set_filter(crate::library::Filter::Overview, cx)
     });
     let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
     settle(&f, &mut vcx);
@@ -3218,7 +3207,7 @@ fn opening_a_note_leaves_the_page(cx: &mut TestAppContext) {
 
     // A new note too.
     library.update(&mut vcx, |library, cx| {
-        library.set_filter(crate::library::Filter::Brief, cx)
+        library.set_filter(crate::library::Filter::Overview, cx)
     });
     settle(&f, &mut vcx);
     assert_eq!(vcx.debug_bounds("editor-pane"), None);
@@ -3246,7 +3235,7 @@ fn a_trashed_note_stays_selected_and_escape_goes_back(cx: &mut TestAppContext) {
         )
         .unwrap();
     library.update(cx, |library, cx| {
-        library.set_filter(crate::library::Filter::Review, cx)
+        library.set_filter(crate::library::Filter::Overview, cx)
     });
     let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
     settle(&f, &mut vcx);
@@ -3263,7 +3252,7 @@ fn a_trashed_note_stays_selected_and_escape_goes_back(cx: &mut TestAppContext) {
 
     library.update(&mut vcx, |library, cx| {
         library.set_filter(crate::library::Filter::All, cx);
-        library.set_filter(crate::library::Filter::Review, cx)
+        library.set_filter(crate::library::Filter::Overview, cx)
     });
     settle(&f, &mut vcx);
     vcx.simulate_keystrokes("escape");
@@ -3285,7 +3274,7 @@ fn a_place_chosen_closes_triage(cx: &mut TestAppContext) {
     settle(&f, &mut vcx);
     assert!(f.workspace(&mut vcx, |w, _| w.triage_open));
     library.update(&mut vcx, |library, cx| {
-        library.set_filter(crate::library::Filter::Brief, cx)
+        library.set_filter(crate::library::Filter::Overview, cx)
     });
     settle(&f, &mut vcx);
     assert!(!f.workspace(&mut vcx, |w, _| w.triage_open));
@@ -3301,7 +3290,7 @@ fn the_error_card_has_details(cx: &mut TestAppContext) {
     f.select(cx, &f.notes[0]);
     let library = f.workspace(cx, |w, _| w.library.clone());
     library.update(cx, |library, cx| {
-        library.set_filter(crate::library::Filter::Review, cx)
+        library.set_filter(crate::library::Filter::Overview, cx)
     });
     let digest = f.workspace(cx, |w, _| w.digest.clone());
     digest.update(cx, |d, _| d.show_error_for_test("HTTP 401 bad key"));

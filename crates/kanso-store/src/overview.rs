@@ -154,7 +154,16 @@ pub(crate) fn record_synced_change(
             Some(writing::anchor_hash(&found.text))
         })
         .unwrap_or_default();
-    record_typing(conn, id, line, col, grown, &anchor, updated_at.min(now), "sync")
+    record_typing(
+        conn,
+        id,
+        line,
+        col,
+        grown,
+        &anchor,
+        updated_at.min(now),
+        "sync",
+    )
 }
 
 /// Forgets the place recorded for a note (it was deleted or locked).
@@ -355,7 +364,12 @@ impl Store {
     /// line that mentions them. Quiet means neither the note nor the
     /// person's page changed in the last `quiet_days`. Snoozed items are
     /// left out. The quietest first, at most `limit`.
-    pub fn waiting_items(&self, now: i64, quiet_days: u32, limit: usize) -> Result<Vec<WaitingRow>> {
+    pub fn waiting_items(
+        &self,
+        now: i64,
+        quiet_days: u32,
+        limit: usize,
+    ) -> Result<Vec<WaitingRow>> {
         let cutoff = now - i64::from(quiet_days) * 86_400_000;
         let loops_sql = format!(
             "SELECT m.entity_id, IFNULL(pd.title, e.name), l.note_id, d.title, l.line, l.text, l.key, 'loop',
@@ -491,16 +505,21 @@ impl Store {
                 params![id, prev.rev],
                 |row| row.get(0),
             )?;
-            rewrite_doc(tx, id, prev.doc_type, Origin::Api, changes, |fields| {
-                match &value {
+            rewrite_doc(
+                tx,
+                id,
+                prev.doc_type,
+                Origin::Api,
+                changes,
+                |fields| match &value {
                     Some(value) => {
                         fields.insert(REVISIT_FIELD.into(), value.clone());
                     }
                     None => {
                         fields.remove(REVISIT_FIELD);
                     }
-                }
-            })?;
+                },
+            )?;
             if known == 0 {
                 tx.execute(
                     "DELETE FROM revisions WHERE doc_id = ?1 AND rev = ?2",

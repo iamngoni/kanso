@@ -24,5 +24,5 @@ mod week;
 pub use model::*;
 pub use past::{dismiss_past, past_note};
 pub use snapshot::{load_snapshot, save_snapshot, snapshot_key};
-pub use today::{Options, ActivityItem, today};
+pub use today::{ActivityItem, Options, today};
 pub use week::week;
