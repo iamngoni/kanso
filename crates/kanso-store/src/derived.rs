@@ -423,10 +423,16 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
     Ok(true)
 }
 
-/// Forgets what was finished more than [`FINISHED_KEEP_DAYS`] days ago.
+/// Forgets what was finished more than [`FINISHED_KEEP_DAYS`] days ago,
+/// and open markers past [`OPEN_KEPT_MS`].
 pub(crate) fn prune_finished(conn: &Connection) -> Result<()> {
     let cutoff = now_ms() - FINISHED_KEEP_DAYS * 86_400_000;
     conn.execute("DELETE FROM finished_items WHERE at < ?", [cutoff])?;
+    // A task that went away for good leaves only a short-lived marker.
+    conn.execute(
+        "DELETE FROM finished_items WHERE kind = ?1 AND at < ?2",
+        params![OPEN_KIND, now_ms() - OPEN_KEPT_MS],
+    )?;
     Ok(())
 }
 
