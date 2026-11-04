@@ -393,6 +393,39 @@ fn an_undone_card_delete_keeps_its_arrows() {
     assert!(s.canvas.edges.iter().any(|e| e.id == "e1" && !e.deleted));
 }
 
+/// Strokes and cards share one history: undo walks back through both in
+/// the order they were made, redo walks forward again, and a new edit after
+/// an undo drops the redo.
+#[test]
+fn strokes_and_cards_undo_in_the_order_they_were_made() {
+    let mut s = state();
+    drag(&mut s, (0., 300.), (80., 300.), 10, 1);
+    let card = s.add_text_card(40., 50., "a", 2);
+    drag(&mut s, (0., 400.), (80., 400.), 10, 3);
+    assert!(s.move_card(&card, 140., 50., 4));
+    s.end_card_drag();
+    let at = |s: &CanvasState| (live_count(s), s.canvas.node(&card).map(|n| n.x as i64));
+    assert_eq!(at(&s), (2, Some(140)));
+    let mut seen = vec![at(&s)];
+    for want in [(2, Some(40)), (1, Some(40)), (1, None), (0, None)] {
+        assert_eq!(s.undo(5), Outcome::Changed);
+        assert_eq!(at(&s), want);
+        seen.push(want);
+    }
+    assert_eq!(s.undo(5), Outcome::Nothing);
+    seen.pop();
+    for want in seen.iter().rev() {
+        assert_eq!(s.redo(6), Outcome::Changed);
+        assert_eq!(&at(&s), want);
+    }
+    s.undo(7);
+    s.undo(7);
+    assert!(s.can_redo());
+    s.add_text_card(0., 0., "b", 8);
+    assert!(!s.can_redo(), "a new card drops the redo");
+    assert!(s.canvas.validate().is_ok());
+}
+
 #[derive(Clone, Debug)]
 enum CardStep {
     Add(i32, i32),

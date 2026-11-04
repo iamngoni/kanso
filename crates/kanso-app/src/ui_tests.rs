@@ -4215,6 +4215,134 @@ fn a_card_follows_a_slow_drag_and_saves_once(cx: &mut TestAppContext) {
     assert_eq!(f.store.note(&id).unwrap().unwrap().rev, rev);
 }
 
+/// A card pressed with the lasso is the one Delete removes, but not while
+/// its text is being edited: Backspace and Delete in the edit dialog are the
+/// field's. Delete is one saved undo step that undo puts back, same ID and
+/// place, and saves too. Escape lets the card go.
+// no-prop-test: drives one window with the pointer and the keyboard.
+#[gpui_kit::test]
+fn a_selected_canvas_card_is_deleted_by_the_key_but_not_while_edited(cx: &mut TestAppContext) {
+    use gpui_kit::component::WindowExt as _;
+    use gpui_kit::{Modifiers, MouseButton, MouseDownEvent, MouseUpEvent};
+    let f = setup(cx);
+    // The app's keys: the workspace's, and the canvas's Delete, undo, redo
+    // and Escape.
+    cx.update(|cx| {
+        crate::workspace::bind_keys(cx);
+        crate::canvas_view::bind_keys(cx);
+    });
+    let id = make_canvas(&f, "Board");
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    let canvas = f.editor(&mut vcx, |e, _| e.canvas_view().clone());
+    let card = canvas.update(&mut vcx, |view, cx| {
+        let state = view.state_for_test().unwrap();
+        let card = state.add_text_card(0., 0., "Plan", 1);
+        state.view = crate::graph::Viewport {
+            center: [130., 60.],
+            zoom: 4.,
+        };
+        state.tool = crate::canvas_state::Tool::Lasso;
+        cx.notify();
+        card
+    });
+    settle(&f, &mut vcx);
+    let middle = vcx.debug_bounds("canvas-surface").unwrap().center();
+    let press = |vcx: &mut gpui_kit::VisualTestContext, click_count: usize| {
+        vcx.simulate_event(MouseDownEvent {
+            position: middle,
+            modifiers: Modifiers::none(),
+            button: MouseButton::Left,
+            click_count,
+            first_mouse: false,
+        });
+        vcx.simulate_event(MouseUpEvent {
+            position: middle,
+            modifiers: Modifiers::none(),
+            button: MouseButton::Left,
+            click_count,
+        });
+    };
+    let saved = |store: &Store| {
+        let body = store.note(&id).unwrap().unwrap().body;
+        kanso_core::canvas::parse(&body)
+            .unwrap()
+            .node(&card)
+            .map(|n| (n.x, n.y, n.text.clone()))
+    };
+    let selected = |vcx: &mut gpui_kit::VisualTestContext| {
+        canvas.update(vcx, |view, _| {
+            view.state_for_test().unwrap().card_selection.clone()
+        })
+    };
+    let dialog = |vcx: &mut gpui_kit::VisualTestContext| {
+        vcx.update(|window, cx| window.has_active_dialog(cx))
+    };
+    // A short drag selects the card and saves it where it was let go.
+    vcx.simulate_mouse_down(middle, MouseButton::Left, Modifiers::none());
+    let to = gpui_kit::point(middle.x + gpui_kit::px(4.), middle.y);
+    vcx.simulate_mouse_move(to, MouseButton::Left, Modifiers::none());
+    vcx.simulate_mouse_up(to, MouseButton::Left, Modifiers::none());
+    settle(&f, &mut vcx);
+    assert_eq!(
+        selected(&mut vcx),
+        Some(card.clone()),
+        "the press selects it"
+    );
+    let before = saved(&f.store).expect("the card was saved");
+    assert_eq!(before.0, 1., "4 points / zoom 4");
+
+    // Editing the card: the keys go to the dialog's field.
+    press(&mut vcx, 2);
+    settle(&f, &mut vcx);
+    assert!(dialog(&mut vcx), "a double click edits the card");
+    vcx.simulate_keystrokes("backspace delete backspace");
+    settle(&f, &mut vcx);
+    assert!(
+        canvas.update(&mut vcx, |view, _| view
+            .state_for_test()
+            .unwrap()
+            .canvas
+            .node(&card)
+            .is_some()),
+        "the card is still there"
+    );
+    vcx.simulate_keystrokes("escape");
+    settle(&f, &mut vcx);
+    assert!(!dialog(&mut vcx));
+    assert_eq!(saved(&f.store), Some(before.clone()), "nothing was written");
+
+    // Pressed again and Delete: gone, and saved gone.
+    press(&mut vcx, 1);
+    settle(&f, &mut vcx);
+    vcx.simulate_keystrokes("delete");
+    settle(&f, &mut vcx);
+    assert_eq!(saved(&f.store), None, "the delete was saved");
+    assert_eq!(selected(&mut vcx), None);
+
+    // Undo puts it back where it was, under its ID, and saves that.
+    vcx.simulate_keystrokes("cmd-z");
+    settle(&f, &mut vcx);
+    assert_eq!(saved(&f.store), Some(before.clone()), "the undo was saved");
+    vcx.simulate_keystrokes("cmd-shift-z");
+    settle(&f, &mut vcx);
+    assert_eq!(saved(&f.store), None, "the redo was saved");
+    vcx.simulate_keystrokes("cmd-z");
+    settle(&f, &mut vcx);
+
+    // Escape lets go of the card: Delete then removes nothing.
+    press(&mut vcx, 1);
+    settle(&f, &mut vcx);
+    assert_eq!(selected(&mut vcx), Some(card.clone()));
+    vcx.simulate_keystrokes("escape");
+    settle(&f, &mut vcx);
+    assert_eq!(selected(&mut vcx), None, "escape lets it go");
+    vcx.simulate_keystrokes("delete");
+    settle(&f, &mut vcx);
+    assert_eq!(saved(&f.store), Some(before));
+}
+
 /// Canvases have their own list; All Notes leaves them out; the count of
 /// Canvases is the sidebar's.
 // no-prop-test: drives one window through filters.

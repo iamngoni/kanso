@@ -389,7 +389,11 @@ impl CanvasView {
         self.pointer = at;
         if let Some(grab) = self.grab {
             if event.pressed_button.is_none() {
-                self.grab = None;
+                // The button went up where no mouse-up reached the view: a
+                // card drag still ends here, as one saved undo step.
+                if let Some(Grab::Card { moved, .. }) = self.grab.take() {
+                    self.end_card_grab(moved, cx);
+                }
                 return;
             }
             match grab {
@@ -456,18 +460,24 @@ impl CanvasView {
 
     fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(Grab::Card { moved, .. }) = self.grab.take() {
-            if moved {
-                self.emit_changed(cx);
-            }
-            self.pressed_card = None;
-            if let Some(state) = &mut self.state {
-                state.end_card_drag();
-            }
-            cx.notify();
+            self.end_card_grab(moved, cx);
             return;
         }
         self.grab = None;
         self.finish(cx);
+    }
+
+    /// Lets go of a pressed card: its drag becomes one undo step, saved if
+    /// it moved.
+    fn end_card_grab(&mut self, moved: bool, cx: &mut Context<Self>) {
+        self.pressed_card = None;
+        if let Some(state) = &mut self.state {
+            state.end_card_drag();
+        }
+        if moved {
+            self.emit_changed(cx);
+        }
+        cx.notify();
     }
 
     fn finish(&mut self, cx: &mut Context<Self>) {
@@ -662,6 +672,7 @@ impl CanvasView {
             state.cancel();
             state.tool = tool;
             state.selection.clear();
+            state.card_selection = None;
             self.hover = None;
             self.gesture = None;
             // A drag cut short keeps what it erased: save it.
@@ -1222,6 +1233,7 @@ impl Render for CanvasView {
                 if let Some(state) = &mut this.state {
                     state.cancel();
                     state.selection.clear();
+                    state.card_selection = None;
                 }
                 this.gesture = None;
                 this.report(Outcome::Nothing, true, cx);
