@@ -1,15 +1,18 @@
 //! `kanso mcp`: Kanso's MCP server over standard input and output, for AI
 //! agents that start a program rather than connect to a URL (Claude
 //! Desktop, say). Each JSON-RPC message read from a line of input goes to
-//! the running app's `/mcp` with the local API's sign-in, and each answer
-//! is written back on a line of its own. It never opens the library
-//! itself: an agent keeps this process running, and holding the library
-//! would stop Kanso from opening.
+//! the running app's `/mcp` with the agent's API key, and each answer is
+//! written back on a line of its own. It never opens the library itself: an
+//! agent keeps this process running, and holding the library would stop
+//! Kanso from opening.
 //!
-//! An agent Kanso itself starts gets this relay with `KANSO_MCP_URL` and
-//! `KANSO_MCP_TOKEN` in its environment (never in its arguments): then it
-//! signs in with that read-only token, to that address on this computer,
-//! and reads no settings at all.
+//! The key comes from `KANSO_MCP_TOKEN` (never from the arguments), and a
+//! relay without one refuses: it answers `initialize` with an error that
+//! says how to get a key, and exits. The address is `KANSO_MCP_URL` when
+//! set (only plain HTTP to this computer, so the key can't be sent
+//! elsewhere), otherwise the one in `config.json`, which holds no secrets.
+//! An agent Kanso itself starts gets both variables, with a short-lived
+//! token in place of a key.
 
 use std::io::{BufRead as _, Write as _};
 use std::path::Path;
@@ -25,11 +28,23 @@ Usage: kanso mcp
 
 Serves Kanso's MCP tools over standard input and output, for AI agents
 that start a program (Claude Desktop, Codex). It talks to the running app,
-so Kanso must be open with Settings › Local API on.
+so Kanso must be open with Settings › Local API on, and it needs an API
+key in KANSO_MCP_TOKEN: in Kanso, open Settings › Local API › API keys and
+choose New key….
 ";
 
 /// The JSON-RPC error code for a request the app couldn't answer.
 const UNAVAILABLE: i64 = -32000;
+/// The JSON-RPC error code for a relay that has no key, or whose key Kanso
+/// doesn't recognise.
+const NEEDS_KEY: i64 = -32001;
+/// What the relay exits with when it has no key.
+const NO_KEY_EXIT: i32 = 2;
+
+/// What an agent is told when it starts the relay without a key.
+const NO_KEY: &str = "Kanso needs a key for this agent. In Kanso, open Settings › Local API › API keys, choose New key…, and paste the setup it gives you into this agent's settings.";
+/// What an agent is told when Kanso answers 401 to its key.
+const UNKNOWN_KEY: &str = "Kanso doesn't recognise this key. It may have been revoked. Create a new one in Kanso › Settings › Local API › API keys.";
 
 /// The variables that put the relay in an agent's token mode.
 pub const URL_VAR: &str = "KANSO_MCP_URL";
@@ -40,9 +55,16 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
         println!("{USAGE}");
         return Ok(());
     }
-    let relay = match token_mode(std::env::var(URL_VAR).ok(), std::env::var(TOKEN_VAR).ok())? {
-        Some(relay) => relay,
-        None => Relay::new(&crate::load_config(data_dir)?.server),
+    let key = std::env::var(TOKEN_VAR)
+        .ok()
+        .map(|key| key.trim().to_owned())
+        .filter(|key| !key.is_empty());
+    let Some(key) = key else {
+        return refuse_without_key();
+    };
+    let relay = match std::env::var(URL_VAR).ok() {
+        Some(url) => relay_to(url, &key)?,
+        None => Relay::new(&crate::load_config(data_dir)?.server, &key),
     };
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout().lock();
@@ -59,22 +81,43 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// The relay for an agent's token, when both variables are set: only to
-/// `http://` on a loopback address, so the token can't be sent elsewhere.
-fn token_mode(url: Option<String>, token: Option<String>) -> Result<Option<Relay>> {
-    let (Some(url), Some(token)) = (url, token) else {
-        return Ok(None);
-    };
-    let token = token.trim();
-    if token.is_empty() || !is_loopback_url(&url) {
-        anyhow::bail!("{URL_VAR} must be Kanso's own address on this computer");
+/// Answers the agent's first request (its `initialize`) with [`NO_KEY`],
+/// then exits with status 2.
+fn refuse_without_key() -> Result<()> {
+    let stdin = std::io::stdin();
+    let mut stdout = std::io::stdout().lock();
+    let lines = stdin.lock().lines().map_while(std::result::Result::ok);
+    if let Some(answer) = no_key_answer(lines) {
+        writeln!(stdout, "{answer}")?;
+        stdout.flush()?;
     }
-    Ok(Some(Relay {
+    eprintln!("kanso mcp: {NO_KEY}");
+    std::process::exit(NO_KEY_EXIT);
+}
+
+/// The answer to the first request among `lines`: error [`NEEDS_KEY`] with
+/// the request's own ID. `None` when there is no request.
+fn no_key_answer(lines: impl IntoIterator<Item = String>) -> Option<String> {
+    lines
+        .into_iter()
+        .find_map(|line| request_id(&line))
+        .map(|id| error_with(id, NEEDS_KEY, NO_KEY))
+}
+
+/// The relay to `url` with `key`, only to plain HTTP on this computer, so
+/// the key can't be sent elsewhere.
+fn relay_to(url: String, key: &str) -> Result<Relay> {
+    if !is_loopback_url(&url) {
+        anyhow::bail!(
+            "{URL_VAR} must be Kanso's own address on this computer: plain http:// to 127.0.0.1, [::1] or localhost. Unset it to use the address in Kanso's settings."
+        );
+    }
+    Ok(Relay {
         endpoint: url,
-        authorization: format!("Bearer {token}"),
+        authorization: format!("Bearer {key}"),
         enabled: true,
         agent: http_agent(),
-    }))
+    })
 }
 
 /// Whether `url` is plain HTTP to this computer: `http://127.0.0.1:…`,
@@ -116,13 +159,10 @@ struct Relay {
 }
 
 impl Relay {
-    fn new(server: &ServerSettings) -> Relay {
+    fn new(server: &ServerSettings, key: &str) -> Relay {
         Relay {
             endpoint: crate::settings::mcp_endpoint(&server.bind_address, server.port),
-            authorization: format!(
-                "Bearer {}",
-                std::env::var(TOKEN_VAR).unwrap_or_default().trim()
-            ),
+            authorization: format!("Bearer {key}"),
             enabled: server.enabled,
             agent: http_agent(),
         }
@@ -156,10 +196,16 @@ impl Relay {
         };
         let status = response.status().as_u16();
         let body = response.body_mut().read_to_string().unwrap_or_default();
-        if status == 401 && self.authorization.starts_with("Bearer ") {
-            // An agent's token expired or was revoked: the question goes on
-            // with what it has read.
-            return id.map(|id| error(id, "Kanso's note access for this question has ended."));
+        if status == 401 {
+            return id.map(|id| {
+                if self.authorization.starts_with("Bearer kcl_") {
+                    error_with(id, NEEDS_KEY, UNKNOWN_KEY)
+                } else {
+                    // An agent's token expired or was revoked: the question
+                    // goes on with what it has read.
+                    error(id, "Kanso's note access for this question has ended.")
+                }
+            });
         }
         answer(id, status, &body)
     }
@@ -182,17 +228,17 @@ fn answer(id: Option<Value>, status: u16, body: &str) -> Option<String> {
     let id = id?;
     Some(match status {
         202 | 204 => return None,
-        401 => error(
-            id,
-            "Kanso didn't accept the sign-in in its settings. Check Settings › Local API.",
-        ),
+        401 => error_with(id, NEEDS_KEY, UNKNOWN_KEY),
         _ => error(id, &format!("Kanso answered with HTTP {status}.")),
     })
 }
 
 fn error(id: Value, message: &str) -> String {
-    json!({"jsonrpc": "2.0", "id": id, "error": {"code": UNAVAILABLE, "message": message}})
-        .to_string()
+    error_with(id, UNAVAILABLE, message)
+}
+
+fn error_with(id: Value, code: i64, message: &str) -> String {
+    json!({"jsonrpc": "2.0", "id": id, "error": {"code": code, "message": message}}).to_string()
 }
 
 #[cfg(test)]
@@ -200,18 +246,17 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    // no-prop-test: a fixed table of addresses, each accepted or refused.
     #[test]
-    fn a_token_goes_only_to_this_computer() {
+    fn a_key_goes_only_to_this_computer() {
         for ok in [
             "http://127.0.0.1:4242/mcp",
             "http://localhost:1/mcp",
             "http://[::1]:9/mcp",
         ] {
             assert!(is_loopback_url(ok), "{ok}");
-            let relay = token_mode(Some(ok.into()), Some("tok".into()))
-                .unwrap()
-                .unwrap();
-            assert_eq!(relay.authorization, "Bearer tok");
+            let relay = relay_to(ok.into(), "kcl_tok").unwrap();
+            assert_eq!(relay.authorization, "Bearer kcl_tok");
         }
         for bad in [
             "https://127.0.0.1/mcp",
@@ -222,16 +267,45 @@ mod tests {
             "127.0.0.1:4242",
         ] {
             assert!(!is_loopback_url(bad), "{bad}");
-            assert!(token_mode(Some(bad.into()), Some("tok".into())).is_err());
+            let err = relay_to(bad.into(), "kcl_tok").err().expect("refused");
+            assert!(err.to_string().contains("Unset it"), "{err}");
         }
-        assert!(token_mode(Some("http://127.0.0.1/mcp".into()), Some(" ".into())).is_err());
-        // Without both variables, the relay signs in as the local API does.
-        assert!(token_mode(None, Some("tok".into())).unwrap().is_none());
-        assert!(
-            token_mode(Some("http://127.0.0.1/mcp".into()), None)
-                .unwrap()
-                .is_none()
+    }
+
+    // no-prop-test: the messages are fixed by the design; the property
+    // below covers the IDs.
+    #[test]
+    fn the_messages_are_the_designs() {
+        assert_eq!(
+            NO_KEY,
+            "Kanso needs a key for this agent. In Kanso, open Settings › Local API › API keys, choose New key…, and paste the setup it gives you into this agent's settings."
         );
+        assert_eq!(
+            UNKNOWN_KEY,
+            "Kanso doesn't recognise this key. It may have been revoked. Create a new one in Kanso › Settings › Local API › API keys."
+        );
+        assert_eq!((NEEDS_KEY, NO_KEY_EXIT), (-32001, 2));
+        let init = r#"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}"#;
+        let refused: Value =
+            serde_json::from_str(&no_key_answer([init.to_owned()]).unwrap()).unwrap();
+        assert_eq!(refused["id"], 0);
+        assert_eq!(refused["error"]["code"], -32001);
+        assert_eq!(refused["error"]["message"], NO_KEY);
+        // Notifications and blank lines come first without an answer.
+        let lines = [
+            String::new(),
+            r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#.to_owned(),
+            init.to_owned(),
+        ];
+        assert_eq!(
+            no_key_answer(lines).unwrap(),
+            no_key_answer([init.to_owned()]).unwrap()
+        );
+        assert_eq!(no_key_answer([]), None);
+        let unknown: Value =
+            serde_json::from_str(&answer(Some(json!("a")), 401, "").unwrap()).unwrap();
+        assert_eq!(unknown["error"]["code"], -32001);
+        assert_eq!(unknown["error"]["message"], UNKNOWN_KEY);
     }
 
     #[test]
@@ -246,7 +320,7 @@ mod tests {
         let refused: Value =
             serde_json::from_str(&answer(Some(json!("a")), 401, "").unwrap()).unwrap();
         assert_eq!(refused["id"], "a");
-        assert_eq!(refused["error"]["code"], UNAVAILABLE);
+        assert_eq!(refused["error"]["code"], NEEDS_KEY);
         assert_eq!(
             request_id(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#),
             None
@@ -274,8 +348,29 @@ mod tests {
             let value: Value = serde_json::from_str(&line).unwrap();
             if serde_json::from_str::<Value>(&body).is_err() {
                 prop_assert_eq!(&value["id"], &id);
-                prop_assert_eq!(&value["error"]["code"], &json!(UNAVAILABLE));
+                let code = if status == 401 { NEEDS_KEY } else { UNAVAILABLE };
+                prop_assert_eq!(&value["error"]["code"], &json!(code));
             }
+        }
+
+        /// A relay with no key answers the first request, whatever else
+        /// came before it, with its own ID and the fix-it message.
+        #[test]
+        fn prop_no_key_answers_the_first_request(
+            id in prop_oneof![any::<i64>().prop_map(|n| json!(n)), "[a-z0-9-]{1,12}".prop_map(|s| json!(s))],
+            noise in prop::collection::vec("[ -~]{0,20}", 0..4),
+        ) {
+            let mut lines: Vec<String> = noise
+                .into_iter()
+                .filter(|line| request_id(line).is_none())
+                .collect();
+            lines.push(json!({"jsonrpc": "2.0", "id": id, "method": "initialize"}).to_string());
+            let line = no_key_answer(lines).expect("a request is answered");
+            prop_assert!(!line.contains('\n'));
+            let value: Value = serde_json::from_str(&line).unwrap();
+            prop_assert_eq!(&value["id"], &id);
+            prop_assert_eq!(&value["error"]["code"], &json!(-32001));
+            prop_assert_eq!(&value["error"]["message"], &json!(NO_KEY));
         }
     }
 }
