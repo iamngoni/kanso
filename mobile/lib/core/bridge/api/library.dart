@@ -20,6 +20,7 @@ import 'metrics.dart';
 import 'notebook_home.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'people.dart';
+import 'player.dart';
 import 'publish.dart';
 import 'recording.dart';
 import 'renderer.dart';
@@ -265,6 +266,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
       KansoCore.instance.api.crateApiLibraryKansoLibraryParseColor(text: text);
 
   KansoPeople people();
+
+  /// Playing a note's recording.
+  KansoPlayers players();
 
   Future<List<Property>> properties({required String id});
 

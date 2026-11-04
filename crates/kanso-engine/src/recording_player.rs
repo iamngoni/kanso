@@ -256,7 +256,7 @@ mod tests {
             let link = crate::recording_note::moment_link("file:abc", secs);
             let text = format!("line one\n{before}{link}{after}\nline three");
             let start = "line one\n".len() + before.len();
-            let at = start + inside % (link.len() + 1);
+            let at = start + inside % link.len();
             let found = moment_at(&text, at).expect("on the link");
             prop_assert_eq!(found, AudioMoment { file_id: "file:abc".into(), seconds: secs });
             prop_assert_eq!(moment_at(&text, 0), None);

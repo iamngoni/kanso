@@ -34,6 +34,8 @@ pub mod notebook_home;
 pub mod notebook_home_types;
 pub mod people;
 pub mod people_types;
+pub mod player;
+pub mod player_types;
 pub mod publish;
 pub mod recording;
 pub mod recording_types;

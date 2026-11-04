@@ -70,7 +70,6 @@ fn setup(cx: &mut TestAppContext) -> Fixture {
         let (window, preview) = gpui_kit::open_window(Default::default(), cx, |_, cx| {
             cx.new(|cx| Preview::new(app_store, links, resizes, cx))
         })
-        .map(|(window, view)| (window, view))
         .unwrap();
         (window, preview)
     });
@@ -153,7 +152,7 @@ fn the_audio_line_draws_a_player_card_with_its_controls(cx: &mut TestAppContext)
 fn a_note_without_a_recording_has_no_card(cx: &mut TestAppContext) {
     let f = setup(cx);
     show(cx, &f, "note:other", "# Just words\n\nNo audio here.");
-    assert!(bounds(&f, cx, "recording-player").map_or(true, |b| b.size.height <= gpui_kit::px(1.)));
+    assert!(bounds(&f, cx, "recording-player").is_none_or(|b| b.size.height <= gpui_kit::px(1.)));
     assert!(bounds(&f, cx, "player-toggle").is_none());
 }
 
@@ -246,7 +245,7 @@ fn a_timestamp_link_brings_the_player_up_and_plays_that_moment(cx: &mut TestAppC
     match cx.read(|cx| p.read(cx).phase().clone()) {
         Phase::Ready => {
             let at = cx.read(|cx| p.read(cx).position_us());
-            assert!(at >= 3_000_000 && at < 5_000_000, "at {at} us");
+            assert!((3_000_000..5_000_000).contains(&at), "at {at} us");
         }
         Phase::Failed(why) => assert!(!why.is_empty()),
         other => panic!("unexpected {other:?}"),

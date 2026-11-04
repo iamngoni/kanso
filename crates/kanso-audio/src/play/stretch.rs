@@ -206,7 +206,7 @@ pub(crate) mod tests {
 
     /// Hz of a left channel, by counting rising zero crossings.
     pub(crate) fn pitch(stereo: &[f32], rate: u32) -> f32 {
-        let left: Vec<f32> = stereo.chunks_exact(2).map(|f| f[0]).collect();
+        let left: Vec<f32> = stereo.as_chunks::<2>().0.iter().map(|f| f[0]).collect();
         let crossings = left
             .windows(2)
             .filter(|w| w[0] < 0.0 && w[1] >= 0.0)

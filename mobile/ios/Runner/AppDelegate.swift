@@ -119,7 +119,8 @@ import kanso_push
   /// for the microphone nor sets a category; the default one (solo ambient)
   /// has no input. `prepare` asks once, then sets play-and-record and
   /// activates it, so recording also goes on in the background (the
-  /// `audio` background mode). `release` gives the audio back.
+  /// `audio` background mode). `playback` sets the playback category for a
+  /// recording in a note. `release` gives the audio back.
   private func registerRecordingChannel(_ registry: FlutterPluginRegistry) {
     guard let registrar = registry.registrar(forPlugin: "KansoRecording") else { return }
     let channel = FlutterMethodChannel(
@@ -142,6 +143,18 @@ import kanso_push
               result(false)
             }
           }
+        }
+      case "playback":
+        // A recording in a note plays (issue #38, step 5): the playback
+        // category, so it is heard with the ringer switch off, as a voice
+        // memo is.
+        do {
+          let session = AVAudioSession.sharedInstance()
+          try session.setCategory(.playback, mode: .spokenAudio)
+          try session.setActive(true)
+          result(true)
+        } catch {
+          result(false)
         }
       case "release":
         try? AVAudioSession.sharedInstance().setActive(

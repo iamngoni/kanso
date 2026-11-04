@@ -72,7 +72,7 @@ fn recording(seconds: usize, part_secs: usize) -> Vec<PartInput> {
 
 /// Hz of a mono-in-stereo signal, by rising zero crossings.
 fn pitch(stereo: &[f32], rate: u32) -> f32 {
-    let left: Vec<f32> = stereo.chunks_exact(2).map(|f| f[0]).collect();
+    let left: Vec<f32> = stereo.as_chunks::<2>().0.iter().map(|f| f[0]).collect();
     let crossings = left
         .windows(2)
         .filter(|w| w[0] < 0.0 && w[1] >= 0.0)
@@ -125,7 +125,7 @@ fn parts_join_without_a_gap() {
     };
     let mut engine = Engine::headless(parts, SAMPLE_RATE).unwrap();
     let all = play_through(&mut engine, 256);
-    let left: Vec<f32> = all.chunks_exact(2).map(|f| f[0]).collect();
+    let left: Vec<f32> = all.as_chunks::<2>().0.iter().map(|f| f[0]).collect();
     let seam = 2 * SAMPLE_RATE as usize;
     let around = &left[seam - 2_400..seam + 2_400];
     let mut run = 0;

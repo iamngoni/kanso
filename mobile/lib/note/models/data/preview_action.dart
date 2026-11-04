@@ -30,4 +30,9 @@ sealed class PreviewAction with _$PreviewAction {
   /// Puts [code], the [index]-th code block, on the clipboard.
   const factory PreviewAction.copyCode(int index, String code) =
       PreviewCopyCode;
+
+  /// Plays the recording [fileId] belongs to from [seconds] in: a timestamp
+  /// in the note was tapped.
+  const factory PreviewAction.playMoment(String fileId, int seconds) =
+      PreviewPlayMoment;
 }

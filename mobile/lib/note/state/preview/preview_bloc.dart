@@ -237,6 +237,8 @@ class PreviewBloc extends Bloc<PreviewEvent, PreviewState> {
           emit(state.copyWith(action: PreviewAction.copyCode(index, code)));
           await _haptics.selection();
         });
+      case PreviewLink_Audio(:final fileId, :final seconds):
+        emit(state.copyWith(action: PreviewAction.playMoment(fileId, seconds)));
       case PreviewLink_Due() || PreviewLink_Nothing():
         break;
     }

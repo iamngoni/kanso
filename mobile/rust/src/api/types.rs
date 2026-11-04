@@ -1571,6 +1571,10 @@ pub enum _PreviewLink {
         index: u32,
     },
     Due,
+    Audio {
+        file_id: String,
+        seconds: u32,
+    },
     Nothing,
 }
 

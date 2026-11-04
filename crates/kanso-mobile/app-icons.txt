@@ -56,6 +56,7 @@ clapperboard
 clipboard-list
 clock recent
 cloud
+cloud-off
 cloud-rain
 code
 code-xml
@@ -148,6 +149,7 @@ notebook-text
 palette
 panel-left
 party-popper
+pause
 paw-print
 pen-tool
 pencil
@@ -156,6 +158,7 @@ piggy-bank
 pill
 pin pinned
 plane
+play
 plus
 presentation
 puzzle
@@ -164,6 +167,8 @@ refresh-cw
 regex
 replace-all
 rocket
+rotate-ccw
+rotate-cw
 rss
 scale
 scan-face
@@ -205,6 +210,8 @@ user
 users
 utensils
 video
+volume-2
+volume-x
 wallet
 whole-word
 wrench

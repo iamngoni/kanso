@@ -4048,6 +4048,10 @@ sealed class PreviewLink with _$PreviewLink {
     required int index,
   }) = PreviewLink_CopyCode;
   const factory PreviewLink.due() = PreviewLink_Due;
+  const factory PreviewLink.audio({
+    required String fileId,
+    required int seconds,
+  }) = PreviewLink_Audio;
   const factory PreviewLink.nothing() = PreviewLink_Nothing;
 }
 

@@ -1677,6 +1677,9 @@ pub enum PreviewLink {
     CopyCode { index: u32 },
     /// A due-date chip.
     Due,
+    /// A moment in a recording (`kanso-audio://file:<id>?t=12`): the player
+    /// seeks `seconds` into the recording that holds `file_id` and plays.
+    Audio { file_id: String, seconds: u32 },
     /// Nothing to do.
     Nothing,
 }

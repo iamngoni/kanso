@@ -10839,6 +10839,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Filed'**
   String get feedbackStepFiled;
+
+  /// The card over a recording in a note: its screen-reader name.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording player'**
+  String get playerCardLabel;
+
+  /// Starts playing a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get playerPlay;
+
+  /// Pauses a recording that is playing.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get playerPause;
+
+  /// What a screen reader calls the scrubber.
+  ///
+  /// In en, this message translates to:
+  /// **'Position in the recording'**
+  String get playerPosition;
+
+  /// The scrubber's value for a screen reader: how far along the recording is.
+  ///
+  /// In en, this message translates to:
+  /// **'{elapsed} of {total}'**
+  String playerPositionValue(String elapsed, String total);
+
+  /// Skips back in a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Back 5 seconds'**
+  String get playerBack;
+
+  /// Skips ahead in a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward 5 seconds'**
+  String get playerForward;
+
+  /// The button that cycles a recording's speed: 0.75x, 1x, 1.25x, 1.5x, 2x.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback speed'**
+  String get playerSpeed;
+
+  /// The recording player's volume slider.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get playerVolume;
+
+  /// Turns the recording's sound off.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get playerMute;
+
+  /// Turns the recording's sound back on.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute'**
+  String get playerUnmute;
+
+  /// Shown where a recording's player would be when its audio hasn't arrived by sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio not on this device yet'**
+  String get playerNotHere;
+
+  /// Fetches the audio that hasn't arrived yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Now'**
+  String get playerSyncNow;
+
+  /// Shown where the player would be when the audio is gone.
+  ///
+  /// In en, this message translates to:
+  /// **'This recording\'s audio is missing'**
+  String get playerMissing;
+
+  /// Shown where the player would be when the speaker or the file failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t play the recording'**
+  String get playerFailed;
+
+  /// Opens a recording that failed to play once more.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get playerTryAgain;
 }
 
 class _AppLocalizationsDelegate

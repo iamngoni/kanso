@@ -6373,4 +6373,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get feedbackStepFiled => 'Filed';
+
+  @override
+  String get playerCardLabel => 'Recording player';
+
+  @override
+  String get playerPlay => 'Play';
+
+  @override
+  String get playerPause => 'Pause';
+
+  @override
+  String get playerPosition => 'Position in the recording';
+
+  @override
+  String playerPositionValue(String elapsed, String total) {
+    return '$elapsed of $total';
+  }
+
+  @override
+  String get playerBack => 'Back 5 seconds';
+
+  @override
+  String get playerForward => 'Forward 5 seconds';
+
+  @override
+  String get playerSpeed => 'Playback speed';
+
+  @override
+  String get playerVolume => 'Volume';
+
+  @override
+  String get playerMute => 'Mute';
+
+  @override
+  String get playerUnmute => 'Unmute';
+
+  @override
+  String get playerNotHere => 'Audio not on this device yet';
+
+  @override
+  String get playerSyncNow => 'Sync Now';
+
+  @override
+  String get playerMissing => 'This recording\'s audio is missing';
+
+  @override
+  String get playerFailed => 'Couldn\'t play the recording';
+
+  @override
+  String get playerTryAgain => 'Try Again';
 }
