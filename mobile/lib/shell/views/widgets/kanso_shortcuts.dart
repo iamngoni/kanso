@@ -184,6 +184,13 @@ class KansoShortcuts extends StatelessWidget {
               return null;
             },
           ),
+          OpenOverviewIntent: CallbackAction<OpenOverviewIntent>(
+            onInvoke: (_) {
+              leaveFocusMode();
+              context.go(KansoRoutes.overview);
+              return null;
+            },
+          ),
           ReplaceInNotesIntent: CallbackAction<ReplaceInNotesIntent>(
             onInvoke: (_) {
               leaveFocusMode();

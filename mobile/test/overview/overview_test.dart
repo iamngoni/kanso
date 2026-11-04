@@ -356,7 +356,7 @@ void main() {
         count: 0,
         agent: false,
       );
-      final base = _quiet;
+      const base = _quiet;
       digest.today = OverviewToday(
         day: base.day,
         greeting: base.greeting,

@@ -79,6 +79,11 @@ class OpenTodayIntent extends KansoIntent {
   const OpenTodayIntent();
 }
 
+/// Open Overview, Kanso's home (⇧⌘0).
+class OpenOverviewIntent extends KansoIntent {
+  const OpenOverviewIntent();
+}
+
 /// Open the library-wide replace screen.
 class ReplaceInNotesIntent extends KansoIntent {
   const ReplaceInNotesIntent();
