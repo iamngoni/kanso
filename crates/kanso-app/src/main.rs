@@ -142,6 +142,12 @@ mod provider_browser;
 mod publish;
 mod publish_site;
 mod query_view_ui;
+mod record_sheet;
+mod recording;
+mod recording_bar;
+mod recording_model;
+#[cfg(test)]
+mod recording_tests;
 mod related;
 mod reminders;
 mod replace;
@@ -645,6 +651,8 @@ fn run_app(
         cx.on_action(|_: &Quit, cx| quit(cx));
         cx.on_action(|_: &workspace::UndoAgentTask, cx| agent_task_panel::undo_latest(cx));
         watch_for_quit(cx);
+        // A recording a crash left, or a transcription a quit cut off.
+        recording::scan(cx);
         agent_permission::install(cx);
         settings::register_app_actions(cx, open_main_window);
         updates::register_app_actions(cx);
@@ -782,6 +790,9 @@ fn offer_first_import(window: &mut Window, cx: &mut App) {
 /// clipboard. Open notes save themselves.
 fn watch_for_quit(cx: &mut App) {
     cx.on_app_quit(|cx| {
+        // A quit that gave no chance to ask: the recording stops and its
+        // folder stays for the next launch to recover.
+        recording::stop_for_exit(cx);
         services::stop_server(cx);
         // Any agent Kanso started for AI answers stops with it, and its
         // note access ends.
@@ -833,6 +844,11 @@ fn confirm_quit(prompt: String, cx: &mut App) {
 /// is being updated, and a window can't be reached from inside its own
 /// update, so the work waits until that update ends.
 fn quit(cx: &mut App) {
+    // "Stop and keep the recording?" Stopping finalises it first.
+    if recording::confirm_quit(cx) {
+        recording::ask_before_quit(quit, cx);
+        return;
+    }
     if let Some(prompt) = cx
         .try_global::<services::Services>()
         .and_then(|services| services.tasks.quit_prompt())

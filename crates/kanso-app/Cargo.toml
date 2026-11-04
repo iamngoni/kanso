@@ -85,6 +85,7 @@ kanso-fido = { path = "../kanso-fido" }
 kanso-update.workspace = true
 # The anonymous daily count (docs/METRICS.md), shared with the phones.
 kanso-metrics.workspace = true
+kanso-audio.workspace = true
 kanso-voice.workspace = true
 kanso-store.workspace = true
 # Lock sessions, account flows and sync scheduling, without a window (issue #48).

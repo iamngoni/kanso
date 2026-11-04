@@ -238,6 +238,15 @@ impl CaptureView {
             )
             .children(self.voice_buttons(cx))
             .child(
+                Button::new("capture-record")
+                    .ghost()
+                    .small()
+                    .debug_selector(|| "capture-record".into())
+                    .icon(Icon::new(Lucide::CircleDot).text_color(colors.text_secondary))
+                    .tooltip("Record audio into a note")
+                    .on_click(|_, window, cx| crate::record_sheet::open(None, window, cx)),
+            )
+            .child(
                 Button::new("capture-book")
                     .ghost()
                     .small()
@@ -386,6 +395,7 @@ impl Render for CaptureView {
                     this.modifiers_changed(event.modifiers, window, cx)
                 }),
             )
+            .children(crate::recording_bar::strip(cx))
             .child(self.render_header(cx))
             .children(self.render_voice_bar(cx))
             .child(

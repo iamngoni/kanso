@@ -106,6 +106,8 @@ pub mod outline;
 pub mod pages;
 pub mod palette;
 pub mod publish;
+pub mod recording_flow;
+pub mod recording_flow_model;
 pub mod recording_note;
 pub mod recording_note_model;
 pub mod replace;

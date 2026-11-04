@@ -2870,7 +2870,8 @@ impl NoteEditor {
     pub fn audio_on_caret_line(&self, cx: &App) -> Option<(String, String)> {
         match self.audio_source_on_caret_line(cx)? {
             crate::transcribe::Source::Attachment { file_id, name, .. } => Some((file_id, name)),
-            crate::transcribe::Source::Path { .. } => None,
+            crate::transcribe::Source::Path { .. }
+            | crate::transcribe::Source::Recording { .. } => None,
         }
     }
 
@@ -3565,6 +3566,25 @@ impl NoteEditor {
                         .on_click({
                             let editor = cx.entity();
                             move |_, window, cx| crate::voice::press(editor.clone(), window, cx)
+                        }),
+                )
+            })
+            .when(!compact, |el| {
+                el.child(
+                    Button::new("record")
+                        .debug_selector(|| "record".into())
+                        .ghost()
+                        .small()
+                        .tab_stop(tab_stop)
+                        .icon(Icon::new(Lucide::CircleDot).text_color(colors.danger))
+                        .tooltip("Record audio (⇧⌘R)")
+                        // Not a listener: opening the sheet updates windows.
+                        .on_click({
+                            let editor = cx.entity();
+                            move |_, window, cx| {
+                                let open = editor.read(cx).note_id().map(str::to_owned);
+                                crate::record_sheet::open(open, window, cx)
+                            }
                         }),
                 )
             })

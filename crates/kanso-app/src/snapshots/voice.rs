@@ -143,3 +143,63 @@ pub(super) fn editor_transcribing(
         crate::transcribe::show_for_snapshot(&editor, window, "Standup 21 Oct.m4a", 0.34, cx);
     });
 }
+
+/// The recording bar over the main window, 42 minutes in.
+pub(super) fn recording_bar(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| {
+        crate::recording::show_for_snapshot(
+            crate::recording_model::Notice::Recording(crate::recording_model::BarState {
+                seconds: 42 * 60 + 17,
+                level: 0.6,
+                paused: false,
+                label: "Microphone",
+                dot_lit: true,
+            }),
+            cx,
+        );
+    });
+}
+
+/// The same bar while paused.
+pub(super) fn recording_paused(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| {
+        crate::recording::show_for_snapshot(
+            crate::recording_model::Notice::Recording(crate::recording_model::BarState {
+                seconds: 3_723,
+                level: 0.0,
+                paused: true,
+                label: "Microphone",
+                dot_lit: false,
+            }),
+            cx,
+        );
+    });
+}
+
+/// The banner after a crash.
+pub(super) fn recording_recover(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| {
+        crate::recording::show_for_snapshot(
+            crate::recording_model::Notice::Crash(crate::recording_model::CrashBanner {
+                id: "x".into(),
+                text: kanso_engine::recording_flow::recovery_text(Some("14:05"), 52 * 60),
+            }),
+            cx,
+        );
+    });
+}

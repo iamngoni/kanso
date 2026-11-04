@@ -188,6 +188,7 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("secondary-z", UndoLastChange, Some("!Input && !TasksView")),
         KeyBinding::new("secondary-shift-a", AskYourNotes, None),
         KeyBinding::new("secondary-shift-m", Dictate, None),
+        KeyBinding::new("secondary-shift-r", crate::recording::RecordAudio, None),
         KeyBinding::new("secondary-alt-down", NextNote, None),
         KeyBinding::new("secondary-alt-up", PreviousNote, None),
         KeyBinding::new("secondary-,", OpenSettings, None),
@@ -330,6 +331,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Move to Trash", TrashNote),
             MenuItem::action("Show History…", ShowHistory),
             MenuItem::action("Voice Input", Dictate),
+            MenuItem::action("Record…", crate::recording::RecordAudio),
             MenuItem::action("Transcribe Recording", crate::transcribe::TranscribeAudio),
             MenuItem::action("Publish…", crate::publish::PublishNote),
             MenuItem::action("Publish Notebook…", crate::publish_site::PublishNotebook),
@@ -2979,6 +2981,11 @@ impl Render for Workspace {
                 this.close_settings(window, cx);
                 crate::voice::press(this.editor.clone(), window, cx);
             }))
+            .on_action(cx.listener(|this, _: &crate::recording::RecordAudio, window, cx| {
+                this.close_settings(window, cx);
+                let open = this.editor.read(cx).note_id().map(str::to_owned);
+                crate::record_sheet::open(open, window, cx);
+            }))
             .on_action(cx.listener(|this, _: &ShowHistory, window, cx| {
                 this.close_settings(window, cx);
                 this.show_history(window, cx);
@@ -3224,6 +3231,8 @@ impl Render for Workspace {
             .when_some(self.title_bar.clone(), |el, menus| {
                 el.child(crate::title_bar::render(&menus, colors))
             })
+            // The recording bar, or a notice about one a crash left.
+            .children(crate::recording_bar::strip(cx))
             // The panes run the rest of the height: each has its own top
             // band (on macOS, the title bar's row) and bottom band. The
             // sidebar and the list keep their widths and the editor takes

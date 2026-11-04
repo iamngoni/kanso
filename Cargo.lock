@@ -4464,6 +4464,7 @@ dependencies = [
  "image",
  "kanso-acp",
  "kanso-ai",
+ "kanso-audio",
  "kanso-collab",
  "kanso-core",
  "kanso-engine",

@@ -177,6 +177,48 @@ pub fn transcribe_timed(
     Ok(pieces)
 }
 
+/// One part of a recording to transcribe: its bytes' reader and the
+/// extension hint.
+pub type Part = (Box<dyn MediaSource>, Option<String>);
+
+/// Transcribes a recording made of several `parts` as one timeline: the
+/// model loads once, and each piece's start counts from the start of the
+/// first part. `total` is the whole recording's length when known, for the
+/// progress. Nothing heard is [`VoiceError::NothingHeard`].
+// no-prop-test: runs the real model; `time_at` and `decode_pieces` have
+// the properties.
+pub fn transcribe_parts(
+    parts: Vec<Part>,
+    total: Option<Duration>,
+    model_dir: &std::path::Path,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<Vec<Timed>, VoiceError> {
+    let mut model = Parakeet::load(model_dir)?;
+    let mut pieces = Vec::new();
+    let mut samples_before = 0usize;
+    for (source, extension) in parts {
+        let base = time_at(samples_before);
+        decode_pieces(source, extension.as_deref(), cancel, &mut |samples, at| {
+            let start = time_at(samples_before);
+            samples_before += samples.len();
+            let text = model.transcribe(samples, cancel)?;
+            if !text.trim().is_empty() {
+                pieces.push(Timed { start, text });
+            }
+            progress(Progress {
+                done: base + at.done,
+                total,
+            });
+            Ok(())
+        })?;
+    }
+    if pieces.is_empty() {
+        return Err(VoiceError::NothingHeard);
+    }
+    Ok(pieces)
+}
+
 /// Transcribes the audio in `source` with the model in `model_dir`,
 /// telling `progress` how far it has got after each piece. Nothing heard
 /// is [`VoiceError::NothingHeard`].

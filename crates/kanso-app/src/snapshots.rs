@@ -4437,6 +4437,11 @@ fn check_surfaces(image: &image::RgbaImage, shot: &Shot, inspector: bool) {
     if !crate::layout::LIGHTS_IN_BAND {
         checks.retain(|((_, y), _, _)| *y > TOP_BAND_SAMPLE);
     }
+    // The recording strip pushes the panes down by its own height, so the
+    // top band's samples are somewhere else; the strip is checked by eye.
+    if shot.name.contains("recording") {
+        checks.retain(|((_, y), _, _)| *y > 80.);
+    }
     // A notebook's homepage fills the editor's pane to the bottom: it has
     // no footer band of its own.
     if shot.name.contains("notebook-home") {
@@ -5299,6 +5304,19 @@ fn snapshots() {
             Light,
             Split,
             voice::editor_transcribing,
+        ),
+        shot("dark-recording-bar", Dark, Edit, voice::recording_bar),
+        shot(
+            "light-recording-paused",
+            Light,
+            Split,
+            voice::recording_paused,
+        ),
+        shot(
+            "light-recording-recover",
+            Light,
+            Edit,
+            voice::recording_recover,
         ),
         shot(
             "light-settings-voice-missing",

@@ -312,6 +312,15 @@ pub const SHORTCUTS: &[Shortcut] = &[
         on_mobile: true,
     },
     Shortcut {
+        id: "record_audio",
+        mac: "secondary-shift-r",
+        other: "secondary-shift-r",
+        context: ShortcutContext::Global,
+        label: "Record…",
+        group: ShortcutGroup::Note,
+        on_mobile: true,
+    },
+    Shortcut {
         id: "open_in_new_window",
         mac: "secondary-shift-o",
         other: "secondary-shift-o",
