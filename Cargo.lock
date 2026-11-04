@@ -4517,10 +4517,17 @@ dependencies = [
 name = "kanso-audio"
 version = "0.9.4"
 dependencies = [
+ "cpal",
+ "fastrand",
  "ogg",
  "opus",
  "proptest",
+ "rtrb",
+ "rubato",
+ "serde",
+ "serde_json",
  "symphonia",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

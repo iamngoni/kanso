@@ -566,8 +566,7 @@ fn with_a_rejected_packet(bytes: &[u8], bad: usize) -> Vec<u8> {
         } else {
             (i as u64 - 1) * FRAME_SAMPLES as u64
         };
-        out.write_packet(data, serial, info, granule)
-            .unwrap();
+        out.write_packet(data, serial, info, granule).unwrap();
     }
     out.into_inner()
 }
@@ -589,7 +588,10 @@ fn a_rejected_packet_keeps_the_timeline_in_place() {
     // Before the damage the audio is untouched.
     let at = 40 * FRAME_SAMPLES - 312;
     let first = out.iter().zip(&good).position(|(a, b)| a != b);
-    assert!(first.is_none_or(|f| f >= at), "first difference at {first:?}");
+    assert!(
+        first.is_none_or(|f| f >= at),
+        "first difference at {first:?}"
+    );
     // After it, the tone is where it was (the decoder re-settles by then).
     let tail = 60 * FRAME_SAMPLES - 312;
     assert!(similarity(&good[tail..], &out[tail..]) > 0.95);

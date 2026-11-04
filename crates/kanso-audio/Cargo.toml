@@ -9,6 +9,16 @@ rust-version.workspace = true
 [dependencies]
 # Reads and writes Ogg pages and packets (BSD-3-Clause, pure Rust).
 ogg = "0.9"
+# The microphone on every platform: Core Audio, WASAPI and ALSA (the version
+# kanso-voice uses).
+cpal = "0.18"
+fastrand.workspace = true
+# The microphone callback hands samples over without locking or allocating.
+rtrb = "0.3"
+# The microphone's rate to Opus's 48 kHz.
+rubato = "5"
+serde.workspace = true
+serde_json.workspace = true
 # libopus (BSD-3-Clause) behind safe bindings (MIT/Apache-2.0). The bindings
 # build the vendored libopus source with CMake, so a build host needs cmake
 # on PATH (scripts/linux-deps.sh, and the release workflow's cmake step).
@@ -20,3 +30,4 @@ thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+tempfile.workspace = true

@@ -17,6 +17,14 @@ pub enum AudioError {
     NoRate,
     #[error("{0}")]
     Config(String),
+    #[error("Kanso isn't allowed to use the microphone")]
+    MicrophoneDenied,
+    #[error("there's no microphone")]
+    NoMicrophone,
+    #[error("the microphone failed: {0}")]
+    Device(String),
+    #[error("the recording's notes file is unreadable: {0}")]
+    Session(String),
 }
 
 impl From<opus::Error> for AudioError {
