@@ -204,6 +204,9 @@ impl Presentation {
             preview.show_at_once(slides[0].clone().into(), cx);
             preview.set_text_scale(scale, cx);
             preview
+                .player()
+                .update(cx, |player, _| player.leave_keys_to_slides());
+            preview
         });
         let focus = cx.focus_handle();
         let subscriptions = vec![

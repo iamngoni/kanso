@@ -96,6 +96,9 @@ pub struct RecordingPlayer {
     ticker: Option<Task<()>>,
     ticks: u32,
     focus: FocusHandle,
+    /// In a slideshow the keys belong to the slides: the card is for the
+    /// mouse there and never takes Space or the arrows.
+    slide_keys: bool,
     track: Rc<Cell<Bounds<Pixels>>>,
     volume_track: Rc<Cell<Bounds<Pixels>>>,
     /// The scrubber's thumb while it is dragged: the seek happens on release.
@@ -124,6 +127,7 @@ impl RecordingPlayer {
             ticker: None,
             ticks: 0,
             focus: cx.focus_handle(),
+            slide_keys: false,
             track: Rc::default(),
             volume_track: Rc::default(),
             scrub: None,
@@ -478,13 +482,19 @@ impl RecordingPlayer {
         self.set_volume(to, cx);
     }
 
+    /// Leaves the keyboard to the slides: the card plays and pauses from the
+    /// mouse only, and a click on it does not take the focus.
+    pub fn leave_keys_to_slides(&mut self) {
+        self.slide_keys = true;
+    }
+
     /// A key the card takes while it has the keyboard. Whether it did.
     /// `on_card` says the card itself has the focus, not one of its buttons
     /// (reached with Tab): Space on a button presses that button, so the
     /// card leaves Space alone there rather than playing as well.
     fn key(&mut self, keystroke: &Keystroke, on_card: bool, cx: &mut Context<Self>) -> bool {
         let m = &keystroke.modifiers;
-        if m.control || m.alt || m.platform || m.function {
+        if self.slide_keys || m.control || m.alt || m.platform || m.function {
             return false;
         }
         match recording_player::key_action(&keystroke.key, m.shift) {
@@ -684,7 +694,11 @@ impl Render for RecordingPlayer {
             }))
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(|this, _, window, cx| window.focus(&this.focus, cx)),
+                cx.listener(|this, _, window, cx| {
+                    if !this.slide_keys {
+                        window.focus(&this.focus, cx);
+                    }
+                }),
             )
             .flex_none()
             .w_full()
