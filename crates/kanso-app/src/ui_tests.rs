@@ -4057,7 +4057,6 @@ fn a_due_task_is_ticked_from_overview_and_undone(cx: &mut TestAppContext) {
     assert!(body.contains("- [ ] Send the deck"), "{body}");
 }
 
-
 /// A canvas note in the fixture's notebook.
 fn make_canvas(f: &Fixture, title: &str) -> String {
     let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;

@@ -362,10 +362,14 @@ impl CanvasView {
                     .is_some_and(|b| x >= b.x && x <= b.right() && y >= b.y && y <= b.bottom())
             })
         {
-            self.pressed_card = Some(card.id.clone());
+            let (id, origin) = (card.id.clone(), (card.x, card.y));
+            self.pressed_card = Some(id.clone());
+            if let Some(state) = &mut self.state {
+                state.select_card(Some(id));
+            }
             self.grab = Some(Grab::Card {
                 start: at,
-                origin: (card.x, card.y),
+                origin,
                 moved: false,
             });
             return;
@@ -456,6 +460,9 @@ impl CanvasView {
                 self.emit_changed(cx);
             }
             self.pressed_card = None;
+            if let Some(state) = &mut self.state {
+                state.end_card_drag();
+            }
             cx.notify();
             return;
         }
@@ -863,7 +870,12 @@ impl CanvasView {
             let tint = card_color(node.color.as_deref())
                 .and_then(|c| pen::parse_hex(&c))
                 .map(|(r, g, b)| rgb((u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b)));
-            let border: Hsla = tint.map_or(Hsla::from(colors.divider), Hsla::from);
+            let held = state.card_selection.as_deref() == Some(node.id.as_str());
+            let border: Hsla = if held {
+                colors.accent.into()
+            } else {
+                tint.map_or(Hsla::from(colors.divider), Hsla::from)
+            };
             let group = node.kind == "group";
             let text = match node.kind.as_str() {
                 "text" => node.text.clone().unwrap_or_default(),

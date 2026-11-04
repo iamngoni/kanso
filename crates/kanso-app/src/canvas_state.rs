@@ -135,12 +135,16 @@ pub struct CanvasState {
     pub width: f64,
     /// The selection a lasso made.
     pub selection: Vec<StrokeRef>,
+    /// The card the lasso last pressed, which Delete removes.
+    pub card_selection: Option<String>,
     /// The lasso loop being drawn, in canvas coordinates.
     pub lasso: Vec<(f64, f64)>,
     live: Option<Live>,
     dragging: Option<Drag>,
     undo: Vec<Action>,
     redo: Vec<Action>,
+    /// A card drag's moves so far: one undo step once the drag ends.
+    card_drag: Action,
     /// Finished strokes as painted, by stroke ID: built once per version.
     outlines: HashMap<String, Painted>,
 }
@@ -185,11 +189,13 @@ impl CanvasState {
             color: COLORS[0].into(),
             width: WIDTHS[1],
             selection: Vec::new(),
+            card_selection: None,
             lasso: Vec::new(),
             live: None,
             dragging: None,
             undo: Vec::new(),
             redo: Vec::new(),
+            card_drag: Action::default(),
             outlines: HashMap::new(),
         }
     }
@@ -243,6 +249,7 @@ impl CanvasState {
     /// points (the view divides its screen radius by the zoom).
     pub fn begin(&mut self, sample: PenSample, radius: f64, now: i64) -> Outcome {
         self.finish_gesture();
+        self.card_selection = None;
         let tool = self.tool_for(&sample);
         match tool {
             Tool::Pen | Tool::Pencil | Tool::Marker | Tool::Highlighter => {
@@ -371,6 +378,7 @@ impl CanvasState {
     }
 
     fn finish_gesture(&mut self) {
+        self.end_card_drag();
         if let Some(Drag::Erase { action, .. }) | Some(Drag::Move { action, .. }) =
             self.dragging.take()
         {
@@ -424,6 +432,7 @@ impl CanvasState {
     /// Undoes the last step.
     pub fn undo(&mut self, now: i64) -> Outcome {
         self.cancel();
+        self.card_selection = None;
         let Some(action) = self.undo.pop() else {
             return Outcome::Nothing;
         };
@@ -440,6 +449,7 @@ impl CanvasState {
     /// Does the step undo took back.
     pub fn redo(&mut self, now: i64) -> Outcome {
         self.cancel();
+        self.card_selection = None;
         let Some(action) = self.redo.pop() else {
             return Outcome::Nothing;
         };
@@ -453,8 +463,15 @@ impl CanvasState {
         }
     }
 
-    /// Deletes the lasso's selection.
+    /// Deletes the selected card, or the lasso's selected strokes.
     pub fn delete_selection(&mut self, now: i64) -> Outcome {
+        if let Some(id) = self.card_selection.clone() {
+            return if self.delete_card(&id, now) {
+                Outcome::Changed
+            } else {
+                Outcome::Nothing
+            };
+        }
         let refs = std::mem::take(&mut self.selection);
         match self.canvas.delete_strokes(&refs, now) {
             Some(action) => {
@@ -490,11 +507,12 @@ impl CanvasState {
             .reduce(canvas::Bounds::union)
     }
 
-    /// Adds a text card with its top left at `(x, y)`.
+    /// Adds a text card with its top left at `(x, y)`: one undo step.
     pub fn add_text_card(&mut self, x: f64, y: f64, text: &str, now: i64) -> String {
+        self.end_card_drag();
         let taken = self.canvas.nodes.iter().map(|n| n.id.clone()).collect();
         let id = unique_id("t", &taken);
-        self.canvas.put_node(
+        let action = self.canvas.put_card(
             Node {
                 id: id.clone(),
                 kind: "text".into(),
@@ -507,12 +525,13 @@ impl CanvasState {
             },
             now,
         );
+        self.push(action);
         id
     }
 
     /// Adds a card for note `note_id` (its title kept beside the ID, as the
-    /// document defines) with its top left at `(x, y)`. `None` when the ID
-    /// isn't a note's or a card for it is already at that place.
+    /// document defines) with its top left at `(x, y)`: one undo step. `None`
+    /// when the ID isn't a note's.
     pub fn add_note_card(
         &mut self,
         x: f64,
@@ -524,9 +543,10 @@ impl CanvasState {
         if !note_id.starts_with(canvas::NOTE_PREFIX) {
             return None;
         }
+        self.end_card_drag();
         let taken = self.canvas.nodes.iter().map(|n| n.id.clone()).collect();
         let id = unique_id("n", &taken);
-        self.canvas.put_node(
+        let action = self.canvas.put_card(
             Node {
                 id: id.clone(),
                 kind: "file".into(),
@@ -540,10 +560,11 @@ impl CanvasState {
             },
             now,
         );
+        self.push(action);
         Some(id)
     }
 
-    /// Changes a text card's text.
+    /// Changes a text card's text: one undo step.
     pub fn set_card_text(&mut self, id: &str, text: &str, now: i64) -> bool {
         let Some(mut node) = self.canvas.node(id).cloned() else {
             return false;
@@ -551,20 +572,51 @@ impl CanvasState {
         if node.kind != "text" {
             return false;
         }
+        self.end_card_drag();
         node.text = Some(text.to_owned());
-        self.canvas.put_node(node, now);
+        let action = self.canvas.put_card(node, now);
+        self.push(action);
         true
     }
 
-    /// Moves a card or group.
+    /// Moves a card or group. The moves of one drag are one undo step, which
+    /// [`CanvasState::end_card_drag`] closes (anything else that edits or
+    /// undoes closes it too).
     pub fn move_card(&mut self, id: &str, x: f64, y: f64, now: i64) -> bool {
-        self.canvas.move_node(id, x.round(), y.round(), now)
+        match self.canvas.move_card(id, x.round(), y.round(), now) {
+            Some(step) => {
+                self.card_drag = std::mem::take(&mut self.card_drag).then(step);
+                true
+            }
+            None => false,
+        }
     }
 
-    #[cfg(test)]
-    /// Deletes a card, group or ink layer; its arrows stay, hidden.
+    /// Ends a card drag: what it moved is one undo step.
+    pub fn end_card_drag(&mut self) {
+        let drag = std::mem::take(&mut self.card_drag);
+        self.push(drag);
+    }
+
+    /// Marks `id` as the card Delete removes.
+    pub fn select_card(&mut self, id: Option<String>) {
+        self.selection.clear();
+        self.card_selection = id;
+    }
+
+    /// Deletes a card or group; its arrows stay, hidden. One undo step.
     pub fn delete_card(&mut self, id: &str, now: i64) -> bool {
-        self.canvas.remove_node(id, now)
+        self.end_card_drag();
+        match self.canvas.delete_card(id, now) {
+            Some(action) => {
+                if self.card_selection.as_deref() == Some(id) {
+                    self.card_selection = None;
+                }
+                self.push(action);
+                true
+            }
+            None => false,
+        }
     }
 
     /// The topmost card (not ink) under `(x, y)`.
