@@ -315,7 +315,7 @@ mod tests {
         let wait = cx.update(check);
         let shown = cx.shown_system_notifications();
         assert_eq!(shown.len(), 1, "the review isn't on a Monday");
-        assert_eq!(shown[0].title.as_ref(), "Your morning brief");
+        assert_eq!(shown[0].title.as_ref(), "Today");
         assert_eq!(shown[0].body.as_ref(), "1 due, 1 open loop");
         for text in [shown[0].title.as_ref(), shown[0].body.as_ref()] {
             assert!(!text.contains("canary"), "{text}");

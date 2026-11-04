@@ -22,7 +22,6 @@ import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../journal/views/widgets/day_stepper.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
-import '../../../journal/views/widgets/morning_brief_card.dart';
 import '../../../journal/views/widgets/note_journal_actions.dart';
 import '../../../lock/models/data/note_menu_action.dart';
 import '../../../lock/views/widgets/privacy_cover_sync.dart';
@@ -236,8 +235,6 @@ class NotePane extends StatelessWidget {
                         ),
                       if (hasStatus && readable && !focusActive)
                         SharedNoteStatusStrip(gutter: gutter),
-                      if (readable && !focusActive)
-                        MorningBriefCard(noteId: shown.noteId),
                       if (readable && !focusActive)
                         VoiceTidyStrip(
                           noteId: shown.noteId,

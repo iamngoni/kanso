@@ -171,6 +171,10 @@ pub struct BriefPrefs {
     pub notify_brief: bool,
     pub notify_review: bool,
     pub mark_done_in_note: bool,
+    /// Open to Overview (otherwise the last note).
+    pub open_to_overview: bool,
+    /// Days of quiet before a person is listed under Waiting on others.
+    pub quiet_days: u32,
 }
 
 /// A notification to hand the system ahead of time. Its text is fixed:

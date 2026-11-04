@@ -11121,6 +11121,378 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back'**
   String get canvasBack;
+
+  /// The title of Kanso's home page.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get overviewTitle;
+
+  /// The Today view of Overview, and the heading of its agenda.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get overviewToday;
+
+  /// The This week view of Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get overviewThisWeek;
+
+  /// The title of a past or future week on Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'That week'**
+  String get overviewThatWeek;
+
+  /// The button that leaves Overview for the notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get overviewNotes;
+
+  /// The button that has the model write a paragraph over Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise'**
+  String get overviewSummarise;
+
+  /// Overview's menu button.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get overviewMenu;
+
+  /// The menu item that opens today's Journal note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open today\'s note'**
+  String get overviewOpenTodayNote;
+
+  /// Keeps the week on Overview as a note in the Journal.
+  ///
+  /// In en, this message translates to:
+  /// **'Save week as note'**
+  String get overviewSaveWeek;
+
+  /// The menu item that opens Overview's settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview settings'**
+  String get overviewSettings;
+
+  /// Closes a sheet of Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get overviewCancel;
+
+  /// The title of the sheet that picks a day to bring a note back.
+  ///
+  /// In en, this message translates to:
+  /// **'Revisit in…'**
+  String get overviewRevisitTitle;
+
+  /// The action that brings a note back on Overview on a later day.
+  ///
+  /// In en, this message translates to:
+  /// **'Revisit in…'**
+  String get overviewRevisit;
+
+  /// Said after a revisit date is set.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll see this again on {day}.'**
+  String overviewRevisitSet(String day);
+
+  /// The spoken label of the box of an agenda task.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick off {title}'**
+  String overviewTick(String title);
+
+  /// The spoken action that ticks an agenda task.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick off'**
+  String get overviewTickOff;
+
+  /// The spoken action that opens the note of a row.
+  ///
+  /// In en, this message translates to:
+  /// **'Open note'**
+  String get overviewOpenNote;
+
+  /// The link from a calendar event to its note.
+  ///
+  /// In en, this message translates to:
+  /// **'Meeting note'**
+  String get overviewMeetingNote;
+
+  /// Hides a note from Pick up until it is written in again.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get overviewNotNow;
+
+  /// Marks a waiting item done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get overviewDone;
+
+  /// Asks again about a waiting item in three days.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get overviewNotYet;
+
+  /// How long a person has been quiet.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day quiet} other{{count} days quiet}}'**
+  String overviewQuietDays(int count);
+
+  /// The action on a row of agent changes waiting for review.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get overviewReview;
+
+  /// How many captures wait in the Inbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox {count}'**
+  String overviewInbox(int count);
+
+  /// How many promises are open.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 thing you said you\'d do} other{{count} things you said you\'d do}}'**
+  String overviewPromisesCount(int count);
+
+  /// How many waiting items were folded into one line.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} waiting'**
+  String overviewWaitingCount(int count);
+
+  /// How many flashcards are due.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 flashcard} other{{count} flashcards}}'**
+  String overviewFlashcards(int count);
+
+  /// The label over the note from the past, with why it is shown.
+  ///
+  /// In en, this message translates to:
+  /// **'A note from the past · {why}'**
+  String overviewFromThePast(String why);
+
+  /// Opens the note from the past.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get overviewOpen;
+
+  /// Hides the note from the past.
+  ///
+  /// In en, this message translates to:
+  /// **'Not useful'**
+  String get overviewNotUseful;
+
+  /// Shows the rest of the model's paragraph.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get overviewMore;
+
+  /// The footnote under the model's paragraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Written by your model at {time}'**
+  String overviewWrittenBy(String time);
+
+  /// Has the model write its paragraph again.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewrite'**
+  String get overviewRewrite;
+
+  /// Hides the model's paragraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get overviewHide;
+
+  /// The notice after a task is ticked from Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Done: {title}'**
+  String overviewTicked(String title);
+
+  /// What Overview is for, shown while the library is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'This is your Overview. As you write, it gathers today\'s meetings and tasks, the notes you\'re in the middle of, and the people you\'re waiting on.'**
+  String get overviewNewLede;
+
+  /// Opens today's note from an empty Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Write today\'s note'**
+  String get overviewWriteToday;
+
+  /// The line under a full agenda.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more today · All {total} in Tasks'**
+  String overviewAgendaMore(int count, int total);
+
+  /// The folded line of events that are over.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier today ({count})'**
+  String overviewEarlier(int count);
+
+  /// The heading of the short lines at the foot of Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Also'**
+  String get overviewAlso;
+
+  /// The heading of the notes the person was writing in.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick up where you left off'**
+  String get overviewPickUp;
+
+  /// The heading of the people the person is waiting on.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting on others'**
+  String get overviewWaiting;
+
+  /// The heading of changes by agents and by people in shared notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent and shared activity'**
+  String get overviewActivity;
+
+  /// How many rows a list holds past what shows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String overviewMoreRows(int count);
+
+  /// Opens Triage from the Inbox line.
+  ///
+  /// In en, this message translates to:
+  /// **'Triage'**
+  String get overviewTriage;
+
+  /// Opens every open loop from the Promises line.
+  ///
+  /// In en, this message translates to:
+  /// **'See all'**
+  String get overviewSeeAll;
+
+  /// Steps the week on Overview back.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous week'**
+  String get overviewPreviousWeek;
+
+  /// Steps the week on Overview forward.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get overviewNextWeek;
+
+  /// The heading of the notebooks the week went into.
+  ///
+  /// In en, this message translates to:
+  /// **'Active projects'**
+  String get overviewProjects;
+
+  /// How many notes of a project changed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 note changed} other{{count} notes changed}}'**
+  String overviewNotesChanged(int count);
+
+  /// The last note changed in a project.
+  ///
+  /// In en, this message translates to:
+  /// **'last: “{title}”'**
+  String overviewLast(String title);
+
+  /// A project's next task.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {task}'**
+  String overviewNext(String task);
+
+  /// The heading of what was finished this week.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get overviewFinished;
+
+  /// The heading of tasks still open this week.
+  ///
+  /// In en, this message translates to:
+  /// **'Still open'**
+  String get overviewStillOpen;
+
+  /// Opens the Tasks place.
+  ///
+  /// In en, this message translates to:
+  /// **'All {count} open tasks'**
+  String overviewAllOpenTasks(int count);
+
+  /// The heading of what is coming in the days ahead.
+  ///
+  /// In en, this message translates to:
+  /// **'Ahead'**
+  String get overviewAhead;
+
+  /// Said when this week is already saved as a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as “{title}”'**
+  String overviewSavedAs(String title);
+
+  /// The setting that makes Kanso open to Overview rather than the last note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open to Overview'**
+  String get settingsOverviewOpens;
+
+  /// The setting for how long a person must be quiet to be listed.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting on others after'**
+  String get settingsOverviewQuiet;
+
+  /// A number of days.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days'**
+  String settingsOverviewDays(int count);
+
+  /// Lowers the quiet days by one.
+  ///
+  /// In en, this message translates to:
+  /// **'One day fewer'**
+  String get settingsOverviewFewer;
+
+  /// Raises the quiet days by one.
+  ///
+  /// In en, this message translates to:
+  /// **'One day more'**
+  String get settingsOverviewMore;
 }
 
 class _AppLocalizationsDelegate

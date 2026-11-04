@@ -28,10 +28,10 @@ use crate::{Origin, Result, Store, schema};
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
 /// Changes whenever a derived table's source or derivation changes.
-pub const DERIVED_VERSION: &str = "5";
+pub const DERIVED_VERSION: &str = "6";
 
 /// The tables, for emptying them.
-pub(crate) const TABLES: [&str; 9] = [
+pub(crate) const TABLES: [&str; 10] = [
     "note_links",
     "note_headings",
     "note_tasks",
@@ -41,6 +41,7 @@ pub(crate) const TABLES: [&str; 9] = [
     "entities",
     "entity_names",
     "note_mentions",
+    "note_revisit",
 ];
 
 /// How long a finished item is remembered, in days.
@@ -115,6 +116,9 @@ pub(crate) fn write_note(
     let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
     let loops = read_loops(fields);
     insert_rows(conn, id, body, &loops)?;
+    if !locked {
+        crate::overview::index_revisit(conn, id, fields)?;
+    }
     crate::entity_index::write(
         conn,
         &crate::entity_index::Indexed {
@@ -377,6 +381,9 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
             Loops::default()
         };
         insert_rows(&tx, &id, body.as_deref().unwrap_or(""), &loops)?;
+        if body.is_some() {
+            crate::overview::index_revisit(&tx, &id, &fields)?;
+        }
         write_file_ownership(&tx, &id, &fields, in_locked_notebook)?;
     }
     crate::entity_index::rebuild(&tx, &entity_notes)?;

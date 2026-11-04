@@ -385,6 +385,46 @@ CREATE TABLE IF NOT EXISTS feedback_outbox (
     sender TEXT NOT NULL DEFAULT ''
 ) WITHOUT ROWID;
 "#,
+    // Overview (issue #240, `overview.rs`, `revisit.rs`): three local tables
+    // and one derived one. `writing_places` holds where the person last
+    // stopped writing in a note (a line and a column, never text), kept per
+    // note as one session at a time; `loop_feedback` the dismissals and
+    // ticks that teach Overview which phrase families to stop guessing;
+    // `waiting_snoozed` the items "Not yet" put off. None of them is synced,
+    // backed up or sent anywhere, and all are emptied with the library.
+    // `note_revisit` is derived from the `kansoRevisit` field like
+    // `note_tasks` and rebuilt when `DERIVED_VERSION` moves.
+    r#"
+CREATE TABLE IF NOT EXISTS writing_places (
+    note_id TEXT PRIMARY KEY NOT NULL,
+    line INTEGER NOT NULL,
+    col INTEGER NOT NULL,
+    anchor_hash TEXT NOT NULL,
+    session_start INTEGER NOT NULL,
+    session_end INTEGER NOT NULL,
+    session_chars INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    hidden_at INTEGER NOT NULL DEFAULT 0
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS writing_places_end ON writing_places (session_end);
+CREATE TABLE IF NOT EXISTS loop_feedback (
+    family TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    what TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS loop_feedback_family ON loop_feedback (family, at);
+CREATE TABLE IF NOT EXISTS waiting_snoozed (
+    key TEXT PRIMARY KEY NOT NULL,
+    until INTEGER NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS note_revisit (
+    note_id TEXT PRIMARY KEY NOT NULL,
+    on_day TEXT NOT NULL,
+    set_at INTEGER NOT NULL,
+    why TEXT NOT NULL DEFAULT ''
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS note_revisit_day ON note_revisit (on_day);
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -802,5 +842,63 @@ mod tests {
         )
         .unwrap();
         conn.execute_batch(MIGRATIONS[at]).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod overview_tests {
+    use super::*;
+
+    fn has_table(conn: &Connection, table: &str) -> bool {
+        conn.query_row(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            [table],
+            |_| Ok(()),
+        )
+        .optional()
+        .unwrap()
+        .is_some()
+    }
+
+    /// A database pinned at version 17 (people and projects) moves to head
+    /// (Overview) keeping what it had, and the new tables work. Running the
+    /// migration again changes nothing.
+    #[test]
+    fn version_seventeen_moves_to_eighteen() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db")).unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(17).enumerate() {
+            conn.execute_batch(&format!(
+                "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
+                index + 1
+            ))
+            .unwrap();
+        }
+        let before: i64 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(before, 17);
+        assert!(!has_table(&conn, "writing_places"));
+        set_meta(&conn, "kept", "yes").unwrap();
+        migrate(&conn).unwrap();
+        let after: i64 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(after, MIGRATIONS.len() as i64);
+        for table in [
+            "writing_places",
+            "loop_feedback",
+            "waiting_snoozed",
+            "note_revisit",
+        ] {
+            assert!(has_table(&conn, table), "{table}");
+        }
+        assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+        conn.execute(
+            "INSERT INTO writing_places VALUES ('note:a', 3, 4, 'h', 1, 2, 50, 'ui', 0)",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch(MIGRATIONS[17]).unwrap();
     }
 }

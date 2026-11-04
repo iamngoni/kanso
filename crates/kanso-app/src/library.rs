@@ -26,8 +26,7 @@ pub fn board_scope(filter: &Filter) -> Filter {
         Filter::Status(_)
         | Filter::Tasks
         | Filter::OpenLoops
-        | Filter::Brief
-        | Filter::Review
+        | Filter::Overview
         | Filter::Trash => Filter::All,
         other => other.clone(),
     }
@@ -239,7 +238,7 @@ impl Library {
             .unwrap_or_default();
         let task = cx.background_executor().spawn(async move {
             let notes = match filter {
-                Filter::Tasks | Filter::OpenLoops | Filter::Brief | Filter::Review => None,
+                Filter::Tasks | Filter::OpenLoops | Filter::Overview => None,
                 _ => Some(list_notes(
                     &store,
                     &filter,
@@ -337,10 +336,7 @@ impl Library {
     pub fn set_filter(&mut self, filter: Filter, cx: &mut Context<Self>) {
         cx.emit(LibraryEvent::Shown);
         if self.filter != filter {
-            if !matches!(
-                self.filter,
-                Filter::OpenLoops | Filter::Brief | Filter::Review
-            ) {
+            if !matches!(self.filter, Filter::OpenLoops | Filter::Overview) {
                 self.previous = self.filter.clone();
             }
             // The Tasks view and the other places leave the open note as it is.
@@ -654,8 +650,7 @@ impl Library {
             Filter::Trash => "Trash".into(),
             Filter::Tasks => "Tasks".into(),
             Filter::OpenLoops => "Open Loops".into(),
-            Filter::Brief => "Morning Brief".into(),
-            Filter::Review => "Weekly Review".into(),
+            Filter::Overview => "Overview".into(),
             Filter::Shared => "Shared with me".into(),
         }
     }

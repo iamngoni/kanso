@@ -1,11 +1,12 @@
-//! Open loops, the morning brief and the weekly review, in the note list's
-//! place (`Filter::OpenLoops`, `Filter::Brief`, `Filter::Review`).
+//! Open loops and Overview, in the note list's place (`Filter::OpenLoops`,
+//! `Filter::Overview`).
 //!
-//! Everything shown is computed when it opens and again when the library
-//! changes (`kanso_engine::brief`): nothing is stored, and nothing is sent
+//! Overview (issue #240) is Kanso's home, with Today and This week: see
+//! [`overview_view`]. Everything shown is computed when it opens and again
+//! when the library changes (`kanso_engine::overview`), and nothing is sent
 //! to a model unless one of the explicit AI buttons is pressed. The parts
-//! that decide (which loops, what is due, the themes) are the engine's;
-//! this draws them and turns clicks into store writes.
+//! that decide are the engine's; this draws them and turns clicks into store
+//! writes.
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -19,20 +20,25 @@ use gpui_kit::component::{
     Disableable as _, Icon, Sizable as _, StyledExt as _, VirtualListScrollHandle, h_flex, v_flex,
     v_virtual_list,
 };
-use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use kanso_core::dates::{Date, DateTime};
+use kanso_core::dates::Date;
 use kanso_core::loops::{AiLoop, LoopKind, age_label};
-use kanso_engine::brief::{self, Brief, Now, Review, ThemeKind, Why, morning_brief, weekly_review};
-use kanso_engine::loops_ai::{self, Proposal, Scan, Summary};
-use kanso_store::{CheckOff, LoopClose, LoopQuery, LoopRow, Origin, Store, TaskRow};
+use kanso_core::revisit::Choice;
+use kanso_engine::brief::{self, Now};
+use kanso_engine::loops_ai::{self, Proposal, Scan};
+use kanso_engine::overview::Overview;
+use kanso_store::{CheckOff, LoopClose, LoopQuery, LoopRow, Origin, Store};
 
 use crate::clock::Clock;
 use crate::library::{Filter, Library, LibraryEvent};
-use crate::page_chrome::{self, ActionStyle, HeaderAction};
+use crate::page_chrome::{self, HeaderAction};
 use crate::theme::Colors;
 use crate::workspace::AppState;
 use crate::zoom::px;
+
+#[path = "overview_view.rs"]
+mod overview_view;
+use overview_view::{AiPara, OverviewParts, Undo};
 
 const ROW_HEIGHT: f32 = 54.;
 const HEADER_HEIGHT: f32 = 32.;
@@ -45,6 +51,18 @@ const TICK: Duration = Duration::from_secs(60);
 actions!(
     digest,
     [
+        OpenOverview,
+        OpenOverviewToday,
+        OpenOverviewWeek,
+        SummariseOverview,
+        SaveWeekAsNote,
+        RevisitTomorrow,
+        RevisitInThreeDays,
+        RevisitNextWeek,
+        RevisitInTwoWeeks,
+        RevisitInAMonth,
+        RevisitInThreeMonths,
+        ClearRevisit,
         OpenMorningBrief,
         OpenWeeklyReview,
         OpenOpenLoops,
@@ -63,20 +81,90 @@ pub fn on_actions(el: Div, cx: &mut Context<crate::workspace::Workspace>) -> Div
                 .update(cx, |library, cx| library.set_filter(filter.clone(), cx));
         }
     };
-    let brief = show(Filter::Brief);
-    let review = show(Filter::Review);
+    let overview = show(Filter::Overview);
+    let today = show(Filter::Overview);
+    let week = show(Filter::Overview);
+    let brief = show(Filter::Overview);
+    let review = show(Filter::Overview);
     let loops = show(Filter::OpenLoops);
     let loops_again = show(Filter::OpenLoops);
-    el.on_action(cx.listener(move |this, _: &OpenMorningBrief, window, cx| brief(this, window, cx)))
+    el.on_action(cx.listener(move |this, _: &OpenOverview, window, cx| overview(this, window, cx)))
+        .on_action(cx.listener(move |this, _: &OpenOverviewToday, window, cx| {
+            today(this, window, cx);
+            this.digest.update(cx, |digest, cx| {
+                digest.show_perspective(Perspective::Today, cx)
+            });
+        }))
+        .on_action(cx.listener(move |this, _: &OpenOverviewWeek, window, cx| {
+            week(this, window, cx);
+            this.digest.update(cx, |digest, cx| {
+                digest.show_perspective(Perspective::Week, cx)
+            });
+        }))
+        .on_action(cx.listener(move |this, _: &OpenMorningBrief, window, cx| {
+            brief(this, window, cx);
+            this.digest.update(cx, |digest, cx| {
+                digest.show_perspective(Perspective::Today, cx)
+            });
+        }))
+        .on_action(cx.listener(move |this, _: &OpenWeeklyReview, window, cx| {
+            review(this, window, cx);
+            this.digest.update(cx, |digest, cx| {
+                digest.show_perspective(Perspective::Week, cx)
+            });
+        }))
+        .on_action(cx.listener(|this, _: &SummariseOverview, _, cx| {
+            this.digest
+                .update(cx, |digest, cx| digest.summarise_overview(cx));
+        }))
+        .on_action(cx.listener(|this, _: &SaveWeekAsNote, window, cx| {
+            this.digest.update(cx, |digest, cx| {
+                digest.show_perspective(Perspective::Week, cx);
+                digest.save_week(false, window, cx);
+            });
+        }))
         .on_action(
-            cx.listener(move |this, _: &OpenWeeklyReview, window, cx| review(this, window, cx)),
+            cx.listener(|this, _: &RevisitTomorrow, _, cx| this.revisit_open(Choice::Tomorrow, cx)),
         )
+        .on_action(cx.listener(|this, _: &RevisitInThreeDays, _, cx| {
+            this.revisit_open(Choice::InThreeDays, cx)
+        }))
+        .on_action(
+            cx.listener(|this, _: &RevisitNextWeek, _, cx| this.revisit_open(Choice::NextWeek, cx)),
+        )
+        .on_action(cx.listener(|this, _: &RevisitInTwoWeeks, _, cx| {
+            this.revisit_open(Choice::InTwoWeeks, cx)
+        }))
+        .on_action(
+            cx.listener(|this, _: &RevisitInAMonth, _, cx| this.revisit_open(Choice::InAMonth, cx)),
+        )
+        .on_action(cx.listener(|this, _: &RevisitInThreeMonths, _, cx| {
+            this.revisit_open(Choice::InThreeMonths, cx)
+        }))
+        .on_action(cx.listener(|this, _: &ClearRevisit, _, cx| {
+            let Some(id) = this.editor.read(cx).note_id().map(str::to_owned) else {
+                return;
+            };
+            this.digest
+                .update(cx, |digest, cx| digest.clear_revisit(&id, cx));
+        }))
         .on_action(cx.listener(move |this, _: &OpenOpenLoops, window, cx| loops(this, window, cx)))
         .on_action(cx.listener(move |this, _: &FindMoreOpenLoops, window, cx| {
             loops_again(this, window, cx);
             this.digest
                 .update(cx, |digest, cx| digest.ask_find_more(window, cx));
         }))
+}
+
+impl crate::workspace::Workspace {
+    /// Revisit in…: sets the open note's revisit date.
+    fn revisit_open(&mut self, choice: Choice, cx: &mut Context<Self>) {
+        let Some(id) = self.editor.read(cx).note_id().map(str::to_owned) else {
+            return;
+        };
+        self.digest
+            .update(cx, |digest, cx| digest.revisit_note(&id, choice, cx));
+    }
 }
 
 /// What the view tells the workspace.
@@ -91,16 +179,27 @@ pub enum DigestEvent {
     OpenToday,
     /// Escape: back to the place before the page.
     Close,
+    /// A link in the page's text was clicked.
+    Link(String),
+    /// Open Settings at Overview's section.
+    OpenSettings,
     /// Something to tell the user.
     Notice(String),
 }
 
-/// Which of the three pages shows.
+/// Which page shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mode {
     Loops,
-    Brief,
-    Review,
+    Overview,
+}
+
+/// Which perspective Overview shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Perspective {
+    #[default]
+    Today,
+    Week,
 }
 
 /// An AI action a page can run.
@@ -129,11 +228,19 @@ pub struct DigestView {
     store: Arc<Store>,
     loops: Vec<LoopRow>,
     loaded: bool,
-    brief: Option<Brief>,
-    review: Option<Review>,
+    overview: Option<Overview>,
+    week: Option<kanso_engine::overview::Week>,
+    perspective: Perspective,
     week_start: Date,
-    /// An AI paragraph over the brief or the review, until the page changes.
-    summary: Option<Summary>,
+    /// The model's paragraph over what shows, kept for the day or the week.
+    ai_para: Option<AiPara>,
+    ai_hidden: bool,
+    ai_more: bool,
+    /// Sections opened past their cap, by key.
+    expanded: std::collections::HashSet<String>,
+    undo: Option<Undo>,
+    undo_task: Option<Task<()>>,
+    parts: OverviewParts,
     found: Option<Found>,
     /// What the AI is doing now, if anything.
     working: Option<AiJob>,
@@ -222,7 +329,9 @@ impl DigestView {
                     }
                 }
                 LibraryEvent::Shown if shown => {
-                    this.summary = None;
+                    this.load_snapshot(cx);
+                    this.ai_hidden = false;
+                    this.ai_more = false;
                     this.ai_error = None;
                     this.found = None;
                     this.reload(cx);
@@ -248,13 +357,20 @@ impl DigestView {
         DigestView {
             library,
             editor,
-            store,
+            store: store.clone(),
             loops: Vec::new(),
             loaded: false,
-            brief: None,
-            review: None,
+            overview: None,
+            week: None,
+            perspective: Perspective::Today,
             week_start: brief::week_start(today),
-            summary: None,
+            ai_para: None,
+            ai_hidden: false,
+            ai_more: false,
+            expanded: Default::default(),
+            undo: None,
+            undo_task: None,
+            parts: OverviewParts::new(store.clone()),
             found: None,
             working: None,
             ai_error: None,
@@ -275,8 +391,7 @@ impl DigestView {
     fn mode(&self, cx: &App) -> Option<Mode> {
         match self.library.read(cx).filter {
             Filter::OpenLoops => Some(Mode::Loops),
-            Filter::Brief => Some(Mode::Brief),
-            Filter::Review => Some(Mode::Review),
+            Filter::Overview => Some(Mode::Overview),
             _ => None,
         }
     }
@@ -321,35 +436,20 @@ impl DigestView {
         let Some(mode) = self.mode(cx) else {
             return;
         };
+        if mode == Mode::Overview {
+            self.reload_overview(cx);
+            return;
+        }
         let store = self.store.clone();
-        let now = now_of(cx);
-        let week = self.week_start;
-        let model = store.embedding_model().ok().flatten();
-        let task = cx.background_executor().spawn(async move {
-            Ok::<_, kanso_store::StoreError>(match mode {
-                Mode::Loops => (Some(store.open_loops(&LoopQuery::default())?), None, None),
-                Mode::Brief => (
-                    None,
-                    Some(morning_brief(&store, now, model.as_deref())?),
-                    None,
-                ),
-                Mode::Review => (None, None, Some(weekly_review(&store, week, now)?)),
-            })
-        });
+        let task = cx
+            .background_executor()
+            .spawn(async move { store.open_loops(&LoopQuery::default()) });
         self.reload_task = Some(cx.spawn(async move |this, cx| {
             let result = task.await;
             this.update(cx, |this, cx| {
                 match result {
-                    Ok((loops, brief, review)) => {
-                        if let Some(loops) = loops {
-                            this.loops = loops;
-                        }
-                        if brief.is_some() {
-                            this.brief = brief;
-                        }
-                        if review.is_some() {
-                            this.review = review;
-                        }
+                    Ok(loops) => {
+                        this.loops = loops;
                         this.loaded = true;
                     }
                     Err(err) => cx.emit(DigestEvent::Notice(format!(
@@ -413,75 +513,18 @@ impl DigestView {
             .is_some_and(|state| state.config.briefs.mark_done_in_note)
     }
 
-    /// Ticks task `row` off from the brief.
-    fn tick_task(&mut self, row: &TaskRow, cx: &mut Context<Self>) {
-        if writes_held(cx) {
-            return;
-        }
-        self.editor.update(cx, |editor, cx| editor.flush(cx));
-        match self.store.set_task_checked(
-            &row.note_id,
-            row.line,
-            &row.text,
-            true,
-            Clock::now_ms(cx),
-            Origin::Ui,
-        ) {
-            Ok(CheckOff::Missing) => cx.emit(DigestEvent::Notice(
-                "That task changed in its note. The page is up to date now.".into(),
-            )),
-            Ok(_) => crate::metrics::record(cx, crate::metrics::Feature::TaskToggled),
-            Err(err) => cx.emit(DigestEvent::Notice(format!(
-                "Couldn't change the task: {err}"
-            ))),
-        }
-        self.reload(cx);
-    }
-
     fn step_week(&mut self, weeks: i64, cx: &mut Context<Self>) {
         self.week_start = self.week_start.add_days(7 * weeks);
-        self.summary = None;
+        self.ai_para = None;
+        self.load_ai(cx);
         self.reload(cx);
     }
 
     fn this_week(&mut self, cx: &mut Context<Self>) {
         self.week_start = brief::week_start(crate::journal::now(cx).date);
-        self.summary = None;
+        self.ai_para = None;
+        self.load_ai(cx);
         self.reload(cx);
-    }
-
-    /// Saves the reviewed week as a note in the Journal, asking first when
-    /// that week is saved already.
-    fn save_review(&mut self, replace: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(review) = self.review.clone() else {
-            return;
-        };
-        match brief::save_review(&self.store, &review, replace, Origin::Ui) {
-            Ok(brief::Saved::Written { id }) => {
-                cx.emit(DigestEvent::Open {
-                    note_id: id,
-                    line: 0,
-                    focus: false,
-                });
-            }
-            Ok(brief::Saved::Exists { .. }) => {
-                let label = brief::iso_week_label(review.from);
-                let view = cx.entity();
-                crate::dialogs::confirm(
-                    format!("Replace the saved review for {label}?"),
-                    "The saved note is ordinary text. Replacing it writes this page over it.",
-                    "Replace",
-                    window,
-                    cx,
-                    move |window, cx| {
-                        view.update(cx, |this, cx| this.save_review(true, window, cx));
-                    },
-                );
-            }
-            Err(err) => cx.emit(DigestEvent::Notice(format!(
-                "Couldn't save the review: {err}"
-            ))),
-        }
     }
 
     // MARK: AI
@@ -602,49 +645,6 @@ impl DigestView {
         cx.notify();
     }
 
-    /// Writes the paragraph over the brief (`brief` true) or the review's
-    /// themes, from what is on the page, when asked.
-    fn summarise(&mut self, for_brief: bool, cx: &mut Context<Self>) {
-        if self.working.is_some() {
-            return;
-        }
-        let (prompt, allowed) = if for_brief {
-            match &self.brief {
-                Some(brief) => loops_ai::brief_prompt(&self.store, brief),
-                None => return,
-            }
-        } else {
-            match &self.review {
-                Some(review) => loops_ai::themes_prompt(&self.store, review),
-                None => return,
-            }
-        };
-        let job = AiJob::Summary { brief: for_brief };
-        self.working = Some(job);
-        self.ai_error = None;
-        let maker = crate::ai_feature::maker(cx);
-        let task = cx.background_executor().spawn(async move {
-            let shared = maker()?;
-            let provider = shared
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            loops_ai::summarise(provider.as_ref(), &prompt, &allowed).map_err(|e| e.to_string())
-        });
-        self.ai_task = Some(cx.spawn(async move |this, cx| {
-            let result = task.await;
-            this.update(cx, |this, cx| {
-                this.working = None;
-                match result {
-                    Ok(summary) => this.summary = Some(summary),
-                    Err(message) => this.ai_error = Some((job, page_chrome::ai_trouble(&message))),
-                }
-                cx.notify();
-            })
-            .ok();
-        }));
-        cx.notify();
-    }
-
     // MARK: Drawing: shared
 
     /// The page around `body`: the fitted header, then the centred column
@@ -717,7 +717,7 @@ impl DigestView {
     fn run_job(&mut self, job: AiJob, window: &mut Window, cx: &mut Context<Self>) {
         match job {
             AiJob::FindMore => self.ask_find_more(window, cx),
-            AiJob::Summary { brief } => self.summarise(brief, cx),
+            AiJob::Summary { .. } => self.summarise_overview(cx),
         }
     }
 
@@ -762,59 +762,6 @@ impl DigestView {
         )
     }
 
-    /// A line in a section: an icon, words, a muted second line.
-    fn page_row(
-        &self,
-        id: impl Into<ElementId>,
-        icon: Icon,
-        title: String,
-        detail: Option<String>,
-        on_click: impl Fn(&mut Self, &mut Window, &mut Context<Self>) + 'static,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let colors = Colors::get(cx);
-        div()
-            .id(id)
-            .w_full()
-            .px(px(4.))
-            .cursor_pointer()
-            .child(
-                h_flex()
-                    .w_full()
-                    .px(px(10.))
-                    .py(px(8.))
-                    .gap(px(12.))
-                    .items_start()
-                    .rounded(px(7.))
-                    .hover(|el| el.bg(colors.row_hover))
-                    .child(icon.size(px(15.)).text_color(colors.text_muted).mt(px(2.)))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(2.))
-                            .child(
-                                div()
-                                    .text_size(px(14.))
-                                    .line_height(px(20.))
-                                    .text_color(colors.text)
-                                    .child(title),
-                            )
-                            .when_some(detail, |el, detail| {
-                                el.child(
-                                    div()
-                                        .text_size(px(12.5))
-                                        .line_height(px(17.))
-                                        .text_color(colors.text_muted)
-                                        .child(detail),
-                                )
-                            }),
-                    ),
-            )
-            .on_click(cx.listener(move |this, _, window, cx| on_click(this, window, cx)))
-            .into_any_element()
-    }
-
     fn icon_button(
         id: impl Into<ElementId>,
         icon: Lucide,
@@ -831,51 +778,6 @@ impl DigestView {
                     .text_color(colors.text_secondary),
             )
             .tooltip(tooltip)
-    }
-
-    fn summary_block(&self, what: &'static str, cx: &App) -> Option<AnyElement> {
-        let colors = Colors::get(cx);
-        let summary = self.summary.as_ref()?;
-        Some(
-            v_flex()
-                .mt(px(12.))
-                .p(px(16.))
-                .gap(px(8.))
-                .rounded(px(10.))
-                .bg(colors.fill)
-                .child(
-                    h_flex()
-                        .gap(px(6.))
-                        .child(
-                            Icon::new(Lucide::Sparkles)
-                                .size(px(13.))
-                                .text_color(colors.accent),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(12.))
-                                .font_medium()
-                                .text_color(colors.text_muted)
-                                .child("Written by your model"),
-                        ),
-                )
-                .child(
-                    div()
-                        .text_size(px(14.))
-                        .line_height(px(22.))
-                        .text_color(colors.text)
-                        .child(summary.text.clone()),
-                )
-                .when_some(summary.warning(what), |el, warning| {
-                    el.child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(colors.danger)
-                            .child(warning),
-                    )
-                })
-                .into_any_element(),
-        )
     }
 
     fn today_button(&self, primary: bool, cx: &mut Context<Self>) -> AnyElement {
@@ -1339,587 +1241,6 @@ impl DigestView {
             )
             .into_any_element()
     }
-
-    // MARK: Drawing: morning brief
-
-    fn task_line(&self, row: &TaskRow, today: Date, cx: &mut Context<Self>) -> AnyElement {
-        let colors = Colors::get(cx);
-        let title = crate::tasks_view::display_text(&row.text);
-        let due = row
-            .due
-            .as_deref()
-            .and_then(kanso_core::tasks::Due::parse)
-            .map(|due| kanso_core::tasks::due_label(due, today));
-        let sub = match due {
-            Some(due) => format!("{due} · {}", row.note_title),
-            None => row.note_title.clone(),
-        };
-        let tick_row = row.clone();
-        let open = row.clone();
-        h_flex()
-            .id(SharedString::from(format!(
-                "due-{}-{}",
-                row.note_id, row.line
-            )))
-            .w_full()
-            .px(px(4.))
-            .cursor_pointer()
-            .child(
-                h_flex()
-                    .w_full()
-                    .px(px(10.))
-                    .py(px(8.))
-                    .gap(px(12.))
-                    .items_start()
-                    .rounded(px(7.))
-                    .hover(|el| el.bg(colors.row_hover))
-                    .child(
-                        div()
-                            .id(SharedString::from(format!(
-                                "due-tick-{}-{}",
-                                row.note_id, row.line
-                            )))
-                            .flex_none()
-                            .pt(px(2.))
-                            .cursor_pointer()
-                            .child(
-                                Icon::new(Lucide::Circle)
-                                    .size(px(16.))
-                                    .text_color(colors.text_muted),
-                            )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                cx.stop_propagation();
-                                this.tick_task(&tick_row, cx);
-                            })),
-                    )
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(2.))
-                            .child(
-                                div()
-                                    .text_size(px(14.))
-                                    .line_height(px(20.))
-                                    .text_color(colors.text)
-                                    .child(title),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(12.5))
-                                    .line_height(px(17.))
-                                    .text_color(colors.text_muted)
-                                    .child(sub),
-                            ),
-                    ),
-            )
-            .on_click(
-                cx.listener(move |this, _, _, cx| this.open(&open.note_id, open.line, false, cx)),
-            )
-            .into_any_element()
-    }
-
-    fn render_brief(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
-        let colors = Colors::get(cx);
-        let now = now_of(cx);
-        let today = now.today();
-        let ai = Self::ai_on(cx);
-        let job = AiJob::Summary { brief: true };
-        let mut actions = Vec::new();
-        if ai && self.brief.as_ref().is_some_and(|b| !b.is_empty()) {
-            actions.push(self.ai_action(
-                "brief-summarise",
-                job,
-                "Summarise",
-                "Summarising…",
-                "Write a short paragraph from the items below, with your model",
-                cx,
-            ));
-        }
-        actions.push(
-            HeaderAction::new("brief-today", Lucide::CalendarDays, "Today's Note", {
-                let view = cx.entity().downgrade();
-                move |_, cx| {
-                    view.update(cx, |_, cx| cx.emit(DigestEvent::OpenToday))
-                        .ok();
-                }
-            })
-            .tooltip("Open today's daily note")
-            .style(ActionStyle::Outline),
-        );
-        let mut page = page_chrome::column().child(page_chrome::hero(
-            greeting(now),
-            Some(today.long_label().into()),
-            None,
-            cx,
-        ));
-        page = page.children(self.error_card(&[job], window, cx));
-        page = page.children(self.summary_block("brief", cx));
-        if let Some(brief) = self.brief.clone() {
-            if brief.is_empty() && brief.relevant.is_empty() {
-                page = page.child(page_chrome::page_empty(
-                    Lucide::Sun,
-                    "You're all clear",
-                    "Each morning this page gathers what's due, the open loops in your notes, today's reminders and notes worth another look. Nothing needs you right now.",
-                    vec![
-                        self.today_button(true, cx),
-                        Button::new("brief-open-tasks")
-                            .outline()
-                            .icon(Lucide::ListChecks)
-                            .label("Plan in Tasks")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.library
-                                    .update(cx, |library, cx| library.set_filter(Filter::Tasks, cx));
-                            }))
-                            .into_any_element(),
-                    ],
-                    cx,
-                ));
-            } else {
-                if !brief.due.is_empty() {
-                    let rows = brief
-                        .due
-                        .iter()
-                        .map(|row| self.task_line(row, today, cx))
-                        .collect();
-                    page = page.child(page_chrome::section(
-                        Lucide::Calendar,
-                        "Due today and overdue",
-                        Some(brief.due.len()),
-                        rows,
-                        None,
-                        cx,
-                    ));
-                }
-                if !brief.loops.is_empty() {
-                    let mut rows = Vec::new();
-                    for l in &brief.loops {
-                        let stale = kanso_core::loops::age_days(l.note_updated_at, now.utc_ms)
-                            >= brief::STALE_DAYS;
-                        let sub = if stale {
-                            format!("Still open from last week · {}", l.note_title)
-                        } else {
-                            l.note_title.clone()
-                        };
-                        let open = l.clone();
-                        rows.push(self.page_row(
-                            SharedString::from(format!("brief-loop-{}", l.key)),
-                            Icon::new(Lucide::CircleDot),
-                            l.text.clone(),
-                            Some(sub),
-                            move |this, _, cx| this.open(&open.note_id, open.line, false, cx),
-                            cx,
-                        ));
-                    }
-                    if brief.loops_total as usize > brief.loops.len() {
-                        let total = brief.loops_total;
-                        rows.push(self.page_row(
-                            "brief-see-all",
-                            Icon::new(Lucide::ArrowRight),
-                            format!("See all {total} open loops"),
-                            None,
-                            |this, _, cx| {
-                                this.library.update(cx, |library, cx| {
-                                    library.set_filter(Filter::OpenLoops, cx)
-                                });
-                            },
-                            cx,
-                        ));
-                    }
-                    page = page.child(page_chrome::section(
-                        Lucide::CircleDot,
-                        "Open loops",
-                        Some(brief.loops_total as usize),
-                        rows,
-                        None,
-                        cx,
-                    ));
-                }
-                if !brief.later_today.is_empty() {
-                    let mut rows = Vec::new();
-                    for t in &brief.later_today {
-                        let time = t.due.get(11..16).unwrap_or("").to_owned();
-                        let open = t.clone();
-                        rows.push(self.page_row(
-                            SharedString::from(format!("brief-reminder-{}", t.key)),
-                            Icon::new(Lucide::Bell),
-                            crate::tasks_view::display_text(&t.text),
-                            Some(format!("{time} · {}", t.note_title)),
-                            move |this, _, cx| this.open(&open.note_id, open.line, false, cx),
-                            cx,
-                        ));
-                    }
-                    page = page.child(page_chrome::section(
-                        Lucide::Bell,
-                        "Today's reminders",
-                        Some(brief.later_today.len()),
-                        rows,
-                        None,
-                        cx,
-                    ));
-                }
-                if !brief.relevant.is_empty() {
-                    let mut rows = Vec::new();
-                    for r in &brief.relevant {
-                        let id = r.id.clone();
-                        let when = Clock::local_ms(cx, r.updated_at);
-                        let date = DateTime::from_local_ms(when).date.long_label();
-                        let sub = format!("{} · {date}", r.why.label());
-                        rows.push(self.page_row(
-                            SharedString::from(format!("brief-note-{}", r.id)),
-                            Icon::new(match r.why {
-                                Why::Similar => Lucide::Sparkles,
-                                _ => Lucide::FileText,
-                            }),
-                            r.title.clone(),
-                            Some(if r.excerpt.is_empty() {
-                                sub
-                            } else {
-                                format!("{sub}\n{}", r.excerpt)
-                            }),
-                            move |this, _, cx| this.open(&id, 0, false, cx),
-                            cx,
-                        ));
-                    }
-                    page = page.child(page_chrome::section(
-                        Lucide::BookOpen,
-                        "From your notes",
-                        None,
-                        rows,
-                        None,
-                        cx,
-                    ));
-                }
-            }
-            let y = brief.yesterday;
-            page = page.child(
-                div()
-                    .pt(px(24.))
-                    .text_size(px(12.5))
-                    .text_color(colors.text_muted)
-                    .child(format!(
-                        "Yesterday you wrote {} and finished {}.",
-                        plural(y.wrote, "note", "notes"),
-                        plural(y.finished, "task", "tasks")
-                    )),
-            );
-        }
-        self.shell(
-            "Morning Brief",
-            actions,
-            page.into_any_element(),
-            true,
-            window,
-            cx,
-        )
-    }
-
-    // MARK: Drawing: weekly review
-
-    fn render_review(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
-        let now = now_of(cx);
-        let today = now.today();
-        let ai = Self::ai_on(cx);
-        let from = self.week_start;
-        let this_week = brief::week_start(today) == from;
-        let job = AiJob::Summary { brief: false };
-        let mut actions = Vec::new();
-        let has_any = self.review.as_ref().is_some_and(|r| !review_is_empty(r));
-        if ai && has_any {
-            actions.push(self.ai_action(
-                "review-themes",
-                job,
-                "Describe Themes",
-                "Describing…",
-                "Describe the week's themes in a few sentences, with your model",
-                cx,
-            ));
-        }
-        actions.push(
-            HeaderAction::new("review-save", Lucide::Save, "Save as Note", {
-                let view = cx.entity().downgrade();
-                move |window, cx| {
-                    view.update(cx, |this, cx| this.save_review(false, window, cx))
-                        .ok();
-                }
-            })
-            .tooltip("Keep this page as a note in the Journal, with links to every note on it")
-            .style(ActionStyle::Outline)
-            .disabled(!has_any),
-        );
-        let week_nav = h_flex()
-            .gap(px(2.))
-            .flex_shrink_0()
-            .child(
-                Self::icon_button("review-prev", Lucide::ChevronLeft, "Previous week", cx)
-                    .on_click(cx.listener(|this, _, _, cx| this.step_week(-1, cx))),
-            )
-            .when(!this_week, |el| {
-                el.child(
-                    Button::new("review-today")
-                        .ghost()
-                        .small()
-                        .label("This Week")
-                        .on_click(cx.listener(|this, _, _, cx| this.this_week(cx))),
-                )
-            })
-            .child(
-                Self::icon_button("review-next", Lucide::ChevronRight, "Next week", cx)
-                    .on_click(cx.listener(|this, _, _, cx| this.step_week(1, cx))),
-            );
-        let end = from.add_days(6);
-        let detail = format!(
-            "{} · {} – {}",
-            brief::iso_week_label(from),
-            DateTime::at_midnight(from).date.long_label(),
-            DateTime::at_midnight(end).date.long_label()
-        );
-        let mut page = page_chrome::column().child(page_chrome::hero(
-            if this_week {
-                "This Week"
-            } else {
-                "Weekly Review"
-            },
-            Some(detail.into()),
-            Some(week_nav.into_any_element()),
-            cx,
-        ));
-        page = page.children(self.error_card(&[job], window, cx));
-        page = page.children(self.summary_block("review", cx));
-        if let Some(review) = self.review.clone() {
-            if review_is_empty(&review) {
-                let body = if this_week {
-                    "The weekly review gathers the notes you wrote, the tasks you finished, the loops still open and what's due next week. Nothing has happened this week yet: write something or tick a task off and it shows up here."
-                } else {
-                    "The weekly review gathers the notes you wrote, the tasks you finished, the loops still open and what was due next. Nothing was written or finished that week."
-                };
-                let buttons = vec![
-                    self.today_button(this_week, cx),
-                    Button::new("review-empty-prev")
-                        .outline()
-                        .icon(Lucide::ChevronLeft)
-                        .label("Previous Week")
-                        .on_click(cx.listener(|this, _, _, cx| this.step_week(-1, cx)))
-                        .into_any_element(),
-                ];
-                page = page.child(page_chrome::page_empty(
-                    Lucide::CalendarDays,
-                    "A quiet week",
-                    body,
-                    buttons,
-                    cx,
-                ));
-            } else {
-                page = self.review_sections(page, &review, today, now, cx);
-            }
-        }
-        self.shell(
-            "Weekly Review",
-            actions,
-            page.into_any_element(),
-            true,
-            window,
-            cx,
-        )
-    }
-
-    fn review_sections(
-        &self,
-        mut page: Div,
-        review: &Review,
-        today: Date,
-        now: Now,
-        cx: &mut Context<Self>,
-    ) -> Div {
-        let colors = Colors::get(cx);
-        let mut rows = Vec::new();
-        let mut by_book: Vec<(String, Vec<&brief::WrittenNote>)> = Vec::new();
-        for note in &review.written {
-            match by_book.iter_mut().find(|(b, _)| *b == note.book_name) {
-                Some((_, notes)) => notes.push(note),
-                None => by_book.push((note.book_name.clone(), vec![note])),
-            }
-        }
-        let several = by_book.len() > 1;
-        for (book, notes) in by_book {
-            if several {
-                rows.push(
-                    div()
-                        .px(px(14.))
-                        .pt(px(8.))
-                        .pb(px(2.))
-                        .text_size(px(12.))
-                        .font_medium()
-                        .text_color(colors.text_muted)
-                        .child(if book.is_empty() {
-                            "No notebook".to_owned()
-                        } else {
-                            book
-                        })
-                        .into_any_element(),
-                );
-            }
-            for note in notes {
-                let id = note.id.clone();
-                rows.push(self.page_row(
-                    SharedString::from(format!("review-wrote-{}", note.id)),
-                    Icon::new(Lucide::FileText),
-                    if note.title.trim().is_empty() {
-                        "Untitled".to_owned()
-                    } else {
-                        note.title.clone()
-                    },
-                    Some(if note.created { "New" } else { "Changed" }.to_owned()),
-                    move |this, _, cx| this.open(&id, 0, false, cx),
-                    cx,
-                ));
-            }
-        }
-        page = page.child(page_chrome::section(
-            Lucide::Pencil,
-            format!("What you wrote · {}", review.counts_text()),
-            None,
-            rows,
-            Some("No notes written or changed."),
-            cx,
-        ));
-        let rows = review
-            .finished
-            .iter()
-            .map(|f| {
-                let id = f.note_id.clone();
-                self.page_row(
-                    SharedString::from(format!("review-done-{}-{}", f.note_id, f.key)),
-                    Icon::new(Lucide::CircleCheck),
-                    crate::tasks_view::display_text(&f.text),
-                    Some(f.note_title.clone()),
-                    move |this, _, cx| this.open(&id, 0, false, cx),
-                    cx,
-                )
-            })
-            .collect();
-        page = page.child(page_chrome::section(
-            Lucide::CircleCheck,
-            "What you finished",
-            Some(review.finished.len()),
-            rows,
-            Some("No tasks ticked off."),
-            cx,
-        ));
-        let mut rows: Vec<AnyElement> = review
-            .overdue
-            .iter()
-            .map(|t| self.task_line(t, today, cx))
-            .collect();
-        for l in review.still_open.iter().take(40) {
-            let open = l.clone();
-            rows.push(self.page_row(
-                SharedString::from(format!("review-open-{}", l.key)),
-                Icon::new(Lucide::CircleDot),
-                l.text.clone(),
-                Some(format!(
-                    "{} · {}",
-                    l.note_title,
-                    age_label(l.note_updated_at, now.utc_ms)
-                )),
-                move |this, _, cx| this.open(&open.note_id, open.line, false, cx),
-                cx,
-            ));
-        }
-        if review.still_open.len() > 40 {
-            rows.push(self.page_row(
-                "review-open-more",
-                Icon::new(Lucide::ArrowRight),
-                format!("{} more in Open Loops", review.still_open.len() - 40),
-                None,
-                |this, _, cx| {
-                    this.library
-                        .update(cx, |library, cx| library.set_filter(Filter::OpenLoops, cx));
-                },
-                cx,
-            ));
-        }
-        page = page.child(page_chrome::section(
-            Lucide::CircleDot,
-            "Still open",
-            Some(review.overdue.len() + review.still_open.len()),
-            rows,
-            Some("Nothing left open."),
-            cx,
-        ));
-        if !review.themes.is_empty() {
-            let rows = review
-                .themes
-                .iter()
-                .map(|theme| {
-                    let (icon, text, query) = match theme.kind {
-                        ThemeKind::Tag => (
-                            Lucide::Hash,
-                            format!("#{}", theme.term),
-                            format!("tag:{}", theme.term),
-                        ),
-                        _ => (Lucide::Search, theme.term.clone(), theme.term.clone()),
-                    };
-                    self.page_row(
-                        SharedString::from(format!("review-theme-{}", theme.term)),
-                        Icon::new(icon),
-                        text,
-                        Some(format!("{} notes", theme.notes)),
-                        move |this, _, cx| {
-                            let query = query.clone();
-                            this.library.update(cx, |library, cx| {
-                                library.set_filter(Filter::All, cx);
-                                library.set_search(query, cx);
-                            });
-                        },
-                        cx,
-                    )
-                })
-                .collect();
-            page = page.child(page_chrome::section(
-                Lucide::Hash,
-                "Recurring themes",
-                None,
-                rows,
-                None,
-                cx,
-            ));
-        }
-        let rows = review
-            .next
-            .iter()
-            .map(|t| self.task_line(t, today, cx))
-            .collect();
-        page.child(page_chrome::section(
-            Lucide::Calendar,
-            "Next week",
-            Some(review.next.len()),
-            rows,
-            Some("Nothing due next week yet."),
-            cx,
-        ))
-    }
-}
-
-/// Whether a review has nothing at all to show.
-fn review_is_empty(review: &Review) -> bool {
-    review.written.is_empty()
-        && review.finished.is_empty()
-        && review.still_open.is_empty()
-        && review.overdue.is_empty()
-        && review.themes.is_empty()
-        && review.next.is_empty()
-}
-
-/// The brief's title for the time of day.
-fn greeting(now: Now) -> &'static str {
-    let local = now.utc_ms + now.offset_ms;
-    let hour = local.rem_euclid(86_400_000) / 3_600_000;
-    match hour {
-        5..=11 => "Good morning",
-        12..=17 => "Good afternoon",
-        _ => "Good evening",
-    }
 }
 
 fn plural(n: u32, one: &str, many: &str) -> String {
@@ -1950,8 +1271,7 @@ impl Render for DigestView {
         let colors = Colors::get(cx);
         let page = match self.mode(cx) {
             Some(Mode::Loops) => self.render_loops(window, cx),
-            Some(Mode::Brief) => self.render_brief(window, cx),
-            Some(Mode::Review) => self.render_review(window, cx),
+            Some(Mode::Overview) => self.render_overview(window, cx),
             None => div().into_any_element(),
         };
         div()

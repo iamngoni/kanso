@@ -19,6 +19,7 @@ import 'linking.dart';
 import 'locks.dart';
 import 'metrics.dart';
 import 'notebook_home.dart';
+import 'overview_types.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'people.dart';
 import 'publish.dart';
@@ -91,6 +92,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// The IDs of what changed, in batches, until Dart stops listening.
   Stream<List<String>> changes();
+
+  Future<void> clearRevisit({required String noteId});
 
   Future<bool> closeLoop({
     required String noteId,
@@ -249,6 +252,16 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// The note's own word-goal choice.
   Future<GoalSetting> noteWordGoal({required String id});
 
+  /// Typing in a note, for Pick up; the editor calls it every ten seconds
+  /// at most.
+  Future<void> noteWriting({
+    required String noteId,
+    required int line,
+    required int column,
+    required int typedChars,
+    required String body,
+  });
+
   /// The notebook colours the desktop offers.
   static List<ColorChoice> notebookColors() =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryNotebookColors();
@@ -282,6 +295,21 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<int> overdueTasks();
 
   Future<LibraryOverview> overview();
+
+  Future<void> overviewDismissPast({required String noteId});
+
+  Future<void> overviewHidePlace({required String noteId});
+
+  /// The last Today kept, when it is today's: the first frame.
+  OverviewToday? overviewSnapshot();
+
+  Future<void> overviewSnoozeWaiting({required String key});
+
+  /// Today, worked out now. Kept as the next launch's first frame.
+  Future<OverviewToday> overviewToday();
+
+  /// The week of `from` (`YYYY-MM-DD`), or this week.
+  Future<OverviewWeek> overviewWeek({String? from});
 
   /// `#RRGGBB` for `text`, or null when it isn't a colour.
   static String? parseColor({required String text}) =>
@@ -346,6 +374,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<ReviewView> review({String? from});
 
+  Future<String?> revisitOf({required String noteId});
+
+  List<RevisitOption> revisitOptions();
+
   Future<Saved> save({
     required String id,
     required String baseRev,
@@ -385,6 +417,12 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Sets notebook `id`'s icon to the Lucide icon named `icon`, or takes
   /// its own icon away with null.
   Future<void> setNotebookIcon({required String id, String? icon});
+
+  /// Sets a note's revisit date; returns the day (`YYYY-MM-DD`).
+  Future<String> setRevisit({
+    required String noteId,
+    required RevisitChoice choice,
+  });
 
   /// Sets tag `id`'s colour to `color` (`red`, `default`, ...).
   Future<void> setTagColor({required String id, required String color});

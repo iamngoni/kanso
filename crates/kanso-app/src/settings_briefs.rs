@@ -1,14 +1,14 @@
-//! Settings › General › Brief and review: open loops, the morning brief and
-//! the weekly review, when they notify, and whether a done loop is marked
-//! in the note.
+//! Settings › General › Overview: where Kanso opens, how long a person is
+//! quiet before Overview lists them, open loops, the morning and weekly
+//! notifications, and whether a done loop is marked in the note.
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Sizable as _, h_flex};
+use gpui_kit::component::{Disableable as _, Sizable as _, h_flex};
 use gpui_kit::*;
-use kanso_engine::brief::BriefSettings;
+use kanso_engine::brief::{BriefSettings, OpenTo, QUIET_DAYS_MAX, QUIET_DAYS_MIN};
 
 use crate::notify_support;
 use crate::settings::{Row, section};
@@ -144,17 +144,74 @@ pub fn briefs_section(cx: &App) -> AnyElement {
                     .on_click(|_, _, cx| change(cx, |s| s.brief_weekdays_only = true)),
             )
         });
+    let open_to = Button::new("open-to")
+        .outline()
+        .small()
+        .label(match s.open_to {
+            OpenTo::Overview => "Overview",
+            OpenTo::LastNote => "Last note",
+        })
+        .dropdown_caret(true)
+        .dropdown_menu(move |menu, _, _| {
+            menu.item(
+                PopupMenuItem::new("Overview")
+                    .checked(s.open_to == OpenTo::Overview)
+                    .on_click(|_, _, cx| change(cx, |s| s.open_to = OpenTo::Overview)),
+            )
+            .item(
+                PopupMenuItem::new("Last note")
+                    .checked(s.open_to == OpenTo::LastNote)
+                    .on_click(|_, _, cx| change(cx, |s| s.open_to = OpenTo::LastNote)),
+            )
+        });
+    let quiet = s.quiet_days;
+    let quiet_stepper = h_flex()
+        .gap(px(2.))
+        .items_center()
+        .child(
+            Button::new("quiet-fewer")
+                .ghost()
+                .small()
+                .icon(Lucide::Minus)
+                .tooltip("One day fewer")
+                .disabled(quiet <= QUIET_DAYS_MIN)
+                .on_click(move |_, _, cx| change(cx, |s| s.quiet_days = quiet.saturating_sub(1))),
+        )
+        .child(
+            div()
+                .w(px(64.))
+                .text_center()
+                .text_size(px(13.))
+                .text_color(colors.text)
+                .child(format!("{quiet} days")),
+        )
+        .child(
+            Button::new("quiet-more")
+                .ghost()
+                .small()
+                .icon(Lucide::Plus)
+                .tooltip("One day more")
+                .disabled(quiet >= QUIET_DAYS_MAX)
+                .on_click(move |_, _, cx| change(cx, |s| s.quiet_days = quiet + 1)),
+        )
+        .into_any_element();
     section(
-        "Brief and review",
+        "Overview",
         vec![
+            Row::new(Lucide::Compass, "When Kanso opens")
+                .detail("Overview is Kanso's home: today's agenda, the notes you were writing, who you are waiting on. Last note opens the note you left.")
+                .trailing(open_to),
+            Row::new(Lucide::Users, "Waiting on others after")
+                .detail("A person you mentioned appears on Overview once they have been quiet this long.")
+                .trailing(quiet_stepper),
             Row::new(Lucide::CircleDot, "Open loops")
                 .detail("Finds things your notes say you will do, wait for or check, like “I'll send the deck” or “waiting on Rudo”. Nothing leaves this Mac.")
                 .trailing(switch("loops", s.loops, |s, on| s.loops = on)),
-            Row::new(Lucide::Clock, "Morning brief")
+            Row::new(Lucide::Clock, "Morning notification")
                 .detail(
                     permission
                         .clone()
-                        .unwrap_or_else(|| "A notification each morning with how much is due and open. Clicking it opens the brief.".to_owned()),
+                        .unwrap_or_else(|| "A notification each morning with how much is due and open. Clicking it opens Overview.".to_owned()),
                 )
                 .trailing(brief_days)
                 .trailing(stepper(
@@ -168,8 +225,8 @@ pub fn briefs_section(cx: &App) -> AnyElement {
                     },
                 ))
                 .trailing(switch("brief", s.brief, |s, on| s.brief = on)),
-            Row::new(Lucide::CalendarDays, "Weekly review")
-                .detail("A notification once a week. Clicking it opens the review of the last seven days.")
+            Row::new(Lucide::CalendarDays, "Weekly notification")
+                .detail("A notification once a week. Clicking it opens Overview's This week.")
                 .trailing(review_day)
                 .trailing(stepper(
                     "review-time",
@@ -182,12 +239,12 @@ pub fn briefs_section(cx: &App) -> AnyElement {
                     },
                 ))
                 .trailing(switch("review", s.review, |s, on| s.review = on)),
-            Row::new(Lucide::Bell, "Notify me of the brief")
-                .detail("Shows the notification at the time above. Turn it off to open the brief yourself.")
+            Row::new(Lucide::Bell, "Notify me each morning")
+                .detail("Shows the notification at the time above. Turn it off to open Overview yourself.")
                 .trailing(switch("notify-brief", s.notify_brief, |s, on| {
                     s.notify_brief = on
                 })),
-            Row::new(Lucide::Bell, "Notify me of the review")
+            Row::new(Lucide::Bell, "Notify me each week")
                 .trailing(switch("notify-review", s.notify_review, |s, on| {
                     s.notify_review = on
                 })),

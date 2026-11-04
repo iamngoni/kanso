@@ -72,6 +72,7 @@ Intent? intentForShortcut(ShortcutEntry entry) => switch (entry.id) {
   'new_notebook' => const NewNotebookIntent(),
   'save_note' => const SaveIntent(),
   'open_today' => const OpenTodayIntent(),
+  'open_overview' => const OpenOverviewIntent(),
   'paste_plain_text' => null, // The editor has no plain-text paste action.
   'format_bold' => const FormatIntent(FormatKind.bold),
   'format_italic' => const FormatIntent(FormatKind.italic),
