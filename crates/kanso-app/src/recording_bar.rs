@@ -40,9 +40,9 @@ pub fn strip(cx: &mut App) -> Option<AnyElement> {
         .text_size(px(12.5))
         .text_color(colors.text_secondary);
     Some(match notice {
-        Notice::Recording(state) => recording_bar(row, &state, &colors).into_any_element(),
-        Notice::Crash(banner) => crash_banner(row, &banner, &colors).into_any_element(),
-        Notice::Pending(pending) => pending_banner(row, &pending, &colors).into_any_element(),
+        Notice::Recording(state) => recording_bar(row, &state, colors).into_any_element(),
+        Notice::Crash(banner) => crash_banner(row, &banner, colors).into_any_element(),
+        Notice::Pending(pending) => pending_banner(row, &pending, colors).into_any_element(),
     })
 }
 

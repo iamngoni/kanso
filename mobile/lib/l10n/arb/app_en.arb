@@ -7442,5 +7442,97 @@
   "notebookHomeSettingsShow": "Show notebook homepages",
   "notebookHomeSettingsShowHelp": "A card above a notebook's notes opens its homepage. Off hides the card and the page.",
   "notebookHomeSettingsAi": "Write notebook summaries with AI",
-  "notebookHomeSettingsAiHelp": "Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above."
+  "notebookHomeSettingsAiHelp": "Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above.",
+  "recordingTitle": "Record",
+  "@recordingTitle": {
+    "description": "The title of the Record screen."
+  },
+  "recordingStart": "Start recording",
+  "@recordingStart": {
+    "description": "The button that starts a recording."
+  },
+  "recordingStop": "Stop",
+  "@recordingStop": {
+    "description": "Stops a recording and keeps it."
+  },
+  "recordingPause": "Pause",
+  "@recordingPause": {
+    "description": "Pauses the recording in progress."
+  },
+  "recordingResume": "Resume",
+  "@recordingResume": {
+    "description": "Continues a paused recording."
+  },
+  "recordingDiscard": "Discard",
+  "@recordingDiscard": {
+    "description": "Deletes a recording."
+  },
+  "recordingCancel": "Cancel",
+  "@recordingCancel": {
+    "description": "Closes the discard question without deleting."
+  },
+  "recordingBack": "Back",
+  "@recordingBack": {
+    "description": "Leaves the Record screen."
+  },
+  "recordingSaving": "Saving…",
+  "@recordingSaving": {
+    "description": "Shown on the bar while a stopped recording is attached to its note."
+  },
+  "recordingClockLabel": "Time recorded",
+  "@recordingClockLabel": {
+    "description": "What a screen reader calls the recording bar clock."
+  },
+  "recordingDiscardTitle": "Discard this recording?",
+  "@recordingDiscardTitle": {
+    "description": "The question before a recording is deleted."
+  },
+  "recordingDiscardBody": "The audio recorded so far is deleted and can't be brought back.",
+  "@recordingDiscardBody": {
+    "description": "Why discarding a recording asks first."
+  },
+  "recordingRecover": "Recover",
+  "@recordingRecover": {
+    "description": "Finishes a recording that a crash left and attaches it to a note."
+  },
+  "recordingIntoNewNote": "Into a new note",
+  "@recordingIntoNewNote": {
+    "description": "Where the recording goes: a new note."
+  },
+  "recordingIntoThisNote": "Into this note",
+  "@recordingIntoThisNote": {
+    "description": "Where the recording goes: the open note."
+  },
+  "recordingReminder": "Tell everyone nearby you are recording. The rules differ by place. The audio stays on this device until you sync.",
+  "@recordingReminder": {
+    "description": "The reminder under the Record button."
+  },
+  "recordingProblemBusy": "A recording is already running. Stop it before starting another.",
+  "@recordingProblemBusy": {
+    "description": "Shown when a second recording is started."
+  },
+  "recordingProblemCannotStart": "Kanso couldn't use the microphone. Allow it in Settings, then try again.",
+  "@recordingProblemCannotStart": {
+    "description": "Shown when the microphone is denied, missing or taken."
+  },
+  "recordingProblemLocked": "That note is locked. Unlock it first, then record into it.",
+  "@recordingProblemLocked": {
+    "description": "Shown when recording into a locked note."
+  },
+  "recordingProblemNoteGone": "That note is gone.",
+  "@recordingProblemNoteGone": {
+    "description": "Shown when the note to record into no longer exists."
+  },
+  "recordingProblemSaveFailed": "The recording couldn't be saved. Kanso keeps the audio and offers to recover it.",
+  "@recordingProblemSaveFailed": {
+    "description": "Shown when attaching a recording to its note failed."
+  },
+  "recordingMenuRecordHere": "Record into this note",
+  "@recordingMenuRecordHere": {
+    "description": "The note menu row that starts a recording into the open note."
+  },
+  "libraryRecord": "Record",
+  "@libraryRecord": {
+    "description": "The library row that opens the Record screen."
+  }
 }

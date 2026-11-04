@@ -85,7 +85,7 @@ impl Render for RecordSheet {
             .gap(px(14.))
             .child(row(
                 "What to record",
-                &colors,
+                colors,
                 h_flex()
                     .gap(px(6.))
                     .child(option(
@@ -109,7 +109,7 @@ impl Render for RecordSheet {
             ))
             .child(row(
                 "Put it in",
-                &colors,
+                colors,
                 h_flex()
                     .gap(px(6.))
                     .child(
@@ -138,7 +138,7 @@ impl Render for RecordSheet {
             ))
             .child(row(
                 "Transcribe",
-                &colors,
+                colors,
                 h_flex()
                     .gap(px(6.))
                     .child(option(

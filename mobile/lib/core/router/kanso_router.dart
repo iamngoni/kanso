@@ -37,6 +37,7 @@ import '../../note_list/views/pages/note_list_page.dart';
 import '../../notebook_home/views/pages/notebook_home_page.dart';
 import '../../people/views/pages/people_list_page.dart';
 import '../../people/views/pages/people_settings_page.dart';
+import '../../recording/views/pages/recording_page.dart';
 import '../../replace/views/pages/replace_page.dart';
 import '../../search/views/pages/search_page.dart';
 import '../../settings/views/pages/default_notebook_page.dart';
@@ -176,6 +177,16 @@ class KansoRouter {
           pageBuilder: (context, state) => kansoPage<void>(
             key: state.pageKey,
             child: const ReplacePage(),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.record,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: RecordingPage(
+              noteId:
+                  state.uri.queryParameters[KansoRoutes.recordNoteParameter],
+            ),
           ),
         ),
         GoRoute(

@@ -105,6 +105,7 @@ Intent? intentForShortcut(ShortcutEntry entry) => switch (entry.id) {
   'ask_your_notes' => null, // The Ask screen is not on master.
   'search_all_notes' => const SearchAllIntent(),
   'replace_in_notes' => const ReplaceInNotesIntent(),
+  'record_audio' => const RecordAudioIntent(),
   'focus_search' ||
   'focus_note_list' => null, // Neither field has shell focus routing.
   'zoom_in' ||

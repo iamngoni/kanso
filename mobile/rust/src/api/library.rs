@@ -32,6 +32,7 @@ use super::metrics::KansoMetrics;
 use super::notebook_home::KansoNotebookHome;
 use super::people::KansoPeople;
 use super::publish::KansoPublisher;
+use super::recording::KansoRecorder;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
@@ -474,6 +475,12 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn discovery(&self) -> KansoDiscovery {
         KansoDiscovery::new(self.0.discovery())
+    }
+
+    /// Recording a note from the microphone, and what a crash left.
+    #[frb(sync)]
+    pub fn recorder(&self) -> KansoRecorder {
+        KansoRecorder::new(self.0.clone())
     }
 
     /// Voice capture: voice notes into the Inbox, the recordings left outside

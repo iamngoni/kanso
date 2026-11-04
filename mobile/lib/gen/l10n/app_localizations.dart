@@ -10311,6 +10311,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Off keeps the computed sections only. How often they refresh is the setting under Write summaries with AI, above.'**
   String get notebookHomeSettingsAiHelp;
+
+  /// The title of the Record screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get recordingTitle;
+
+  /// The button that starts a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Start recording'**
+  String get recordingStart;
+
+  /// Stops a recording and keeps it.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get recordingStop;
+
+  /// Pauses the recording in progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get recordingPause;
+
+  /// Continues a paused recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get recordingResume;
+
+  /// Deletes a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get recordingDiscard;
+
+  /// Closes the discard question without deleting.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get recordingCancel;
+
+  /// Leaves the Record screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get recordingBack;
+
+  /// Shown on the bar while a stopped recording is attached to its note.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get recordingSaving;
+
+  /// What a screen reader calls the recording bar clock.
+  ///
+  /// In en, this message translates to:
+  /// **'Time recorded'**
+  String get recordingClockLabel;
+
+  /// The question before a recording is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this recording?'**
+  String get recordingDiscardTitle;
+
+  /// Why discarding a recording asks first.
+  ///
+  /// In en, this message translates to:
+  /// **'The audio recorded so far is deleted and can\'t be brought back.'**
+  String get recordingDiscardBody;
+
+  /// Finishes a recording that a crash left and attaches it to a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover'**
+  String get recordingRecover;
+
+  /// Where the recording goes: a new note.
+  ///
+  /// In en, this message translates to:
+  /// **'Into a new note'**
+  String get recordingIntoNewNote;
+
+  /// Where the recording goes: the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Into this note'**
+  String get recordingIntoThisNote;
+
+  /// The reminder under the Record button.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell everyone nearby you are recording. The rules differ by place. The audio stays on this device until you sync.'**
+  String get recordingReminder;
+
+  /// Shown when a second recording is started.
+  ///
+  /// In en, this message translates to:
+  /// **'A recording is already running. Stop it before starting another.'**
+  String get recordingProblemBusy;
+
+  /// Shown when the microphone is denied, missing or taken.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso couldn\'t use the microphone. Allow it in Settings, then try again.'**
+  String get recordingProblemCannotStart;
+
+  /// Shown when recording into a locked note.
+  ///
+  /// In en, this message translates to:
+  /// **'That note is locked. Unlock it first, then record into it.'**
+  String get recordingProblemLocked;
+
+  /// Shown when the note to record into no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'That note is gone.'**
+  String get recordingProblemNoteGone;
+
+  /// Shown when attaching a recording to its note failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The recording couldn\'t be saved. Kanso keeps the audio and offers to recover it.'**
+  String get recordingProblemSaveFailed;
+
+  /// The note menu row that starts a recording into the open note.
+  ///
+  /// In en, this message translates to:
+  /// **'Record into this note'**
+  String get recordingMenuRecordHere;
+
+  /// The library row that opens the Record screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get libraryRecord;
 }
 
 class _AppLocalizationsDelegate

@@ -171,6 +171,13 @@ abstract final class KansoRoutes {
   /// Replace text across the library.
   static const String replace = '/replace';
 
+  /// Record a note from the microphone (issue #38). `?note=<id>` records
+  /// into that note; without it the recording makes a new one.
+  static const String record = '/record';
+
+  /// The parameter of [record] that names the note to record into.
+  static const String recordNoteParameter = 'note';
+
   /// The linked-note graph, optionally centered on a note.
   static const String graph = '/graph';
 

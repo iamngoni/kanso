@@ -191,6 +191,13 @@ class KansoShortcuts extends StatelessWidget {
               return null;
             },
           ),
+          RecordAudioIntent: CallbackAction<RecordAudioIntent>(
+            onInvoke: (_) {
+              leaveFocusMode();
+              context.push(KansoRoutes.record);
+              return null;
+            },
+          ),
           ToggleInspectorIntent: CallbackAction<ToggleInspectorIntent>(
             onInvoke: (_) {
               final focused =

@@ -19,6 +19,7 @@ kanso-collab.workspace = true
 base64.workspace = true
 # The local time the Tasks place groups by (`tasks.rs`).
 chrono.workspace = true
+kanso-audio.workspace = true
 kanso-core.workspace = true
 # The highlighter (`highlight`, with the grammars for fenced code) is the
 # phones' editor colours, and `discovery` their related notes, graph and the

@@ -43,7 +43,7 @@ pub fn length_label(seconds: u64) -> String {
     let minutes = seconds / 60;
     if minutes < 120 {
         format!("{minutes} min")
-    } else if minutes % 60 == 0 {
+    } else if minutes.is_multiple_of(60) {
         format!("{} h", minutes / 60)
     } else {
         format!("{} h {} min", minutes / 60, minutes % 60)

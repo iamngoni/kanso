@@ -259,7 +259,7 @@ fn begin(plan: RecordPlan, cx: &mut App) {
     let ticker = cx.spawn(async move |cx| {
         loop {
             cx.background_executor().timer(TICK).await;
-            let stop = cx.update(|cx| tick(cx));
+            let stop = cx.update(tick);
             if stop {
                 break;
             }
@@ -373,11 +373,14 @@ fn discard_now(cx: &mut App) {
 
 // MARK: Stopping
 
+/// What runs once a stopped recording is saved.
+pub type AfterSave = Box<dyn FnOnce(&mut App)>;
+
 /// What happens after a recording is stopped.
 #[derive(Default)]
 pub struct Finish {
     /// Run once the recording is saved (quitting waits for this).
-    pub then: Option<Box<dyn FnOnce(&mut App)>>,
+    pub then: Option<AfterSave>,
     /// Leave the note closed and the transcription for the next launch:
     /// the app is quitting.
     pub quitting: bool,

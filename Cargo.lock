@@ -4737,6 +4737,7 @@ dependencies = [
  "hkdf 0.13.0",
  "jni",
  "kanso-ai",
+ "kanso-audio",
  "kanso-collab",
  "kanso-core",
  "kanso-engine",

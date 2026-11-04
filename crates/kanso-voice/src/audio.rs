@@ -40,18 +40,9 @@ pub fn rms(samples: &[f32]) -> f32 {
     (sum / samples.len() as f64).sqrt() as f32
 }
 
-/// Below this, the meter shows nothing: -60 dBFS.
-const METER_FLOOR_DB: f32 = -60.0;
-
-/// Maps an RMS to 0..=1 for a meter, on a decibel scale from -60 dBFS
-/// (empty) to 0 dBFS (full), so quiet speech still moves it.
-pub fn meter_level(rms: f32) -> f32 {
-    if !rms.is_finite() || rms <= 0.0 {
-        return 0.0;
-    }
-    let db = 20.0 * rms.log10();
-    ((db - METER_FLOOR_DB) / -METER_FLOOR_DB).clamp(0.0, 1.0)
-}
+/// Maps an RMS to 0..=1 for a meter (the curve lives in `kanso-audio`,
+/// which the phones use without the speech model).
+pub use kanso_audio::meter_level;
 
 /// Frames the FFT resampler takes per call.
 const CHUNK: usize = 1024;

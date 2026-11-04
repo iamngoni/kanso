@@ -33,6 +33,7 @@ import '../test/core/bridge/suites/metrics_suite.dart';
 import '../test/core/bridge/suites/notebook_home_suite.dart';
 import '../test/core/bridge/suites/people_suite.dart';
 import '../test/core/bridge/suites/publish_suite.dart';
+import '../test/core/bridge/suites/recording_suite.dart';
 import '../test/core/bridge/suites/reminders_suite.dart';
 import '../test/core/bridge/suites/renderer_suite.dart';
 import '../test/core/bridge/suites/shared_suite.dart';
@@ -101,6 +102,7 @@ void main() {
   journalSuite(openDeviceLibrary);
   templatesSuite(openDeviceLibrary);
   voiceSuite(openDeviceLibrary);
+  recordingSuite(openDeviceLibrary);
   publishSuite(openDeviceLibrary);
   remindersSuite(openDeviceLibrary);
   shortcutsSuite(openDeviceLibrary);

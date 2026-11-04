@@ -5,9 +5,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/router/kanso_routes.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../window/models/repos/abs/note_window_repository.dart';
@@ -40,6 +42,23 @@ class NoteMenuSheet extends StatelessWidget {
               KansoSpacing.xs,
             ),
             child: Text(l10n.noteMenu, style: context.typography.barTitle),
+          ),
+          KansoSettingsRow(
+            icon: KansoIcons.mic,
+            label: l10n.recordingMenuRecordHere,
+            onTap: () {
+              Navigator.of(context).pop();
+              unawaited(
+                GoRouter.of(context).push(
+                  Uri(
+                    path: KansoRoutes.record,
+                    queryParameters: <String, String>{
+                      KansoRoutes.recordNoteParameter: noteId,
+                    },
+                  ).toString(),
+                ),
+              );
+            },
           ),
           if (windows.supported)
             KansoSettingsRow(
