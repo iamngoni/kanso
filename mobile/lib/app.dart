@@ -3,6 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'account/views/widgets/device_approval_host.dart';
@@ -132,26 +133,41 @@ class _AppState extends State<App> {
               previewTextSize: state.previewTextSize,
               interfaceTextSize: state.interfaceTextSize,
             );
-            return ScrollConfiguration(
-              behavior: const KansoScrollBehavior(),
-              child: KansoThemeTransition(
-                theme: theme,
-                child: DefaultTextStyle(
-                  style: theme.typography.body,
-                  child: DefaultSelectionStyle(
-                    selectionColor: theme.colors.accent.withValues(
-                      alpha: 0.3,
-                    ),
-                    cursorColor: theme.colors.accent,
-                    child: KansoFeedbackHost(
-                      child: DictationScope(
-                        others: assistant,
-                        child: widget.metrics == null
-                            ? hosted
-                            : MetricsHost(
-                                metrics: widget.metrics!,
-                                child: hosted,
-                              ),
+            // No page has an AppBar to set the status bar, which the app
+            // draws behind, so the theme does: dark icons on a light theme,
+            // light icons on a dark one. The navigation bar is left to the
+            // system: where the app does not draw behind it, its background
+            // is the window's, not the theme's.
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: SystemUiOverlayStyle(
+                statusBarColor: const Color(0x00000000),
+                statusBarIconBrightness: theme.brightness == Brightness.dark
+                    ? Brightness.light
+                    : Brightness.dark,
+                // iOS reads the bar's background brightness instead.
+                statusBarBrightness: theme.brightness,
+              ),
+              child: ScrollConfiguration(
+                behavior: const KansoScrollBehavior(),
+                child: KansoThemeTransition(
+                  theme: theme,
+                  child: DefaultTextStyle(
+                    style: theme.typography.body,
+                    child: DefaultSelectionStyle(
+                      selectionColor: theme.colors.accent.withValues(
+                        alpha: 0.3,
+                      ),
+                      cursorColor: theme.colors.accent,
+                      child: KansoFeedbackHost(
+                        child: DictationScope(
+                          others: assistant,
+                          child: widget.metrics == null
+                              ? hosted
+                              : MetricsHost(
+                                  metrics: widget.metrics!,
+                                  child: hosted,
+                                ),
+                        ),
                       ),
                     ),
                   ),
