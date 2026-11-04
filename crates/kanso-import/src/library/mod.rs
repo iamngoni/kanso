@@ -50,6 +50,7 @@ use std::path::Path;
 
 use anyhow::Context as _;
 use base64::Engine as _;
+use kanso_core::canvas::Canvas;
 use kanso_core::links::{FILE_LINK_PREFIX, NOTE_LINK_PREFIX};
 use kanso_core::model::{
     MAX_ATTACHMENT_SIZE, MAX_BODY_LEN, MAX_NAME_LEN, MAX_PDF_SIZE, MAX_TITLE_LEN,
@@ -190,7 +191,7 @@ impl SourceKind {
                 "A folder of .md, .markdown or .txt files. Subfolders become notebooks."
             }
             SourceKind::Obsidian => {
-                "The vault's folder. Wiki-links, embeds, tags and attachments come along; .obsidian settings and canvases don't."
+                "The vault's folder. Wiki-links, embeds, tags, attachments and canvases come along; .obsidian settings don't."
             }
             SourceKind::Logseq => "The graph's folder, with pages/ and journals/.",
             SourceKind::Notion => {
@@ -289,6 +290,9 @@ pub struct SourceNote {
     /// The note's status, when the source names one Kanso knows.
     pub status: Option<kanso_core::NoteStatus>,
     pub trashed: bool,
+    /// The note is a canvas: `body` is the source's canvas file, which the
+    /// import reads, points at what it made and writes as a canvas note.
+    pub canvas: bool,
     /// Attachments carried in the note itself (Evernote's resources).
     pub embedded: Vec<Embedded>,
 }
@@ -654,7 +658,11 @@ pub fn run(
             report.attachments.add(outcome, &id, &mut report.rejected);
             embedded.insert(file.key.clone(), id);
         }
-        let body = rewriter.rewrite(&note, &embedded, &mut needed, &mut too_big, &mut report);
+        let body = if note.canvas {
+            rewriter.canvas(&note, &mut needed, &mut too_big, &mut report)
+        } else {
+            rewriter.rewrite(&note, &embedded, &mut needed, &mut too_big, &mut report)
+        };
         if body.chars().count() > MAX_BODY_LEN {
             report.rejected.push(format!(
                 "{}: the note is longer than {MAX_BODY_LEN} characters",
@@ -675,6 +683,9 @@ pub fn run(
             fields.insert("title".into(), entry.title.clone().into());
             fields.insert("body".into(), body.into());
             fields.insert("bookId".into(), book.into());
+            if note.canvas {
+                fields.insert("doctype".into(), "canvas".into());
+            }
             fields.insert("tags".into(), tag_ids.into());
             fields.insert("pinned".into(), note.pinned.into());
             if let Some(status) = note.status {
@@ -1169,6 +1180,60 @@ impl Rewriter<'_> {
             }
         }
         links::apply(&note.body, edits)
+    }
+
+    /// A canvas file as the body of a canvas note: its cards read in, and
+    /// each file card pointed at the note or attachment the import made for
+    /// its path. A path nothing here matches stays as written, a card that
+    /// shows as missing. Text cards, groups and arrows come through as they
+    /// are.
+    fn canvas(
+        &self,
+        note: &SourceNote,
+        needed: &mut BTreeSet<usize>,
+        too_big: &mut BTreeSet<usize>,
+        report: &mut LibraryReport,
+    ) -> String {
+        let imported = match Canvas::from_obsidian(&note.body) {
+            Ok(imported) => imported,
+            Err(why) => {
+                // The source checked it already; an empty canvas is the
+                // note's body if it somehow changed since.
+                report.rejected.push(format!(
+                    "{}: {why}",
+                    note.path.as_deref().unwrap_or(&note.title)
+                ));
+                return String::new();
+            }
+        };
+        let mut canvas = imported.canvas;
+        let mut paths: HashMap<String, (String, String)> = HashMap::new();
+        for node in canvas.nodes.iter().filter(|n| n.kind == "file") {
+            let Some(path) = node.file.as_deref().map(|p| p.trim_start_matches("./")) else {
+                continue;
+            };
+            if paths.contains_key(path) {
+                continue;
+            }
+            match self.index.path(None, path) {
+                Some(Target::Note(ix)) => {
+                    let entry = &self.entries[ix];
+                    paths.insert(path.to_owned(), (entry.id.clone(), entry.title.clone()));
+                }
+                Some(Target::File(ix)) => {
+                    if self.files[ix].size > size_limit_for(&self.files[ix].path) as u64 {
+                        too_big.insert(ix);
+                        continue;
+                    }
+                    needed.insert(ix);
+                    let name = file_name(&self.files[ix].path).to_owned();
+                    paths.insert(path.to_owned(), (self.file_id(ix), name));
+                }
+                None => report.unresolved_links += 1,
+            }
+        }
+        canvas.map_paths(&paths);
+        kanso_core::canvas::to_body(&canvas)
     }
 
     fn file_id(&self, ix: usize) -> String {
