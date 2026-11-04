@@ -479,12 +479,16 @@ impl RecordingPlayer {
     }
 
     /// A key the card takes while it has the keyboard. Whether it did.
-    fn key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
+    /// `on_card` says the card itself has the focus, not one of its buttons
+    /// (reached with Tab): Space on a button presses that button, so the
+    /// card leaves Space alone there rather than playing as well.
+    fn key(&mut self, keystroke: &Keystroke, on_card: bool, cx: &mut Context<Self>) -> bool {
         let m = &keystroke.modifiers;
         if m.control || m.alt || m.platform || m.function {
             return false;
         }
         match recording_player::key_action(&keystroke.key, m.shift) {
+            Some(PlayerKey::PlayPause) if !on_card => return false,
             Some(PlayerKey::PlayPause) => self.toggle(cx),
             Some(PlayerKey::Skip(secs)) => self.skip(secs, cx),
             None => return false,
@@ -672,8 +676,9 @@ impl Render for RecordingPlayer {
             .key_context("RecordingPlayer")
             .track_focus(&self.focus)
             .debug_selector(|| "recording-player".into())
-            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
-                if this.key(&event.keystroke, cx) {
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                let on_card = this.focus.is_focused(window);
+                if this.key(&event.keystroke, on_card, cx) {
                     cx.stop_propagation();
                 }
             }))
@@ -943,6 +948,10 @@ impl RecordingPlayer {
         self.length_us.map(|us| us / 1_000_000)
     }
 
+    pub(crate) fn has_recording(&self) -> bool {
+        self.recording.is_some()
+    }
+
     pub(crate) fn is_open(&self) -> bool {
         self.player.is_some()
     }
@@ -960,7 +969,12 @@ impl RecordingPlayer {
         self.volume = 0.0;
     }
 
-    pub(crate) fn key_for_test(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
-        self.key(keystroke, cx)
+    pub(crate) fn key_for_test(
+        &mut self,
+        keystroke: &Keystroke,
+        on_card: bool,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        self.key(keystroke, on_card, cx)
     }
 }

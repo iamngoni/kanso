@@ -2361,7 +2361,6 @@ impl NoteEditor {
         true
     }
 
-    /// Shows the note in `mode`, as picked: leaving focus mode keeps it.
     /// A timestamp link played a moment: the player sits in the preview, so
     /// a view without one gives way to Split, the way Dictate does.
     fn show_player(&mut self, cx: &mut Context<Self>) {
@@ -2394,6 +2393,7 @@ impl NoteEditor {
         });
     }
 
+    /// Shows the note in `mode`, as picked: leaving focus mode keeps it.
     pub fn set_view_mode(&mut self, mode: ViewMode, cx: &mut Context<Self>) {
         self.focus_live.chosen();
         self.show_view_mode(mode, cx);

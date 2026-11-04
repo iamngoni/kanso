@@ -279,7 +279,7 @@ fn space_and_the_arrows_are_the_players_when_it_has_the_keyboard(cx: &mut TestAp
     p.update(cx, |p, _| p.silence());
     let key = |text: &str, cx: &mut TestAppContext| {
         let ks = Keystroke::parse(text).unwrap();
-        p.update(cx, |p, cx| p.key_for_test(&ks, cx))
+        p.update(cx, |p, cx| p.key_for_test(&ks, true, cx))
     };
     assert!(key("space", cx));
     assert!(key("left", cx));
@@ -290,6 +290,14 @@ fn space_and_the_arrows_are_the_players_when_it_has_the_keyboard(cx: &mut TestAp
     assert!(!key("a", cx));
     assert!(!key("cmd-left", cx));
     assert!(!key("shift-space", cx));
+    // On one of the card's buttons (reached with Tab), Space presses that
+    // button and nothing else; the arrows still move the recording.
+    let on_button = |text: &str, cx: &mut TestAppContext| {
+        let ks = Keystroke::parse(text).unwrap();
+        p.update(cx, |p, cx| p.key_for_test(&ks, false, cx))
+    };
+    assert!(!on_button("space", cx));
+    assert!(on_button("left", cx));
 }
 
 /// Drawing the card must never read the card's own entity again, which GPUI
@@ -307,4 +315,28 @@ fn the_card_draws_without_reading_itself(cx: &mut TestAppContext) {
             });
         })
         .unwrap();
+}
+
+/// Another note, before its text arrives, has no recording yet: the old
+/// note's text must not be read as the new note's (it opened the old
+/// recording's bytes again on every note change). Its text, when it comes,
+/// is told to the player even when it is the same text.
+#[gpui_kit::test]
+fn another_note_does_not_take_the_last_notes_recording(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let p = player(&f, cx);
+    assert_eq!(cx.read(|cx| p.read(cx).length_secs()), Some(5));
+    f.preview.update(cx, |preview, cx| {
+        preview.set_note(Some("note:copy".into()), cx)
+    });
+    cx.run_until_parked();
+    assert!(!cx.read(|cx| p.read(cx).has_recording()));
+    assert_eq!(cx.read(|cx| p.read(cx).length_secs()), None);
+    // A copy of the note: the same text, which the preview already has.
+    let body = f.body.clone();
+    f.preview
+        .update(cx, |preview, cx| preview.set_text(body.into(), cx));
+    cx.run_until_parked();
+    assert!(cx.read(|cx| p.read(cx).has_recording()));
+    assert_eq!(cx.read(|cx| p.read(cx).length_secs()), Some(5));
 }

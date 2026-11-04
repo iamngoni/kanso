@@ -204,13 +204,11 @@ impl Preview {
     /// The note the preview shows, so a query view can leave it out.
     pub fn set_note(&mut self, id: Option<String>, cx: &mut Context<Self>) {
         let changed_id = id.clone();
-        // Another note stops the player; the text that follows (or the text
-        // already here) tells it what the new note holds.
-        let text = self.text.clone();
-        self.player.update(cx, |player, cx| {
-            player.set_note(id.as_deref(), cx);
-            player.set_body(&text, cx);
-        });
+        // Another note stops the player. Its text comes with `set_text`
+        // (which always hands it on): the text here is still the old
+        // note's, and would have the player read the old recording again.
+        self.player
+            .update(cx, |player, cx| player.set_note(id.as_deref(), cx));
         let changed = self.note.lock().map(|mut note| {
             if *note == id {
                 false
@@ -231,6 +229,7 @@ impl Preview {
             }
             cx.notify();
         }
+        let mut locked_away = false;
         // Lock Notes Now forgets the keys without changing the note, so the
         // decrypted bytes go with them. Unlocking the same note again has no
         // new ID either; fill the cache back when a held key opens it.
@@ -244,7 +243,14 @@ impl Preview {
                 }
             } else {
                 files.clear();
+                locked_away = true;
             }
+        }
+        // The decrypted audio goes with the keys: the player stops and finds
+        // the parts sealed again. After the guard above is gone, since the
+        // player reads `opened_files` too.
+        if locked_away {
+            self.player.update(cx, |player, cx| player.unload(cx));
         }
     }
 
@@ -274,13 +280,14 @@ impl Preview {
     /// split, off the main thread, with the text before it shown until then.
     /// While one is being split, a newer text waits for it and then follows.
     pub fn set_text(&mut self, text: SharedString, cx: &mut Context<Self>) {
+        // Before the early return: another note with the same text still
+        // has to tell the player (which `set_note` emptied) what it holds.
+        self.player
+            .update(cx, |player, cx| player.set_body(&text, cx));
         if self.text == text {
             return;
         }
         self.text = text;
-        let body = self.text.clone();
-        self.player
-            .update(cx, |player, cx| player.set_body(&body, cx));
         if self.splitting.is_some() {
             return;
         }
