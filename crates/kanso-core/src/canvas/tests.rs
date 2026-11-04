@@ -473,6 +473,22 @@ proptest! {
         prop_assert!(m.validate().is_ok(), "{:?}", m.validate());
     }
 
+    /// Three devices' edits united in either grouping give one canvas, so
+    /// the order sync meets them in doesn't matter.
+    #[test]
+    fn prop_merge_is_associative(
+        common in prop::collection::vec(arb_op(), 0..6),
+        a in prop::collection::vec(arb_op(), 0..10),
+        b in prop::collection::vec(arb_op(), 0..10),
+        c in prop::collection::vec(arb_op(), 0..10),
+    ) {
+        let start = edit(base(), "c", &common, 10);
+        let x = edit(start.clone(), "a", &a, 100);
+        let y = edit(start.clone(), "b", &b, 200);
+        let z = edit(start, "d", &c, 300);
+        prop_assert_eq!(merge(&merge(&x, &y), &z), merge(&x, &merge(&y, &z)));
+    }
+
     /// No stroke that is not tombstoned is lost: a stroke live on one side
     /// stays live unless the other side deleted that very stroke (or its
     /// layer), and a deleted stroke never comes back.
@@ -1011,16 +1027,30 @@ fn sketch_fences_are_found_by_id_and_capped() {
     assert!(promoted.contains("note:XYZ") && sketch::find(&promoted).is_empty());
     assert!(sketch::replace_with_text(&promoted, "sk-a", "x").is_none());
     assert!(sketch::check_budget(&body).is_ok());
+    // Padded with spaces, which JSON allows, to stand for a sketch full of ink.
     let big = format!(
-        "```sketch\n{}\n```\n",
-        "a".repeat(sketch::MAX_SKETCH_BYTES + 1)
+        "```sketch\n{a}{}\n```\n",
+        " ".repeat(sketch::MAX_SKETCH_BYTES + 1)
     );
     assert!(sketch::check_budget(&big).is_err());
     let many = big
         .replace(
-            &"a".repeat(sketch::MAX_SKETCH_BYTES + 1),
-            &"a".repeat(200 * 1024),
+            &" ".repeat(sketch::MAX_SKETCH_BYTES + 1),
+            &" ".repeat(200 * 1024),
         )
         .repeat(3);
     assert!(sketch::check_budget(&many).is_err());
+}
+
+/// A `sketch` code block that isn't Kanso's (an Arduino sketch) is ordinary
+/// text: searched as written, and never capped.
+#[test]
+fn someone_elses_sketch_block_is_plain_text() {
+    let code = format!(
+        "```sketch\nvoid setup() {{}}\n{}\n```\n",
+        "// pin\n".repeat(60_000)
+    );
+    let body = format!("Blink\n\n{code}");
+    assert!(sketch::check_budget(&body).is_ok());
+    assert!(sketch::index_text(&body).contains("void setup()"));
 }

@@ -520,8 +520,10 @@ fn snapshot(tx: &Transaction, id: &str, prev: &Row, origin: Origin) -> Result<()
         // A canvas is snapshotted only once it has been idle: while the pen
         // is still moving, the version before this save is saved a moment ago.
         let saved = prev.fields.get("updatedAt").and_then(Value::as_i64);
+        // A time far ahead of this Mac's clock (another device's, synced)
+        // is not "a moment ago", or a skewed clock would stop the history.
         if is_canvas(&prev.fields)
-            && saved.is_some_and(|at| now_ms() - at < UI_SNAPSHOT_INTERVAL_MS)
+            && saved.is_some_and(|at| (now_ms() - at).abs() < UI_SNAPSHOT_INTERVAL_MS)
         {
             return Ok(());
         }

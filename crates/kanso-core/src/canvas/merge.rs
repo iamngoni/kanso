@@ -26,8 +26,17 @@ pub fn merge(a: &Canvas, b: &Canvas) -> Canvas {
         node_order,
         |win, lose| {
             let mut win = win.clone();
-            if !win.deleted && win.kind == INK && lose.kind == INK {
+            // A tombstone keeps the strokes of the layer it beat: a later
+            // version of the layer from a third device brings them back, so
+            // the order three devices meet in can't decide which ink lives.
+            let inky = |n: &Node| n.kind == INK || n.deleted;
+            if inky(&win) && inky(lose) {
                 win.strokes = merge_strokes(&win.strokes, &lose.strokes);
+                // Each side's layer already held its own ink, so the larger
+                // of the two holds the union. Refitting here instead would
+                // make the size depend on the order three devices meet in.
+                win.width = win.width.max(lose.width);
+                win.height = win.height.max(lose.height);
             }
             win
         },
@@ -86,7 +95,7 @@ pub fn merge(a: &Canvas, b: &Canvas) -> Canvas {
         }
     }
 
-    let mut out = Canvas {
+    Canvas {
         nodes,
         edges,
         kanso_sketch: match (a.kanso_sketch, b.kanso_sketch) {
@@ -103,9 +112,7 @@ pub fn merge(a: &Canvas, b: &Canvas) -> Canvas {
         },
         kanso_ink_ocr: ocr.into_values().cloned().collect(),
         extra: merge_extra(&a.extra, &b.extra),
-    };
-    out.refit_ink();
-    out
+    }
 }
 
 /// The merge of two note bodies that are both canvases, as a body. `None`
@@ -160,9 +167,17 @@ fn merge_by_id<T: Clone>(
 }
 
 fn node_order(a: &Node, b: &Node) -> Ordering {
+    // Strokes are united whichever node wins, so they take no part in the
+    // tie-break: a node whose strokes a merge has grown must rank as it did.
+    let bare = |n: &Node| {
+        json(&Node {
+            strokes: Vec::new(),
+            ..n.clone()
+        })
+    };
     (a.kanso_version, a.deleted, a.kanso_updated)
         .cmp(&(b.kanso_version, b.deleted, b.kanso_updated))
-        .then_with(|| json(a).cmp(&json(b)))
+        .then_with(|| bare(a).cmp(&bare(b)))
 }
 
 fn edge_order(a: &Edge, b: &Edge) -> Ordering {

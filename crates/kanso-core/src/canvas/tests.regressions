@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9e1a22b96899c49897079e1e803d735fe2dfe75fbafb366b51cb8b1397f9eb30 # shrinks to common = [], a = [Draw(2, [Point { x: 0.0, y: 0.0, pressure: 0.0, tilt: None }]), Draw(0, [Point { x: 0.0, y: 0.0, pressure: 0.0, tilt: None }])], b = [Draw(0, [Point { x: 0.0, y: 0.0, pressure: 0.0, tilt: None }])], c = [Delete(0)]
+cc 3bf5abcf7b280e99815b32e337cbdc70bfa7e7fa962d07f3da9c61283d5a1d79 # shrinks to common = [Draw(1, [Point { x: 0.0, y: 0.0, pressure: 0.0, tilt: None }]), Draw(1, [Point { x: 0.0, y: 0.0, pressure: 0.0, tilt: None }])], a = [Undraw(1, 6)], b = [], c = [Undraw(1, 5)]

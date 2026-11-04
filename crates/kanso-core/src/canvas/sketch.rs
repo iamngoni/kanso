@@ -144,10 +144,22 @@ pub fn replace_with_text(body: &str, id: &str, replacement: &str) -> Option<Stri
     Some(out)
 }
 
+/// The sketch in a fence's JSON, when it is one of Kanso's (it has its box).
+fn read(json: &str) -> Option<Canvas> {
+    serde_json::from_str::<Canvas>(json)
+        .ok()
+        .filter(|c| c.kanso_sketch.is_some())
+}
+
 /// The size caps: each sketch, and all of a note's together. Pure.
 pub fn check_budget(body: &str) -> Result<(), String> {
     let mut total = 0;
     for found in find(body) {
+        // A `sketch` code block that isn't Kanso's (an Arduino sketch, say)
+        // is the note's own text, with no cap of its own.
+        if read(&body[found.json.clone()]).is_none() {
+            continue;
+        }
         let len = found.json.len();
         if len > MAX_SKETCH_BYTES {
             return Err("This sketch is full. Open it as a canvas to keep drawing.".into());
@@ -172,12 +184,16 @@ pub fn index_text(body: &str) -> String {
     let mut from = 0;
     for f in found {
         out.push_str(&body[from..f.range.start]);
-        if let Ok(canvas) = serde_json::from_str::<Canvas>(&body[f.json]) {
-            let words = canvas.search_text();
-            if !words.is_empty() {
-                out.push_str(&words);
-                out.push('\n');
+        match read(&body[f.json.clone()]) {
+            Some(canvas) => {
+                let words = canvas.search_text();
+                if !words.is_empty() {
+                    out.push_str(&words);
+                    out.push('\n');
+                }
             }
+            // Someone else's `sketch` block is searched like any code.
+            None => out.push_str(&body[f.range.clone()]),
         }
         from = f.range.end;
     }

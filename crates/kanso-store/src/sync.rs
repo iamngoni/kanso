@@ -923,6 +923,10 @@ fn merge_canvas_fields(
     }
     let body = |f: &Map<String, Value>| f.get("body").and_then(Value::as_str).map(str::to_owned);
     let merged_body = kanso_core::canvas::merge_bodies(&body(local)?, &body(remote)?)?;
+    // Two halves within the budget can unite past it. Such a body would be
+    // refused by every other device's store (and by this one's next save),
+    // so the newer side wins whole instead; the other is kept as history.
+    kanso_core::canvas::check_body(&merged_body).ok()?;
     let remote_newer = updated_at(remote) >= updated_at(local);
     let (mut merged, other) = if remote_newer {
         (remote.clone(), local)

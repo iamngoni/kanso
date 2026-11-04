@@ -218,12 +218,23 @@ fn a_sketch_in_a_note_is_searched_by_its_words_only() {
     assert_eq!(find("kansoSketch"), 0);
     // A sketch over its cap is refused before the write.
     let huge = format!(
-        "```sketch\n{}\n```\n",
-        "a".repeat(canvas::sketch::MAX_SKETCH_BYTES + 10)
+        "```sketch\n{}{}\n```\n",
+        serde_json::to_string(&sk).unwrap(),
+        " ".repeat(canvas::sketch::MAX_SKETCH_BYTES + 10)
     );
     let mut big = f.clone();
     big.insert("body".into(), huge.into());
     assert!(put(&store, "note:big", &big, Origin::Ui).is_err());
+    // A `sketch` code block that isn't Kanso's is the note's own text: no
+    // cap, and searched as written.
+    let arduino = format!(
+        "```sketch\nvoid setup() {{ pinMode(13, OUTPUT); }}\n{}```\n",
+        "// blink\n".repeat(40_000)
+    );
+    let mut code = f.clone();
+    code.insert("body".into(), arduino.into());
+    put(&store, "note:code", &code, Origin::Ui).unwrap();
+    assert_eq!(find("pinMode"), 1);
 }
 
 /// Makes the store hold `local` as an unsynced edit of `base`, then applies a
@@ -278,6 +289,40 @@ fn strokes_drawn_on_two_devices_are_both_kept() {
             .any(|r| r.fields.get("body") == remote_fields.get("body"))
     );
     assert_eq!(store.note("note:board").unwrap().unwrap().updated_at, 2_000);
+}
+
+/// `n` long strokes named `who0`, `who1`… on layer i1.
+fn heavy(who: &str, n: usize) -> Canvas {
+    let mut c = canvas_with("board");
+    for s in 0..n {
+        let mut long = stroke(&format!("{who}{s}"), 0.0);
+        long.points = (0..15_000)
+            .map(|i| Point::new(f64::from(i % 997) + 0.25, f64::from(i / 997) + 0.75, 0.5))
+            .collect();
+        c.add_stroke("i1", long, 100);
+    }
+    c
+}
+
+/// Two halves within the budget whose union is past it are not united (no
+/// other store would take the result): the newer side wins whole, and the
+/// other is in history.
+#[test]
+fn a_union_past_the_budget_falls_back_to_the_newer_side() {
+    let local = heavy("mac", 2);
+    let remote = heavy("phone", 2);
+    let (l, r) = (canvas::to_body(&local), canvas::to_body(&remote));
+    assert!(canvas::check_body(&l).is_ok() && canvas::check_body(&r).is_ok());
+    let union = canvas::merge_bodies(&l, &r).unwrap();
+    assert!(canvas::check_body(&union).is_err(), "{} bytes", union.len());
+    let (store, _dir, outcome, remote_fields) = conflict(&local, &remote, 1_000, 2_000, &[]);
+    assert!(matches!(outcome, ApplyOutcome::RemoteWon), "{outcome:?}");
+    let note = store.note("note:board").unwrap().unwrap();
+    assert_eq!(
+        Some(&Value::String(note.body.clone())),
+        remote_fields.get("body")
+    );
+    assert!(canvas::check_body(&note.body).is_ok());
 }
 
 #[test]
@@ -393,6 +438,19 @@ fn a_canvas_is_snapshotted_only_when_idle() {
     c2.add_stroke("i1", stroke("late", 99.0), now);
     put(&store2, "note:board", &fields(&b2, &c2, now), Origin::Ui).unwrap();
     assert_eq!(store2.revisions("note:board").unwrap().len(), 1);
+    // A version stamped by a device whose clock runs an hour ahead is not
+    // "still being drawn": the next save here keeps it.
+    let (_dir3, store3) = temp_store();
+    let b3 = book(&store3);
+    put(
+        &store3,
+        "note:board",
+        &fields(&b3, &c, now + 60 * 60 * 1000),
+        Origin::Ui,
+    )
+    .unwrap();
+    put(&store3, "note:board", &fields(&b3, &c2, now), Origin::Ui).unwrap();
+    assert_eq!(store3.revisions("note:board").unwrap().len(), 1);
 }
 
 proptest! {
