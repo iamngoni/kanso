@@ -38,6 +38,8 @@ pub mod overview;
 pub mod overview_types;
 pub mod people;
 pub mod people_types;
+pub mod player;
+pub mod player_types;
 pub mod publish;
 pub mod recording;
 pub mod recording_types;

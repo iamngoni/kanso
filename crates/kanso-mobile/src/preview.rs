@@ -310,6 +310,15 @@ impl Renderer {
                 return Ok(links::new_note_title(url)
                     .map_or(PreviewLink::Nothing, |title| PreviewLink::NewNote { title }));
             }
+            if url.starts_with(kanso_engine::recording_note::AUDIO_SCHEME) {
+                return Ok(kanso_engine::recording_player::parse_moment(url).map_or(
+                    PreviewLink::Nothing,
+                    |moment| PreviewLink::Audio {
+                        file_id: moment.file_id,
+                        seconds: moment.seconds,
+                    },
+                ));
+            }
             if url.starts_with(NOTE_LINK_PREFIX) {
                 return library.note_target(url);
             }

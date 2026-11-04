@@ -33,6 +33,7 @@ use super::locks::KansoLocks;
 use super::metrics::KansoMetrics;
 use super::notebook_home::KansoNotebookHome;
 use super::people::KansoPeople;
+use super::player::KansoPlayers;
 use super::publish::KansoPublisher;
 use super::recording::KansoRecorder;
 use super::renderer::KansoRenderer;
@@ -483,6 +484,12 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn discovery(&self) -> KansoDiscovery {
         KansoDiscovery::new(self.0.discovery())
+    }
+
+    /// Playing a note's recording.
+    #[frb(sync)]
+    pub fn players(&self) -> KansoPlayers {
+        KansoPlayers::new(self.0.clone())
     }
 
     /// Recording a note from the microphone, and what a crash left.

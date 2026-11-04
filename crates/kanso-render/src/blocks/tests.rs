@@ -427,6 +427,24 @@ fn links_the_page_drops_are_their_words() {
 }
 
 #[test]
+fn a_moment_in_a_recording_stays_a_link() {
+    let drawn = plain_blocks(
+        "[00:12](kanso-audio://file:abc?t=12) said [x](kanso-audio://) and [y](kanso-audio://note:abc?t=1)",
+    );
+    let urls: Vec<&str> = paragraph(&drawn)
+        .iter()
+        .filter_map(|inline| match inline {
+            Inline::Link { url, .. } => Some(url.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(urls, vec!["kanso-audio://file:abc?t=12"], "{drawn:#?}");
+    assert!(super::is_audio_moment("KANSO-AUDIO://FILE:abc?t=1"));
+    assert!(!super::is_audio_moment("kanso-audio://file:"));
+    assert!(!super::is_audio_moment("https://file:abc"));
+}
+
+#[test]
 fn styles_flatten_onto_text() {
     let drawn = plain_blocks("***a*** ~~b~~ `c`  \nd");
     let inlines = paragraph(&drawn);

@@ -8,6 +8,12 @@ import kanso_push
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  /// The Record screen holds the session in play-and-record, between
+  /// `prepare` and `release`. Playing a note's recording meanwhile keeps
+  /// that category: switching to playback would cut the microphone off
+  /// mid-recording. Touched only on the main queue.
+  private var recordingSessionActive = false
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -119,7 +125,8 @@ import kanso_push
   /// for the microphone nor sets a category; the default one (solo ambient)
   /// has no input. `prepare` asks once, then sets play-and-record and
   /// activates it, so recording also goes on in the background (the
-  /// `audio` background mode). `release` gives the audio back.
+  /// `audio` background mode). `playback` sets the playback category for a
+  /// recording in a note. `release` gives the audio back.
   private func registerRecordingChannel(_ registry: FlutterPluginRegistry) {
     guard let registrar = registry.registrar(forPlugin: "KansoRecording") else { return }
     let channel = FlutterMethodChannel(
@@ -137,13 +144,33 @@ import kanso_push
               let session = AVAudioSession.sharedInstance()
               try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
               try session.setActive(true)
+              self.recordingSessionActive = true
               result(true)
             } catch {
               result(false)
             }
           }
         }
+      case "playback":
+        // A recording in a note plays (issue #38, step 5): the playback
+        // category, so it is heard with the ringer switch off, as a voice
+        // memo is.
+        if self.recordingSessionActive {
+          // Play-and-record already plays (to the speaker), and the
+          // recording goes on.
+          result(true)
+          return
+        }
+        do {
+          let session = AVAudioSession.sharedInstance()
+          try session.setCategory(.playback, mode: .spokenAudio)
+          try session.setActive(true)
+          result(true)
+        } catch {
+          result(false)
+        }
       case "release":
+        self.recordingSessionActive = false
         try? AVAudioSession.sharedInstance().setActive(
           false, options: .notifyOthersOnDeactivation)
         result(nil)

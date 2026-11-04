@@ -700,9 +700,9 @@ proptest! {
 }
 
 /// A recording's transcript (#38): the markers draw as nothing, the stamps
-/// draw as text, and a tap on one is inert until the phone has a player.
+/// draw as text, and a tap on one goes to the phone's player (step 5).
 #[test]
-fn a_recording_transcript_draws_and_its_moment_links_are_inert() {
+fn a_recording_transcript_draws_and_its_moment_links_go_to_the_player() {
     let phone = lone_phone();
     let body = "Before\n\n<!-- kanso:transcript -->\n[00:00](kanso-audio://file:m1?t=0) We started.\n\n[00:20](kanso-audio://file:m1?t=20) Then this.\n<!-- /kanso:transcript -->\n\nAfter\n";
     let id = note(&phone.library, "Meeting", body);
@@ -719,7 +719,16 @@ fn a_recording_transcript_draws_and_its_moment_links_are_inert() {
     assert!(!blocks.contains("kanso:transcript"), "{blocks}");
     let page = r.preview_html(&id, palette()).unwrap();
     assert!(page.contains("Then this."), "{page}");
-    for url in ["kanso-audio://file:m1?t=20", "kanso-audio://file:m1"] {
-        assert_eq!(r.link_target(&id, url).unwrap(), PreviewLink::Nothing);
+    for (url, seconds) in [
+        ("kanso-audio://file:m1?t=20", 20),
+        ("kanso-audio://file:m1", 0),
+    ] {
+        assert_eq!(
+            r.link_target(&id, url).unwrap(),
+            PreviewLink::Audio {
+                file_id: "file:m1".into(),
+                seconds
+            }
+        );
     }
 }

@@ -224,9 +224,12 @@ import 'push/models/repos/abs/push_repository.dart' as _i937;
 import 'push/models/repos/impl/plugin_push_repository.dart' as _i506;
 import 'push/state/push_registration/push_registration_bloc.dart' as _i250;
 import 'push/state/push_setting/push_setting_bloc.dart' as _i584;
+import 'recording/models/repos/abs/player_repository.dart' as _i217;
 import 'recording/models/repos/abs/recording_repository.dart' as _i28;
+import 'recording/models/repos/impl/rust_player_repository.dart' as _i441;
 import 'recording/models/repos/impl/rust_recording_repository.dart' as _i804;
 import 'recording/services/recording_audio_session.dart' as _i133;
+import 'recording/state/player/player_bloc.dart' as _i186;
 import 'recording/state/recording/recording_bloc.dart' as _i181;
 import 'reminders/state/reminders_settings/reminders_settings_bloc.dart'
     as _i420;
@@ -730,6 +733,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i460.TemplatesRepository>(),
       ),
     );
+    gh.lazySingleton<_i217.PlayerRepository>(
+      () => _i441.RustPlayerRepository(
+        gh<_i455.KansoLibrary>(),
+        gh<_i133.RecordingAudioSession>(),
+      ),
+    );
     gh.factory<_i365.GraphBloc>(
       () => _i365.GraphBloc(gh<_i673.DiscoveryRepository>()),
     );
@@ -778,6 +787,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i343.NotebookHomeBloc>(
       () => _i343.NotebookHomeBloc(gh<_i257.NotebookHomeRepository>()),
+    );
+    gh.factory<_i186.PlayerBloc>(
+      () => _i186.PlayerBloc(gh<_i217.PlayerRepository>()),
     );
     gh.factory<_i470.TasksBloc>(
       () => _i470.TasksBloc(

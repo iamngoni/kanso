@@ -34,6 +34,22 @@ class RecordingAudioSession {
     }
   }
 
+  /// Sets the phone up to play a recording in a note: iOS gets the playback
+  /// category, so it is heard with the ringer switch off. Android needs
+  /// nothing. False only when the session can't be set.
+  Future<bool> playback() async {
+    if (!Platform.isIOS) {
+      return true;
+    }
+    try {
+      return await _channel.invokeMethod<bool>('playback') ?? false;
+    } on MissingPluginException {
+      return true;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Gives the audio back to other apps once the recording has ended.
   Future<void> release() async {
     if (!Platform.isIOS && !Platform.isAndroid) {

@@ -14,9 +14,13 @@ import '../../../core/models/data/application_error.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/state/appearance/appearance_bloc.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
+import '../../../core/state/sync_status/sync_status_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../injection.dart';
+import '../../../recording/models/repos/abs/player_repository.dart';
+import '../../../recording/state/player/player_bloc.dart';
+import '../../../recording/views/widgets/recording_player_card.dart';
 import '../../models/data/preview_action.dart';
 import '../../models/data/source_line.dart';
 import '../../state/preview/preview_bloc.dart';
@@ -76,13 +80,75 @@ class NotePreview extends StatelessWidget {
       child: _PreviewInputs(
         themes: themes,
         size: size,
-        child: PreviewPage(
-          palette: (dark ? appearance.dark : appearance.light).preview,
-          source: source,
-          onEdit: onEditAt == null ? null : () => onEditAt!(0),
+        child: _PlayerHost(
+          noteId: note.id,
+          body: note.body ?? '',
+          builder: (player) => PreviewPage(
+            palette: (dark ? appearance.dark : appearance.light).preview,
+            source: source,
+            onEdit: onEditAt == null ? null : () => onEditAt!(0),
+            player: player,
+          ),
         ),
       ),
     );
+  }
+}
+
+/// Gives the note's preview its recording player (issue #38): a [PlayerBloc]
+/// for this note, made when the note opens and closed when it goes, which
+/// stops the sound. The note's text changing (an edit, or sync bringing the
+/// audio line) has it look for the recording again. Without a player
+/// repository (widget tests that don't register one) the note has no player.
+class _PlayerHost extends StatefulWidget {
+  const _PlayerHost({
+    required this.noteId,
+    required this.body,
+    required this.builder,
+  });
+
+  final String noteId;
+  final String body;
+
+  /// The page, given the note's player (null where there is none).
+  final Widget Function(PlayerBloc? player) builder;
+
+  @override
+  State<_PlayerHost> createState() => _PlayerHostState();
+}
+
+class _PlayerHostState extends State<_PlayerHost> {
+  PlayerBloc? _bloc;
+
+  @override
+  void initState() {
+    super.initState();
+    if (getIt.isRegistered<PlayerRepository>()) {
+      _bloc = getIt<PlayerBloc>()..add(PlayerEvent.started(widget.noteId));
+    }
+  }
+
+  @override
+  void didUpdateWidget(_PlayerHost oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.noteId != oldWidget.noteId) {
+      // The same page now shows another note: its recording, not the last
+      // one's (starting again closes the old player, which stops it).
+      _bloc?.add(PlayerEvent.started(widget.noteId));
+    } else if (widget.body != oldWidget.body) {
+      _bloc?.add(const PlayerEvent.refreshed());
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_bloc?.close());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.builder(_bloc);
   }
 }
 
@@ -128,6 +194,7 @@ class PreviewPage extends StatefulWidget {
     required this.palette,
     required this.source,
     this.onEdit,
+    this.player,
     super.key,
   });
 
@@ -138,6 +205,9 @@ class PreviewPage extends StatefulWidget {
   final Widget source;
 
   final VoidCallback? onEdit;
+
+  /// The note's recording player; the card and the timestamp taps are its.
+  final PlayerBloc? player;
 
   @override
   State<PreviewPage> createState() => _PreviewPageState();
@@ -170,7 +240,31 @@ class _PreviewPageState extends State<PreviewPage> {
         unawaited(showAttachment(context, file));
       case PreviewCopyCode(:final code):
         unawaited(Clipboard.setData(ClipboardData(text: code)));
+      case PreviewPlayMoment(:final fileId, :final seconds):
+        widget.player?.add(PlayerEvent.momentTapped(fileId, seconds));
     }
+  }
+
+  /// [preview] under the recording's player card, if the note has a player.
+  /// The card is the first thing in the note and scrolls with it.
+  Widget _withPlayer(BuildContext context, Widget preview) {
+    final player = widget.player;
+    if (player == null) {
+      return preview;
+    }
+    return SliverMainAxisGroup(
+      slivers: <Widget>[
+        SliverToBoxAdapter(
+          child: RecordingPlayerCard(
+            bloc: player,
+            onSyncNow: () => context.read<SyncStatusBloc>().add(
+              const SyncStatusEvent.syncRequested(),
+            ),
+          ),
+        ),
+        preview,
+      ],
+    );
   }
 
   @override
@@ -224,7 +318,7 @@ class _PreviewPageState extends State<PreviewPage> {
             }
             return widget.source;
           }
-          return NativePreview(
+          final preview = NativePreview(
             key: _preview,
             blocks: blocks,
             palette: widget.palette,
@@ -232,6 +326,7 @@ class _PreviewPageState extends State<PreviewPage> {
             onLink: (url) =>
                 context.read<PreviewBloc>().add(PreviewEvent.linkTapped(url)),
           );
+          return _withPlayer(context, preview);
         },
       ),
     );

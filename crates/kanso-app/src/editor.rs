@@ -58,6 +58,7 @@ use crate::markdown_edit::{self, Edit, Format};
 use crate::models::note_visit::NotePlace;
 use crate::note_meaning::NoteMeaning;
 use crate::pairing::Pairs;
+use crate::player_model::PlayerEvent;
 use crate::preview::{ImageResize, LinkSender, Preview, PreviewEdit, TEXT_INSET, readable_width};
 use crate::preview_tasks::{self, TaskTick};
 use crate::resurface::{Resurface, ResurfaceEvent};
@@ -497,8 +498,13 @@ impl NoteEditor {
             footer.set_goal(GoalSetting::Default, settings.word_goal, cx);
             footer
         });
+        let player = preview.read(cx).player().clone();
         let canvas = cx.new(|cx| crate::canvas_view::CanvasView::new(store.clone(), cx));
         let subscriptions = vec![
+            // A timestamp followed anywhere brings the player into view.
+            cx.subscribe(&player, |this, _, event: &PlayerEvent, cx| match event {
+                PlayerEvent::Moment => this.show_player(cx),
+            }),
             cx.subscribe_in(
                 &resurface,
                 window,
@@ -2443,6 +2449,38 @@ impl NoteEditor {
         self.body
             .update(cx, |state, cx| state.set_selected_range(range, cx));
         true
+    }
+
+    /// A timestamp link played a moment: the player sits in the preview, so
+    /// a view without one gives way to Split, the way Dictate does.
+    fn show_player(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.view_mode, ViewMode::Edit | ViewMode::Live) {
+            self.set_view_mode(ViewMode::Split, cx);
+        }
+    }
+
+    /// ⌘-click in the source, where a timestamp link is plain text: plays
+    /// the moment it names.
+    // no-prop-test: mouse glue over `recording_player::moment_at`, which has the properties.
+    fn on_source_click(&mut self, event: &MouseUpEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if !event.modifiers.secondary() || self.note.is_none() {
+            return;
+        }
+        let (text, caret) = {
+            let body = self.body.read(cx);
+            (body.value(), body.cursor())
+        };
+        let Some(moment) = kanso_engine::recording_player::moment_at(&text, caret) else {
+            return;
+        };
+        let player = self.preview.read(cx).player().clone();
+        // The body text may be ahead of the preview's: the player reads the
+        // recording's line from the preview's text, so hand it this one.
+        let shown = self.preview_source(text.clone());
+        player.update(cx, |player, cx| {
+            player.set_body(&shown, cx);
+            player.play_moment(&moment, cx);
+        });
     }
 
     /// Shows the note in `mode`, as picked: leaving focus mode keeps it.
@@ -5017,6 +5055,7 @@ impl Render for NoteEditor {
             .h_full()
             .min_w_0()
             .capture_key_down(cx.listener(Self::on_key_down))
+            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_source_click))
             .capture_action(cx.listener(Self::on_backspace))
             .capture_action(
                 cx.listener(|this, _: &IndentInline, window, cx| this.on_tab(false, window, cx)),

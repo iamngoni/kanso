@@ -30,6 +30,8 @@ import 'api/notebook_home_types.dart';
 import 'api/overview_types.dart';
 import 'api/people.dart';
 import 'api/people_types.dart';
+import 'api/player.dart';
+import 'api/player_types.dart';
 import 'api/publish.dart';
 import 'api/recording.dart';
 import 'api/recording_types.dart';
@@ -138,6 +140,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoPeoplePtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeoplePtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoPlayerPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayerPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoPlayersPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayersPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoPublisherPtr => wire
@@ -295,6 +305,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPeople
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPlayer
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPlayers
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
     dynamic raw,
   );
 
@@ -469,6 +491,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPeople
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPlayer
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPlayers
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
     dynamic raw,
   );
 
@@ -649,6 +683,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPeople
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPlayer
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPlayers
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
     dynamic raw,
   );
 
@@ -1031,6 +1077,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   NoteChange dco_decode_box_autoadd_note_change(dynamic raw);
+
+  @protected
+  NoteRecording dco_decode_box_autoadd_note_recording(dynamic raw);
 
   @protected
   NotebookRole dco_decode_box_autoadd_notebook_role(dynamic raw);
@@ -2090,6 +2139,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   NoteMeaning dco_decode_note_meaning(dynamic raw);
 
   @protected
+  NoteRecording dco_decode_note_recording(dynamic raw);
+
+  @protected
   NoteRow dco_decode_note_row(dynamic raw);
 
   @protected
@@ -2199,6 +2251,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MadeNote? dco_decode_opt_box_autoadd_made_note(dynamic raw);
+
+  @protected
+  NoteRecording? dco_decode_opt_box_autoadd_note_recording(dynamic raw);
 
   @protected
   NotebookRole? dco_decode_opt_box_autoadd_notebook_role(dynamic raw);
@@ -2383,6 +2438,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PaletteTarget dco_decode_palette_target(dynamic raw);
 
   @protected
+  PartsState dco_decode_parts_state(dynamic raw);
+
+  @protected
   PasskeyFailure dco_decode_passkey_failure(dynamic raw);
 
   @protected
@@ -2426,6 +2484,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PlannedNotice dco_decode_planned_notice(dynamic raw);
+
+  @protected
+  PlayerStatus dco_decode_player_status(dynamic raw);
 
   @protected
   PreviewAlign dco_decode_preview_align(dynamic raw);
@@ -2995,6 +3056,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoPlayer
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPlayers
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoPublisher
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     SseDeserializer deserializer,
@@ -3165,6 +3238,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPeople
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPlayer
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPlayers
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
     SseDeserializer deserializer,
   );
 
@@ -3345,6 +3430,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoPeople
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPlayer
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPlayers
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
     SseDeserializer deserializer,
   );
 
@@ -3773,6 +3870,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   NoteChange sse_decode_box_autoadd_note_change(SseDeserializer deserializer);
+
+  @protected
+  NoteRecording sse_decode_box_autoadd_note_recording(
+    SseDeserializer deserializer,
+  );
 
   @protected
   NotebookRole sse_decode_box_autoadd_notebook_role(
@@ -5018,6 +5120,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   NoteMeaning sse_decode_note_meaning(SseDeserializer deserializer);
 
   @protected
+  NoteRecording sse_decode_note_recording(SseDeserializer deserializer);
+
+  @protected
   NoteRow sse_decode_note_row(SseDeserializer deserializer);
 
   @protected
@@ -5155,6 +5260,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MadeNote? sse_decode_opt_box_autoadd_made_note(SseDeserializer deserializer);
+
+  @protected
+  NoteRecording? sse_decode_opt_box_autoadd_note_recording(
+    SseDeserializer deserializer,
+  );
 
   @protected
   NotebookRole? sse_decode_opt_box_autoadd_notebook_role(
@@ -5381,6 +5491,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PaletteTarget sse_decode_palette_target(SseDeserializer deserializer);
 
   @protected
+  PartsState sse_decode_parts_state(SseDeserializer deserializer);
+
+  @protected
   PasskeyFailure sse_decode_passkey_failure(SseDeserializer deserializer);
 
   @protected
@@ -5426,6 +5539,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PlannedNotice sse_decode_planned_notice(SseDeserializer deserializer);
+
+  @protected
+  PlayerStatus sse_decode_player_status(SseDeserializer deserializer);
 
   @protected
   PreviewAlign sse_decode_preview_align(SseDeserializer deserializer);
@@ -6041,6 +6157,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    KansoPlayer self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+    KansoPlayers self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPublisher(
     KansoPublisher self,
     SseSerializer serializer,
@@ -6239,6 +6369,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
     KansoPeople self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    KansoPlayer self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+    KansoPlayers self,
     SseSerializer serializer,
   );
 
@@ -6448,6 +6592,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
     KansoPeople self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    KansoPlayer self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+    KansoPlayers self,
     SseSerializer serializer,
   );
 
@@ -7018,6 +7176,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_note_change(
     NoteChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_note_recording(
+    NoteRecording self,
     SseSerializer serializer,
   );
 
@@ -8651,6 +8815,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_note_meaning(NoteMeaning self, SseSerializer serializer);
 
   @protected
+  void sse_encode_note_recording(NoteRecording self, SseSerializer serializer);
+
+  @protected
   void sse_encode_note_row(NoteRow self, SseSerializer serializer);
 
   @protected
@@ -8824,6 +8991,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_made_note(
     MadeNote? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_note_recording(
+    NoteRecording? self,
     SseSerializer serializer,
   );
 
@@ -9122,6 +9295,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_palette_target(PaletteTarget self, SseSerializer serializer);
 
   @protected
+  void sse_encode_parts_state(PartsState self, SseSerializer serializer);
+
+  @protected
   void sse_encode_passkey_failure(
     PasskeyFailure self,
     SseSerializer serializer,
@@ -9180,6 +9356,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_planned_notice(PlannedNotice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_player_status(PlayerStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_preview_align(PreviewAlign self, SseSerializer serializer);
@@ -10423,6 +10602,74 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeoplePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayerPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayerPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayerPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayer =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayerPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayersPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayersPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayersPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayers =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPlayersPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

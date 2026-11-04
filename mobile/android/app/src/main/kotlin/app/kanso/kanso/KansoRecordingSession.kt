@@ -2,6 +2,7 @@ package app.kanso.kanso
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -17,13 +18,21 @@ object KansoRecordingSession {
     private const val PERMISSION_REQUEST = 4802
 
     private var pending: MethodChannel.Result? = null
+    // The application's context, not the activity: this object outlives
+    // every activity (rotation makes a new one), and holding one would leak
+    // it. Starting and stopping the service only needs the application.
+    private var appContext: Context? = null
 
     fun register(activity: Activity, engine: FlutterEngine) {
+        appContext = activity.applicationContext
         MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "prepare" -> prepare(activity, result)
-                    "release" -> result.success(null)
+                    "release" -> {
+                        KansoRecordingService.stop(activity)
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -35,6 +44,7 @@ object KansoRecordingSession {
 
     private fun prepare(activity: Activity, result: MethodChannel.Result) {
         if (granted(activity)) {
+            KansoRecordingService.start(activity)
             result.success(true)
             return
         }
@@ -51,9 +61,9 @@ object KansoRecordingSession {
         if (requestCode != PERMISSION_REQUEST) return
         val answer = pending ?: return
         pending = null
-        answer.success(
-            grantResults.isNotEmpty() &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED,
-        )
+        val ok = grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        if (ok) appContext?.let { KansoRecordingService.start(it) }
+        answer.success(ok)
     }
 }
