@@ -38,6 +38,10 @@ jobs:
           submodules: true
       # Installs the toolchain pinned in rust-toolchain.toml.
       - run: scripts/ci-rust.sh
+      # kanso-audio's libopus is built from the source the opus crate bundles,
+      # with CMake (Linux has it from linux-deps.sh).
+      - name: CMake (libopus)
+        run: scripts/cmake-deps.sh
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       # The engine's highlighter (kanso-engine) and the component library's
@@ -103,6 +107,12 @@ jobs:
       - name: Linux build dependencies
         if: runner.os == 'Linux'
         run: scripts/linux-deps.sh
+      # kanso-audio's libopus is built from the source the opus crate bundles,
+      # with CMake (Linux has it from linux-deps.sh).
+      - name: CMake (libopus)
+        run: scripts/cmake-deps.sh
+        # Windows' default shell is PowerShell, which can't run the script.
+        shell: bash
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - run: cargo clippy --workspace --locked -- -D warnings
       # Everything but the app runs here too: the store, sync, server,

@@ -1,0 +1,22 @@
+[package]
+name = "kanso-audio"
+description = "Recordings on disk: Opus in Ogg, written as they happen, and decoded back for playback and transcription."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Reads and writes Ogg pages and packets (BSD-3-Clause, pure Rust).
+ogg = "0.9"
+# libopus (BSD-3-Clause) behind safe bindings (MIT/Apache-2.0). The bindings
+# build the vendored libopus source with CMake, so a build host needs cmake
+# on PATH (scripts/linux-deps.sh, and the release workflow's cmake step).
+opus = "0.4"
+# M4A, MP3, FLAC, WAV and the other formats Symphonia reads; Opus is not
+# among them, which is why libopus is here. The same decoders as kanso-voice.
+symphonia = { version = "0.5.5", default-features = false, features = ["aac", "adpcm", "aiff", "alac", "caf", "flac", "isomp4", "mp3", "ogg", "pcm", "vorbis", "wav"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
