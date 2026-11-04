@@ -450,7 +450,11 @@ impl Router<'_> {
     }
 
     fn settings_get(&mut self) -> Result<Value, Failure> {
-        Ok(crate::install::read_settings(self.plugin_dir))
+        Ok(crate::install::read_settings(
+            self.store,
+            self.plugin_dir,
+            self.plugin.id(),
+        ))
     }
 
     fn settings_set(&mut self, args: &Value) -> Result<Value, Failure> {
@@ -458,7 +462,7 @@ impl Router<'_> {
         if value.to_string().len() > MAX_SETTINGS_BYTES {
             return Err(Failure::new(CODE_LIMIT, "settings are at most 64 KB"));
         }
-        crate::install::write_settings(self.plugin_dir, &value).map_err(|e| {
+        crate::install::write_settings(self.store, self.plugin.id(), &value).map_err(|e| {
             Failure::new(kanso_plugin_host::protocol::CODE_UNAVAILABLE, e.to_string())
         })?;
         Ok(Value::Null)
