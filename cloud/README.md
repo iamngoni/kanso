@@ -27,6 +27,8 @@ and the counters behind quotas and rate limits; R2 holds sealed file bytes under
 | `/v2/collab/…` | yes | Shared notes: sharing, invitations, epochs, the log, snapshots, the live WebSocket, links, requests and notifications |
 | `GET /j/<link_id>` | | The page an invite link opens: "open Kanso and paste this link" |
 | `POST /v1/crash-reports` | | A crash report the person chose to send from the mobile apps ([docs/CRASH-REPORTS.md](../docs/CRASH-REPORTS.md)): no session, strictly validated, 204 stored, 5 an hour per address (`crash-ip`), kept 90 days, no IP or account stored |
+| `POST /v1/feedback`, `GET /v1/feedback`, `PUT /v1/feedback/<id>/screenshot`, `DELETE /v1/feedback/<id>` | session + device proof, or an anonymous key | In-app feedback ([docs/FEEDBACK.md](../docs/FEEDBACK.md)): strictly validated, stored privately in D1 and R2, triaged by Haiku through AI Gateway, filed as a public issue summary by a GitHub App; 10 a day per account, 5 per address for anonymous reporters; kept 180 days |
+| `POST /v1/github/webhook` | HMAC-signed | GitHub's `issues`, `pull_request` and `release` events, which move a report along *Filed, Building, Fix proposed, Merged, Released* |
 | `POST /v1/metrics` | | An anonymous usage count from the apps ([docs/METRICS.md](../docs/METRICS.md)): no session, strictly validated, 204 once valid (passed on to PostHog with the country, whether or not PostHog takes it; nothing without `POSTHOG_KEY`), 60 an hour per address (`metrics-ip`), nothing stored, no IP passed on |
 | `POST /v2/auth/passkey/start`, `/finish` | | Sign in with a passkey or security key |
 | `POST /v2/auth/passkey/signup/start`, `/finish` | | Create a passwordless account with a passkey |

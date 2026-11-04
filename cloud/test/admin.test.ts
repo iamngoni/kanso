@@ -55,9 +55,9 @@ describe("commands", () => {
 		for (const secret of [row!.auth_hash, row!.recovery_hash, row!.salt, row!.wrapped_key, alice.token]) expect(r.message).not.toContain(secret);
 	});
 
-	it("settings lists the thirteen settings", async () => {
+	it("settings lists the sixteen settings", async () => {
 		const r = await runAdmin(["settings"]);
-		expect(r.message.split("\n")).toHaveLength(14);
+		expect(r.message.split("\n")).toHaveLength(17);
 		expect(r.message).toContain("writes_per_day");
 		expect(r.message).toMatch(/upload_bytes_per_day +1073741824/);
 	});

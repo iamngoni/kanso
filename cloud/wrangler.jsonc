@@ -30,7 +30,9 @@
     { "name": "AUTH_LIMITER", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } },
     { "name": "SESSION_LIMITER", "namespace_id": "1002", "simple": { "limit": 120, "period": 60 } },
     // Published notes: /v2/public/* and the viewer page /p/*, keyed by IP group (src/shares.ts).
-    { "name": "PUBLIC_LIMITER", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } }
+    { "name": "PUBLIC_LIMITER", "namespace_id": "1003", "simple": { "limit": 60, "period": 60 } },
+    // In-app feedback (src/feedback.ts): /v1/feedback* for anonymous reporters, keyed by IP group.
+    { "name": "FEEDBACK_LIMITER", "namespace_id": "1004", "simple": { "limit": 5, "period": 60 } }
   ],
   "d1_databases": [
     {
@@ -97,7 +99,18 @@
     // Usage counts (docs/METRICS.md, src/metrics.ts) go to PostHog's EU host. The project's API
     // key is a secret, `wrangler secret put POSTHOG_KEY`; without it batches are checked and
     // nothing is sent.
-    "POSTHOG_HOST": "https://eu.i.posthog.com"
+    "POSTHOG_HOST": "https://eu.i.posthog.com",
+    // In-app feedback (docs/FEEDBACK.md). Triage runs through Cloudflare AI Gateway on unified billing,
+    // so there is no Anthropic key. CF_ACCOUNT_ID is a PLACEHOLDER: set the real account ID (32 hex
+    // characters) before deploying; while it isn't one, reports are stored and triage does nothing.
+    // TRIAGE_MODEL is a var, so a new Haiku is a config change. Secrets, each `wrangler secret put NAME`:
+    // AIG_TOKEN (the gateway's token), GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY (PKCS#8 PEM) and
+    // GITHUB_WEBHOOK_SECRET. Without the App's secrets nothing is filed.
+    "CF_ACCOUNT_ID": "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID",
+    "AIG_GATEWAY": "kanso-feedback",
+    "TRIAGE_MODEL": "claude-haiku-5-5",
+    "FEEDBACK_REPO": "iamngoni/kanso",
+    "FEEDBACK_OWNER": "iamngoni"
   }
   // AUTH_PEPPER (required) is a secret: `wrangler secret put AUTH_PEPPER` (reads stdin; see README.md).
   // SYNC_TOKEN is no longer read; `admin purge-legacy` deletes it.

@@ -64,4 +64,24 @@ export interface Env {
 	POSTHOG_KEY?: string;
 	/** Where usage counts go (a plain var, `https://eu.i.posthog.com`); batches are posted to `<host>/batch/`. */
 	POSTHOG_HOST?: string;
+	/** The write-free filter of /v1/feedback, keyed by IP group (anonymous) or account ID; absent in unit tests. */
+	FEEDBACK_LIMITER?: RateLimit;
+	/**
+	 * In-app feedback triage (docs/FEEDBACK.md). `CF_ACCOUNT_ID` and `AIG_GATEWAY` (vars) name the AI
+	 * Gateway; `AIG_TOKEN` (secret) is its authentication token. There is no Anthropic key: the gateway
+	 * bills through Cloudflare's unified billing. `TRIAGE_MODEL` is a var, so a new Haiku is a config change.
+	 * Without them, reports are stored and wait unprocessed.
+	 */
+	CF_ACCOUNT_ID?: string;
+	AIG_GATEWAY?: string;
+	AIG_TOKEN?: string;
+	TRIAGE_MODEL?: string;
+	/** The repository issues are filed on (a plain var, `iamngoni/kanso`), and the only repository the webhook accepts. */
+	FEEDBACK_REPO?: string;
+	/** The owner whose `build` label starts a build (a plain var, `iamngoni`). */
+	FEEDBACK_OWNER?: string;
+	/** The GitHub App "Kanso Feedback": its ID, its private key (PKCS#8 PEM) and the webhook secret. All secrets. */
+	GITHUB_APP_ID?: string;
+	GITHUB_APP_PRIVATE_KEY?: string;
+	GITHUB_WEBHOOK_SECRET?: string;
 }

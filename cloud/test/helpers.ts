@@ -27,6 +27,10 @@ export const SEEDED_SETTINGS: Record<string, string> = {
 	global_file_bytes: "50000000000",
 	global_writes_per_day: "300000",
 	global_upload_bytes_per_day: "5000000000",
+	// In-app feedback (migration 0016).
+	feedback_open: "1",
+	feedback_per_day: "200",
+	feedback_issues_per_day: "50",
 };
 
 /** The test clock every helper uses unless told otherwise. */
