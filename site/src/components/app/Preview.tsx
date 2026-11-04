@@ -4,7 +4,8 @@
  * be copied. Headings carry ids so quick open can scroll to them.
  */
 import { Check, Copy } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { renderMermaid } from "../../lib/mermaidRender";
 import { languageFor, scopeClass, tokenize } from "../../lib/codeHighlight";
 import { type Block, type Inline, parse } from "../../lib/markdown";
 import { useHighlighter } from "./useHighlighter";
@@ -40,6 +41,7 @@ function BlockView({ block, onToggleTask, onOpenWiki }: { block: Block } & Omit<
     case "hr":
       return <hr />;
     case "code":
+      if (block.lang.toLowerCase() === "mermaid") return <MermaidBlock code={block.v} />;
       return <CodeBlock lang={block.lang} code={block.v} />;
     case "table":
       return (
@@ -96,6 +98,51 @@ function BlockView({ block, onToggleTask, onOpenWiki }: { block: Block } & Omit<
       );
     }
   }
+}
+
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+/** Whether the page is in its dark theme; re-renders its caller when that changes. */
+function useDark(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      const query = window.matchMedia?.(DARK_QUERY);
+      query?.addEventListener("change", notify);
+      return () => query?.removeEventListener("change", notify);
+    },
+    () => window.matchMedia?.(DARK_QUERY).matches ?? false,
+    () => false,
+  );
+}
+
+/**
+ * A mermaid diagram. The code block shows while mermaid loads and whenever it
+ * can't draw the source, so there is never an error box or an empty gap.
+ */
+function MermaidBlock({ code }: { code: string }) {
+  const dark = useDark();
+  const [drawn, setDrawn] = useState<{ code: string; svg: string } | null>(null);
+  useEffect(() => {
+    let current = true;
+    renderMermaid(code, dark).then(
+      (svg) => current && setDrawn({ code, svg }),
+      () => current && setDrawn(null),
+    );
+    return () => {
+      current = false;
+    };
+  }, [code, dark]);
+  // Only a drawing of this exact source is shown; a theme change keeps the old drawing up until the new one is ready.
+  if (!drawn || drawn.code !== code) return <CodeBlock lang="mermaid" code={code} />;
+  return (
+    <div
+      role="img"
+      aria-label="Mermaid diagram"
+      data-testid="mermaid-diagram"
+      className="mermaid-diagram"
+      dangerouslySetInnerHTML={{ __html: drawn.svg }}
+    />
+  );
 }
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {

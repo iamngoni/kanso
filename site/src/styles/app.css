@@ -245,6 +245,18 @@
     background: var(--code);
     overflow-x: auto;
   }
+  .prose-note .mermaid-diagram {
+    padding: 1em;
+    border-radius: 0.5em;
+    background: var(--code);
+    overflow-x: auto;
+  }
+  .prose-note .mermaid-diagram svg {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+  }
   .prose-note pre code {
     padding: 0;
     background: none;
