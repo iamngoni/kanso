@@ -49,7 +49,7 @@ impl Credentials {
     }
 }
 
-fn decode_basic(header: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn decode_basic(header: &[u8]) -> Option<Vec<u8>> {
     let header = std::str::from_utf8(header).ok()?.trim();
     let (scheme, token) = header.split_once(' ')?;
     if !scheme.eq_ignore_ascii_case("basic") {
@@ -67,7 +67,7 @@ pub fn basic_header(username: &str, password: &str) -> String {
 }
 
 /// The token of a `Bearer` header value.
-fn bearer(header: &[u8]) -> Option<&str> {
+pub(crate) fn bearer(header: &[u8]) -> Option<&str> {
     let header = std::str::from_utf8(header).ok()?.trim();
     let (scheme, token) = header.split_once(' ')?;
     scheme

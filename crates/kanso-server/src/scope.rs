@@ -20,10 +20,11 @@ use std::time::Duration;
 
 use kanso_core::model::{LOCK_FIELD, PUBLISH_FIELD, SHARE_FIELD, TRASH_BOOK_ID};
 use kanso_core::{DocType, Note};
-use kanso_store::Store;
+use kanso_store::{KeyAccess, Store};
 use serde_json::Value;
 
 use crate::changeset::TaskId;
+use crate::key_model::KeyId;
 use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
@@ -317,6 +318,13 @@ pub enum Caller {
     /// An agent's token.
     Agent {
         token: TokenId,
+        scope: Arc<AgentScope>,
+    },
+    /// An API key (issue #243): what it may do is its `access` and, for
+    /// reading, its `scope`. Nothing hands this out until step 4.
+    Key {
+        id: KeyId,
+        access: KeyAccess,
         scope: Arc<AgentScope>,
     },
 }
