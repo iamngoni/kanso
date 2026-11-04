@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc b0c04c89fcea32c6b6754a5e95a927b657c204ff50de15323415a1d64ae156e4 # shrinks to problem = ServerBusy { until: 0 }, conflicts = 0, at = 0
+cc 5b9dd74d321c5c2caf0055fa05db4d5c08725482c89bf12bfab6606f310685eb # shrinks to problem = TooLarge { count: 1 }, conflicts = 0, at = 0
+cc dcabe920fcd8f3302f1e2608585f9de51fd15cb704e673f273480c8ac8c2ec4f # shrinks to problem = TooLarge { count: 1 }, conflicts = 0, at = 0

@@ -86,6 +86,9 @@ pub mod editor_settings;
 #[cfg(feature = "ai")]
 pub mod entities;
 pub mod export;
+pub mod feedback;
+pub mod feedback_flow;
+pub mod feedback_model;
 #[cfg(feature = "ai")]
 pub mod flashcards;
 pub mod fuzzy;

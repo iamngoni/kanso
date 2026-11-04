@@ -21,6 +21,7 @@ pub mod binding;
 pub mod crypto;
 mod engine;
 pub mod events;
+pub mod feedback;
 mod http;
 pub mod keychain;
 pub mod lock;

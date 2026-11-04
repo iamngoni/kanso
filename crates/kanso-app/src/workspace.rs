@@ -66,6 +66,7 @@ actions!(
         ExportNote,
         ExportHtml,
         ExportPdf,
+        AttachPdf,
         ExportLibrary,
         SyncNow,
         ShowSignIn,
@@ -307,6 +308,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::separator(),
             MenuItem::action("Open…", OpenFile),
             MenuItem::action("Import…", ImportLibrary),
+            MenuItem::action("Attach PDF…", AttachPdf),
             MenuItem::separator(),
             MenuItem::action("Save", SaveNote),
             MenuItem::action("Export Note…", ExportNote),
@@ -359,10 +361,12 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Copy Kanso Link", CopyKansoLink),
         ]),
         Menu::new("View").items(view_menu(cx)),
-        Menu::new("Help").items([MenuItem::action(
-            "What's New in Kanso",
-            crate::updates::ShowWhatsNew,
-        )]),
+        Menu::new("Help").items([
+            MenuItem::action("What's New in Kanso", crate::updates::ShowWhatsNew),
+            MenuItem::separator(),
+            MenuItem::action("Send Feedback…", crate::feedback_sheet::SendFeedback),
+            MenuItem::action("My Feedback", crate::feedback_sheet::MyFeedback),
+        ]),
     ]);
     crate::title_bar::publish_menus(cx);
 }
@@ -3021,6 +3025,11 @@ impl Render for Workspace {
                 this.close_settings(window, cx);
                 this.export_page(false, window, cx);
             }))
+            .on_action(cx.listener(|this, _: &AttachPdf, window, cx| {
+                this.close_settings(window, cx);
+                this.editor
+                    .update(cx, |editor, cx| editor.attach_pdf_dialog(window, cx));
+            }))
             .on_action(cx.listener(|this, _: &ExportPdf, window, cx| {
                 this.close_settings(window, cx);
                 this.export_page(true, window, cx);
@@ -3213,6 +3222,7 @@ impl Render for Workspace {
             .map(|el| crate::publish_site::on_actions(el, cx))
             .map(|el| crate::replace::on_actions(el, cx))
             .map(|el| crate::updates::on_actions(el, cx))
+            .map(|el| crate::feedback_sheet::on_actions(el, cx))
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
             .map(|el| crate::triage_view::on_actions(el, cx))

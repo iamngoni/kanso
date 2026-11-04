@@ -17,6 +17,7 @@ import 'package:kanso/core/state/account/account_bloc.dart';
 import 'package:kanso/core/state/appearance/appearance_bloc.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
 import 'package:kanso/core/state/sync_status/sync_status_bloc.dart';
+import 'package:kanso/feedback/state/my_feedback/my_feedback_bloc.dart';
 import 'package:kanso/lock/state/biometrics/biometrics_bloc.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/push/state/push_setting/push_setting_bloc.dart';
@@ -93,6 +94,7 @@ Future<GoRouter> _pump(
         BlocProvider<SyncStatusBloc>.value(value: syncBloc),
         BlocProvider<SyncSettingsBloc>.value(value: startedSyncSettingsBloc()),
         BlocProvider<AboutBloc>.value(value: aboutBloc),
+        BlocProvider<MyFeedbackBloc>.value(value: settings.myFeedback),
         BlocProvider<LibraryIndexBloc>.value(value: index),
         BlocProvider<DefaultNotebookBloc>.value(value: defaultNotebook),
         BlocProvider<WordGoalSettingsBloc>.value(value: settings.wordGoal),

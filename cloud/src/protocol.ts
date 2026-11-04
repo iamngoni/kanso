@@ -13,7 +13,8 @@ export const MIN_SEALED = 55;
 /** Keeps a D1 row under 2 MB. */
 export const MAX_SEALED = 1_900_000;
 export const MIN_SEALED_FILE = 41;
-export const MAX_SEALED_FILE = 10_485_801 + 4_096;
+// 50 MiB (the PDF limit) + 41 + 4 KiB of container allowance; the server cannot tell a PDF from sealed bytes.
+export const MAX_SEALED_FILE = 50 * 1024 * 1024 + 41 + 4_096;
 export const DEFAULT_CHANGES_LIMIT = 100;
 export const MAX_CHANGES_LIMIT = 500;
 /** Sealed text per changes page, and per push response. */

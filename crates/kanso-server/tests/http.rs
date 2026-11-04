@@ -356,6 +356,65 @@ async fn malformed_and_oversized_bodies_are_rejected() {
     assert_eq!(send(&app.router, request).await.status, StatusCode::OK);
 }
 
+/// A 50 MiB PDF in base64 is over the 16 MiB every other route takes: the
+/// attachment routes alone take up to `MAX_ATTACHMENT_BODY_BYTES`, and the
+/// store then holds the file to its own limit.
+// no-prop-test: fixed sizes either side of the two body limits.
+#[tokio::test]
+async fn attachment_uploads_take_a_fifty_mib_pdf() {
+    let app = app();
+    let mut pdf = b"%PDF-1.7\n".to_vec();
+    pdf.resize(kanso_core::model::MAX_PDF_SIZE, b' ');
+    let file = |pdf: &[u8]| {
+        json!({
+            "name": "big.pdf", "contentType": "application/pdf", "publicIn": [],
+            "_attachments": { "index": { "content_type": "application/pdf", "data": STANDARD.encode(pdf) } }
+        })
+        .to_string()
+    };
+    let upload = |uri: &str, body: String| {
+        Request::builder()
+            .method(Method::POST)
+            .uri(uri)
+            .header(header::AUTHORIZATION, basic_header(USER, PASS))
+            .body(Body::from(body))
+            .unwrap()
+    };
+    let body = file(&pdf);
+    assert!(body.len() > kanso_server::MAX_BODY_BYTES);
+    let response = send(&app.router, upload("/files", body.clone())).await;
+    assert_eq!(response.status, StatusCode::OK, "{:?}", response.json());
+    let id = response.json()["id"].as_str().unwrap().to_owned();
+    for uri in [
+        format!("/{id}"),
+        format!("/file/{}", &id[5..]),
+        format!("/file%3A{}", &id[5..]),
+    ] {
+        let response = send(&app.router, upload(&uri, body.clone())).await;
+        assert_ne!(response.status, StatusCode::PAYLOAD_TOO_LARGE, "{uri}");
+    }
+
+    // The same bytes to a note route are still too large.
+    let response = send(&app.router, upload("/notes", body)).await;
+    assert_eq!(response.status, StatusCode::PAYLOAD_TOO_LARGE);
+
+    // One byte over the PDF limit: the store refuses it in words.
+    pdf.push(b' ');
+    let response = send(&app.router, upload("/files", file(&pdf))).await;
+    assert_eq!(
+        response.status,
+        StatusCode::BAD_REQUEST,
+        "{:?}",
+        response.json()
+    );
+
+    // Over the attachment body limit: refused before the store sees it.
+    let huge = "a".repeat(kanso_server::MAX_ATTACHMENT_BODY_BYTES + 1);
+    let response = send(&app.router, upload("/files", huge)).await;
+    assert_eq!(response.status, StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(response.json()["error"], "too_large");
+}
+
 #[tokio::test]
 async fn note_lists_honour_keyword_limit_skip_and_sort() {
     let app = app();

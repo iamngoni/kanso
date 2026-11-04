@@ -23,7 +23,7 @@ pub fn problem_label(problem: &SyncProblem) -> &'static str {
         SyncProblem::QuotaExceeded(_) => "Account full",
         SyncProblem::ServerFull => "Server full",
         SyncProblem::Skipped { .. } => "Some items skipped",
-        SyncProblem::TooLarge { .. } => "Some files not synced",
+        SyncProblem::TooLarge { .. } => "Some items not synced",
         SyncProblem::UpdateKanso => "Update Kanso",
         SyncProblem::WrongKey => "Keys don't match",
         SyncProblem::ServerOutdated => "Server needs an update",
@@ -113,11 +113,11 @@ pub fn problem_help(problem: &SyncProblem, resume: impl FnOnce(i64) -> String) -
             "{count} items on the server couldn't be read. They were skipped; your copies here are unchanged."
         ),
         SyncProblem::TooLarge { count: 1 } => {
-            "1 file is larger than the server takes (10 MB). It stays on this device; everything else syncs."
+            "1 item is too large to sync. Attachments can be up to 10 MB and PDFs up to 50 MB. It stays on this device; everything else syncs."
                 .to_owned()
         }
         SyncProblem::TooLarge { count } => format!(
-            "{count} files are larger than the server takes (10 MB). They stay on this device; everything else syncs."
+            "{count} items are too large to sync. Attachments can be up to 10 MB and PDFs up to 50 MB. They stay on this device; everything else syncs."
         ),
         SyncProblem::UpdateKanso => {
             "Another device uses a newer Kanso. Update this one to keep syncing.".to_owned()
@@ -316,7 +316,7 @@ mod tests {
             ),
             (
                 SyncProblem::TooLarge { count: 2 },
-                "2 files are larger than the server takes (10 MB). They stay on this device; everything else syncs.",
+                "2 items are too large to sync. Attachments can be up to 10 MB and PDFs up to 50 MB. They stay on this device; everything else syncs.",
             ),
             (
                 SyncProblem::UpdateKanso,

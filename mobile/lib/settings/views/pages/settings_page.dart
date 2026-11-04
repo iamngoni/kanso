@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_page.dart';
+import '../../../feedback/state/my_feedback/my_feedback_bloc.dart';
 import '../../../injection.dart';
 import '../../../push/state/push_setting/push_setting_bloc.dart';
 import '../../../shell/models/data/kanso_intent.dart';
@@ -26,6 +27,10 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: <BlocProvider<dynamic>>[
+        BlocProvider<MyFeedbackBloc>(
+          create: (_) =>
+              getIt<MyFeedbackBloc>()..add(const MyFeedbackEvent.started()),
+        ),
         BlocProvider<PushSettingBloc>(
           create: (context) =>
               getIt<PushSettingBloc>()..add(const PushSettingEvent.started()),

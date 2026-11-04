@@ -16,17 +16,19 @@ import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_large_title.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
+import '../../../feedback/views/widgets/feedback_settings_section.dart';
 import '../../../push/views/widgets/push_setting_notice_host.dart';
 import 'settings_sync_section.dart';
 
 /// Settings: a close button, a large title, the account and sync, and then
 /// a row for each category of settings, which opens it on a page of its own
 /// (General, Appearance, Daily notes and reminders, Discovery, the AI and
-/// voice pages, Privacy and security, About).
+/// voice pages, Privacy and security, About). Feedback stays here too, as
+/// something to do rather than a setting.
 ///
 /// Sync stays here, since it is what is looked at most. It needs the app's
 /// `AccountBloc`, `SyncStatusBloc`, `SyncSettingsBloc` and `AiStatusBloc`,
-/// and a `PushSettingBloc` above it.
+/// and a `PushSettingBloc` and a `MyFeedbackBloc` above it.
 class SettingsPane extends StatelessWidget {
   const SettingsPane({super.key});
 
@@ -126,6 +128,8 @@ class SettingsPane extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: KansoSpacing.lg),
+                    const FeedbackSettingsSection(dividerIndent: iconInset),
                     const SizedBox(height: KansoSpacing.lg),
                     KansoGroupedSection(
                       dividerIndent: iconInset,
