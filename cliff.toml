@@ -18,7 +18,9 @@ body = """
 {#- Entries by anyone else end "by @login" (their GitHub no-reply address)
     or "by Name", so each feature is credited to whoever made it. -#}
 {#- "Kanso Audit" is the owner's own coding agents committing for him. -#}
-{%- set owners = ["@iamngoni", "Ngonidzashe Mangudya", "Kanso Audit"] -%}
+{#- The feedback build agent (.github/workflows/feedback-build.yml) commits as the
+    Claude app; the person who reported the problem is credited by the trailer below. -#}
+{%- set owners = ["@iamngoni", "Ngonidzashe Mangudya", "Kanso Audit", "@claude[bot]"] -%}
 {% if version -%}
 ## [{{ version | trim_start_matches(pat="v") }}]\
 ({% if previous.version %}{{ repo }}/compare/{{ previous.version }}...{{ version }}\
@@ -42,6 +44,19 @@ body = """
 {%- set who = commit.author.name | default(value="") -%}
 {%- endif -%}
 {%- if who and who not in owners %} by {{ who }}{% endif %}
+{#- A feedback fix is committed by the owner's agent, so the person who reported it is
+    credited by the "Reported-by: Name (in app)" trailer: a plain name, never an @-mention
+    (no GitHub ping, no account implied). A squash merge would drop the trailer.
+    Anyone can write a trailer (an agent steered by an issue, any contributor's commit), so
+    only a name the Worker would accept is printed (cloud/src/feedback.ts CREDIT_NAME:
+    letters, digits, space, ". _ -", 1 to 39). Anything else (links, HTML, entities, "@",
+    backticks) prints no credit at all. -#}
+{%- for f in commit.footers -%}
+{%- if f.token == "Reported-by" -%}
+{%- set reporter = f.value | split(pat=" (") | first | trim -%}
+{%- if reporter is matching("^[\\p{L}\\p{N} ._-]{1,39}$") %}, reported by {{ reporter }}{% endif -%}
+{%- endif -%}
+{%- endfor %}
 {%- endfor %}
 {% endfor %}
 """

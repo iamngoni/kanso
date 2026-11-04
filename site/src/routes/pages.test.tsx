@@ -97,4 +97,27 @@ describe("Privacy", () => {
       `${REPOSITORY_URL}/blob/master/docs/METRICS.md`,
     );
   });
+
+  it("explains feedback: what's sent, what's never sent, who reads it, how long it's kept", () => {
+    const { container } = render(<Privacy />);
+    const section = container.querySelector("section#feedback") as HTMLElement;
+    expect(within(section).getByRole("heading", { level: 2, name: "Feedback" })).toBeInTheDocument();
+    expect(within(section).getByRole("heading", { level: 3, name: "It sends" })).toBeInTheDocument();
+    expect(within(section).getByRole("heading", { level: 3, name: "It never sends" })).toBeInTheDocument();
+    expect(within(section).getByText(/Note titles or text, notebook or tag names, file names or your library/)).toBeInTheDocument();
+    expect(within(section).getByText(/Your email address, your IP address or a device ID/)).toBeInTheDocument();
+    expect(within(section).getByRole("heading", { level: 3, name: "Your report stays private" })).toBeInTheDocument();
+    expect(within(section).getByText(/never\s+put on GitHub/)).toBeInTheDocument();
+    expect(within(section).getByText(/Claude Haiku, from Anthropic.*Cloudflare AI Gateway/s)).toBeInTheDocument();
+    expect(within(section).getByText(/short summary as an issue on Kanso's GitHub/)).toBeInTheDocument();
+    expect(within(section).getByText(/deleted 180 days after/)).toBeInTheDocument();
+    expect(within(section).getByText(/delete a report yourself at any time/)).toBeInTheDocument();
+    // A merged "Reported-by" trailer can't be taken back; the page must not promise it can.
+    expect(within(section).getByText(/stays in Kanso's code history and in that release's notes for good/)).toBeInTheDocument();
+    expect(within(section).getByText(/not out of fixes that\s+already shipped/)).toBeInTheDocument();
+    expect(within(section).getByRole("link", { name: "the feedback document" })).toHaveAttribute(
+      "href",
+      `${REPOSITORY_URL}/blob/master/docs/FEEDBACK.md`,
+    );
+  });
 });
