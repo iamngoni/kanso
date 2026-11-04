@@ -445,6 +445,22 @@ CREATE TABLE IF NOT EXISTS pdf_page_text (
     PRIMARY KEY (file_id, page)
 ) WITHOUT ROWID;
 "#,
+    // API keys (issue #243): the keys that open the local API. Local, never
+    // synced, so a key works on one computer only. Only the SHA-256 of a key
+    // is stored; the key itself is shown once, when it is made.
+    r#"
+CREATE TABLE IF NOT EXISTS api_keys (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    client TEXT NOT NULL,
+    token_hash BLOB NOT NULL UNIQUE,
+    access TEXT NOT NULL CHECK (access IN ('read', 'suggest', 'write')),
+    books TEXT,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
+    revoked_at INTEGER
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked

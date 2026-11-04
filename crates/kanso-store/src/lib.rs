@@ -5,6 +5,8 @@
 //! `BEGIN IMMEDIATE`; reads use a small pool of connections. Each committed
 //! write is broadcast to subscribers as a [`Change`].
 
+mod api_keys;
+mod api_keys_model;
 mod backup;
 mod cards;
 mod cards_model;
@@ -46,6 +48,7 @@ use std::sync::Mutex;
 
 use rusqlite::Connection;
 
+pub use api_keys_model::{ApiKeyRow, KeyAccess, LiveKey, NewApiKey};
 pub use backup::{BackupName, BackupPolicy, backup_name};
 pub use cards_model::{
     CardCounts, CardScope, CardSettings, CardStats, DueCard, HardCard, NoteCard,

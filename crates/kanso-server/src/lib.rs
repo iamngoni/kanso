@@ -21,6 +21,8 @@ mod api;
 mod auth;
 mod changeset;
 mod error;
+mod key_model;
+mod keys;
 mod mcp;
 mod proposal;
 mod rest;
@@ -47,6 +49,9 @@ pub use changeset::{
     AppliedSet, ApplyFailure, ChangeSet, ChangeSets, Counts, MergeTarget, OpKind, OpState,
     ProposedOp, Selection, TaskId, undo as undo_changes,
 };
+pub use kanso_store::KeyAccess;
+pub use key_model::{KEY_LEN, KEY_PREFIX, KeyId, MintedKey, NewKey};
+pub use keys::{KeyStore, key_from_header};
 pub use proposal::{Applied, ApplyError, ChangeId, NewChange, ProposedChange};
 pub use review::{EXPIRY as REVIEW_EXPIRY, ReviewEvent, ReviewQueue};
 pub use scope::{

@@ -50,6 +50,9 @@ const METHOD_NOT_FOUND: i64 = -32601;
 const INVALID_PARAMS: i64 = -32602;
 const INTERNAL_ERROR: i64 = -32603;
 const SERVER_ERROR: i64 = -32000;
+/// API keys are minted and verified (issue #243, step 3) but no gate lets
+/// one in until step 4 wires them to the tools.
+const KEY_NOT_YET: &str = "API keys are not accepted here yet.";
 
 /// A JSON-RPC error answer.
 pub(crate) struct RpcError {
@@ -236,6 +239,8 @@ fn call(
         "ping" => Ok(json!({})),
         "tools/list" => match caller {
             Caller::Full => Ok(json!({ "tools": schema::definitions() })),
+            // Keys are not accepted by the gate yet (issue #243, step 4).
+            Caller::Key { .. } => Ok(json!({ "tools": [] })),
             Caller::Agent { scope, .. } => {
                 let offered: Vec<&Value> = schema::agent_definitions()
                     .as_array()
@@ -256,6 +261,7 @@ fn call(
             })?;
             match caller {
                 Caller::Full => Ok(tools::call(state, None, name, param("arguments"))),
+                Caller::Key { .. } => Err(RpcError::new(INVALID_REQUEST, KEY_NOT_YET)),
                 Caller::Agent { token, scope } => Ok(crate::agent_tools::call_with_state(
                     state,
                     *token,
@@ -280,6 +286,7 @@ fn call(
             })?;
             match caller {
                 Caller::Full => tools::read_resource(state, None, uri),
+                Caller::Key { .. } => Err(RpcError::new(INVALID_REQUEST, KEY_NOT_YET)),
                 Caller::Agent { token, scope } => {
                     let visible = crate::scope::Visibility::new(&state.store, scope);
                     let Some(visible) = visible else {
