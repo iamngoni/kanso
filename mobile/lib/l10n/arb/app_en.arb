@@ -7838,30 +7838,6 @@
   "@feedbackStepFiled": {
     "description": "A step a report goes through: made into an issue."
   },
-  "playerCardLabel": "Recording player",
-  "@playerCardLabel": {
-    "description": "The card over a recording in a note: its screen-reader name."
-  },
-  "playerPlay": "Play",
-  "@playerPlay": {
-    "description": "Starts playing a recording."
-  },
-  "playerPause": "Pause",
-  "@playerPause": {
-    "description": "Pauses a recording that is playing."
-  },
-  "playerPosition": "Position in the recording",
-  "@playerPosition": {
-    "description": "What a screen reader calls the scrubber."
-  },
-  "playerPositionValue": "{elapsed} of {total}",
-  "@playerPositionValue": {
-    "description": "The scrubber's value for a screen reader: how far along the recording is.",
-    "placeholders": {
-      "elapsed": {
-        "type": "String"
-      },
-      "total": {,
   "libraryCanvases": "Canvases",
   "@libraryCanvases": {
     "description": "The library row and list for canvases."
@@ -7979,49 +7955,6 @@
       }
     }
   },
-  "playerBack": "Back 5 seconds",
-  "@playerBack": {
-    "description": "Skips back in a recording."
-  },
-  "playerForward": "Forward 5 seconds",
-  "@playerForward": {
-    "description": "Skips ahead in a recording."
-  },
-  "playerSpeed": "Playback speed",
-  "@playerSpeed": {
-    "description": "The button that cycles a recording's speed: 0.75x, 1x, 1.25x, 1.5x, 2x."
-  },
-  "playerVolume": "Volume",
-  "@playerVolume": {
-    "description": "The recording player's volume slider."
-  },
-  "playerMute": "Mute",
-  "@playerMute": {
-    "description": "Turns the recording's sound off."
-  },
-  "playerUnmute": "Unmute",
-  "@playerUnmute": {
-    "description": "Turns the recording's sound back on."
-  },
-  "playerNotHere": "Audio not on this device yet",
-  "@playerNotHere": {
-    "description": "Shown where a recording's player would be when its audio hasn't arrived by sync."
-  },
-  "playerSyncNow": "Sync Now",
-  "@playerSyncNow": {
-    "description": "Fetches the audio that hasn't arrived yet."
-  },
-  "playerMissing": "This recording's audio is missing",
-  "@playerMissing": {
-    "description": "Shown where the player would be when the audio is gone."
-  },
-  "playerFailed": "Couldn't play the recording",
-  "@playerFailed": {
-    "description": "Shown where the player would be when the speaker or the file failed."
-  },
-  "playerTryAgain": "Try Again",
-  "@playerTryAgain": {
-    "description": "Opens a recording that failed to play once more.",
   "overviewTick": "Tick off {title}",
   "@overviewTick": {
     "description": "The spoken label of the box of an agenda task.",
@@ -8306,5 +8239,77 @@
   "settingsOverviewMore": "One day more",
   "@settingsOverviewMore": {
     "description": "Raises the quiet days by one."
+  },
+  "playerCardLabel": "Recording player",
+  "@playerCardLabel": {
+    "description": "The card over a recording in a note: its screen-reader name."
+  },
+  "playerPlay": "Play",
+  "@playerPlay": {
+    "description": "Starts playing a recording."
+  },
+  "playerPause": "Pause",
+  "@playerPause": {
+    "description": "Pauses a recording that is playing."
+  },
+  "playerPosition": "Position in the recording",
+  "@playerPosition": {
+    "description": "What a screen reader calls the scrubber."
+  },
+  "playerPositionValue": "{elapsed} of {total}",
+  "@playerPositionValue": {
+    "description": "The scrubber's value for a screen reader: how far along the recording is.",
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "playerBack": "Back 5 seconds",
+  "@playerBack": {
+    "description": "Skips back in a recording."
+  },
+  "playerForward": "Forward 5 seconds",
+  "@playerForward": {
+    "description": "Skips ahead in a recording."
+  },
+  "playerSpeed": "Playback speed",
+  "@playerSpeed": {
+    "description": "The button that cycles a recording's speed: 0.75x, 1x, 1.25x, 1.5x, 2x."
+  },
+  "playerVolume": "Volume",
+  "@playerVolume": {
+    "description": "The recording player's volume slider."
+  },
+  "playerMute": "Mute",
+  "@playerMute": {
+    "description": "Turns the recording's sound off."
+  },
+  "playerUnmute": "Unmute",
+  "@playerUnmute": {
+    "description": "Turns the recording's sound back on."
+  },
+  "playerNotHere": "Audio not on this device yet",
+  "@playerNotHere": {
+    "description": "Shown where a recording's player would be when its audio hasn't arrived by sync."
+  },
+  "playerSyncNow": "Sync Now",
+  "@playerSyncNow": {
+    "description": "Fetches the audio that hasn't arrived yet."
+  },
+  "playerMissing": "This recording's audio is missing",
+  "@playerMissing": {
+    "description": "Shown where the player would be when the audio is gone."
+  },
+  "playerFailed": "Couldn't play the recording",
+  "@playerFailed": {
+    "description": "Shown where the player would be when the speaker or the file failed."
+  },
+  "playerTryAgain": "Try Again",
+  "@playerTryAgain": {
+    "description": "Opens a recording that failed to play once more."
   }
 }
