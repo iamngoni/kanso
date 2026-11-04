@@ -92,7 +92,12 @@ class TriageChip {
           isNew == other.isNew;
 }
 
-enum TriageField { notebook, tag, title, link }
+enum TriageField {
+  notebook,
+  tag,
+  title,
+  link,
+}
 
 class TriageFiled {
   final int undo;
@@ -169,13 +174,20 @@ class TriageFiling {
           accepted == other.accepted;
 }
 
-enum TriageMissing { nothing, relatedOff, notRead }
+enum TriageMissing {
+  nothing,
+  relatedOff,
+  notRead,
+}
 
 class TriageNote {
   final String id;
   final String title;
 
-  const TriageNote({required this.id, required this.title});
+  const TriageNote({
+    required this.id,
+    required this.title,
+  });
 
   @override
   int get hashCode => id.hashCode ^ title.hashCode;

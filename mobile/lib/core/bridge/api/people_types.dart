@@ -49,7 +49,10 @@ class PageHidden {
   final String key;
   final String title;
 
-  const PageHidden({required this.key, required this.title});
+  const PageHidden({
+    required this.key,
+    required this.title,
+  });
 
   @override
   int get hashCode => key.hashCode ^ title.hashCode;
@@ -208,7 +211,13 @@ class PageSection {
           staleLine == other.staleLine;
 }
 
-enum PageSectionState { fresh, stale, pinned, unwritten, off }
+enum PageSectionState {
+  fresh,
+  stale,
+  pinned,
+  unwritten,
+  off,
+}
 
 class PageSource {
   final String noteId;
@@ -281,13 +290,19 @@ class PageTask {
           checked == other.checked;
 }
 
-enum PeopleKind { person, project }
+enum PeopleKind {
+  person,
+  project,
+}
 
 class PeopleMerged {
   final String into;
   final int linksRetitled;
 
-  const PeopleMerged({required this.into, required this.linksRetitled});
+  const PeopleMerged({
+    required this.into,
+    required this.linksRetitled,
+  });
 
   @override
   int get hashCode => into.hashCode ^ linksRetitled.hashCode;
