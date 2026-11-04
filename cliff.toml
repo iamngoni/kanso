@@ -46,11 +46,15 @@ body = """
 {%- if who and who not in owners %} by {{ who }}{% endif %}
 {#- A feedback fix is committed by the owner's agent, so the person who reported it is
     credited by the "Reported-by: Name (in app)" trailer: a plain name, never an @-mention
-    (no GitHub ping, no account implied). A squash merge would drop the trailer. -#}
+    (no GitHub ping, no account implied). A squash merge would drop the trailer.
+    Anyone can write a trailer (an agent steered by an issue, any contributor's commit), so
+    only a name the Worker would accept is printed (cloud/src/feedback.ts CREDIT_NAME:
+    letters, digits, space, ". _ -", 1 to 39). Anything else (links, HTML, entities, "@",
+    backticks) prints no credit at all. -#}
 {%- for f in commit.footers -%}
 {%- if f.token == "Reported-by" -%}
-{%- set reporter = f.value | split(pat=" (") | first | replace(from="@", to="") | trim -%}
-{%- if reporter %}, reported by {{ reporter }}{% endif -%}
+{%- set reporter = f.value | split(pat=" (") | first | trim -%}
+{%- if reporter is matching("^[\\p{L}\\p{N} ._-]{1,39}$") %}, reported by {{ reporter }}{% endif -%}
 {%- endif -%}
 {%- endfor %}
 {%- endfor %}

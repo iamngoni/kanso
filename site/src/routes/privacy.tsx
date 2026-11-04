@@ -242,14 +242,15 @@ export function Privacy() {
           <p className="mt-4 text-fg-2">
             Unless the report is noise or a repeat, the server files a short summary as an issue on Kanso's GitHub, written by the
             model and never your own words or your screenshot. If you chose to be credited, the issue and the release notes say
-            "Reported by" and your name as plain text, never as a GitHub account.
+            "Reported by" and your name as plain text, never as a GitHub account. Once a fix that credits you ships, your name
+            stays in Kanso's code history and in that release's notes for good.
           </p>
           <h3 className="mt-12 text-[0.8125rem] font-semibold text-fg-3">How long it is kept, and deleting it</h3>
           <p className="mt-4 text-fg-2">
             The text, app info, name and screenshot are deleted 180 days after the report's last change. What remains is its
             status, so you can still see that it was fixed. You can delete a report yourself at any time from My feedback in the
-            app, and deleting your account deletes your reports and takes your name off the issues. The summary on GitHub stays,
-            because it holds none of your words. A report sent without an account can be deleted from the device that sent it; if
+            app, and deleting your account deletes your reports and takes your name off the issues, but not out of fixes that
+            already shipped. The summary on GitHub stays, because it holds none of your words. A report sent without an account can be deleted from the device that sent it; if
             you lost that device, email the developer with the report's ID.
           </p>
           <p className="mt-4 text-[0.9375rem] text-fg-3">

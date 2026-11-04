@@ -1,9 +1,11 @@
 # Paths an automated build (.github/workflows/feedback-build.yml) must never change
 # alone. With "Require review from Code Owners" on master (docs/FEEDBACK.md, owner
 # setup), a pull request touching any of them needs the owner. Keep this list in step
-# with the PROTECTED pattern in that workflow and the rules in .github/feedback/BUILD.md.
+# with PROTECTED in .github/feedback/verify-branch.sh and the rules in .github/feedback/BUILD.md.
 
 /.github/**                        @iamngoni
+/.gitmodules                       @iamngoni
+/.feedback/**                      @iamngoni
 /cloud/wrangler*                   @iamngoni
 /scripts/*release*                 @iamngoni
 /scripts/mobile-release/**         @iamngoni

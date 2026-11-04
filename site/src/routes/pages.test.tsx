@@ -112,6 +112,9 @@ describe("Privacy", () => {
     expect(within(section).getByText(/short summary as an issue on Kanso's GitHub/)).toBeInTheDocument();
     expect(within(section).getByText(/deleted 180 days after/)).toBeInTheDocument();
     expect(within(section).getByText(/delete a report yourself at any time/)).toBeInTheDocument();
+    // A merged "Reported-by" trailer can't be taken back; the page must not promise it can.
+    expect(within(section).getByText(/stays in Kanso's code history and in that release's notes for good/)).toBeInTheDocument();
+    expect(within(section).getByText(/not out of fixes that\s+already shipped/)).toBeInTheDocument();
     expect(within(section).getByRole("link", { name: "the feedback document" })).toHaveAttribute(
       "href",
       `${REPOSITORY_URL}/blob/master/docs/FEEDBACK.md`,
