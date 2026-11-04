@@ -403,6 +403,8 @@ fn prefs_of(s: &BriefSettings) -> BriefPrefs {
         notify_brief: s.notify_brief,
         notify_review: s.notify_review,
         mark_done_in_note: s.mark_done_in_note,
+        open_to_overview: s.open_to == brief::OpenTo::Overview,
+        quiet_days: s.quiet_days,
     }
 }
 
@@ -420,6 +422,12 @@ fn settings_of(p: &BriefPrefs) -> BriefSettings {
         notify_brief: p.notify_brief,
         notify_review: p.notify_review,
         mark_done_in_note: p.mark_done_in_note,
+        open_to: if p.open_to_overview {
+            brief::OpenTo::Overview
+        } else {
+            brief::OpenTo::LastNote
+        },
+        quiet_days: p.quiet_days,
     }
 }
 

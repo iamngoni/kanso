@@ -109,14 +109,9 @@ class TasksFilterSheet extends StatelessWidget {
                             KansoRoutes.loops,
                           ),
                           (
-                            KansoIcons.clock,
-                            l10n.digestBriefTitle,
-                            KansoRoutes.brief,
-                          ),
-                          (
-                            KansoIcons.calendarDays,
-                            l10n.digestReviewTitle,
-                            KansoRoutes.review,
+                            KansoIcons.compass,
+                            l10n.overviewTitle,
+                            KansoRoutes.overview,
                           ),
                         ])
                       KansoSettingsRow(

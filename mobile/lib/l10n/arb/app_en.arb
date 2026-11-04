@@ -7837,5 +7837,351 @@
   "feedbackStepFiled": "Filed",
   "@feedbackStepFiled": {
     "description": "A step a report goes through: made into an issue."
+  },
+  "overviewTitle": "Overview",
+  "@overviewTitle": {
+    "description": "The title of Kanso's home page."
+  },
+  "overviewToday": "Today",
+  "@overviewToday": {
+    "description": "The Today view of Overview, and the heading of its agenda."
+  },
+  "overviewThisWeek": "This week",
+  "@overviewThisWeek": {
+    "description": "The This week view of Overview."
+  },
+  "overviewThatWeek": "That week",
+  "@overviewThatWeek": {
+    "description": "The title of a past or future week on Overview."
+  },
+  "overviewNotes": "Notes",
+  "@overviewNotes": {
+    "description": "The button that leaves Overview for the notes."
+  },
+  "overviewSummarise": "Summarise",
+  "@overviewSummarise": {
+    "description": "The button that has the model write a paragraph over Overview."
+  },
+  "overviewMenu": "More",
+  "@overviewMenu": {
+    "description": "Overview's menu button."
+  },
+  "overviewOpenTodayNote": "Open today's note",
+  "@overviewOpenTodayNote": {
+    "description": "The menu item that opens today's Journal note."
+  },
+  "overviewSaveWeek": "Save week as note",
+  "@overviewSaveWeek": {
+    "description": "Keeps the week on Overview as a note in the Journal."
+  },
+  "overviewSettings": "Overview settings",
+  "@overviewSettings": {
+    "description": "The menu item that opens Overview's settings."
+  },
+  "overviewCancel": "Cancel",
+  "@overviewCancel": {
+    "description": "Closes a sheet of Overview."
+  },
+  "overviewRevisitTitle": "Revisit in…",
+  "@overviewRevisitTitle": {
+    "description": "The title of the sheet that picks a day to bring a note back."
+  },
+  "overviewRevisit": "Revisit in…",
+  "@overviewRevisit": {
+    "description": "The action that brings a note back on Overview on a later day."
+  },
+  "overviewRevisitSet": "You'll see this again on {day}.",
+  "@overviewRevisitSet": {
+    "description": "Said after a revisit date is set.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewTick": "Tick off {title}",
+  "@overviewTick": {
+    "description": "The spoken label of the box of an agenda task.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewTickOff": "Tick off",
+  "@overviewTickOff": {
+    "description": "The spoken action that ticks an agenda task."
+  },
+  "overviewOpenNote": "Open note",
+  "@overviewOpenNote": {
+    "description": "The spoken action that opens the note of a row."
+  },
+  "overviewMeetingNote": "Meeting note",
+  "@overviewMeetingNote": {
+    "description": "The link from a calendar event to its note."
+  },
+  "overviewNotNow": "Not now",
+  "@overviewNotNow": {
+    "description": "Hides a note from Pick up until it is written in again."
+  },
+  "overviewDone": "Done",
+  "@overviewDone": {
+    "description": "Marks a waiting item done."
+  },
+  "overviewNotYet": "Not yet",
+  "@overviewNotYet": {
+    "description": "Asks again about a waiting item in three days."
+  },
+  "overviewQuietDays": "{count, plural, =1{1 day quiet} other{{count} days quiet}}",
+  "@overviewQuietDays": {
+    "description": "How long a person has been quiet.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewReview": "Review",
+  "@overviewReview": {
+    "description": "The action on a row of agent changes waiting for review."
+  },
+  "overviewInbox": "Inbox {count}",
+  "@overviewInbox": {
+    "description": "How many captures wait in the Inbox.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewPromisesCount": "{count, plural, =1{1 thing you said you'd do} other{{count} things you said you'd do}}",
+  "@overviewPromisesCount": {
+    "description": "How many promises are open.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewWaitingCount": "{count} waiting",
+  "@overviewWaitingCount": {
+    "description": "How many waiting items were folded into one line.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewFlashcards": "{count, plural, =1{1 flashcard} other{{count} flashcards}}",
+  "@overviewFlashcards": {
+    "description": "How many flashcards are due.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewFromThePast": "A note from the past · {why}",
+  "@overviewFromThePast": {
+    "description": "The label over the note from the past, with why it is shown.",
+    "placeholders": {
+      "why": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewOpen": "Open",
+  "@overviewOpen": {
+    "description": "Opens the note from the past."
+  },
+  "overviewNotUseful": "Not useful",
+  "@overviewNotUseful": {
+    "description": "Hides the note from the past."
+  },
+  "overviewMore": "More",
+  "@overviewMore": {
+    "description": "Shows the rest of the model's paragraph."
+  },
+  "overviewWrittenBy": "Written by your model at {time}",
+  "@overviewWrittenBy": {
+    "description": "The footnote under the model's paragraph.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewRewrite": "Rewrite",
+  "@overviewRewrite": {
+    "description": "Has the model write its paragraph again."
+  },
+  "overviewHide": "Hide",
+  "@overviewHide": {
+    "description": "Hides the model's paragraph."
+  },
+  "overviewTicked": "Done: {title}",
+  "@overviewTicked": {
+    "description": "The notice after a task is ticked from Overview.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewNewLede": "This is your Overview. As you write, it gathers today's meetings and tasks, the notes you're in the middle of, and the people you're waiting on.",
+  "@overviewNewLede": {
+    "description": "What Overview is for, shown while the library is empty."
+  },
+  "overviewWriteToday": "Write today's note",
+  "@overviewWriteToday": {
+    "description": "Opens today's note from an empty Overview."
+  },
+  "overviewAgendaMore": "{count} more today · All {total} in Tasks",
+  "@overviewAgendaMore": {
+    "description": "The line under a full agenda.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewEarlier": "Earlier today ({count})",
+  "@overviewEarlier": {
+    "description": "The folded line of events that are over.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewAlso": "Also",
+  "@overviewAlso": {
+    "description": "The heading of the short lines at the foot of Overview."
+  },
+  "overviewPickUp": "Pick up where you left off",
+  "@overviewPickUp": {
+    "description": "The heading of the notes the person was writing in."
+  },
+  "overviewWaiting": "Waiting on others",
+  "@overviewWaiting": {
+    "description": "The heading of the people the person is waiting on."
+  },
+  "overviewActivity": "Agent and shared activity",
+  "@overviewActivity": {
+    "description": "The heading of changes by agents and by people in shared notes."
+  },
+  "overviewMoreRows": "{count} more",
+  "@overviewMoreRows": {
+    "description": "How many rows a list holds past what shows.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewTriage": "Triage",
+  "@overviewTriage": {
+    "description": "Opens Triage from the Inbox line."
+  },
+  "overviewSeeAll": "See all",
+  "@overviewSeeAll": {
+    "description": "Opens every open loop from the Promises line."
+  },
+  "overviewPreviousWeek": "Previous week",
+  "@overviewPreviousWeek": {
+    "description": "Steps the week on Overview back."
+  },
+  "overviewNextWeek": "Next week",
+  "@overviewNextWeek": {
+    "description": "Steps the week on Overview forward."
+  },
+  "overviewProjects": "Active projects",
+  "@overviewProjects": {
+    "description": "The heading of the notebooks the week went into."
+  },
+  "overviewNotesChanged": "{count, plural, =1{1 note changed} other{{count} notes changed}}",
+  "@overviewNotesChanged": {
+    "description": "How many notes of a project changed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewLast": "last: “{title}”",
+  "@overviewLast": {
+    "description": "The last note changed in a project.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewNext": "Next: {task}",
+  "@overviewNext": {
+    "description": "A project's next task.",
+    "placeholders": {
+      "task": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewFinished": "Finished",
+  "@overviewFinished": {
+    "description": "The heading of what was finished this week."
+  },
+  "overviewStillOpen": "Still open",
+  "@overviewStillOpen": {
+    "description": "The heading of tasks still open this week."
+  },
+  "overviewAllOpenTasks": "All {count} open tasks",
+  "@overviewAllOpenTasks": {
+    "description": "Opens the Tasks place.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "overviewAhead": "Ahead",
+  "@overviewAhead": {
+    "description": "The heading of what is coming in the days ahead."
+  },
+  "overviewSavedAs": "Saved as “{title}”",
+  "@overviewSavedAs": {
+    "description": "Said when this week is already saved as a note.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsOverviewOpens": "Open to Overview",
+  "@settingsOverviewOpens": {
+    "description": "The setting that makes Kanso open to Overview rather than the last note."
+  },
+  "settingsOverviewQuiet": "Waiting on others after",
+  "@settingsOverviewQuiet": {
+    "description": "The setting for how long a person must be quiet to be listed."
+  },
+  "settingsOverviewDays": "{count} days",
+  "@settingsOverviewDays": {
+    "description": "A number of days.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsOverviewFewer": "One day fewer",
+  "@settingsOverviewFewer": {
+    "description": "Lowers the quiet days by one."
+  },
+  "settingsOverviewMore": "One day more",
+  "@settingsOverviewMore": {
+    "description": "Raises the quiet days by one."
   }
 }

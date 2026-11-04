@@ -815,6 +815,8 @@ pub struct Nudges {
     /// when what is sent changes (`metrics::NOTICE_VERSION`): a config from
     /// before versions reads as 0 and sees it once more.
     pub metrics_notice_version: u8,
+    /// The one-time notice that Kanso now opens to Overview was shown.
+    pub overview_notice_seen: bool,
 }
 
 impl Default for AppConfig {
@@ -1317,6 +1319,7 @@ mod tests {
                         sticky_hint_seen: version % 3 == 0,
                         metrics_notice_seen: version % 3 == 0,
                         metrics_notice_version: u8::try_from(version % 4).unwrap_or(0),
+                        overview_notice_seen: version % 2 == 1,
                     },
                     linux: super::LinuxSettings {
                         backend: if numbers {

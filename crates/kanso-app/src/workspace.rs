@@ -168,6 +168,7 @@ pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("secondary-n", NewNote, None),
         KeyBinding::new("secondary-shift-n", NewNotebook, None),
+        KeyBinding::new("secondary-shift-0", crate::digest_view::OpenOverview, None),
         // ⌘L searches the list as it is; ⇧⌘F, global search, all notes.
         KeyBinding::new("secondary-l", FocusSearch, None),
         KeyBinding::new("secondary-shift-f", SearchAllNotes, None),
@@ -358,6 +359,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Go Back", GoBack),
             MenuItem::action("Go Forward", GoForward),
             MenuItem::action("Notebook Home", GoNotebookHome),
+            MenuItem::action("Overview", crate::digest_view::OpenOverview),
             MenuItem::separator(),
             MenuItem::action("Copy Note Link", CopyNoteLink),
             MenuItem::action("Copy Kanso Link", CopyKansoLink),
@@ -664,10 +666,16 @@ impl Workspace {
                     cx.defer_in(window, |this, window, cx| {
                         if matches!(
                             this.library.read(cx).filter,
-                            Filter::OpenLoops | Filter::Brief | Filter::Review
+                            Filter::OpenLoops | Filter::Overview
                         ) {
                             this.digest
                                 .update(cx, |digest, cx| digest.focus_list(window, cx));
+                        }
+                        if this.library.read(cx).filter == Filter::Overview
+                            && let Some(nav) = this.tabs.nav_mut()
+                        {
+                            nav.visit(crate::nav_history::OVERVIEW_VISIT);
+                            this.nav_reach = None;
                         }
                     });
                     this.leave_settings(window, cx);
@@ -1193,6 +1201,50 @@ impl Workspace {
         open
     }
 
+    /// Kanso's first window opens to Overview unless Settings says the last
+    /// note. Existing users are told once. Files the system opened wait for
+    /// nothing: opening a note leaves the page.
+    pub fn launch_to_overview(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let briefs = cx.global::<AppState>().config.briefs.clone().sanitized();
+        if briefs.open_to != kanso_engine::brief::OpenTo::Overview {
+            return;
+        }
+        self.library
+            .update(cx, |library, cx| library.set_filter(Filter::Overview, cx));
+        let nudges = &cx.global::<AppState>().config.nudges;
+        let seen = nudges.overview_notice_seen;
+        let first_seen = nudges.first_seen_ms;
+        let veteran =
+            first_seen.is_some_and(|first| crate::clock::Clock::now_ms(cx) - first > 60_000);
+        if !seen {
+            AppState::update_config(cx, |config| config.nudges.overview_notice_seen = true);
+            if veteran {
+                // Closing the notice keeps Overview; its button goes back to
+                // the old launch and shows the note that was open.
+                let me = cx.entity().downgrade();
+                let notice = Notification::info(
+                    "Kanso now opens to Overview. You can change this in Settings \u{203a} General.",
+                )
+                .action(move |_, _, _| {
+                    let me = me.clone();
+                    gpui_kit::component::button::Button::new("overview-last-note")
+                        .label("Open my last note instead")
+                        .on_click(move |_, _, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.briefs.open_to = kanso_engine::brief::OpenTo::LastNote;
+                            });
+                            me.update(cx, |this, cx| {
+                                let selected = this.library.read(cx).selected.clone();
+                                this.leave_page_for(selected.as_deref(), cx);
+                            })
+                            .ok();
+                        })
+                });
+                window.push_notification(notice, cx);
+            }
+        }
+    }
+
     /// Opens a note from the loops, the brief or the review.
     fn on_digest_event(
         &mut self,
@@ -1217,6 +1269,18 @@ impl Workspace {
                 self.open_today(window, cx);
                 self.leave_page_for(None, cx);
             }
+            DigestEvent::Link(url) => match crate::preview::linked_note(url) {
+                Some(id) => {
+                    let id = id.split('#').next().unwrap_or(&id).to_owned();
+                    self.leave_page_for(Some(&id), cx);
+                    self.open_note_at(&id, 0, false, window, cx);
+                }
+                None if crate::preview::is_openable(url) => cx.open_url(url),
+                None => {}
+            },
+            DigestEvent::OpenSettings => {
+                self.open_settings(None, window, cx);
+            }
             DigestEvent::Close => {
                 let back = self.library.read(cx).previous.clone();
                 let selected = self.library.read(cx).selected.clone();
@@ -1235,7 +1299,7 @@ impl Workspace {
     fn leave_page_for(&mut self, note_id: Option<&str>, cx: &mut Context<Self>) {
         if !matches!(
             self.library.read(cx).filter,
-            Filter::OpenLoops | Filter::Brief | Filter::Review
+            Filter::OpenLoops | Filter::Overview
         ) {
             return;
         }
@@ -1371,6 +1435,9 @@ impl Workspace {
         let open = self.editor.read(cx).note_id() == Some(note_id);
         if open {
             self.leave_settings(window, cx);
+            // The note can be open behind a page (Overview loads the last
+            // note quietly at launch): a reminder for it must still show it.
+            self.leave_page_for(Some(note_id), cx);
             self.editor
                 .update(cx, |editor, cx| editor.reveal_line(line, window, cx));
         } else {
@@ -2658,7 +2725,7 @@ impl Render for Workspace {
         let home_shown = self.library.read(cx).home_book(cx).is_some();
         let digest_shown = matches!(
             self.library.read(cx).filter,
-            Filter::OpenLoops | Filter::Brief | Filter::Review
+            Filter::OpenLoops | Filter::Overview
         );
         if digest_shown {
             let page_width = window.viewport_size().width - px(leading);

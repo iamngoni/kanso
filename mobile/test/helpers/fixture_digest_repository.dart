@@ -3,6 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:dartz/dartz.dart';
+import 'package:kanso/core/bridge/api/overview_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/repos/abs/digest_repository.dart';
@@ -29,6 +30,8 @@ class FixtureDigestRepository implements DigestRepository {
     notifyBrief: true,
     notifyReview: true,
     markDoneInNote: false,
+    openToOverview: true,
+    quietDays: 5,
   );
 
   /// The open loops.
@@ -62,47 +65,148 @@ class FixtureDigestRepository implements DigestRepository {
     return const Right<ApplicationError, bool>(true);
   }
 
-  /// The brief, when a test wants one that isn't empty.
-  BriefView? briefView;
+  /// Today, as a test sets it; an empty library's by default.
+  OverviewToday today = const OverviewToday(
+    day: '2026-11-02',
+    greeting: 'Good morning',
+    overline: 'MONDAY 2 NOVEMBER',
+    lede: 'Nothing on today.',
+    state: OverviewState.quiet,
+    earlier: <OverviewAgendaRow>[],
+    agenda: <OverviewAgendaRow>[],
+    agendaMore: 0,
+    taskTotal: 0,
+    lists: <OverviewList>[],
+    also: <OverviewLine>[],
+    footer: '',
+  );
+
+  /// The snapshot, when a test wants one drawn first.
+  OverviewToday? snapshot;
+
+  /// The week, as a test sets it.
+  OverviewWeek week = const OverviewWeek(
+    from: '2026-11-02',
+    rangeLabel: '2 \u2013 8 NOVEMBER',
+    weekLabel: 'Week 45',
+    isThisWeek: true,
+    lede: 'A quiet week.',
+    projects: <OverviewProject>[],
+    finished: <OverviewFinished>[],
+    finishedMore: 0,
+    waiting: <OverviewListRow>[],
+    stillOpen: <OverviewAgendaRow>[],
+    stillOpenTotal: 0,
+    ahead: <OverviewAheadDay>[],
+    also: <OverviewLine>[],
+    savedAs: '',
+  );
+
+  /// What was done on the page's rows.
+  final List<String> done = <String>[];
+  final List<String> hidden = <String>[];
+  final List<String> snoozed = <String>[];
+  final List<String> dismissed = <String>[];
+  final List<(String, RevisitChoice)> revisits = <(String, RevisitChoice)>[];
+  final List<String> cleared = <String>[];
+  final List<(String?, bool)> summarised = <(String?, bool)>[];
 
   @override
-  Future<Either<ApplicationError, BriefView>> brief() async {
-    final set = briefView;
-    if (set != null) {
-      return Right<ApplicationError, BriefView>(set);
-    }
-    return const Right<ApplicationError, BriefView>(
-      BriefView(
-        dateLabel: 'Monday 2 November',
-        due: <TaskItem>[],
-        loops: <OpenLoopItem>[],
-        loopsTotal: 0,
-        laterToday: <BriefReminder>[],
-        relevant: <BriefNote>[],
-        wroteYesterday: 0,
-        finishedYesterday: 0,
-        isEmpty: true,
-      ),
-    );
+  Future<Either<ApplicationError, bool>> doneLoop({
+    required String noteId,
+    required String key,
+    required int line,
+  }) async {
+    done.add('$noteId/$key');
+    return const Right<ApplicationError, bool>(true);
   }
 
   @override
-  Future<Either<ApplicationError, ReviewView>> review({String? from}) async =>
-      Right<ApplicationError, ReviewView>(
-        ReviewView(
-          from: from ?? '2026-11-02',
-          weekLabel: '2026-W45',
-          rangeLabel: '2 Nov to 8 Nov',
-          countsText: '0 new, 0 changed',
-          written: const <ReviewWritten>[],
-          finished: const <ReviewFinished>[],
-          stillOpen: const <OpenLoopItem>[],
-          overdue: const <TaskItem>[],
-          themes: const <ReviewTheme>[],
-          next: const <TaskItem>[],
-          isThisWeek: from == null,
-        ),
-      );
+  OverviewToday? overviewSnapshot() => snapshot;
+
+  @override
+  Future<Either<ApplicationError, OverviewToday>> overviewToday() async =>
+      Right<ApplicationError, OverviewToday>(today);
+
+  @override
+  Future<Either<ApplicationError, OverviewWeek>> overviewWeek({
+    String? from,
+  }) async => Right<ApplicationError, OverviewWeek>(
+    from == null
+        ? week
+        : OverviewWeek(
+            from: from,
+            rangeLabel: week.rangeLabel,
+            weekLabel: week.weekLabel,
+            isThisWeek: false,
+            lede: week.lede,
+            projects: week.projects,
+            finished: week.finished,
+            finishedMore: week.finishedMore,
+            waiting: week.waiting,
+            stillOpen: week.stillOpen,
+            stillOpenTotal: week.stillOpenTotal,
+            ahead: week.ahead,
+            also: week.also,
+            savedAs: week.savedAs,
+          ),
+  );
+
+  @override
+  Future<Either<ApplicationError, void>> hidePlace(String noteId) async {
+    hidden.add(noteId);
+    return const Right<ApplicationError, void>(null);
+  }
+
+  @override
+  Future<Either<ApplicationError, void>> snoozeWaiting(String key) async {
+    snoozed.add(key);
+    return const Right<ApplicationError, void>(null);
+  }
+
+  @override
+  Future<Either<ApplicationError, void>> dismissPast(String noteId) async {
+    dismissed.add(noteId);
+    return const Right<ApplicationError, void>(null);
+  }
+
+  @override
+  List<RevisitOption> revisitOptions() => const <RevisitOption>[
+    RevisitOption(
+      choice: RevisitChoice.tomorrow,
+      label: 'Tomorrow',
+      dayLabel: 'Tue 3 Nov',
+    ),
+    RevisitOption(
+      choice: RevisitChoice.nextWeek,
+      label: 'Next week',
+      dayLabel: 'Mon 9 Nov',
+    ),
+  ];
+
+  @override
+  Future<Either<ApplicationError, String>> setRevisit({
+    required String noteId,
+    required RevisitChoice choice,
+  }) async {
+    revisits.add((noteId, choice));
+    return const Right<ApplicationError, String>('2026-11-03');
+  }
+
+  @override
+  Future<Either<ApplicationError, void>> clearRevisit(String noteId) async {
+    cleared.add(noteId);
+    return const Right<ApplicationError, void>(null);
+  }
+
+  @override
+  Future<Either<ApplicationError, void>> noteWriting({
+    required String noteId,
+    required int line,
+    required int column,
+    required int typedChars,
+    required String body,
+  }) async => const Right<ApplicationError, void>(null);
 
   @override
   Future<Either<ApplicationError, ReviewSaved>> saveReview({
@@ -144,13 +248,13 @@ class FixtureDigestRepository implements DigestRepository {
   }
 
   @override
-  Future<Either<ApplicationError, AiSummary>> summariseBrief() async =>
-      Right<ApplicationError, AiSummary>(summary);
-
-  @override
-  Future<Either<ApplicationError, AiSummary>> summariseReview({
+  Future<Either<ApplicationError, AiSummary>> summariseOverview({
+    required bool week,
     String? from,
-  }) async => Right<ApplicationError, AiSummary>(summary);
+  }) async {
+    summarised.add((from, week));
+    return Right<ApplicationError, AiSummary>(summary);
+  }
 
   @override
   void stopAi() => stops++;

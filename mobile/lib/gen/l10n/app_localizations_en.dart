@@ -6373,4 +6373,253 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get feedbackStepFiled => 'Filed';
+
+  @override
+  String get overviewTitle => 'Overview';
+
+  @override
+  String get overviewToday => 'Today';
+
+  @override
+  String get overviewThisWeek => 'This week';
+
+  @override
+  String get overviewThatWeek => 'That week';
+
+  @override
+  String get overviewNotes => 'Notes';
+
+  @override
+  String get overviewSummarise => 'Summarise';
+
+  @override
+  String get overviewMenu => 'More';
+
+  @override
+  String get overviewOpenTodayNote => 'Open today\'s note';
+
+  @override
+  String get overviewSaveWeek => 'Save week as note';
+
+  @override
+  String get overviewSettings => 'Overview settings';
+
+  @override
+  String get overviewCancel => 'Cancel';
+
+  @override
+  String get overviewRevisitTitle => 'Revisit in…';
+
+  @override
+  String get overviewRevisit => 'Revisit in…';
+
+  @override
+  String overviewRevisitSet(String day) {
+    return 'You\'ll see this again on $day.';
+  }
+
+  @override
+  String overviewTick(String title) {
+    return 'Tick off $title';
+  }
+
+  @override
+  String get overviewTickOff => 'Tick off';
+
+  @override
+  String get overviewOpenNote => 'Open note';
+
+  @override
+  String get overviewMeetingNote => 'Meeting note';
+
+  @override
+  String get overviewNotNow => 'Not now';
+
+  @override
+  String get overviewDone => 'Done';
+
+  @override
+  String get overviewNotYet => 'Not yet';
+
+  @override
+  String overviewQuietDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days quiet',
+      one: '1 day quiet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get overviewReview => 'Review';
+
+  @override
+  String overviewInbox(int count) {
+    return 'Inbox $count';
+  }
+
+  @override
+  String overviewPromisesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count things you said you\'d do',
+      one: '1 thing you said you\'d do',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String overviewWaitingCount(int count) {
+    return '$count waiting';
+  }
+
+  @override
+  String overviewFlashcards(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count flashcards',
+      one: '1 flashcard',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String overviewFromThePast(String why) {
+    return 'A note from the past · $why';
+  }
+
+  @override
+  String get overviewOpen => 'Open';
+
+  @override
+  String get overviewNotUseful => 'Not useful';
+
+  @override
+  String get overviewMore => 'More';
+
+  @override
+  String overviewWrittenBy(String time) {
+    return 'Written by your model at $time';
+  }
+
+  @override
+  String get overviewRewrite => 'Rewrite';
+
+  @override
+  String get overviewHide => 'Hide';
+
+  @override
+  String overviewTicked(String title) {
+    return 'Done: $title';
+  }
+
+  @override
+  String get overviewNewLede =>
+      'This is your Overview. As you write, it gathers today\'s meetings and tasks, the notes you\'re in the middle of, and the people you\'re waiting on.';
+
+  @override
+  String get overviewWriteToday => 'Write today\'s note';
+
+  @override
+  String overviewAgendaMore(int count, int total) {
+    return '$count more today · All $total in Tasks';
+  }
+
+  @override
+  String overviewEarlier(int count) {
+    return 'Earlier today ($count)';
+  }
+
+  @override
+  String get overviewAlso => 'Also';
+
+  @override
+  String get overviewPickUp => 'Pick up where you left off';
+
+  @override
+  String get overviewWaiting => 'Waiting on others';
+
+  @override
+  String get overviewActivity => 'Agent and shared activity';
+
+  @override
+  String overviewMoreRows(int count) {
+    return '$count more';
+  }
+
+  @override
+  String get overviewTriage => 'Triage';
+
+  @override
+  String get overviewSeeAll => 'See all';
+
+  @override
+  String get overviewPreviousWeek => 'Previous week';
+
+  @override
+  String get overviewNextWeek => 'Next week';
+
+  @override
+  String get overviewProjects => 'Active projects';
+
+  @override
+  String overviewNotesChanged(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes changed',
+      one: '1 note changed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String overviewLast(String title) {
+    return 'last: “$title”';
+  }
+
+  @override
+  String overviewNext(String task) {
+    return 'Next: $task';
+  }
+
+  @override
+  String get overviewFinished => 'Finished';
+
+  @override
+  String get overviewStillOpen => 'Still open';
+
+  @override
+  String overviewAllOpenTasks(int count) {
+    return 'All $count open tasks';
+  }
+
+  @override
+  String get overviewAhead => 'Ahead';
+
+  @override
+  String overviewSavedAs(String title) {
+    return 'Saved as “$title”';
+  }
+
+  @override
+  String get settingsOverviewOpens => 'Open to Overview';
+
+  @override
+  String get settingsOverviewQuiet => 'Waiting on others after';
+
+  @override
+  String settingsOverviewDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String get settingsOverviewFewer => 'One day fewer';
+
+  @override
+  String get settingsOverviewMore => 'One day more';
 }

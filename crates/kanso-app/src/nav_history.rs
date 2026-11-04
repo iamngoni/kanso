@@ -11,8 +11,14 @@ use gpui_kit::{App, Context, KeyBinding};
 use kanso_core::model::TRASH_BOOK_ID;
 use kanso_store::Store;
 
+use crate::library::Filter;
 use crate::models::note_visit::{NotePlace, Visit};
 use crate::workspace::{GoBack, GoForward, OpenIntent, Workspace};
+
+/// A visit to a page rather than a note: `place:overview`.
+pub const PLACE_PREFIX: &str = "place:";
+/// The visit to Overview.
+pub const OVERVIEW_VISIT: &str = "place:overview";
 
 /// The most visits kept behind the open note; older ones are forgotten.
 pub const MOST_VISITS: usize = 100;
@@ -141,6 +147,10 @@ pub fn bind_keys(cx: &mut App) {
 /// trash. A visit to a notebook's homepage (its ID) is live while the
 /// notebook is there and not locked.
 fn live(store: &Store, id: &str) -> bool {
+    // A page (Overview) is always there to go back to.
+    if id.starts_with(PLACE_PREFIX) {
+        return true;
+    }
     if id.starts_with("book:") {
         return matches!(store.book_subtree(id, false), Ok(books) if !books.is_empty());
     }
@@ -202,6 +212,12 @@ impl Workspace {
             let id = visit.id.clone();
             self.editor
                 .update(cx, |editor, _| editor.place_after_open(id, place));
+        }
+        // Overview is a visit too.
+        if visit.id == OVERVIEW_VISIT {
+            self.library
+                .update(cx, |library, cx| library.set_filter(Filter::Overview, cx));
+            return;
         }
         // A notebook's homepage is a visit too.
         if visit.id.starts_with("book:") {

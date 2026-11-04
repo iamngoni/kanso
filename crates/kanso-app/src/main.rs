@@ -742,6 +742,7 @@ fn open_main_window(cx: &mut App) {
             window
                 .update(cx, |_, window, cx| {
                     let editor = view.read(cx).editor.clone();
+                    view.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx));
                     window.on_window_should_close(cx, move |_, cx| {
                         editor.update(cx, |editor, cx| editor.flush(cx));
                         true

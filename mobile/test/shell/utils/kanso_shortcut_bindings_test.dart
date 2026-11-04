@@ -41,6 +41,7 @@ void main() {
           SaveIntent,
           OpenPaletteIntent,
           OpenTodayIntent,
+          OpenOverviewIntent,
           ReplaceInNotesIntent,
           RecordAudioIntent,
           ToggleFocusModeIntent,
@@ -52,7 +53,7 @@ void main() {
           ReopenClosedTabIntent,
           GoToTabIntent,
         });
-        expect(bindings, hasLength(35));
+        expect(bindings, hasLength(36));
       }
     });
 

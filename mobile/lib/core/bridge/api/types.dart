@@ -421,6 +421,8 @@ class BriefPrefs {
   final bool notifyBrief;
   final bool notifyReview;
   final bool markDoneInNote;
+  final bool openToOverview;
+  final int quietDays;
 
   const BriefPrefs({
     required this.loops,
@@ -435,6 +437,8 @@ class BriefPrefs {
     required this.notifyBrief,
     required this.notifyReview,
     required this.markDoneInNote,
+    required this.openToOverview,
+    required this.quietDays,
   });
 
   @override
@@ -450,7 +454,9 @@ class BriefPrefs {
       reviewMinute.hashCode ^
       notifyBrief.hashCode ^
       notifyReview.hashCode ^
-      markDoneInNote.hashCode;
+      markDoneInNote.hashCode ^
+      openToOverview.hashCode ^
+      quietDays.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -468,7 +474,9 @@ class BriefPrefs {
           reviewMinute == other.reviewMinute &&
           notifyBrief == other.notifyBrief &&
           notifyReview == other.notifyReview &&
-          markDoneInNote == other.markDoneInNote;
+          markDoneInNote == other.markDoneInNote &&
+          openToOverview == other.openToOverview &&
+          quietDays == other.quietDays;
 }
 
 class BriefReminder {

@@ -25,6 +25,7 @@ import 'api/locks.dart';
 import 'api/metrics.dart';
 import 'api/notebook_home.dart';
 import 'api/notebook_home_types.dart';
+import 'api/overview_types.dart';
 import 'api/people.dart';
 import 'api/people_types.dart';
 import 'api/publish.dart';
@@ -1005,6 +1006,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   NotebookRole dco_decode_box_autoadd_notebook_role(dynamic raw);
 
   @protected
+  OverviewAi dco_decode_box_autoadd_overview_ai(dynamic raw);
+
+  @protected
+  OverviewPast dco_decode_box_autoadd_overview_past(dynamic raw);
+
+  @protected
+  OverviewToday dco_decode_box_autoadd_overview_today(dynamic raw);
+
+  @protected
   PagePanel dco_decode_box_autoadd_page_panel(dynamic raw);
 
   @protected
@@ -1649,6 +1659,30 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<OutlineHeading> dco_decode_list_outline_heading(dynamic raw);
 
   @protected
+  List<OverviewAgendaRow> dco_decode_list_overview_agenda_row(dynamic raw);
+
+  @protected
+  List<OverviewAheadDay> dco_decode_list_overview_ahead_day(dynamic raw);
+
+  @protected
+  List<OverviewFinished> dco_decode_list_overview_finished(dynamic raw);
+
+  @protected
+  List<OverviewItem> dco_decode_list_overview_item(dynamic raw);
+
+  @protected
+  List<OverviewLine> dco_decode_list_overview_line(dynamic raw);
+
+  @protected
+  List<OverviewList> dco_decode_list_overview_list(dynamic raw);
+
+  @protected
+  List<OverviewListRow> dco_decode_list_overview_list_row(dynamic raw);
+
+  @protected
+  List<OverviewProject> dco_decode_list_overview_project(dynamic raw);
+
+  @protected
   List<PageHidden> dco_decode_list_page_hidden(dynamic raw);
 
   @protected
@@ -1775,6 +1809,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ReviewWritten> dco_decode_list_review_written(dynamic raw);
+
+  @protected
+  List<RevisitOption> dco_decode_list_revisit_option(dynamic raw);
 
   @protected
   ListShape dco_decode_list_shape(dynamic raw);
@@ -2080,6 +2117,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   NotebookRole? dco_decode_opt_box_autoadd_notebook_role(dynamic raw);
 
   @protected
+  OverviewAi? dco_decode_opt_box_autoadd_overview_ai(dynamic raw);
+
+  @protected
+  OverviewPast? dco_decode_opt_box_autoadd_overview_past(dynamic raw);
+
+  @protected
+  OverviewToday? dco_decode_opt_box_autoadd_overview_today(dynamic raw);
+
+  @protected
   PagePanel? dco_decode_opt_box_autoadd_page_panel(dynamic raw);
 
   @protected
@@ -2155,6 +2201,54 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   OutlineHeading dco_decode_outline_heading(dynamic raw);
+
+  @protected
+  OverviewAgendaRow dco_decode_overview_agenda_row(dynamic raw);
+
+  @protected
+  OverviewAheadDay dco_decode_overview_ahead_day(dynamic raw);
+
+  @protected
+  OverviewAi dco_decode_overview_ai(dynamic raw);
+
+  @protected
+  OverviewFinished dco_decode_overview_finished(dynamic raw);
+
+  @protected
+  OverviewItem dco_decode_overview_item(dynamic raw);
+
+  @protected
+  OverviewLine dco_decode_overview_line(dynamic raw);
+
+  @protected
+  OverviewLineKind dco_decode_overview_line_kind(dynamic raw);
+
+  @protected
+  OverviewList dco_decode_overview_list(dynamic raw);
+
+  @protected
+  OverviewListKind dco_decode_overview_list_kind(dynamic raw);
+
+  @protected
+  OverviewListRow dco_decode_overview_list_row(dynamic raw);
+
+  @protected
+  OverviewPast dco_decode_overview_past(dynamic raw);
+
+  @protected
+  OverviewProject dco_decode_overview_project(dynamic raw);
+
+  @protected
+  OverviewRowKind dco_decode_overview_row_kind(dynamic raw);
+
+  @protected
+  OverviewState dco_decode_overview_state(dynamic raw);
+
+  @protected
+  OverviewToday dco_decode_overview_today(dynamic raw);
+
+  @protected
+  OverviewWeek dco_decode_overview_week(dynamic raw);
 
   @protected
   PageHeaderInfo dco_decode_page_header_info(dynamic raw);
@@ -2425,6 +2519,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ReviewWritten dco_decode_review_written(dynamic raw);
+
+  @protected
+  RevisitChoice dco_decode_revisit_choice(dynamic raw);
+
+  @protected
+  RevisitOption dco_decode_revisit_option(dynamic raw);
 
   @protected
   RunBatch dco_decode_run_batch(dynamic raw);
@@ -3560,6 +3660,19 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  OverviewAi sse_decode_box_autoadd_overview_ai(SseDeserializer deserializer);
+
+  @protected
+  OverviewPast sse_decode_box_autoadd_overview_past(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OverviewToday sse_decode_box_autoadd_overview_today(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PagePanel sse_decode_box_autoadd_page_panel(SseDeserializer deserializer);
 
   @protected
@@ -4304,6 +4417,46 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<OverviewAgendaRow> sse_decode_list_overview_agenda_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OverviewAheadDay> sse_decode_list_overview_ahead_day(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OverviewFinished> sse_decode_list_overview_finished(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OverviewItem> sse_decode_list_overview_item(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OverviewLine> sse_decode_list_overview_line(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OverviewList> sse_decode_list_overview_list(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OverviewListRow> sse_decode_list_overview_list_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<OverviewProject> sse_decode_list_overview_project(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<PageHidden> sse_decode_list_page_hidden(SseDeserializer deserializer);
 
   @protected
@@ -4468,6 +4621,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ReviewWritten> sse_decode_list_review_written(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<RevisitOption> sse_decode_list_revisit_option(
     SseDeserializer deserializer,
   );
 
@@ -4823,6 +4981,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  OverviewAi? sse_decode_opt_box_autoadd_overview_ai(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OverviewPast? sse_decode_opt_box_autoadd_overview_past(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OverviewToday? sse_decode_opt_box_autoadd_overview_today(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PagePanel? sse_decode_opt_box_autoadd_page_panel(
     SseDeserializer deserializer,
   );
@@ -4930,6 +5103,56 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   OutlineHeading sse_decode_outline_heading(SseDeserializer deserializer);
+
+  @protected
+  OverviewAgendaRow sse_decode_overview_agenda_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  OverviewAheadDay sse_decode_overview_ahead_day(SseDeserializer deserializer);
+
+  @protected
+  OverviewAi sse_decode_overview_ai(SseDeserializer deserializer);
+
+  @protected
+  OverviewFinished sse_decode_overview_finished(SseDeserializer deserializer);
+
+  @protected
+  OverviewItem sse_decode_overview_item(SseDeserializer deserializer);
+
+  @protected
+  OverviewLine sse_decode_overview_line(SseDeserializer deserializer);
+
+  @protected
+  OverviewLineKind sse_decode_overview_line_kind(SseDeserializer deserializer);
+
+  @protected
+  OverviewList sse_decode_overview_list(SseDeserializer deserializer);
+
+  @protected
+  OverviewListKind sse_decode_overview_list_kind(SseDeserializer deserializer);
+
+  @protected
+  OverviewListRow sse_decode_overview_list_row(SseDeserializer deserializer);
+
+  @protected
+  OverviewPast sse_decode_overview_past(SseDeserializer deserializer);
+
+  @protected
+  OverviewProject sse_decode_overview_project(SseDeserializer deserializer);
+
+  @protected
+  OverviewRowKind sse_decode_overview_row_kind(SseDeserializer deserializer);
+
+  @protected
+  OverviewState sse_decode_overview_state(SseDeserializer deserializer);
+
+  @protected
+  OverviewToday sse_decode_overview_today(SseDeserializer deserializer);
+
+  @protected
+  OverviewWeek sse_decode_overview_week(SseDeserializer deserializer);
 
   @protected
   PageHeaderInfo sse_decode_page_header_info(SseDeserializer deserializer);
@@ -5214,6 +5437,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ReviewWritten sse_decode_review_written(SseDeserializer deserializer);
+
+  @protected
+  RevisitChoice sse_decode_revisit_choice(SseDeserializer deserializer);
+
+  @protected
+  RevisitOption sse_decode_revisit_option(SseDeserializer deserializer);
 
   @protected
   RunBatch sse_decode_run_batch(SseDeserializer deserializer);
@@ -6574,6 +6803,24 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_overview_ai(
+    OverviewAi self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_overview_past(
+    OverviewPast self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_overview_today(
+    OverviewToday self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_page_panel(
     PagePanel self,
     SseSerializer serializer,
@@ -7546,6 +7793,54 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_overview_agenda_row(
+    List<OverviewAgendaRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_overview_ahead_day(
+    List<OverviewAheadDay> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_overview_finished(
+    List<OverviewFinished> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_overview_item(
+    List<OverviewItem> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_overview_line(
+    List<OverviewLine> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_overview_list(
+    List<OverviewList> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_overview_list_row(
+    List<OverviewListRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_overview_project(
+    List<OverviewProject> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_page_hidden(
     List<PageHidden> self,
     SseSerializer serializer,
@@ -7776,6 +8071,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_review_written(
     List<ReviewWritten> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_revisit_option(
+    List<RevisitOption> self,
     SseSerializer serializer,
   );
 
@@ -8224,6 +8525,24 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_overview_ai(
+    OverviewAi? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_overview_past(
+    OverviewPast? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_overview_today(
+    OverviewToday? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_page_panel(
     PagePanel? self,
     SseSerializer serializer,
@@ -8363,6 +8682,78 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     OutlineHeading self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_overview_agenda_row(
+    OverviewAgendaRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_ahead_day(
+    OverviewAheadDay self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_ai(OverviewAi self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_overview_finished(
+    OverviewFinished self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_item(OverviewItem self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_overview_line(OverviewLine self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_overview_line_kind(
+    OverviewLineKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_list(OverviewList self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_overview_list_kind(
+    OverviewListKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_list_row(
+    OverviewListRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_past(OverviewPast self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_overview_project(
+    OverviewProject self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_row_kind(
+    OverviewRowKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_overview_state(OverviewState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_overview_today(OverviewToday self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_overview_week(OverviewWeek self, SseSerializer serializer);
 
   @protected
   void sse_encode_page_header_info(
@@ -8729,6 +9120,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_review_written(ReviewWritten self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_revisit_choice(RevisitChoice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_revisit_option(RevisitOption self, SseSerializer serializer);
 
   @protected
   void sse_encode_run_batch(RunBatch self, SseSerializer serializer);

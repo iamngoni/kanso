@@ -148,6 +148,11 @@ void aiSuite(OpenLibrary open) {
       expect(brief.text, isNotEmpty);
       final review = await ai.summariseReview(run: ai.newRun());
       expect(review.text, isNotEmpty);
+      final overview = await ai.summariseOverview(
+        week: false,
+        run: ai.newRun(),
+      );
+      expect(overview.text, isNotEmpty);
     });
 
     test('nothing is asked while AI is off', () async {

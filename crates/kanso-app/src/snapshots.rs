@@ -3552,6 +3552,235 @@ fn show_board(
     });
 }
 
+/// Records a writing session in note `title` (the demo's), stopped `ago`
+/// before the demo's now at the end of the first paragraph that isn't a
+/// heading, as typing in the editor does.
+fn wrote_in(store: &Store, title: &str, ago: i64) {
+    let id = store
+        .search_summaries(&Default::default())
+        .unwrap()
+        .into_iter()
+        .find(|n| n.title == title)
+        .unwrap_or_else(|| panic!("no demo note {title}"))
+        .id;
+    let doc = store.get(&id).unwrap().unwrap();
+    let body = doc.fields["body"].as_str().unwrap_or("").to_owned();
+    let (line, text) = body
+        .lines()
+        .enumerate()
+        .find(|(_, l)| !l.trim().is_empty() && !l.starts_with('#'))
+        .unwrap();
+    let anchor = kanso_core::writing::anchor_at(&body, line as u32);
+    let at = DEMO_NOW_MS - ago;
+    let col = text.chars().count() as u32;
+    store
+        .note_writing(&id, line as u32, col, 30, &anchor, at - 3 * MINUTE)
+        .unwrap();
+    store
+        .note_writing(&id, line as u32, col, 30, &anchor, at)
+        .unwrap();
+}
+
+/// A person with a People page, and a note waiting on them, quiet for
+/// `days`.
+fn waiting_on(store: &Store, name: &str, about: &str, days: i64) {
+    let book = store.books().unwrap()[0].id.clone();
+    let quiet = DEMO_NOW_MS - days * DAY;
+    store
+        .put(
+            DocType::Note,
+            json!({"title": name, "body": format!("---\nkanso: person\n---\n# {name}\n"),
+                "bookId": book, "createdAt": quiet - DAY, "updatedAt": quiet - DAY}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    store
+        .put(
+            DocType::Note,
+            json!({"title": about, "body": format!("# {about}\n\nWaiting on {name} for the {about}.\n"),
+                "bookId": book, "createdAt": quiet, "updatedAt": quiet}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+}
+
+fn show_overview(cx: &mut HeadlessAppContext, workspace: &Entity<Workspace>) {
+    set_filter(cx, workspace, Filter::Overview);
+    cx.run_until_parked();
+}
+
+/// Overview on a normal Thursday (issue #240): the agenda with late and
+/// due tasks, the notes being written, and yesterday's footer.
+fn overview_today(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    seed_tasks(store);
+    wrote_in(store, "MCP support model", 2 * 60 * MINUTE);
+    wrote_in(store, "Kanso roadmap", DAY);
+    show_overview(cx, workspace);
+}
+
+/// Every section Overview can fill without a calendar: the agenda capped,
+/// three Lists, *Also*, and the model's paragraph with links to notes.
+fn overview_busy(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    seed_tasks(store);
+    let book = store.books().unwrap()[0].id.clone();
+    store
+        .put(
+            DocType::Note,
+            json!({"title": "Errands", "bookId": book, "body": "# Errands\n\n\
+                - [ ] Post the parcel @2026-05-28\n- [ ] Pay the water bill @2026-05-28\n\
+                - [ ] Call the bank @2026-05-28T16:30\n- [ ] Return the library books @2026-05-27\n\
+                - [ ] Book the dentist @2026-05-28\n- [ ] Order the printer ink @2026-05-28\n"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    wrote_in(store, "MCP support model", 40 * MINUTE);
+    wrote_in(store, "Kanso roadmap", DAY);
+    wrote_in(store, "Agent integration plan", 2 * DAY);
+    wrote_in(store, "Reading list", 3 * DAY);
+    waiting_on(store, "Rudo", "sign-off on the crate contract map", 11);
+    waiting_on(store, "Farai", "camera permissions answer", 6);
+    // A note to revisit, and two captures waiting in the Inbox.
+    let roadmap = store
+        .search_summaries(&Default::default())
+        .unwrap()
+        .into_iter()
+        .find(|n| n.title == "Agent integration plan")
+        .unwrap()
+        .id;
+    store
+        .set_revisit(
+            &roadmap,
+            Some(&kanso_core::revisit::Revisit {
+                on: "2026-05-27".into(),
+                set_at: DEMO_NOW_MS - 20 * DAY,
+                why: String::new(),
+            }),
+        )
+        .unwrap();
+    store
+        .put(
+            DocType::Book,
+            json!({"_id": "book:inbox", "name": "Inbox"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    for text in [
+        "Ask Sam whether the beta needs a second build",
+        "Look at Linear's cycle view",
+    ] {
+        store
+            .put(
+                DocType::Note,
+                json!({"title": text, "body": text, "bookId": "book:inbox"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+    }
+    // The model's paragraph, as Summarise keeps it for the day: its
+    // citations of notes on the page link, a made-up one does not.
+    let pairs: Vec<(String, String)> = store
+        .search_summaries(&Default::default())
+        .unwrap()
+        .into_iter()
+        .filter(|n| n.title == "Sync design" || n.title == "Kanso roadmap")
+        .map(|n| (n.id, n.title))
+        .collect();
+    let para = json!({
+        "text": "Most of the morning is the launch: the invite is two days late and the post is due at 15:00. \
+                 You were last in [[Sync design]], where the *last writer wins* rule still needs a test, \
+                 and [[Kanso roadmap]] has the palette left to do. [[A note the model made up]] is not linked.",
+        "pairs": pairs,
+        "at": DEMO_NOW_MS - 113 * MINUTE,
+        "fingerprint": "",
+        "warning": null,
+    });
+    store
+        .set_meta("overview.ai.today.2026-05-28", &para.to_string())
+        .unwrap();
+    show_overview(cx, workspace);
+    let _ = window;
+}
+
+/// A quiet day: nothing due, one note to pick up, and the footer.
+fn overview_quiet(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    wrote_in(store, "Kanso roadmap", 3 * DAY);
+    show_overview(cx, workspace);
+}
+
+/// A new library: Overview explains how it fills in.
+fn overview_new(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_overview(cx, workspace);
+    let dir = tempfile::tempdir().unwrap();
+    let empty = Store::open(dir.path().join("kanso.db")).unwrap();
+    let now = kanso_engine::brief::Now {
+        utc_ms: DEMO_NOW_MS,
+        offset_ms: i64::from(DEMO_UTC_OFFSET_SECS) * 1000,
+    };
+    let page = kanso_engine::overview::today(&empty, now, &kanso_engine::overview::Options::new())
+        .unwrap();
+    assert_eq!(page.today.state, kanso_engine::overview::State::New);
+    let digest = cx.update(|cx| workspace.read(cx).digest.clone());
+    cx.update(|cx| digest.update(cx, |digest, cx| digest.set_overview_for_test(page, cx)));
+}
+
+/// This week: what was finished, what is still open and what is ahead.
+fn overview_week(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    let plan = seed_tasks(store);
+    let doc = store.get(&plan).unwrap().unwrap();
+    let body = doc.fields["body"].as_str().unwrap().to_owned();
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": plan, "body": body.replace(
+                "- [ ] Send the beta invite",
+                "- [x] Send the beta invite"
+            )}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    wrote_in(store, "MCP support model", DAY);
+    waiting_on(store, "Rudo", "sign-off on the crate contract map", 9);
+    show_overview(cx, workspace);
+    let digest = cx.update(|cx| workspace.read(cx).digest.clone());
+    cx.update(|cx| {
+        digest.update(cx, |digest, cx| {
+            digest.show_perspective(crate::digest_view::Perspective::Week, cx)
+        })
+    });
+    cx.run_until_parked();
+}
+
 /// A note with due dates: chips in the preview, warm red when overdue.
 fn due_chips(
     cx: &mut HeadlessAppContext,
@@ -4344,6 +4573,38 @@ fn check_settings_surfaces(image: &image::RgbaImage, shot: &Shot) {
 
 /// Each pane is painted in its own surface color. The points sit in
 /// padding that no content reaches.
+/// A page in the list's and the editor's place (Overview): the sidebar,
+/// then the editor's surface across both panes.
+fn check_page(image: &image::RgbaImage, shot: &Shot) {
+    let colors = shot_colors(shot);
+    let width = f32::from(shot.size.width);
+    let height = f32::from(shot.size.height);
+    let scale = image.width() as f32 / width;
+    let fitted = crate::layout::PaneWidths::default().fitted(width, None);
+    for (at, expected, what) in [
+        ((4., height / 2.), colors.sidebar, "sidebar"),
+        (
+            (fitted.sidebar + 6., height - 6.),
+            colors.editor,
+            "page's left edge",
+        ),
+        (
+            (width - 12., height / 2.),
+            colors.editor,
+            "page's right edge",
+        ),
+    ] {
+        assert_surface(
+            image,
+            scale,
+            at,
+            expected,
+            2,
+            &format!("{}: {what}", shot.name),
+        );
+    }
+}
+
 fn check_surfaces(image: &image::RgbaImage, shot: &Shot, inspector: bool) {
     let colors = shot_colors(shot);
     // The inspector, when open, is the window's right edge, in the list's
@@ -5056,6 +5317,20 @@ fn snapshots() {
         Shot {
             dialog_width: crate::calendar_view::SHEET_WIDTH,
             ..shot("light-journal-calendar", Light, Edit, journal_calendar)
+        },
+        // Overview, Kanso's home (issue #240): a normal day in both themes,
+        // a busy one, a quiet one, a new library and the week.
+        shot("light-overview", Light, Edit, overview_today),
+        shot("dark-overview", Dark, Edit, overview_today),
+        Shot {
+            size: size(px(1440.), px(1900.)),
+            ..shot("light-overview-busy", Light, Edit, overview_busy)
+        },
+        shot("dark-overview-quiet", Dark, Edit, overview_quiet),
+        shot("dark-overview-new", Dark, Edit, overview_new),
+        Shot {
+            size: size(px(1440.), px(1300.)),
+            ..shot("light-overview-week", Light, Edit, overview_week)
         },
         shot("dark-tasks", Dark, Split, tasks_view),
         shot("light-tasks", Light, Split, tasks_view),
@@ -6099,8 +6374,12 @@ fn snapshots() {
         let dialog_open = cx
             .update_window(window, |_, window, cx| window.has_active_dialog(cx))
             .unwrap();
+        let page_open =
+            cx.update(|cx| workspace.read(cx).library.read(cx).filter == Filter::Overview);
         if dialog_open {
             check_dialog(&image, shot, shot.dialog_width);
+        } else if page_open {
+            check_page(&image, shot);
         } else if palette_open {
             check_palette(&image, shot);
         } else if settings_open {
