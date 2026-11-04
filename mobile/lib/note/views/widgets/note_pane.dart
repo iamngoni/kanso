@@ -2,6 +2,8 @@
 // Created 2026-10-25.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide LockState;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -44,7 +46,6 @@ import 'note_bottom_bar.dart';
 import 'note_info_sheet.dart';
 import 'note_lock_menu_button.dart';
 import 'note_lock_sync.dart';
-import 'note_menu_sheet.dart';
 import 'note_mode_shortcuts.dart';
 import 'note_mode_toggle.dart';
 import 'note_stage.dart';
@@ -213,21 +214,12 @@ class NotePane extends StatelessWidget {
                                 NoteMenuAction.share: () =>
                                     ShareNoteSheet.show(context, shown.noteId),
                               },
+                              extra: <NoteMenuAction, VoidCallback>{
+                                if (windows != null && windows.supported)
+                                  NoteMenuAction.openInNewWindow: () =>
+                                      unawaited(windows.open(shown.noteId)),
+                              },
                             ),
-                            // Only a device that shows more than one window
-                            // has anything to put in this menu.
-                            if (windows != null && windows.supported)
-                              KansoIconButton(
-                                icon: KansoIcons.ellipsis,
-                                semanticLabel: l10n.noteMenu,
-                                onPressed: () => showKansoBottomSheet<void>(
-                                  context,
-                                  builder: (_) => NoteMenuSheet(
-                                    noteId: shown.noteId,
-                                    windows: windows,
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                       if (hasStatus && readable && !focusActive)
