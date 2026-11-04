@@ -5,7 +5,7 @@ use kanso_core::now_ms;
 use rusqlite::{OptionalExtension, params};
 use serde_json::{Map, Value};
 
-use crate::write::SNAPSHOTS_PER_DOC;
+use crate::write::snapshot_limit;
 use crate::{Origin, Result, Store, StoreError};
 
 /// When a version saved now goes in `id`'s history: now, or just after the
@@ -99,7 +99,7 @@ impl Store {
             tx.execute(
                 "DELETE FROM revisions WHERE doc_id = ?1 AND id NOT IN
                  (SELECT id FROM revisions WHERE doc_id = ?1 ORDER BY saved_at DESC, id DESC LIMIT ?2)",
-                params![id, SNAPSHOTS_PER_DOC],
+                params![id, snapshot_limit(fields)],
             )?;
             Ok(())
         })

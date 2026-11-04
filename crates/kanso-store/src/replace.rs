@@ -12,7 +12,7 @@ use kanso_core::replace::{MatchContext, Matcher, contexts};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::{Map, Value};
 
-use crate::write::{SNAPSHOTS_PER_DOC, Synced, load_row, next_rev, store_row};
+use crate::write::{Synced, load_row, next_rev, snapshot_limit, store_row};
 use crate::{Origin, Result, Store};
 
 /// The most matches a preview carries for one note; the count is exact.
@@ -201,7 +201,7 @@ impl Store {
                 tx.execute(
                     "DELETE FROM revisions WHERE doc_id = ?1 AND id NOT IN
                      (SELECT id FROM revisions WHERE doc_id = ?1 ORDER BY saved_at DESC, id DESC LIMIT ?2)",
-                    params![plan.id, SNAPSHOTS_PER_DOC],
+                    params![plan.id, snapshot_limit(&row.fields)],
                 )?;
                 store_row(
                     tx,

@@ -819,6 +819,33 @@ impl Store {
                 learned(tx, &remote.id, &remote.rev)?;
                 return Ok(ApplyOutcome::LocalWon { new_rev });
             }
+            // Two versions of a canvas made apart are united item by item
+            // (a stroke drawn on one device is never lost to the other
+            // device's later save); the loser's version is still history. A
+            // shared canvas, a locked one, or one that doesn't parse falls
+            // through to last-writer-wins below.
+            if !rules.legacy()
+                && local_dirty
+                && doc_type == DocType::Note
+                && !local.deleted
+                && !remote.deleted
+                && let Some(merged) = merge_canvas_fields(&local.fields, &fields)
+            {
+                if merged == fields {
+                    store_row(tx, &remote.id, doc_type, &remote.rev, false, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                    learned(tx, &remote.id, &remote.rev)?;
+                    return Ok(ApplyOutcome::RemoteWon);
+                }
+                let above = kanso_core::Rev {
+                    generation: local_rev.generation.max(remote_rev.generation),
+                    hash: String::new(),
+                };
+                let new_rev = kanso_core::Rev::next(Some(&above), &Value::Object(merged.clone())).to_string();
+                keep_remote(tx, &remote.id, &remote.rev, &fields)?;
+                store_row(tx, &remote.id, doc_type, &new_rev, false, &merged, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                learned(tx, &remote.id, &remote.rev)?;
+                return Ok(ApplyOutcome::LocalWon { new_rev });
+            }
             let remote_wins = !local_dirty
                 || match (local.deleted, remote.deleted) {
                     // A deleted note's answers stay deleted whichever side
@@ -875,6 +902,46 @@ impl Store {
             Ok(ApplyOutcome::LocalWon { new_rev })
         })
     }
+}
+
+/// The union of two canvas notes' fields, or `None` when they aren't both
+/// plain private canvases that parse (then the usual last-writer-wins
+/// applies). The note's other fields come from the newer side; the body is
+/// the item-by-item merge of both (`kanso_core::canvas::merge`).
+fn merge_canvas_fields(
+    local: &Map<String, Value>,
+    remote: &Map<String, Value>,
+) -> Option<Map<String, Value>> {
+    let is_canvas =
+        |f: &Map<String, Value>| f.get("doctype").and_then(Value::as_str) == Some("canvas");
+    let apart = |f: &Map<String, Value>| {
+        f.contains_key(kanso_core::model::LOCK_FIELD)
+            || f.contains_key(kanso_core::model::SHARE_FIELD)
+    };
+    if !is_canvas(local) || !is_canvas(remote) || apart(local) || apart(remote) {
+        return None;
+    }
+    let body = |f: &Map<String, Value>| f.get("body").and_then(Value::as_str).map(str::to_owned);
+    let merged_body = kanso_core::canvas::merge_bodies(&body(local)?, &body(remote)?)?;
+    // Two halves within the budget can unite past it. Such a body would be
+    // refused by every other device's store (and by this one's next save),
+    // so the newer side wins whole instead; the other is kept as history.
+    kanso_core::canvas::check_body(&merged_body).ok()?;
+    let remote_newer = updated_at(remote) >= updated_at(local);
+    let (mut merged, other) = if remote_newer {
+        (remote.clone(), local)
+    } else {
+        (local.clone(), remote)
+    };
+    merged.insert("body".into(), merged_body.into());
+    merged.insert(
+        "updatedAt".into(),
+        updated_at(remote).max(updated_at(local)).into(),
+    );
+    if let Some(unioned) = union_loops_and_acks(&merged, other) {
+        merged = unioned;
+    }
+    Some(merged)
 }
 
 /// `base` with the loops and reminder acks of `other` folded in

@@ -40,6 +40,22 @@ pub struct WriteResult {
 const UI_SNAPSHOT_INTERVAL_MS: i64 = 5 * 60 * 1000;
 /// Snapshots kept per document.
 pub(crate) const SNAPSHOTS_PER_DOC: i64 = 50;
+/// Snapshots kept per canvas: it can be a megabyte, so fifty would be fifty
+/// megabytes of history (and of every daily backup).
+pub(crate) const SNAPSHOTS_PER_CANVAS: i64 = 10;
+
+/// How many snapshots a document with these fields keeps.
+pub(crate) fn snapshot_limit(fields: &Map<String, Value>) -> i64 {
+    if is_canvas(fields) {
+        SNAPSHOTS_PER_CANVAS
+    } else {
+        SNAPSHOTS_PER_DOC
+    }
+}
+
+fn is_canvas(fields: &Map<String, Value>) -> bool {
+    fields.get("doctype").and_then(Value::as_str) == Some("canvas")
+}
 
 /// A row of `docs` as the write path needs it.
 pub(crate) struct Row {
@@ -285,11 +301,39 @@ fn index_note(
             params![
                 id,
                 indexed.get("title").and_then(Value::as_str).unwrap_or(""),
-                indexed.get("body").and_then(Value::as_str).unwrap_or(""),
+                searchable_body(indexed),
             ],
         )?;
     }
-    crate::derived::write_note(tx, id, indexed, fields, in_locked_notebook)
+    // A canvas's JSON is not Markdown: its headings, tasks and links are
+    // not read from it.
+    let plain;
+    let derived = match indexed {
+        Some(indexed) if is_canvas(indexed) => {
+            plain = {
+                let mut plain = indexed.clone();
+                plain.insert("body".into(), Value::String(String::new()));
+                plain
+            };
+            Some(&plain)
+        }
+        other => other,
+    };
+    crate::derived::write_note(tx, id, derived, fields, in_locked_notebook)
+}
+
+/// The text the search index reads for a note: a canvas contributes its
+/// words (text cards, card titles, recognized handwriting) and never its JSON;
+/// a Markdown note's `sketch` fences contribute only the handwriting
+/// recognized in them.
+fn searchable_body(fields: &Map<String, Value>) -> String {
+    let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
+    if is_canvas(fields) {
+        return kanso_core::canvas::parse(body)
+            .map(|canvas| canvas.search_text())
+            .unwrap_or_default();
+    }
+    kanso_core::canvas::sketch::index_text(body)
 }
 
 /// Forgets what a locked note said before: every saved version not sealed
@@ -473,6 +517,16 @@ fn snapshot(tx: &Transaction, id: &str, prev: &Row, origin: Origin) -> Result<()
         if last.is_some_and(|at| now_ms() - at < UI_SNAPSHOT_INTERVAL_MS) {
             return Ok(());
         }
+        // A canvas is snapshotted only once it has been idle: while the pen
+        // is still moving, the version before this save is saved a moment ago.
+        let saved = prev.fields.get("updatedAt").and_then(Value::as_i64);
+        // A time far ahead of this Mac's clock (another device's, synced)
+        // is not "a moment ago", or a skewed clock would stop the history.
+        if is_canvas(&prev.fields)
+            && saved.is_some_and(|at| (now_ms() - at).abs() < UI_SNAPSHOT_INTERVAL_MS)
+        {
+            return Ok(());
+        }
     }
     keep_snapshot(tx, id, prev, origin)
 }
@@ -499,7 +553,7 @@ pub(crate) fn keep_snapshot(tx: &Transaction, id: &str, prev: &Row, origin: Orig
     tx.execute(
         "DELETE FROM revisions WHERE doc_id = ?1 AND id NOT IN
          (SELECT id FROM revisions WHERE doc_id = ?1 ORDER BY saved_at DESC, id DESC LIMIT ?2)",
-        params![id, SNAPSHOTS_PER_DOC],
+        params![id, snapshot_limit(&prev.fields)],
     )?;
     Ok(())
 }
