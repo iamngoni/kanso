@@ -15,6 +15,7 @@ import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/core/state/account/account_bloc.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
 import 'package:kanso/core/state/sync_status/sync_status_bloc.dart';
+import 'package:kanso/feedback/state/my_feedback/my_feedback_bloc.dart';
 import 'package:kanso/lock/state/biometrics/biometrics_bloc.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/push/models/data/push_setting_status.dart';
@@ -34,6 +35,7 @@ import 'fixture_ai_repository.dart';
 import 'fixture_device_lock_repository.dart';
 import 'fixture_digest_repository.dart';
 import 'fixture_discovery_repository.dart';
+import 'fixture_feedback_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_push_repository.dart';
 import 'fixture_reminders_repository.dart';
@@ -66,6 +68,7 @@ class SettingsBlocs {
     this.push,
     this.discoverySettings,
     this.aiStatus,
+    this.myFeedback,
   );
 
   final AboutBloc about;
@@ -93,6 +96,9 @@ class SettingsBlocs {
   final PushSettingBloc push;
   final DiscoverySettingsBloc discoverySettings;
   final AiStatusBloc aiStatus;
+
+  /// The feedback rows: no reports.
+  final MyFeedbackBloc myFeedback;
 
   /// Makes them and waits until they have read. The account is [account],
   /// by default none.
@@ -205,6 +211,9 @@ class SettingsBlocs {
     final aiStatus = AiStatusBloc(FixtureAiRepository())
       ..add(const AiStatusEvent.started());
     closeBlocLater(aiStatus);
+    final myFeedback = MyFeedbackBloc(FixtureFeedbackRepository())
+      ..add(const MyFeedbackEvent.started());
+    closeBlocLater(myFeedback);
     return SettingsBlocs._(
       about,
       sync,
@@ -222,6 +231,7 @@ class SettingsBlocs {
       setting,
       discoverySettings,
       aiStatus,
+      myFeedback,
     );
   }
 
@@ -229,6 +239,7 @@ class SettingsBlocs {
   /// route pushed later.
   List<BlocProvider<dynamic>> get providers => <BlocProvider<dynamic>>[
     BlocProvider<AboutBloc>.value(value: about),
+    BlocProvider<MyFeedbackBloc>.value(value: myFeedback),
     BlocProvider<SyncStatusBloc>.value(value: sync),
     BlocProvider<SyncSettingsBloc>.value(value: startedSyncSettingsBloc()),
     BlocProvider<AccountBloc>.value(value: account),

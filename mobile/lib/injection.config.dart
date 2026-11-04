@@ -40,6 +40,7 @@ import 'core/bridge/api/account.dart' as _i578;
 import 'core/bridge/api/account_settings.dart' as _i102;
 import 'core/bridge/api/ai.dart' as _i35;
 import 'core/bridge/api/approvals.dart' as _i283;
+import 'core/bridge/api/feedback.dart' as _i442;
 import 'core/bridge/api/gallery.dart' as _i783;
 import 'core/bridge/api/library.dart' as _i455;
 import 'core/bridge/api/locks.dart' as _i983;
@@ -160,6 +161,13 @@ import 'editor/models/repos/impl/rust_editor_repository.dart' as _i606;
 import 'editor/models/repos/impl/url_launcher_web_link_repository.dart'
     as _i635;
 import 'editor/state/editor/editor_bloc.dart' as _i964;
+import 'feedback/models/repos/abs/feedback_repository.dart' as _i15;
+import 'feedback/models/repos/abs/feedback_screenshot_repository.dart' as _i146;
+import 'feedback/models/repos/impl/photo_feedback_screenshot_repository.dart'
+    as _i596;
+import 'feedback/models/repos/impl/rust_feedback_repository.dart' as _i894;
+import 'feedback/state/my_feedback/my_feedback_bloc.dart' as _i519;
+import 'feedback/state/send_feedback/send_feedback_bloc.dart' as _i455;
 import 'graph/state/graph/graph_bloc.dart' as _i365;
 import 'history/models/repos/abs/history_repository.dart' as _i974;
 import 'history/models/repos/impl/rust_history_repository.dart' as _i1065;
@@ -363,6 +371,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i687.AgentTaskNotifier>(
       () => _i238.SystemAgentTaskNotifier(gh<_i874.ReminderNotifier>()),
     );
+    gh.lazySingleton<_i146.FeedbackScreenshotRepository>(
+      () => _i596.PhotoFeedbackScreenshotRepository(gh<_i183.ImagePicker>()),
+    );
     gh.singleton<_i289.DesignGalleryAccess>(
       () => appModule.developmentGallery,
       registerFor: {_development},
@@ -483,6 +494,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i575.KansoMetrics>(
       () => coreModule.metrics(gh<_i455.KansoLibrary>()),
+    );
+    gh.lazySingleton<_i442.KansoFeedback>(
+      () => coreModule.feedback(gh<_i455.KansoLibrary>()),
     );
     gh.lazySingleton<_i591.KansoSync>(
       () => coreModule.sync(gh<_i455.KansoLibrary>()),
@@ -726,6 +740,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i900.MediaPickerRepository>(),
       ),
     );
+    gh.lazySingleton<_i15.FeedbackRepository>(
+      () => _i894.RustFeedbackRepository(
+        gh<_i442.KansoFeedback>(),
+        gh<_i1070.CrashContextRepository>(),
+        gh<_i288.CrashReportRepository>(),
+      ),
+    );
     gh.factoryParam<_i272.NavigationHistoryBloc, _i380.TabsBloc?, dynamic>(
       (_tabs, _) =>
           _i272.NavigationHistoryBloc(gh<_i38.LibraryRepository>(), _tabs),
@@ -857,6 +878,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.HapticsRepository>(),
       ),
     );
+    gh.factory<_i455.SendFeedbackBloc>(
+      () => _i455.SendFeedbackBloc(
+        gh<_i15.FeedbackRepository>(),
+        gh<_i146.FeedbackScreenshotRepository>(),
+      ),
+    );
     gh.factory<_i1028.ReplaceNotesBloc>(
       () => _i1028.ReplaceNotesBloc(gh<_i608.ReplaceRepository>()),
     );
@@ -866,6 +893,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i872.DictationRepository>(),
         gh<_i1027.VoiceSettingsRepository>(),
       ),
+    );
+    gh.factory<_i519.MyFeedbackBloc>(
+      () => _i519.MyFeedbackBloc(gh<_i15.FeedbackRepository>()),
     );
     gh.factory<_i39.ChangePasswordBloc>(
       () => _i39.ChangePasswordBloc(gh<_i333.SessionRepository>()),

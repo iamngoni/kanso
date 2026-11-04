@@ -16,6 +16,8 @@ base64.workspace = true
 chrono.workspace = true
 # Agents' MCP tokens: 256 bits from the OS, kept only as SHA-256.
 getrandom.workspace = true
+# Caps the body of every route but an attachment upload's (`body_limit`).
+http-body-util = "0.1"
 kanso-core.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true
@@ -27,7 +29,6 @@ subtle = "2.6"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
 
 [dev-dependencies]
-http-body-util = "0.1"
 proptest.workspace = true
 rusqlite.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json"] }

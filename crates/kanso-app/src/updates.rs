@@ -1143,9 +1143,11 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
     });
 }
 
-/// After an update, once: "Updated to Kanso 0.2.0", with What's new.
+/// After an update, once: "Updated to Kanso 0.2.0", with What's new. When
+/// the person has sent feedback, the server is asked (for a few seconds at
+/// most) whether this release fixed any of it, and the notice says so.
 // no-prop-test: a notification; `just_updated` decides when, and a
-// snapshot shows it.
+// snapshot shows it. `update_message` is tested.
 pub fn announce(window: &mut Window, cx: &mut App) {
     if !cx.has_global::<Updates>() {
         return;
@@ -1153,24 +1155,84 @@ pub fn announce(window: &mut Window, cx: &mut App) {
     let Some(notes) = cx.global_mut::<Updates>().just_updated.take() else {
         return;
     };
+    let env = crate::feedback_app::Env::capture(cx)
+        .filter(|env| env.store.feedback_all().is_ok_and(|rows| !rows.is_empty()));
+    let Some(env) = env else {
+        push_update_notice(notes, 0, window, cx);
+        return;
+    };
+    let version = notes.version.to_string();
+    let task = cx.background_executor().spawn(async move {
+        let reporters = env.reporters();
+        let client = env.quick_client(4);
+        let views = kanso_engine::feedback_flow::refresh_as(
+            &env.store,
+            &client,
+            &reporters,
+            kanso_core::now_ms(),
+        )
+        .ok()?;
+        Some(kanso_engine::feedback::fixed_in(&views, &version))
+    });
+    window
+        .spawn(cx, async move |cx| {
+            let fixed = task.await.unwrap_or(0);
+            cx.update(|window, cx| push_update_notice(notes, fixed, window, cx))
+                .ok();
+        })
+        .detach();
+}
+
+/// The "Updated to Kanso X" notice, with a second button when the release
+/// fixed `fixed` of this person's reports.
+fn push_update_notice(notes: ReleaseNotes, fixed: usize, window: &mut Window, cx: &mut App) {
     let title = format!("Updated to Kanso {}", notes.version);
-    window.push_notification(
-        Notification::new()
-            .title(title)
-            .message("See what changed.")
-            .icon(Icon::new(Lucide::Sparkles))
-            .action(move |_, _, _| {
-                let notes = notes.clone();
-                Button::new("whats-new")
-                    .small()
-                    .primary()
-                    .label("What's new")
-                    .on_click(move |_, window, cx| {
-                        open_notes(notes.clone(), SheetKind::Installed, window, cx)
-                    })
-            }),
-        cx,
-    );
+    let message = crate::feedback_app::update_message(fixed);
+    let open = move |notes: ReleaseNotes| {
+        Button::new("whats-new")
+            .small()
+            .primary()
+            .label("What's new")
+            .on_click(move |_, window, cx| {
+                open_notes(notes.clone(), SheetKind::Installed, window, cx)
+            })
+    };
+    let notification = Notification::new()
+        .title(title)
+        .icon(Icon::new(Lucide::Sparkles));
+    let notification = if fixed == 0 {
+        notification
+            .message(message)
+            .action(move |_, _, _| open(notes.clone()))
+    } else {
+        // Two buttons: the notice's own content holds both.
+        notification.content(move |_, _, cx| {
+            let colors = Colors::get(cx);
+            v_flex()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .text_size(px(13.))
+                        .text_color(colors.text_secondary)
+                        .child(message.clone()),
+                )
+                .child(
+                    h_flex().gap_2().child(open(notes.clone())).child(
+                        Button::new("my-feedback")
+                            .small()
+                            .label("My feedback")
+                            .on_click(|_, window, cx| {
+                                window.dispatch_action(
+                                    Box::new(crate::feedback_sheet::MyFeedback),
+                                    cx,
+                                )
+                            }),
+                    ),
+                )
+                .into_any_element()
+        })
+    };
+    window.push_notification(notification, cx);
 }
 
 /// Settings › Updates.

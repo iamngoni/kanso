@@ -10449,6 +10449,384 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Record'**
   String get libraryRecord;
+
+  /// A section of settings: sending feedback and seeing what became of it.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get feedbackSection;
+
+  /// The settings row that opens the page to send feedback, and that page's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Send feedback'**
+  String get feedbackSend;
+
+  /// The settings row that opens the list of feedback reports, and that page's title.
+  ///
+  /// In en, this message translates to:
+  /// **'My feedback'**
+  String get feedbackMine;
+
+  /// The value of the My feedback row when a report was fixed in a release.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed in {release}'**
+  String feedbackFixedIn(String release);
+
+  /// The footer under the Feedback section of settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Your words and screenshot stay private with Kanso. No notes are ever sent.'**
+  String get feedbackSectionFooter;
+
+  /// The accessibility label of the control that picks a kind of feedback.
+  ///
+  /// In en, this message translates to:
+  /// **'What kind of feedback'**
+  String get feedbackKindLabel;
+
+  /// The kind of feedback for a problem.
+  ///
+  /// In en, this message translates to:
+  /// **'Something’s wrong'**
+  String get feedbackKindBug;
+
+  /// The kind of feedback for a suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Idea'**
+  String get feedbackKindIdea;
+
+  /// The kind of feedback for a question.
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get feedbackKindQuestion;
+
+  /// The hint in the feedback text box for a problem or a question.
+  ///
+  /// In en, this message translates to:
+  /// **'What happened, and what did you expect?'**
+  String get feedbackHintProblem;
+
+  /// The hint in the feedback text box for an idea.
+  ///
+  /// In en, this message translates to:
+  /// **'What would you like Kanso to do?'**
+  String get feedbackHintIdea;
+
+  /// The character counter under the feedback text box.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} / {max}'**
+  String feedbackCounter(int count, int max);
+
+  /// The button that opens the photo picker for a screenshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Add screenshot'**
+  String get feedbackAddScreenshot;
+
+  /// The button that removes the chosen screenshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get feedbackRemoveScreenshot;
+
+  /// The warning under the screenshot button.
+  ///
+  /// In en, this message translates to:
+  /// **'Screenshots can show your notes. Check before sending.'**
+  String get feedbackScreenshotWarning;
+
+  /// The row that names the screenshot chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Screenshot: {name}'**
+  String feedbackScreenshotAttached(String name);
+
+  /// The switch for sending the version, system and recent errors with a report.
+  ///
+  /// In en, this message translates to:
+  /// **'Include app info'**
+  String get feedbackIncludeAppInfo;
+
+  /// The detail under the app info switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Version, system and recent errors. Never your notes.'**
+  String get feedbackIncludeAppInfoDetail;
+
+  /// The button that shows the exact text a report sends.
+  ///
+  /// In en, this message translates to:
+  /// **'Show what’s sent'**
+  String get feedbackShowSent;
+
+  /// The button that hides the exact text a report sends.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide what’s sent'**
+  String get feedbackHideSent;
+
+  /// Shown where the exact text of a report goes, while the report is too short to send.
+  ///
+  /// In en, this message translates to:
+  /// **'The report appears here once it has at least 10 characters.'**
+  String get feedbackSentEmpty;
+
+  /// The switch for being named when a report is fixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit me by name'**
+  String get feedbackCredit;
+
+  /// The detail under the credit switch.
+  ///
+  /// In en, this message translates to:
+  /// **'If this is fixed, your name is in the release notes. Never a link to you.'**
+  String get feedbackCreditDetail;
+
+  /// The hint in the field for the name to credit.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get feedbackCreditName;
+
+  /// The line under the feedback form that says what happens to a report.
+  ///
+  /// In en, this message translates to:
+  /// **'Your words and screenshot stay private with Kanso. A short summary may become a public GitHub issue. No notes are ever sent.'**
+  String get feedbackFooter;
+
+  /// The button that sends a report.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get feedbackSendButton;
+
+  /// The label of the send button while a report is being sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get feedbackSending;
+
+  /// Said when a report reached the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks — feedback sent.'**
+  String get feedbackSentToast;
+
+  /// Said when a report is saved on the phone to be sent later.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved — it will send when you’re back online.'**
+  String get feedbackQueuedToast;
+
+  /// Said when the server is not taking reports right now.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback is paused for now. Your report is saved and will send later.'**
+  String get feedbackPausedToast;
+
+  /// Said when too many reports were sent today.
+  ///
+  /// In en, this message translates to:
+  /// **'You’ve sent a lot of feedback today. Try again tomorrow.'**
+  String get feedbackRateLimitedToast;
+
+  /// Why a report is too short to send.
+  ///
+  /// In en, this message translates to:
+  /// **'Say a little more (at least 10 characters).'**
+  String get feedbackErrorTooShort;
+
+  /// Why a report is too long to send.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it under 4,000 characters.'**
+  String get feedbackErrorTooLong;
+
+  /// Why a report holds a character that can not be sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Take out the control characters and try again.'**
+  String get feedbackErrorCharacter;
+
+  /// Why the credit name can not be used.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 1 to 39 letters, numbers, spaces, dots, dashes or underscores for your name.'**
+  String get feedbackErrorCredit;
+
+  /// Why a screenshot can not be attached.
+  ///
+  /// In en, this message translates to:
+  /// **'That image is over 5 MB. Choose a smaller one.'**
+  String get feedbackErrorScreenshot;
+
+  /// Said when a report could not be built.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso couldn’t build this report. Turn off app info and try again.'**
+  String get feedbackErrorOther;
+
+  /// Said when the server refused a part of a report. The field is a name such as text.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso couldn’t send this report ({field}). Edit it and try again.'**
+  String feedbackErrorRejected(String field);
+
+  /// Said when the server refused a report and named no part of it.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso couldn’t send this report. Edit it and try again.'**
+  String get feedbackErrorRejectedPlain;
+
+  /// The line at the top of the My feedback page.
+  ///
+  /// In en, this message translates to:
+  /// **'The feedback you sent and where each report stands. Pull down to check.'**
+  String get feedbackMineIntro;
+
+  /// The accessibility label while the reports are read.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your feedback'**
+  String get feedbackMineLoading;
+
+  /// Said when the list of reports could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso couldn’t read your feedback.'**
+  String get feedbackMineFailed;
+
+  /// The title of the empty My feedback page.
+  ///
+  /// In en, this message translates to:
+  /// **'No feedback yet'**
+  String get feedbackMineEmptyTitle;
+
+  /// The message of the empty My feedback page.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports you send from Settings › Send feedback show up here.'**
+  String get feedbackMineEmptyMessage;
+
+  /// A report is saved on the phone and has not been sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting to send'**
+  String get feedbackChipWaiting;
+
+  /// A report reached the server.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get feedbackChipReceived;
+
+  /// A report was made into a GitHub issue.
+  ///
+  /// In en, this message translates to:
+  /// **'Filed as #{number}'**
+  String feedbackChipFiled(int number);
+
+  /// A fix for a report is being built.
+  ///
+  /// In en, this message translates to:
+  /// **'Building'**
+  String get feedbackChipBuilding;
+
+  /// A fix for a report was proposed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fix proposed'**
+  String get feedbackChipFixProposed;
+
+  /// A fix for a report was accepted and will ship in the next release.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged'**
+  String get feedbackChipMerged;
+
+  /// A fix for a report shipped in a release.
+  ///
+  /// In en, this message translates to:
+  /// **'Released in {release}'**
+  String feedbackChipReleased(String release);
+
+  /// A report was not made into an issue.
+  ///
+  /// In en, this message translates to:
+  /// **'Not filed'**
+  String get feedbackChipNotFiled;
+
+  /// A report matched an issue that was already open.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as #{number}'**
+  String feedbackChipSame(int number);
+
+  /// A report was closed without a fix.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get feedbackChipClosed;
+
+  /// A report is being deleted and the server has not confirmed yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting…'**
+  String get feedbackChipDeleting;
+
+  /// The detail of a report that was not made into an issue.
+  ///
+  /// In en, this message translates to:
+  /// **'Not filed — it didn’t look like a bug or an idea. Still kept privately for the owner to read.'**
+  String get feedbackDetailNotFiled;
+
+  /// The detail of a report that matched an issue already open.
+  ///
+  /// In en, this message translates to:
+  /// **'Your report was added to issue #{number}.'**
+  String feedbackDetailSame(int number);
+
+  /// The button that opens a report's issue on GitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Open on GitHub'**
+  String get feedbackOpenOnGithub;
+
+  /// The button that deletes a report.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get feedbackDelete;
+
+  /// The title of the question before a report is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this report?'**
+  String get feedbackDeleteTitle;
+
+  /// What deleting a report does.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso removes your text, screenshot and app info from its server. A GitHub issue made from it stays, but holds no words of yours.'**
+  String get feedbackDeleteMessage;
+
+  /// The heading of the steps a report goes through.
+  ///
+  /// In en, this message translates to:
+  /// **'Where it stands'**
+  String get feedbackTimeline;
+
+  /// A step a report goes through: made into an issue.
+  ///
+  /// In en, this message translates to:
+  /// **'Filed'**
+  String get feedbackStepFiled;
 }
 
 class _AppLocalizationsDelegate

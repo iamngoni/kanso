@@ -25,6 +25,7 @@ use super::cards::KansoCards;
 use super::discovery::KansoDiscovery;
 use super::draft::KansoDrafting;
 use super::editor::KansoEditor;
+use super::feedback::KansoFeedback;
 use super::gallery::KansoGallery;
 use super::linking::KansoLinking;
 use super::locks::KansoLocks;
@@ -61,6 +62,12 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn metrics(&self) -> KansoMetrics {
         KansoMetrics::new(self.0.metrics())
+    }
+
+    /// Send feedback and My feedback for this library.
+    #[frb(sync)]
+    pub fn feedback(&self) -> KansoFeedback {
+        KansoFeedback::new(self.0.feedback())
     }
 
     /// Voice dictation settings saved beside the library database.

@@ -14,6 +14,8 @@ mod doc;
 mod embed;
 mod entities;
 mod entity_index;
+mod feedback_outbox;
+mod feedback_outbox_model;
 mod graph;
 mod history;
 mod home;
@@ -58,6 +60,7 @@ pub use entities::{
     CandidateRow, DISMISSED_FIELD, DetectNote, DismissedRow, EntityRow, EntityTask, MAX_DISMISSED,
     MentionRow,
 };
+pub use feedback_outbox_model::{OutboxNew, OutboxRow, OutboxState, ServerStatus};
 pub use graph::{GraphLink, GraphNote};
 pub use home_model::{
     HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,

@@ -12,6 +12,7 @@ import 'cards.dart';
 import 'discovery.dart';
 import 'draft.dart';
 import 'editor.dart';
+import 'feedback.dart';
 import 'gallery.dart';
 import 'linking.dart';
 import 'locks.dart';
@@ -148,6 +149,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Deletes every note in the trash for good; says how many.
   Future<int> emptyTrash();
+
+  /// Send feedback and My feedback for this library.
+  KansoFeedback feedback();
 
   KansoGallery gallery();
 

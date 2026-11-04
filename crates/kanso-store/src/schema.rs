@@ -363,6 +363,28 @@ CREATE TABLE IF NOT EXISTS entity_dismissed (
     at INTEGER NOT NULL
 ) WITHOUT ROWID;
 "#,
+    // In-app feedback's outbox (issue #232): local, never synced, no note content.
+    r#"
+CREATE TABLE IF NOT EXISTS feedback_outbox (
+    id TEXT PRIMARY KEY NOT NULL,
+    payload TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    preview TEXT NOT NULL,
+    screenshot_path TEXT,
+    screenshot_sent INTEGER NOT NULL DEFAULT 0,
+    state TEXT NOT NULL DEFAULT 'queued' CHECK (state IN ('queued', 'sent', 'deleting')),
+    server_status TEXT,
+    issue INTEGER,
+    duplicate_of INTEGER,
+    pr INTEGER,
+    release TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_try_ms INTEGER NOT NULL DEFAULT 0,
+    created_ms INTEGER NOT NULL,
+    -- Who sent it: `anonymous` or `account:<id>`. Only that reporter can act on it.
+    sender TEXT NOT NULL DEFAULT ''
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -749,5 +771,36 @@ mod tests {
         )
         .unwrap();
         conn.execute_batch(MIGRATIONS[16]).unwrap();
+    }
+
+    /// A database one version before the feedback outbox moves to head
+    /// keeping what it had, and the outbox works. Running it again changes nothing.
+    #[test]
+    fn the_feedback_outbox_migration_moves_from_the_version_before() {
+        let at = MIGRATIONS
+            .iter()
+            .position(|sql| sql.contains("feedback_outbox"))
+            .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db")).unwrap();
+        for (index, sql) in MIGRATIONS.iter().take(at).enumerate() {
+            conn.execute_batch(&format!(
+                "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
+                index + 1
+            ))
+            .unwrap();
+        }
+        assert_eq!(version(&conn), at as i64);
+        set_meta(&conn, "kept", "yes").unwrap();
+        migrate(&conn).unwrap();
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
+        assert!(has_column(&conn, "feedback_outbox", "next_try_ms"));
+        assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+        conn.execute(
+            "INSERT INTO feedback_outbox (id, payload, kind, preview, created_ms) VALUES ('fb_a', '{}', 'bug', 'p', 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute_batch(MIGRATIONS[at]).unwrap();
     }
 }

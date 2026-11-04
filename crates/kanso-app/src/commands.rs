@@ -1659,6 +1659,28 @@ static COMMANDS: &[Command] = &[
         needs: Needs::Nothing,
     },
     Command {
+        id: "send-feedback",
+        label: "Send feedback…",
+        label_when_pinned: None,
+        description: "Tells the Kanso team about a problem, an idea or a question. You see exactly what is sent first, and no notes are ever included.",
+        icon: IconName::MessageSquare,
+        keywords: &["bug", "report", "idea", "issue", "problem", "suggest"],
+        group: Group::App,
+        run: action!(crate::feedback_sheet::SendFeedback),
+        needs: Needs::Nothing,
+    },
+    Command {
+        id: "my-feedback",
+        label: "My feedback",
+        label_when_pinned: None,
+        description: "The feedback you sent, and where each report stands: received, filed, fixed, released.",
+        icon: IconName::MessageSquare,
+        keywords: &["bug", "report", "idea", "issue", "problem", "suggest"],
+        group: Group::App,
+        run: action!(crate::feedback_sheet::MyFeedback),
+        needs: Needs::Nothing,
+    },
+    Command {
         id: "settings-appearance",
         label: "Settings: Themes",
         label_when_pinned: None,
@@ -1924,6 +1946,25 @@ mod tests {
     use super::{Run, all};
     use crate::assets::KansoAssets;
     use crate::workspace::OpenCommandPalette;
+
+    /// Issue #232: both feedback commands are in the App group, need nothing,
+    /// and are found by the words people type for them.
+    #[test]
+    fn the_feedback_commands_are_in_the_app_group() {
+        for (id, label) in [
+            ("send-feedback", "Send feedback…"),
+            ("my-feedback", "My feedback"),
+        ] {
+            let command = all().iter().find(|c| c.id == id).expect(id);
+            assert_eq!(command.label, label);
+            assert_eq!(command.group, super::Group::App);
+            assert_eq!(command.needs, super::Needs::Nothing);
+            for word in ["bug", "report", "idea", "issue", "problem", "suggest"] {
+                assert!(command.keywords.contains(&word), "{id}: {word}");
+            }
+            assert!(command.action().is_some());
+        }
+    }
 
     #[test]
     fn ids_are_unique() {

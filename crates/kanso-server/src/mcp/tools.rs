@@ -17,7 +17,7 @@ use base64::engine::DecodePaddingMode;
 use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig, STANDARD};
 use kanso_core::id::with_prefix;
 use kanso_core::links::{LINK_SCHEME, NOTE_LINK_PREFIX};
-use kanso_core::model::{MAX_ATTACHMENT_SIZE, SUPPORTED_IMAGE_TYPES};
+use kanso_core::model::{MAX_ATTACHMENT_SIZE, SUPPORTED_IMAGE_TYPES, attachment_limit, is_pdf};
 use kanso_core::{DocType, now_ms};
 use kanso_store::{Attachment, AttachmentState, MEANING_SIMILARITY, MeaningSearch, Store};
 use serde_json::{Map, Value, json};
@@ -1365,10 +1365,12 @@ fn decode_base64_leniently(data: &str) -> Vec<u8> {
     LENIENT.decode(clean).unwrap_or_default()
 }
 
-/// The image type for a path's extension, as `inferImageContentType` does.
+/// The image type for a path's extension, as `inferImageContentType` does,
+/// and `application/pdf` for a `.pdf` (the store checks it starts like one).
 fn infer_image_type(path: &str) -> Option<&'static str> {
     let ext = Path::new(path).extension()?.to_str()?.to_lowercase();
     match ext.as_str() {
+        "pdf" => Some("application/pdf"),
         "png" => Some("image/png"),
         "jpeg" | "jpg" => Some("image/jpeg"),
         "svg" | "svg+xml" => Some("image/svg+xml"),
@@ -1419,14 +1421,22 @@ fn create_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
             SUPPORTED_IMAGE_TYPES.join(", ")
         )));
     };
+    // 10 MiB, or 50 MiB for a PDF (one that says so and starts like one).
+    // A 50 MiB PDF is about 67 MiB in base64, over the HTTP body limit of
+    // `/mcp`, so a large PDF comes by `filePath`.
+    let limit = attachment_limit(&content_type, &bytes);
+    let pdf = is_pdf(&content_type, &bytes);
     let encoded = STANDARD.encode(&bytes);
     let content_length = encoded.len() * 3 / 4;
-    if content_length > MAX_ATTACHMENT_SIZE {
+    if content_length > limit {
         return Err(ToolError(format!(
-            "Failed to create the attachment: the file is {content_length} bytes, over the {MAX_ATTACHMENT_SIZE} byte limit."
+            "Failed to create the attachment: the file is {content_length} bytes, over the {limit} byte limit."
         )));
     }
     let name = name.unwrap_or_else(|| {
+        if pdf {
+            return "document.pdf".to_owned();
+        }
         format!(
             "image.{}",
             content_type.strip_prefix("image/").unwrap_or(&content_type)
@@ -1441,8 +1451,10 @@ fn create_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
         "_attachments": { "index": { "content_type": content_type, "data": encoded } },
     });
     let res = api::upsert(store, DocType::File, body)?;
+    // A PDF is linked, not embedded as an image: the preview draws images only.
+    let bang = if pdf { "" } else { "!" };
     let embed = format!(
-        "Markdown to embed this attachment in a note body:\n\n![{name}]({})",
+        "Markdown to embed this attachment in a note body:\n\n{bang}[{name}]({})",
         file_uri(&js_string(res.get("id")))
     );
     result(vec![text(pretty(&res)), text(embed)])

@@ -61,6 +61,10 @@ mod editor_footer;
 mod empty_state;
 mod export_html;
 mod export_style;
+mod feedback_app;
+mod feedback_sheet;
+#[cfg(test)]
+mod feedback_sheet_tests;
 mod flavour;
 mod fonts;
 mod fuzzy;
@@ -187,6 +191,7 @@ mod flashcards_model;
 mod flashcards_view;
 mod learn_model;
 mod learn_view;
+mod my_feedback;
 mod settings_flashcards;
 #[cfg(all(target_os = "macos", not(test)))]
 mod spellcheck_macos;
@@ -671,6 +676,8 @@ fn run_app(
         updates::init(cx);
         // The anonymous daily count: only a release, once the notice was seen.
         metrics::init(cx);
+        // Feedback reports that were waiting go once the session is back.
+        feedback_app::start(cx);
         hotkey::init(cx);
         let store = cx.global::<AppState>().store.clone();
         // Plugins: none starts here. Safe mode is settled before any could.

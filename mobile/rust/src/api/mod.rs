@@ -21,6 +21,7 @@ pub mod discovery;
 pub mod draft;
 pub mod draft_types;
 pub mod editor;
+pub mod feedback;
 pub mod gallery;
 pub mod import;
 pub mod journal;

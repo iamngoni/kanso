@@ -15,6 +15,7 @@ import 'api/discovery.dart';
 import 'api/draft.dart';
 import 'api/draft_types.dart';
 import 'api/editor.dart';
+import 'api/feedback.dart';
 import 'api/gallery.dart';
 import 'api/import.dart';
 import 'api/library.dart';
@@ -98,6 +99,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoEditorPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditorPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoFeedbackPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedbackPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoGalleryPtr => wire
@@ -229,6 +234,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoEditor
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    dynamic raw,
+  );
+
+  @protected
+  KansoFeedback
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
     dynamic raw,
   );
 
@@ -391,6 +402,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoEditor
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    dynamic raw,
+  );
+
+  @protected
+  KansoFeedback
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
     dynamic raw,
   );
 
@@ -559,6 +576,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoEditor
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    dynamic raw,
+  );
+
+  @protected
+  KansoFeedback
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
     dynamic raw,
   );
 
@@ -913,6 +936,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  FeedbackInput dco_decode_box_autoadd_feedback_input(dynamic raw);
+
+  @protected
+  FeedbackProblem dco_decode_box_autoadd_feedback_problem(dynamic raw);
+
+  @protected
   FoldState dco_decode_box_autoadd_fold_state(dynamic raw);
 
   @protected
@@ -1258,6 +1287,27 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   double dco_decode_f_64(dynamic raw);
 
   @protected
+  FeedbackChipKind dco_decode_feedback_chip_kind(dynamic raw);
+
+  @protected
+  FeedbackContext dco_decode_feedback_context(dynamic raw);
+
+  @protected
+  FeedbackInput dco_decode_feedback_input(dynamic raw);
+
+  @protected
+  FeedbackPreview dco_decode_feedback_preview(dynamic raw);
+
+  @protected
+  FeedbackProblem dco_decode_feedback_problem(dynamic raw);
+
+  @protected
+  FeedbackReport dco_decode_feedback_report(dynamic raw);
+
+  @protected
+  FeedbackSent dco_decode_feedback_sent(dynamic raw);
+
+  @protected
   FoldState dco_decode_fold_state(dynamic raw);
 
   @protected
@@ -1481,6 +1531,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<EditorRun> dco_decode_list_editor_run(dynamic raw);
+
+  @protected
+  List<FeedbackReport> dco_decode_list_feedback_report(dynamic raw);
 
   @protected
   List<GalleryItem> dco_decode_list_gallery_item(dynamic raw);
@@ -1997,6 +2050,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  FeedbackProblem? dco_decode_opt_box_autoadd_feedback_problem(dynamic raw);
+
+  @protected
   GalleryColors? dco_decode_opt_box_autoadd_gallery_colors(dynamic raw);
 
   @protected
@@ -2093,6 +2149,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   VoiceNoteInfo? dco_decode_opt_box_autoadd_voice_note_info(dynamic raw);
+
+  @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
   OutlineHeading dco_decode_outline_heading(dynamic raw);
@@ -2686,6 +2745,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoFeedback
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoGallery
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoGallery(
     SseDeserializer deserializer,
@@ -2844,6 +2909,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoEditor
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoFeedback
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
     SseDeserializer deserializer,
   );
 
@@ -3012,6 +3083,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoEditor
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoFeedback
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
     SseDeserializer deserializer,
   );
 
@@ -3394,6 +3471,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  FeedbackInput sse_decode_box_autoadd_feedback_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FeedbackProblem sse_decode_box_autoadd_feedback_problem(
+    SseDeserializer deserializer,
+  );
 
   @protected
   FoldState sse_decode_box_autoadd_fold_state(SseDeserializer deserializer);
@@ -3789,6 +3876,27 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  FeedbackChipKind sse_decode_feedback_chip_kind(SseDeserializer deserializer);
+
+  @protected
+  FeedbackContext sse_decode_feedback_context(SseDeserializer deserializer);
+
+  @protected
+  FeedbackInput sse_decode_feedback_input(SseDeserializer deserializer);
+
+  @protected
+  FeedbackPreview sse_decode_feedback_preview(SseDeserializer deserializer);
+
+  @protected
+  FeedbackProblem sse_decode_feedback_problem(SseDeserializer deserializer);
+
+  @protected
+  FeedbackReport sse_decode_feedback_report(SseDeserializer deserializer);
+
+  @protected
+  FeedbackSent sse_decode_feedback_sent(SseDeserializer deserializer);
+
+  @protected
   FoldState sse_decode_fold_state(SseDeserializer deserializer);
 
   @protected
@@ -4036,6 +4144,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<EditorRun> sse_decode_list_editor_run(SseDeserializer deserializer);
+
+  @protected
+  List<FeedbackReport> sse_decode_list_feedback_report(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GalleryItem> sse_decode_list_gallery_item(SseDeserializer deserializer);
@@ -4662,6 +4775,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  FeedbackProblem? sse_decode_opt_box_autoadd_feedback_problem(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GalleryColors? sse_decode_opt_box_autoadd_gallery_colors(
     SseDeserializer deserializer,
   );
@@ -4806,6 +4924,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   VoiceNoteInfo? sse_decode_opt_box_autoadd_voice_note_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   OutlineHeading sse_decode_outline_heading(SseDeserializer deserializer);
@@ -5436,6 +5557,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+    KansoFeedback self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoGallery(
     KansoGallery self,
     SseSerializer serializer,
@@ -5620,6 +5748,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
     KansoEditor self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+    KansoFeedback self,
     SseSerializer serializer,
   );
 
@@ -5815,6 +5950,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor(
     KansoEditor self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+    KansoFeedback self,
     SseSerializer serializer,
   );
 
@@ -6295,6 +6437,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_feedback_input(
+    FeedbackInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_feedback_problem(
+    FeedbackProblem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_fold_state(
@@ -6831,6 +6985,42 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_feedback_chip_kind(
+    FeedbackChipKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_feedback_context(
+    FeedbackContext self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_feedback_input(FeedbackInput self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_feedback_preview(
+    FeedbackPreview self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_feedback_problem(
+    FeedbackProblem self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_feedback_report(
+    FeedbackReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_feedback_sent(FeedbackSent self, SseSerializer serializer);
+
+  @protected
   void sse_encode_fold_state(FoldState self, SseSerializer serializer);
 
   @protected
@@ -7142,6 +7332,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_editor_run(
     List<EditorRun> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_feedback_report(
+    List<FeedbackReport> self,
     SseSerializer serializer,
   );
 
@@ -7968,6 +8164,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_feedback_problem(
+    FeedbackProblem? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_gallery_colors(
     GalleryColors? self,
     SseSerializer serializer,
@@ -8147,6 +8349,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_voice_note_info(
     VoiceNoteInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
     SseSerializer serializer,
   );
 
@@ -9191,6 +9399,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditor =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoEditorPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedbackPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedbackPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedbackPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedback =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoFeedbackPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
