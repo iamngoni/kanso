@@ -2668,7 +2668,7 @@ impl NoteEditor {
                     paths
                         .paths()
                         .iter()
-                        .filter(|path| image_path(path))
+                        .filter(|path| image_path(path) || is_pdf_path(path))
                         .map(|path| Pasted::File(path.clone())),
                 ),
             }
@@ -2734,7 +2734,7 @@ impl NoteEditor {
         let images: Vec<Pasted> = paths
             .paths()
             .iter()
-            .filter(|path| image_path(path) || is_drawing(path))
+            .filter(|path| image_path(path) || is_drawing(path) || is_pdf_path(path))
             .map(|path| Pasted::File(path.clone()))
             .collect();
         let audio: Vec<std::path::PathBuf> = paths
@@ -2746,7 +2746,7 @@ impl NoteEditor {
         if images.is_empty() && audio.is_empty() {
             if !paths.paths().is_empty() {
                 cx.emit(EditorEvent::Notice(
-                    "Only images, recordings and Excalidraw drawings can be dropped into a note."
+                    "Only images, PDFs, recordings and Excalidraw drawings can be dropped into a note."
                         .into(),
                 ));
             }
@@ -2914,6 +2914,45 @@ impl NoteEditor {
             })
     }
 
+    /// Whether the open note is locked, or in a locked notebook.
+    fn note_is_locked(&self) -> bool {
+        self.note
+            .as_ref()
+            .is_some_and(|n| n.is_locked() || self.store.note_is_locked(&n.id).unwrap_or(false))
+    }
+
+    /// File › Attach PDF…: asks for PDFs and attaches them at the caret.
+    // no-prop-test: dialog glue over `attach_images`.
+    pub fn attach_pdf_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.body_takes_edits(window, cx) {
+            return;
+        }
+        let picked = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: true,
+            prompt: Some("Attach".into()),
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let Ok(Ok(Some(paths))) = picked.await else {
+                return;
+            };
+            let pdfs: Vec<Pasted> = paths
+                .into_iter()
+                .filter(|path| is_pdf_path(path))
+                .map(Pasted::File)
+                .collect();
+            if pdfs.is_empty() {
+                return;
+            }
+            this.update_in(cx, |this, window, cx| {
+                this.attach_images(pdfs, None, window, cx);
+            })
+            .ok();
+        })
+        .detach();
+    }
+
     /// Stores `images` as attachments in the background, then puts them in
     /// the text at `at` (or over the selection), each a paragraph of its
     /// own. What can't be attached is said in a notice.
@@ -2926,10 +2965,11 @@ impl NoteEditor {
     ) {
         let store = self.store.clone();
         let length = self.body.read(cx).text().len();
+        let locked = self.note_is_locked();
         let work = cx.background_executor().spawn(async move {
             images
                 .into_iter()
-                .map(|image| attach(&store, image))
+                .map(|image| attach_to(&store, locked, image))
                 .collect::<Vec<_>>()
         });
         cx.spawn_in(window, async move |this, cx| {
@@ -4414,6 +4454,28 @@ fn is_drawing(path: &std::path::Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("excalidraw"))
 }
 
+/// Whether a dropped or pasted file is a PDF, by its extension.
+fn is_pdf_path(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
+}
+
+/// What a PDF attached to a locked note gets instead: the attachments of a
+/// locked note are not sealed yet, and a contract or a medical record is
+/// exactly what people lock, so it is refused rather than allowed with a
+/// warning.
+const PDF_IN_LOCKED_NOTE: &str = "PDFs can't be attached to a locked note yet, because attachments aren't sealed with the lock. Attach it to a note that isn't locked.";
+
+/// [`attach`] for a note that is `locked` or not: a PDF is refused for a
+/// locked one.
+fn attach_to(store: &Store, locked: bool, image: Pasted) -> Result<String, String> {
+    match image {
+        Pasted::File(path) if locked && is_pdf_path(&path) => Err(PDF_IN_LOCKED_NOTE.to_owned()),
+        image => attach(store, image),
+    }
+}
+
 /// What a pasted or dropped file becomes in the note: an attached image's
 /// Markdown, or a drawing's fenced block (kept in the note itself, so it
 /// syncs and versions with it).
@@ -4429,6 +4491,21 @@ fn attach(store: &Store, image: Pasted) -> Result<String, String> {
                 return Err("That file isn't an Excalidraw drawing.".into());
             }
             crate::preview_rich::scene_block(&text).map_err(|failure| failure.badge())
+        }
+        Pasted::File(path) if is_pdf_path(&path) => {
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("document.pdf");
+            if let Ok(meta) = std::fs::metadata(&path)
+                && meta.len() > MAX_PDF_SIZE as u64
+            {
+                return Err(smart_paste::too_large(meta.len() as usize, MAX_PDF_SIZE));
+            }
+            let bytes =
+                std::fs::read(&path).map_err(|err| format!("Couldn't read the PDF: {err}"))?;
+            kanso_engine::attach::attach_pdf(store, &bytes, name, None)
+                .map(|id| kanso_engine::attach::file_markdown(&id, name))
         }
         Pasted::File(path) => {
             let ext = path
@@ -6194,7 +6271,7 @@ mod tests {
 /// The writing aids through the real text editor: keys, paste and undo.
 #[cfg(test)]
 mod writing_tests {
-    use super::{NoteEditor, TEST_HTML};
+    use super::{NoteEditor, PDF_IN_LOCKED_NOTE, Pasted, TEST_HTML, attach_to};
     use crate::config::{Appearance, EditorSettings};
     use crate::library::Library;
     use crate::preview::ImageResize;
@@ -6442,6 +6519,39 @@ mod writing_tests {
         let id = tail.strip_suffix(')').unwrap();
         let (content_type, blob) = open.store.attachment(id).unwrap().unwrap();
         assert_eq!((content_type.as_str(), blob.data), ("image/png", png));
+    }
+
+    /// A PDF dropped, pasted or picked becomes a `file:` attachment and a
+    /// link; a locked note refuses it in words; a file merely named `.pdf`
+    /// is refused as not a PDF.
+    // no-prop-test: file glue over `kanso_engine::attach::attach_pdf`,
+    // which has the tests with a store.
+    #[test]
+    fn a_pdf_becomes_an_attachment_unless_the_note_is_locked() {
+        let tmp = tempfile::tempdir().unwrap();
+        let store = Store::open(tmp.path().join("k.db")).unwrap();
+        let dir = tmp.path().to_path_buf();
+        let pdf = dir.join("quarterly report.pdf");
+        std::fs::write(&pdf, b"%PDF-1.7\n%fake body").unwrap();
+        let link = attach_to(&store, false, Pasted::File(pdf.clone())).unwrap();
+        let id = link
+            .strip_prefix("[quarterly report.pdf](inkdrop://")
+            .and_then(|rest| rest.strip_suffix(')'))
+            .expect(&link);
+        let (content_type, blob) = store.attachment(id).unwrap().unwrap();
+        assert_eq!(content_type, "application/pdf");
+        assert_eq!(blob.data, b"%PDF-1.7\n%fake body");
+
+        let refused = attach_to(&store, true, Pasted::File(pdf)).unwrap_err();
+        assert_eq!(refused, PDF_IN_LOCKED_NOTE);
+
+        let fake = dir.join("fake.pdf");
+        std::fs::write(&fake, b"hello").unwrap();
+        assert!(
+            attach_to(&store, false, Pasted::File(fake))
+                .unwrap_err()
+                .contains("isn't a PDF")
+        );
     }
 
     /// A size picked in the preview rewrites the image's Markdown as one
