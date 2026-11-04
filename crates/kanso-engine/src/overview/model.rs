@@ -196,6 +196,9 @@ pub struct List {
     pub rows: Vec<ListRow>,
     /// How many more rows there were.
     pub more: u32,
+    /// The rows past the cap, which `N more` shows in place.
+    #[serde(default)]
+    pub extra: Vec<ListRow>,
 }
 
 /// The Lines of *Also*.

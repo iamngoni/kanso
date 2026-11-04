@@ -246,6 +246,26 @@ pub(super) fn book_name(
     Ok(name)
 }
 
+/// The paragraph's words up to the caret as they read, not as they are
+/// typed: Markdown's marks, link targets and a list number taken out, then
+/// cut from the left.
+fn plain_excerpt(found: &writing::Found) -> String {
+    let chars: Vec<char> = found.text.chars().collect();
+    let end = found.caret.unwrap_or(chars.len()).min(chars.len());
+    let head: String = chars[..end].iter().collect();
+    let numbered = head
+        .split_once(". ")
+        .filter(|(n, _)| !n.is_empty() && n.len() <= 3 && n.bytes().all(|b| b.is_ascii_digit()))
+        .map_or(head.as_str(), |(_, rest)| rest);
+    let plain = kanso_core::links::plain_line(numbered);
+    let plain = writing::Found {
+        start_line: found.start_line,
+        text: plain.trim_end().to_owned(),
+        caret: None,
+    };
+    writing::excerpt(&plain, writing::EXCERPT_CHARS)
+}
+
 fn pick_up_list(
     store: &Store,
     now: Now,
@@ -258,10 +278,7 @@ fn pick_up_list(
     for place in places {
         let found = writing::find(&place.body, place.line, place.col, &place.anchor_hash);
         let (detail, caret) = match found {
-            Some(found) => (
-                writing::excerpt(&found, writing::EXCERPT_CHARS),
-                found.caret.is_some(),
-            ),
+            Some(found) => (plain_excerpt(&found), found.caret.is_some()),
             None => (String::new(), false),
         };
         rows.push(ListRow {
@@ -284,16 +301,62 @@ fn pick_up_list(
             count: 0,
         });
     }
-    let (rows, more) = density::cap_rows(rows, usize::MAX);
     Ok(List {
         kind: ListKind::PickUp,
         rows,
-        more,
+        more: 0,
+        extra: Vec::new(),
     })
 }
 
+/// What is being waited for, without the "Waiting on Rudo for the" that
+/// the row's name already says: "Waiting on Rudo for the sign-off." reads
+/// "Sign-off".
+pub(super) fn waiting_for(text: &str, person: &str) -> String {
+    let trimmed = text.trim().trim_end_matches('.');
+    let lower = trimmed.to_lowercase();
+    // Byte offsets in `lower` are only those of `trimmed` when lowering
+    // kept every length.
+    if lower.len() != trimmed.len() {
+        return trimmed.to_owned();
+    }
+    let person = person.to_lowercase();
+    let mut rest = None;
+    for lead in [
+        "waiting on ",
+        "waiting for ",
+        "wait for ",
+        "still waiting on ",
+    ] {
+        if let Some(after) = lower.strip_prefix(lead) {
+            let after = after.strip_prefix('@').unwrap_or(after);
+            if let Some(tail) = after.strip_prefix(person.as_str()) {
+                rest = Some(trimmed.len() - tail.len());
+            }
+        }
+    }
+    let Some(from) = rest else {
+        return trimmed.to_owned();
+    };
+    let mut tail = trimmed[from..].trim_start();
+    for joint in ["for the ", "for ", "about the ", "about ", "to ", "on the "] {
+        if tail
+            .get(..joint.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(joint))
+        {
+            tail = &tail[joint.len()..];
+            break;
+        }
+    }
+    let mut chars = tail.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => trimmed.to_owned(),
+    }
+}
+
 pub(super) fn waiting_row(row: WaitingRow, now: i64) -> ListRow {
-    let text = display_text(&row.text);
+    let text = waiting_for(&display_text(&row.text), &row.person);
     ListRow {
         kind: if row.kind == "loop" {
             RowKind::WaitingLoop
@@ -638,11 +701,13 @@ pub fn today(store: &Store, now: Now, opts: &Options) -> Result<Overview> {
             .map(|r| waiting_row(r, now.utc_ms))
             .collect(),
         more: 0,
+        extra: Vec::new(),
     };
     let activity = List {
         kind: ListKind::Activity,
         rows: activity_rows(store, opts)?,
         more: 0,
+        extra: Vec::new(),
     };
     let (pick_has, wait_has) = (!pick_up.rows.is_empty(), !waiting.rows.is_empty());
     let (lists, folded) = density::lay_out(vec![pick_up, waiting, activity]);
@@ -822,4 +887,39 @@ fn past_seeds(lists: &[List], agenda: &Agenda) -> Vec<past::Seed> {
     seeds.retain(|s| seen.insert(s.note_id.clone()));
     seeds.truncate(5);
     seeds
+}
+
+#[cfg(test)]
+mod waiting_tests {
+    use super::waiting_for;
+    use proptest::prelude::*;
+
+    #[test]
+    fn the_name_and_the_joint_are_left_out() {
+        assert_eq!(
+            waiting_for("Waiting on Rudo for the sign-off on the map.", "Rudo"),
+            "Sign-off on the map"
+        );
+        assert_eq!(
+            waiting_for("waiting on @Farai about camera permissions", "Farai"),
+            "Camera permissions"
+        );
+        // Someone else's name, or no lead: the sentence as it is.
+        assert_eq!(
+            waiting_for("Waiting on Tendai for the quote", "Rudo"),
+            "Waiting on Tendai for the quote"
+        );
+        assert_eq!(
+            waiting_for("Get the keys from @Rudo", "Rudo"),
+            "Get the keys from @Rudo"
+        );
+    }
+
+    proptest! {
+        #[test]
+        fn never_panics_and_never_grows(text in "\\PC{0,60}", person in "\\PC{0,12}") {
+            let out = waiting_for(&text, &person);
+            prop_assert!(out.chars().count() <= text.trim().chars().count() + 2);
+        }
+    }
 }

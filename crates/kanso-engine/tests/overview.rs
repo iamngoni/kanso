@@ -179,6 +179,42 @@ fn locked_notes_never_reach_the_page() {
 }
 
 #[test]
+fn a_past_note_locked_after_it_was_chosen_never_shows_again() {
+    let (_dir, store) = store();
+    // Yesterday's note, so the page is not a new library's.
+    note(&store, "note:other", "Other", "Something.", NOW_MS - DAY);
+    let year_ago = kanso_core::roles::daily_id(Date::new(2025, 11, 4).unwrap());
+    let words = "The orchestrator never pushes, it only answers. ".repeat(12);
+    note(
+        &store,
+        &year_ago,
+        "Diary of the year before",
+        &words,
+        NOW_MS - 365 * DAY,
+    );
+    let page = overview::today(&store, now(), &Options::new()).unwrap();
+    let past = page.today.past.expect("the anniversary clears the bar");
+    assert_eq!(past.note_id, year_ago);
+
+    // Locked later the same day: the cached choice is not shown.
+    let doc = store.get(&year_ago).unwrap().unwrap();
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": year_ago, "_rev": doc.rev, "title": "Diary of the year before",
+                "body": "", "bookId": "book:a", "kansoLock": lock(),
+                "createdAt": 1000, "updatedAt": 1000}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    let page = overview::today(&store, now(), &Options::new()).unwrap();
+    assert!(page.today.past.is_none());
+    let json = serde_json::to_string(&page).unwrap();
+    assert!(!json.contains("Diary of the year before") && !json.contains("orchestrator"));
+}
+
+#[test]
 fn pick_up_shows_the_words_where_the_caret_was() {
     let (_dir, store) = store();
     let text = "and the arrow tool should snap to the shape's edge, not its centre, so that";

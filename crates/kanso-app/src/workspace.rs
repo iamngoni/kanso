@@ -1219,12 +1219,28 @@ impl Workspace {
         if !seen {
             AppState::update_config(cx, |config| config.nudges.overview_notice_seen = true);
             if veteran {
-                window.push_notification(
-                    Notification::info(
-                        "Kanso now opens to Overview. Change it in Settings, General, Overview.",
-                    ),
-                    cx,
-                );
+                // Closing the notice keeps Overview; its button goes back to
+                // the old launch and shows the note that was open.
+                let me = cx.entity().downgrade();
+                let notice = Notification::info(
+                    "Kanso now opens to Overview. You can change this in Settings \u{203a} General.",
+                )
+                .action(move |_, _, _| {
+                    let me = me.clone();
+                    gpui_kit::component::button::Button::new("overview-last-note")
+                        .label("Open my last note instead")
+                        .on_click(move |_, _, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.briefs.open_to = kanso_engine::brief::OpenTo::LastNote;
+                            });
+                            me.update(cx, |this, cx| {
+                                let selected = this.library.read(cx).selected.clone();
+                                this.leave_page_for(selected.as_deref(), cx);
+                            })
+                            .ok();
+                        })
+                });
+                window.push_notification(notice, cx);
             }
         }
     }
@@ -1419,6 +1435,9 @@ impl Workspace {
         let open = self.editor.read(cx).note_id() == Some(note_id);
         if open {
             self.leave_settings(window, cx);
+            // The note can be open behind a page (Overview loads the last
+            // note quietly at launch): a reminder for it must still show it.
+            self.leave_page_for(Some(note_id), cx);
             self.editor
                 .update(cx, |editor, cx| editor.reveal_line(line, window, cx));
         } else {

@@ -249,6 +249,25 @@ fn record_overview(
         }
         return Ok(());
     }
+    // A note just tagged #ai-exclude: the AI paragraph may quote it, so it
+    // goes with the snapshot.
+    let tags_changed = previous.is_some_and(|p| p.fields.get("tags") != fields.get("tags"));
+    if tags_changed {
+        let excluded: Option<bool> = tx
+            .query_row(
+                concat!(
+                    "SELECT ",
+                    schema::ai_excluded!("d."),
+                    " FROM docs d WHERE d.id = ?"
+                ),
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if excluded == Some(true) {
+            crate::overview::drop_snapshot(tx)?;
+        }
+    }
     if origin == Origin::Sync
         && let Some(prev) = previous.filter(|p| !p.deleted)
     {

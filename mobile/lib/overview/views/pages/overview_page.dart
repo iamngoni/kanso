@@ -500,20 +500,25 @@ Widget _listSection(
 ) {
   final cubit = context.read<OverviewCubit>();
   final l10n = context.l10n;
+  // The last `more` rows wait behind `N more`, which shows them in place.
+  final open = state.expanded.contains('more-${list.kind.name}');
+  final rows = open || list.more == 0
+      ? list.rows
+      : list.rows.take(list.rows.length - list.more).toList();
   return OverviewSection(
     label: switch (list.kind) {
       OverviewListKind.pickUp => l10n.overviewPickUp,
       OverviewListKind.waiting => l10n.overviewWaiting,
       OverviewListKind.activity => l10n.overviewActivity,
     },
-    footer: list.more > 0
+    footer: list.more > 0 && !open
         ? OverviewMoreLine(
             label: l10n.overviewMoreRows(list.more),
             onTap: () => cubit.expand('more-${list.kind.name}'),
           )
         : null,
     children: <Widget>[
-      for (final row in list.rows)
+      for (final row in rows)
         switch (list.kind) {
           OverviewListKind.pickUp => PickUpTile(
             key: ValueKey<String>('pick/${row.noteId}'),

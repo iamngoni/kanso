@@ -74,7 +74,8 @@ pub struct OverviewListRow {
     pub agent: bool,
 }
 
-/// A List: at most three rows.
+/// A List: three rows shown, then `more` rows (the last ones in `rows`)
+/// that `N more` shows in place.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OverviewList {
     pub kind: OverviewListKind,

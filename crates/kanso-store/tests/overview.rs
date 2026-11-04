@@ -169,6 +169,54 @@ fn a_locked_note_has_no_place_and_forgets_the_one_it_had() {
 }
 
 #[test]
+fn tagging_a_note_ai_exclude_drops_the_snapshot_and_the_ai_paragraph() {
+    let (_dir, store) = temp_store();
+    book(&store, "book:a");
+    note(&store, "note:a", "Words a model summarised this morning");
+    store
+        .put(
+            DocType::Tag,
+            json!({"_id": "tag:x", "name": "ai-exclude"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    store
+        .put(
+            DocType::Tag,
+            json!({"_id": "tag:y", "name": "work"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    let retag = |tag: &str| {
+        let doc = store.get("note:a").unwrap().unwrap();
+        let mut fields = doc.fields.clone();
+        fields.insert("_id".into(), json!("note:a"));
+        fields.insert("_rev".into(), json!(doc.rev));
+        fields.insert("tags".into(), json!([tag]));
+        store
+            .put(
+                DocType::Note,
+                Value::Object(fields),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+    };
+    store.set_meta("overview.snapshot", "{}").unwrap();
+    store
+        .set_meta("overview.ai.today.2026-11-04", "{}")
+        .unwrap();
+    // Another tag keeps them.
+    retag("tag:y");
+    assert!(store.meta("overview.snapshot").unwrap().is_some());
+    retag("tag:x");
+    assert_eq!(store.meta("overview.snapshot").unwrap(), None);
+    assert_eq!(store.meta("overview.ai.today.2026-11-04").unwrap(), None);
+}
+
+#[test]
 fn a_session_on_another_device_is_placed_by_the_synced_change() {
     let (_dir, store) = temp_store();
     book(&store, "book:a");

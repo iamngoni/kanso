@@ -7,6 +7,7 @@ import 'package:flutter/semantics.dart';
 
 import '../../../core/bridge/api/overview_types.dart';
 import '../../../core/configs/kanso_icons.dart';
+import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/kanso_swipe_action.dart';
 import '../../../core/utils/context_extensions.dart';
@@ -75,8 +76,10 @@ class AgendaTile extends StatelessWidget {
                 ),
               )
             : null,
-        padding: const EdgeInsetsDirectional.only(
-          start: KansoSpacing.md,
+        // The Now bar takes its width out of the padding, so every row's
+        // time, glyph and title line up.
+        padding: EdgeInsetsDirectional.only(
+          start: KansoSpacing.md - (row.now ? 3 : 0),
           end: KansoSpacing.md,
           top: KansoSpacing.sm,
           bottom: KansoSpacing.sm,
@@ -103,19 +106,25 @@ class AgendaTile extends StatelessWidget {
                 ),
               ),
             ),
+            // One slot for the event's square and the task's tick, so
+            // titles start at the same place whatever the row is.
             if (isEvent)
               Padding(
-                padding: const EdgeInsets.only(
+                padding: const EdgeInsetsDirectional.only(
                   top: 6,
-                  right: KansoSpacing.sm,
-                  left: 3,
+                  end: KansoSpacing.sm,
                 ),
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: dot,
-                    borderRadius: BorderRadius.circular(3),
+                child: SizedBox(
+                  width: KansoSizes.checkbox,
+                  child: Center(
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: dot,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
                   ),
                 ),
               )

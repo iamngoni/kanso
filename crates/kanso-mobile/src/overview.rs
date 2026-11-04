@@ -389,8 +389,15 @@ fn list(list: &List, now: Now) -> OverviewList {
     OverviewList {
         kind: list_kind(list.kind),
         label: list.kind.label().to_owned(),
-        rows: list.rows.iter().map(|r| list_row(r, now)).collect(),
-        more: list.more,
+        // Every row, the ones past the cap last: `more` of them are shown
+        // only when the person asks for them.
+        rows: list
+            .rows
+            .iter()
+            .chain(list.extra.iter())
+            .map(|r| list_row(r, now))
+            .collect(),
+        more: list.extra.len() as u32,
     }
 }
 

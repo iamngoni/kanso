@@ -80,10 +80,12 @@ pub fn own_words(body: &str) -> usize {
 
 fn first_paragraph(body: &str) -> String {
     let text = strip_front_matter(body);
-    let para: Vec<&str> = text
+    // As it reads, without Markdown's marks.
+    let para: Vec<String> = text
         .lines()
         .skip_while(|l| l.trim().is_empty() || l.trim_start().starts_with('#'))
         .take_while(|l| !l.trim().is_empty())
+        .map(kanso_core::links::plain_line)
         .collect();
     let joined = para.join(" ");
     let joined = joined.trim();
@@ -133,8 +135,14 @@ pub fn past_note(
         if cached.dismissed {
             return Ok(None);
         }
-        if cached.note.is_some() || cached.seeds == print {
-            return Ok(cached.note);
+        // The cached note is checked again: one locked, trashed or deleted
+        // since it was chosen never shows (its title and words are in the
+        // cache), and a new one is chosen.
+        match &cached.note {
+            Some(note) if still_eligible(store, &note.note_id)? => return Ok(cached.note),
+            Some(_) => {}
+            None if cached.seeds == print => return Ok(None),
+            None => {}
         }
     }
     let chosen = choose(store, now, today, model, seeds)?;
@@ -145,6 +153,12 @@ pub fn past_note(
     };
     store.set_meta(&key, &serde_json::to_string(&cached).unwrap_or_default())?;
     Ok(chosen)
+}
+
+/// Whether note `id` may still be shown: there, and neither locked (itself
+/// or by its notebook) nor trashed.
+fn still_eligible(store: &Store, id: &str) -> Result<bool> {
+    Ok(!store.brief_notes(&[id.to_owned()])?.is_empty())
 }
 
 fn choose(

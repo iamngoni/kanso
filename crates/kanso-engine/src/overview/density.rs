@@ -114,9 +114,11 @@ pub fn lay_out(lists: Vec<List>) -> (Vec<List>, Option<List>) {
         if list.rows.is_empty() {
             continue;
         }
-        let (rows, extra) = cap_rows(std::mem::take(&mut list.rows), LIST_CAP);
-        list.rows = rows;
-        list.more += extra;
+        if list.rows.len() > LIST_CAP {
+            let cut = list.rows.split_off(LIST_CAP);
+            list.more += cut.len() as u32;
+            list.extra.extend(cut);
+        }
         if Some(list.kind) == arrangement.folded {
             folded = Some(list);
         } else {
@@ -185,6 +187,52 @@ mod tests {
             prop_assert_eq!(rows.len() + more as usize, n);
             prop_assert!(rows.len() <= cap);
             prop_assert!(rows.iter().enumerate().all(|(i, v)| i == *v));
+        }
+    }
+
+    use crate::overview::model::{ListRow, RowKind};
+
+    fn row(i: usize) -> ListRow {
+        ListRow {
+            kind: RowKind::PickUp,
+            note_id: format!("note:{i}"),
+            line: 0,
+            title: String::new(),
+            detail: String::new(),
+            place: String::new(),
+            at: 0,
+            quiet_days: 0,
+            key: String::new(),
+            person: String::new(),
+            raw: String::new(),
+            caret: false,
+            count: 0,
+        }
+    }
+
+    proptest! {
+        /// `N more` has every row it counts: the shown rows and the extra
+        /// ones are the List's rows, in order, and `more` is how many.
+        #[test]
+        fn more_keeps_the_rows_it_counts(n in 1usize..20) {
+            let list = List {
+                kind: ListKind::PickUp,
+                rows: (0..n).map(row).collect(),
+                more: 0,
+                extra: Vec::new(),
+            };
+            let (shown, _) = lay_out(vec![list]);
+            let list = &shown[0];
+            prop_assert!(list.rows.len() <= LIST_CAP);
+            prop_assert_eq!(list.more as usize, list.extra.len());
+            let ids: Vec<String> = list
+                .rows
+                .iter()
+                .chain(&list.extra)
+                .map(|r| r.note_id.clone())
+                .collect();
+            let want: Vec<String> = (0..n).map(|i| format!("note:{i}")).collect();
+            prop_assert_eq!(ids, want);
         }
     }
 

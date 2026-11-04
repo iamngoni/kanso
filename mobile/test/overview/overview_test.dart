@@ -337,6 +337,59 @@ void main() {
       expect(find.text('Sprint retro'), findsOneWidget);
     });
 
+    testWidgets('N more shows the rest of a list in place', (tester) async {
+      OverviewListRow place(int i) => OverviewListRow(
+        kind: OverviewListKind.pickUp,
+        noteId: 'note:p$i',
+        line: 0,
+        title: 'Place $i',
+        detail: '',
+        place: 'Kanso',
+        whenLabel: '1 h ago',
+        quietDays: 0,
+        warn: false,
+        key: '',
+        person: '',
+        raw: '',
+        isLoop: false,
+        caret: false,
+        count: 0,
+        agent: false,
+      );
+      final base = _quiet;
+      digest.today = OverviewToday(
+        day: base.day,
+        greeting: base.greeting,
+        overline: base.overline,
+        lede: base.lede,
+        state: OverviewState.busy,
+        earlier: const <OverviewAgendaRow>[],
+        agenda: const <OverviewAgendaRow>[],
+        agendaMore: 0,
+        taskTotal: 0,
+        lists: <OverviewList>[
+          OverviewList(
+            kind: OverviewListKind.pickUp,
+            label: 'Pick up where you left off',
+            // Three shown, then the two that `2 more` holds.
+            rows: <OverviewListRow>[for (var i = 0; i < 5; i++) place(i)],
+            more: 2,
+          ),
+        ],
+        also: const <OverviewLine>[],
+        footer: '',
+      );
+      await pumpRouted(tester, const OverviewPage());
+      await tester.pumpAndSettle();
+      expect(find.text('Place 2'), findsOneWidget);
+      expect(find.text('Place 3'), findsNothing);
+      await tester.tap(find.text('2 more'));
+      await tester.pumpAndSettle();
+      expect(find.text('Place 3'), findsOneWidget);
+      expect(find.text('Place 4'), findsOneWidget);
+      expect(find.text('2 more'), findsNothing);
+    });
+
     testWidgets('a quiet day is a short page', (tester) async {
       digest.today = _quiet;
       await pumpRouted(tester, const OverviewPage());

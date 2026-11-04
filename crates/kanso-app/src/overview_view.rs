@@ -125,6 +125,22 @@ fn gutter(row: &AgendaRow) -> (String, bool, bool) {
     }
 }
 
+/// A due date (`YYYY-MM-DD`, perhaps with a time) as words: "today",
+/// "tomorrow", "2d late", or the day, "Fri 29 May".
+fn due_words(due: &str, today: Date) -> String {
+    let Some(date) = due.get(..10).and_then(Date::parse_iso) else {
+        return due.to_owned();
+    };
+    let days = date.to_days() - today.to_days();
+    let time = due.get(11..16).map(|t| format!(" {t}")).unwrap_or_default();
+    match days {
+        0 => format!("today{time}"),
+        1 => format!("tomorrow{time}"),
+        d if d < 0 => overview::late_label((-d) as u32),
+        _ => format!("{}{time}", format(&DateTime::at_midnight(date), "%a %e %b")),
+    }
+}
+
 fn also_label(line: &AlsoLine) -> &'static str {
     match line.kind {
         AlsoKind::Folded(ListKind::Activity) => "Activity",
@@ -155,7 +171,10 @@ impl DigestView {
             .unwrap_or_default();
         opts.quiet_days = briefs.quiet_days;
         opts.loops = briefs.loops;
-        opts.open_note = self.editor.read(cx).note_id().map(str::to_owned);
+        // The editor's note is not left out: Overview hides the editor, and
+        // at launch the note loaded quietly behind it is usually the very
+        // one being written, which Pick up exists to bring back.
+        opts.open_note = None;
         opts.model = store.embedding_model().ok().flatten();
         opts.agent = agent_items(cx);
         let task = cx.background_executor().spawn(async move {
@@ -254,6 +273,19 @@ impl DigestView {
                     .collect()
             })
             .unwrap_or_default()
+    }
+
+    /// Shows `overview` as if it had been worked out (snapshots of states
+    /// the demo library can't reach, such as a new library).
+    #[cfg(test)]
+    pub fn set_overview_for_test(
+        &mut self,
+        overview: kanso_engine::overview::Overview,
+        cx: &mut Context<Self>,
+    ) {
+        self.overview = Some(overview);
+        self.loaded = true;
+        cx.notify();
     }
 
     #[cfg(test)]
@@ -472,16 +504,17 @@ impl DigestView {
             return;
         }
         let with_events = false;
-        let (prompt, pairs) = match (self.perspective, &self.overview, &self.week) {
-            (Perspective::Today, Some(o), _) => {
-                kanso_engine::loops_ai::overview_today_prompt(&self.store, &o.today, with_events)
-            }
-            (Perspective::Week, _, Some(w)) => {
-                kanso_engine::loops_ai::overview_week_prompt(&self.store, w)
-            }
+        // What the prompt is built from; it reads each note (to leave out
+        // locked and #ai-exclude ones), so it is built off the main thread.
+        enum Page {
+            Today(Box<overview::Today>),
+            Week(Box<overview::Week>),
+        }
+        let page = match (self.perspective, &self.overview, &self.week) {
+            (Perspective::Today, Some(o), _) => Page::Today(Box::new(o.today.clone())),
+            (Perspective::Week, _, Some(w)) => Page::Week(Box::new(w.clone())),
             _ => return,
         };
-        let allowed: Vec<String> = pairs.iter().map(|(_, t)| t.clone()).collect();
         let job = AiJob::Summary {
             brief: self.perspective == Perspective::Today,
         };
@@ -493,6 +526,13 @@ impl DigestView {
         let now = Clock::now_ms(cx);
         let maker = crate::ai_feature::maker(cx);
         let task = cx.background_executor().spawn(async move {
+            let (prompt, pairs) = match &page {
+                Page::Today(today) => {
+                    kanso_engine::loops_ai::overview_today_prompt(&store, today, with_events)
+                }
+                Page::Week(week) => kanso_engine::loops_ai::overview_week_prompt(&store, week),
+            };
+            let allowed: Vec<String> = pairs.iter().map(|(_, t)| t.clone()).collect();
             let shared = maker()?;
             let provider = shared
                 .lock()
@@ -589,9 +629,15 @@ impl DigestView {
         };
         let header = self.overview_header(window, cx);
         let mut col = v_flex().w(px(width)).pt(px(30.)).pb(px(72.));
-        if self.overview.is_none() {
-            // Nothing drawn yet: the masthead alone would flash; wait quietly.
-            col = col.child(div().h(px(120.)));
+        if self.overview.is_none() && self.perspective == Perspective::Today {
+            // No snapshot yet (a first open): the date and the greeting need
+            // nothing from the store, so they draw at once and the sections
+            // follow when the page is worked out. No spinner.
+            let now = now_of(cx);
+            let day = format(&DateTime::at_midnight(now.today()), "%A %e %B").to_uppercase();
+            let overline = self.overline(day, None, cx);
+            let greeting = overview::lede::greeting(now.local().hour).to_owned();
+            col = self.masthead(col, overline, greeting, String::new(), false, cx);
         } else {
             col = match self.perspective {
                 Perspective::Today => self.today_page(col, wide, window, cx),
@@ -871,15 +917,33 @@ impl DigestView {
                     .text_color(colors.text)
                     .child(title),
             )
-            .child(
+            .child({
+                // What's next or now stands out from the counts before it.
+                let start = ["Next: ", "Now: "]
+                    .iter()
+                    .filter_map(|lead| lede.find(lead))
+                    .min();
+                let highlights: Vec<_> = start
+                    .map(|start| {
+                        (
+                            start..lede.len(),
+                            HighlightStyle {
+                                color: Some(colors.text.into()),
+                                font_weight: Some(FontWeight::MEDIUM),
+                                ..Default::default()
+                            },
+                        )
+                    })
+                    .into_iter()
+                    .collect();
                 div()
                     .mt(px(10.))
                     .max_w(px(560.))
                     .text_size(px(16.))
                     .line_height(px(25.))
                     .text_color(colors.text_secondary)
-                    .child(lede),
-            )
+                    .child(StyledText::new(lede).with_highlights(highlights))
+            })
             .when(show_link, |el| {
                 el.child(
                     h_flex()
@@ -1140,9 +1204,10 @@ impl DigestView {
         let colors = *Colors::get(cx);
         let now = Clock::now_ms(cx);
         let _ = now;
+        let shown = (agenda.rows.len() as u32) + agenda.more;
         let mut block = self
             .section_shell(cx)
-            .child(self.section_head("Today", None, cx));
+            .child(self.section_head("Today", Some(shown), cx));
         if !agenda.earlier.is_empty() {
             let open = self.expanded.contains("earlier");
             let names: Vec<String> = agenda
@@ -1194,16 +1259,18 @@ impl DigestView {
         if agenda.more > 0 {
             let label = format!("{} more today", agenda.more);
             block = block.child(
+                // The count is words, not a link; Tasks is where the rest are.
                 h_flex()
                     .mt(px(4.))
                     .gap(px(12.))
                     .text_size(px(13.))
-                    .text_color(colors.link)
+                    .text_color(colors.text_secondary)
                     .child(label)
                     .when(agenda.more_tasks > 0, |el| {
                         el.child(
                             div()
                                 .id("overview-all-tasks")
+                                .text_color(colors.link)
                                 .cursor_pointer()
                                 .child(format!("All {} in Tasks \u{2192}", agenda.task_total))
                                 .on_click(cx.listener(|this, _, _, cx| {
@@ -1218,6 +1285,12 @@ impl DigestView {
         block
     }
 
+    /// A row under a day's heading in *Ahead*: the heading says the day,
+    /// so a task without a time has no gutter (not "Today").
+    fn ahead_row(&mut self, row: &AgendaRow, wide: bool, cx: &mut Context<Self>) -> AnyElement {
+        self.agenda_row_in(row, wide, false, true, cx)
+    }
+
     fn agenda_row(
         &mut self,
         row: &AgendaRow,
@@ -1225,8 +1298,22 @@ impl DigestView {
         dimmed: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        self.agenda_row_in(row, wide, dimmed, false, cx)
+    }
+
+    fn agenda_row_in(
+        &mut self,
+        row: &AgendaRow,
+        wide: bool,
+        dimmed: bool,
+        day_shown: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let colors = *Colors::get(cx);
-        let (gut, late, accent) = gutter(row);
+        let (mut gut, late, accent) = gutter(row);
+        if day_shown && row.kind == AgendaKind::Due && row.at_min.is_none() {
+            gut = String::new();
+        }
         let id = SharedString::from(format!("agenda-{}-{}", row.key, row.line));
         let group = id.clone();
         let is_event = row.kind == AgendaKind::Event;
@@ -1370,7 +1457,12 @@ impl DigestView {
                 .child(self.section_head(list.kind.label(), None, cx));
         let key = format!("more-{:?}", list.kind);
         let expanded = self.expanded.contains(&key);
-        for (ix, row) in list.rows.iter().enumerate() {
+        // `N more` shows the rest in place.
+        let shown = list
+            .rows
+            .iter()
+            .chain(list.extra.iter().filter(|_| expanded));
+        for (ix, row) in shown.enumerate() {
             block = block.child(match list.kind {
                 ListKind::PickUp => self.pick_up_row(row, ix, cx),
                 ListKind::Waiting => self.waiting_row(row, ix, cx),
@@ -1420,8 +1512,9 @@ impl DigestView {
             .hover(|el| el.bg(colors.row_hover))
             .child(
                 h_flex()
+                    .h(px(22.))
                     .gap(px(10.))
-                    .items_baseline()
+                    .items_center()
                     .child(
                         div()
                             .flex_1()
@@ -1473,27 +1566,29 @@ impl DigestView {
                     ),
             )
             .when(!row.detail.is_empty(), |el| {
+                // The paragraph wraps in the column; the caret is a glyph
+                // at its end, in the accent, so it sits where the words
+                // stop, on whatever line that is.
+                let mut text = row.detail.clone();
+                let mut highlights = Vec::new();
+                if row.caret {
+                    let start = text.len();
+                    text.push('\u{258f}');
+                    highlights.push((
+                        start..text.len(),
+                        HighlightStyle {
+                            color: Some(colors.accent.into()),
+                            ..Default::default()
+                        },
+                    ));
+                }
                 el.child(
-                    h_flex()
-                        .mt(px(3.))
-                        .items_center()
-                        .child(
-                            div()
-                                .text_size(px(14.))
-                                .line_height(px(22.))
-                                .text_color(colors.text_secondary)
-                                .child(row.detail.clone()),
-                        )
-                        .when(row.caret, |el| {
-                            el.child(
-                                div()
-                                    .ml(px(1.))
-                                    .w(px(2.))
-                                    .h(px(16.))
-                                    .rounded(px(1.))
-                                    .bg(colors.accent),
-                            )
-                        }),
+                    div()
+                        .mt(px(2.))
+                        .text_size(px(14.))
+                        .line_height(px(22.))
+                        .text_color(colors.text_secondary)
+                        .child(StyledText::new(text).with_highlights(highlights)),
                 )
             })
             .on_click(cx.listener(move |this, _, _, cx| {
@@ -1517,18 +1612,19 @@ impl DigestView {
             .gap(px(14.))
             .py(px(8.))
             .px(px(2.))
-            .items_baseline()
+            .items_start()
             .cursor_pointer()
             .rounded(px(7.))
             .hover(|el| el.bg(colors.row_hover))
             .child(
                 div()
                     .id(SharedString::from(format!("wait-who-{ix}")))
-                    .w(px(132.))
+                    .w(px(108.))
                     .flex_none()
                     .truncate()
                     .text_size(px(14.))
-                    .font_medium()
+                    .line_height(px(20.))
+                    .font_semibold()
                     .text_color(colors.text)
                     .child(row.title.clone())
                     .on_click(cx.listener(move |this, _, _, cx| {
@@ -1536,18 +1632,34 @@ impl DigestView {
                         this.open_row(&person, 0, cx);
                     })),
             )
+            // What for, then the note it is in.
             .child(
-                div()
+                v_flex()
                     .flex_1()
                     .min_w_0()
-                    .truncate()
-                    .text_size(px(14.))
-                    .text_color(colors.text)
-                    .child(row.detail.clone()),
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(px(14.))
+                            .line_height(px(20.))
+                            .text_color(colors.text)
+                            .child(row.detail.clone()),
+                    )
+                    .when(!row.place.is_empty(), |el| {
+                        el.child(
+                            div()
+                                .truncate()
+                                .text_size(px(12.5))
+                                .line_height(px(18.))
+                                .text_color(colors.text_secondary)
+                                .child(row.place.clone()),
+                        )
+                    }),
             )
             .child(
                 h_flex()
                     .flex_none()
+                    .self_center()
                     .gap(px(2.))
                     .opacity(0.)
                     .group_hover(group, |s| s.opacity(1.))
@@ -1693,11 +1805,14 @@ impl DigestView {
         if !count_text.is_empty() {
             inline.push(
                 div()
+                    .flex_none()
                     .text_color(colors.text_secondary)
                     .child(count_text)
                     .into_any_element(),
             );
         }
+        // Items give way first, each ending in an ellipsis, so the action
+        // at the end of the line is never pushed out or overlapped.
         for (i, item) in line.items.iter().enumerate() {
             let open = item.clone();
             let text = if item.voice_secs > 0 {
@@ -1715,6 +1830,8 @@ impl DigestView {
             inline.push(
                 h_flex()
                     .id(SharedString::from(format!("also-{ix}-{i}")))
+                    .min_w_0()
+                    .flex_shrink(1.)
                     .gap(px(4.))
                     .cursor_pointer()
                     .text_color(colors.text)
@@ -1725,7 +1842,7 @@ impl DigestView {
                                 .text_color(colors.text_secondary),
                         )
                     })
-                    .child(text)
+                    .child(div().min_w_0().truncate().child(text))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.open_row(&open.note_id, open.line, cx);
                     }))
@@ -1796,6 +1913,7 @@ impl DigestView {
                             .flat_map(|(i, el)| {
                                 let sep = (i > 0).then(|| {
                                     div()
+                                        .flex_none()
                                         .text_color(colors.text_muted)
                                         .child("\u{b7}")
                                         .into_any_element()
@@ -1917,7 +2035,9 @@ impl DigestView {
         cx: &mut Context<Self>,
     ) -> Div {
         let colors = *Colors::get(cx);
-        let example = |code: &'static str, to: &'static str| {
+        // What a note says, in its own words (code for Markdown, italics
+        // for a description), and where on the page it shows.
+        let example = |text: &'static str, to: &'static str, code: bool| {
             h_flex()
                 .gap(px(14.))
                 .py(px(11.))
@@ -1928,10 +2048,15 @@ impl DigestView {
                     div()
                         .flex_1()
                         .min_w_0()
-                        .font_family("Menlo")
                         .text_size(px(13.))
-                        .text_color(colors.text)
-                        .child(code),
+                        .map(|el| {
+                            if code {
+                                el.font_family("Menlo").text_color(colors.text)
+                            } else {
+                                el.italic().text_color(colors.text_secondary)
+                            }
+                        })
+                        .child(text),
                 )
                 .child(
                     Icon::new(Lucide::ArrowRight)
@@ -1940,7 +2065,7 @@ impl DigestView {
                 )
                 .child(
                     div()
-                        .w(px(150.))
+                        .w(px(190.))
                         .text_size(px(12.5))
                         .font_medium()
                         .text_color(colors.text_secondary)
@@ -1964,7 +2089,7 @@ impl DigestView {
                     .text_size(px(16.))
                     .line_height(px(25.))
                     .text_color(colors.text_secondary)
-                    .child("This is your Overview. As you write, it gathers today's meetings and tasks, the notes you're in the middle of, and the people you're waiting on."),
+                    .child("This is your Overview. As you write, it gathers what is due today, the notes you're in the middle of, and the people you're waiting on."),
             )
             .child(
                 h_flex()
@@ -1983,7 +2108,7 @@ impl DigestView {
                             .icon(Lucide::Download)
                             .label("Import notes\u{2026}")
                             .on_click(cx.listener(|_, _, window, cx| {
-                                window.dispatch_action(Box::new(crate::workspace::OpenSettings), cx);
+                                window.dispatch_action(Box::new(crate::workspace::ImportLibrary), cx);
                             })),
                     ),
             )
@@ -1994,9 +2119,21 @@ impl DigestView {
                     .border_t_1()
                     .border_color(colors.divider)
                     .child(self.section_head("How this page fills in", None, cx))
-                    .child(example("- [ ] Send the deck by Friday @2026-11-07", "Today"))
-                    .child(example("Waiting on @Rudo for the quote", "Waiting on others"))
-                    .child(example("your 11:30 with Tendai", "Today, with a meeting note")),
+                    .child(example(
+                        "- [ ] Send the deck by Friday @2026-11-07",
+                        "Today",
+                        true,
+                    ))
+                    .child(example(
+                        "Waiting on @Rudo for the quote",
+                        "Waiting on others",
+                        true,
+                    ))
+                    .child(example(
+                        "The paragraph you stopped in",
+                        "Pick up where you left off",
+                        false,
+                    )),
             )
     }
 
@@ -2050,7 +2187,11 @@ impl DigestView {
                 } else if p.next_due.is_empty() {
                     Some(format!("Next: {}", p.next_task))
                 } else {
-                    Some(format!("Next: {} \u{b7} {}", p.next_task, p.next_due))
+                    Some(format!(
+                        "Next: {} \u{b7} {}",
+                        p.next_task,
+                        due_words(&p.next_due, now_of(cx).today())
+                    ))
                 };
                 block = block.child(
                     v_flex()
@@ -2084,9 +2225,11 @@ impl DigestView {
                                     .child(next),
                             )
                         })
+                        // The notebook's homepage, which links its notes.
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.library.update(cx, |library, cx| {
-                                library.set_filter(Filter::Book(open.id.clone()), cx)
+                                library.set_filter(Filter::Book(open.id.clone()), cx);
+                                library.set_home(true, cx);
                             });
                         })),
                 );
@@ -2195,7 +2338,7 @@ impl DigestView {
                             .child(day.summary.clone()),
                     );
                     for row in &day.rows {
-                        block = block.child(self.agenda_row(row, wide, false, cx));
+                        block = block.child(self.ahead_row(row, wide, cx));
                     }
                 }
             }

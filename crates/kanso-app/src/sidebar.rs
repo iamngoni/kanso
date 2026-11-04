@@ -1589,6 +1589,13 @@ impl Sidebar {
                     .pt(px(12.))
                     .overflow_y_scroll()
                     .child(self.rail_place(
+                        "rail-overview",
+                        Lucide::Compass,
+                        "Overview",
+                        Filter::Overview,
+                        cx,
+                    ))
+                    .child(self.rail_place(
                         "rail-all",
                         library_icon(Slot::AllNotes),
                         "All Notes",
@@ -1706,6 +1713,20 @@ impl Render for Sidebar {
         let recent = library.recent;
 
         let mut list = v_flex().pb_4();
+        // Overview, Kanso's home (issue #240), first: it has nothing to count.
+        let icon = self.icon(Icon::new(Lucide::Compass), cx);
+        list = list.child(self.row(
+            "overview",
+            Filter::Overview,
+            Entry {
+                icon: Some(icon),
+                label: "Overview".into(),
+                count: 0,
+                depth: 0,
+                color: None,
+            },
+            cx,
+        ));
         let icon = self.icon(library_icon(Slot::AllNotes), cx);
         list = list.child(self.row(
             "all",

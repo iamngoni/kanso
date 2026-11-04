@@ -3964,6 +3964,35 @@ fn kanso_opens_to_overview_and_back_returns_to_it(cx: &mut TestAppContext) {
     );
 }
 
+/// A reminder for the note Overview loaded quietly at launch still shows
+/// that note: it is already open behind the page, so only the page goes.
+// no-prop-test: drives one window.
+#[gpui_kit::test]
+fn a_reminder_for_the_open_note_leaves_overview(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    let library = f.workspace(cx, |w, _| w.library.clone());
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let workspace = f.workspace.clone();
+    vcx.update(|window, cx| {
+        workspace.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx))
+    });
+    settle(&f, &mut vcx);
+    assert_eq!(vcx.debug_bounds("editor-pane"), None);
+    let id = f.notes[0].clone();
+    vcx.update(|window, cx| {
+        workspace.update(cx, |workspace, cx| {
+            workspace.open_note_at(&id, 0, false, window, cx)
+        })
+    });
+    settle(&f, &mut vcx);
+    assert_ne!(
+        vcx.read(|cx| library.read(cx).filter.clone()),
+        crate::library::Filter::Overview
+    );
+    assert!(vcx.debug_bounds("editor-pane").is_some());
+}
+
 /// With "Last note" chosen, the first window opens to the note.
 // no-prop-test: drives one window.
 #[gpui_kit::test]
