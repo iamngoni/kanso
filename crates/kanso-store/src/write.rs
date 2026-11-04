@@ -38,6 +38,9 @@ pub struct WriteResult {
 
 /// Minimum gap between snapshots of UI autosaves of one document.
 const UI_SNAPSHOT_INTERVAL_MS: i64 = 5 * 60 * 1000;
+/// While a canvas is drawn on without a pause, a snapshot is still taken this
+/// often.
+const CANVAS_DRAWING_SNAPSHOT_INTERVAL_MS: i64 = 15 * 60 * 1000;
 /// Snapshots kept per document.
 pub(crate) const SNAPSHOTS_PER_DOC: i64 = 50;
 /// Snapshots kept per canvas: it can be a megabyte, so fifty would be fifty
@@ -514,16 +517,25 @@ fn snapshot(tx: &Transaction, id: &str, prev: &Row, origin: Origin) -> Result<()
             [id],
             |row| row.get(0),
         )?;
-        if last.is_some_and(|at| now_ms() - at < UI_SNAPSHOT_INTERVAL_MS) {
+        let since_last = last.map(|at| now_ms() - at);
+        if since_last.is_some_and(|d| d < UI_SNAPSHOT_INTERVAL_MS) {
             return Ok(());
         }
-        // A canvas is snapshotted only once it has been idle: while the pen
-        // is still moving, the version before this save is saved a moment ago.
+        // A canvas is snapshotted once it has been idle: while the pen is
+        // still moving, the version before this save is saved a moment ago.
+        // Continuous drawing still gets a snapshot every 15 minutes.
         let saved = prev.fields.get("updatedAt").and_then(Value::as_i64);
         // A time far ahead of this Mac's clock (another device's, synced)
         // is not "a moment ago", or a skewed clock would stop the history.
         if is_canvas(&prev.fields)
             && saved.is_some_and(|at| (now_ms() - at).abs() < UI_SNAPSHOT_INTERVAL_MS)
+            && since_last
+                .or_else(|| {
+                    // Never snapshotted: count from when the canvas was made.
+                    let made = prev.fields.get("createdAt").and_then(Value::as_i64)?;
+                    Some(now_ms() - made)
+                })
+                .is_none_or(|d| d < CANVAS_DRAWING_SNAPSHOT_INTERVAL_MS)
         {
             return Ok(());
         }

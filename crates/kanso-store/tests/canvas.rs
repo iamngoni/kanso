@@ -453,6 +453,38 @@ fn a_canvas_is_snapshotted_only_when_idle() {
     assert_eq!(store3.revisions("note:board").unwrap().len(), 1);
 }
 
+#[test]
+fn a_canvas_drawn_on_without_a_pause_is_snapshotted_every_fifteen_minutes() {
+    let min = 60 * 1000;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    for (last_snapshot_min_ago, want) in [(6, 0), (14, 0), (16, 1)] {
+        let (_dir, store) = temp_store();
+        let b = book(&store);
+        let mut c = canvas_with("board");
+        // The pen never lifted: the stored version was saved a moment ago.
+        let rev = put(&store, "note:board", &fields(&b, &c, now - 1), Origin::Ui).unwrap();
+        store
+            .record_revision_at(
+                "note:board",
+                &rev,
+                &fields(&b, &c, now - 1),
+                Origin::Ui,
+                now - last_snapshot_min_ago * min,
+            )
+            .unwrap();
+        c.add_stroke("i1", stroke("s", 1.0), now);
+        put(&store, "note:board", &fields(&b, &c, now), Origin::Ui).unwrap();
+        assert_eq!(
+            store.revisions("note:board").unwrap().len() - 1,
+            want,
+            "last snapshot {last_snapshot_min_ago} minutes ago"
+        );
+    }
+}
+
 proptest! {
     #![proptest_config(config(24))]
 

@@ -58,21 +58,8 @@ pub fn merge(a: &Canvas, b: &Canvas) -> Canvas {
         edge_order,
         |win, _| win.clone(),
     );
-    // An arrow whose end is gone is deleted, as a delete on one side would.
-    for edge in &mut edges {
-        if !edge.deleted
-            && !(live.contains(edge.from_node.as_str()) && live.contains(edge.to_node.as_str()))
-        {
-            *edge = Edge {
-                id: edge.id.clone(),
-                deleted: true,
-                kanso_version: edge.kanso_version + 1,
-                kanso_updated: edge.kanso_updated,
-                kanso_z: edge.kanso_z,
-                ..Edge::default()
-            };
-        }
-    }
+    // An arrow whose end card was deleted stays in the data and is hidden
+    // when drawn, so the result doesn't depend on the order of the edits.
     edges.sort_by(|p, q| {
         p.kanso_z
             .total_cmp(&q.kanso_z)

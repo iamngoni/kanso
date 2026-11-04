@@ -757,7 +757,7 @@ fn ink_added_apart_is_united() {
 }
 
 #[test]
-fn an_arrow_to_a_deleted_card_is_deleted_by_the_merge() {
+fn an_arrow_to_a_deleted_card_is_kept_and_the_merge_is_order_independent() {
     let mut a = base();
     let b = base();
     // Remove the card but keep the arrow live, as a stale writer might.
@@ -768,7 +768,8 @@ fn an_arrow_to_a_deleted_card_is_deleted_by_the_merge() {
         .unwrap()
         .kanso_version = 5;
     let m = merge(&a, &b);
-    assert!(m.edges.iter().find(|e| e.id == "e1").unwrap().deleted);
+    assert!(!m.edges.iter().find(|e| e.id == "e1").unwrap().deleted);
+    assert_eq!(m, merge(&b, &a));
     assert!(m.validate().is_ok());
 }
 

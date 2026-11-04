@@ -98,6 +98,25 @@ fn a_canvas_draws_every_kind_of_item() {
 }
 
 #[test]
+fn an_arrow_whose_end_card_was_deleted_is_kept_but_not_drawn() {
+    let mut canvas = sample();
+    let edge = canvas.edges.iter().find(|e| e.id == "e1").unwrap().clone();
+    let end = canvas
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == edge.to_node)
+        .unwrap();
+    end.deleted = true;
+    let svg = render(&canvas, &Scene::default(), &Palette::LIGHT).unwrap();
+    assert!(parses(&svg.markup));
+    assert!(
+        !svg.markup.contains("then"),
+        "the hidden arrow's label drew"
+    );
+    assert!(canvas.edges.iter().any(|e| e.id == "e1" && !e.deleted));
+}
+
+#[test]
 fn a_note_card_shows_the_live_title() {
     let titles = HashMap::from([("AbCd1234".to_string(), "New title".to_string())]);
     let scene = Scene {
