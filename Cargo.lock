@@ -4992,6 +4992,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hkdf 0.13.0",
  "hmac 0.13.0",
+ "kanso-audio",
  "kanso-core",
  "kanso-store",
  "kanso-sync",
