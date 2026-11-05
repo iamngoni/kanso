@@ -16,10 +16,19 @@ const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":7,"method":"initialize","param
 /// status and what it wrote on standard output.
 fn relay(env: &[(&str, String)], lines: &[&str]) -> (Option<i32>, Vec<Value>) {
     let data = tempfile::tempdir().unwrap();
+    relay_in(data.path(), env, lines)
+}
+
+/// [`relay`] with data folder `data`.
+fn relay_in(
+    data: &std::path::Path,
+    env: &[(&str, String)],
+    lines: &[&str],
+) -> (Option<i32>, Vec<Value>) {
     let mut command = Command::new(env!("CARGO_BIN_EXE_kanso"));
     command
         .args(["mcp", "--data-dir"])
-        .arg(data.path())
+        .arg(data)
         .env_remove("KANSO_MCP_TOKEN")
         .env_remove("KANSO_MCP_URL")
         .stdin(Stdio::piped())
@@ -108,15 +117,42 @@ fn a_relay_passes_a_known_key_through_and_explains_an_unknown_one() {
         "Kanso doesn't recognise this key. It may have been revoked. Create a new one in Kanso › Settings › Local API › API keys."
     );
 
-    // The key is never sent to an address off this computer.
-    let (code, _) = relay(
+    // The key is never sent to an address off this computer, and the
+    // agent is told how to fix the address.
+    let (code, answers) = relay(
         &[
             ("KANSO_MCP_TOKEN", key),
             ("KANSO_MCP_URL", "http://example.com/mcp".into()),
         ],
         &[INITIALIZE],
     );
-    assert_ne!(code, Some(0));
+    assert_eq!(code, Some(2));
+    assert_eq!(answers[0]["id"], 7);
+    assert_eq!(answers[0]["error"]["code"], -32000);
+    assert!(
+        answers[0]["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Unset it"),
+        "{}",
+        answers[0]
+    );
     drop(json!(null));
     server.stop().unwrap();
+}
+
+/// The relay reads the address from `config.json` and never writes the
+/// file: an old one, login and all, is left for Kanso's own migration.
+#[test]
+fn a_relay_never_rewrites_the_settings() {
+    let data = tempfile::tempdir().unwrap();
+    let path = data.path().join("config.json");
+    let old = r#"{"version":0,"server":{"enabled":true,"port":1,"bind_address":"127.0.0.1","username":"kanso","password":"hunter2"}}"#;
+    std::fs::write(&path, old).unwrap();
+    let key = format!("kcl_{}", "A".repeat(43));
+    let (code, answers) = relay_in(data.path(), &[("KANSO_MCP_TOKEN", key)], &[INITIALIZE]);
+    assert_eq!(code, Some(0));
+    // Nothing listens on port 1.
+    assert_eq!(answers[0]["error"]["code"], -32000);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), old);
 }

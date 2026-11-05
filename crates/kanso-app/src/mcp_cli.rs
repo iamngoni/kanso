@@ -63,8 +63,24 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
         return refuse_without_key();
     };
     let relay = match std::env::var(URL_VAR).ok() {
-        Some(url) => relay_to(url, &key)?,
-        None => Relay::new(&crate::load_config(data_dir)?.server, &key),
+        Some(url) => relay_to(url, &key),
+        // Read only: the relay never rewrites `config.json` (Kanso may be
+        // saving it, and the app's own migration must see the file first).
+        None => {
+            let path = crate::paths::config_path(data_dir);
+            crate::config::AppConfig::load(&path)
+                .map(|config| Relay::new(&config.server, &key))
+                .map_err(|err| {
+                    format!(
+                        "Kanso's settings at {} can't be read ({err}). Open Kanso once to repair them, then restart this agent.",
+                        path.display()
+                    )
+                })
+        }
+    };
+    let relay = match relay {
+        Ok(relay) => relay,
+        Err(message) => refuse(UNAVAILABLE, &message),
     };
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout().lock();
@@ -84,40 +100,65 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
 /// Answers the agent's first request (its `initialize`) with [`NO_KEY`],
 /// then exits with status 2.
 fn refuse_without_key() -> Result<()> {
+    refuse(NEEDS_KEY, NO_KEY)
+}
+
+/// Answers the agent's first request with error `code` and `message`, which
+/// says how to fix it (an agent may never show standard error), then exits
+/// with status 2.
+fn refuse(code: i64, message: &str) -> ! {
     let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout().lock();
     let lines = stdin.lock().lines().map_while(std::result::Result::ok);
-    if let Some(answer) = no_key_answer(lines) {
-        writeln!(stdout, "{answer}")?;
-        stdout.flush()?;
+    if let Some(answer) = first_answer(lines, code, message) {
+        let mut stdout = std::io::stdout().lock();
+        let _ = writeln!(stdout, "{answer}");
+        let _ = stdout.flush();
     }
-    eprintln!("kanso mcp: {NO_KEY}");
+    eprintln!("kanso mcp: {message}");
     std::process::exit(NO_KEY_EXIT);
 }
 
 /// The answer to the first request among `lines`: error [`NEEDS_KEY`] with
 /// the request's own ID. `None` when there is no request.
+#[cfg(test)]
 fn no_key_answer(lines: impl IntoIterator<Item = String>) -> Option<String> {
+    first_answer(lines, NEEDS_KEY, NO_KEY)
+}
+
+/// Error `code` with `message`, for the first request among `lines`.
+fn first_answer(
+    lines: impl IntoIterator<Item = String>,
+    code: i64,
+    message: &str,
+) -> Option<String> {
     lines
         .into_iter()
         .find_map(|line| request_id(&line))
-        .map(|id| error_with(id, NEEDS_KEY, NO_KEY))
+        .map(|id| error_with(id, code, message))
 }
 
 /// The relay to `url` with `key`, only to plain HTTP on this computer, so
 /// the key can't be sent elsewhere.
-fn relay_to(url: String, key: &str) -> Result<Relay> {
+fn relay_to(url: String, key: &str) -> Result<Relay, String> {
     if !is_loopback_url(&url) {
-        anyhow::bail!(
+        return Err(format!(
             "{URL_VAR} must be Kanso's own address on this computer: plain http:// to 127.0.0.1, [::1] or localhost. Unset it to use the address in Kanso's settings."
-        );
+        ));
     }
     Ok(Relay {
         endpoint: url,
         authorization: format!("Bearer {key}"),
+        // Kanso's own agents pass a session token with the address; a
+        // person's setup passes a key.
+        session: !is_key(key),
         enabled: true,
         agent: http_agent(),
     })
+}
+
+/// Whether `credential` is shaped as an API key rather than a session token.
+fn is_key(credential: &str) -> bool {
+    credential.starts_with("kcl_")
 }
 
 /// Whether `url` is plain HTTP to this computer: `http://127.0.0.1:…`,
@@ -153,6 +194,9 @@ fn http_agent() -> ureq::Agent {
 struct Relay {
     endpoint: String,
     authorization: String,
+    /// Whether the credential is the session token Kanso gives its own
+    /// agents (with `KANSO_MCP_URL`), which ends with the question.
+    session: bool,
     /// Whether the local API is on (always, for an agent's token).
     enabled: bool,
     agent: ureq::Agent,
@@ -163,6 +207,7 @@ impl Relay {
         Relay {
             endpoint: crate::settings::mcp_endpoint(&server.bind_address, server.port),
             authorization: format!("Bearer {key}"),
+            session: false,
             enabled: server.enabled,
             agent: http_agent(),
         }
@@ -198,12 +243,12 @@ impl Relay {
         let body = response.body_mut().read_to_string().unwrap_or_default();
         if status == 401 {
             return id.map(|id| {
-                if self.authorization.starts_with("Bearer kcl_") {
-                    error_with(id, NEEDS_KEY, UNKNOWN_KEY)
-                } else {
+                if self.session {
                     // An agent's token expired or was revoked: the question
                     // goes on with what it has read.
                     error(id, "Kanso's note access for this question has ended.")
+                } else {
+                    error_with(id, NEEDS_KEY, UNKNOWN_KEY)
                 }
             });
         }
@@ -268,8 +313,14 @@ mod tests {
         ] {
             assert!(!is_loopback_url(bad), "{bad}");
             let err = relay_to(bad.into(), "kcl_tok").err().expect("refused");
-            assert!(err.to_string().contains("Unset it"), "{err}");
+            assert!(err.contains("Unset it"), "{err}");
         }
+        // A key is told it isn't recognised; only Kanso's own agent, with a
+        // session token, is told its access ended.
+        let url = "http://127.0.0.1:1/mcp";
+        assert!(!relay_to(url.into(), "kcl_tok").unwrap().session);
+        assert!(relay_to(url.into(), "sessiontoken").unwrap().session);
+        assert!(!Relay::new(&ServerSettings::default(), "sessiontoken").session);
     }
 
     // no-prop-test: the messages are fixed by the design; the property
