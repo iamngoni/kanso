@@ -138,6 +138,36 @@ fn a_file_no_note_owns_is_left_alone() {
     assert!(store.file_meta(&stray).unwrap().is_some());
 }
 
+#[test]
+fn a_file_a_live_canvas_card_shows_is_kept() {
+    let (_dir, store) = store();
+    book(&store);
+    let pic = file(&store);
+    note(
+        &store,
+        "note:gone",
+        "trash",
+        false,
+        std::slice::from_ref(&pic),
+    );
+    // A canvas's attachment card names the file without a link prefix.
+    let body = format!(
+        "```canvas\n{{\"nodes\":[{{\"id\":\"a\",\"type\":\"file\",\"file\":\"{pic}\",\"x\":0,\"y\":0,\"width\":100,\"height\":100}}]}}\n```\n"
+    );
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": "note:board", "title": "Board", "body": body, "bookId": "book:b",
+                   "doctype": "canvas"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    store.empty_trash(Origin::Ui).unwrap();
+    assert!(store.note("note:gone").unwrap().is_none());
+    assert!(store.file_meta(&pic).unwrap().is_some());
+}
+
 #[derive(Clone, Debug)]
 struct NoteSpec {
     trashed: bool,

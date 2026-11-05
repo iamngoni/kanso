@@ -78,11 +78,17 @@ impl Store {
 }
 
 /// Whether a live note still owns `file`. The trashed notes are deleted
-/// by now, so any owner left is outside the trash.
+/// by now, so any owner left is outside the trash. Besides `note_files`
+/// (body links and locked notes' lists), a live note whose stored JSON
+/// names the file at all keeps it: a canvas's attachment cards say
+/// `file:<id>` without a link prefix, and keeping a file too many is safe
+/// where deleting one a note still shows is not.
 fn still_owned(tx: &Transaction, file: &str) -> Result<bool> {
     Ok(tx.query_row(
         "SELECT EXISTS (SELECT 1 FROM note_files nf JOIN docs d ON d.id = nf.note_id
-         WHERE nf.file_id = ?1 AND d.type = 'note' AND d.deleted = 0)",
+                        WHERE nf.file_id = ?1 AND d.type = 'note' AND d.deleted = 0)
+             OR EXISTS (SELECT 1 FROM docs d
+                        WHERE d.type = 'note' AND d.deleted = 0 AND instr(d.json, ?1) > 0)",
         [file],
         |row| row.get(0),
     )?)
