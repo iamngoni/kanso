@@ -4338,6 +4338,55 @@ fn show_notices(cx: &mut HeadlessAppContext) {
     });
 }
 
+/// The shipped API keys notice for a library that had a login. It is drawn
+/// as if the release had been reached: its `since` is the next release's,
+/// which this build's own version hasn't got to.
+fn api_keys_notices() -> &'static [kanso_core::notices::Notice] {
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::API_KEYS_ID)
+        .expect("the API keys notice ships")
+        .clone();
+    notice.since = semver::Version::new(0, 9, 0);
+    Box::leak(Box::new([notice]))
+}
+
+fn show_api_keys_notice(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        cx.global_mut::<AppState>().config.had_login = true;
+        cx.set_global(crate::notices::NoticeBoard {
+            list: api_keys_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The API keys notice's banner.
+fn api_keys_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_api_keys_notice(cx);
+}
+
+/// The API keys notice's How to fix sheet.
+fn api_keys_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_api_keys_notice(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&api_keys_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
 /// The banner across the top of the window.
 fn notice_banner(
     cx: &mut HeadlessAppContext,
@@ -6255,6 +6304,22 @@ fn snapshots() {
         Shot {
             dialog_width: crate::notice_views::SHEET_WIDTH,
             ..shot("light-notice-sheet", Light, Split, notice_sheet)
+        },
+        // The API keys notice (issue #243, step 8).
+        shot("dark-api-keys-notice-banner", Dark, Split, api_keys_banner),
+        shot(
+            "light-api-keys-notice-banner",
+            Light,
+            Split,
+            api_keys_banner,
+        ),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("dark-api-keys-notice-sheet", Dark, Split, api_keys_sheet)
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("light-api-keys-notice-sheet", Light, Split, api_keys_sheet)
         },
         Shot {
             dialog_width: crate::updates::SHEET_WIDTH,

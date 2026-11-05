@@ -4563,3 +4563,54 @@ fn an_update_notice_shows_until_it_is_dismissed(cx: &mut TestAppContext) {
     assert_eq!(saved.fixed, ["fixture-first-0.9"]);
     assert_eq!(saved.dismissed.len(), 2);
 }
+
+/// The API keys notice shows only for a library whose config recorded a
+/// login, and the banner's button goes to Settings › Local API.
+// no-prop-test: drives one window; `prop_the_api_keys_notice_is_for_libraries_that_had_a_login`
+// in kanso-core holds the rule.
+#[gpui_kit::test]
+fn the_api_keys_notice_shows_only_after_a_login_existed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::API_KEYS_ID)
+        .unwrap()
+        .clone();
+    // As if the release had been reached.
+    notice.since = semver::Version::new(0, 9, 0);
+    let list: &'static [kanso_core::notices::Notice] = Box::leak(Box::new([notice]));
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list,
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    // No login was ever recorded: nothing to say.
+    assert!(vcx.read(crate::notices::banner).is_none());
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+
+    vcx.update(|_, cx| {
+        crate::workspace::AppState::update_config(cx, |config| config.had_login = true);
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, kanso_core::notices::API_KEYS_ID);
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    assert!(f.saved_config().had_login);
+
+    // Dismissing hides the banner and the choice is kept.
+    let bounds = vcx.debug_bounds("notice-dismiss").unwrap();
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(
+        f.saved_config().notices.dismissed,
+        [kanso_core::notices::API_KEYS_ID]
+    );
+}

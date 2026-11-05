@@ -12,7 +12,6 @@ use kanso_core::notices::{
 };
 use semver::Version;
 
-use crate::config::AppConfig;
 use crate::services::Services;
 use crate::settings::{
     OpenAccountSettings, OpenApiSettings, OpenGeneralSettings, OpenUpdateSettings,
@@ -58,9 +57,10 @@ pub fn build_context(
     }
 }
 
-/// The context now. Until a later step records them, "a login existed" is
-/// the config's login and "the library key was saved" is true (there is no
-/// key to save yet), so no notice is raised by a fact Kanso can't tell.
+/// The context now. "A login existed" is the fact `config.json` recorded
+/// when it dropped the login; "the library key was saved" is true until a
+/// later step records it (there is no key to save yet), so no notice is
+/// raised by a fact Kanso can't tell.
 fn context(cx: &App) -> NoticeContext {
     let board = cx.try_global::<NoticeBoard>();
     let signed_in = cx
@@ -68,7 +68,7 @@ fn context(cx: &App) -> NoticeContext {
         .is_some_and(|services| services.signed_in() || services.has_locked_session());
     let login = cx
         .try_global::<AppState>()
-        .is_some_and(|state| had_login(&state.config));
+        .is_some_and(|state| state.config.had_login);
     build_context(
         crate::updates::current_version(),
         board.and_then(|board| board.previous.clone()),
@@ -76,10 +76,6 @@ fn context(cx: &App) -> NoticeContext {
         signed_in,
         true,
     )
-}
-
-fn had_login(config: &AppConfig) -> bool {
-    !config.server.username.is_empty() && !config.server.password.is_empty()
 }
 
 fn list(cx: &App) -> &'static [Notice] {
