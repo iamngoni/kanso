@@ -4,7 +4,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glados/glados.dart'
-    show Glados3, Glados2, IntAnys, any, BoolAny;
+    show BoolAny, Glados2, Glados3, IntAnys, any;
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/gen/l10n/app_localizations_en.dart';
 import 'package:kanso/lock/utils/files_migration_words.dart';

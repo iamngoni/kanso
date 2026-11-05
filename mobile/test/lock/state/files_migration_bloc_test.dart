@@ -154,8 +154,8 @@ void main() {
       session
         ..unlocked = true
         ..migration = _waiting(counted: true)
-        ..migrationGate = Completer<void>();
-      session.gate = session.migrationGate;
+        ..migrationGate = Completer<void>()
+        ..gate = session.migrationGate;
       await asked();
       bloc.add(const FilesMigrationEvent.sealRequested());
       await _settled(bloc, (s) => s.stage == MigrationStage.working);

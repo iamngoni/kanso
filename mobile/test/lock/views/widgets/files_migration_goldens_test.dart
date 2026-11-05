@@ -138,7 +138,8 @@ void main() {
             await expectAppGoldenOnBothPlatforms(
               tester,
               name:
-                  'migration_${viewport.slug}_${screen.name}_${brightness.name}',
+                  'migration_${viewport.slug}_${screen.name}'
+                  '_${brightness.name}',
               viewport: viewport,
               brightness: brightness,
               session: screen.session,

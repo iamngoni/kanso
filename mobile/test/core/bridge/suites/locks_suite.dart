@@ -273,7 +273,7 @@ void locksSuite(OpenLibrary open, {BiometricAnswer? answer}) {
     );
 
     test(
-      'what a lock seals, a lock that stopped, and the older notes sealed in one pass',
+      'what a lock seals, a stopped lock, and older notes sealed in one pass',
       () async {
         final library = await open();
         final locks = library.locks();
