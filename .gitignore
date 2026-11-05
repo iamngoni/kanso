@@ -11,3 +11,9 @@ kanso-apt-signing-key-BACKUP.*
 
 # The PDFium libraries scripts/fetch-pdfium.sh downloads.
 /vendor/pdfium/
+
+# cargo-fuzz's build, seeds and crashes for the PDF worker protocol
+# (crates/kanso-pdf/fuzz; scripts/pdf-fuzz.sh makes the seeds).
+/crates/kanso-pdf/fuzz/target/
+/crates/kanso-pdf/fuzz/corpus/
+/crates/kanso-pdf/fuzz/artifacts/

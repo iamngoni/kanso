@@ -13,13 +13,15 @@ pub mod client;
 pub mod contain;
 #[cfg(feature = "test-support")]
 pub mod fixtures;
+#[cfg(feature = "test-support")]
+pub mod hostile;
 pub mod link;
 pub mod model;
 pub mod protocol;
 pub mod quote;
+pub mod text;
 #[cfg(feature = "render")]
 pub mod worker;
-pub mod text;
 
 pub use annotation::{BlockSpan, find_blocks, new_highlight_id, upsert_block};
 pub use link::PdfLink;
