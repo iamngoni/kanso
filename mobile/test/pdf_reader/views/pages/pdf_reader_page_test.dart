@@ -9,12 +9,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/pdf_types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/repos/abs/session_repository.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/pdf_reader/models/data/pdf_opening.dart';
 import 'package:kanso/pdf_reader/state/pdf_reader/pdf_reader_bloc.dart';
 import 'package:kanso/pdf_reader/views/pages/pdf_reader_page.dart';
 import 'package:kanso/pdf_reader/views/widgets/pdf_page_view.dart';
 
+import '../../../helpers/fixture_session_repository.dart';
 import '../../../helpers/golden.dart';
 import '../../../helpers/kanso_test_app.dart';
 import '../../fakes.dart';
@@ -81,10 +83,16 @@ void main() {
   setUp(() {
     repository = FakePdfReaderRepository();
     preferences = FakePdfPreferencesRepository();
-    getIt.registerFactory<PdfReaderBloc>(
-      () => PdfReaderBloc(repository, preferences),
-    );
-    addTearDown(() async => getIt.reset());
+    final locks = FixtureSessionRepository(unlocked: true);
+    getIt
+      ..registerSingleton<SessionRepository>(locks)
+      ..registerFactory<PdfReaderBloc>(
+        () => PdfReaderBloc(repository, preferences, locks),
+      );
+    addTearDown(() async {
+      await locks.close();
+      await getIt.reset();
+    });
   });
 
   testWidgets('shows the loading state until the document opens', (

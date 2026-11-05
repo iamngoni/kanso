@@ -11,8 +11,10 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../core/bridge/api/pdf_types.dart';
+import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/application_error.dart';
 import '../../../core/models/repos/abs/preferences_repository.dart';
+import '../../../core/models/repos/abs/session_repository.dart';
 import '../../models/data/pdf_opening.dart';
 import '../../models/data/pdf_zoom.dart';
 import '../../models/repos/abs/pdf_reader_repository.dart';
@@ -33,7 +35,7 @@ const int pdfSearchLimit = 500;
 /// pictures through [session], and [close] ends the reader's thread.
 @injectable
 class PdfReaderBloc extends Bloc<PdfReaderEvent, PdfReaderState> {
-  PdfReaderBloc(this._repository, this._preferences)
+  PdfReaderBloc(this._repository, this._preferences, this._sessionRepository)
     : super(const PdfReaderState()) {
     on<PdfReaderStartedEvent>(_onStarted, transformer: restartable());
     on<PdfReaderPasswordSubmittedEvent>(
@@ -110,10 +112,18 @@ class PdfReaderBloc extends Bloc<PdfReaderEvent, PdfReaderState> {
     on<PdfReaderNoticeDismissedEvent>((event, emit) {
       emit(state.copyWith(notice: null));
     });
+    on<PdfReaderLockChangedEvent>(_onLockChanged, transformer: restartable());
+    _lockEvents = _sessionRepository.lockEvents().listen((event) {
+      if (event is LockEvent_Locked) {
+        add(const PdfReaderEvent.lockChanged());
+      }
+    });
   }
 
   final PdfReaderRepository _repository;
   final PreferencesRepository _preferences;
+  final SessionRepository _sessionRepository;
+  late final StreamSubscription<LockEvent> _lockEvents;
 
   /// The document drawn: the pages render through it. Kept out of the state
   /// so a page picture never rebuilds the page for an identity change.
@@ -524,8 +534,46 @@ class PdfReaderBloc extends Bloc<PdfReaderEvent, PdfReaderState> {
   @override
   Future<void> close() async {
     _searchTimer?.cancel();
+    await _lockEvents.cancel();
     _session?.dispose();
     _session = null;
     return super.close();
+  }
+
+  Future<void> _onLockChanged(
+    PdfReaderLockChangedEvent event,
+    Emitter<PdfReaderState> emit,
+  ) async {
+    _opens++;
+    _searchTimer?.cancel();
+    if (_session == null) {
+      return;
+    }
+    final unlocked = await _sessionRepository.isNoteUnlocked(state.noteId);
+    if (emit.isDone || unlocked.getOrElse(() => false)) {
+      return;
+    }
+    _session?.dispose();
+    _session = null;
+    emit(
+      state.copyWith(
+        status: PdfReaderStatus.declined,
+        info: null,
+        marks: null,
+        declined: const PdfDeclined.lockedNote(
+          message: 'Unlock this note to open its PDF.',
+        ),
+        error: null,
+        marksError: null,
+        selection: null,
+        query: '',
+        found: null,
+        hit: 0,
+        adding: false,
+        passwordWrong: false,
+        focusHighlight: null,
+        notice: null,
+      ),
+    );
   }
 }

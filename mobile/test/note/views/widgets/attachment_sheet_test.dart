@@ -8,12 +8,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glados/glados.dart' as glados;
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/models/repos/abs/session_repository.dart';
 import 'package:kanso/core/views/widgets/kanso_page.dart';
 import 'package:kanso/injection.dart';
 import 'package:kanso/note/views/widgets/attachment_sheet.dart';
 import 'package:kanso/pdf_reader/state/pdf_reader/pdf_reader_bloc.dart';
 import 'package:kanso/pdf_reader/views/pages/pdf_reader_page.dart';
 
+import '../../../helpers/fixture_session_repository.dart';
 import '../../../helpers/golden.dart';
 import '../../../helpers/pump.dart';
 import '../../../pdf_reader/fakes.dart';
@@ -174,13 +176,20 @@ void main() {
   });
 
   testWidgets('a PDF with its note opens in the reader', (tester) async {
-    getIt.registerFactory<PdfReaderBloc>(
-      () => PdfReaderBloc(
-        FakePdfReaderRepository(),
-        FakePdfPreferencesRepository(),
-      ),
-    );
-    addTearDown(() async => getIt.reset());
+    final locks = FixtureSessionRepository(unlocked: true);
+    getIt
+      ..registerSingleton<SessionRepository>(locks)
+      ..registerFactory<PdfReaderBloc>(
+        () => PdfReaderBloc(
+          FakePdfReaderRepository(),
+          FakePdfPreferencesRepository(),
+          locks,
+        ),
+      );
+    addTearDown(() async {
+      await locks.close();
+      await getIt.reset();
+    });
     await pumpKanso(
       tester,
       Builder(

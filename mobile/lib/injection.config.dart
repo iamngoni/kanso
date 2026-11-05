@@ -850,12 +850,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i601.SyncRepository>(
       () => _i564.RustSyncRepository(gh<_i591.KansoSync>()),
     );
-    gh.factory<_i818.PdfReaderBloc>(
-      () => _i818.PdfReaderBloc(
-        gh<_i367.PdfReaderRepository>(),
-        gh<_i384.PreferencesRepository>(),
-      ),
-    );
     gh.factory<_i284.VoiceNoteBloc>(
       () => _i284.VoiceNoteBloc(gh<_i525.VoiceCaptureRepository>()),
     );
@@ -1015,6 +1009,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i939.AgentTasksBloc(
         gh<_i214.AgentTasksRepository>(),
         gh<_i687.AgentTaskNotifier>(),
+      ),
+    );
+    gh.factory<_i818.PdfReaderBloc>(
+      () => _i818.PdfReaderBloc(
+        gh<_i367.PdfReaderRepository>(),
+        gh<_i384.PreferencesRepository>(),
+        gh<_i333.SessionRepository>(),
       ),
     );
     gh.lazySingleton<_i426.DictationTextRules>(

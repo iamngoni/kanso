@@ -14,6 +14,48 @@ import 'open_library.dart';
 /// drawing and searching its text, selecting by touch and saving a highlight.
 void pdfSuite(OpenLibrary open) {
   group('KansoPdf', () {
+    test('an open reader stops returning data when its note locks', () async {
+      final library = await open();
+      final id = await makeNote(library, 'Private report', 'Read it.');
+      final editor = await library.edit(id: id);
+      await editor.attach(
+        file: ShareFile(
+          name: 'Private-report.pdf',
+          contentType: 'application/pdf',
+          bytes: _reportPdf(),
+        ),
+      );
+      await editor.close();
+      final body = (await library.note(id: id)).body ?? '';
+      final linked = RegExp('inkdrop://file:([A-Za-z0-9_-]+)').firstMatch(body);
+      final file = 'file:${linked!.group(1)}';
+
+      final locks = library.locks();
+      await locks.lockNote(id: id, password: 'correct horse');
+      expect(
+        await locks.unlockNote(id: id, password: 'correct horse'),
+        isTrue,
+      );
+      final opened = await library.pdf().open(noteId: id, file: file);
+      final reader = opened.reader!;
+      addTearDown(() {
+        reader
+          ..close()
+          ..dispose();
+      });
+      expect((await reader.find(query: 'Quarterly', limit: 10)).total, 1);
+
+      await locks.lock();
+      await expectLater(
+        reader.find(query: 'Quarterly', limit: 10),
+        throwsA(isA<KansoError_Locked>()),
+      );
+      await expectLater(
+        reader.render(page: 0, widthPx: 612, invert: false),
+        throwsA(isA<KansoError_Locked>()),
+      );
+    });
+
     test(
       'opens a PDF attachment and reads, searches and highlights it',
       () async {

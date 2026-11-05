@@ -74,6 +74,9 @@ pub struct PdfReader {
 
 struct Inner {
     worker: Worker,
+    /// A closed or newly locked reader is terminal; its bytes and text are
+    /// dropped before any later request can read from the caches.
+    closed: bool,
     /// Each page's size in points, as shown.
     sizes: Vec<[f32; 2]>,
     text: TextDoc,
@@ -122,7 +125,8 @@ impl Library {
                 }
                 Err(error) => return Err(error),
             };
-            if attachment.content_type != "application/pdf" || !attachment.bytes.starts_with(b"%PDF-")
+            if attachment.content_type != "application/pdf"
+                || !attachment.bytes.starts_with(b"%PDF-")
             {
                 return Ok(PdfOpening::Declined(PdfDeclined::NotAPdf));
             }
@@ -185,6 +189,7 @@ impl Library {
                 md5,
                 inner: Arc::new(Mutex::new(Inner {
                     read: vec![false; opened.pages as usize],
+                    closed: false,
                     sizes: opened.sizes,
                     worker,
                     text: TextDoc::default(),
@@ -240,11 +245,39 @@ impl PdfReader {
             .map_err(|_| KansoError::invalid("This PDF couldn't be read."))
     }
 
+    /// Refuses a stale reader after its note is locked, and clears anything
+    /// derived from the PDF before returning the lock error.
+    fn ensure_readable(&self, inner: &mut Inner) -> Result<(), KansoError> {
+        if inner.closed {
+            return Err(KansoError::Locked);
+        }
+        if self.library.readable_text(&self.note_id)?.is_some() {
+            return Ok(());
+        }
+        Self::close_inner(inner);
+        Err(KansoError::Locked)
+    }
+
+    fn close_inner(inner: &mut Inner) {
+        inner.closed = true;
+        inner.worker.kill();
+        inner.text = TextDoc::default();
+        inner.find = None;
+        inner.read.clear();
+        inner.sizes.clear();
+    }
+
     /// Draws page `page` (0-based), `width_px` wide (the worker caps it), for
     /// a dark reader when `invert`: text light, pictures in their colours.
-    pub fn render(&self, page: u32, width_px: u32, invert: bool) -> Result<PdfPageImage, KansoError> {
+    pub fn render(
+        &self,
+        page: u32,
+        width_px: u32,
+        invert: bool,
+    ) -> Result<PdfPageImage, KansoError> {
         guard(|| {
             let mut inner = self.lock()?;
+            self.ensure_readable(&mut inner)?;
             let drawn = inner
                 .worker
                 .render_as(page, width_px, invert)
@@ -289,6 +322,7 @@ impl PdfReader {
     pub fn word_at(&self, page: u32, x: f64, y: f64) -> Result<Option<PdfSelection>, KansoError> {
         guard(|| {
             let mut inner = self.lock()?;
+            self.ensure_readable(&mut inner)?;
             Self::load(&mut inner, page)?;
             let Some(pos) = Self::near(&inner, Point { page, x, y }) else {
                 return Ok(None);
@@ -301,6 +335,7 @@ impl PdfReader {
     pub fn line_at(&self, page: u32, x: f64, y: f64) -> Result<Option<PdfSelection>, KansoError> {
         guard(|| {
             let mut inner = self.lock()?;
+            self.ensure_readable(&mut inner)?;
             Self::load(&mut inner, page)?;
             let Some(pos) = Self::near(&inner, Point { page, x, y }) else {
                 return Ok(None);
@@ -320,6 +355,7 @@ impl PdfReader {
     ) -> Result<Option<PdfSelection>, KansoError> {
         guard(|| {
             let mut inner = self.lock()?;
+            self.ensure_readable(&mut inner)?;
             Self::load(&mut inner, page)?;
             Self::load(&mut inner, anchor.page)?;
             let Some(pos) = inner.text.hit(Point { page, x, y }) else {
@@ -332,9 +368,14 @@ impl PdfReader {
 
     /// The selection from one place to another, as the app asks for it again
     /// (after a zoom, say). Pages are read as needed.
-    pub fn select(&self, start: PdfCharPos, end: PdfCharPos) -> Result<Option<PdfSelection>, KansoError> {
+    pub fn select(
+        &self,
+        start: PdfCharPos,
+        end: PdfCharPos,
+    ) -> Result<Option<PdfSelection>, KansoError> {
         guard(|| {
             let mut inner = self.lock()?;
+            self.ensure_readable(&mut inner)?;
             Self::load(&mut inner, start.page)?;
             Self::load(&mut inner, end.page)?;
             let (a, b) = (from_pos(start), from_pos(end));
@@ -367,6 +408,7 @@ impl PdfReader {
     pub fn find(&self, query: &str, limit: u32) -> Result<PdfFound, KansoError> {
         guard(|| {
             let mut inner = self.lock()?;
+            self.ensure_readable(&mut inner)?;
             for page in 1..=inner.read.len() as u32 {
                 Self::load(&mut inner, page)?;
             }
@@ -427,6 +469,7 @@ impl PdfReader {
             let color = pdf_notes::parse_color(color)?;
             let parts = {
                 let mut inner = self.lock()?;
+                self.ensure_readable(&mut inner)?;
                 Self::load(&mut inner, start.page)?;
                 Self::load(&mut inner, end.page)?;
                 inner
@@ -475,7 +518,7 @@ impl PdfReader {
     /// Ends the reader now: the page cache and the thread are freed.
     pub fn close(&self) {
         if let Ok(mut inner) = self.inner.lock() {
-            inner.worker.kill();
+            Self::close_inner(&mut inner);
         }
     }
 }

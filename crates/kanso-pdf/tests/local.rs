@@ -33,7 +33,11 @@ fn pdfium_is_available_here() {
 
 #[test]
 fn pages_and_text_are_the_desktops_bytes() {
-    let rotated = pages_pdf_on(&["BT /F1 24 Tf 72 700 Td (Rotated page) Tj ET".to_owned()], "[0 0 612 792]", 90);
+    let rotated = pages_pdf_on(
+        &["BT /F1 24 Tf 72 700 Td (Rotated page) Tj ET".to_owned()],
+        "[0 0 612 792]",
+        90,
+    );
     let documents = [sample_pdf(3), report_pdf(), rotated];
     for bytes in documents {
         let mut app = local();

@@ -98,4 +98,7 @@ sealed class PdfReaderEvent with _$PdfReaderEvent {
   /// The notice was read.
   const factory PdfReaderEvent.noticeDismissed() =
       PdfReaderNoticeDismissedEvent;
+
+  /// A lock closed the note while its PDF was open.
+  const factory PdfReaderEvent.lockChanged() = PdfReaderLockChangedEvent;
 }

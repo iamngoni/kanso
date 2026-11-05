@@ -261,8 +261,17 @@ pub(crate) fn serve_with(
     gate: &std::sync::Mutex<()>,
 ) -> ExitCode {
     let mut document: Option<PdfDocument<'_>> = None;
-    let code = serve_document(pdfium, input, output, watch_memory, Some(gate), &mut document);
-    let _turn = gate.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let code = serve_document(
+        pdfium,
+        input,
+        output,
+        watch_memory,
+        Some(gate),
+        &mut document,
+    );
+    let _turn = gate
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     drop(document);
     code
 }

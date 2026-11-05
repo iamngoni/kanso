@@ -55,7 +55,7 @@ extension PdfReaderEventPatterns on PdfReaderEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PdfReaderStartedEvent value)?  started,TResult Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult Function( PdfReaderRetriedEvent value)?  retried,TResult Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult Function( PdfReaderJumpToEvent value)?  jumpTo,TResult Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult Function( PdfReaderSearchRunEvent value)?  searchRun,TResult Function( PdfReaderSearchNextEvent value)?  searchNext,TResult Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PdfReaderStartedEvent value)?  started,TResult Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult Function( PdfReaderRetriedEvent value)?  retried,TResult Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult Function( PdfReaderJumpToEvent value)?  jumpTo,TResult Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult Function( PdfReaderSearchRunEvent value)?  searchRun,TResult Function( PdfReaderSearchNextEvent value)?  searchNext,TResult Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,TResult Function( PdfReaderLockChangedEvent value)?  lockChanged,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
@@ -78,7 +78,8 @@ return searchPrevious(_that);case PdfReaderSearchClosedEvent() when searchClosed
 return searchClosed(_that);case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
 return highlightRequested(_that);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed(_that);case _:
+return noticeDismissed(_that);case PdfReaderLockChangedEvent() when lockChanged != null:
+return lockChanged(_that);case _:
   return orElse();
 
 }
@@ -96,7 +97,7 @@ return noticeDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PdfReaderStartedEvent value)  started,required TResult Function( PdfReaderPasswordSubmittedEvent value)  passwordSubmitted,required TResult Function( PdfReaderRetriedEvent value)  retried,required TResult Function( PdfReaderZoomChangedEvent value)  zoomChanged,required TResult Function( PdfReaderInvertChangedEvent value)  invertChanged,required TResult Function( PdfReaderDarkChangedEvent value)  darkChanged,required TResult Function( PdfReaderPageChangedEvent value)  pageChanged,required TResult Function( PdfReaderJumpToEvent value)  jumpTo,required TResult Function( PdfReaderWordSelectedEvent value)  wordSelected,required TResult Function( PdfReaderLineSelectedEvent value)  lineSelected,required TResult Function( PdfReaderSelectionExtendedEvent value)  selectionExtended,required TResult Function( PdfReaderSelectionClearedEvent value)  selectionCleared,required TResult Function( PdfReaderSearchChangedEvent value)  searchChanged,required TResult Function( PdfReaderSearchRunEvent value)  searchRun,required TResult Function( PdfReaderSearchNextEvent value)  searchNext,required TResult Function( PdfReaderSearchPreviousEvent value)  searchPrevious,required TResult Function( PdfReaderSearchClosedEvent value)  searchClosed,required TResult Function( PdfReaderHighlightRequestedEvent value)  highlightRequested,required TResult Function( PdfReaderHighlightFocusedEvent value)  highlightFocused,required TResult Function( PdfReaderNoticeDismissedEvent value)  noticeDismissed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PdfReaderStartedEvent value)  started,required TResult Function( PdfReaderPasswordSubmittedEvent value)  passwordSubmitted,required TResult Function( PdfReaderRetriedEvent value)  retried,required TResult Function( PdfReaderZoomChangedEvent value)  zoomChanged,required TResult Function( PdfReaderInvertChangedEvent value)  invertChanged,required TResult Function( PdfReaderDarkChangedEvent value)  darkChanged,required TResult Function( PdfReaderPageChangedEvent value)  pageChanged,required TResult Function( PdfReaderJumpToEvent value)  jumpTo,required TResult Function( PdfReaderWordSelectedEvent value)  wordSelected,required TResult Function( PdfReaderLineSelectedEvent value)  lineSelected,required TResult Function( PdfReaderSelectionExtendedEvent value)  selectionExtended,required TResult Function( PdfReaderSelectionClearedEvent value)  selectionCleared,required TResult Function( PdfReaderSearchChangedEvent value)  searchChanged,required TResult Function( PdfReaderSearchRunEvent value)  searchRun,required TResult Function( PdfReaderSearchNextEvent value)  searchNext,required TResult Function( PdfReaderSearchPreviousEvent value)  searchPrevious,required TResult Function( PdfReaderSearchClosedEvent value)  searchClosed,required TResult Function( PdfReaderHighlightRequestedEvent value)  highlightRequested,required TResult Function( PdfReaderHighlightFocusedEvent value)  highlightFocused,required TResult Function( PdfReaderNoticeDismissedEvent value)  noticeDismissed,required TResult Function( PdfReaderLockChangedEvent value)  lockChanged,}){
 final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent():
@@ -119,7 +120,8 @@ return searchPrevious(_that);case PdfReaderSearchClosedEvent():
 return searchClosed(_that);case PdfReaderHighlightRequestedEvent():
 return highlightRequested(_that);case PdfReaderHighlightFocusedEvent():
 return highlightFocused(_that);case PdfReaderNoticeDismissedEvent():
-return noticeDismissed(_that);}
+return noticeDismissed(_that);case PdfReaderLockChangedEvent():
+return lockChanged(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -133,7 +135,7 @@ return noticeDismissed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PdfReaderStartedEvent value)?  started,TResult? Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult? Function( PdfReaderRetriedEvent value)?  retried,TResult? Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult? Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult? Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult? Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult? Function( PdfReaderJumpToEvent value)?  jumpTo,TResult? Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult? Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult? Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult? Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult? Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult? Function( PdfReaderSearchRunEvent value)?  searchRun,TResult? Function( PdfReaderSearchNextEvent value)?  searchNext,TResult? Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult? Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult? Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult? Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult? Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PdfReaderStartedEvent value)?  started,TResult? Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult? Function( PdfReaderRetriedEvent value)?  retried,TResult? Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult? Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult? Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult? Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult? Function( PdfReaderJumpToEvent value)?  jumpTo,TResult? Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult? Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult? Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult? Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult? Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult? Function( PdfReaderSearchRunEvent value)?  searchRun,TResult? Function( PdfReaderSearchNextEvent value)?  searchNext,TResult? Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult? Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult? Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult? Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult? Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,TResult? Function( PdfReaderLockChangedEvent value)?  lockChanged,}){
 final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
@@ -156,7 +158,8 @@ return searchPrevious(_that);case PdfReaderSearchClosedEvent() when searchClosed
 return searchClosed(_that);case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
 return highlightRequested(_that);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed(_that);case _:
+return noticeDismissed(_that);case PdfReaderLockChangedEvent() when lockChanged != null:
+return lockChanged(_that);case _:
   return null;
 
 }
@@ -173,7 +176,7 @@ return noticeDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult Function( String password)?  passwordSubmitted,TResult Function()?  retried,TResult Function( PdfZoom zoom)?  zoomChanged,TResult Function( bool invert)?  invertChanged,TResult Function( bool dark)?  darkChanged,TResult Function( int page)?  pageChanged,TResult Function( int page)?  jumpTo,TResult Function( int page,  double x,  double y)?  wordSelected,TResult Function( int page,  double x,  double y)?  lineSelected,TResult Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult Function()?  selectionCleared,TResult Function( String query)?  searchChanged,TResult Function( String query)?  searchRun,TResult Function()?  searchNext,TResult Function()?  searchPrevious,TResult Function()?  searchClosed,TResult Function( String color,  bool quote)?  highlightRequested,TResult Function( String? id)?  highlightFocused,TResult Function()?  noticeDismissed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult Function( String password)?  passwordSubmitted,TResult Function()?  retried,TResult Function( PdfZoom zoom)?  zoomChanged,TResult Function( bool invert)?  invertChanged,TResult Function( bool dark)?  darkChanged,TResult Function( int page)?  pageChanged,TResult Function( int page)?  jumpTo,TResult Function( int page,  double x,  double y)?  wordSelected,TResult Function( int page,  double x,  double y)?  lineSelected,TResult Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult Function()?  selectionCleared,TResult Function( String query)?  searchChanged,TResult Function( String query)?  searchRun,TResult Function()?  searchNext,TResult Function()?  searchPrevious,TResult Function()?  searchClosed,TResult Function( String color,  bool quote)?  highlightRequested,TResult Function( String? id)?  highlightFocused,TResult Function()?  noticeDismissed,TResult Function()?  lockChanged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
 return started(_that.noteId,_that.file,_that.name,_that.page,_that.highlight,_that.dark);case PdfReaderPasswordSubmittedEvent() when passwordSubmitted != null:
@@ -195,7 +198,8 @@ return searchPrevious();case PdfReaderSearchClosedEvent() when searchClosed != n
 return searchClosed();case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
 return highlightRequested(_that.color,_that.quote);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that.id);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed();case _:
+return noticeDismissed();case PdfReaderLockChangedEvent() when lockChanged != null:
+return lockChanged();case _:
   return orElse();
 
 }
@@ -213,7 +217,7 @@ return noticeDismissed();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)  started,required TResult Function( String password)  passwordSubmitted,required TResult Function()  retried,required TResult Function( PdfZoom zoom)  zoomChanged,required TResult Function( bool invert)  invertChanged,required TResult Function( bool dark)  darkChanged,required TResult Function( int page)  pageChanged,required TResult Function( int page)  jumpTo,required TResult Function( int page,  double x,  double y)  wordSelected,required TResult Function( int page,  double x,  double y)  lineSelected,required TResult Function( int page,  double x,  double y,  bool fromStart)  selectionExtended,required TResult Function()  selectionCleared,required TResult Function( String query)  searchChanged,required TResult Function( String query)  searchRun,required TResult Function()  searchNext,required TResult Function()  searchPrevious,required TResult Function()  searchClosed,required TResult Function( String color,  bool quote)  highlightRequested,required TResult Function( String? id)  highlightFocused,required TResult Function()  noticeDismissed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)  started,required TResult Function( String password)  passwordSubmitted,required TResult Function()  retried,required TResult Function( PdfZoom zoom)  zoomChanged,required TResult Function( bool invert)  invertChanged,required TResult Function( bool dark)  darkChanged,required TResult Function( int page)  pageChanged,required TResult Function( int page)  jumpTo,required TResult Function( int page,  double x,  double y)  wordSelected,required TResult Function( int page,  double x,  double y)  lineSelected,required TResult Function( int page,  double x,  double y,  bool fromStart)  selectionExtended,required TResult Function()  selectionCleared,required TResult Function( String query)  searchChanged,required TResult Function( String query)  searchRun,required TResult Function()  searchNext,required TResult Function()  searchPrevious,required TResult Function()  searchClosed,required TResult Function( String color,  bool quote)  highlightRequested,required TResult Function( String? id)  highlightFocused,required TResult Function()  noticeDismissed,required TResult Function()  lockChanged,}) {final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent():
 return started(_that.noteId,_that.file,_that.name,_that.page,_that.highlight,_that.dark);case PdfReaderPasswordSubmittedEvent():
@@ -235,7 +239,8 @@ return searchPrevious();case PdfReaderSearchClosedEvent():
 return searchClosed();case PdfReaderHighlightRequestedEvent():
 return highlightRequested(_that.color,_that.quote);case PdfReaderHighlightFocusedEvent():
 return highlightFocused(_that.id);case PdfReaderNoticeDismissedEvent():
-return noticeDismissed();}
+return noticeDismissed();case PdfReaderLockChangedEvent():
+return lockChanged();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -249,7 +254,7 @@ return noticeDismissed();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult? Function( String password)?  passwordSubmitted,TResult? Function()?  retried,TResult? Function( PdfZoom zoom)?  zoomChanged,TResult? Function( bool invert)?  invertChanged,TResult? Function( bool dark)?  darkChanged,TResult? Function( int page)?  pageChanged,TResult? Function( int page)?  jumpTo,TResult? Function( int page,  double x,  double y)?  wordSelected,TResult? Function( int page,  double x,  double y)?  lineSelected,TResult? Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult? Function()?  selectionCleared,TResult? Function( String query)?  searchChanged,TResult? Function( String query)?  searchRun,TResult? Function()?  searchNext,TResult? Function()?  searchPrevious,TResult? Function()?  searchClosed,TResult? Function( String color,  bool quote)?  highlightRequested,TResult? Function( String? id)?  highlightFocused,TResult? Function()?  noticeDismissed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult? Function( String password)?  passwordSubmitted,TResult? Function()?  retried,TResult? Function( PdfZoom zoom)?  zoomChanged,TResult? Function( bool invert)?  invertChanged,TResult? Function( bool dark)?  darkChanged,TResult? Function( int page)?  pageChanged,TResult? Function( int page)?  jumpTo,TResult? Function( int page,  double x,  double y)?  wordSelected,TResult? Function( int page,  double x,  double y)?  lineSelected,TResult? Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult? Function()?  selectionCleared,TResult? Function( String query)?  searchChanged,TResult? Function( String query)?  searchRun,TResult? Function()?  searchNext,TResult? Function()?  searchPrevious,TResult? Function()?  searchClosed,TResult? Function( String color,  bool quote)?  highlightRequested,TResult? Function( String? id)?  highlightFocused,TResult? Function()?  noticeDismissed,TResult? Function()?  lockChanged,}) {final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
 return started(_that.noteId,_that.file,_that.name,_that.page,_that.highlight,_that.dark);case PdfReaderPasswordSubmittedEvent() when passwordSubmitted != null:
@@ -271,7 +276,8 @@ return searchPrevious();case PdfReaderSearchClosedEvent() when searchClosed != n
 return searchClosed();case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
 return highlightRequested(_that.color,_that.quote);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that.id);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed();case _:
+return noticeDismissed();case PdfReaderLockChangedEvent() when lockChanged != null:
+return lockChanged();case _:
   return null;
 
 }
@@ -1413,6 +1419,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'PdfReaderEvent.noticeDismissed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PdfReaderLockChangedEvent implements PdfReaderEvent {
+  const PdfReaderLockChangedEvent();
+
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfReaderLockChangedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PdfReaderEvent.lockChanged()';
 }
 
 

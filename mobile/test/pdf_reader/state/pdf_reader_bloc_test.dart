@@ -5,13 +5,17 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/pdf_types.dart';
+import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/pdf_reader/models/data/pdf_opening.dart';
 import 'package:kanso/pdf_reader/models/data/pdf_zoom.dart';
 import 'package:kanso/pdf_reader/state/pdf_reader/pdf_reader_bloc.dart';
 
+import '../../helpers/fixture_session_repository.dart';
 import '../fakes.dart';
+
+late FixtureSessionRepository _locks;
 
 const PdfReaderEvent _start = PdfReaderEvent.started(
   noteId: 'note-one',
@@ -22,9 +26,18 @@ const PdfReaderEvent _start = PdfReaderEvent.started(
 PdfReaderBloc _bloc(
   FakePdfReaderRepository repository, [
   FakePdfPreferencesRepository? preferences,
-]) => PdfReaderBloc(repository, preferences ?? FakePdfPreferencesRepository());
+]) => PdfReaderBloc(
+  repository,
+  preferences ?? FakePdfPreferencesRepository(),
+  _locks,
+);
 
 void main() {
+  setUp(() {
+    _locks = FixtureSessionRepository(unlocked: true);
+  });
+  tearDown(() => _locks.close());
+
   group('opening', () {
     blocTest<PdfReaderBloc, PdfReaderState>(
       "opens the attachment and reads the note's highlights",
@@ -123,6 +136,27 @@ void main() {
       verify: (bloc) {
         expect(bloc.state.status, PdfReaderStatus.declined);
         expect(bloc.state.declined, isA<PdfDeclined_LockedNote>());
+      },
+    );
+
+    blocTest<PdfReaderBloc, PdfReaderState>(
+      'a lock clears the open PDF and its cached search text',
+      build: () => _bloc(FakePdfReaderRepository()),
+      act: (bloc) async {
+        bloc.add(_start);
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        _locks.unlocked = false;
+        _locks.events.add(const LockEvent.locked(reason: LockReason.manual));
+      },
+      wait: const Duration(milliseconds: 40),
+      verify: (bloc) {
+        expect(bloc.state.status, PdfReaderStatus.declined);
+        expect(bloc.state.declined, isA<PdfDeclined_LockedNote>());
+        expect(bloc.state.info, isNull);
+        expect(bloc.state.marks, isNull);
+        expect(bloc.state.found, isNull);
+        expect(bloc.state.selection, isNull);
+        expect(bloc.session, isNull);
       },
     );
 
