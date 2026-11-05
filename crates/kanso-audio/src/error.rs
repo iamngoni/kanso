@@ -23,6 +23,8 @@ pub enum AudioError {
     NoMicrophone,
     #[error("the microphone failed: {0}")]
     Device(String),
+    #[error("system audio isn't available: {0}")]
+    SystemAudio(String),
     #[error("the recording's notes file is unreadable: {0}")]
     Session(String),
 }

@@ -928,6 +928,7 @@ impl Palette {
         let ai_on = cx
             .try_global::<AppState>()
             .is_some_and(|state| state.config.ai.enabled);
+        let update_notices = !crate::notices::listed(cx).is_empty();
         commands::all()
             .iter()
             .filter(|command| command.group == group)
@@ -945,6 +946,7 @@ impl Palette {
                 Needs::SharedNote => shared_note,
                 Needs::AiOn => ai_on,
                 Needs::AiNote => ai_on && note.is_some_and(|n| !n.is_locked()) && !in_trash,
+                Needs::UpdateNotices => update_notices,
             })
             .map(|command| {
                 let pinned = match self.shared_by_several(|n| n.pinned) {

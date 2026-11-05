@@ -13,6 +13,7 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -21,6 +22,8 @@ use gpui_kit::component::{
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+use kanso_collab::canvas_doc::StrokeHead;
+use kanso_collab::{Engine, RemotePointer};
 use kanso_core::canvas::{self, Budget, Node, Refused};
 use kanso_render::canvas::{card_color, pen};
 use kanso_store::Store;
@@ -52,6 +55,27 @@ const MINIMAP_BELOW: f32 = 0.16;
 const TEXT_ZOOM: f32 = 0.3;
 /// A new card's text, until it is edited.
 const NEW_CARD_TEXT: &str = "Text";
+/// How often the stroke being drawn streams to the others on a shared canvas.
+const STREAM_EVERY: Duration = Duration::from_millis(150);
+
+/// A canvas drawn on with others (docs: issue #45, section 4): the engine
+/// holds the document, this view hands it what was drawn and takes back
+/// what everyone has drawn.
+struct Shared {
+    engine: Arc<Engine>,
+    share_id: String,
+    /// This account, the author of the strokes streamed from here.
+    me: String,
+    /// Where the others' pointers are.
+    remote: Vec<RemotePointer>,
+    /// When the stroke being drawn last streamed.
+    streamed: Option<Instant>,
+    /// Others' edits came in while a gesture was going: they are taken once
+    /// it ends.
+    behind: bool,
+    /// The canvas is past what a note can hold.
+    full: bool,
+}
 
 pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
@@ -130,6 +154,8 @@ pub struct CanvasView {
     /// hasn't been told: it is, with the body, when the gesture ends, not on
     /// every pointer move.
     unsaved: bool,
+    /// Set while the canvas is shared and open: the engine is its source.
+    shared: Option<Shared>,
     focus: FocusHandle,
 }
 
@@ -159,6 +185,7 @@ impl CanvasView {
             pointer: [0., 0.],
             budget: Budget::Ok,
             unsaved: false,
+            shared: None,
             focus: cx.focus_handle(),
         }
     }
@@ -170,6 +197,11 @@ impl CanvasView {
         self.read_only = read_only;
         let same = self.note_id.as_deref() == Some(id);
         if same && self.state.as_ref().is_some_and(|s| s.body() == body) {
+            return;
+        }
+        // A shared canvas on screen is the engine's: the library's body is
+        // its projection, a moment behind what is drawn.
+        if same && self.shared.is_some() && self.state.is_some() {
             return;
         }
         self.note_id = Some(id.to_owned());
@@ -208,10 +240,197 @@ impl CanvasView {
 
     /// Shows nothing: no canvas note is open.
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        self.unshare(cx);
         self.note_id = None;
         self.state = None;
         self.broken = None;
         cx.notify();
+    }
+
+    /// Draws on shared canvas `share_id` with the others in it: the canvas
+    /// is the engine's from now on.
+    pub fn share(&mut self, engine: Arc<Engine>, share_id: &str, cx: &mut Context<Self>) {
+        let Ok(canvas) = engine.canvas(share_id) else {
+            return;
+        };
+        if let Some(state) = &mut self.state {
+            state.take_canvas(canvas);
+            self.budget = canvas::budget(state.body().len());
+        }
+        self.shared = Some(Shared {
+            me: engine.caller().account_id.clone(),
+            remote: engine.pointers(share_id),
+            share_id: share_id.to_owned(),
+            engine,
+            streamed: None,
+            behind: false,
+            full: false,
+        });
+        cx.notify();
+    }
+
+    /// The canvas stopped being shared (or the note closed): it is a private
+    /// canvas again, as it stands.
+    pub fn unshare(&mut self, cx: &mut Context<Self>) {
+        if let Some(shared) = self.shared.take() {
+            // A stroke streamed under a pen that is still down will never
+            // be finished here: the others don't keep half of it.
+            if shared.streamed.is_some()
+                && let Some(id) = self.state.as_ref().and_then(|s| s.live_id())
+                && let Err(err) = shared.engine.abandon_stroke(&shared.share_id, id)
+            {
+                eprintln!("kanso: taking back a stroke on the shared canvas: {err}");
+            }
+            shared.engine.set_pointer(&shared.share_id, None);
+            cx.notify();
+        }
+    }
+
+    /// Makes the view read only (a canvas shared to look at), or not.
+    pub fn set_read_only(&mut self, read_only: bool, cx: &mut Context<Self>) {
+        if self.read_only != read_only {
+            self.read_only = read_only;
+            cx.notify();
+        }
+    }
+
+    /// Others' edits are waiting, or this view drew something: hands the
+    /// canvas to the engine and takes back what it is now. Waits for a
+    /// gesture in progress to end.
+    pub fn sync_shared(&mut self, cx: &mut Context<Self>) {
+        if self.gesture.is_some() || self.grab.is_some() {
+            if let Some(shared) = &mut self.shared {
+                shared.behind = true;
+            }
+            return;
+        }
+        self.sync_now(cx);
+    }
+
+    /// Takes in what others did while a gesture or a drag held it back,
+    /// once nothing is in hand: whatever way the gesture ended (a pan, a
+    /// card let go without moving, a stroke erased under the pen).
+    fn catch_up(&mut self, cx: &mut Context<Self>) {
+        if self.gesture.is_none()
+            && self.grab.is_none()
+            && self.shared.as_ref().is_some_and(|s| s.behind)
+        {
+            self.sync_now(cx);
+        }
+    }
+
+    fn sync_now(&mut self, cx: &mut Context<Self>) {
+        let Self { shared, state, .. } = self;
+        let (Some(shared), Some(state)) = (shared.as_mut(), state.as_mut()) else {
+            return;
+        };
+        shared.behind = false;
+        let mut notice = None;
+        match shared.engine.sync_canvas(&shared.share_id, &state.canvas) {
+            Ok(merge) => {
+                let full = merge.full;
+                if merge.changed {
+                    state.take_canvas(merge.canvas);
+                }
+                if full && !shared.full {
+                    notice = Some(kanso_collab::engine::canvas::FULL.to_owned());
+                }
+                shared.full = full;
+                self.budget = if full {
+                    Budget::Full
+                } else {
+                    canvas::budget(state.body().len())
+                };
+            }
+            Err(err) => eprintln!("kanso: syncing the shared canvas: {err}"),
+        }
+        shared.remote = shared.engine.pointers(&shared.share_id);
+        if let Some(words) = notice {
+            cx.emit(CanvasEvent::Notice(words));
+        }
+        cx.notify();
+    }
+
+    /// Others' pointers moved, came or went.
+    pub fn refresh_pointers(&mut self, cx: &mut Context<Self>) {
+        if let Some(shared) = &mut self.shared {
+            let remote = shared.engine.pointers(&shared.share_id);
+            if remote != shared.remote {
+                shared.remote = remote;
+                cx.notify();
+            }
+        }
+    }
+
+    /// Tells the room where the pointer is, in canvas coordinates.
+    fn send_pointer(&self, position: Point<Pixels>) {
+        let (Some(shared), Some(state)) = (&self.shared, &self.state) else {
+            return;
+        };
+        let (x, y) = self.to_canvas(position);
+        let tool = format!("{:?}", state.tool).to_lowercase();
+        shared
+            .engine
+            .set_pointer(&shared.share_id, Some((x, y, tool.as_str())));
+    }
+
+    /// The pointer left the surface: the others' marks of it go.
+    fn pointer_left(&self) {
+        if let Some(shared) = &self.shared {
+            shared.engine.set_pointer(&shared.share_id, None);
+        }
+    }
+
+    /// Streams the stroke being drawn to the others, a chunk about every
+    /// 150 ms, so they see the ink as it is made.
+    fn stream_live(&mut self, cx: &mut Context<Self>) {
+        // A full canvas takes no more ink (the pen's stroke is refused when
+        // it ends), so none streams either.
+        if self
+            .shared
+            .as_ref()
+            .is_none_or(|s| s.full || s.streamed.is_some_and(|at| at.elapsed() < STREAM_EVERY))
+        {
+            return;
+        }
+        let now = Self::now(cx);
+        let Some((stream, made_layer)) = self.state.as_mut().and_then(|s| s.streaming(now)) else {
+            return;
+        };
+        // An ink layer made just now goes first: the points are relative to
+        // it, and the others hide ink that has none.
+        if made_layer {
+            self.sync_now(cx);
+        }
+        let Some(shared) = &mut self.shared else {
+            return;
+        };
+        shared.streamed = Some(Instant::now());
+        let head = StrokeHead {
+            id: stream.id,
+            ink: stream.ink,
+            owner: shared.me.clone(),
+            tool: stream.tool,
+            color: stream.color,
+            width: stream.width,
+            z: stream.z,
+        };
+        if let Ok(Err(_erased)) =
+            shared
+                .engine
+                .stream_stroke(&shared.share_id, &head, &stream.points)
+        {
+            // Someone erased the stroke under the pen: it stops there, and
+            // the erase comes in now.
+            shared.streamed = None;
+            shared.behind = true;
+            if let Some(state) = &mut self.state {
+                state.cancel();
+            }
+            self.gesture = None;
+            self.catch_up(cx);
+            cx.notify();
+        }
     }
 
     fn refresh_titles(&mut self) {
@@ -295,6 +514,11 @@ impl CanvasView {
     /// Tells the editor the document changed, with the body to save now.
     fn emit_changed(&mut self, cx: &mut Context<Self>) {
         self.unsaved = false;
+        // A shared canvas goes to the engine, which writes the note.
+        if self.shared.is_some() {
+            self.sync_shared(cx);
+            return;
+        }
         let Some(state) = &self.state else { return };
         let body = state.body();
         self.budget = canvas::budget(body.len());
@@ -398,6 +622,7 @@ impl CanvasView {
     fn on_mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
         let at = self.local(event.position);
         self.pointer = at;
+        self.send_pointer(event.position);
         if let Some(grab) = self.grab {
             if event.pressed_button.is_none() {
                 // The button went up where no mouse-up reached the view: a
@@ -405,6 +630,7 @@ impl CanvasView {
                 if let Some(Grab::Card { moved, .. }) = self.grab.take() {
                     self.end_card_grab(moved, cx);
                 }
+                self.catch_up(cx);
                 return;
             }
             match grab {
@@ -452,6 +678,7 @@ impl CanvasView {
                 self.hover = Some((x, y));
                 self.report(outcome, false, cx);
             }
+            self.stream_live(cx);
             return;
         }
         if self.gesture.is_some() {
@@ -472,10 +699,10 @@ impl CanvasView {
     fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(Grab::Card { moved, .. }) = self.grab.take() {
             self.end_card_grab(moved, cx);
-            return;
+        } else {
+            self.finish(cx);
         }
-        self.grab = None;
-        self.finish(cx);
+        self.catch_up(cx);
     }
 
     /// Lets go of a pressed card: its drag becomes one undo step, saved if
@@ -495,15 +722,35 @@ impl CanvasView {
         if self.gesture.take().is_none() {
             return;
         }
+        // The stroke that streamed to the others while the pen was down.
+        let streamed = self
+            .shared
+            .as_ref()
+            .filter(|s| s.streamed.is_some())
+            .and_then(|_| self.state.as_ref()?.live_id().map(str::to_owned));
         let now = Self::now(cx);
         let outcome = match &mut self.state {
             Some(state) => state.end(now),
             None => Outcome::Nothing,
         };
+        let kept = matches!(outcome, Outcome::Changed);
         // Only a gesture that changed the document (now, or in an earlier
         // step of the drag) asks for a save: a lasso that only selected
         // writes nothing.
         self.report(outcome, true, cx);
+        if let Some(shared) = &mut self.shared {
+            shared.streamed = None;
+            // A streamed stroke the canvas refused when it ended (too long,
+            // the canvas full) is taken back from the others too.
+            if let Some(id) = streamed.filter(|_| !kept) {
+                if let Err(err) = shared.engine.abandon_stroke(&shared.share_id, &id) {
+                    eprintln!("kanso: taking back a stroke on the shared canvas: {err}");
+                }
+                shared.behind = true;
+            }
+        }
+        // What others drew while the pen was down comes in now.
+        self.catch_up(cx);
     }
 
     fn on_scroll(&mut self, event: &ScrollWheelEvent, _: &mut Window, cx: &mut Context<Self>) {
@@ -1146,6 +1393,38 @@ impl Render for CanvasView {
             Some(Tool::Lasso) => CursorStyle::Arrow,
             _ => CursorStyle::Crosshair,
         };
+        // The others' pointers: a dot and a name, in their colour.
+        let pointers: Vec<_> = self
+            .shared
+            .as_ref()
+            .map(|shared| {
+                shared
+                    .remote
+                    .iter()
+                    .map(|p| {
+                        let s = view.to_screen([p.x as f32, p.y as f32], size);
+                        let colour = crate::theme::cursor_colour(p.colour, dark);
+                        div()
+                            .absolute()
+                            .left(gpui_kit::px(s[0]))
+                            .top(gpui_kit::px(s[1]))
+                            .flex()
+                            .items_center()
+                            .gap(px(4.))
+                            .child(div().size(px(9.)).rounded_full().bg(colour))
+                            .child(
+                                div()
+                                    .px(px(5.))
+                                    .rounded(px(4.))
+                                    .bg(colour)
+                                    .text_size(px(10.))
+                                    .text_color(gpui::white())
+                                    .child(p.name.clone()),
+                            )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         let surface_el = canvas(
             move |bounds, _, _| {
                 bounds_cell.set(bounds);
@@ -1245,6 +1524,12 @@ impl Render for CanvasView {
             .on_action(cx.listener(|this, _: &CanvasDelete, _, cx| this.delete(cx)))
             .on_action(cx.listener(|this, _: &CanvasFit, _, cx| this.fit(cx)))
             .on_action(cx.listener(|this, _: &CanvasCancel, _, cx| {
+                if this.shared.as_ref().is_some_and(|s| s.streamed.is_some()) {
+                    // Its points already went to the others: the stroke
+                    // ends where it is, rather than leaving a ghost of it.
+                    this.finish(cx);
+                    return;
+                }
                 if let Some(state) = &mut this.state {
                     state.cancel();
                     state.selection.clear();
@@ -1253,8 +1538,14 @@ impl Render for CanvasView {
                 this.gesture = None;
                 this.report(Outcome::Nothing, true, cx);
             }))
+            .on_hover(cx.listener(|this, over: &bool, _, _| {
+                if !*over {
+                    this.pointer_left();
+                }
+            }))
             .child(surface_el)
             .children(cards)
+            .children(pointers)
             .when_some(hover, |el, (x, y)| {
                 let s = view.to_screen([x as f32, y as f32], size);
                 el.child(

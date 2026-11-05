@@ -10,9 +10,8 @@ use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::{DocType, Note, NoteStatus, new_id, now_ms};
 use kanso_engine::batch::{self, Change, Edit};
 use kanso_engine::links::{copy_message, link_for};
-use kanso_engine::list::{self, Filter};
 use kanso_engine::notes::copy_title;
-use kanso_store::{NoteSummary, Origin, Put, Sort};
+use kanso_store::{NoteSummary, Origin, Put};
 use serde_json::json;
 
 use crate::boundary::{guard, held};
@@ -41,18 +40,17 @@ impl Library {
             .collect()
     }
 
-    /// Deletes every note in the trash for good, locked ones too, and says
-    /// how many.
+    /// How many of the notes in the trash are locked: the count Empty
+    /// Trash's confirmation adds when there are some.
+    pub fn locked_in_trash(&self) -> Result<u32, KansoError> {
+        guard(|| Ok(self.inner.store.trash_counts()?.locked))
+    }
+
+    /// Deletes every note in the trash for good, locked ones too, with the
+    /// attachments only those notes owned (sealed copies included), and says
+    /// how many notes went. An attachment a note outside the trash owns stays.
     pub fn empty_trash(&self) -> Result<u32, KansoError> {
-        guard(|| {
-            let store = &self.inner.store;
-            let params = list::search_params(&Filter::Trash, "", Sort::UpdatedAt, true);
-            let notes = store.search_summaries(&params)?;
-            for note in &notes {
-                store.delete(&note.id, Origin::Ui)?;
-            }
-            Ok(notes.len() as u32)
-        })
+        guard(|| Ok(self.inner.store.empty_trash(Origin::Ui)?.notes))
     }
 
     /// Copies note `id` as the desktop does: "`title` (copy)", the same text,

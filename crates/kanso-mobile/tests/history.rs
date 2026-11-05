@@ -89,6 +89,7 @@ fn versions_come_newest_first_with_the_words_for_why_they_were_kept() {
             owner_name: "Ada".into(),
             role: "owner".into(),
             status: SharedStatus::Active,
+            kind: kanso_store::SharedKind::Text,
             epoch: 1,
             list: String::new(),
             list_sig: String::new(),

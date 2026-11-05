@@ -209,9 +209,7 @@ fn setup(cx: &mut HeadlessAppContext, store: &Store) {
                 refused: None,
             });
         }
-        let dir = shared.plugin_dir(LISTED);
-        std::fs::create_dir_all(&dir).unwrap();
-        kanso_plugins::install::write_egress(&dir, &log).unwrap();
+        kanso_plugins::install::write_egress(&cx.global::<AppState>().store, LISTED, &log).unwrap();
     });
 }
 

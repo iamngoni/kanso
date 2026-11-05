@@ -2,10 +2,12 @@
 //!
 //! ```text
 //! <data>/plugins/<id>/code/          the bundle's files (not for developer mode)
-//! <data>/plugins/<id>/settings.json  the plugin's settings, owner-only
 //! <data>/plugins/<id>/data/          its data store
-//! <data>/plugins/<id>/egress.json    the last 100 network requests Kanso made for it
 //! ```
+//!
+//! A plugin's settings and the last 100 network requests Kanso made for it
+//! are in the library's `meta` table, not in files: either can hold note
+//! text, and the folder beside the library is not encrypted.
 //!
 //! Installing follows the theme installer: the bundle is written into a
 //! hidden folder beside the others and moved into place whole, so a plugin
@@ -17,6 +19,7 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
+use kanso_store::Store;
 use serde_json::Value;
 
 use crate::manifest::is_valid_id;
@@ -136,28 +139,60 @@ pub fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     result
 }
 
-/// Plugin settings, or `null` when there are none or they can't be read.
-pub fn read_settings(plugin_dir: &Path) -> Value {
-    std::fs::read(plugin_dir.join("settings.json"))
+/// The `meta` key holding plugin `id`'s settings. Settings are whatever
+/// the plugin saves, which can be note text, so they live in the library
+/// (encrypted with it), never in a file beside it.
+fn settings_key(id: &str) -> String {
+    format!("plugin.settings.{id}")
+}
+
+/// The `meta` key holding plugin `id`'s egress log. A request's path can
+/// carry note text, so the log lives in the library too.
+fn egress_key(id: &str) -> String {
+    format!("plugin.egress.{id}")
+}
+
+/// Reads `file` in `plugin_dir` once, from before these lived in the
+/// library: stores it under `key` and deletes the file.
+fn adopt_legacy(store: &Store, plugin_dir: &Path, file: &str, key: &str) -> Option<String> {
+    let path = plugin_dir.join(file);
+    let text = std::fs::read_to_string(&path).ok()?;
+    store.set_meta(key, &text).ok()?;
+    std::fs::remove_file(&path).ok();
+    Some(text)
+}
+
+/// Plugin `id`'s settings, or `null` when there are none or they can't be
+/// read. `plugin_dir` is only checked for settings an older Kanso left in
+/// a file; they move into the library on the first read.
+pub fn read_settings(store: &Store, plugin_dir: &Path, id: &str) -> Value {
+    let key = settings_key(id);
+    store
+        .meta(&key)
         .ok()
-        .filter(|bytes| bytes.len() <= crate::router::MAX_SETTINGS_BYTES)
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .flatten()
+        .or_else(|| adopt_legacy(store, plugin_dir, "settings.json", &key))
+        .filter(|text| text.len() <= crate::router::MAX_SETTINGS_BYTES)
+        .and_then(|text| serde_json::from_str(&text).ok())
         .unwrap_or(Value::Null)
 }
 
-/// Saves plugin settings, owner-only.
-pub fn write_settings(plugin_dir: &Path, value: &Value) -> std::io::Result<()> {
-    write_private(
-        &plugin_dir.join("settings.json"),
-        &serde_json::to_vec(value)?,
-    )
+/// Saves plugin `id`'s settings in the library.
+pub fn write_settings(store: &Store, id: &str, value: &Value) -> std::io::Result<()> {
+    store
+        .set_meta(&settings_key(id), &serde_json::to_string(value)?)
+        .map_err(std::io::Error::other)
 }
 
-/// The egress log Kanso keeps for a plugin.
-pub fn read_egress(plugin_dir: &Path) -> crate::net::EgressLog {
-    let entries: Vec<crate::net::Egress> = std::fs::read(plugin_dir.join("egress.json"))
+/// The egress log Kanso keeps for plugin `id`.
+pub fn read_egress(store: &Store, plugin_dir: &Path, id: &str) -> crate::net::EgressLog {
+    let key = egress_key(id);
+    let entries: Vec<crate::net::Egress> = store
+        .meta(&key)
         .ok()
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .flatten()
+        .or_else(|| adopt_legacy(store, plugin_dir, "egress.json", &key))
+        .and_then(|text| serde_json::from_str(&text).ok())
         .unwrap_or_default();
     let mut log = crate::net::EgressLog::new();
     // Stored newest first; pushed oldest first.
@@ -167,13 +202,17 @@ pub fn read_egress(plugin_dir: &Path) -> crate::net::EgressLog {
     log
 }
 
-/// Saves the egress log.
-pub fn write_egress(plugin_dir: &Path, log: &crate::net::EgressLog) -> std::io::Result<()> {
-    let entries = log.entries();
-    write_private(
-        &plugin_dir.join("egress.json"),
-        &serde_json::to_vec(&entries)?,
-    )
+/// Saves the egress log in the library.
+pub fn write_egress(store: &Store, id: &str, log: &crate::net::EgressLog) -> std::io::Result<()> {
+    store
+        .set_meta(&egress_key(id), &serde_json::to_string(&log.entries())?)
+        .map_err(std::io::Error::other)
+}
+
+/// Forgets plugin `id`'s settings and egress log in the library.
+pub fn forget(store: &Store, id: &str) {
+    store.remove_meta(&settings_key(id)).ok();
+    store.remove_meta(&egress_key(id)).ok();
 }
 
 /// The entry script of a plugin: from its installed code, or, in developer
@@ -250,14 +289,16 @@ mod tests {
         let plugins = plugins_dir(data.path());
         let dir =
             install_bundle(&plugins, &bundle(vec![("main.js", "1"), ("lib/a.js", "a")])).unwrap();
-        write_settings(&dir, &serde_json::json!({ "x": 1 })).unwrap();
-        assert_eq!(read_settings(&dir)["x"], 1);
+        let store = Store::open(data.path().join("kanso.db")).unwrap();
+        let id = "com.example.wordcount";
+        write_settings(&store, id, &serde_json::json!({ "x": 1 })).unwrap();
+        assert_eq!(read_settings(&store, &dir, id)["x"], 1);
         install_bundle(&plugins, &bundle(vec![("main.js", "2")])).unwrap();
         let code = code_dir(&dir);
         assert_eq!(std::fs::read_to_string(code.join("main.js")).unwrap(), "2");
         assert!(!code.join("lib/a.js").exists());
         // Settings survive an update.
-        assert_eq!(read_settings(&dir)["x"], 1);
+        assert_eq!(read_settings(&store, &dir, id)["x"], 1);
         // No hidden leftovers.
         let names: Vec<String> = std::fs::read_dir(&dir)
             .unwrap()
@@ -270,17 +311,43 @@ mod tests {
         assert!(remove(&plugins, "../evil").is_err());
     }
 
-    #[cfg(unix)]
     #[test]
-    fn settings_are_owner_only() {
-        use std::os::unix::fs::PermissionsExt as _;
-        let dir = tempfile::tempdir().unwrap();
-        write_settings(dir.path(), &serde_json::json!(1)).unwrap();
-        let mode = std::fs::metadata(dir.path().join("settings.json"))
-            .unwrap()
-            .permissions()
-            .mode();
-        assert_eq!(mode & 0o777, 0o600);
+    fn settings_and_egress_live_in_the_library_not_in_files() {
+        let data = tempfile::tempdir().unwrap();
+        let store = Store::open(data.path().join("kanso.db")).unwrap();
+        let dir = data.path().join("plugins").join("com.example.x");
+        let id = "com.example.x";
+        write_settings(&store, id, &serde_json::json!({ "recent": "canary" })).unwrap();
+        let mut log = crate::net::EgressLog::new();
+        log.push(crate::net::Egress {
+            at_ms: 1,
+            method: "GET".into(),
+            host: "example.com".into(),
+            url_path: "/canary".into(),
+            status: Some(200),
+            sent: 0,
+            received: 0,
+            refused: None,
+        });
+        write_egress(&store, id, &log).unwrap();
+        assert!(!dir.exists());
+        assert_eq!(read_settings(&store, &dir, id)["recent"], "canary");
+        assert_eq!(read_egress(&store, &dir, id).len(), 1);
+        forget(&store, id);
+        assert!(read_settings(&store, &dir, id).is_null());
+        assert_eq!(read_egress(&store, &dir, id).len(), 0);
+    }
+
+    #[test]
+    fn files_an_older_kanso_left_move_into_the_library() {
+        let data = tempfile::tempdir().unwrap();
+        let store = Store::open(data.path().join("kanso.db")).unwrap();
+        let dir = data.path().join("plugins").join("com.example.x");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("settings.json"), r#"{"a":1}"#).unwrap();
+        assert_eq!(read_settings(&store, &dir, "com.example.x")["a"], 1);
+        assert!(!dir.join("settings.json").exists());
+        assert_eq!(read_settings(&store, &dir, "com.example.x")["a"], 1);
     }
 
     #[test]

@@ -1,0 +1,18 @@
+{
+	"nodes":[
+		{"id":"7f1c0a52b3d94e01","type":"group","x":-420,"y":-300,"width":920,"height":580,"label":"Launch","color":"4"},
+		{"id":"7f1c0a52b3d94e02","type":"text","text":"# Launch plan\n\n- Ship the beta\n- Write the post\n- [[Welcome]] the first users","x":-380,"y":-240,"width":320,"height":180,"color":"2"},
+		{"id":"7f1c0a52b3d94e03","type":"file","file":"Projects/Plan.md","subpath":"#Milestones","x":40,"y":-240,"width":380,"height":220},
+		{"id":"7f1c0a52b3d94e04","type":"file","file":"Attachments/diagram.png","x":-380,"y":0,"width":320,"height":220},
+		{"id":"7f1c0a52b3d94e05","type":"link","url":"https://jsoncanvas.org/spec/1.0/","x":40,"y":40,"width":380,"height":180},
+		{"id":"7f1c0a52b3d94e06","type":"file","file":"People/Ada Lovelace.md","x":600,"y":-100,"width":260,"height":120,"color":"#3a86ff"},
+		{"id":"7f1c0a52b3d94e07","type":"file","file":"Missing/Gone.md","x":600,"y":120,"width":260,"height":120}
+	],
+	"edges":[
+		{"id":"7f1c0a52b3d94f01","fromNode":"7f1c0a52b3d94e02","fromSide":"right","toNode":"7f1c0a52b3d94e03","toSide":"left"},
+		{"id":"7f1c0a52b3d94f02","fromNode":"7f1c0a52b3d94e02","fromSide":"bottom","fromEnd":"none","toNode":"7f1c0a52b3d94e04","toSide":"top","toEnd":"none","label":"see the diagram"},
+		{"id":"7f1c0a52b3d94f03","fromNode":"7f1c0a52b3d94e03","fromSide":"right","toNode":"7f1c0a52b3d94e06","toSide":"left","color":"1"},
+		{"id":"7f1c0a52b3d94f04","fromNode":"7f1c0a52b3d94e05","fromSide":"right","toNode":"7f1c0a52b3d94e07","toSide":"left","fromEnd":"arrow","toEnd":"arrow"}
+	],
+	"metadata":{"version":"1.0-1.0","frontmatter":{}}
+}

@@ -7,7 +7,9 @@
 //! answer; notifications get `202 Accepted`. The server keeps no sessions and
 //! offers no event stream, so GET and DELETE answer 405.
 //!
-//! An agent's token ([`Caller::Agent`]) sees a narrower server: only the read
+//! An API key ([`Caller::Key`]) sees the tools its access allows: read, or
+//! read and suggest, or every tool for read and write (`keyed.rs`). An
+//! agent's token ([`Caller::Agent`]) sees a narrower server: only the read
 //! tools its scope offers are listed or run, every note they would show is
 //! checked first ([`Visibility`](crate::scope::Visibility)), and `resources/read`
 //! follows the same rule. Everything else answers that the agent has
@@ -50,9 +52,6 @@ const METHOD_NOT_FOUND: i64 = -32601;
 const INVALID_PARAMS: i64 = -32602;
 const INTERNAL_ERROR: i64 = -32603;
 const SERVER_ERROR: i64 = -32000;
-/// API keys are minted and verified (issue #243, step 3) but no gate lets
-/// one in until step 4 wires them to the tools.
-const KEY_NOT_YET: &str = "API keys are not accepted here yet.";
 
 /// A JSON-RPC error answer.
 pub(crate) struct RpcError {
@@ -238,9 +237,15 @@ fn call(
         }
         "ping" => Ok(json!({})),
         "tools/list" => match caller {
-            Caller::Full => Ok(json!({ "tools": schema::definitions() })),
-            // Keys are not accepted by the gate yet (issue #243, step 4).
-            Caller::Key { .. } => Ok(json!({ "tools": [] })),
+            // A key that can write is offered every tool; the others, what
+            // their access allows.
+            Caller::Key {
+                access: kanso_store::KeyAccess::Write,
+                ..
+            } => Ok(json!({ "tools": schema::definitions() })),
+            Caller::Key { scope, .. } => Ok(json!({
+                "tools": crate::agent_tools::definitions_for(scope)
+            })),
             Caller::Agent { scope, .. } => {
                 let offered: Vec<&Value> = schema::agent_definitions()
                     .as_array()
@@ -260,8 +265,16 @@ fn call(
                 RpcError::invalid_params("Invalid params: `name` must be a string.")
             })?;
             match caller {
-                Caller::Full => Ok(tools::call(state, None, name, param("arguments"))),
-                Caller::Key { .. } => Err(RpcError::new(INVALID_REQUEST, KEY_NOT_YET)),
+                Caller::Key { .. } => {
+                    let key = crate::keyed::Key::of(caller)
+                        .map_err(|_| RpcError::internal("Internal error"))?;
+                    Ok(crate::agent_tools::call_for_key(
+                        state,
+                        &key,
+                        name,
+                        param("arguments"),
+                    ))
+                }
                 Caller::Agent { token, scope } => Ok(crate::agent_tools::call_with_state(
                     state,
                     *token,
@@ -285,8 +298,15 @@ fn call(
                 RpcError::invalid_params("Invalid params: `uri` must be a string.")
             })?;
             match caller {
-                Caller::Full => tools::read_resource(state, None, uri),
-                Caller::Key { .. } => Err(RpcError::new(INVALID_REQUEST, KEY_NOT_YET)),
+                Caller::Key { scope, .. } => {
+                    let visible = crate::scope::Visibility::new(&state.store, scope);
+                    let Some(visible) = visible else {
+                        return Err(RpcError::invalid_params(format!(
+                            "MCP error -32602: Resource {uri} not found"
+                        )));
+                    };
+                    tools::read_resource(state, Some(&visible), uri)
+                }
                 Caller::Agent { token, scope } => {
                     let visible = crate::scope::Visibility::new(&state.store, scope);
                     let Some(visible) = visible else {

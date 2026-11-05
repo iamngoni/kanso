@@ -13,6 +13,9 @@ kanso-core.workspace = true
 # first use. flate2 is already in the app for the updater.
 flate2 = "1.1"
 markdown.workspace = true
+# Draws a canvas's ink as the PNGs of an export (Apache-2.0 or MIT), at the
+# version GPUI already draws SVG with. Its tiny-skia is BSD-3-Clause.
+resvg = { version = "0.46", default-features = false, features = ["text"] }
 # Mermaid to SVG in pure Rust, with no dependencies of its own (MIT). Chosen
 # over mermaid-rs-renderer and merman in a spike: closest to Mermaid's own
 # layout, and draws its labels as SVG text that resvg can show.
@@ -24,8 +27,6 @@ serde_json.workspace = true
 # The SVG parser GPUI draws with, at its version: finds a diagram's real
 # bounds, whatever the SVG says.
 usvg = "0.46"
-# Draws that SVG as pixels, for "Copy as image" (the renderer GPUI uses).
-resvg = { version = "0.46", default-features = false }
 
 # rquickjs ships no bindings for phones: generate them with the build
 # machine's libclang (Xcode's, or the Android NDK's), as scripts/mobile-test.sh

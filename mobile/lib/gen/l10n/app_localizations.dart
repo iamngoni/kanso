@@ -6766,6 +6766,12 @@ abstract class AppLocalizations {
   /// **'Delete {count, plural, =1{1 note} other{{count} notes}} in the trash permanently?'**
   String libraryEmptyTrashTitle(num count);
 
+  /// Asks whether to empty the trash when it holds locked notes: names how many notes it holds and how many of them are locked, and says their sealed attachments are deleted too.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count, plural, =1{1 note} other{{count} notes}} permanently, including {locked, plural, =1{1 locked note and its sealed attachments} other{{locked} locked notes and their sealed attachments}}?'**
+  String libraryEmptyTrashLockedTitle(int count, int locked);
+
   /// Says emptying the trash cannot be undone.
   ///
   /// In en, this message translates to:
@@ -11631,6 +11637,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try Again'**
   String get playerTryAgain;
+
+  /// The small heading on the card that says an update changed something the person may need to fix.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs your attention'**
+  String get noticeNeedsAttention;
+
+  /// Opens the steps that fix what an update changed.
+  ///
+  /// In en, this message translates to:
+  /// **'How to fix'**
+  String get noticeHowToFix;
+
+  /// Hides an update notice on this phone for good.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get noticeDismiss;
+
+  /// Hides an update notice because the person fixed what it said.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as fixed'**
+  String get noticeMarkFixed;
+
+  /// The title of the sheet that shows an update notice's steps.
+  ///
+  /// In en, this message translates to:
+  /// **'Update notice'**
+  String get noticeSheetTitle;
+
+  /// Closes the sheet of an update notice's steps.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get noticeSheetDone;
+
+  /// On the update notice card when more than one notice is waiting: this card is the first of {total}.
+  ///
+  /// In en, this message translates to:
+  /// **'1 of {total}'**
+  String noticeCount(int total);
+
+  /// The update notice's button that opens the page of Settings its steps name.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get noticeOpenSettings;
+
+  /// The update notice's button that opens a page about the change in the browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn More'**
+  String get noticeLearnMore;
+
+  /// What a screen reader says for one numbered step of an update notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {number}: {step}'**
+  String noticeStep(int number, String step);
 }
 
 class _AppLocalizationsDelegate

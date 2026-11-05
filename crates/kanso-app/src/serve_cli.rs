@@ -62,7 +62,8 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
             }
         })?;
     let say: Say = Arc::new(|line| eprintln!("{line}"));
-    let handle = kanso_server::spawn(store.clone(), server);
+    let keys = kanso_server::KeyStore::open(store.clone())?;
+    let handle = kanso_server::spawn(store.clone(), server, keys);
     match handle.bind_result() {
         Ok(addr) => eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it."),
         Err(err) => bail!(

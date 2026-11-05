@@ -14,7 +14,17 @@ use kanso_core::now_ms;
 use super::{Engine, lock};
 use crate::api::{LiveEvent, LiveLink, Result};
 use crate::doc::Field;
-use crate::model::{Kind, LiveNotice, PresenceMessage};
+use crate::model::{CanvasPointer, Kind, LiveNotice, PresenceMessage};
+
+/// What this device's presence last said: where the caret or the pointer
+/// was.
+#[derive(Clone, Debug, PartialEq)]
+enum Placed {
+    Caret(usize, usize),
+    Pointer(CanvasPointer),
+}
+
+type LastPresence = Option<(Instant, Option<Placed>)>;
 
 /// How long one wait for the room lasts: also how often the outbox and the
 /// caret are looked at.
@@ -163,7 +173,7 @@ impl Engine {
         stop: &AtomicBool,
         notify: &Notify,
     ) -> bool {
-        let mut last_presence: Option<(Instant, Option<(usize, usize)>)> = None;
+        let mut last_presence: LastPresence = None;
         let mut last_sync = Instant::now();
         let ended = loop {
             if stop.load(Ordering::Relaxed) {
@@ -196,6 +206,7 @@ impl Engine {
                 }
             }
             self.flush_mentions(share_id);
+            self.flush_canvas(share_id);
         };
         self.leave_room(share_id);
         ended
@@ -339,37 +350,62 @@ impl Engine {
         &self,
         share_id: &str,
         link: &mut dyn LiveLink,
-        last: &mut Option<(Instant, Option<(usize, usize)>)>,
+        last: &mut LastPresence,
     ) -> Result<()> {
         let loaded = self.loaded(share_id)?;
         let mut guard = lock(&loaded);
-        let caret = guard.caret;
+        let placed = match guard.doc.canvas() {
+            Some(_) => guard.pointer.clone().map(Placed::Pointer),
+            None => guard
+                .caret
+                .map(|(anchor, head)| Placed::Caret(anchor, head)),
+        };
         let due = match last {
-            None => caret.is_some(),
+            None => placed.is_some(),
             Some((at, sent)) => {
-                (*sent != caret && at.elapsed() >= PRESENCE_EVERY)
-                    || (caret.is_some() && at.elapsed() >= PRESENCE_REFRESH)
+                (*sent != placed && at.elapsed() >= PRESENCE_EVERY)
+                    || (placed.is_some() && at.elapsed() >= PRESENCE_REFRESH)
             }
         };
-        let Some((anchor, head)) = caret.filter(|_| due) else {
+        let Some(placed) = placed.filter(|_| due) else {
             return Ok(());
         };
-        let message = PresenceMessage {
-            cursor: guard.doc.sticky(Field::Body, anchor),
-            head: guard.doc.sticky(Field::Body, head),
-            name: self.account.caller.username.clone(),
+        let name = self.account.caller.username.clone();
+        let message = match &placed {
+            Placed::Caret(anchor, head) => PresenceMessage {
+                cursor: guard
+                    .doc
+                    .text()
+                    .map_or_else(String::new, |d| d.sticky(Field::Body, *anchor)),
+                head: guard
+                    .doc
+                    .text()
+                    .map_or_else(String::new, |d| d.sticky(Field::Body, *head)),
+                name,
+                canvas: None,
+            },
+            Placed::Pointer(pointer) => PresenceMessage {
+                cursor: String::new(),
+                head: String::new(),
+                name,
+                canvas: Some(pointer.clone()),
+            },
         };
         let plain = serde_json::to_vec(&message).expect("presence serializes");
         let sealed = self.seal_presence(&mut guard, &plain)?;
         drop(guard);
         link.send(&sealed)?;
-        *last = Some((Instant::now(), caret));
+        *last = Some((Instant::now(), Some(placed)));
         Ok(())
     }
 
     /// Presence is sealed like any envelope, under counter 0: it is never
     /// stored, so it takes no counter of its own (and writes nothing).
-    fn seal_presence(&self, loaded: &mut super::Loaded, plain: &[u8]) -> Result<Vec<u8>> {
+    pub(crate) fn seal_presence(
+        &self,
+        loaded: &mut super::Loaded,
+        plain: &[u8],
+    ) -> Result<Vec<u8>> {
         let identity = self.identity()?;
         let key = loaded.keys.get(&loaded.note.epoch).ok_or_else(|| {
             crate::api::CollabError::Crypto("this device has no key for the note".into())
@@ -410,12 +446,28 @@ impl Engine {
         let Ok(mut message) = serde_json::from_slice::<PresenceMessage>(&opened.plain) else {
             return Ok(false);
         };
+        // A pointer is somewhere real, or not shown.
+        if message
+            .canvas
+            .as_ref()
+            .is_some_and(|p| !(p.x.is_finite() && p.y.is_finite()))
+        {
+            return Ok(false);
+        }
+        let key = (
+            opened.header.author_account.clone(),
+            opened.header.author_device.clone(),
+        );
+        // A move that arrives after a newer one is ignored.
+        if let (Some(new), Some((old, _))) = (&message.canvas, guard.cursors.get(&key))
+            && let Some(old) = &old.canvas
+            && new.seq < old.seq
+        {
+            return Ok(false);
+        }
         // The name shown is the one the owner's list gives, not the sender's.
         message.name = opened.author_name;
-        guard.cursors.insert(
-            (opened.header.author_account, opened.header.author_device),
-            (message, now_ms()),
-        );
+        guard.cursors.insert(key, (message, now_ms()));
         Ok(true)
     }
 }

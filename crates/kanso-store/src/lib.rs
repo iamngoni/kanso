@@ -39,6 +39,8 @@ mod roles;
 mod schema;
 mod sync;
 mod tasks;
+mod trash;
+mod trash_model;
 mod triage;
 mod validate;
 mod write;
@@ -54,9 +56,9 @@ pub use cards_model::{
     CardCounts, CardScope, CardSettings, CardStats, DueCard, HardCard, NoteCard,
 };
 pub use collab::model::{
-    CommentRecord, Contact, Outgoing, SealedKey, SharedNote, SharedStatus, StoredNotice,
+    CommentRecord, Contact, Outgoing, SealedKey, SharedKind, SharedNote, SharedStatus, StoredNotice,
 };
-pub use collab::{LOCKED_SHARED, SharedText};
+pub use collab::{LOCKED_SHARED, SharedCanvas, SharedText};
 pub use derived::{Backlink, DERIVED_VERSION, DERIVED_VERSION_KEY, HeadingHit};
 pub use doc::{Attachment, Doc};
 pub use embed::{
@@ -104,6 +106,7 @@ pub use replace::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
+pub use trash_model::{Emptied, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use write::{Put, WriteResult};
 
@@ -287,6 +290,14 @@ impl Store {
     /// Writes a value to the `meta` table.
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
         self.write(|tx, _| schema::set_meta(tx, key, value))
+    }
+
+    /// Removes a value from the `meta` table. Missing is fine.
+    pub fn remove_meta(&self, key: &str) -> Result<()> {
+        self.write(|tx, _| {
+            tx.execute("DELETE FROM meta WHERE key = ?", [key])?;
+            Ok(())
+        })
     }
 }
 

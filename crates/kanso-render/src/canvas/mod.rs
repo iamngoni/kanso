@@ -10,6 +10,7 @@ pub mod embed;
 mod embed_model;
 pub mod excalidraw;
 pub mod geometry;
+pub mod obsidian;
 pub mod pen;
 
 use std::collections::HashMap;
