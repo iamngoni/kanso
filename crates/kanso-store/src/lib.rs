@@ -35,6 +35,8 @@ mod roles;
 mod schema;
 mod sync;
 mod tasks;
+mod trash;
+mod trash_model;
 mod triage;
 mod validate;
 mod write;
@@ -98,6 +100,7 @@ pub use replace::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
+pub use trash_model::{Emptied, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use write::{Put, WriteResult};
 

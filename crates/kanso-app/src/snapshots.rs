@@ -3148,6 +3148,24 @@ fn sign_out_confirm(
     });
 }
 
+/// Empty Trash with locked notes in it: the question counts them.
+fn empty_trash_locked(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        let (title, body) = crate::trash_words::empty_trash_question(kanso_store::TrashCounts {
+            notes: 12,
+            locked: 2,
+        });
+        crate::dialogs::confirm(title, body, "Empty Trash", window, cx, |_, _| {});
+    })
+    .unwrap();
+}
+
 /// Signing out with a new recovery key still unsaved.
 fn sign_out_unsaved_key(
     cx: &mut HeadlessAppContext,
@@ -6057,6 +6075,14 @@ fn snapshots() {
         Shot {
             dialog_width: 448.,
             ..shot("dark-account-sign-out", Dark, Edit, sign_out_confirm)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("dark-empty-trash-locked", Dark, Edit, empty_trash_locked)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("light-empty-trash-locked", Light, Edit, empty_trash_locked)
         },
         Shot {
             dialog_width: 448.,

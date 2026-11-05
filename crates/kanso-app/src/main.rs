@@ -229,6 +229,7 @@ mod themes;
 mod title_bar;
 mod touch_id;
 mod transcribe;
+mod trash_words;
 mod triage_view;
 #[cfg(test)]
 mod ui_tests;
