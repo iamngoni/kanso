@@ -57,6 +57,10 @@ pub struct SitePlan {
     /// time: a recording is private, and a long one would not fit the
     /// bundle anyway.
     pub include_audio: bool,
+    /// The canvases the published notes embed, by note ID, as they were
+    /// read when planned (a locked one is [`EmbedNote::Locked`], with no
+    /// body). A canvas that isn't there is not in the map.
+    pub canvases: std::collections::HashMap<String, kanso_render::canvas::embed::EmbedNote>,
     /// The notebook's link, when it is published.
     pub publish: Option<KansoPublish>,
 }

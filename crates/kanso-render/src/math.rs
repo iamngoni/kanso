@@ -69,6 +69,7 @@ pub(crate) fn finish(svg: &str, palette: &Palette) -> Option<Svg> {
         // The view box starts at the top of the tallest glyph, `-y` above
         // the baseline.
         baseline: Some(-y * unit),
+        notices: Vec::new(),
     })
 }
 

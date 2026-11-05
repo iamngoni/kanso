@@ -40,6 +40,30 @@ pub fn limit(sample: f32) -> f32 {
     }
 }
 
+/// Samples over which a dropped frame's two sides are blended: 5 ms, so
+/// the cut is a short crossfade, not a step the ear hears as a click.
+pub const SPLICE: usize = SAMPLE_RATE as usize / 200;
+
+/// Drops one frame from the front of `queue` without a click: the first
+/// [`SPLICE`] samples fade from what was there to what follows the dropped
+/// frame, then exactly [`FRAME_SAMPLES`] samples are removed. The sample
+/// next to what was already written is unchanged, and so is the one after
+/// the blend, so the signal never jumps. Too short a queue loses only what
+/// it has.
+fn drop_frame(queue: &mut VecDeque<f32>) {
+    if queue.len() < FRAME_SAMPLES + SPLICE {
+        queue.drain(..FRAME_SAMPLES.min(queue.len()));
+        return;
+    }
+    for i in 0..SPLICE {
+        let t = i as f32 / SPLICE as f32;
+        let kept = limit(queue[i]);
+        let next = limit(queue[FRAME_SAMPLES + i]);
+        queue[FRAME_SAMPLES + i] = kept * (1.0 - t) + next * t;
+    }
+    queue.drain(..FRAME_SAMPLES);
+}
+
 /// Two mono sources on one 48 kHz timeline, as interleaved left (you) and
 /// right (the meeting) frames.
 #[derive(Debug, Default)]
@@ -93,7 +117,7 @@ impl Mixer {
             } else {
                 &mut self.meeting
             };
-            leader.drain(..FRAME_SAMPLES.min(leader.len()));
+            drop_frame(leader);
             self.since_correction = 0;
             self.corrections += 1;
         }
@@ -388,6 +412,60 @@ mod tests {
                 2 * run.written + queued + dropped
             );
         }
+
+        /// A dropped frame is a crossfade, not a cut: across the whole
+        /// leading channel no step between two samples is bigger than the
+        /// tone's own steepest one plus what the 5 ms blend adds, wherever
+        /// the tone's phase falls. A hard cut would jump by up to twice the
+        /// level.
+        #[test]
+        fn prop_a_dropped_frame_never_clicks(
+            hz in 40.0f32..2_000.0,
+            level in 0.05f32..1.0,
+            phase in 0.0f32..std::f32::consts::TAU,
+            extra in 1usize..4_000,
+            meeting_first in any::<bool>(),
+        ) {
+            let lead = TOLERANCE + FRAME_SAMPLES + SPLICE + extra;
+            let tone: Vec<f32> = (0..lead + 9_600)
+                .map(|i| level * (std::f32::consts::TAU * hz * i as f32 / SAMPLE_RATE as f32 + phase).sin())
+                .collect();
+            let quiet = vec![0.0; 9_600];
+            let mut mixer = Mixer::new();
+            if meeting_first {
+                mixer.push_meeting(&tone);
+                mixer.push_you(&quiet);
+            } else {
+                mixer.push_you(&tone);
+                mixer.push_meeting(&quiet);
+            }
+            mixer.since_correction = CORRECT_EVERY;
+            let mut out = Vec::new();
+            mixer.drain(&mut out);
+            prop_assert_eq!(mixer.corrections(), 1);
+            mixer.finish(&mut out);
+            let side = usize::from(meeting_first);
+            let channel: Vec<f32> = out.iter().skip(side).step_by(2).copied().collect();
+            prop_assert_eq!(channel.len(), tone.len() - FRAME_SAMPLES);
+            let slope = level * std::f32::consts::TAU * hz / SAMPLE_RATE as f32;
+            let bound = slope + 2.0 * level / SPLICE as f32 + 1e-4;
+            for (i, pair) in channel.windows(2).enumerate() {
+                let step = (pair[1] - pair[0]).abs();
+                prop_assert!(step <= bound, "step {step} > {bound} at {i}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_short_queue_loses_only_what_it_has() {
+        let mut queue: VecDeque<f32> = (0..100).map(|i| i as f32).collect();
+        drop_frame(&mut queue);
+        assert!(queue.is_empty());
+        let mut queue: VecDeque<f32> = (0..FRAME_SAMPLES + SPLICE).map(|i| i as f32).collect();
+        drop_frame(&mut queue);
+        assert_eq!(queue.len(), SPLICE);
+        // The first sample left is the one that was next to be written.
+        assert_eq!(queue[0], 0.0);
     }
 
     #[test]

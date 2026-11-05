@@ -74,6 +74,7 @@ pub mod batch;
 pub mod board;
 pub mod brief;
 pub mod calendar;
+pub mod canvas_embed;
 pub mod capture;
 pub mod catalogue;
 pub mod daily;

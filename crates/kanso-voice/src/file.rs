@@ -539,6 +539,16 @@ mod tests {
 
     /// Two seconds of tone as an Ogg Opus recording.
     fn opus_recording(channels: kanso_audio::Channels) -> Vec<u8> {
+        let n = channels.count();
+        let pcm: Vec<f32> = (0..96_000 * n)
+            .map(|i| ((i / n) as f32 * 0.03).sin() * 0.3)
+            .collect();
+        opus_of(channels, &pcm)
+    }
+
+    /// Interleaved `pcm` at 48 kHz as an Ogg Opus recording, the way Kanso
+    /// writes one.
+    fn opus_of(channels: kanso_audio::Channels, pcm: &[f32]) -> Vec<u8> {
         use std::sync::{Arc, Mutex};
 
         struct Out(Arc<Mutex<Vec<u8>>>);
@@ -557,10 +567,6 @@ mod tests {
             }
         }
 
-        let n = channels.count();
-        let pcm: Vec<f32> = (0..96_000 * n)
-            .map(|i| ((i / n) as f32 * 0.03).sin() * 0.3)
-            .collect();
         let shared = Arc::new(Mutex::new(Vec::new()));
         let handle = shared.clone();
         let mut writer = kanso_audio::PartWriter::new(
@@ -568,9 +574,58 @@ mod tests {
             kanso_audio::EncodeConfig::new(channels),
         )
         .unwrap();
-        writer.push(&pcm).unwrap();
+        writer.push(pcm).unwrap();
         writer.finish().unwrap();
         shared.lock().unwrap().clone()
+    }
+
+    /// A recording Kanso made with both sources (Ogg Opus, left you, right
+    /// the meeting) is labelled by its channels after the codec: you
+    /// talking, then the meeting, then you again, each with a pause between.
+    #[test]
+    fn a_kanso_stereo_recording_labels_each_side_after_opus() {
+        // Three 20 s turns of tone, each ending in two seconds of
+        // silence so the pieces are cut there.
+        let turn = 48_000 * 20;
+        let mut pcm = Vec::with_capacity(turn * 3 * 2);
+        for (who, n) in [(0usize, 0usize), (1, 1), (0, 2)] {
+            for i in 0..turn {
+                let t = (n * turn + i) as f32 / 48_000.0;
+                let s = if i < turn - 96_000 {
+                    0.4 * (t * 220.0 * std::f32::consts::TAU).sin()
+                } else {
+                    0.0
+                };
+                let (l, r) = if who == 0 {
+                    (s, s * 0.05)
+                } else {
+                    (s * 0.05, s)
+                };
+                pcm.push(l);
+                pcm.push(r);
+            }
+        }
+        let bytes = opus_of(kanso_audio::Channels::Stereo, &pcm);
+        let mut said = Vec::new();
+        decode_labelled(
+            from_bytes(bytes),
+            Some("opus"),
+            &AtomicBool::new(false),
+            &mut |samples, _, speaker| {
+                if samples.iter().any(|s| s.abs() > 0.05) {
+                    said.push(speaker);
+                }
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(!said.is_empty());
+        assert!(said.iter().all(Option::is_some), "{said:?}");
+        // The turns come out in order: never the meeting before you spoke,
+        // and you again at the end.
+        assert_eq!(said.first(), Some(&Some(Speaker::You)), "{said:?}");
+        assert!(said.contains(&Some(Speaker::Meeting)), "{said:?}");
+        assert_eq!(said.last(), Some(&Some(Speaker::You)), "{said:?}");
     }
 
     #[test]

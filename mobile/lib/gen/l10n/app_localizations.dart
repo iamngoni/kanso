@@ -2644,6 +2644,48 @@ abstract class AppLocalizations {
   /// **'An empty drawing'**
   String get previewEmptyDrawing;
 
+  /// Shown in a note's preview where it embeds a canvas that is locked. Nothing of the canvas is drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked canvas'**
+  String get previewCanvasLocked;
+
+  /// Shown in a note's preview where it embeds a canvas that no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas not found'**
+  String get previewCanvasMissing;
+
+  /// Shown in a note's preview where an embedded canvas names a note that is not a canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'This note isn\'t a canvas'**
+  String get previewCanvasNotCanvas;
+
+  /// Shown in a note's preview where an embedded canvas can't be drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t draw this canvas'**
+  String get previewCanvasInvalid;
+
+  /// A quiet banner under an embedded canvas that is very large because the embed names no group.
+  ///
+  /// In en, this message translates to:
+  /// **'This embeds the whole canvas. Name a group to embed less.'**
+  String get previewCanvasWholeCanvas;
+
+  /// A quiet note under an embedded canvas whose named group no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'That group is gone, so this shows the whole canvas.'**
+  String get previewCanvasGroupMissing;
+
+  /// Screen-reader label of an embedded canvas in a note's preview; tapping it opens the canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Open canvas'**
+  String get previewCanvasOpen;
+
   /// Shown under a query view's headings in a note's preview when no note matches it.
   ///
   /// In en, this message translates to:
@@ -11595,6 +11637,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try Again'**
   String get playerTryAgain;
+
+  /// The small heading on the card that says an update changed something the person may need to fix.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs your attention'**
+  String get noticeNeedsAttention;
+
+  /// Opens the steps that fix what an update changed.
+  ///
+  /// In en, this message translates to:
+  /// **'How to fix'**
+  String get noticeHowToFix;
+
+  /// Hides an update notice on this phone for good.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get noticeDismiss;
+
+  /// Hides an update notice because the person fixed what it said.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as fixed'**
+  String get noticeMarkFixed;
+
+  /// The title of the sheet that shows an update notice's steps.
+  ///
+  /// In en, this message translates to:
+  /// **'Update notice'**
+  String get noticeSheetTitle;
+
+  /// Closes the sheet of an update notice's steps.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get noticeSheetDone;
+
+  /// On the update notice card when more than one notice is waiting: this card is the first of {total}.
+  ///
+  /// In en, this message translates to:
+  /// **'1 of {total}'**
+  String noticeCount(int total);
+
+  /// The update notice's button that opens the page of Settings its steps name.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get noticeOpenSettings;
+
+  /// The update notice's button that opens a page about the change in the browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn More'**
+  String get noticeLearnMore;
+
+  /// What a screen reader says for one numbered step of an update notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {number}: {step}'**
+  String noticeStep(int number, String step);
 }
 
 class _AppLocalizationsDelegate

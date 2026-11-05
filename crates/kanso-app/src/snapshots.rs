@@ -50,9 +50,11 @@ use crate::updates::{Phase, Problem as UpdateProblem, Updates};
 use crate::workspace::{AppState, Workspace, apply_theme};
 
 mod ai;
+mod api_keys;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
+mod pdf;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
@@ -1356,6 +1358,90 @@ fn page_preview(
 
 /// An Excalidraw drawing in a note.
 const DRAWING_NOTE: &str = "How a note travels.\n\n```excalidraw\n{\"type\":\"excalidraw\",\"version\":2,\"elements\":[{\"type\":\"rectangle\",\"x\":0,\"y\":0,\"width\":160,\"height\":80,\"strokeColor\":\"#1e1e1e\",\"backgroundColor\":\"#a5d8ff\",\"fillStyle\":\"hachure\",\"strokeWidth\":2,\"roughness\":1,\"seed\":7,\"roundness\":{\"type\":3}},{\"type\":\"text\",\"x\":20,\"y\":27,\"width\":120,\"height\":25,\"text\":\"Kanso\",\"fontSize\":20,\"fontFamily\":1,\"textAlign\":\"center\",\"strokeColor\":\"#1e1e1e\",\"seed\":8},{\"type\":\"arrow\",\"x\":170,\"y\":40,\"width\":110,\"height\":0,\"points\":[[0,0],[110,0]],\"strokeColor\":\"#1e1e1e\",\"endArrowhead\":\"arrow\",\"strokeWidth\":2,\"roughness\":1,\"seed\":9},{\"type\":\"ellipse\",\"x\":290,\"y\":0,\"width\":140,\"height\":80,\"strokeColor\":\"#e03131\",\"backgroundColor\":\"#ffc9c9\",\"fillStyle\":\"solid\",\"strokeWidth\":2,\"roughness\":1,\"seed\":10},{\"type\":\"text\",\"x\":310,\"y\":27,\"width\":100,\"height\":25,\"text\":\"Worker\",\"fontSize\":20,\"fontFamily\":1,\"textAlign\":\"center\",\"strokeColor\":\"#1e1e1e\",\"seed\":11},{\"type\":\"freedraw\",\"x\":40,\"y\":110,\"width\":300,\"height\":30,\"points\":[[0,10],[40,0],[80,20],[120,5],[160,25],[200,8],[240,22],[300,12]],\"strokeColor\":\"#2f9e44\",\"strokeWidth\":2,\"seed\":12}]}\n```\n\nSealed on the way.\n";
+
+/// A note that embeds a canvas (`how`: `drawing`, `group`, `locked`,
+/// `huge`), the canvas note being fixed for the preview rather than stored.
+fn canvas_embed(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+    how: &str,
+) {
+    use kanso_core::canvas::{Canvas, Node, to_body};
+    use kanso_render::canvas::embed::EmbedNote;
+    let card = |id: &str, x: f64, text: &str| Node {
+        id: id.into(),
+        kind: "text".into(),
+        x,
+        y: 0.0,
+        width: 220.0,
+        height: 90.0,
+        text: Some(text.into()),
+        ..Node::default()
+    };
+    let mut canvas = Canvas::default();
+    canvas.put_node(card("a", 0.0, "Plan the launch"), 1);
+    canvas.put_node(card("b", 300.0, "Write the notes"), 2);
+    canvas.put_node(
+        Node {
+            id: "g1".into(),
+            kind: "group".into(),
+            label: Some("Launch".into()),
+            x: -20.0,
+            y: -20.0,
+            width: 280.0,
+            height: 130.0,
+            ..Node::default()
+        },
+        3,
+    );
+    if how == "huge" {
+        canvas.put_node(card("far", 20_000.0, "Far away"), 4);
+    }
+    let id = format!("note:snapshot-{how}");
+    let found = match how {
+        "locked" => EmbedNote::Locked,
+        _ => EmbedNote::Open {
+            title: "Launch board".into(),
+            body: to_body(&canvas).into(),
+        },
+    };
+    crate::preview_canvas::seed(&id, found);
+    let group = if how == "group" { "\ngroup:g1" } else { "" };
+    let body = format!(
+        "Where the launch stands.\n\n```canvas\n{id}{group}\n```\n\nThe rest is in the notes below.\n"
+    );
+    open_new_note(cx, workspace, store, "Launch status", &body);
+    settle_drawings(cx, window);
+}
+
+fn canvas_embed_drawing(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    canvas_embed(cx, window, workspace, store, "drawing");
+}
+
+fn canvas_embed_locked(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    canvas_embed(cx, window, workspace, store, "locked");
+}
+
+fn canvas_embed_huge(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    canvas_embed(cx, window, workspace, store, "huge");
+}
 
 /// Lets math and diagrams finish drawing: they draw on threads of their
 /// own, which the test clock doesn't wait for.
@@ -4373,6 +4459,132 @@ fn update_toast(
         .unwrap();
 }
 
+/// The one fixture notice the snapshots draw. It is made up for the
+/// pictures; no real notice ships with the mechanism.
+fn demo_notices() -> &'static [kanso_core::notices::Notice] {
+    use kanso_core::notices::{Notice, NoticeAction, NoticePage, Platforms};
+    Box::leak(Box::new([Notice {
+        id: "fixture-example-0.9",
+        since: semver::Version::new(0, 9, 0),
+        title: "Something you set up needs a new step",
+        what_changed: "This update changed how an old setup is read, so anything that used it stops working until it is set up again. Your notes are untouched.",
+        steps: &[
+            "Open Settings \u{203a} Local API.",
+            "Set up each program that used the old setup again.",
+            "Restart those programs.",
+        ],
+        action: Some(NoticeAction::OpenSettings(NoticePage::LocalApi)),
+        applies: |_| true,
+        platforms: Platforms::Both,
+    }]))
+}
+
+/// Puts the fixture notice in front of the app.
+fn show_notices(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: demo_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The shipped API keys notice for a library that had a login. It is drawn
+/// as if the release had been reached: its `since` is the next release's,
+/// which this build's own version hasn't got to.
+fn api_keys_notices() -> &'static [kanso_core::notices::Notice] {
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::API_KEYS_ID)
+        .expect("the API keys notice ships")
+        .clone();
+    notice.since = semver::Version::new(0, 9, 0);
+    Box::leak(Box::new([notice]))
+}
+
+fn show_api_keys_notice(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        cx.global_mut::<AppState>().config.had_login = true;
+        cx.set_global(crate::notices::NoticeBoard {
+            list: api_keys_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The API keys notice's banner.
+fn api_keys_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_api_keys_notice(cx);
+}
+
+/// The API keys notice's How to fix sheet.
+fn api_keys_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_api_keys_notice(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&api_keys_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
+/// The banner across the top of the window.
+fn notice_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_notices(cx);
+}
+
+/// How to fix, opened from the banner.
+fn notice_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_notices(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&demo_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
+/// What's new, with "Needs your attention" above the notes.
+fn notice_whats_new(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_notices(cx);
+    set_updates(cx, Phase::UpToDate, false);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::updates::open_notes(
+            crate::updates::ReleaseNotes::from(&demo_update()),
+            crate::updates::SheetKind::Installed,
+            window,
+            cx,
+        )
+    })
+    .unwrap();
+}
+
 /// The usage metrics notice, shown once at launch until OK.
 fn metrics_notice(
     cx: &mut HeadlessAppContext,
@@ -4784,7 +4996,8 @@ fn check_surfaces(image: &image::RgbaImage, shot: &Shot, inspector: bool) {
     }
     // The recording strip pushes the panes down by its own height, so the
     // top band's samples are somewhere else; the strip is checked by eye.
-    if shot.name.contains("recording") {
+    // The update notice's banner does the same.
+    if shot.name.contains("recording") || shot.name.contains("notice") {
         checks.retain(|((_, y), _, _)| *y > 80.);
     }
     // A notebook's homepage fills the editor's pane to the bottom: it has
@@ -5338,6 +5551,22 @@ fn snapshots() {
         shot("light-rich-split", Light, Split, rich_note),
         shot("dark-drawing", Dark, Preview, drawing_note),
         shot("light-drawing", Light, Preview, drawing_note),
+        shot("dark-canvas-embed", Dark, Preview, canvas_embed_drawing),
+        shot("light-canvas-embed", Light, Preview, canvas_embed_drawing),
+        shot(
+            "light-canvas-embed-locked",
+            Light,
+            Preview,
+            canvas_embed_locked,
+        ),
+        shot(
+            "dark-canvas-embed-locked",
+            Dark,
+            Preview,
+            canvas_embed_locked,
+        ),
+        shot("light-canvas-embed-huge", Light, Preview, canvas_embed_huge),
+        shot("dark-canvas-embed-huge", Dark, Preview, canvas_embed_huge),
         shot("dark-images-bar", Dark, Preview, bar_sized_images),
         shot("light-images-bar", Light, Split, bar_sized_images),
         shot("dark-image-dragging", Dark, Preview, dragging_image),
@@ -5636,6 +5865,24 @@ fn snapshots() {
             Edit,
             discovery::settings_related_failed,
         ),
+        shot(
+            "dark-settings-ink-reading",
+            Dark,
+            Edit,
+            discovery::settings_ink_reading,
+        ),
+        shot(
+            "light-settings-ink-reading",
+            Light,
+            Edit,
+            discovery::settings_ink_reading,
+        ),
+        shot(
+            "light-settings-ink-off",
+            Light,
+            Edit,
+            discovery::settings_ink_off,
+        ),
         // Settings, in the main window.
         // Zoom: the whole app, at either end and in Settings.
         shot("light-zoom-150-split", Light, Split, zoom_largest),
@@ -5713,6 +5960,42 @@ fn snapshots() {
         },
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
+        // The PDF reader (issue #43): page 1 drawn by the worker, and the
+        // worker killed under it.
+        shot("dark-pdf-reader", Dark, Split, pdf::reader_page_one),
+        shot("light-pdf-reader", Light, Split, pdf::reader_page_one),
+        shot(
+            "dark-pdf-smart-invert",
+            Dark,
+            Split,
+            pdf::reader_smart_invert,
+        ),
+        shot(
+            "light-pdf-smart-invert",
+            Light,
+            Split,
+            pdf::reader_smart_invert,
+        ),
+        shot(
+            "dark-pdf-original-page",
+            Dark,
+            Split,
+            pdf::reader_original_page,
+        ),
+        shot("dark-pdf-password", Dark, Split, pdf::reader_password),
+        shot("light-pdf-password", Light, Split, pdf::reader_password),
+        shot(
+            "dark-pdf-password-wrong",
+            Dark,
+            Split,
+            pdf::reader_password_wrong,
+        ),
+        shot(
+            "dark-pdf-reader-killed",
+            Dark,
+            Split,
+            pdf::reader_worker_killed,
+        ),
         shot("dark-voice-listening", Dark, Edit, voice::editor_listening),
         shot(
             "light-voice-listening",
@@ -6271,6 +6554,41 @@ fn snapshots() {
         },
         shot("dark-update-toast", Dark, Split, update_toast),
         shot("light-update-toast", Light, Split, update_toast),
+        // Update notices (issue #243): the banner, How to fix and What's new.
+        shot("dark-notice-banner", Dark, Split, notice_banner),
+        shot("light-notice-banner", Light, Split, notice_banner),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("dark-notice-sheet", Dark, Split, notice_sheet)
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("light-notice-sheet", Light, Split, notice_sheet)
+        },
+        // The API keys notice (issue #243, step 8).
+        shot("dark-api-keys-notice-banner", Dark, Split, api_keys_banner),
+        shot(
+            "light-api-keys-notice-banner",
+            Light,
+            Split,
+            api_keys_banner,
+        ),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("dark-api-keys-notice-sheet", Dark, Split, api_keys_sheet)
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("light-api-keys-notice-sheet", Light, Split, api_keys_sheet)
+        },
+        Shot {
+            dialog_width: crate::updates::SHEET_WIDTH,
+            ..shot("dark-notice-whats-new", Dark, Split, notice_whats_new)
+        },
+        Shot {
+            dialog_width: crate::updates::SHEET_WIDTH,
+            ..shot("light-notice-whats-new", Light, Split, notice_whats_new)
+        },
         Shot {
             dialog_width: crate::dialogs::FORM_WIDTH,
             ..shot("dark-metrics-notice", Dark, Edit, metrics_notice)
@@ -6342,6 +6660,7 @@ fn snapshots() {
     // Plugins: Settings › Plugins, the sheets and a panel.
     for (name, prepare, dialog) in plugins_settings::SHOTS
         .iter()
+        .chain(api_keys::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
         .chain(plugins_panel::SHOTS)
@@ -6358,8 +6677,9 @@ fn snapshots() {
         // A short confirmation sits near the top, as the account's do, and
         // the developer sheet has its warning where the check usually looks.
         if name.ends_with("-remove")
+            || name.ends_with("-revoke")
+            || name.ends_with("-api-key-new")
             || name.ends_with("-plugin-developer")
-            || name.contains("-record-system-")
         {
             plugin_shot.dialog_sample_y = Some(30.);
         }

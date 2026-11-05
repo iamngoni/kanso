@@ -268,6 +268,7 @@ fn the_blocks_carry_the_pages_addresses() {
         tasks: &slots,
         query: Some(&Fixed),
         due: Some(&chip),
+        notes: None,
     };
     let page = page_with(
         "Note",

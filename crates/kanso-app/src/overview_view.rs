@@ -83,6 +83,7 @@ impl OverviewParts {
                 wake,
                 store,
                 edits,
+                links: links.clone(),
                 note: Arc::new(Mutex::new(None)),
                 text_scale: Mutex::new(1.),
             }),

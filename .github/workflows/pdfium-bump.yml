@@ -1,0 +1,198 @@
+name: PDFium weekly bump
+
+# Issue #43, step 15. Every Monday (and on demand) this looks for a newer
+# bblanchon/pdfium-binaries release, bumps the pinned PDFium build, its
+# checksums and the `pdfium-render` wrapper as one pair (scripts/bump-pdfium.sh),
+# runs the hostile-PDF corpus against the result, and opens a pull request.
+#
+# - A build no `pdfium-render` release has a `pdfium_<build>` feature for yet
+#   is not shipped: scripts/check-pdfium-pair.sh fails, the run fails, and the
+#   pull request is a draft that says why.
+# - A PDFium security release means a Kanso release within a week.
+#
+# Secrets: none beyond the job's own token. The job that builds and tests has
+# read-only access; only the job that opens the pull request can write, and it
+# runs no code from the repository, only git and gh on a patch.
+#
+# A pull request opened with the job's token does not start other workflows
+# (GitHub's rule against loops), so CI does not run on it by itself: this run
+# is the check, and closing and reopening the pull request starts CI too.
+
+on:
+  schedule:
+    # Mondays, 05:17 UTC; the binaries are rebuilt weekly.
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "PDFium build to bump to (default: the latest release)"
+        required: false
+        type: string
+
+# Nothing by default; each job asks for what it uses.
+permissions: {}
+
+# One bump at a time.
+concurrency:
+  group: pdfium-bump
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.bump.outputs.changed }}
+      status: ${{ steps.bump.outputs.status }}
+      build: ${{ steps.bump.outputs.build }}
+      ok: ${{ steps.verdict.outputs.ok }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: scripts/ci-rust.sh
+      - name: Linux build dependencies
+        run: scripts/linux-deps.sh
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: Bump the pins
+        id: bump
+        env:
+          # Read-only; only for the GitHub API's rate limit.
+          GH_TOKEN: ${{ github.token }}
+          INPUT_BUILD: ${{ inputs.build }}
+        run: |
+          if [ -n "$INPUT_BUILD" ]; then
+            scripts/bump-pdfium.sh --build "$INPUT_BUILD" --report "$RUNNER_TEMP/pr-body.md"
+          else
+            scripts/bump-pdfium.sh --report "$RUNNER_TEMP/pr-body.md"
+          fi
+
+      - name: The binary and wrapper are a pair
+        id: pair
+        if: steps.bump.outputs.changed == 'true'
+        continue-on-error: true
+        run: scripts/check-pdfium-pair.sh
+
+      - name: PDFium is not a V8 build, and the hostile-PDF corpus
+        id: corpus
+        if: steps.bump.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          scripts/fetch-pdfium.sh
+          scripts/check-pdfium-no-v8.sh vendor/pdfium
+          # The render, text and encrypted-PDF tests, and the hostile corpus,
+          # through the real worker (crates/kanso-pdf/tests/hostile.rs).
+          cargo test --locked -p kanso-pdf --features render
+
+      - name: Verdict
+        id: verdict
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          PAIR: ${{ steps.pair.outcome }}
+          CORPUS: ${{ steps.corpus.outcome }}
+        run: |
+          {
+            echo
+            echo "## Checks in the bump run"
+            echo
+            echo "- Binary and wrapper are a pair: **$PAIR**"
+            echo "- Non-V8 check and hostile-PDF corpus: **$CORPUS**"
+          } >>"$RUNNER_TEMP/pr-body.md"
+          if [ "$PAIR" = success ] && [ "$CORPUS" = success ]; then
+            echo "ok=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >>"$GITHUB_OUTPUT"
+          fi
+          git diff --binary >"$RUNNER_TEMP/bump.patch"
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: steps.bump.outputs.changed == 'true'
+        with:
+          name: pdfium-bump
+          path: |
+            ${{ runner.temp }}/bump.patch
+            ${{ runner.temp }}/pr-body.md
+          if-no-files-found: error
+
+      # Last, so the pull request is still opened (as a draft) when this fails.
+      - name: Fail unless the pair and the corpus passed
+        if: steps.verdict.outputs.ok == 'false'
+        run: |
+          echo "::error::The PDFium bump did not pass: see the pair check and the corpus above. A draft pull request records it."
+          exit 1
+
+  open-pr:
+    needs: bump
+    if: ${{ !cancelled() && needs.bump.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Only git and gh run here, never the repository's scripts.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: pdfium-bump
+          path: ${{ runner.temp }}/bump
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD: ${{ needs.bump.outputs.build }}
+          OK: ${{ needs.bump.outputs.ok }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DIR: ${{ runner.temp }}/bump
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          set -eu
+          case "$BUILD" in '' | *[!0-9]*) echo "::error::Bad build number."; exit 1 ;; esac
+
+          # Only the files a bump edits.
+          git apply --numstat "$DIR/bump.patch" | cut -f3 | while read -r f; do
+            case "$f" in
+            scripts/fetch-pdfium.sh | crates/kanso-pdf/Cargo.toml | Cargo.lock) ;;
+            *) echo "::error::The bump patch touches $f."; exit 1 ;;
+            esac
+          done
+          git apply "$DIR/bump.patch"
+
+          branch="chore/pdfium-$BUILD"
+          title="chore(pdf): Bump PDFium to build $BUILD (#43)"
+          {
+            cat "$DIR/pr-body.md"
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo "CI does not start by itself for a pull request opened with the job's token; close and reopen this one to run it before merging."
+            echo
+            echo "Part of #43"
+          } >"$DIR/body.md"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -a -m "$title"
+          git push --force origin "HEAD:refs/heads/$branch"
+
+          draft=
+          [ "$OK" = true ] || draft=--draft
+          number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --title "$title" --body-file "$DIR/body.md"
+            [ "$OK" = true ] && gh pr ready "$number" || true
+          else
+            gh pr create --base "$BASE" --head "$branch" --title "$title" --body-file "$DIR/body.md" $draft
+          fi
+
+          # An older bump this one replaces.
+          gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("chore/pdfium-")) | select(.headRefName != "'"$branch"'") | .number' |
+            while read -r old; do
+              gh pr close "$old" --delete-branch --comment "Superseded by the bump to build $BUILD."
+            done

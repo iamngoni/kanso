@@ -166,6 +166,10 @@ class PreviewBlockView extends StatelessWidget {
         svg: svg,
       ),
       PreviewBlock_EmptyDrawing() => const PreviewEmptyDrawing(),
+      PreviewBlock_Canvas(:final note, :final shown) => PreviewCanvas(
+        note: note,
+        shown: shown,
+      ),
       PreviewBlock_Failed(
         :final badge,
         :final detail,

@@ -698,6 +698,26 @@ async fn a_session_token_opens_mcp_alone_and_a_key_opens_both() {
     }
 }
 
+/// A refused request is noted for Settings (time only); an accepted one is not.
+#[tokio::test]
+async fn a_refused_request_is_noted_and_an_accepted_one_is_not() {
+    let app = app();
+    let (_, key) = mint(&app, KeyAccess::Read, None);
+    assert_eq!(app.keys.last_refused(), None);
+    let (status, _, _) = call_as(&app.router, &key, Method::GET, "/notes", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(app.keys.last_refused(), None);
+    let request = Request::builder()
+        .uri("/notes")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(
+        send(&app.router, request).await.status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert!(app.keys.last_refused().is_some());
+}
+
 /// An attachment, uploaded with a key for every notebook. Nothing holds it
 /// until a note links it.
 async fn upload_png(app: &App) -> String {

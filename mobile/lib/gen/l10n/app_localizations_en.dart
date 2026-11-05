@@ -1459,6 +1459,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
+  String get previewCanvasLocked => 'Locked canvas';
+
+  @override
+  String get previewCanvasMissing => 'Canvas not found';
+
+  @override
+  String get previewCanvasNotCanvas => 'This note isn\'t a canvas';
+
+  @override
+  String get previewCanvasInvalid => 'Couldn\'t draw this canvas';
+
+  @override
+  String get previewCanvasWholeCanvas =>
+      'This embeds the whole canvas. Name a group to embed less.';
+
+  @override
+  String get previewCanvasGroupMissing =>
+      'That group is gone, so this shows the whole canvas.';
+
+  @override
+  String get previewCanvasOpen => 'Open canvas';
+
+  @override
   String get previewQueryEmpty => 'No notes match.';
 
   @override
@@ -3285,19 +3308,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 
@@ -6836,4 +6856,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playerTryAgain => 'Try Again';
+
+  @override
+  String get noticeNeedsAttention => 'Needs your attention';
+
+  @override
+  String get noticeHowToFix => 'How to fix';
+
+  @override
+  String get noticeDismiss => 'Dismiss';
+
+  @override
+  String get noticeMarkFixed => 'Mark as fixed';
+
+  @override
+  String get noticeSheetTitle => 'Update notice';
+
+  @override
+  String get noticeSheetDone => 'Done';
+
+  @override
+  String noticeCount(int total) {
+    return '1 of $total';
+  }
+
+  @override
+  String get noticeOpenSettings => 'Open Settings';
+
+  @override
+  String get noticeLearnMore => 'Learn More';
+
+  @override
+  String noticeStep(int number, String step) {
+    return 'Step $number: $step';
+  }
 }

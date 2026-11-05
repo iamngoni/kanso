@@ -23,6 +23,7 @@ mod agent_task_panel;
 mod agent_task_tests;
 mod ai_agent;
 mod ai_feature;
+mod api_keys_model;
 
 #[cfg(test)]
 mod ask_agent_tests;
@@ -42,6 +43,7 @@ mod canvas_state_tests;
 mod canvas_view;
 mod capture;
 mod capture_cli;
+mod capture_request;
 mod capture_voice;
 #[cfg(test)]
 mod capture_voice_tests;
@@ -87,6 +89,7 @@ mod icon_theme_file;
 mod icon_theme_import;
 mod icon_themes;
 mod image_size;
+mod ink_ocr;
 mod inspector;
 mod journal;
 mod keys;
@@ -96,6 +99,7 @@ mod launch;
 mod layout;
 mod library;
 mod library_import;
+mod library_open;
 #[cfg(test)]
 mod links_tests;
 mod live_marks;
@@ -120,6 +124,8 @@ mod note_window;
 #[cfg(test)]
 mod note_window_tests;
 mod notebook_lock;
+mod notice_views;
+mod notices;
 mod notify_support;
 mod ocr;
 mod open_documents;
@@ -131,6 +137,7 @@ mod palette;
 mod passkey_accounts;
 mod passkey_ceremony;
 mod paths;
+mod pdf;
 mod pen_input;
 mod people_data;
 mod people_view;
@@ -147,6 +154,7 @@ mod plugins_model;
 mod pouch_import;
 mod presentation;
 mod preview;
+mod preview_canvas;
 mod preview_chunks;
 mod preview_rich;
 mod preview_tasks;
@@ -176,6 +184,7 @@ mod serve_cli;
 mod services;
 mod settings;
 mod settings_ai;
+mod settings_api_keys;
 mod settings_briefs;
 mod settings_capture;
 mod settings_discovery;
@@ -253,7 +262,7 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, Result, bail};
 use gpui_kit::*;
-use kanso_store::{Store, lock_data_dir};
+use kanso_store::lock_data_dir;
 
 use crate::config::AppConfig;
 use crate::services::Services;
@@ -518,13 +527,7 @@ fn forced_x11(config: &AppConfig) -> Option<WindowingRequest> {
 /// Loads the settings, bringing an older file up to date.
 fn load_config(data_dir: &std::path::Path) -> Result<AppConfig> {
     let path = paths::config_path(data_dir);
-    let mut config =
-        AppConfig::load(&path).with_context(|| format!("reading {}", path.display()))?;
-    let migrated = config.migrate();
-    if migrated {
-        config.save(&path)?;
-    }
-    Ok(config)
+    AppConfig::load_migrated(&path).with_context(|| format!("reading {}", path.display()))
 }
 
 /// How long a Kanso opened by an update waits for the one that installed
@@ -552,7 +555,7 @@ fn run_app(
         );
     };
     let config = load_config(&data_dir)?;
-    let store = Arc::new(Store::open(paths::db_path(&data_dir))?);
+    let store = Arc::new(library_open::open_store(&data_dir)?);
     // Files to open: from the command line now, from the system's open
     // events (Finder) and from a second `kanso file.md` later. They wait
     // here until the main window exists.
@@ -571,15 +574,25 @@ fn run_app(
                 .map_err(|_| "Kanso is quitting".to_owned())
         }));
     }
-    // Sign in with Apple returns through the browser and `kanso://` outside
-    // macOS, and files come from a second `kanso`; the second one forwards
-    // them here.
-    #[cfg(not(target_os = "macos"))]
+    // The local link, on every platform: Sign in with Apple returns through
+    // the browser and `kanso://` outside macOS, and files, stickies and
+    // notes to capture come from a second `kanso`; the second one forwards
+    // them here. The link can only add notes, never read them.
     {
         let opener = opener.clone();
         let sink: url_callback::FileSink = Arc::new(move |paths| opener.paths(paths));
-        if let Err(err) = url_callback::listen(&data_dir, &url_callback::ROUTER, sink) {
-            eprintln!("kanso: Sign in with Apple and opening files can't reach Kanso: {err}");
+        let captures: url_callback::CaptureSink = {
+            let store = store.clone();
+            Arc::new(move |request| {
+                capture_cli::add_note(&store, &request, kanso_store::Origin::Api).map(|(id, _)| id)
+            })
+        };
+        if let Err(err) =
+            url_callback::listen_with(&data_dir, &url_callback::ROUTER, sink, captures)
+        {
+            eprintln!(
+                "kanso: `kanso capture` and `kanso sticky` can't reach this Kanso while it is open ({err}). Restart Kanso, or quit it to capture from the command line."
+            );
         }
     }
 
@@ -690,10 +703,12 @@ fn run_app(
         );
         reminders::init(store.clone(), open_main_window, cx);
         briefs::init(store, open_main_window, cx);
-        // Discovery, in the background: related notes and text in images.
+        // Discovery, in the background: related notes, text in images and in PDFs.
         related::init(cx);
         voice::init(cx);
         ocr::init(cx);
+        pdf::index::init(cx);
+        ink_ocr::init(cx);
         open_main_window(cx);
         note_window::restore(cx);
         open_documents::serve(opened, open_main_window, cx);

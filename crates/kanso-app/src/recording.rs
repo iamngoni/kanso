@@ -880,6 +880,9 @@ fn saved(done: Done, quitting: bool, cx: &mut App) {
     }
     if let Some(warning) = &done.warning {
         notify(Notification::error(warning.clone()), cx);
+        // The track that couldn't be saved is kept: offer it now, as the
+        // warning says, not only at the next launch.
+        scan(cx);
     }
     let pending = PendingTranscript {
         note_id: done.saved.note_id.clone(),
@@ -1204,11 +1207,23 @@ pub(crate) fn recover_with(
     let system_only = session.sources.contains(&RecordSource::SystemAudio)
         && !session.sources.contains(&RecordSource::Microphone);
     if system_only && let Some(base) = system_track_of(&found.id) {
+        // Only a note the track can go into: one that is there and not
+        // locked. Else it is a note of its own below, so Recover never
+        // fails on the same locked note again and again.
+        let usable = |note: &String| {
+            recording_flow::check_destination(
+                store,
+                &Destination::ThisNote {
+                    note_id: note.clone(),
+                },
+            )
+            .is_ok()
+        };
         let target = session
             .note_id
             .clone()
-            .filter(|note| note_exists(note))
-            .or_else(|| Some(recording_flow::note_id(base)).filter(|note| note_exists(note)));
+            .filter(usable)
+            .or_else(|| Some(recording_flow::note_id(base)).filter(usable));
         if let Some(note) = target {
             let parts: Vec<PathBuf> = finished
                 .parts
