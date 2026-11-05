@@ -308,6 +308,9 @@ fn render(doc: &PdfDocument<'_>, index: u32, width_px: u32) -> (Response, Vec<u8
     let config = PdfRenderConfig::new()
         .set_target_size(width as i32, height as i32)
         .set_format(PdfBitmapFormat::BGRA)
+        // The wrapper swaps to RGBA by default; GPUI's textures are BGRA, so
+        // the bytes stay as PDFium wrote them.
+        .set_reverse_byte_order(false)
         .render_form_data(false)
         .render_annotations(false)
         .use_lcd_text_rendering(false);

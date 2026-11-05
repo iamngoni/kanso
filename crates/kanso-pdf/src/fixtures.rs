@@ -1,23 +1,25 @@
 //! PDFs for tests, built by hand so no binary fixture lives in the
 //! repository. Behind the `test-support` feature.
 
-/// A PDF of `pages` Letter pages; each says "Kanso page N" in 36 pt Helvetica.
-pub fn sample_pdf(pages: usize) -> Vec<u8> {
+/// A PDF of Letter pages, one per content stream, with Helvetica as `/F1` and
+/// Helvetica-Bold as `/F2`.
+pub fn pages_pdf(contents: &[String]) -> Vec<u8> {
+    let pages = contents.len();
     let mut objects: Vec<String> = Vec::new();
-    // 1 catalog, 2 pages, 3 font, then a page and a content stream each.
+    // 1 catalog, 2 pages, 3 and 4 fonts, then a page and a content stream each.
     objects.push("<< /Type /Catalog /Pages 2 0 R >>".into());
-    let kids: Vec<String> = (0..pages).map(|i| format!("{} 0 R", 4 + 2 * i)).collect();
+    let kids: Vec<String> = (0..pages).map(|i| format!("{} 0 R", 5 + 2 * i)).collect();
     objects.push(format!(
         "<< /Type /Pages /Kids [{}] /Count {pages} >>",
         kids.join(" ")
     ));
     objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into());
-    for i in 0..pages {
+    objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>".into());
+    for (i, content) in contents.iter().enumerate() {
         objects.push(format!(
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents {} 0 R >>",
-            5 + 2 * i
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {} 0 R >>",
+            6 + 2 * i
         ));
-        let content = format!("BT /F1 36 Tf 72 700 Td (Kanso page {}) Tj ET", i + 1);
         objects.push(format!(
             "<< /Length {} >>\nstream\n{content}\nendstream",
             content.len()
@@ -44,6 +46,44 @@ pub fn sample_pdf(pages: usize) -> Vec<u8> {
         .as_bytes(),
     );
     out
+}
+
+/// A PDF of `pages` Letter pages; each says "Kanso page N" in 36 pt Helvetica.
+pub fn sample_pdf(pages: usize) -> Vec<u8> {
+    let contents: Vec<String> = (0..pages)
+        .map(|i| format!("BT /F1 36 Tf 72 700 Td (Kanso page {}) Tj ET", i + 1))
+        .collect();
+    pages_pdf(&contents)
+}
+
+/// Where the blue, orange and green bars of [`report_pdf`]'s first page are
+/// (their centres, in points from the page's top-left) and their colours as
+/// RGB, for tests that check a page's channels.
+pub const REPORT_BARS: [([f32; 2], [u8; 3]); 3] = [
+    ([102.0, 332.0], [51, 115, 217]),
+    ([180.0, 302.0], [230, 89, 51]),
+    ([258.0, 347.0], [64, 166, 102]),
+];
+
+/// A three-page report whose first page has a heading, text and coloured
+/// bars, so a drawn page shows what the reader does with text and colour.
+pub fn report_pdf() -> Vec<u8> {
+    let first = [
+        "0.2 0.45 0.85 rg 72 690 468 4 re f",
+        "BT /F2 30 Tf 0 g 72 720 Td (Quarterly Report) Tj ET",
+        "BT /F1 12 Tf 0.25 g 72 660 Td 17 TL",
+        "(Revenue grew 12 percent over the last quarter, led by the new plans) Tj T*",
+        "(and a steadier renewal rate. Costs held flat while the team grew by) Tj T*",
+        "(three people, and the pilot in the north region finished early.) Tj ET",
+        "BT /F2 14 Tf 0 g 72 580 Td (Revenue by region) Tj ET",
+        "0.2 0.45 0.85 rg 72 400 60 120 re f",
+        "0.9 0.35 0.2 rg 150 400 60 180 re f",
+        "0.25 0.65 0.4 rg 228 400 60 90 re f",
+        "BT /F1 10 Tf 0.4 g 72 380 Td (North) Tj 78 0 Td (South) Tj 78 0 Td (West) Tj ET",
+    ]
+    .join("\n");
+    let rest = |n: usize| format!("BT /F1 24 Tf 72 700 Td (Page {n}) Tj ET");
+    pages_pdf(&[first, rest(2), rest(3)])
 }
 
 /// A one-page PDF encrypted with the standard handler (RC4, 40-bit, revision

@@ -17,7 +17,7 @@ use kanso_store::Store;
 use super::{PdfEvent, PdfReader, ReaderState};
 
 /// The worker and library a development build has, or why not.
-fn paths() -> Result<WorkerPaths, String> {
+pub(crate) fn paths() -> Result<WorkerPaths, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     // target/<profile>/deps/<test> -> target/<profile>/kanso-pdf-worker
     let worker = exe

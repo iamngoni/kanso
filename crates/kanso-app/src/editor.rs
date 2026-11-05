@@ -2489,7 +2489,7 @@ impl NoteEditor {
 
     /// Puts `reader` in the preview's place: Edit and Live give way to Split,
     /// as for the recording player.
-    fn show_pdf(
+    pub(crate) fn show_pdf(
         &mut self,
         reader: Entity<crate::pdf::PdfReader>,
         window: &mut Window,

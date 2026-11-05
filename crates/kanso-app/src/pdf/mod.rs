@@ -119,7 +119,8 @@ impl PdfReader {
         &self.focus
     }
 
-    pub fn state(&self) -> &ReaderState {
+    #[cfg(test)]
+    pub(crate) fn state(&self) -> &ReaderState {
         &self.state
     }
 
@@ -229,7 +230,7 @@ impl PdfReader {
 
     fn body(&self, colors: &Colors, cx: &mut Context<Self>) -> AnyElement {
         match (&self.state, &self.image) {
-            (ReaderState::Showing { .. }, Some(image)) => div()
+            (ReaderState::Showing { width, height, .. }, Some(image)) => div()
                 .id("pdf-pages")
                 .flex_1()
                 .min_h_0()
@@ -237,14 +238,21 @@ impl PdfReader {
                 .overflow_y_scroll()
                 .child(
                     v_flex().w_full().items_center().p(px(24.)).child(
-                        img(ImageSource::Render(image.clone()))
-                            .debug_selector(|| "pdf-page".into())
-                            .object_fit(ObjectFit::Contain)
+                        // The box has the page's shape, so the picture fills it
+                        // instead of sitting in the middle of a taller one.
+                        div()
                             .w_full()
                             .max_w(px(COLUMN_WIDTH))
+                            .aspect_ratio(*width as f32 / (*height).max(1) as f32)
                             .border_1()
                             .border_color(colors.divider)
-                            .shadow_md(),
+                            .shadow_md()
+                            .child(
+                                img(ImageSource::Render(image.clone()))
+                                    .debug_selector(|| "pdf-page".into())
+                                    .object_fit(ObjectFit::Fill)
+                                    .size_full(),
+                            ),
                     ),
                 )
                 .into_any_element(),
@@ -377,4 +385,4 @@ fn reader_words(error: &WorkerError) -> String {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

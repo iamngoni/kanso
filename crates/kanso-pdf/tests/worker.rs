@@ -4,7 +4,7 @@
 //! Needs the PDFium library: `scripts/fetch-pdfium.sh`, then
 //! `cargo test -p kanso-pdf --features render`.
 
-#![cfg(feature = "render")]
+#![cfg(all(feature = "render", any(target_os = "macos", target_os = "linux")))]
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -12,7 +12,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use kanso_pdf::client::{Deadlines, Worker, WorkerError, WorkerPaths};
-use kanso_pdf::fixtures::{encrypted_pdf, sample_pdf as pdf};
+use kanso_pdf::fixtures::{REPORT_BARS, encrypted_pdf, report_pdf, sample_pdf as pdf};
 use kanso_pdf::protocol::{ErrorKind, MAX_LONG_EDGE_PX, MAX_PAGE_BYTES, MAX_PAGES};
 
 const WORKER: &str = env!("CARGO_BIN_EXE_kanso-pdf-worker");
@@ -77,6 +77,25 @@ fn a_page_renders_as_bgra_pixels_with_text_on_it() {
     let second = worker.render(1, 306).expect("page 2 renders");
     assert_ne!(second.bgra, page.bgra);
     worker.close();
+}
+
+/// The pixels are BGRA: a blue bar has its blue byte first, so the page can
+/// go into a texture without swapping channels.
+#[test]
+fn colours_keep_their_channels() {
+    let mut worker = Worker::start(&paths()).unwrap();
+    worker.open(&report_pdf(), None).unwrap();
+    // Half size: a point is half a pixel.
+    let page = worker.render(0, 306).unwrap();
+    for ([x, y], [r, g, b]) in REPORT_BARS {
+        let at = ((y / 2.0) as usize * page.width as usize + (x / 2.0) as usize) * 4;
+        let pixel = &page.bgra[at..at + 4];
+        let near = |got: u8, want: u8| got.abs_diff(want) <= 8;
+        assert!(
+            near(pixel[0], b) && near(pixel[1], g) && near(pixel[2], r) && pixel[3] == 255,
+            "the bar at {x},{y} is {pixel:?} (BGRA), not {r},{g},{b}"
+        );
+    }
 }
 
 #[test]
@@ -246,7 +265,6 @@ fn reached(report: &str, name: &str) -> String {
         .to_owned()
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
 #[test]
 fn the_contained_worker_cannot_read_the_home_folder_or_open_a_socket() {
     // A file in the user's home, and a server the machine can reach: the
@@ -275,7 +293,6 @@ fn the_contained_worker_cannot_read_the_home_folder_or_open_a_socket() {
     assert!(listener.accept().is_err(), "the worker connected");
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux", windows))]
 #[test]
 fn the_worker_refuses_to_start_without_containment() {
     let dir = tempfile::tempdir().unwrap();
