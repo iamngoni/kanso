@@ -272,6 +272,21 @@ class FixtureLibraryRepository implements LibraryRepository {
     return Right<ApplicationError, Saved>(Saved(id: noteId, rev: '$baseRev+'));
   }
 
+  /// The clears `pdfInkClear` was asked for: note, rev, file, page.
+  final List<(String, String, String, int)> pdfInkCleared =
+      <(String, String, String, int)>[];
+
+  @override
+  Future<Either<ApplicationError, Saved>> pdfInkClear({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required int page,
+  }) async {
+    pdfInkCleared.add((noteId, baseRev, file, page));
+    return Right<ApplicationError, Saved>(Saved(id: noteId, rev: '$baseRev+'));
+  }
+
   @override
   Future<Either<ApplicationError, Saved>> createLinkedNote({
     required String title,

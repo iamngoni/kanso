@@ -340,6 +340,15 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// highlights" line opens.
   Future<List<PdfNotes>> pdfHighlights({required String noteId});
 
+  /// Clears the pencil marks on one page of a PDF in a note drawn at
+  /// `base_rev` (the phone cannot draw on a page, but it can rub one out).
+  Future<Saved> pdfInkClear({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required int page,
+  });
+
   KansoPeople people();
 
   /// Playing a note's recording.

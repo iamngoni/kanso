@@ -352,6 +352,21 @@ class RustLibraryRepository implements LibraryRepository {
   );
 
   @override
+  Future<Either<ApplicationError, Saved>> pdfInkClear({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required int page,
+  }) => attempt(
+    () => _library.pdfInkClear(
+      noteId: noteId,
+      baseRev: baseRev,
+      file: file,
+      page: page,
+    ),
+  );
+
+  @override
   Future<Either<ApplicationError, Saved>> createLinkedNote({
     required String title,
     required String fromNote,

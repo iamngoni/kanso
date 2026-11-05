@@ -1953,6 +1953,23 @@
       }
     }
   },
+  "pdfNotesInkTitle": "Pencil marks",
+  "@pdfNotesInkTitle": {
+    "description": "Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them."
+  },
+  "pdfNotesInkStrokes": "{strokes, plural, =1{1 stroke} other{{strokes} strokes}}",
+  "@pdfNotesInkStrokes": {
+    "description": "How many pencil strokes are drawn on one page of a PDF.",
+    "placeholders": {
+      "strokes": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfNotesInkClear": "Clear page",
+  "@pdfNotesInkClear": {
+    "description": "Button that rubs out all the pencil marks on one page of a PDF."
+  },
   "previewEmptyDrawing": "An empty drawing",
   "@previewEmptyDrawing": {
     "description": "Shown in a note's preview for a drawing with nothing in it yet."

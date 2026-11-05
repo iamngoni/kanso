@@ -11,11 +11,12 @@ use kanso_core::links::FILE_LINK_PREFIX;
 use kanso_pdf::annotation::find_blocks;
 use kanso_pdf::highlights::{Annotations, Located, Status, locate};
 use kanso_pdf::model::Color;
+use kanso_store::pdf_ink;
 
 use crate::boundary::guard;
 use crate::errors::KansoError;
 use crate::library::Library;
-use crate::model::{PdfHighlightChange, PdfHighlightRow, PdfNotes, Saved};
+use crate::model::{PdfHighlightChange, PdfHighlightRow, PdfInkRow, PdfNotes, Saved};
 
 fn color_name(color: Color) -> &'static str {
     match color {
@@ -48,9 +49,15 @@ fn files_in(body: &str) -> Vec<String> {
     out
 }
 
-/// The list for one PDF of `body`.
+/// The list for one PDF of `body`, as written in the note (no ink attachment).
+#[cfg(test)]
 pub(crate) fn notes_in(body: &str, file: &str, name: &str) -> PdfNotes {
-    let annots = Annotations::from_body(body, file, "");
+    notes_of(&Annotations::from_body(body, file, ""), body, file, name)
+}
+
+/// The list for one PDF, from its highlights `annots` (with the pencil ink
+/// read in, when it lives in its attachment).
+fn notes_of(annots: &Annotations, body: &str, file: &str, name: &str) -> PdfNotes {
     let (editable, why) = match &annots.status {
         Status::Editable => (true, None),
         Status::Restorable => (false, None),
@@ -78,6 +85,14 @@ pub(crate) fn notes_in(body: &str, file: &str, name: &str) -> PdfNotes {
         editable,
         why,
         highlights,
+        ink: annots
+            .ink_rows()
+            .into_iter()
+            .map(|row| PdfInkRow {
+                page: row.page,
+                strokes: row.strokes as u32,
+            })
+            .collect(),
     }
 }
 
@@ -118,6 +133,36 @@ pub(crate) fn change_in(
     Ok(edit.map(|e| e.apply(body)))
 }
 
+/// `body` with the pencil marks on `page` of `file` cleared, or `None` when
+/// there were none. Ink in an attachment is read from `store` and written
+/// back there.
+pub(crate) fn clear_ink_in(
+    store: &kanso_store::Store,
+    body: &str,
+    file: &str,
+    page: u32,
+) -> Result<Option<String>, KansoError> {
+    let invalid = |e: kanso_pdf::PdfError| KansoError::invalid(e.to_string());
+    if matches!(locate(body, file), Located::Missing) {
+        return Err(KansoError::invalid(
+            "This note has no pencil marks for that PDF.",
+        ));
+    }
+    let mut annots = Annotations::from_body(body, file, "");
+    pdf_ink::load_ink(store, &mut annots).map_err(KansoError::invalid)?;
+    if !annots
+        .clear_page_ink(page, kanso_core::now_ms())
+        .map_err(invalid)?
+    {
+        return Ok(None);
+    }
+    pdf_ink::publish_ink(store, &mut annots, body).map_err(KansoError::invalid)?;
+    Ok(annots
+        .save_edit(body)
+        .map_err(invalid)?
+        .map(|e| e.apply(body)))
+}
+
 impl Library {
     /// The highlights each PDF has in note `note_id`, for the list the
     /// preview's "4 highlights" line opens. [`KansoError::Locked`] while the
@@ -129,7 +174,11 @@ impl Library {
                 .into_iter()
                 .map(|file| {
                     let name = self.pdf_name(&file);
-                    notes_in(&body, &file, &name)
+                    let mut annots = Annotations::from_body(&body, &file, "");
+                    // Ink that outgrew the note is read from its attachment.
+                    // One that has not arrived yet is listed when it does.
+                    let _ = pdf_ink::load_ink(&self.inner.store, &mut annots);
+                    notes_of(&annots, &body, &file, &name)
                 })
                 .collect())
         })
@@ -154,6 +203,33 @@ impl Library {
             }
             let name = self.pdf_name(file);
             match change_in(&body, file, &name, id, &change)? {
+                Some(next) => self.save(note_id, &rev, next),
+                None => Ok(Saved {
+                    id: note_id.to_owned(),
+                    rev,
+                }),
+            }
+        })
+    }
+
+    /// Clears all the pencil marks on `page` of `file` in note `note_id`,
+    /// which was read at `base_rev`: one write of the note's text (and, for
+    /// ink that lives in its attachment, of that). With a newer revision
+    /// ([`KansoError::Conflict`]) nothing is written.
+    pub fn pdf_ink_clear(
+        &self,
+        note_id: &str,
+        base_rev: &str,
+        file: &str,
+        page: u32,
+    ) -> Result<Saved, KansoError> {
+        guard(|| {
+            let (note, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+            let rev = note.rev.clone().unwrap_or_default();
+            if rev != base_rev {
+                return Err(KansoError::Conflict { current_rev: rev });
+            }
+            match clear_ink_in(&self.inner.store, &body, file, page)? {
                 Some(next) => self.save(note_id, &rev, next),
                 None => Ok(Saved {
                     id: note_id.to_owned(),
