@@ -438,8 +438,36 @@ pub fn page(
     self_id: Option<&str>,
     style: &PageStyle,
 ) -> String {
+    page_with(store, title, body, palette, self_id, style, &|id| {
+        plain_attachment(store, id)
+    })
+}
+
+/// An attachment as an export wants it: its content type and bytes.
+pub type Opened = (String, Vec<u8>);
+
+/// [`page`], with its attachments read by `attachments`: the app opens a
+/// locked note's sealed pictures with its file keys, while the note is open.
+pub fn page_with(
+    store: &Store,
+    title: &str,
+    body: &str,
+    palette: &Palette,
+    self_id: Option<&str>,
+    style: &PageStyle,
+    attachments: &dyn Fn(&str) -> Option<Opened>,
+) -> String {
     let body = with_queries(store, body, self_id);
-    page_without_queries(store, title, &body, palette, style)
+    kanso_render::html::page_with(title, &body, palette, attachments, &style.options())
+}
+
+/// A plain file's content type and bytes; a sealed one is `None`.
+fn plain_attachment(store: &Store, id: &str) -> Option<(String, Vec<u8>)> {
+    store
+        .attachment(id)
+        .ok()
+        .flatten()
+        .map(|(content_type, attachment)| (content_type, attachment.data))
 }
 
 /// The page as it was before query views: a `query` fence stays code.
@@ -450,13 +478,7 @@ pub fn page_without_queries(
     palette: &Palette,
     style: &PageStyle,
 ) -> String {
-    let attachments = |id: &str| {
-        store
-            .attachment(id)
-            .ok()
-            .flatten()
-            .map(|(content_type, attachment)| (content_type, attachment.data))
-    };
+    let attachments = |id: &str| plain_attachment(store, id);
     kanso_render::html::page_with(title, body, palette, &attachments, &style.options())
 }
 

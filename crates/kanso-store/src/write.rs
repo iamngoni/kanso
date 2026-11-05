@@ -849,17 +849,24 @@ impl Store {
             .ok_or(StoreError::NotFound)?;
         let mut fields = doc.fields;
         store_note_files(Some(files), &mut fields);
-        self.put(
-            DocType::Note,
-            Value::Object({
-                let mut body = fields;
-                body.insert("_id".into(), Value::String(doc.id));
-                body.insert("_rev".into(), Value::String(doc.rev));
-                body
-            }),
-            Put::Upsert,
-            Origin::Ui,
-        )
+        fields.insert("_id".into(), Value::String(doc.id));
+        fields.insert("_rev".into(), Value::String(doc.rev));
+        // The list is the note's claim on its files, so a lock that stopped
+        // between them can write it again while some are already sealed.
+        self.write(|tx, changes| {
+            put_in(
+                tx,
+                changes,
+                DocType::Note,
+                fields.clone(),
+                Put::Upsert,
+                Origin::Ui,
+                PutRules {
+                    allow_sealed_note_links: true,
+                    ..PutRules::default()
+                },
+            )
+        })
     }
 
     /// Turns a sealed file back into a plain file after the app has opened
