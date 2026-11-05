@@ -42,6 +42,13 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     };
     let config = crate::load_config(&data_dir)?;
     let server = crate::services::server_config(&config.server).map_err(anyhow::Error::msg)?;
+    if let Some(warning) = crate::secrets::file_store_warning(
+        config.sync.secret_store,
+        crate::secrets::key_file().as_deref(),
+        &data_dir,
+    ) {
+        eprintln!("{warning}");
+    }
     let store = Arc::new(crate::library_open::open_store(&data_dir)?);
     // A daily snapshot of the database, as the app takes, checked every
     // hour: a server runs for months.
