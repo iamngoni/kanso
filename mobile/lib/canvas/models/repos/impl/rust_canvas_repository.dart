@@ -2,6 +2,7 @@
 // Created 2026-11-04.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/bridge/api/canvas.dart' as bridge;
@@ -178,4 +179,49 @@ class _RustCanvasDocument implements CanvasDocument {
   @override
   Future<CanvasResult<String>> exportExcalidraw() =>
       attempt(_canvas.exportExcalidraw);
+
+  @override
+  Future<CanvasResult<CanvasPulse>> pulse(List<String> known) =>
+      attempt(() => _canvas.pulse(known: known));
+
+  @override
+  Future<CanvasResult<List<CanvasPointerRow>>> pointers() =>
+      attempt(_canvas.pointers);
+
+  @override
+  Future<CanvasResult<bool>> streamStroke(
+    InkStyle style,
+    List<PenSample> samples,
+  ) => attempt(() => _canvas.streamStroke(style: style, samples: samples));
+
+  @override
+  Future<CanvasResult<Unit>> cancelStroke() => attempt(() async {
+    await _canvas.cancelStroke();
+    return unit;
+  });
+
+  @override
+  Future<CanvasResult<Unit>> setPointer(double x, double y, String tool) =>
+      attempt(() async {
+        await _canvas.setPointer(x: x, y: y, tool: tool);
+        return unit;
+      });
+
+  @override
+  Future<CanvasResult<Unit>> clearPointer() => attempt(() async {
+    await _canvas.clearPointer();
+    return unit;
+  });
+
+  @override
+  Future<CanvasResult<Unit>> reconnect() => attempt(() async {
+    await _canvas.reconnect();
+    return unit;
+  });
+
+  @override
+  Future<CanvasResult<Unit>> close() => attempt(() async {
+    await _canvas.close();
+    return unit;
+  });
 }

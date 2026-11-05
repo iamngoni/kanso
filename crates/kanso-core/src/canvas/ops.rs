@@ -198,8 +198,8 @@ impl Canvas {
             .find(|n| n.id == id && n.kind == INK && !n.deleted)
     }
 
-    /// The highest `kansoZ` of any item.
-    fn top_z(&self) -> f64 {
+    /// The highest `kansoZ` of any item, tombstones included.
+    pub fn top_z(&self) -> f64 {
         let nodes = self
             .nodes
             .iter()
