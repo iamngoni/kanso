@@ -89,10 +89,9 @@ class NoteListPane extends StatelessWidget {
                           label: l10n.noteListNewNote,
                           onTap: newNote,
                         ),
-                        onSource: (source) =>
-                            context.read<NoteCreationBloc>().add(
-                              NoteCreationEvent.captured(source),
-                            ),
+                        onSource: (source) => context
+                            .read<NoteCreationBloc>()
+                            .add(NoteCreationEvent.captured(source)),
                       );
                       // The button is afloat over a phone's list, except while
                       // notes are being chosen.
