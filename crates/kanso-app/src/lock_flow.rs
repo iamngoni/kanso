@@ -242,12 +242,18 @@ impl Render for SheetFooter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let cancelled = self.sheet.read(cx).is_cancelled();
         let flag = self.sheet.read(cx).cancel.clone();
+        let sheet = self.sheet.clone();
         h_flex().w_full().justify_end().child(
             Button::new("lock-sheet-cancel")
                 .label("Cancel")
                 .disabled(cancelled)
                 .debug_selector(|| "lock-sheet-cancel".into())
-                .on_click(move |_, _, _| flag.store(true, Ordering::SeqCst)),
+                .on_click(move |_, _, cx| {
+                    flag.store(true, Ordering::SeqCst);
+                    // "Stopping after this file" shows now, not at the
+                    // next file.
+                    sheet.update(cx, |_, cx| cx.notify());
+                }),
         )
     }
 }

@@ -12,8 +12,6 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::notification::Notification;
@@ -23,10 +21,7 @@ use kanso_core::model::note_files_from_extra;
 use kanso_store::Store;
 use kanso_sync::SecretStore;
 use kanso_sync::keychain::{delete_lock_keys, load_lock_keys, save_lock_keys};
-use kanso_sync::lock::{
-    Envelope, LockError, LockKey, LockPassword, SEGMENT_METADATA, SealId, SealedFileMetadata,
-    open_container, unwrap_file_key,
-};
+use kanso_sync::lock::{Envelope, LockError, LockKey, LockPassword, SealedFileMetadata};
 
 use crate::dialogs::{self, Field, FormSpec, FormView, Progress, Submit};
 use crate::editor::NoteEditor;
@@ -182,37 +177,45 @@ pub(crate) fn opened_file(
     file_id: &str,
     cx: &App,
 ) -> Option<(SealedFileMetadata, Vec<u8>)> {
+    use kanso_engine::lock::files::{Reading, read_file};
     let envelope = Envelope::from_extra(&note.extra)?.ok()?;
     let key = LockKeys::fitting(cx, &envelope)?;
-    let ownership = note_files_from_extra(&note.extra)?
+    // Only a file this note's own list holds.
+    note_files_from_extra(&note.extra)?
         .into_iter()
         .find(|file| file.file == file_id)?;
-    let file_meta = store(cx).file_meta(file_id).ok()??;
-    let marker = kanso_core::model::FileLock::from_extra(&file_meta.extra)?;
-    let seal = SealId::decode(&marker.seal)?;
-    if ownership.seal != marker.seal {
+    let store = store(cx);
+    if store.attachment_state(file_id).ok()? != kanso_store::AttachmentState::Sealed {
         return None;
     }
-    let wrapped = STANDARD.decode(&ownership.key).ok()?;
-    let file_key = unwrap_file_key(&key, &envelope, &note.id, file_id, &seal, &wrapped).ok()?;
-    let container = store(cx).stored_attachment(file_id).ok()??;
-    let segments = open_container(file_id, &seal, &file_key, &container.data).ok()?;
-    let metadata = if marker.meta {
-        segments
-            .iter()
-            .find(|segment| segment.kind == SEGMENT_METADATA)
-            .and_then(|segment| SealedFileMetadata::from_canonical_json(&segment.bytes).ok())?
-    } else {
-        SealedFileMetadata {
-            name: file_meta.name,
-            content_type: file_meta.content_type,
-            public_in: file_meta.public_in,
+    // The session's file keys (#44 step 3), filled from the note's list
+    // the first time one of its files is read.
+    let keys = LockKeys::peek_file_keys(cx);
+    let opened = match read_file(&store, file_id, &keys) {
+        Reading::Opened(opened) => opened,
+        Reading::Locked => {
+            keys.remember_note(note, &key);
+            match read_file(&store, file_id, &keys) {
+                Reading::Opened(opened) => opened,
+                Reading::Locked | Reading::Missing => return None,
+            }
         }
+        Reading::Missing => return None,
     };
-    let content = segments
-        .into_iter()
-        .find(|segment| segment.kind == kanso_sync::lock::SEGMENT_CONTENT)?;
-    Some((metadata, content.bytes))
+    let public_in = store
+        .file_meta(file_id)
+        .ok()
+        .flatten()
+        .map(|meta| meta.public_in)
+        .unwrap_or_default();
+    Some((
+        SealedFileMetadata {
+            name: opened.name,
+            content_type: opened.content_type,
+            public_in,
+        },
+        opened.bytes,
+    ))
 }
 
 /// The key this session holds for note `note_id`, when the note is locked and
@@ -222,6 +225,24 @@ pub(crate) fn key_for_note(note_id: &str, cx: &App) -> Option<Arc<LockKey>> {
     let note = store(cx).note(note_id).ok()??;
     let envelope = Envelope::from_extra(&note.extra)?.ok()?;
     LockKeys::fitting(cx, &envelope)
+}
+
+/// The key this session holds for where a recording goes: a locked note
+/// it opens, or the locked notebook a new note goes into (#44 step 3 seals
+/// that note and its audio).
+// no-prop-test: reads the store and the session's keys.
+pub(crate) fn key_for_destination(
+    destination: &kanso_engine::recording_flow::Destination,
+    cx: &App,
+) -> Option<Arc<LockKey>> {
+    use kanso_engine::recording_flow::Destination;
+    match destination {
+        Destination::ThisNote { note_id } => key_for_note(note_id, cx),
+        Destination::NewNote { book_id } => {
+            let target = Target::of_book(book_id.as_deref()?, &store(cx))?;
+            LockKeys::fitting(cx, target.envelope.as_ref().ok()?)
+        }
+    }
 }
 
 /// The bytes of the audio files `file_ids` of note `note_id` when the note is
@@ -573,13 +594,16 @@ pub enum Resume {
 /// (no key the session holds is the one it used), then finishes or undoes
 /// it. The password derives the key from the lock's own header, so it works
 /// even when that lock was the first one and left no other note to try.
+///
+/// The editor passes its note in: it asks from inside its own update, where
+/// reading the editor entity would panic.
 pub fn ask_interrupted(
     editor: Entity<NoteEditor>,
+    note: Note,
     resume: Resume,
     window: &mut Window,
     cx: &mut App,
 ) -> Option<Entity<FormView>> {
-    let note = editor.read(cx).current_note(cx)?;
     let header = kanso_engine::lock::files::interrupted_header(&note)?;
     let (title, button) = match resume {
         Resume::Finish => ("Finish locking", "Finish"),
@@ -1228,6 +1252,58 @@ mod tests {
         /// A picture in a note being locked is sealed with it, the open note
         /// draws it from memory, and Lock Notes Now leaves the closed stub and
         /// nothing decoded anywhere: not in the preview, not in the file keys.
+        /// Finish locking with no key held asks for the password. The bar's
+        /// button calls it from inside the editor's own update: reading the
+        /// editor entity there panicked.
+        #[gpui_kit::test]
+        fn finish_locking_with_no_key_asks_for_the_password(cx: &mut TestAppContext) {
+            use kanso_engine::lock::files::{self, Job, KeyBook, Phase, Progress};
+            let f = setup(cx);
+            let one = kanso_engine::attach::attach_image(&f.store, PIXEL, "png", None).unwrap();
+            let two =
+                kanso_engine::attach::attach_image(&f.store, &[PIXEL, b"2"].concat(), "png", None)
+                    .unwrap();
+            f.type_at_end(
+                cx,
+                &format!("\n\n![](inkdrop://{one})\n![](inkdrop://{two})"),
+            );
+            // A lock that stopped after its first file, the keys gone since.
+            let key = LockKey::create(
+                &LockPassword::new("correct horse").unwrap(),
+                KdfParams::TEST,
+            )
+            .unwrap();
+            let mut note = f.store.note(&f.note).unwrap().unwrap();
+            let locking = std::collections::HashSet::from([note.id.clone()]);
+            let mut copies = std::collections::HashMap::new();
+            let mut watch = |progress: &Progress| {
+                if progress.phase == Phase::Sealing && progress.done == 1 {
+                    Err("stopped".to_owned())
+                } else {
+                    Ok(())
+                }
+            };
+            let keys = KeyBook::default();
+            let mut job = Job::new(&f.store, &keys, &locking, &mut copies, &mut watch);
+            let text = note.body.clone();
+            files::seal_note_files(&mut job, &mut note, &text, &key).unwrap_err();
+            let library = cx.read(|cx| f.workspace.read(cx).library.clone());
+            library.update(cx, |library, cx| library.select(None, cx));
+            cx.run_until_parked();
+            let id = f.note.clone();
+            library.update(cx, |library, cx| library.select(Some(id), cx));
+            cx.run_until_parked();
+
+            f.window
+                .update(cx, |_, window, cx| {
+                    f.editor
+                        .update(cx, |editor, cx| editor.finish_locking(window, cx))
+                })
+                .unwrap();
+            cx.run_until_parked();
+            assert!(f.dialog_open(cx), "the lock password is asked for");
+        }
+
         #[gpui_kit::test]
         fn lock_notes_now_leaves_the_stub_and_no_decoded_image(cx: &mut TestAppContext) {
             let f = setup(cx);

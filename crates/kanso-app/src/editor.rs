@@ -1548,8 +1548,12 @@ impl NoteEditor {
                 self.lock_with(&key, window, cx);
             }
             None => {
+                let Some(note) = self.current_note(cx) else {
+                    return;
+                };
                 crate::locked::ask_interrupted(
                     cx.entity(),
+                    note,
                     crate::locked::Resume::Finish,
                     window,
                     cx,
@@ -1566,8 +1570,12 @@ impl NoteEditor {
                 self.undo_with(&key, window, cx);
             }
             None => {
+                let Some(note) = self.current_note(cx) else {
+                    return;
+                };
                 crate::locked::ask_interrupted(
                     cx.entity(),
+                    note,
                     crate::locked::Resume::Undo,
                     window,
                     cx,

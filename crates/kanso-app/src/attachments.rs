@@ -174,21 +174,10 @@ pub fn remove_lock(
     Ok((note, done))
 }
 
-/// Whether `note`'s text links a file that is plain, or one its list
+/// Whether `note`'s text shows a file that is plain, or one its list
 /// doesn't hold (a link pasted from another locked note).
 fn needs_sealing(store: &Store, note: &Note) -> bool {
-    let listed: HashSet<String> = kanso_core::model::note_files_from_extra(&note.extra)
-        .unwrap_or_default()
-        .into_iter()
-        .map(|entry| entry.file)
-        .collect();
-    kanso_core::tasks::linked_file_ids(&note.body)
-        .iter()
-        .any(|id| match store.attachment_state(id) {
-            Ok(kanso_store::AttachmentState::Plain) => true,
-            Ok(kanso_store::AttachmentState::Sealed) => !listed.contains(id),
-            _ => false,
-        })
+    files::needs_sealing(store, note)
 }
 
 /// A copy of file `id` for a note that must not share it: another locked
