@@ -21,6 +21,13 @@ use crate::workspace::AppState;
 /// Store meta key: the version that ran before the last update.
 pub const META_PREVIOUS: &str = "update.previous_version";
 
+/// Why the library opened plain this run (the system's key store refused its
+/// key, or there wasn't room to encrypt it), set by the app as it starts. Its
+/// presence is what the "Your library isn't encrypted yet" notice looks at.
+pub struct PlainLibrary(pub String);
+
+impl Global for PlainLibrary {}
+
 /// The notices this run knows, and the version that ran before the last
 /// update. Tests and snapshots put their own list in.
 pub struct NoticeBoard {
@@ -47,6 +54,7 @@ pub fn build_context(
     login: bool,
     signed_in_to_sync: bool,
     library_key_saved: bool,
+    library_plain: bool,
 ) -> NoticeContext {
     NoticeContext {
         current,
@@ -54,13 +62,13 @@ pub fn build_context(
         had_login: login,
         signed_in_to_sync,
         library_key_saved,
+        library_plain,
     }
 }
 
 /// The context now. "A login existed" is the fact `config.json` recorded
-/// when it dropped the login; "the library key was saved" is true until a
-/// later step records it (there is no key to save yet), so no notice is
-/// raised by a fact Kanso can't tell.
+/// when it dropped the login; "the library key was saved" is what the person
+/// chose on the library key's sheet, kept in `config.json` too.
 fn context(cx: &App) -> NoticeContext {
     let board = cx.try_global::<NoticeBoard>();
     let signed_in = cx
@@ -69,13 +77,25 @@ fn context(cx: &App) -> NoticeContext {
     let login = cx
         .try_global::<AppState>()
         .is_some_and(|state| state.config.had_login);
+    let key_saved = crate::library_key_sheet::key_saved(cx);
     build_context(
         crate::updates::current_version(),
         board.and_then(|board| board.previous.clone()),
         login,
         signed_in,
-        true,
+        key_saved,
+        // Set once, as the library opens: the secret store refused its key or
+        // there wasn't room to encrypt it.
+        cx.has_global::<PlainLibrary>(),
     )
+}
+
+/// Why the library is plain, for the notice's sheet: what Kanso found when
+/// it tried. `None` for a notice that has no such detail.
+pub fn detail(id: &str, cx: &App) -> Option<String> {
+    (id == notices::LIBRARY_PLAIN_ID)
+        .then(|| cx.try_global::<PlainLibrary>().map(|plain| plain.0.clone()))
+        .flatten()
 }
 
 fn list(cx: &App) -> &'static [Notice] {

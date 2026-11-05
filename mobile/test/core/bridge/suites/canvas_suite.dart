@@ -245,6 +245,66 @@ void canvasSuite(OpenLibrary open) {
     });
 
     test(
+      'a sketch in a note: inserted, drawn, saved and opened as a canvas',
+      () async {
+        final library = await open();
+        final note = await makeNote(library, 'Ideas', 'Hi');
+        expect(library.takesSketches(noteId: note), isTrue);
+        final canvas = await library.createCanvas(title: 'Board');
+        expect(library.takesSketches(noteId: canvas.id), isFalse);
+
+        final inserted = await library.sketchInsert(
+          noteId: note,
+          body: 'Hi',
+          at: 2,
+          width: 320,
+          height: 240,
+        );
+        expect(inserted.body, startsWith('Hi'));
+        expect(inserted.body, contains(inserted.id));
+        expect(inserted.cursor, greaterThan(2));
+
+        // The editor writes the body; the sketch then opens from the note.
+        final withSketch = await makeNote(library, 'Sketched', inserted.body);
+        final sketch = await library.sketch(
+          noteId: withSketch,
+          sketchId: inserted.id,
+        );
+        final info = sketch.sketchInfo();
+        expect(info, isNotNull);
+        expect(info!.id, inserted.id);
+        expect(info.width, 320);
+        expect(info.height, 240);
+        expect(info.readOnly, isFalse);
+
+        await sketch.draw(
+          style: _pen,
+          samples: _line(10, 10),
+          known: const <String>[],
+        );
+        expect((await sketch.save()).bytes, greaterThan(0));
+        final reopened = await library.sketch(
+          noteId: withSketch,
+          sketchId: inserted.id,
+        );
+        expect(
+          (await reopened.view(known: const <String>[])).strokes,
+          hasLength(1),
+        );
+
+        final copy = await reopened.openAsCanvas(title: 'From the sketch');
+        expect(library.isCanvas(id: copy.id), isTrue);
+        final view = await (await library.canvas(
+          id: copy.id,
+        )).view(known: const <String>[]);
+        expect(view.strokes, hasLength(1));
+
+        // A canvas is not a sketch.
+        expect((await library.canvas(id: canvas.id)).sketchInfo(), isNull);
+      },
+    );
+
+    test(
       'the exports are an SVG and an Excalidraw scene that imports',
       () async {
         final (library, _, canvas) = await fresh();

@@ -6890,6 +6890,70 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerTryAgain => 'Try Again';
 
   @override
+  String get sketchInsertKey => 'Insert sketch';
+
+  @override
+  String get sketchSizeTitle => 'Insert sketch';
+
+  @override
+  String get sketchSizeSmall => 'Small, 320 by 240';
+
+  @override
+  String get sketchSizeMedium => 'Medium, 480 by 320';
+
+  @override
+  String get sketchSizeLarge => 'Large, 640 by 480';
+
+  @override
+  String get sketchLabel => 'Sketch';
+
+  @override
+  String get sketchOpenAsCanvas => 'Open as canvas';
+
+  @override
+  String get sketchCopyAsCanvas => 'Copy as canvas';
+
+  @override
+  String get sketchShared =>
+      'Shared note: copy it to a canvas to draw together.';
+
+  @override
+  String get sketchFull =>
+      'This sketch is full. Open it as a canvas to keep drawing.';
+
+  @override
+  String get sketchFingerDraws => 'Draw with a finger';
+
+  @override
+  String get sketchFailed => 'This sketch can\'t be drawn on.';
+
+  @override
+  String get sketchCanvasMade => 'Opened as a canvas';
+
+  @override
+  String get sketchCanvasCopied => 'Copied to a new canvas';
+
+  @override
+  String sketchTitle(String title) {
+    return '$title sketch';
+  }
+
+  @override
+  String get sketchUntitledNote => 'Untitled';
+
+  @override
+  String get sketchNoteFull =>
+      'This note\'s sketches are full. Open one as a canvas.';
+
+  @override
+  String get sketchNearlyFull =>
+      'This sketch is nearly full. Open it as a canvas to keep drawing without a limit.';
+
+  @override
+  String get sketchSharedInsert =>
+      'Sketches can\'t be added to a shared note. Add one to a private note, or draw on a canvas.';
+
+  @override
   String get noticeNeedsAttention => 'Needs your attention';
 
   @override

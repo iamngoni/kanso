@@ -62,6 +62,13 @@ pub trait Biometrics: Send + Sync {
     /// why with `reason`; the answer comes on the channel (`false` for a
     /// cancel or a failure).
     fn authenticate(&self, reason: &str) -> async_channel::Receiver<bool>;
+    /// Asks the person to prove they are this computer's user, for a secret
+    /// that isn't a locked note (the library key, issue #243): Touch ID or
+    /// the account password on macOS, which every Mac has; Windows Hello on
+    /// Windows. `None` when the system has no such check here.
+    fn confirm_owner(&self, reason: &str) -> Option<async_channel::Receiver<bool>> {
+        self.available().then(|| self.authenticate(reason))
+    }
 }
 
 /// The Touch ID the app uses.
@@ -84,10 +91,18 @@ pub fn authenticate(reason: &str, cx: &App) -> Option<async_channel::Receiver<bo
         .then(|| touch_id.0.authenticate(reason))
 }
 
+/// Asks the person to prove they are this computer's user
+/// ([`Biometrics::confirm_owner`]), or `None` when the system can't.
+pub fn confirm_owner(reason: &str, cx: &App) -> Option<async_channel::Receiver<bool>> {
+    cx.try_global::<TouchId>()?.0.confirm_owner(reason)
+}
+
 /// macOS's LocalAuthentication, biometrics only: the fallback is Kanso's own
 /// lock password form, not the account password. On Windows, Windows Hello:
 /// a face, a fingerprint or the Windows Hello PIN, never the account
-/// password; the fallback is the lock password form there too.
+/// password; the fallback is the lock password form there too. Showing the
+/// library key ([`Biometrics::confirm_owner`]) is the exception on macOS:
+/// Touch ID or the account password, as the system's own sheet asks.
 pub struct SystemTouchId;
 
 #[cfg(target_os = "macos")]
@@ -104,6 +119,47 @@ mod system {
     /// `LAPolicyDeviceOwnerAuthenticationWithBiometrics`.
     const BIOMETRICS: isize = 1;
 
+    /// `LAPolicyDeviceOwnerAuthentication`: Touch ID, an Apple Watch, or the
+    /// account password.
+    const OWNER: isize = 2;
+
+    fn can_evaluate(policy: isize) -> bool {
+        let context = context();
+        // SAFETY: a valid context and policy; a null error pointer is
+        // allowed.
+        unsafe {
+            msg_send![
+                &*context,
+                canEvaluatePolicy: policy,
+                error: std::ptr::null_mut::<*mut AnyObject>()
+            ]
+        }
+    }
+
+    fn evaluate(policy: isize, reason: &str) -> async_channel::Receiver<bool> {
+        let (tx, rx) = async_channel::bounded(1);
+        let context = context();
+        let reason = NSString::from_str(reason);
+        // The context stays alive until it answers.
+        let kept = context.clone();
+        let reply = RcBlock::new(move |success: Bool, _error: *mut AnyObject| {
+            let _ = &kept;
+            tx.try_send(success.as_bool()).ok();
+        });
+        // SAFETY: a valid context, policy, reason and reply block of the
+        // `void (^)(BOOL, NSError *)` shape LocalAuthentication calls once,
+        // on a queue of its own.
+        unsafe {
+            let _: () = msg_send![
+                &*context,
+                evaluatePolicy: policy,
+                localizedReason: &*reason,
+                reply: &*reply
+            ];
+        }
+        rx
+    }
+
     fn context() -> Retained<AnyObject> {
         // SAFETY: `+[LAContext new]` returns a new, retained context.
         unsafe { msg_send![class!(LAContext), new] }
@@ -111,40 +167,17 @@ mod system {
 
     impl super::Biometrics for super::SystemTouchId {
         fn available(&self) -> bool {
-            let context = context();
-            // SAFETY: a valid context and policy; a null error pointer is
-            // allowed.
-            unsafe {
-                msg_send![
-                    &*context,
-                    canEvaluatePolicy: BIOMETRICS,
-                    error: std::ptr::null_mut::<*mut AnyObject>()
-                ]
-            }
+            can_evaluate(BIOMETRICS)
         }
 
         fn authenticate(&self, reason: &str) -> async_channel::Receiver<bool> {
-            let (tx, rx) = async_channel::bounded(1);
-            let context = context();
-            let reason = NSString::from_str(reason);
-            // The context stays alive until it answers.
-            let kept = context.clone();
-            let reply = RcBlock::new(move |success: Bool, _error: *mut AnyObject| {
-                let _ = &kept;
-                tx.try_send(success.as_bool()).ok();
-            });
-            // SAFETY: a valid context, policy, reason and reply block of
-            // the `void (^)(BOOL, NSError *)` shape LocalAuthentication
-            // calls once, on a queue of its own.
-            unsafe {
-                let _: () = msg_send![
-                    &*context,
-                    evaluatePolicy: BIOMETRICS,
-                    localizedReason: &*reason,
-                    reply: &*reply
-                ];
-            }
-            rx
+            evaluate(BIOMETRICS, reason)
+        }
+
+        /// The system's own sheet: Touch ID, or the account password where
+        /// there is no Touch ID or the person prefers typing it.
+        fn confirm_owner(&self, reason: &str) -> Option<async_channel::Receiver<bool>> {
+            can_evaluate(OWNER).then(|| evaluate(OWNER, reason))
         }
     }
 }

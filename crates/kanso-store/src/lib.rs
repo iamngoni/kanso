@@ -14,6 +14,9 @@ pub mod collab;
 mod derived;
 mod doc;
 mod embed;
+mod encrypt;
+mod encrypt_backups;
+mod encrypt_model;
 mod entities;
 mod entity_index;
 mod feedback_outbox;
@@ -25,6 +28,7 @@ mod home_model;
 mod ink_text;
 mod library_key;
 mod library_key_model;
+mod library_key_words;
 mod loops;
 mod meaning;
 mod ocr;
@@ -38,6 +42,7 @@ mod query_view;
 mod read;
 mod read_only;
 mod replace;
+mod restore;
 mod roles;
 mod schema;
 mod sync;
@@ -68,6 +73,11 @@ pub use embed::{
     EmbeddedNote, EmbeddedPassage, Embedder, EmbeddingQueue, MODEL_KEY as EMBED_MODEL_KEY,
     PendingEmbedding, RelatedNote, content_hash, cosine, embed_text, top_k,
 };
+pub use encrypt::{encrypt_library, encryption_unfinished, recover_encryption};
+pub use encrypt_backups::encrypt_backups;
+pub use encrypt_model::{
+    BackupsReport, EncryptOptions, EncryptProgress, EncryptStage, EncryptStep, Encrypted,
+};
 pub use entities::{
     CandidateRow, DISMISSED_FIELD, DetectNote, DismissedRow, EntityRow, EntityTask, MAX_DISMISSED,
     MentionRow,
@@ -79,6 +89,7 @@ pub use home_model::{
 };
 pub use ink_text::{InkNote, InkScan};
 pub use library_key_model::{KEY_BYTES, LibraryFile, LibraryKey};
+pub use library_key_words::{KEY_WORDS, WordsError};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };
@@ -108,6 +119,10 @@ pub use read_only::ReadOnlyStore;
 pub use replace::{
     NoteMatches, PREVIEW_MATCHES_PER_NOTE, Planned, ReplaceReport, Skipped, UndoReport,
 };
+pub use restore::{
+    apply_staged_restore, cancel_staged_restore, check_backup, restore_staged, stage_restore,
+    staged_restore_path,
+};
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
@@ -135,6 +150,20 @@ pub enum StoreError {
     /// A key was given on a build whose SQLite has no encryption (the phones').
     #[error("this build of Kanso can't encrypt a library")]
     NoEncryption,
+    /// The library is being encrypted, or a crash stopped that halfway:
+    /// nothing opens it until Kanso finishes (or undoes) the job.
+    #[error(
+        "Kanso is encrypting this library, or was stopped while doing it. Open Kanso to let it finish."
+    )]
+    Converting,
+    /// There isn't room to write the encrypted copy beside the library.
+    #[error(
+        "There isn't enough free space to encrypt your library. Kanso needs about {needed_mb} MB free on the disk that holds it. Free some space and open Kanso again. Your notes are untouched."
+    )]
+    DiskFull { needed_mb: u64 },
+    /// Encrypting the library failed and was undone; the library is as it was.
+    #[error("Kanso couldn't encrypt your library: {0}. Your notes are untouched.")]
+    EncryptFailed(String),
     #[error("database error: {0}")]
     Sqlite(#[from] rusqlite::Error),
     #[error("invalid JSON: {0}")]
@@ -221,6 +250,10 @@ impl Store {
 
     pub(crate) fn open_inner(path: &Path, key: Option<&LibraryKey>) -> Result<Store> {
         let path = path.to_path_buf();
+        // No program opens a library that is halfway to being encrypted.
+        if encryption_unfinished(&path) {
+            return Err(StoreError::Converting);
+        }
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }

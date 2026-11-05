@@ -87,6 +87,28 @@ jobs:
             exit 1
           }
           Add-Content -Path $env:GITHUB_PATH -Value $git -Encoding ascii
+      # SQLCipher's vendored OpenSSL (issue #243) is configured with Perl, and
+      # needs a native Windows one: Git Bash's Perl (MSYS) fails. Strawberry
+      # Perl is installed when it isn't there, and OPENSSL_SRC_PERL points the
+      # openssl-src build at it.
+      - name: Strawberry Perl for OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          # A self-hosted runner may name its own Windows Perl; otherwise
+          # Strawberry's usual place.
+          $candidates = @($env:OPENSSL_SRC_PERL, 'C:\Strawberry\perl\bin\perl.exe') | Where-Object { $_ }
+          $perl = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $perl) {
+            choco install strawberryperl --no-progress -y
+            $perl = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $perl) {
+            Write-Output "::error::Strawberry Perl isn't installed and could not be: the vendored OpenSSL build needs a Windows Perl. Install it from https://strawberryperl.com."
+            exit 1
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_SRC_PERL=$perl" -Encoding ascii
+          Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $perl) -Encoding ascii
 
       - name: Version
         id: version
@@ -431,6 +453,13 @@ jobs:
           mkdir -p notes
           target/release/kanso-release notes --changelog CHANGELOG.md \
             --version "${GITHUB_REF_NAME#v}" --out notes/notes.md
+
+      # A breaking change with no update notice stops the release here, as it
+      # does in scripts/release.sh.
+      - name: Update notices
+        run: |
+          target/release/kanso-release check-notices --changelog CHANGELOG.md \
+            --version "${GITHUB_REF_NAME#v}"
 
       - name: Update feed
         run: |

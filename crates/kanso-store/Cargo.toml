@@ -10,12 +10,15 @@ rust-version.workspace = true
 fastrand.workspace = true
 async-channel.workspace = true
 base64.workspace = true
+bip39.workspace = true
 getrandom.workspace = true
 kanso-core.workspace = true
 md-5.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
+unicode-normalization.workspace = true
 zeroize.workspace = true
 
 # The SQLite behind `rusqlite`, by platform (issue #243). The desktop builds
