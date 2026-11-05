@@ -461,6 +461,12 @@ CREATE TABLE IF NOT EXISTS api_keys (
     revoked_at INTEGER
 ) WITHOUT ROWID;
 "#,
+    // Shared canvases (issue #45): what a shared note is, text or canvas,
+    // kept in its row when the share is made so a body that later fails to
+    // parse cannot change the kind of document the engine merges.
+    r#"
+ALTER TABLE collab_notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'text';
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked

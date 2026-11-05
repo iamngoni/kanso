@@ -142,6 +142,7 @@ mod tests {
             key_commit: NoteKey::generate().commit("s", epoch),
             at: 1,
             from_seq: (epoch > 1).then_some(0),
+            kind: None,
             members,
         };
         list.sort();
