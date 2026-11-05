@@ -12,6 +12,7 @@
 //! Page textures live in memory only, never on disk: a page image of a
 //! locked PDF would be a plaintext leak.
 
+pub mod index;
 mod model;
 mod texture;
 
