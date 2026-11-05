@@ -166,3 +166,58 @@ proptest! {
         prop_assert!(!text.contains("strokes") && !text.contains("kansoVersion"));
     }
 }
+
+proptest! {
+    #![proptest_config(config(256))]
+
+    /// Keeping the words writes the whole body again; the fingerprint read
+    /// back from it is the one the words were kept under, whatever the
+    /// numbers, or the layer is read again and again.
+    #[test]
+    fn prop_fingerprint_survives_the_body_round_trip(
+        coords in proptest::collection::vec((-1e5f64..1e5, -1e5f64..1e5, 0.0f64..1.0), 1..40),
+        width in 0.5f64..20.0,
+    ) {
+        let mut c = Canvas::default();
+        c.put_node(Node { id: "i".into(), kind: INK.into(), width: 10.0, height: 10.0, ..Node::default() }, 1);
+        let s = Stroke {
+            id: "s".into(),
+            tool: "pen".into(),
+            width,
+            points: coords.iter().map(|&(x, y, p)| Point::new(x / 7.0, y / 3.0, p)).collect(),
+            ..Stroke::default()
+        };
+        prop_assert!(c.add_stroke("i", s, 2));
+        let mut doc = parse(&to_body(&c)).unwrap();
+        let job = doc.ink_to_read().remove(0);
+        prop_assert!(doc.keep_ink_text(&job.node, &job.md5, "fake", "w"));
+        let mut again = parse(&to_body(&doc)).unwrap();
+        prop_assert!(again.ink_to_read().is_empty(), "offered again after a round trip");
+        for _ in 0..3 {
+            again = parse(&to_body(&again)).unwrap();
+        }
+        prop_assert!(again.ink_to_read().is_empty(), "drifted after more round trips");
+    }
+}
+
+proptest! {
+    #![proptest_config(config(48))]
+
+    /// Only a change to the recognized words is one an open canvas takes
+    /// in place; any other change, a stroke or a moved card, is not.
+    #[test]
+    fn prop_ink_text_change_is_only_the_words(n in 1usize..5, seed in 0u32..40) {
+        let mut c = board(n);
+        let before = to_body(&c);
+        prop_assert!(ink_text_change(&before, &before).is_none());
+        read_all(&mut c);
+        let read = to_body(&c);
+        let words = ink_text_change(&before, &read).unwrap();
+        prop_assert_eq!(&words, &c.kanso_ink_ocr);
+        let mut drawn = c.clone();
+        drawn.add_stroke("i0", stroke("more", seed), 7);
+        prop_assert!(ink_text_change(&before, &to_body(&drawn)).is_none());
+        prop_assert!(ink_text_change(&read, &to_body(&drawn)).is_none());
+        prop_assert!(ink_text_change("plain", &read).is_none());
+    }
+}

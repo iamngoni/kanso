@@ -10,7 +10,6 @@
 //! search words another device read. Reading waits for ink to be still, so
 //! it never happens during a stroke, and it never opens a locked canvas.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -18,14 +17,14 @@ use std::time::Duration;
 use crate::ocr::system_reader;
 use crate::workspace::AppState;
 use gpui_kit::{App, Global, Task};
+use kanso_engine::discovery::ink_ocr::{self, Next, Pass};
 
-pub use kanso_engine::discovery::ink_ocr::read_next;
 pub use kanso_engine::discovery::ocr::Status;
 
 /// The pause between layers, so reading a big canvas never crowds the app.
 const LAYER_PAUSE: Duration = Duration::from_millis(250);
-/// How long notes stay still before ink is read: a canvas is saved after
-/// every stroke, so this is what keeps recognition out of the drawing.
+/// How long a note stays still before its ink is read: a canvas is saved
+/// after every stroke, so this is what keeps recognition out of the drawing.
 const SETTLE: Duration = Duration::from_secs(4);
 
 /// Whether this device can read handwriting at all.
@@ -82,27 +81,53 @@ fn start(cx: &mut App) {
     let cancel = Arc::new(AtomicBool::new(false));
     state.cancel = cancel.clone();
     let task = cx.spawn(async move |cx| {
-        // Layers the store refused the words of: not tried again this run.
-        let mut skip: HashSet<String> = HashSet::new();
+        // What this run has looked at and what waits, from layer to layer:
+        // each look reads only the notes written since the last one.
+        let mut pass = Pass::new(SETTLE);
         loop {
             if cancel.load(Ordering::Relaxed) {
                 return;
             }
+            // Pictures and the reader run off the app's thread...
             let (store2, reader2) = (store.clone(), reader.clone());
-            let mut skipped = std::mem::take(&mut skip);
-            let (waiting, skipped) = cx
+            let (next, back) = cx
                 .background_executor()
                 .spawn(async move {
-                    let waiting = read_next(&store2, &*reader2, &mut skipped);
-                    (waiting, skipped)
+                    let next = ink_ocr::read(&store2, &*reader2, &mut pass);
+                    (next, pass)
                 })
                 .await;
-            skip = skipped;
+            pass = back;
             if cancel.load(Ordering::Relaxed) {
                 return;
             }
-            match waiting {
-                Ok(0) => {
+            match next {
+                Ok(Next::Read(read)) => {
+                    // ...and the words are kept on it, where nothing can
+                    // edit the note between the look and the write. A note
+                    // being edited right now waits until it is still.
+                    let kept = cx.update(|cx| {
+                        if crate::editor::ink_glue::editing(&read.ink.note, cx) {
+                            pass.postpone(&read.ink.note);
+                            return Ok(false);
+                        }
+                        ink_ocr::keep_read(&store, &mut pass, &read)
+                    });
+                    if let Err(err) = kept {
+                        eprintln!("kanso: reading handwriting stopped: {err}");
+                        cx.update(|cx| set_status(Status::Idle, cx));
+                        return;
+                    }
+                    let left = pass.waiting();
+                    cx.update(|cx| set_status(Status::Reading { left }, cx));
+                    cx.background_executor().timer(LAYER_PAUSE).await;
+                }
+                Ok(Next::Settling(left)) => {
+                    let waiting = pass.waiting();
+                    cx.update(|cx| set_status(Status::Reading { left: waiting }, cx));
+                    cx.background_executor().timer(left.max(LAYER_PAUSE)).await;
+                }
+                Ok(Next::Done) => {
                     cx.update(|cx| set_status(Status::Idle, cx));
                     // Wait for a note to change, then for things to settle.
                     loop {
@@ -118,17 +143,7 @@ fn start(cx: &mut App) {
                             break;
                         }
                     }
-                    loop {
-                        cx.background_executor().timer(SETTLE).await;
-                        if changes.try_recv().is_err() {
-                            break;
-                        }
-                        while changes.try_recv().is_ok() {}
-                    }
-                }
-                Ok(n) => {
-                    cx.update(|cx| set_status(Status::Reading { left: n - 1 }, cx));
-                    cx.background_executor().timer(LAYER_PAUSE).await;
+                    while changes.try_recv().is_ok() {}
                 }
                 Err(err) => {
                     eprintln!("kanso: reading handwriting stopped: {err}");
@@ -136,6 +151,9 @@ fn start(cx: &mut App) {
                     return;
                 }
             }
+            // Changes are looked at through the store's sequence, not this
+            // feed: what queued up while reading is not needed.
+            while changes.try_recv().is_ok() {}
         }
     });
     let state = cx.default_global::<InkText>();

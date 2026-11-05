@@ -73,7 +73,7 @@ pub use graph::{GraphLink, GraphNote};
 pub use home_model::{
     HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,
 };
-pub use ink_text::InkNote;
+pub use ink_text::{InkNote, InkScan};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };

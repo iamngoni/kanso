@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use std::time::Duration;
 
 use kanso_core::canvas::{self, Canvas, INK, Node, Point, Stroke};
 use kanso_core::{DocType, Query};
@@ -112,10 +113,18 @@ fn draw(store: &Store, id: &str, node: &str, stroke_id: &str) {
         .unwrap();
 }
 
+/// A pass that reads a note as soon as it changed.
+fn pass() -> Pass {
+    Pass::new(Duration::ZERO)
+}
+
 fn drain(store: &Store, reader: &Fake) -> usize {
-    let mut skip = HashSet::new();
+    drain_with(store, reader, &mut pass())
+}
+
+fn drain_with(store: &Store, reader: &Fake, pass: &mut Pass) -> usize {
     let mut passes = 0;
-    while read_next(store, reader, &mut skip).unwrap() > 0 {
+    while read_next(store, reader, pass).unwrap() > 0 {
         passes += 1;
         assert!(passes < 100, "never ends");
     }
@@ -157,7 +166,7 @@ fn recognized_handwriting_is_found_by_search() {
         Some(&json!(5))
     );
     // Nothing is left, and nothing is read twice.
-    assert_eq!(waiting(&store).unwrap(), 0);
+    assert_eq!(waiting(&store, &mut pass()).unwrap(), 0);
     drain(&store, &reader);
     assert_eq!(reader.calls(), 2);
 }
@@ -167,12 +176,13 @@ fn words_read_from_strokes_that_changed_are_not_kept() {
     let (_dir, store) = store();
     let b = book(&store);
     let id = canvas_note(&store, &b, &board(1));
-    let ink = next_unread(&store).unwrap().unwrap();
+    let mut p = pass();
+    let ink = next_unread(&store, &mut p).unwrap().unwrap().unwrap();
     draw(&store, &id, "i0", "late");
-    assert!(!keep(&store, &id, None, "i0", &ink.md5, "stale", "fake").unwrap());
+    assert!(!keep(&store, &mut p, &id, None, "i0", &ink.md5, "stale", "fake").unwrap());
     assert!(canvas_of(&store, &id).kanso_ink_ocr.is_empty());
     // The new strokes are offered.
-    let again = next_unread(&store).unwrap().unwrap();
+    let again = next_unread(&store, &mut p).unwrap().unwrap().unwrap();
     assert_ne!(again.md5, ink.md5);
 }
 
@@ -248,10 +258,14 @@ fn hidden() -> impl Strategy<Value = Hidden> {
     ]
 }
 
-/// A canvas of ink made unreadable in `how`.
-fn hide(store: &Store, how: Hidden) -> (String, String) {
+/// A canvas of ink made unreadable in `how`; `looked` has seen it readable
+/// first.
+fn hide(store: &Store, how: Hidden, looked: Option<&mut Pass>) -> (String, String) {
     let open = book(store);
     let id = canvas_note(store, &open, &board(2));
+    if let Some(pass) = looked {
+        assert_eq!(waiting(store, pass).unwrap(), 2);
+    }
     let before = body_of(store, &id);
     let rev = store.get(&id).unwrap().unwrap().rev;
     match how {
@@ -331,14 +345,19 @@ proptest! {
     /// A locked canvas is never sent to recognition, however it is locked,
     /// and a canvas beside it still is.
     #[test]
-    fn prop_locked_canvases_are_never_sent_to_recognition(how in hidden()) {
+    fn prop_locked_canvases_are_never_sent_to_recognition(
+        how in hidden(),
+        seen_first in any::<bool>(),
+    ) {
         let (_dir, store) = store();
-        let (id, _) = hide(&store, how);
+        // A reader that saw the canvas before it was locked forgets it too.
+        let mut p = pass();
+        let (id, _) = hide(&store, how, seen_first.then_some(&mut p));
         let open = book(&store);
         let plain = canvas_note(&store, &open, &board(1));
         let reader = Fake::default();
-        prop_assert_eq!(waiting(&store).unwrap(), 1);
-        drain(&store, &reader);
+        prop_assert_eq!(waiting(&store, &mut p).unwrap(), 1);
+        drain_with(&store, &reader, &mut p);
         prop_assert_eq!(reader.calls(), 1);
         prop_assert_eq!(canvas_of(&store, &plain).kanso_ink_ocr.len(), 1);
         // The hidden one was neither read nor written to.
@@ -346,7 +365,7 @@ proptest! {
         let body = doc.fields.get("body").and_then(Value::as_str).unwrap_or("");
         prop_assert!(!body.contains("kansoInkOcr"));
         // And a write aimed at it is refused.
-        prop_assert!(!keep(&store, &id, None, "i0", "x", "secret", "fake").unwrap());
+        prop_assert!(!keep(&store, &mut pass(), &id, None, "i0", "x", "secret", "fake").unwrap());
     }
 
     /// After a full read, editing some layers makes the next pass read
@@ -369,7 +388,7 @@ proptest! {
                 edited.push(format!("i{i}"));
             }
         }
-        prop_assert_eq!(waiting(&store).unwrap(), edited.len());
+        prop_assert_eq!(waiting(&store, &mut pass()).unwrap(), edited.len());
         drain(&store, &reader);
         prop_assert_eq!(reader.calls(), changed.len() + edited.len());
         let after = canvas_of(&store, &id).kanso_ink_ocr;
@@ -384,4 +403,90 @@ proptest! {
             }
         }
     }
+}
+
+/// A note with `sketches` inline sketches, each `(id, seed)`.
+fn sketch_note(store: &Store, book: &str, sketches: &[(Option<&str>, u32)]) -> String {
+    let mut body = String::from("Notes\n\n");
+    for (id, seed) in sketches {
+        let mut sk = canvas::sketch::new_sketch(id.unwrap_or("x"), 320, 240);
+        if id.is_none() {
+            sk.kanso_sketch_id = None;
+        }
+        sk.add_stroke("i1", stroke("a", *seed), 2);
+        body.push_str(&format!(
+            "```sketch\n{}\n```\n\n",
+            serde_json::to_string(&sk).unwrap()
+        ));
+    }
+    put(
+        store,
+        DocType::Note,
+        json!({"title": "N", "bookId": book, "body": body}),
+    )
+}
+
+/// A sketch with no ID, or a pasted copy of one (the same ID twice), can't
+/// be written back as itself: it is not read over and over, and the note is
+/// not rewritten over and over.
+#[test]
+fn a_sketch_that_cant_be_written_back_is_not_read_again_and_again() {
+    let (_dir, store) = store();
+    let b = book(&store);
+    let id = sketch_note(&store, &b, &[(None, 1), (Some("sk"), 2), (Some("sk"), 2)]);
+    let reader = Fake::default();
+    let mut p = pass();
+    drain_with(&store, &reader, &mut p);
+    assert_eq!(reader.calls(), 1, "only the first sk-sketch is read");
+    let rev = store.get(&id).unwrap().unwrap().rev;
+    for _ in 0..3 {
+        drain_with(&store, &reader, &mut p);
+    }
+    assert_eq!(reader.calls(), 1);
+    assert_eq!(store.get(&id).unwrap().unwrap().rev, rev);
+    // A fresh pass (the app relaunched) finds nothing either.
+    assert_eq!(waiting(&store, &mut pass()).unwrap(), 0);
+}
+
+/// A note is read once it has been still for the settle time, never while
+/// it is being drawn on; what waited when the reader began is read at once.
+#[test]
+fn ink_is_read_only_once_its_note_is_still() {
+    let (_dir, store) = store();
+    let b = book(&store);
+    let id = canvas_note(&store, &b, &board(1));
+    let reader = Fake::default();
+    let mut p = Pass::new(Duration::from_secs(3600));
+    assert_eq!(drain_with(&store, &reader, &mut p), 1);
+    draw(&store, &id, "i0", "late");
+    assert_eq!(drain_with(&store, &reader, &mut p), 0);
+    assert_eq!(reader.calls(), 1);
+    match next_unread(&store, &mut p).unwrap() {
+        Err(left) => assert!(left > Duration::from_secs(3500)),
+        other => panic!("read while drawing: {other:?}"),
+    }
+    assert_eq!(p.waiting(), 1);
+    // Its own write is not an edit to wait out.
+    let mut quick = Pass::new(Duration::from_secs(3600));
+    let other = canvas_note(&store, &b, &board(2));
+    assert_eq!(drain_with(&store, &reader, &mut quick), 2 + 1);
+    assert_eq!(canvas_of(&store, &other).kanso_ink_ocr.len(), 2);
+}
+
+/// Words read while the note was edited in the app wait: postponing puts
+/// the layer back to settle, and it is read again later, not lost.
+#[test]
+fn a_postponed_layer_is_read_later() {
+    let (_dir, store) = store();
+    let b = book(&store);
+    let id = canvas_note(&store, &b, &board(1));
+    let reader = Fake::default();
+    let mut p = pass();
+    let Next::Read(first) = read(&store, &reader, &mut p).unwrap() else {
+        panic!("nothing read");
+    };
+    p.postpone(&first.ink.note);
+    assert_eq!(p.waiting(), 1);
+    assert_eq!(drain_with(&store, &reader, &mut p), 1);
+    assert_eq!(canvas_of(&store, &id).kanso_ink_ocr.len(), 1);
 }

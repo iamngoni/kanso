@@ -123,3 +123,18 @@ impl Canvas {
         self.kanso_ink_ocr.len() != before
     }
 }
+
+/// The recognized handwriting body `after` holds, when it differs from body
+/// `before` in nothing else: what a background read wrote over a canvas
+/// someone has open, which the open view takes in place rather than
+/// reloading. `None` when the two bodies are the same, either isn't a
+/// canvas, or anything but the handwriting text changed. Pure.
+pub fn ink_text_change(before: &str, after: &str) -> Option<Vec<InkOcr>> {
+    if before == after {
+        return None;
+    }
+    let mut old = super::parse(before).ok()?;
+    let new = super::parse(after).ok()?;
+    old.kanso_ink_ocr.clone_from(&new.kanso_ink_ocr);
+    (old == new).then_some(new.kanso_ink_ocr)
+}
