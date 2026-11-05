@@ -188,27 +188,94 @@ fn a_locked_note_with_no_key_refuses_the_audio_and_no_plain_note_takes_it() {
     assert!(saved.created);
 }
 
+/// A note locked before sealing existed links a file that is still plain:
+/// the recording's save seals it with the audio (step 3's locked-note
+/// save), where it used to be refused.
 #[test]
-fn a_note_locked_before_sealing_that_links_files_is_refused() {
+fn a_note_locked_before_sealing_seals_its_files_with_the_recording() {
     let (dir, store) = store();
     let key = key();
-    let id = locked_note(&store, &key, "See inkdrop://file:plain-picture here");
+    let picture = store
+        .put(
+            DocType::File,
+            json!({"name": "p.png", "contentType": "image/png", "_attachments": {"index": {
+                "content_type": "image/png",
+                "data": STANDARD.encode(b"plain picture"),
+            }}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let id = locked_note(&store, &key, &format!("See ![](inkdrop://{picture}) here"));
     // Drop the list, as a note locked by an older Kanso has none.
     let mut note = store.note(&id).unwrap().unwrap();
     store_note_files(None, &mut note.extra);
     store
         .lock_note(serde_json::to_value(&note).unwrap())
         .unwrap();
-    let dest = Destination::ThisNote { note_id: id };
-    assert!(matches!(
-        check_destination_with(&store, &dest, Some(&key)),
-        Err(FlowError::NotSealable)
-    ));
+    let dest = Destination::ThisNote {
+        note_id: id.clone(),
+    };
+    assert!(check_destination_with(&store, &dest, Some(&key)).is_ok());
     let rec = recorded(dir.path(), &[b"OggS x".to_vec()]);
+    save_recording_with(&store, &rec, &dest, Some(&key), Origin::Ui).unwrap();
+    assert_eq!(
+        store.attachment_state(&picture).unwrap(),
+        AttachmentState::Sealed
+    );
+    let (text, parts) = opened(&store, &key, &id);
+    assert!(text.contains(&picture));
+    let mut parts = parts;
+    parts.sort();
+    assert_eq!(parts, vec![b"OggS x".to_vec(), b"plain picture".to_vec()]);
+}
+
+/// A recording into a new note in a locked notebook: with the key that
+/// opens the notebook, the note is made sealed and takes the audio sealed;
+/// without it, nothing is stored.
+#[test]
+fn a_new_note_in_a_locked_notebook_takes_a_recording_sealed() {
+    let (dir, store) = store();
+    let key = key();
+    let book = store
+        .put(
+            DocType::Book,
+            json!({"name": "Private"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    crate::lock::seal_notebook(&store, &book, &key).unwrap();
+    let dest = Destination::NewNote {
+        book_id: Some(book.clone()),
+    };
+    let rec = recorded(dir.path(), &[b"OggS secret words".to_vec()]);
+    let notes_before = store.search(&Default::default()).unwrap().len();
     assert!(matches!(
-        save_recording_with(&store, &rec, &dest, Some(&key), Origin::Ui),
-        Err(FlowError::NotSealable)
+        save_recording_with(&store, &rec, &dest, None, Origin::Ui),
+        Err(FlowError::Locked)
     ));
+    assert_eq!(
+        store.search(&Default::default()).unwrap().len(),
+        notes_before
+    );
+
+    let saved = save_recording_with(&store, &rec, &dest, Some(&key), Origin::Ui).unwrap();
+    assert!(saved.created);
+    let note = store.note(&saved.note_id).unwrap().unwrap();
+    assert_eq!(note.book_id, book);
+    assert!(note.is_locked());
+    let (text, parts) = opened(&store, &key, &saved.note_id);
+    assert!(text.contains(&saved.file_ids[0]));
+    assert_eq!(parts, vec![b"OggS secret words".to_vec()]);
+    assert!(store.attachment(&saved.file_ids[0]).unwrap().is_none());
+    // Saving again adds nothing.
+    let again = save_recording_with(&store, &rec, &dest, Some(&key), Origin::Ui).unwrap();
+    assert!(!again.created);
+    let (text, _) = opened(&store, &key, &saved.note_id);
+    assert_eq!(text.matches(&saved.file_ids[0]).count(), 1);
 }
 
 #[test]
