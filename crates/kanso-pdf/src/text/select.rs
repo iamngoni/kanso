@@ -212,6 +212,62 @@ impl TextDoc {
             text: self.text(sel).chars().take(MAX_QUOTE_CHARS).collect(),
         }
     }
+
+    /// Resolves a quoted phrase in one laid-out page and returns the exact
+    /// quads the reader would store for a selection of those glyphs.
+    pub fn find_quote(&self, page: u32, quote: &str) -> Option<HighlightParts> {
+        let layout = self.page(page)?;
+        let target = folded_words(quote);
+        if target.is_empty() {
+            return None;
+        }
+        let mut text = Vec::new();
+        let mut owners = Vec::new();
+        for (index, glyph) in layout.glyphs.iter().enumerate() {
+            for ch in glyph.sep.as_str().chars() {
+                if ch.is_whitespace() {
+                    if !text.is_empty() && text.last() != Some(&' ') {
+                        text.push(' ');
+                        owners.push(None);
+                    }
+                } else {
+                    for folded in ch.to_lowercase() {
+                        text.push(folded);
+                        owners.push(None);
+                    }
+                }
+            }
+            for folded in glyph.ch.to_lowercase() {
+                text.push(folded);
+                owners.push(Some(index));
+            }
+        }
+        let start = text
+            .windows(target.len())
+            .position(|window| window == target)?;
+        let positions: Vec<usize> = owners[start..start + target.len()]
+            .iter()
+            .flatten()
+            .copied()
+            .collect();
+        let first = *positions.first()?;
+        let last = *positions.last()?;
+        Some(self.highlight_parts(&Selection {
+            start: CharPos { page, index: first },
+            end: CharPos { page, index: last },
+        }))
+    }
+}
+
+fn folded_words(text: &str) -> Vec<char> {
+    let mut normalized = Vec::new();
+    for word in text.split_whitespace() {
+        if !normalized.is_empty() {
+            normalized.push(' ');
+        }
+        normalized.extend(word.chars().flat_map(char::to_lowercase));
+    }
+    normalized
 }
 
 impl Selection {

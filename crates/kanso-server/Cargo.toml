@@ -19,6 +19,7 @@ getrandom.workspace = true
 # Caps the body of every route but an attachment upload's (`body_limit`).
 http-body-util = "0.1"
 kanso-core.workspace = true
+kanso-pdf.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true
 regex-lite = "0.1"

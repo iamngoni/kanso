@@ -243,8 +243,8 @@ fn call(
                 access: kanso_store::KeyAccess::Write,
                 ..
             } => Ok(json!({ "tools": schema::definitions() })),
-            Caller::Key { scope, .. } => Ok(json!({
-                "tools": crate::agent_tools::definitions_for(scope)
+            Caller::Key { scope, access, .. } => Ok(json!({
+                "tools": crate::agent_tools::definitions_for_key(scope, *access == kanso_store::KeyAccess::Write)
             })),
             Caller::Agent { scope, .. } => {
                 let offered: Vec<&Value> = schema::agent_definitions()
