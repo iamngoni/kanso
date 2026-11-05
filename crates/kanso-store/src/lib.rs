@@ -22,6 +22,9 @@ mod graph;
 mod history;
 mod home;
 mod home_model;
+mod ink_text;
+mod library_key;
+mod library_key_model;
 mod loops;
 mod meaning;
 mod ocr;
@@ -74,6 +77,8 @@ pub use graph::{GraphLink, GraphNote};
 pub use home_model::{
     HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,
 };
+pub use ink_text::{InkNote, InkScan};
+pub use library_key_model::{KEY_BYTES, LibraryFile, LibraryKey};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };
@@ -123,6 +128,13 @@ pub enum StoreError {
     /// See docs/ACCOUNTS.md › Sync with encryption › The guard.
     #[error("the library is no longer bound to the account this sync started with")]
     GuardFailed,
+    /// The file is encrypted and the key is missing or wrong. Nothing was
+    /// written.
+    #[error("Kanso can't open this library with this computer's key.")]
+    WrongKey,
+    /// A key was given on a build whose SQLite has no encryption (the phones').
+    #[error("this build of Kanso can't encrypt a library")]
+    NoEncryption,
     #[error("database error: {0}")]
     Sqlite(#[from] rusqlite::Error),
     #[error("invalid JSON: {0}")]
@@ -185,6 +197,8 @@ const READER_POOL: usize = 4;
 
 pub struct Store {
     path: PathBuf,
+    /// The library's key; `None` for a plain library.
+    key: Option<LibraryKey>,
     writer: Mutex<Connection>,
     readers: Mutex<Vec<Connection>>,
     subscribers: Mutex<Vec<async_channel::Sender<Change>>>,
@@ -202,11 +216,15 @@ pub struct Store {
 impl Store {
     /// Opens (creating if needed) the database at `path` and migrates it.
     pub fn open(path: impl AsRef<Path>) -> Result<Store> {
-        let path = path.as_ref().to_path_buf();
+        Store::open_inner(path.as_ref(), None)
+    }
+
+    pub(crate) fn open_inner(path: &Path, key: Option<&LibraryKey>) -> Result<Store> {
+        let path = path.to_path_buf();
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let mut writer = schema::connect(&path)?;
+        let mut writer = schema::connect(&path, key)?;
         schema::migrate(&writer)?;
         derived::rebuild_if_stale(&mut writer)?;
         ocr::rebuild_if_stale(&mut writer)?;
@@ -214,6 +232,7 @@ impl Store {
         write::repair_search_if_corrupt(&mut writer)?;
         Ok(Store {
             path,
+            key: key.cloned(),
             writer: Mutex::new(writer),
             readers: Mutex::new(Vec::new()),
             subscribers: Mutex::new(Vec::new()),
@@ -250,7 +269,7 @@ impl Store {
         let conn = self.readers.lock().expect("readers poisoned").pop();
         let conn = match conn {
             Some(conn) => conn,
-            None => schema::connect(&self.path)?,
+            None => schema::connect(&self.path, self.key.as_ref())?,
         };
         let result = f(&conn);
         let mut readers = self.readers.lock().expect("readers poisoned");

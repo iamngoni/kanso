@@ -86,6 +86,8 @@ pub(crate) mod format_keys;
 #[cfg(test)]
 #[path = "editor_format_tests.rs"]
 mod format_tests;
+#[path = "editor_ink.rs"]
+pub(crate) mod ink_glue;
 #[path = "ai_inline.rs"]
 pub(crate) mod inline_glue;
 #[cfg(test)]
@@ -2104,6 +2106,11 @@ impl NoteEditor {
                         cx.notify();
                         return true;
                     }
+                    // Only a background read's handwriting words came in.
+                    if !retried && self.save_over_ink_text(&base, &latest, &mut note, cx) {
+                        retried = true;
+                        continue;
+                    }
                     if !retried
                         && (same_content(&base, &latest)
                             || peers::text_caught_up(&base, &latest, &note))
@@ -2159,6 +2166,10 @@ impl NoteEditor {
             }
             // Another editor of the note saved what this one shows.
             if self.adopt_if_same_text(&latest, cx) {
+                return;
+            }
+            // A background read kept the handwriting's words, nothing else.
+            if self.adopt_ink_text(&latest, cx) {
                 return;
             }
             Incoming::Changed(Box::new(latest))

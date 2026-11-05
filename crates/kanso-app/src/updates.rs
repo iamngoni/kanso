@@ -354,6 +354,17 @@ pub fn after_launch(cx: &mut App) {
         .flatten()
         .and_then(|json| serde_json::from_str::<ReleaseNotes>(&json).ok());
     let last_run = store.meta(META_LAST_RUN).ok().flatten();
+    // Update notices look at the version before the last update, which is
+    // kept until the next one.
+    let remembered = store.meta(crate::notices::META_PREVIOUS).ok().flatten();
+    let previous =
+        kanso_core::notices::previous_version(remembered.as_deref(), last_run.as_deref(), &current);
+    if let Some(previous) = &previous {
+        store
+            .set_meta(crate::notices::META_PREVIOUS, &previous.to_string())
+            .ok();
+    }
+    crate::notices::init(previous, cx);
     let announce = just_updated(last_run.as_deref(), &current, known.clone());
     store.set_meta(META_LAST_RUN, &current.to_string()).ok();
     let off = {
@@ -1060,6 +1071,10 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
             (_, Some(date)) => format!("Released {date}."),
             (_, None) => String::new(),
         };
+        let attention = match kind {
+            SheetKind::Installed => crate::notice_views::attention_section(cx),
+            _ => None,
+        };
         let shown = if body.is_empty() {
             "This release's notes are on its page.".to_owned()
         } else {
@@ -1069,6 +1084,7 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
         let page = release_url.clone();
         let content = v_flex()
             .gap(px(12.))
+            .children(attention)
             .when(!lead.is_empty(), |el| {
                 el.child(
                     div()

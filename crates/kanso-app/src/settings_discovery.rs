@@ -1,5 +1,6 @@
 //! Settings › General › Discovery: the switches for
-//! the features that find notes by their words (`related.rs`, `ocr.rs`),
+//! the features that find notes by their words (`related.rs`, `ocr.rs`,
+//! `ink_ocr.rs`),
 //! and where each stands.
 
 use gpui_kit::assets::IconName as Lucide;
@@ -8,6 +9,7 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Sizable as _, v_flex};
 use gpui_kit::*;
 
+use crate::ink_ocr::{self, InkText};
 use crate::ocr::{self, ImageText};
 use crate::related::{self, Related, Status};
 use crate::settings::{Row, SettingsView, section};
@@ -106,7 +108,45 @@ pub fn sections(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
         )
     };
     rows.push(image_row);
+    rows.push(ink_row(&discovery, device, cx));
     vec![section("Discovery", rows, colors)]
+}
+
+/// The handwriting row: a switch where this device can read ink, the same
+/// words as the images row elsewhere.
+// no-prop-test: layout and a switch; the settings snapshots show it.
+fn ink_row(
+    discovery: &crate::config::DiscoverySettings,
+    device: &str,
+    cx: &Context<SettingsView>,
+) -> Row {
+    if !ink_ocr::supported() {
+        return Row::new(Lucide::PenTool, "Search handwriting").detail(
+            "Kanso reads handwriting on canvases and sketches on macOS. Words read there sync with the canvas, and search finds them here too.",
+        );
+    }
+    let reading = cx
+        .try_global::<InkText>()
+        .map(|s| s.status.clone())
+        .unwrap_or_default();
+    let detail = match reading {
+        ocr::Status::Reading { left } if discovery.ink_text && left > 0 => format!(
+            "Reading handwriting… {} to go.",
+            crate::text_stats::format_count(left)
+        ),
+        _ => format!(
+            "Reads what you write or draw on canvases and sketches, on {device}, so search finds them. The words stay inside the canvas, sealed with it if you lock it."
+        ),
+    };
+    Row::new(Lucide::PenTool, "Search handwriting")
+        .detail(detail)
+        .trailing(
+            div().debug_selector(|| "ink-text".into()).child(
+                Switch::new("ink-text")
+                    .checked(discovery.ink_text)
+                    .on_click(|on, _, cx| ink_ocr::set_enabled(*on, cx)),
+            ),
+        )
 }
 
 /// A short bar `share` (0 to 1) of the way full.

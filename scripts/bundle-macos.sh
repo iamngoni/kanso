@@ -78,6 +78,9 @@ pdfium="${PDFIUM_DIR:-vendor/pdfium}/$pdfium_platform"
 mkdir -p "$app/Contents/Frameworks"
 cp "$target_dir/release/kanso-pdf-worker" "$app/Contents/MacOS/kanso-pdf-worker"
 cp "$pdfium/lib/libpdfium.dylib" "$app/Contents/Frameworks/libpdfium.dylib"
+# What is bundled, not what was fetched: PDF JavaScript runs in V8, and the
+# app ships the build without it.
+scripts/check-pdfium-no-v8.sh "$app/Contents/Frameworks/libpdfium.dylib"
 # PDFium is BSD-3-Clause; its build carries third-party notices that ship too.
 mkdir -p "$app/Contents/Resources/pdfium-licenses"
 cp "$pdfium/LICENSE" "$app/Contents/Resources/pdfium-licenses/LICENSE"
@@ -185,7 +188,9 @@ cat > "$app/Contents/Info.plist" <<PLIST
         </dict>
     </array>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Kanso listens only while you dictate, and turns what you say into text on this Mac.</string>
+    <string>Kanso listens only while you dictate or record, and turns what you say into text on this Mac.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Kanso uses Screen Recording only to hear the audio of the app you pick when you record a meeting. It never records or saves your screen.</string>
 </dict>
 </plist>
 PLIST

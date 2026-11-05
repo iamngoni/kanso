@@ -27,6 +27,9 @@ mod interop_tests;
 mod merge;
 mod model;
 mod ops;
+mod recognize;
+#[cfg(test)]
+mod recognize_tests;
 mod sanitize;
 pub mod sketch;
 #[cfg(test)]
@@ -46,6 +49,7 @@ pub use ink::{Eraser, Split, covers, split_stroke};
 pub use interop::{ATTACHMENT_PREFIX, EXTENSION, ExportFiles, Imported, MAX_FILE_BYTES};
 pub use merge::{merge, merge_bodies};
 pub use model::{Canvas, Edge, INK, InkOcr, Node, Point, Sketch, Stroke, TOOLS};
+pub use recognize::{DEFAULT_ENGINE, InkToRead, ink_text_change};
 pub use text::SUMMARY_CAP;
 
 /// The fence's info string.

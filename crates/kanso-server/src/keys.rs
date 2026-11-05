@@ -105,6 +105,9 @@ impl Cached {
 pub struct KeyStore {
     store: Arc<Store>,
     live: Arc<RwLock<Vec<Cached>>>,
+    /// When a request was last refused for want of a valid key, in ms; 0
+    /// before any was. Shared by every clone, kept in memory only.
+    refused: Arc<AtomicI64>,
     clock: Clock,
 }
 
@@ -128,6 +131,7 @@ impl KeyStore {
         let keys = KeyStore {
             store,
             live: Arc::new(RwLock::new(Vec::new())),
+            refused: Arc::new(AtomicI64::new(0)),
             clock,
         };
         keys.reload()?;
@@ -252,6 +256,21 @@ impl KeyStore {
         // table says so.
         live.retain(|entry| entry.id != *id);
         self.store.api_key_revoke(id.as_str(), (self.clock)())
+    }
+
+    /// Notes that a request was just refused for want of a valid key. Only
+    /// the time is kept: nothing about the caller, which could be faked.
+    pub fn note_refused(&self) {
+        self.refused.store((self.clock)().max(1), Ordering::Relaxed);
+    }
+
+    /// When a request was last refused for want of a valid key, in ms since
+    /// the epoch, since this handle (or any clone) was opened.
+    pub fn last_refused(&self) -> Option<i64> {
+        match self.refused.load(Ordering::Relaxed) {
+            0 => None,
+            at => Some(at),
+        }
     }
 
     /// Every key, revoked ones included, newest first, for Settings.
@@ -384,6 +403,20 @@ mod tests {
         let rows = keys.list().unwrap();
         assert_eq!(rows.len(), 1);
         assert!(rows[0].revoked_at.is_some());
+    }
+
+    // no-prop-test: a fixed sequence; the clock decides the value.
+    #[test]
+    fn a_refusal_is_noted_for_every_clone_with_the_time_only() {
+        let (_d, _s, now, keys) = fixture();
+        let other = keys.clone();
+        assert_eq!(keys.last_refused(), None);
+        *now.lock().unwrap() = 5_000_000;
+        other.note_refused();
+        assert_eq!(keys.last_refused(), Some(5_000_000));
+        *now.lock().unwrap() = 6_000_000;
+        keys.note_refused();
+        assert_eq!(other.last_refused(), Some(6_000_000));
     }
 
     #[test]

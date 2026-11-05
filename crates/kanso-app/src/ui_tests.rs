@@ -4212,6 +4212,75 @@ fn a_canvas_is_drawn_on_and_saves_its_strokes(cx: &mut TestAppContext) {
     assert_eq!(live_strokes(&f.store, &id), 1);
 }
 
+/// Handwriting read in the background (`ink_ocr.rs`) lands in the canvas
+/// that is open: the canvas takes the words in place, so its undo steps
+/// stay, nothing asks which version to keep, and the next edit is saved on
+/// top of the words rather than over them, whichever reaches the editor
+/// first, the words or the edit.
+// no-prop-test: drives one window; `editor_ink` and the engine have the
+// properties.
+#[gpui_kit::test]
+fn handwriting_read_in_the_background_keeps_the_open_canvas(cx: &mut TestAppContext) {
+    use kanso_engine::discovery::ink_ocr::{self, Pass};
+    use kanso_engine::discovery::ocr::TextReader;
+    struct Words;
+    impl TextReader for Words {
+        fn engine(&self) -> &'static str {
+            "fake"
+        }
+        fn read(&self, _: &[u8]) -> Result<String, String> {
+            Ok("groceries".into())
+        }
+    }
+    let f = setup(cx);
+    let id = make_canvas(&f, "Board");
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    stroke_across(&f, &mut vcx, (120., 140.), (360., 200.));
+    settle(&f, &mut vcx);
+    let canvas = f.editor(&mut vcx, |e, _| e.canvas_view().clone());
+    let words = |store: &Store| {
+        kanso_core::canvas::parse(&store.note(&id).unwrap().unwrap().body)
+            .unwrap()
+            .kanso_ink_ocr
+            .len()
+    };
+
+    let mut pass = Pass::new(std::time::Duration::ZERO);
+    assert_eq!(ink_ocr::read_next(&f.store, &Words, &mut pass).unwrap(), 1);
+    assert_eq!(words(&f.store), 1);
+    settle(&f, &mut vcx);
+    assert!(!f.editor(&mut vcx, |e, _| e.has_incoming()));
+    assert!(
+        canvas.update(&mut vcx, |view, _| view
+            .state_for_test()
+            .unwrap()
+            .can_undo()),
+        "the drawing's undo steps stay"
+    );
+    assert_eq!(
+        canvas.update(&mut vcx, |view, _| view
+            .state_for_test()
+            .unwrap()
+            .canvas
+            .kanso_ink_ocr
+            .len()),
+        1
+    );
+
+    // An edit right behind the words: saved on top of them.
+    stroke_across(&f, &mut vcx, (100., 300.), (300., 320.));
+    settle(&f, &mut vcx);
+    let mut again = Pass::new(std::time::Duration::ZERO);
+    assert!(ink_ocr::read_next(&f.store, &Words, &mut again).unwrap() > 0);
+    canvas.update(&mut vcx, |view, cx| view.undo(cx));
+    settle(&f, &mut vcx);
+    assert!(!f.editor(&mut vcx, |e, _| e.has_incoming()));
+    assert_eq!(live_strokes(&f.store, &id), 1, "the undo was saved");
+    assert!(words(&f.store) >= 1, "and the words with it");
+}
+
 /// A card dragged slowly at a high zoom follows the pointer (each step is a
 /// fraction of a canvas point, which rounding step by step used to drop),
 /// and is saved once, when it is let go; a lasso that only selects saves
@@ -4466,4 +4535,220 @@ fn notes_dropped_on_a_canvas_become_cards(cx: &mut TestAppContext) {
         .map(|n| (n.file.clone().unwrap(), n.title.clone().unwrap()))
         .collect();
     assert_eq!(cards, [(f.notes[0].clone(), "a".to_owned())]);
+}
+
+/// The notices this test puts in front of the app: two that always apply.
+fn test_notices() -> &'static [kanso_core::notices::Notice] {
+    use kanso_core::notices::{Notice, NoticeAction, NoticePage, Platforms};
+    Box::leak(Box::new([
+        Notice {
+            id: "fixture-first-0.9",
+            since: semver::Version::new(0, 9, 0),
+            title: "First fixture",
+            what_changed: "Something changed.",
+            steps: &["Do this.", "Then that."],
+            action: Some(NoticeAction::OpenSettings(NoticePage::LocalApi)),
+            applies: |_| true,
+            platforms: Platforms::Desktop,
+        },
+        Notice {
+            id: "fixture-second-0.9",
+            since: semver::Version::new(0, 9, 0),
+            title: "Second fixture",
+            what_changed: "Something else changed.",
+            steps: &["Do it."],
+            action: None,
+            applies: |_| true,
+            platforms: Platforms::Both,
+        },
+    ]))
+}
+
+/// An update notice shows as a banner across the window, counts the ones
+/// waiting, and Dismiss hides it for good: the next one shows, the choice is
+/// in `config.json`, and the palette still lists it. How to fix opens the
+/// steps.
+// no-prop-test: drives one window; the rules are properties in kanso-core.
+#[gpui_kit::test]
+fn an_update_notice_shows_until_it_is_dismissed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    // Nothing is listed yet, so there is no banner.
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert!(vcx.read(crate::notices::banner).is_none());
+
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: test_notices(),
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, "fixture-first-0.9");
+    assert_eq!(pick.total, 2);
+    assert!(vcx.debug_bounds("notice-count").is_some());
+    assert!(vcx.debug_bounds("notice-action").is_some());
+
+    let click = |vcx: &mut gpui_kit::VisualTestContext, selector: &'static str| {
+        let bounds = vcx
+            .debug_bounds(selector)
+            .unwrap_or_else(|| panic!("{selector} is drawn"));
+        vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    };
+
+    // How to fix: the sheet has what changed and the steps.
+    click(&mut vcx, "notice-how-to-fix");
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-what-changed").is_some());
+    assert!(vcx.debug_bounds("notice-steps").is_some());
+    vcx.simulate_keystrokes("escape");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-steps"), None);
+
+    // Dismiss: the next notice takes the banner, alone now.
+    click(&mut vcx, "notice-dismiss");
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, "fixture-second-0.9");
+    assert_eq!(pick.total, 1);
+    assert_eq!(vcx.debug_bounds("notice-count"), None);
+    assert_eq!(f.saved_config().notices.dismissed, ["fixture-first-0.9"]);
+    // The palette still lists the dismissed one.
+    assert_eq!(vcx.read(crate::notices::listed).len(), 2);
+
+    // The last one: no banner, and the palette keeps both until fixed.
+    click(&mut vcx, "notice-dismiss");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(vcx.read(crate::notices::listed).len(), 2);
+    vcx.update(|_, cx| crate::notices::mark_fixed("fixture-first-0.9", cx));
+    assert_eq!(vcx.read(crate::notices::listed).len(), 1);
+    let saved = f.saved_config().notices;
+    assert_eq!(saved.fixed, ["fixture-first-0.9"]);
+    assert_eq!(saved.dismissed.len(), 2);
+}
+
+/// How to fix's own buttons: Mark as fixed puts the notice away (banner and
+/// palette), and the sheet opened again has Done instead of Dismiss, so it
+/// can still be closed with the mouse. On macOS the banner leaves the
+/// traffic lights their room, zoomed out too.
+// no-prop-test: drives one window; the rules are properties in kanso-core.
+#[gpui_kit::test]
+fn how_to_fix_marks_a_notice_fixed_and_can_be_closed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: test_notices(),
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    if crate::layout::LIGHTS_IN_BAND {
+        let lights_end = crate::layout::TRAFFIC_LIGHTS.0 + 2. * 20. + 14.;
+        let title = vcx
+            .debug_bounds("notice-title")
+            .expect("the banner is drawn");
+        assert!(f32::from(title.left()) > lights_end, "{title:?}");
+        // Zoomed out, the lights stay their size, and so does their room.
+        vcx.update(|_, cx| crate::zoom::set(75, cx));
+        f.draw(&mut vcx);
+        let title = vcx
+            .debug_bounds("notice-title")
+            .expect("the banner is drawn");
+        assert!(f32::from(title.left()) > lights_end, "{title:?}");
+        let banner = vcx.debug_bounds("notice-banner").unwrap();
+        assert!(f32::from(banner.size.height) >= 36., "{banner:?}");
+        vcx.update(|_, cx| crate::zoom::set(crate::zoom::DEFAULT_ZOOM, cx));
+        f.draw(&mut vcx);
+    }
+    let click = |vcx: &mut gpui_kit::VisualTestContext, selector: &'static str| {
+        let bounds = vcx
+            .debug_bounds(selector)
+            .unwrap_or_else(|| panic!("{selector} is drawn"));
+        vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    };
+
+    click(&mut vcx, "notice-how-to-fix");
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-sheet-dismiss").is_some());
+    assert_eq!(vcx.debug_bounds("notice-sheet-done"), None);
+    click(&mut vcx, "notice-sheet-fixed");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-steps"), None);
+    assert_eq!(f.saved_config().notices.fixed, ["fixture-first-0.9"]);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, "fixture-second-0.9");
+    assert_eq!(vcx.read(crate::notices::listed).len(), 1);
+
+    // Opened again: no Dismiss, no Mark as fixed, but Done.
+    vcx.update(|window, cx| {
+        let notice = crate::notices::find("fixture-first-0.9", cx).unwrap();
+        crate::notice_views::open_how_to_fix(notice, window, cx);
+    });
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-steps").is_some());
+    assert_eq!(vcx.debug_bounds("notice-sheet-dismiss"), None);
+    assert_eq!(vcx.debug_bounds("notice-sheet-fixed"), None);
+    click(&mut vcx, "notice-sheet-done");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-steps"), None);
+}
+
+/// The API keys notice shows only for a library whose config recorded a
+/// login, and Dismiss keeps the choice.
+// no-prop-test: drives one window; `prop_the_api_keys_notice_is_for_libraries_that_had_a_login`
+// in kanso-core holds the rule.
+#[gpui_kit::test]
+fn the_api_keys_notice_shows_only_after_a_login_existed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::API_KEYS_ID)
+        .unwrap()
+        .clone();
+    // As if the release had been reached.
+    notice.since = semver::Version::new(0, 9, 0);
+    let list: &'static [kanso_core::notices::Notice] = Box::leak(Box::new([notice]));
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list,
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    // No login was ever recorded: nothing to say.
+    assert!(vcx.read(crate::notices::banner).is_none());
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+
+    vcx.update(|_, cx| {
+        crate::workspace::AppState::update_config(cx, |config| config.had_login = true);
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, kanso_core::notices::API_KEYS_ID);
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    assert!(f.saved_config().had_login);
+
+    let bounds = vcx.debug_bounds("notice-dismiss").unwrap();
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(
+        f.saved_config().notices.dismissed,
+        [kanso_core::notices::API_KEYS_ID]
+    );
 }

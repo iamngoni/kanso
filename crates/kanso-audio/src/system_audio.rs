@@ -133,15 +133,16 @@ pub trait SystemAudioBackend {
     fn open(&self, target: &SystemAudioTarget) -> Result<Box<dyn SystemAudioSource>, AudioError>;
 }
 
-/// This platform's backend; `None` where none exists yet. macOS adds its
-/// own arm here.
+/// This platform's backend; `None` where none exists yet.
 // no-prop-test: picks a type by platform.
 pub fn platform_backend() -> Option<Box<dyn SystemAudioBackend>> {
     #[cfg(windows)]
     return Some(Box::new(crate::system_audio_windows::Wasapi));
     #[cfg(target_os = "linux")]
     return Some(Box::new(crate::system_audio_linux::Monitor));
-    #[cfg(not(any(windows, target_os = "linux")))]
+    #[cfg(target_os = "macos")]
+    return Some(Box::new(crate::system_audio_mac::ScreenCaptureKit));
+    #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
     None
 }
 

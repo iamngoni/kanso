@@ -65,6 +65,20 @@ cargo test -p kanso-app --bin kanso -- pdf       # the reader (says SKIPPED with
 
 The macOS bundle (`scripts/bundle-macos.sh`) does all of that itself.
 
+A PDF is hostile input, so the worker is hardened and the hardening is tested
+(issue #43, step 9):
+
+```sh
+cargo test -p kanso-pdf --features render   # includes tests/hostile.rs: ~60 malformed and hostile PDFs through the real worker
+scripts/pdf-corpus.sh [folder]              # writes that corpus out as .pdf files (built in code, nothing downloaded)
+scripts/pdf-fuzz.sh [seconds]               # cargo-fuzz of the protocol decoder; needs nightly and `cargo install cargo-fuzz`
+scripts/test-check-pdfium.sh [--real-v8]    # tests the check that refuses a V8 build of PDFium
+scripts/check-pdfium-no-v8.sh vendor/pdfium # the check itself; fetch-pdfium.sh, the bundles and CI run it
+```
+
+A new kind of hostile file goes in `crates/kanso-pdf/src/hostile.rs` with what
+a safe reader does with it; the test and the fuzz seeds pick it up.
+
 Voice input's real transcription test needs the Parakeet model (about 670 MB)
 in a folder of its own; it is skipped otherwise:
 

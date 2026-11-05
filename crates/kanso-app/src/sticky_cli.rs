@@ -174,7 +174,7 @@ fn save_for_later(data_dir: &Path, request: &StickyRequest) -> Result<String> {
     let Some(_lock) = lock_data_dir(data_dir)? else {
         bail!("Kanso is starting but isn't answering yet; try again in a moment");
     };
-    let store = Store::open(crate::paths::db_path(data_dir))?;
+    let store = crate::library_open::open_store(data_dir)?;
     let (id, place) = save(&store, request, Origin::Api)?;
     let path = crate::paths::config_path(data_dir);
     let mut config = crate::load_config(data_dir)?;
@@ -303,7 +303,7 @@ mod tests {
         };
         assert!(frame.sticky);
         assert_eq!(frame.color, StickyColor::Green);
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         assert!(store.note(&frame.note_id).unwrap().is_some());
     }
 }

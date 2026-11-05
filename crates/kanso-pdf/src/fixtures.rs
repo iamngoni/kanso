@@ -182,3 +182,36 @@ pub fn encrypted_pdf(user_password: &str) -> Vec<u8> {
     );
     out
 }
+
+/// A one-page PDF whose body text is black and whose page carries a red
+/// square annotation and a green text field, each with an appearance of its
+/// own: a page drawn with annotations and form data on shows colour; the
+/// worker draws neither.
+pub fn annotated_pdf() -> Vec<u8> {
+    let objects: [&str; 9] = [
+        "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [8 0 R] /DA (/F1 0 Tf 0 g) /DR << /Font << /F1 3 0 R >> >> >> >>",
+        "<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R /Annots [6 0 R 8 0 R] >>",
+        "<< /Length 40 >>\nstream\nBT /F1 24 Tf 72 700 Td (Annotated) Tj ET\nendstream",
+        "<< /Type /Annot /Subtype /Square /Rect [100 300 300 500] /C [1 0 0] /IC [1 0 0] /F 4 /AP << /N 7 0 R >> >>",
+        "<< /Type /XObject /Subtype /Form /BBox [0 0 200 200] /Length 26 >>\nstream\n1 0 0 rg 0 0 200 200 re f\nendstream",
+        "<< /Type /Annot /Subtype /Widget /FT /Tx /T (name) /V (x) /Rect [350 300 550 400] /F 4 /P 4 0 R /DA (/F1 0 Tf 0 g) /AP << /N 9 0 R >> >>",
+        "<< /Type /XObject /Subtype /Form /BBox [0 0 200 100] /Length 26 >>\nstream\n0 1 0 rg 0 0 200 100 re f\nendstream",
+    ];
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, body) in objects.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{body}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(b"xref\n0 10\n0000000000 65535 f \n");
+    for offset in offsets {
+        out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(
+        format!("trailer\n<< /Size 10 /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n").as_bytes(),
+    );
+    out
+}
