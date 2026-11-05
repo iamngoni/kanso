@@ -454,6 +454,15 @@ const SYNC_NAMES: [&str; 12] = [
     "sync.last_seq",
 ];
 
+/// The device identity, the only sync keys a restore keeps (docs/ACCOUNTS.md
+/// › Device identity). Spelled out, not taken from the store's list, so a
+/// change to that list fails here.
+const DEVICE_IDENTITY: [&str; 3] = [
+    "sync.v2.library_id",
+    "sync.v2.device_secret",
+    "sync.v2.hardware",
+];
+
 fn sync_meta(db: &Path, key: &LibraryKey) -> Vec<(String, String)> {
     let store = Store::open_with_key(db, Some(key)).unwrap();
     SYNC_NAMES
@@ -531,7 +540,7 @@ fn a_restore_keeps_only_this_librarys_device_identity() {
     assert!(apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap());
     let found = sync_meta(&db, &ours);
     let names: Vec<&str> = found.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, kanso_store::DEVICE_IDENTITY_KEYS);
+    assert_eq!(names, DEVICE_IDENTITY);
     assert!(found.iter().all(|(_, value)| value.ends_with("@me")));
 }
 
@@ -688,9 +697,9 @@ proptest! {
         apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap();
         let found = sync_meta(&db, &ours);
         let own = found.iter().all(|(name, value)| {
-            kanso_store::DEVICE_IDENTITY_KEYS.contains(&name.as_str()) && value.ends_with("@me")
+            DEVICE_IDENTITY.contains(&name.as_str()) && value.ends_with("@me")
         });
         prop_assert!(own);
-        prop_assert_eq!(found.len(), if ours_bound { kanso_store::DEVICE_IDENTITY_KEYS.len() } else { 0 });
+        prop_assert_eq!(found.len(), if ours_bound { DEVICE_IDENTITY.len() } else { 0 });
     }
 }
