@@ -4619,6 +4619,7 @@ dependencies = [
  "kanso-core",
  "kanso-gallery",
  "kanso-import",
+ "kanso-pdf",
  "kanso-render",
  "kanso-server",
  "kanso-store",
@@ -4815,7 +4816,9 @@ version = "0.9.4"
 dependencies = [
  "fastrand",
  "kanso-core",
+ "kanso-engine",
  "kanso-pdf",
+ "kanso-store",
  "landlock",
  "libc",
  "md-5",
