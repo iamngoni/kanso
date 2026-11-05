@@ -268,8 +268,18 @@ What locking does and doesn't do:
 - Locking deletes the note's earlier versions, its embedding and the search index's words, and SQLite
   overwrites the space they took. Daily backups made before you locked it still hold the text until
   they are replaced, after 14 days.
-- The title, notebook, tags, status and dates stay visible, and pictures and files attached to a
-  locked note aren't sealed.
+- The pictures and files attached to a locked note are sealed with it, each under a key of its own
+  that only the note's lock opens, and so are their names and types. A picture or file another note
+  also shows is copied: the locked note gets its own sealed copy and the other note keeps the
+  original. The title, notebook, tags, status and dates stay visible.
+- **Notes locked before this version** still have plain attachments until the password opens them,
+  and nothing can seal them without it. The first time you start Kanso after updating it asks ("Seal
+  now" or "Later"), types your lock password once, and seals the attachments of every locked note and
+  locked notebook in one pass, with a progress sheet. After "Later" a quiet reminder stays until it is
+  done, and **Seal Attachments of Locked Notes…** (Note menu, palette; Settings, Locked notes on a
+  phone) does it at any time. A note you never open with its password is left as it is, and its
+  attachments stay plain; one that uses another lock password waits for that password. If the pass
+  stops (a crash, Cancel), nothing is lost: it finishes the next time you run it, or can be undone.
 - The local API reads a locked note with an empty body. It can move, retitle or tag the note, but
   can't change its text, take the lock off, or delete it outright (moving it to the trash still works).
 - **Empty Trash** deletes locked notes too. Its question counts them ("Delete 12 notes permanently,

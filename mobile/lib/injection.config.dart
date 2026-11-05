@@ -190,6 +190,7 @@ import 'lock/models/repos/abs/device_lock_repository.dart' as _i279;
 import 'lock/models/repos/impl/plugin_device_lock_repository.dart' as _i64;
 import 'lock/state/biometrics/biometrics_bloc.dart' as _i477;
 import 'lock/state/change_password/change_password_bloc.dart' as _i39;
+import 'lock/state/files_migration/files_migration_bloc.dart' as _i115;
 import 'lock/state/interrupted_lock/interrupted_lock_bloc.dart' as _i582;
 import 'lock/state/lock_remove/lock_remove_bloc.dart' as _i215;
 import 'lock/state/lock_setup/lock_setup_bloc.dart' as _i249;
@@ -930,6 +931,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i39.ChangePasswordBloc>(
       () => _i39.ChangePasswordBloc(gh<_i333.SessionRepository>()),
+    );
+    gh.factory<_i115.FilesMigrationBloc>(
+      () => _i115.FilesMigrationBloc(gh<_i333.SessionRepository>()),
     );
     gh.factory<_i582.InterruptedLockBloc>(
       () => _i582.InterruptedLockBloc(gh<_i333.SessionRepository>()),

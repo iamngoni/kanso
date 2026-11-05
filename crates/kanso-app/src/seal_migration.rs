@@ -200,7 +200,12 @@ fn ask(pending: Pending, launch: bool, window: &mut Window, cx: &mut App) {
     }
     let keys = LockKeys::all(cx);
     let scan = (!keys.is_empty()).then(|| migrate::scan(&locked::store(cx), &keys));
-    let body: SharedString = prompt_words(&pending, scan.as_ref()).into();
+    open_prompt(prompt_words(&pending, scan.as_ref()), launch, window, cx);
+}
+
+/// The prompt's dialog: [`prompt_words`], "Seal now" and "Later".
+pub(crate) fn open_prompt(body: String, launch: bool, window: &mut Window, cx: &mut App) {
+    let body: SharedString = body.into();
     window.open_alert_dialog(cx, move |alert, _, _| {
         alert
             .title(TITLE)

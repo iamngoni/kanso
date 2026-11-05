@@ -27,6 +27,7 @@ class LockFormSheet extends StatelessWidget {
     this.danger = false,
     this.onCancel,
     this.cancelLabel,
+    this.showCancel = true,
     super.key,
   });
 
@@ -47,6 +48,9 @@ class LockFormSheet extends StatelessWidget {
 
   /// The label of the way out; Cancel when null.
   final String? cancelLabel;
+
+  /// Whether the way out is drawn; a result has only its primary button.
+  final bool showCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -95,14 +99,16 @@ class LockFormSheet extends StatelessWidget {
                 : KansoButtonVariant.primary,
             onPressed: working ? null : onPrimary,
           ),
-          const SizedBox(height: KansoSpacing.xs),
-          KansoButton(
-            label: cancelLabel ?? l10n.lockCancel,
-            variant: KansoButtonVariant.quiet,
-            onPressed: working
-                ? null
-                : (onCancel ?? () => Navigator.of(context).maybePop()),
-          ),
+          if (showCancel) ...<Widget>[
+            const SizedBox(height: KansoSpacing.xs),
+            KansoButton(
+              label: cancelLabel ?? l10n.lockCancel,
+              variant: KansoButtonVariant.quiet,
+              onPressed: working
+                  ? null
+                  : (onCancel ?? () => Navigator.of(context).maybePop()),
+            ),
+          ],
         ],
       ),
     );

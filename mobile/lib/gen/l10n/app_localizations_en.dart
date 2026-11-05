@@ -7038,4 +7038,190 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockFilesNoticeDismiss => 'Dismiss';
+
+  @override
+  String get lockMigrationTitle => 'Seal attachments of locked notes';
+
+  @override
+  String get lockMigrationPrompt =>
+      'Attachments of your locked notes aren\'t sealed yet. Enter your lock password to seal them now.';
+
+  @override
+  String lockMigrationNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count locked notes still have pictures and files stored in plain form.',
+      one: '1 locked note still has pictures and files stored in plain form.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationCounted(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attachments ($size) will be sealed.',
+      one: '1 attachment ($size) will be sealed.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationShared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count attachments are also used by other notes: each locked note gets its own sealed copy, and the other notes keep theirs.',
+      one:
+          '1 attachment is also used by another note: the locked note gets its own sealed copy, and the other note keeps the original.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lockMigrationUncounted =>
+      'Kanso counts them, and their size, once the password opens the notes.';
+
+  @override
+  String get lockMigrationSealNow => 'Seal now';
+
+  @override
+  String get lockMigrationLater => 'Later';
+
+  @override
+  String get lockMigrationPasswordMessage =>
+      'Type your lock password. Kanso seals the attachments of every locked note it opens.';
+
+  @override
+  String get lockMigrationSealing => 'Sealing attachments';
+
+  @override
+  String get lockMigrationStoppedTitle => 'Sealing didn\'t finish';
+
+  @override
+  String lockMigrationStoppedMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count locked notes were left half done.',
+      one: '1 locked note was left half done.',
+    );
+    return '$_temp0 Some attachments are sealed, and none is lost. Finish sealing, or undo it to keep everything as it was.';
+  }
+
+  @override
+  String get lockMigrationFinish => 'Finish sealing';
+
+  @override
+  String get lockMigrationUndo => 'Undo';
+
+  @override
+  String lockMigrationDone(int files, int notes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      files,
+      locale: localeName,
+      other: 'Sealed $files attachments',
+      one: 'Sealed 1 attachment',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      notes,
+      locale: localeName,
+      other: '$notes locked notes',
+      one: '1 locked note',
+    );
+    return '$_temp0 in $_temp1.';
+  }
+
+  @override
+  String lockMigrationNothing(int notes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      notes,
+      locale: localeName,
+      other: 'Checked $notes locked notes: no attachments needed sealing.',
+      one: 'Checked 1 locked note: no attachments needed sealing.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationCopies(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count attachments also used by other notes have their own sealed copies.',
+      one: '1 attachment also used by another note has its own sealed copy.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationUnopened(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count locked notes use another lock password and were left as they are.',
+      one: '1 locked note uses another lock password and was left as it is.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationFailedNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count locked notes couldn\'t be sealed and stay as they were.',
+      one: '1 locked note couldn\'t be sealed and stays as it was.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lockMigrationStopped =>
+      'Sealing stopped. Open Settings, then Locked notes, to finish it.';
+
+  @override
+  String lockMigrationUndone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Undone. $count attachments are readable again, as before.',
+      one: 'Undone. 1 attachment is readable again, as before.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationReminder(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Attachments of $count locked notes aren\'t sealed yet.',
+      one: 'Attachments of 1 locked note aren\'t sealed yet.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsSealAttachments => 'Seal attachments of locked notes…';
+
+  @override
+  String settingsSealAttachmentsValue(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes',
+      one: '1 note',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lockMigrationClose => 'Done';
 }
