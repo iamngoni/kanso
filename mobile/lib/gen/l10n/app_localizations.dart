@@ -2710,6 +2710,48 @@ abstract class AppLocalizations {
   /// **'An empty drawing'**
   String get previewEmptyDrawing;
 
+  /// Shown in a note's preview where it embeds a canvas that is locked. Nothing of the canvas is drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked canvas'**
+  String get previewCanvasLocked;
+
+  /// Shown in a note's preview where it embeds a canvas that no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas not found'**
+  String get previewCanvasMissing;
+
+  /// Shown in a note's preview where an embedded canvas names a note that is not a canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'This note isn\'t a canvas'**
+  String get previewCanvasNotCanvas;
+
+  /// Shown in a note's preview where an embedded canvas can't be drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t draw this canvas'**
+  String get previewCanvasInvalid;
+
+  /// A quiet banner under an embedded canvas that is very large because the embed names no group.
+  ///
+  /// In en, this message translates to:
+  /// **'This embeds the whole canvas. Name a group to embed less.'**
+  String get previewCanvasWholeCanvas;
+
+  /// A quiet note under an embedded canvas whose named group no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'That group is gone, so this shows the whole canvas.'**
+  String get previewCanvasGroupMissing;
+
+  /// Screen-reader label of an embedded canvas in a note's preview; tapping it opens the canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Open canvas'**
+  String get previewCanvasOpen;
+
   /// Shown under a query view's headings in a note's preview when no note matches it.
   ///
   /// In en, this message translates to:
@@ -11193,6 +11235,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back'**
   String get canvasBack;
+
+  /// The strip under a shared canvas's bar: the canvas is shared with others.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared'**
+  String get canvasSharedLabel;
+
+  /// The strip under a shared canvas's bar, and the bar that takes the toolbar's place, when the person may look at the canvas but not draw on it.
+  ///
+  /// In en, this message translates to:
+  /// **'View only'**
+  String get canvasViewOnlyLabel;
+
+  /// No description provided for @canvasViewOnlyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You can look around and zoom, but you can\'t draw on this canvas.'**
+  String get canvasViewOnlyMessage;
+
+  /// On a shared canvas: how many other people have a pointer on it now.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 other here} other{{count} others here}}'**
+  String canvasOthersHere(int count);
+
+  /// The screen reader's name for another person's pointer on a shared canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s pointer'**
+  String canvasPointerLabel(String name);
+
+  /// No description provided for @canvasShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share this canvas'**
+  String get canvasShareAction;
 
   /// The title of Kanso's home page.
   ///

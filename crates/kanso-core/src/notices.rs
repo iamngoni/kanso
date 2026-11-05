@@ -20,7 +20,33 @@ pub use crate::notice_model::{
 /// Every notice this version knows about. A change that breaks something
 /// adds one here; it is never reused or removed while a version that shows it
 /// is supported.
-pub const NOTICES: &[Notice] = &[];
+pub const NOTICES: &[Notice] = &[API_KEYS];
+
+/// The ID of the API keys notice. Never reused.
+pub const API_KEYS_ID: &str = "api-keys-0.10";
+
+/// The local API's username and password are retired: every agent, script
+/// and app needs its own key (issue #243). Only a library that had a login
+/// is affected; the phones have no local API, so they never show it.
+const API_KEYS: Notice = Notice {
+    id: API_KEYS_ID,
+    since: semver::Version::new(0, 10, 0),
+    title: "Your AI agents and scripts need new keys",
+    what_changed: "Kanso no longer accepts the local API's username and password, so a program that can start Kanso can't read your notes without your say-so. Agents and scripts you connected before won't reach your notes until you give each one a key.",
+    steps: &[
+        "Open Settings \u{203a} Local API \u{203a} API keys.",
+        "Choose New key\u{2026} for each agent or script, and pick what it may do.",
+        "In an MCP client (Claude Code, Claude Desktop, Codex, Cursor, VS Code, Gemini CLI, Windsurf, Zed or OpenCode), paste the setup Kanso gives you in place of the old Kanso entry. Then restart the client.",
+        "In a REST tool or script, send the key as \u{201c}Authorization: Bearer <key>\u{201d} instead of the username and password. A tool that only takes a username and password can use any username, with the key as the password.",
+    ],
+    action: Some(NoticeAction::OpenSettings(NoticePage::LocalApi)),
+    applies: had_login,
+    platforms: Platforms::Desktop,
+};
+
+fn had_login(ctx: &NoticeContext) -> bool {
+    ctx.had_login
+}
 
 impl Platforms {
     /// Whether an app on `platform` shows it.
@@ -358,7 +384,42 @@ mod tests {
         assert!(state.is_dismissed("a") && state.is_fixed("b"));
     }
 
+    fn api_keys() -> &'static Notice {
+        NOTICES
+            .iter()
+            .find(|notice| notice.id == API_KEYS_ID)
+            .expect("the API keys notice ships")
+    }
+
+    #[test]
+    fn the_api_keys_notice_says_where_to_go_and_how_to_update_each_tool() {
+        let notice = api_keys();
+        assert_eq!(
+            notice.action,
+            Some(NoticeAction::OpenSettings(NoticePage::LocalApi))
+        );
+        let steps = notice.steps.join("\n");
+        assert!(steps.contains("API keys"), "{steps}");
+        assert!(steps.contains("MCP client"), "{steps}");
+        assert!(steps.contains("REST"), "{steps}");
+        assert!(steps.contains("Authorization: Bearer"), "{steps}");
+    }
+
     proptest! {
+        /// The API keys notice is for a library that had a login, on the
+        /// desktop, once the release has it. The phones have no local API,
+        /// so they never show it.
+        #[test]
+        fn prop_the_api_keys_notice_is_for_libraries_that_had_a_login(
+            ctx in context(),
+            platform in platform(),
+        ) {
+            let expected = ctx.had_login
+                && platform == Platform::Desktop
+                && ctx.current >= Version::new(0, 10, 0);
+            prop_assert_eq!(api_keys().applies_to(&ctx, platform), expected);
+        }
+
         /// `applies` reads only the context: asking again, or asking a copy,
         /// or asking in between other contexts, gives the same answer.
         #[test]

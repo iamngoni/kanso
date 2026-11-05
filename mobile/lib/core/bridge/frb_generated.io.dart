@@ -969,6 +969,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CanvasRect dco_decode_box_autoadd_canvas_rect(dynamic raw);
 
   @protected
+  CanvasView dco_decode_box_autoadd_canvas_view(dynamic raw);
+
+  @protected
   CardKey dco_decode_box_autoadd_card_key(dynamic raw);
 
   @protected
@@ -1128,6 +1131,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice dco_decode_box_autoadd_phone_notice(dynamic raw);
 
   @protected
+  PreviewCanvasShown dco_decode_box_autoadd_preview_canvas_shown(dynamic raw);
+
+  @protected
   PreviewOptions dco_decode_box_autoadd_preview_options(dynamic raw);
 
   @protected
@@ -1249,6 +1255,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CanvasPoint dco_decode_canvas_point(dynamic raw);
+
+  @protected
+  CanvasPointerRow dco_decode_canvas_pointer_row(dynamic raw);
+
+  @protected
+  CanvasPulse dco_decode_canvas_pulse(dynamic raw);
 
   @protected
   CanvasRect dco_decode_canvas_rect(dynamic raw);
@@ -1629,6 +1641,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<CanvasPoint> dco_decode_list_canvas_point(dynamic raw);
 
   @protected
+  List<CanvasPointerRow> dco_decode_list_canvas_pointer_row(dynamic raw);
+
+  @protected
   List<CanvasStroke> dco_decode_list_canvas_stroke(dynamic raw);
 
   @protected
@@ -1863,6 +1878,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<PreviewBlock> dco_decode_list_preview_block(dynamic raw);
+
+  @protected
+  List<PreviewCanvasNotice> dco_decode_list_preview_canvas_notice(dynamic raw);
 
   @protected
   List<PreviewCell> dco_decode_list_preview_cell(dynamic raw);
@@ -2215,6 +2233,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CanvasRect? dco_decode_opt_box_autoadd_canvas_rect(dynamic raw);
 
   @protected
+  CanvasView? dco_decode_opt_box_autoadd_canvas_view(dynamic raw);
+
+  @protected
   Completion? dco_decode_opt_box_autoadd_completion(dynamic raw);
 
   @protected
@@ -2527,6 +2548,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PreviewBlock dco_decode_preview_block(dynamic raw);
+
+  @protected
+  PreviewCanvasNotice dco_decode_preview_canvas_notice(dynamic raw);
+
+  @protected
+  PreviewCanvasShown dco_decode_preview_canvas_shown(dynamic raw);
 
   @protected
   PreviewCell dco_decode_preview_cell(dynamic raw);
@@ -3773,6 +3800,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CanvasRect sse_decode_box_autoadd_canvas_rect(SseDeserializer deserializer);
 
   @protected
+  CanvasView sse_decode_box_autoadd_canvas_view(SseDeserializer deserializer);
+
+  @protected
   CardKey sse_decode_box_autoadd_card_key(SseDeserializer deserializer);
 
   @protected
@@ -3972,6 +4002,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice sse_decode_box_autoadd_phone_notice(SseDeserializer deserializer);
 
   @protected
+  PreviewCanvasShown sse_decode_box_autoadd_preview_canvas_shown(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PreviewOptions sse_decode_box_autoadd_preview_options(
     SseDeserializer deserializer,
   );
@@ -4119,6 +4154,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CanvasPoint sse_decode_canvas_point(SseDeserializer deserializer);
+
+  @protected
+  CanvasPointerRow sse_decode_canvas_pointer_row(SseDeserializer deserializer);
+
+  @protected
+  CanvasPulse sse_decode_canvas_pulse(SseDeserializer deserializer);
 
   @protected
   CanvasRect sse_decode_canvas_rect(SseDeserializer deserializer);
@@ -4517,6 +4558,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<CanvasPoint> sse_decode_list_canvas_point(SseDeserializer deserializer);
 
   @protected
+  List<CanvasPointerRow> sse_decode_list_canvas_pointer_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<CanvasStroke> sse_decode_list_canvas_stroke(
     SseDeserializer deserializer,
   );
@@ -4829,6 +4875,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<PreviewBlock> sse_decode_list_preview_block(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PreviewCanvasNotice> sse_decode_list_preview_canvas_notice(
     SseDeserializer deserializer,
   );
 
@@ -5239,6 +5290,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  CanvasView? sse_decode_opt_box_autoadd_canvas_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Completion? sse_decode_opt_box_autoadd_completion(
     SseDeserializer deserializer,
   );
@@ -5625,6 +5681,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PreviewBlock sse_decode_preview_block(SseDeserializer deserializer);
+
+  @protected
+  PreviewCanvasNotice sse_decode_preview_canvas_notice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PreviewCanvasShown sse_decode_preview_canvas_shown(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PreviewCell sse_decode_preview_cell(SseDeserializer deserializer);
@@ -7056,6 +7122,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_canvas_view(
+    CanvasView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_card_key(CardKey self, SseSerializer serializer);
 
   @protected
@@ -7353,6 +7425,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_preview_canvas_shown(
+    PreviewCanvasShown self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_preview_options(
     PreviewOptions self,
     SseSerializer serializer,
@@ -7546,6 +7624,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_canvas_point(CanvasPoint self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_canvas_pointer_row(
+    CanvasPointerRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_canvas_pulse(CanvasPulse self, SseSerializer serializer);
 
   @protected
   void sse_encode_canvas_rect(CanvasRect self, SseSerializer serializer);
@@ -8043,6 +8130,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_canvas_pointer_row(
+    List<CanvasPointerRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_canvas_stroke(
     List<CanvasStroke> self,
     SseSerializer serializer,
@@ -8468,6 +8561,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_preview_block(
     List<PreviewBlock> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_preview_canvas_notice(
+    List<PreviewCanvasNotice> self,
     SseSerializer serializer,
   );
 
@@ -8997,6 +9096,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_canvas_view(
+    CanvasView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_completion(
     Completion? self,
     SseSerializer serializer,
@@ -9496,6 +9601,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_preview_block(PreviewBlock self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_preview_canvas_notice(
+    PreviewCanvasNotice self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_preview_canvas_shown(
+    PreviewCanvasShown self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_preview_cell(PreviewCell self, SseSerializer serializer);

@@ -29,20 +29,20 @@ pub use kanso_mobile::{
     OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PaletteDto,
     PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange,
     PdfHighlightRow, PdfNotes, PersonLookup, PersonRow, PlannedNotice, PreviewAlign, PreviewBlock,
-    PreviewCell, PreviewCodeRun, PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem,
-    PreviewOptions, PreviewQueryRow, PreviewRow, PreviewSourcedBlock, PreviewSvg, PreviewTaskBox,
-    PromptState, Property, PropertyKind, ProviderEvent, ProviderKind, PushEnvironmentKind,
-    PushPlatformKind, QuotaLimit, Range16, RecoveryKeyText, RelatedRow, RelatedState,
-    RelatedStatus, ReminderAnswer, ReminderNote, ReminderPlan, Replacement, ResurfaceResult,
-    ResurfaceRow, ReviewFinished, ReviewSaved, ReviewTheme, ReviewView, ReviewWritten, RunBatch,
-    SaveState, Saved, SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo,
-    ShareLinkRow, ShareRole, SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection,
-    SignOutReasonKind, SignedUp, SortKey, SpanRow, StatusChoice, StatusCount, StyledRun,
-    SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind,
-    SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine, SyncTone, SyntaxStyleRow, Table,
-    TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard, TaskGroupKind, TaskItem, TaskListQuery,
-    TaskPlace, TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow,
-    VisibleNotebook,
+    PreviewCanvasNotice, PreviewCanvasShown, PreviewCell, PreviewCodeRun, PreviewFigureKind,
+    PreviewInline, PreviewLink, PreviewListItem, PreviewOptions, PreviewQueryRow, PreviewRow,
+    PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState, Property, PropertyKind,
+    ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind, QuotaLimit, Range16,
+    RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer, ReminderNote,
+    ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, ReviewFinished, ReviewSaved,
+    ReviewTheme, ReviewView, ReviewWritten, RunBatch, SaveState, Saved, SearchScope, ServerInfo,
+    ServerMethods, Share, ShareFile, ShareInfo, ShareLinkRow, ShareRole, SharedEvent,
+    ShortcutEntry, ShortcutPlace, ShortcutSection, SignOutReasonKind, SignedUp, SortKey, SpanRow,
+    StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption,
+    SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
+    SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard,
+    TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow, TextChange,
+    ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
 };
 pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
@@ -1649,6 +1649,11 @@ pub enum _PreviewBlock {
         url: Option<String>,
         summary: String,
     },
+    Canvas {
+        note: String,
+        group: Option<String>,
+        shown: PreviewCanvasShown,
+    },
     Failed {
         badge: String,
         detail: String,
@@ -1747,6 +1752,26 @@ pub struct _PreviewSvg {
     pub width: f32,
     pub height: f32,
     pub baseline: Option<f32>,
+}
+
+#[frb(mirror(PreviewCanvasShown))]
+pub enum _PreviewCanvasShown {
+    Drawing {
+        svg: PreviewSvg,
+        notices: Vec<PreviewCanvasNotice>,
+    },
+    Locked,
+    Missing,
+    NotCanvas,
+    Invalid {
+        message: String,
+    },
+}
+
+#[frb(mirror(PreviewCanvasNotice))]
+pub enum _PreviewCanvasNotice {
+    WholeCanvas,
+    GroupMissing,
 }
 
 #[frb(mirror(PreviewFigureKind))]

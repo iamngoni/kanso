@@ -1509,6 +1509,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
+  String get previewCanvasLocked => 'Locked canvas';
+
+  @override
+  String get previewCanvasMissing => 'Canvas not found';
+
+  @override
+  String get previewCanvasNotCanvas => 'This note isn\'t a canvas';
+
+  @override
+  String get previewCanvasInvalid => 'Couldn\'t draw this canvas';
+
+  @override
+  String get previewCanvasWholeCanvas =>
+      'This embeds the whole canvas. Name a group to embed less.';
+
+  @override
+  String get previewCanvasGroupMissing =>
+      'That group is gone, so this shows the whole canvas.';
+
+  @override
+  String get previewCanvasOpen => 'Open canvas';
+
+  @override
   String get previewQueryEmpty => 'No notes match.';
 
   @override
@@ -6587,6 +6610,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get canvasBack => 'Back';
+
+  @override
+  String get canvasSharedLabel => 'Shared';
+
+  @override
+  String get canvasViewOnlyLabel => 'View only';
+
+  @override
+  String get canvasViewOnlyMessage =>
+      'You can look around and zoom, but you can\'t draw on this canvas.';
+
+  @override
+  String canvasOthersHere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count others here',
+      one: '1 other here',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String canvasPointerLabel(String name) {
+    return '$name\'s pointer';
+  }
+
+  @override
+  String get canvasShareAction => 'Share this canvas';
 
   @override
   String get overviewTitle => 'Overview';

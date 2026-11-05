@@ -170,6 +170,10 @@ class PreviewBlockView extends StatelessWidget {
       PreviewBlock_PdfNotes(:final summary) => PreviewPdfNotes(
         summary: summary,
       ),
+      PreviewBlock_Canvas(:final note, :final shown) => PreviewCanvas(
+        note: note,
+        shown: shown,
+      ),
       PreviewBlock_Failed(
         :final badge,
         :final detail,

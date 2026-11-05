@@ -3766,10 +3766,12 @@ class PasskeyRow {
 sealed class PdfHighlightChange with _$PdfHighlightChange {
   const PdfHighlightChange._();
 
-  const factory PdfHighlightChange.comment({required String comment}) =
-      PdfHighlightChange_Comment;
-  const factory PdfHighlightChange.color({required String color}) =
-      PdfHighlightChange_Color;
+  const factory PdfHighlightChange.comment({
+    required String comment,
+  }) = PdfHighlightChange_Comment;
+  const factory PdfHighlightChange.color({
+    required String color,
+  }) = PdfHighlightChange_Color;
   const factory PdfHighlightChange.addQuote() = PdfHighlightChange_AddQuote;
   const factory PdfHighlightChange.delete() = PdfHighlightChange_Delete;
 }
@@ -4016,6 +4018,11 @@ sealed class PreviewBlock with _$PreviewBlock {
     String? url,
     required String summary,
   }) = PreviewBlock_PdfNotes;
+  const factory PreviewBlock.canvas({
+    required String note,
+    String? group,
+    required PreviewCanvasShown shown,
+  }) = PreviewBlock_Canvas;
   const factory PreviewBlock.failed({
     required String badge,
     required String detail,
@@ -4034,6 +4041,27 @@ sealed class PreviewBlock with _$PreviewBlock {
   const factory PreviewBlock.html({
     required String text,
   }) = PreviewBlock_Html;
+}
+
+enum PreviewCanvasNotice {
+  wholeCanvas,
+  groupMissing,
+}
+
+@freezed
+sealed class PreviewCanvasShown with _$PreviewCanvasShown {
+  const PreviewCanvasShown._();
+
+  const factory PreviewCanvasShown.drawing({
+    required PreviewSvg svg,
+    required List<PreviewCanvasNotice> notices,
+  }) = PreviewCanvasShown_Drawing;
+  const factory PreviewCanvasShown.locked() = PreviewCanvasShown_Locked;
+  const factory PreviewCanvasShown.missing() = PreviewCanvasShown_Missing;
+  const factory PreviewCanvasShown.notCanvas() = PreviewCanvasShown_NotCanvas;
+  const factory PreviewCanvasShown.invalid({
+    required String message,
+  }) = PreviewCanvasShown_Invalid;
 }
 
 class PreviewCell {

@@ -22,6 +22,7 @@ mod graph;
 mod history;
 mod home;
 mod home_model;
+mod ink_text;
 mod library_key;
 mod library_key_model;
 mod loops;
@@ -76,6 +77,7 @@ pub use graph::{GraphLink, GraphNote};
 pub use home_model::{
     HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,
 };
+pub use ink_text::{InkNote, InkScan};
 pub use library_key_model::{KEY_BYTES, LibraryFile, LibraryKey};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
@@ -109,7 +111,7 @@ pub use replace::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
-pub use trash_model::{Emptied, TrashCounts};
+pub use trash_model::{Emptied, FileDrop, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use write::{Put, WriteResult};
 

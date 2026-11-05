@@ -6,10 +6,13 @@
 //! The drawing covers an area of the canvas: a group's rectangle or the
 //! bounds of the content, never an unbounded surface.
 
+pub mod embed;
+mod embed_model;
 pub mod excalidraw;
 pub mod geometry;
 pub mod obsidian;
 pub mod pen;
+pub mod recognize;
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -60,6 +63,9 @@ pub struct Scene<'a> {
     pub titles: Option<&'a HashMap<String, String>>,
     /// Whether to leave the page colour out, for an overlay.
     pub transparent: bool,
+    /// The width to show the drawing at, in points; its height follows.
+    /// `None` is the area's own size, scaled down to [`MAX_SIDE`].
+    pub width: Option<f64>,
 }
 
 /// The area `canvas` is drawn over: `area` when given, else the content's
@@ -85,7 +91,10 @@ pub fn render(canvas: &Canvas, scene: &Scene, palette: &Palette) -> Outcome {
     {
         return Err(Failure::Invalid("The canvas has no area to show.".into()));
     }
-    let scale = (MAX_SIDE / area.width.max(area.height)).min(1.0);
+    let scale = match scene.width.filter(|w| w.is_finite() && *w > 0.0) {
+        Some(width) => width / area.width,
+        None => (MAX_SIDE / area.width.max(area.height)).min(1.0),
+    };
     let (w, h) = ((area.width * scale) as f32, (area.height * scale) as f32);
     let mut body = String::new();
     if !scene.transparent {
@@ -145,6 +154,7 @@ pub fn render(canvas: &Canvas, scene: &Scene, palette: &Palette) -> Outcome {
         width: w,
         height: h,
         baseline: None,
+        notices: Vec::new(),
     })
 }
 

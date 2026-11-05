@@ -85,6 +85,7 @@ fn page_text(page: u32, lines: &[&str]) -> PageText {
                     ch,
                     quad: Quad::new(x, y0, x + 0.02, y0 + 0.025),
                     turns: 0,
+                    space_before: false,
                 });
                 x += 0.02;
             }

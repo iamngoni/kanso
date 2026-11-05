@@ -432,3 +432,135 @@ fn one_session_folder_is_found_and_finished_after_a_refused_write() {
     assert!(finished.session.samples >= secs(5) as u64);
     assert_eq!(finished.session.state, SessionState::Stopped);
 }
+
+/// A tone at `hz` of `samples` samples at `rate`.
+fn pure_tone(samples: usize, rate: u32, hz: f32, level: f32) -> Vec<f32> {
+    (0..samples)
+        .map(|i| level * (std::f32::consts::TAU * hz * i as f32 / rate as f32).sin())
+        .collect()
+}
+
+/// Two sources on different rates and clocks become one stereo recording:
+/// you on the left, the meeting on the right, as long as the clock says.
+#[test]
+fn both_sources_are_written_as_left_you_and_right_meeting() {
+    use kanso_audio::MixPipeline;
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let mut o = RecorderOptions::new(
+        Channels::Stereo,
+        vec![RecordSource::Microphone, RecordSource::SystemAudio],
+    );
+    o.id = Some("both".into());
+    let recorder = Recorder::create(&root, o).unwrap();
+    let mut pipeline = MixPipeline::new(recorder, 44_100, 48_000).unwrap();
+    // You say something loud for five seconds; the meeting is quiet.
+    let you = pure_tone(44_100 * 5, 44_100, 300.0, 0.6);
+    let meeting = pure_tone(48_000 * 5, 48_000, 500.0, 0.05);
+    for (a, b) in you.chunks(882).zip(meeting.chunks(960)) {
+        pipeline.feed_you(a);
+        pipeline.feed_meeting(b);
+        pipeline.flush().unwrap();
+    }
+    let finished = pipeline.finish().unwrap();
+    assert_eq!(finished.session.channels, 2);
+    assert_eq!(finished.session.sources.len(), 2);
+    assert_eq!(finished.session.samples, secs(5) as u64);
+    let mut reader = OpusReader::open(fs::File::open(&finished.parts[0].0).unwrap()).unwrap();
+    assert_eq!(reader.info().channels, Channels::Stereo);
+    let pcm = reader.read_to_end().unwrap();
+    let (mut left, mut right) = (0.0f64, 0.0f64);
+    for &[l, r] in pcm.as_chunks::<2>().0 {
+        left += f64::from(l).powi(2);
+        right += f64::from(r).powi(2);
+    }
+    assert!(left > right * 20.0, "{left} vs {right}");
+    assert_eq!(
+        kanso_audio::speaker_of(left, right),
+        Some(kanso_audio::Speaker::You)
+    );
+}
+
+/// A mono recorder is refused by the stereo pipeline.
+#[test]
+fn the_stereo_pipeline_wants_a_stereo_recorder() {
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let recorder = Recorder::create(&root, options()).unwrap();
+    assert!(kanso_audio::MixPipeline::new(recorder, 48_000, 48_000).is_err());
+}
+
+/// A recording with both sources that a crash cut off is found and
+/// finished as what it was: two channels, both sources, you still on the
+/// left and the meeting on the right.
+#[test]
+fn a_mixed_recording_a_crash_left_is_recovered_in_stereo() {
+    use kanso_audio::MixPipeline;
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let mut o = RecorderOptions::new(
+        Channels::Stereo,
+        vec![RecordSource::Microphone, RecordSource::SystemAudio],
+    );
+    o.id = Some("crashed-call".into());
+    let recorder = Recorder::create(&root, o).unwrap();
+    let mut pipeline = MixPipeline::new(recorder, 48_000, 48_000).unwrap();
+    // The meeting is loud this time; you are quiet.
+    let you = pure_tone(secs(6), 48_000, 300.0, 0.03);
+    let meeting = pure_tone(secs(6), 48_000, 500.0, 0.6);
+    for (a, b) in you.chunks(960).zip(meeting.chunks(960)) {
+        pipeline.feed_you(a);
+        pipeline.feed_meeting(b);
+        pipeline.flush().unwrap();
+    }
+    // The app dies: nothing is finished or closed.
+    std::mem::forget(pipeline);
+    let found = scan(&root, None);
+    assert_eq!(found.len(), 1);
+    let finished = recover(&found[0]).unwrap();
+    assert_eq!(finished.session.channels, 2);
+    assert_eq!(
+        finished.session.sources,
+        vec![RecordSource::Microphone, RecordSource::SystemAudio]
+    );
+    assert!(finished.session.samples >= secs(5) as u64);
+    let mut reader = OpusReader::open(fs::File::open(&finished.parts[0].0).unwrap()).unwrap();
+    assert_eq!(reader.info().channels, Channels::Stereo);
+    let pcm = reader.read_to_end().unwrap();
+    let (mut left, mut right) = (0.0f64, 0.0f64);
+    for &[l, r] in pcm.as_chunks::<2>().0 {
+        left += f64::from(l).powi(2);
+        right += f64::from(r).powi(2);
+    }
+    assert_eq!(
+        kanso_audio::speaker_of(left, right),
+        Some(kanso_audio::Speaker::Meeting),
+        "{left} vs {right}"
+    );
+}
+
+/// The 7-day sweep (issue #38, step 11) never deletes audio Recover could
+/// still save, however old the folder: only folders with nothing playable go.
+#[test]
+fn the_sweep_keeps_a_crashed_recording_and_clears_an_empty_one() {
+    use kanso_audio::sweep::{KEEP_MS, sweep_in_progress};
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let mut o = options();
+    o.id = Some("crashed-old".into());
+    let mut recorder = Recorder::create(&root, o).unwrap();
+    recorder.push(&tone(secs(3), SAMPLE_RATE)).unwrap();
+    let dir = kill(recorder);
+    fs::create_dir_all(root.join("empty-old")).unwrap();
+    fs::write(root.join("empty-old").join(part_file_name(0)), b"Ogg").unwrap();
+    // A year from now, nobody having touched either.
+    let later = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+        + 365 * 24 * 60 * 60 * 1000;
+    let report = sweep_in_progress(&root, &[], later, KEEP_MS);
+    assert_eq!(report.removed, vec!["empty-old".to_owned()]);
+    assert!(dir.is_dir());
+    assert_eq!(scan(&root, None).len(), 1);
+}

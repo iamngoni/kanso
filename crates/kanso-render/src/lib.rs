@@ -23,6 +23,7 @@ mod mermaid;
 pub mod pdf_notes;
 mod pele;
 pub mod plugin;
+pub mod raster;
 mod rough;
 pub mod svg;
 pub mod typography;
@@ -154,6 +155,9 @@ pub enum Kind {
     Excalidraw,
     /// A fence in a language a plugin draws; see [`Job::plugin`].
     Plugin,
+    /// A canvas note's body, shown where a `canvas` fence embeds it; see
+    /// [`Job::canvas`] and [`canvas::embed`].
+    Canvas,
 }
 
 /// One thing to draw.
@@ -168,6 +172,9 @@ pub struct Job {
     /// For [`Kind::Plugin`]: the fence's language (lowercase). `None` for
     /// every other kind.
     pub language: Option<Arc<str>>,
+    /// For [`Kind::Canvas`]: which part of the canvas, at what width. `None`
+    /// for every other kind.
+    pub canvas: Option<Arc<canvas::embed::Spec>>,
 }
 
 impl Job {
@@ -179,6 +186,7 @@ impl Job {
             palette,
             mermaid: mermaid::engine(),
             language: None,
+            canvas: None,
         }
     }
 }
@@ -192,6 +200,9 @@ pub struct Svg {
     pub height: f32,
     /// For inline math: how far below the top the text's baseline falls.
     pub baseline: Option<f32>,
+    /// What to tell the reader about a canvas embed; empty for every other
+    /// drawing.
+    pub notices: Vec<canvas::embed::Notice>,
 }
 
 /// Why a source wasn't drawn. The preview shows its source instead, with
@@ -238,6 +249,7 @@ pub fn render(job: &Job) -> Outcome {
         Kind::Mermaid => mermaid::render_with(job.mermaid, &job.source, &job.palette),
         Kind::Excalidraw => excalidraw::render(&job.source, &job.palette),
         Kind::Plugin => plugin::render(job),
+        Kind::Canvas => canvas::embed::render(job),
     }
 }
 

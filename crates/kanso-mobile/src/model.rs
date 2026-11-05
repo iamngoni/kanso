@@ -1746,6 +1746,13 @@ pub enum PreviewBlock {
         url: Option<String>,
         summary: String,
     },
+    /// A `canvas` fence: the canvas note `note` (and its `group`, if any),
+    /// and what it shows. A tap on the picture opens the canvas.
+    Canvas {
+        note: String,
+        group: Option<String>,
+        shown: PreviewCanvasShown,
+    },
     /// A source that couldn't be drawn: its code with a badge saying why
     /// (`detail` for a tooltip, maybe empty), and its copy button's number
     /// when it is a fence.
@@ -1859,6 +1866,33 @@ pub struct PreviewSvg {
     pub width: f32,
     pub height: f32,
     pub baseline: Option<f32>,
+}
+
+/// What a canvas embed shows. A locked canvas carries nothing of itself.
+#[derive(Clone, Debug, PartialEq)]
+pub enum PreviewCanvasShown {
+    /// The canvas, drawn, and what to tell the reader beside it.
+    Drawing {
+        svg: PreviewSvg,
+        notices: Vec<PreviewCanvasNotice>,
+    },
+    /// A lock and "Locked canvas".
+    Locked,
+    /// The note is gone.
+    Missing,
+    /// The note is not a canvas.
+    NotCanvas,
+    /// The canvas can't be drawn; why.
+    Invalid { message: String },
+}
+
+/// Something said beside a canvas embed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreviewCanvasNotice {
+    /// The whole canvas is embedded and it is large: name a group.
+    WholeCanvas,
+    /// The named group is gone; the content is shown.
+    GroupMissing,
 }
 
 /// What a figure is.
@@ -2065,6 +2099,32 @@ mod preview_blocks {
                 },
                 Block::EmptyDrawing => PreviewBlock::EmptyDrawing,
                 Block::PdfNotes { url, summary } => PreviewBlock::PdfNotes { url, summary },
+                Block::Canvas { note, group, shown } => {
+                    use kanso_render::canvas::embed::{Notice, Shown};
+                    PreviewBlock::Canvas {
+                        note,
+                        group,
+                        shown: match shown {
+                            Shown::Drawing(svg) => PreviewCanvasShown::Drawing {
+                                notices: svg
+                                    .notices
+                                    .iter()
+                                    .map(|notice| match notice {
+                                        Notice::WholeCanvas => PreviewCanvasNotice::WholeCanvas,
+                                        Notice::GroupMissing => PreviewCanvasNotice::GroupMissing,
+                                    })
+                                    .collect(),
+                                svg: svg.into(),
+                            },
+                            Shown::Locked => PreviewCanvasShown::Locked,
+                            // Only a published notebook's pages leave a
+                            // canvas out as elsewhere; never the phone's.
+                            Shown::Missing | Shown::Elsewhere => PreviewCanvasShown::Missing,
+                            Shown::NotCanvas => PreviewCanvasShown::NotCanvas,
+                            Shown::Invalid(message) => PreviewCanvasShown::Invalid { message },
+                        },
+                    }
+                }
                 Block::Failed {
                     badge,
                     detail,

@@ -260,6 +260,7 @@ fn finish(markup: &str) -> Outcome {
         width: flat.width,
         height: flat.height,
         baseline: None,
+        notices: Vec::new(),
     })
 }
 

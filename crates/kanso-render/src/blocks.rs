@@ -76,6 +76,13 @@ pub enum Block {
         url: Option<String>,
         summary: String,
     },
+    /// A `canvas` fence: the canvas note it names (and the group, if any),
+    /// and what it shows. A locked canvas is a placeholder, never drawn.
+    Canvas {
+        note: String,
+        group: Option<String>,
+        shown: crate::canvas::embed::Shown,
+    },
     /// A source that couldn't be drawn: its code, with a badge saying why
     /// and the details. `copy` is its `kanso-copy:` number when it is a fence.
     Failed {
@@ -669,6 +676,17 @@ impl<'a> Walk<'a> {
             }
             let outcome = self.draw(Kind::Excalidraw, &code.value);
             return self.figure(outcome, FigureKind::Drawing, lang, &code.value, copy);
+        }
+        if is("canvas")
+            && let Some(notes) = self.mode.notes
+            && let Some(embed) = kanso_core::canvas::embed::parse(&code.value)
+        {
+            let shown = crate::canvas::embed::show(&embed, notes, &self.palette);
+            return Block::Canvas {
+                note: embed.note,
+                group: embed.group,
+                shown,
+            };
         }
         if let Some(plugin) = code
             .lang

@@ -26,8 +26,9 @@ use kanso_audio::system_audio::{
 };
 use kanso_audio::{CaptureApp, MEETING_APPS, ScreenAccess};
 use kanso_engine::recording_flow::{
-    Destination, RecordPlan, SystemSource, TranscribeWhen, WhatToRecord,
+    Destination, KeepAudio, RecordPlan, SystemSource, TranscribeWhen, WhatToRecord,
 };
+use kanso_engine::recording_privacy::BACKUP_WARNING;
 
 use crate::recording;
 use crate::theme::Colors;
@@ -180,6 +181,12 @@ impl RecordSheet {
         cx.notify();
     }
 
+    /// Picks what becomes of the audio once it is transcribed.
+    pub(crate) fn choose_keep(&mut self, keep: KeepAudio, cx: &mut Context<Self>) {
+        self.plan.keep = keep;
+        cx.notify();
+    }
+
     /// Picks what to record. Turning system audio on lists the running apps
     /// and, the first time, asks macOS for Screen Recording; the microphone
     /// alone never does.
@@ -255,6 +262,26 @@ impl RecordSheet {
         self.plan.system = Some(source);
         cx.notify();
     }
+}
+
+/// The reminder under a choice that records system audio: whose sound is
+/// recorded (the app on a Mac, else what the computer plays), with the
+/// microphone named only when it records too. Pure.
+fn consent_words(what: WhatToRecord, app_mode: bool, system: Option<&SystemSource>) -> String {
+    let mine = match (what.uses_microphone(), app_mode) {
+        (false, _) => "",
+        (true, true) => "this Mac's microphone and ",
+        (true, false) => "the microphone and ",
+    };
+    let whose = match (system, app_mode) {
+        (_, false) => "what the computer plays".to_owned(),
+        (Some(SystemSource::App { name, .. }), true) => format!("{name}'s audio"),
+        (Some(SystemSource::Everything), true) => "everything this Mac plays".to_owned(),
+        (None, true) => "the app's audio".to_owned(),
+    };
+    format!(
+        "Kanso records {mine}{whose}. Make sure everyone in the meeting knows. Recording rules differ by place."
+    )
 }
 
 /// One option of a row: selected, or disabled with a reason.
@@ -422,25 +449,11 @@ impl Render for RecordSheet {
         let open_note = self.open_note.clone();
         let this_note = open_note.clone();
         let what = self.plan.what;
+        let keep = self.plan.keep;
         let system_off: Option<SharedString> = self.system_disabled().map(Into::into);
-        let consent = what.uses_system().then(|| {
-            let whose = match (&self.plan.system, self.app_mode) {
-                (_, false) => "what the computer plays".to_owned(),
-                (Some(SystemSource::App { name, .. }), true) => format!("{name}'s audio"),
-                (Some(SystemSource::Everything), true) => "everything this Mac plays".to_owned(),
-                (None, true) => "the app's audio".to_owned(),
-            };
-            let mine = if !self.app_mode {
-                "the microphone and "
-            } else if what.uses_microphone() {
-                "this Mac's microphone and "
-            } else {
-                ""
-            };
-            format!(
-                "Kanso records {mine}{whose}. Make sure everyone in the meeting knows. Recording rules differ by place."
-            )
-        });
+        let consent = what
+            .uses_system()
+            .then(|| consent_words(what, self.app_mode, self.plan.system.as_ref()));
         let problem = self.plan.problem();
         v_flex()
             .w_full()
@@ -559,6 +572,46 @@ impl Render for RecordSheet {
                         None,
                     )),
             ))
+            .child(row(
+                "After transcribing",
+                colors,
+                h_flex()
+                    .gap(px(6.))
+                    .child(
+                        option(
+                            "rec-keep-audio",
+                            "Keep audio",
+                            keep == KeepAudio::Keep,
+                            None,
+                        )
+                        .on_click(
+                            cx.listener(|this, _, _, cx| this.choose_keep(KeepAudio::Keep, cx)),
+                        ),
+                    )
+                    .child(
+                        option(
+                            "rec-keep-transcript",
+                            "Keep transcript only",
+                            keep == KeepAudio::TranscriptOnly,
+                            None,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.choose_keep(KeepAudio::TranscriptOnly, cx)
+                        })),
+                    ),
+            ))
+            .when(keep == KeepAudio::TranscriptOnly, |sheet| {
+                sheet.child(
+                    div()
+                        .debug_selector(|| "rec-keep-warning".into())
+                        .child(note(
+                            format!(
+                                "The audio is deleted once the transcript is in the note. If the transcript fails, the audio stays. {BACKUP_WARNING}"
+                            ),
+                            colors,
+                        )),
+                )
+            })
             .when_some(problem, |sheet, problem| {
                 sheet.child(
                     div()
@@ -595,6 +648,7 @@ pub fn open_for_snapshot(
     system: Availability,
     outputs: Vec<SystemAudioDevice>,
     what: WhatToRecord,
+    keep: KeepAudio,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -604,7 +658,10 @@ pub fn open_for_snapshot(
         system: None,
         backend: Some((system, outputs)),
     };
-    open_with(None, Some(fixed), window, cx);
+    let sheet = open_with(None, Some(fixed), window, cx);
+    if let Some(sheet) = sheet {
+        sheet.update(cx, |sheet, cx| sheet.choose_keep(keep, cx));
+    }
 }
 
 /// Opens the sheet over a fixed machine and choice (the snapshots), or the
@@ -614,7 +671,7 @@ pub fn open_with(
     fixed: Option<Fixed>,
     window: &mut Window,
     cx: &mut App,
-) {
+) -> Option<Entity<RecordSheet>> {
     if recording::busy(cx) {
         window.push_notification(
             gpui_kit::component::notification::Notification::info(
@@ -622,10 +679,11 @@ pub fn open_with(
             ),
             cx,
         );
-        return;
+        return None;
     }
     let sheet = cx.new(|cx| RecordSheet::new(open_note, fixed, cx));
     let body = sheet.clone();
+    let opened = sheet.clone();
     window.open_alert_dialog(cx, move |alert, _, _| {
         let start = body.clone();
         alert
@@ -667,17 +725,20 @@ pub fn open_with(
                     ),
             )
     });
+    Some(opened)
 }
 
 #[cfg(test)]
 mod tests {
     // Not `super::*`: it brings `gpui_kit::*`'s `test`, which `#[test]`
     // inside `gpui_kit::test` would then expand into forever.
-    use super::{Fixed, Machine, RecordSheet};
+    use super::{Fixed, Machine, RecordSheet, consent_words};
     use gpui_kit::{AppContext as _, TestAppContext};
     use kanso_audio::ScreenAccess;
     use kanso_audio::system_audio::{Availability, SystemAudioDevice};
     use kanso_engine::recording_flow::{SystemSource, WhatToRecord};
+    use proptest::prelude::*;
+    use proptest::test_runner::{FileFailurePersistence, RngSeed};
 
     fn device_machine(what: WhatToRecord) -> Fixed {
         Fixed {
@@ -740,5 +801,42 @@ mod tests {
             )
         });
         cx.read(|cx| assert!(sheet.read(cx).plan().problem().is_some()));
+    }
+
+    fn what() -> impl Strategy<Value = WhatToRecord> {
+        prop_oneof![
+            Just(WhatToRecord::Microphone),
+            Just(WhatToRecord::MicrophoneAndSystem),
+            Just(WhatToRecord::SystemOnly),
+        ]
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// The reminder names the microphone exactly when it records (System
+        /// Audio alone never claims it), and names an app only on a Mac.
+        #[test]
+        fn prop_consent_names_what_is_recorded(
+            what in what(),
+            app_mode in any::<bool>(),
+            app in proptest::option::of("[A-Z][a-z]{2,8}"),
+        ) {
+            let source = app.clone().map(|name| SystemSource::App {
+                bundle_id: format!("com.{name}"),
+                name,
+            });
+            let words = consent_words(what, app_mode, source.as_ref());
+            prop_assert_eq!(words.contains("microphone"), what.uses_microphone());
+            prop_assert_eq!(words.contains("what the computer plays"), !app_mode);
+            if let Some(name) = &app {
+                prop_assert_eq!(words.contains(&format!("{name}'s audio")), app_mode);
+            }
+        }
     }
 }
