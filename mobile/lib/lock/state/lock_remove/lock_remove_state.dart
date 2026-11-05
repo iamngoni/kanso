@@ -12,5 +12,8 @@ abstract class LockRemoveState with _$LockRemoveState {
     /// Why it failed, with [RemoveStatus.failed]. An invalid request carries
     /// the library's own sentence, which the sheet shows as it is.
     ApplicationError? error,
+
+    /// How far unsealing the files has come, while removing.
+    SealProgress? progress,
   }) = _LockRemoveState;
 }

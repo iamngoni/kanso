@@ -126,6 +126,8 @@ pub struct Preview {
     store: Arc<Store>,
     images: Arc<Mutex<HashMap<String, Option<Arc<Image>>>>>,
     opened_files: OpenedFiles,
+    /// The file keys of the notes this session has open.
+    files: crate::attachments::FileKeys,
     links: LinkSender,
     /// Where a ticked task box goes.
     edits: ResizeSender,
@@ -160,16 +162,19 @@ impl Preview {
             let (store, opened) = (store.clone(), opened_files.clone());
             cx.new(|cx| RecordingPlayer::new(store, opened, cx))
         };
+        let files = crate::attachments::FileKeys::of(cx);
         let resolver: ImageResolver = Arc::new(image_resolver(
             store.clone(),
             images.clone(),
             opened_files.clone(),
+            files.clone(),
         ));
         let (wake, woken) = async_channel::unbounded();
         let note = Arc::new(Mutex::new(None));
         let rich = Arc::new(Rich {
             wake,
             store: store.clone(),
+            files: files.clone(),
             edits: resizes.clone(),
             links: links.clone(),
             note: note.clone(),
@@ -207,6 +212,7 @@ impl Preview {
             store,
             images,
             opened_files,
+            files,
             links,
             edits,
             readable: false,
@@ -222,6 +228,21 @@ impl Preview {
     /// The recording player this preview has.
     pub fn player(&self) -> &Entity<RecordingPlayer> {
         &self.player
+    }
+
+    /// Draws attachment `id` as a link in the text would, and says whether a
+    /// picture came out (tests).
+    #[cfg(test)]
+    pub fn resolve_for_test(&self, id: &str) -> bool {
+        let uri = SharedUri::from(format!("{FILE_LINK_PREFIX}{}", &id[5..]));
+        matches!((self.image_resolver())(&uri), ImageSource::Image(_))
+    }
+
+    /// How many pictures and files' bytes the preview holds decoded (tests).
+    #[cfg(test)]
+    pub fn decoded_for_test(&self) -> usize {
+        self.images.lock().map_or(0, |images| images.len())
+            + self.opened_files.lock().map_or(0, |files| files.len())
     }
 
     /// The note the preview shows, so a query view can leave it out.
@@ -270,6 +291,10 @@ impl Preview {
             } else {
                 files.clear();
                 locked_away = true;
+                // What was decoded from them goes too.
+                if let Ok(mut images) = self.images.lock() {
+                    images.clear();
+                }
             }
         }
         // The decrypted audio goes with the keys: the player stops and finds
@@ -596,6 +621,7 @@ impl Preview {
             self.store.clone(),
             self.images.clone(),
             self.opened_files.clone(),
+            self.files.clone(),
         )
     }
 }
@@ -630,6 +656,7 @@ fn image_resolver(
     store: Arc<Store>,
     images: Arc<Mutex<HashMap<String, Option<Arc<Image>>>>>,
     opened_files: OpenedFiles,
+    files: crate::attachments::FileKeys,
 ) -> impl Fn(&SharedUri) -> ImageSource + Send + Sync + 'static {
     move |uri| {
         let Some(suffix) = uri.strip_prefix(FILE_LINK_PREFIX) else {
@@ -649,8 +676,10 @@ fn image_resolver(
                     if !is_drawable_image(&meta.content_type, meta.content_length) {
                         return None;
                     }
-                    let (content_type, attachment) = store.attachment(&id).ok()??;
-                    (content_type, attachment.data)
+                    match crate::attachments::open_with(&store, &id, &files) {
+                        crate::attachments::Opened::Opened(file) => (file.content_type, file.bytes),
+                        _ => return None,
+                    }
                 }
             };
             if !is_drawable_image(&content_type, bytes.len() as u64) {
@@ -1534,6 +1563,7 @@ mod resolver_tests {
             store,
             Arc::new(Mutex::new(HashMap::new())),
             Arc::new(Mutex::new(HashMap::new())),
+            crate::attachments::FileKeys::default(),
         );
         let uri = |id: &str| SharedUri::from(format!("{FILE_LINK_PREFIX}{}", &id[5..]));
         assert!(matches!(resolve(&uri(&png)), ImageSource::Image(_)));

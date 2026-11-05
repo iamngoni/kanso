@@ -533,6 +533,75 @@ pub struct LockStatus {
     pub biometrics_on: bool,
 }
 
+/// Where sealing a note's pictures and files has got to: what a progress
+/// sheet shows while a note or notebook with many or large attachments locks.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SealProgress {
+    pub phase: SealPhase,
+    /// Files sealed, of `total`.
+    pub done: u32,
+    pub total: u32,
+    pub bytes_done: u64,
+    pub bytes_total: u64,
+}
+
+/// What a lock is doing.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SealPhase {
+    /// Reading the note and deciding what to seal.
+    #[default]
+    Preparing,
+    /// Encrypting the files, one by one.
+    Sealing,
+    /// Writing the locked note.
+    Locking,
+}
+
+impl From<kanso_engine::lock::files::Progress> for SealProgress {
+    fn from(progress: kanso_engine::lock::files::Progress) -> SealProgress {
+        use kanso_engine::lock::files::Phase;
+        SealProgress {
+            phase: match progress.phase {
+                Phase::Preparing => SealPhase::Preparing,
+                Phase::Sealing => SealPhase::Sealing,
+                Phase::Locking => SealPhase::Locking,
+            },
+            done: u32::try_from(progress.done).unwrap_or(u32::MAX),
+            total: u32::try_from(progress.total).unwrap_or(u32::MAX),
+            bytes_done: progress.bytes_done,
+            bytes_total: progress.bytes_total,
+        }
+    }
+}
+
+/// What locking a note or notebook would seal: the pictures and files it
+/// links that are not sealed yet. `shared` of them are also shown by notes
+/// that stay unlocked, so the locked note gets its own sealed copy.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LockSummary {
+    pub files: u32,
+    pub bytes: u64,
+    pub shared: u32,
+}
+
+impl From<kanso_engine::lock::files::Summary> for LockSummary {
+    fn from(summary: kanso_engine::lock::files::Summary) -> LockSummary {
+        LockSummary {
+            files: u32::try_from(summary.files).unwrap_or(u32::MAX),
+            bytes: summary.bytes,
+            shared: u32::try_from(summary.shared).unwrap_or(u32::MAX),
+        }
+    }
+}
+
+/// A lock that stopped between a note's files: the note is plain, `sealed` of
+/// its `files` are sealed, and it waits to be finished or undone.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InterruptedLock {
+    pub files: u32,
+    pub sealed: u32,
+}
+
 /// The lock session changed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LockEvent {

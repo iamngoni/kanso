@@ -27,4 +27,8 @@ enum LockFormStatus {
 
   /// It failed; see the state's error.
   failed,
+
+  /// Cancel stopped it between two files: the note waits to be finished or
+  /// undone.
+  stopped,
 }

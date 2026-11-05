@@ -12,6 +12,21 @@ use crate::mcp_setup::Agent;
 /// How long a refused request stays on the page.
 pub const REFUSED_SHOWN_FOR_MS: i64 = 24 * 60 * 60 * 1000;
 
+/// The title of the warning Settings shows when the local API listens on an
+/// address other devices can reach.
+pub const LAN_WARNING_TITLE: &str = "Keys travel unencrypted";
+
+/// The warning's words, from the design: binding to a LAN address sends keys
+/// unencrypted. They say how to fix it, too.
+pub const LAN_WARNING: &str = "Binding to a LAN address sends keys unencrypted, so anyone on the network can read them. Set the address to 127.0.0.1 to keep the API on this device.";
+
+/// Whether `bind_address` lets other devices reach the API: anything that
+/// isn't a loopback address. An address that doesn't parse counts as one
+/// that does, so a mistake errs towards the warning.
+pub fn is_lan_address(bind_address: &str) -> bool {
+    !matches!(bind_address.trim().parse::<std::net::IpAddr>(), Ok(ip) if ip.is_loopback())
+}
+
 /// What a key is for: the "For" choice of the New key sheet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Client {
@@ -270,7 +285,35 @@ mod tests {
         );
     }
 
+    #[test]
+    fn lan_address_examples() {
+        for lan in [
+            "0.0.0.0",
+            "192.168.1.5",
+            "10.0.0.2",
+            "::",
+            "fe80::1",
+            "nonsense",
+            "localhost",
+            "my-mac.local",
+            "",
+        ] {
+            assert!(is_lan_address(lan), "{lan}");
+        }
+        for local in ["127.0.0.1", "127.9.9.9", "::1", " 127.0.0.1 "] {
+            assert!(!is_lan_address(local), "{local}");
+        }
+    }
+
     proptest! {
+        /// Every 127.x.y.z address is quiet and every other IPv4 address
+        /// warns.
+        #[test]
+        fn prop_only_loopback_is_quiet(a in any::<u8>(), b in any::<u8>(), c in any::<u8>(), d in any::<u8>()) {
+            let addr = format!("{a}.{b}.{c}.{d}");
+            prop_assert_eq!(is_lan_address(&addr), a != 127);
+        }
+
         /// Whatever the time, the notice shows only inside the day after the
         /// refusal, and says the minute it happened.
         #[test]

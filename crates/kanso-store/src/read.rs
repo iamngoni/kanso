@@ -393,6 +393,25 @@ impl Store {
         })
     }
 
+    /// Live note IDs (the trash included) whose `kansoFiles` list names
+    /// `file_id`: the notes holding a wrapped key for it. Unlike
+    /// [`Store::file_owners`] this includes a plain note carrying a stopped
+    /// lock's list, and a sealed copy its text doesn't link yet.
+    pub fn file_key_holders(&self, file_id: &str) -> Result<Vec<String>> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT DISTINCT d.id FROM docs d, json_each(d.json, '$.kansoFiles') je
+                 WHERE d.type = 'note' AND d.deleted = 0
+                   AND json_type(d.json, '$.kansoFiles') = 'array'
+                   AND json_extract(je.value, '$.file') = ?1
+                 ORDER BY d.id",
+            )?;
+            Ok(stmt
+                .query_map([file_id], |row| row.get(0))?
+                .collect::<rusqlite::Result<_>>()?)
+        })
+    }
+
     /// The live document with `id`.
     pub fn get(&self, id: &str) -> Result<Option<Doc>> {
         self.read(|conn| live_doc(conn, id))
@@ -681,6 +700,23 @@ impl Store {
             let mut stmt = conn.prepare(
                 "SELECT id FROM docs WHERE type = 'note' AND deleted = 0
                  AND json_extract(json, '$.kansoLock') IS NOT NULL ORDER BY id",
+            )?;
+            let rows = stmt.query_map([], |row| row.get(0))?;
+            Ok(rows.collect::<rusqlite::Result<_>>()?)
+        })?;
+        ids.iter()
+            .filter_map(|id| self.note(id).transpose())
+            .collect()
+    }
+
+    /// Live notes (the trash included) that aren't locked but carry a
+    /// `kansoFiles` list: a lock that stopped between the note's files.
+    pub fn plain_notes_with_files(&self) -> Result<Vec<Note>> {
+        let ids: Vec<String> = self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id FROM docs WHERE type = 'note' AND deleted = 0
+                 AND json_extract(json, '$.kansoLock') IS NULL
+                 AND json_type(json, '$.kansoFiles') = 'array' ORDER BY id",
             )?;
             let rows = stmt.query_map([], |row| row.get(0))?;
             Ok(rows.collect::<rusqlite::Result<_>>()?)
