@@ -44,6 +44,13 @@ fn list() -> &'static [&'static str; 2048] {
     bip39::Language::English.word_list()
 }
 
+/// Whether `word`, in any case, is one of the library key words. The app
+/// uses it to keep a key written out as words out of error text.
+pub fn is_key_word(word: &str) -> bool {
+    let word = word.to_ascii_lowercase();
+    list().binary_search(&word.as_str()).is_ok()
+}
+
 /// Characters a copy and paste can slip into a word without showing them:
 /// zero-width spaces and joiners, the word joiner, the byte-order mark and
 /// the soft hyphen. They are dropped, so "aban\u{200b}don" reads "abandon".
@@ -366,6 +373,19 @@ mod tests {
             prop_assert_eq!(words.split(' ').count(), KEY_WORDS);
             prop_assert!(words.split(' ').all(|w| list().contains(&w)));
             prop_assert_eq!(LibraryKey::from_words(&words), Ok(key));
+        }
+
+        /// Invariants: every word of a key, in any case, is a key word, and
+        /// `is_key_word` agrees with the list for any short word.
+        #[test]
+        fn prop_is_key_word_matches_the_list(
+            bytes in any::<[u8; KEY_BYTES]>(),
+            other in "[a-z]{3,8}",
+        ) {
+            let words = LibraryKey::from_bytes(bytes).to_words();
+            prop_assert!(words.split(' ').all(is_key_word));
+            prop_assert!(words.split(' ').all(|w| is_key_word(&w.to_ascii_uppercase())));
+            prop_assert_eq!(is_key_word(&other), list().contains(&other.as_str()));
         }
 
         /// Invariants: the words are standard BIP-39. The `bip39` crate
