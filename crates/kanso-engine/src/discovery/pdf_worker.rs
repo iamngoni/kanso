@@ -158,7 +158,9 @@ fn known_pdf() -> Vec<u8> {
         out.extend_from_slice(format!("{} 0 obj\n{body}\nendobj\n", i + 1).as_bytes());
     }
     let xref = out.len();
-    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).as_bytes());
+    out.extend_from_slice(
+        format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).as_bytes(),
+    );
     for offset in offsets {
         out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
     }
@@ -214,7 +216,10 @@ mod tests {
         let xref = text.find("xref\n").unwrap();
         for (i, line) in text[xref..].lines().skip(3).take(5).enumerate() {
             let offset: usize = line[..10].parse().unwrap();
-            assert!(text[offset..].starts_with(&format!("{} 0 obj", i + 1)), "{line}");
+            assert!(
+                text[offset..].starts_with(&format!("{} 0 obj", i + 1)),
+                "{line}"
+            );
         }
         assert!(text.ends_with("%%EOF\n"));
     }
