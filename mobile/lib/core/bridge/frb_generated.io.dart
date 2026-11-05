@@ -2115,6 +2115,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LockStatus dco_decode_lock_status(dynamic raw);
 
   @protected
+  LockSummary dco_decode_lock_summary(dynamic raw);
+
+  @protected
   LockedInfo dco_decode_locked_info(dynamic raw);
 
   @protected
@@ -5147,6 +5150,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   LockStatus sse_decode_lock_status(SseDeserializer deserializer);
+
+  @protected
+  LockSummary sse_decode_lock_summary(SseDeserializer deserializer);
 
   @protected
   LockedInfo sse_decode_locked_info(SseDeserializer deserializer);
@@ -8915,6 +8921,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_lock_status(LockStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lock_summary(LockSummary self, SseSerializer serializer);
 
   @protected
   void sse_encode_locked_info(LockedInfo self, SseSerializer serializer);

@@ -3,7 +3,8 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    InterruptedLock, KansoError, LockEvent, LockSession, LockStatus, Saved, SealProgress,
+    InterruptedLock, KansoError, LockEvent, LockSession, LockStatus, LockSummary, Saved,
+    SealProgress,
 };
 
 #[frb(opaque)]
@@ -97,6 +98,27 @@ impl KansoLocks {
 
     pub fn turn_off_biometrics(&self) -> Result<(), KansoError> {
         self.0.turn_off_biometrics()
+    }
+
+    /// What locking note `id` would seal.
+    pub fn note_lock_summary(&self, id: String) -> Result<LockSummary, KansoError> {
+        self.0.note_lock_summary(&id)
+    }
+
+    /// What locking notebook `book_id` would seal.
+    pub fn notebook_lock_summary(&self, book_id: String) -> Result<LockSummary, KansoError> {
+        self.0.notebook_lock_summary(&book_id)
+    }
+
+    /// Stops the lock in progress between two files.
+    pub fn cancel_lock(&self) {
+        self.0.cancel_lock();
+    }
+
+    /// Whether the phone should say, once, that notes locked before this
+    /// update sealed their attachments.
+    pub fn take_sealed_files_notice(&self) -> Result<bool, KansoError> {
+        self.0.take_sealed_files_notice()
     }
 
     /// How far sealing a locking note's pictures and files has come, until

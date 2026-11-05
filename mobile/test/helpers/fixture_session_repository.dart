@@ -34,7 +34,10 @@ class FixtureSessionRepository implements SessionRepository {
   final StreamController<LockEvent> events =
       StreamController<LockEvent>.broadcast();
 
-  Future<void> close() => events.close();
+  Future<void> close() async {
+    await events.close();
+    await progress.close();
+  }
 
   Either<ApplicationError, T> _answer<T>(String call, T value) {
     calls.add(call);
@@ -121,8 +124,13 @@ class FixtureSessionRepository implements SessionRepository {
     return _answer('lockNote:$id', Saved(id: id, rev: 'r2'));
   }
 
+  /// When set, locking a note with the session waits for it: a lock that is
+  /// still sealing its files.
+  Completer<void>? gate;
+
   @override
   Future<Either<ApplicationError, Saved>> lockNoteWithSession(String id) async {
+    await gate?.future;
     if (!unlocked) {
       return const Left<ApplicationError, Saved>(
         ApplicationError.locked(message: 'The note is locked.'),
@@ -209,4 +217,85 @@ class FixtureSessionRepository implements SessionRepository {
 
   @override
   Stream<LockEvent> lockEvents() => events.stream;
+
+  /// What locking any note or notebook would seal.
+  LockSummary summary = const LockSummary(files: 0, bytes: 0, shared: 0);
+
+  /// The lock that stopped on a note, by default none.
+  InterruptedLock? stopped;
+
+  /// What [takeSealedFilesNotice] answers, once.
+  bool filesNotice = false;
+
+  final StreamController<SealProgress> progress =
+      StreamController<SealProgress>.broadcast();
+
+  @override
+  Future<Either<ApplicationError, LockSummary>> noteLockSummary(
+    String id,
+  ) async => Right<ApplicationError, LockSummary>(summary);
+
+  @override
+  Future<Either<ApplicationError, LockSummary>> notebookLockSummary(
+    String bookId,
+  ) async => Right<ApplicationError, LockSummary>(summary);
+
+  @override
+  Stream<SealProgress> lockProgress() => progress.stream;
+
+  @override
+  Future<Either<ApplicationError, Unit>> cancelLock() async {
+    gate?.complete();
+    return _answer('cancelLock', unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, InterruptedLock?>> interruptedLock(
+    String id,
+  ) async => Right<ApplicationError, InterruptedLock?>(stopped);
+
+  @override
+  Future<Either<ApplicationError, Saved>> finishLocking(
+    String id, {
+    String? password,
+  }) async {
+    if (!unlocked && password == null) {
+      return const Left<ApplicationError, Saved>(
+        ApplicationError.locked(message: 'The note is locked.'),
+      );
+    }
+    if (password != null && password != this.password) {
+      return const Left<ApplicationError, Saved>(
+        ApplicationError.auth(message: "That isn't the lock password."),
+      );
+    }
+    stopped = null;
+    return _answer('finishLocking:$id', Saved(id: id, rev: 'r2'));
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> undoLocking(
+    String id, {
+    String? password,
+  }) async {
+    if (!unlocked && password == null) {
+      return const Left<ApplicationError, Unit>(
+        ApplicationError.locked(message: 'The note is locked.'),
+      );
+    }
+    if (password != null && password != this.password) {
+      return const Left<ApplicationError, Unit>(
+        ApplicationError.auth(message: "That isn't the lock password."),
+      );
+    }
+    stopped = null;
+    return _answer('undoLocking:$id', unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, bool>> takeSealedFilesNotice() async {
+    final answer = filesNotice;
+    filesNotice = false;
+    return Right<ApplicationError, bool>(answer);
+  }
 }

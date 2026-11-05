@@ -24,6 +24,7 @@ import '../../../journal/views/widgets/day_stepper.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
 import '../../../journal/views/widgets/note_journal_actions.dart';
 import '../../../lock/models/data/note_menu_action.dart';
+import '../../../lock/views/widgets/interrupted_lock_host.dart';
 import '../../../lock/views/widgets/privacy_cover_sync.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
@@ -232,6 +233,12 @@ class NotePane extends StatelessWidget {
                               },
                             ),
                           ],
+                        ),
+                      if (readable && !focusActive)
+                        InterruptedLockHost(
+                          noteId: shown.noteId,
+                          revision: note.rev,
+                          gutter: gutter,
                         ),
                       if (hasStatus && readable && !focusActive)
                         SharedNoteStatusStrip(gutter: gutter),

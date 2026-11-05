@@ -2869,6 +2869,30 @@ class LockStatus {
           biometricsOn == other.biometricsOn;
 }
 
+class LockSummary {
+  final int files;
+  final int bytes;
+  final int shared;
+
+  const LockSummary({
+    required this.files,
+    required this.bytes,
+    required this.shared,
+  });
+
+  @override
+  int get hashCode => files.hashCode ^ bytes.hashCode ^ shared.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockSummary &&
+          runtimeType == other.runtimeType &&
+          files == other.files &&
+          bytes == other.bytes &&
+          shared == other.shared;
+}
+
 class LockedInfo {
   final String username;
   final String server;

@@ -20,11 +20,17 @@ use kanso_engine::lock::files::{self, Job, Progress};
 use kanso_engine::lock::{self, LockView, Target};
 use kanso_sync::lock::{Envelope, LockError, LockKey, LockPassword, SealId};
 
+/// Whether the notice about notes locked before attachments were sealed is
+/// waiting (`pending`) or was said (`said`) on this phone.
+const FILES_NOTICE_META: &str = "locks.files_notice";
+
 use crate::boundary::{guard, held};
 use crate::editing::Editors;
 use crate::errors::KansoError;
 use crate::library::{Inner, Library};
-use crate::model::{InterruptedLock, LockEvent, LockReason, LockStatus, Saved, SealProgress};
+use crate::model::{
+    InterruptedLock, LockEvent, LockReason, LockStatus, LockSummary, Saved, SealProgress,
+};
 
 /// One lock that exists: a note's or notebook's envelope, and how many
 /// notes and notebooks share its salt and parameters.
@@ -337,9 +343,13 @@ impl LockSession {
                 .ok_or(KansoError::Locked)?;
             // Each file is decrypted back, or copied when another locked note
             // still shows it, so that note keeps its sealed copy.
-            let (body, _) =
-                files::unseal_or_copy(&self.inner.store, &mut note, &key, &mut |_| Ok(()))
-                    .map_err(files_error)?;
+            let events = &self.inner.seal_progress;
+            let mut watch = |progress: &Progress| {
+                events.send(SealProgress::from(*progress));
+                Ok(())
+            };
+            let (body, _) = files::unseal_or_copy(&self.inner.store, &mut note, &key, &mut watch)
+                .map_err(files_error)?;
             note.body = body;
             store_note_files(None, &mut note.extra);
             // The text as it is stays, now plain; its `#tags` count again.
@@ -381,6 +391,7 @@ impl LockSession {
     ) -> Result<u32, KansoError> {
         guard(|| {
             self.require_book(book_id)?;
+            self.inner.lock_cancelled.store(false, Ordering::SeqCst);
             if Target::of_book(book_id, &self.inner.store).is_some() {
                 return Err(KansoError::invalid("That notebook is locked already."));
             }
@@ -575,6 +586,8 @@ impl LockSession {
     /// Note `id`, which may be locked now: not sealed, and not in a locked
     /// notebook.
     fn lockable(&self, id: &str) -> Result<Note, KansoError> {
+        // A new lock starts: an earlier Cancel does not carry over.
+        self.inner.lock_cancelled.store(false, Ordering::SeqCst);
         let note = self.library().stored(id)?;
         if note.is_locked() || self.inner.store.note_in_locked_book(id)? {
             return Err(KansoError::invalid("That note is locked already."));
@@ -699,6 +712,10 @@ impl LockSession {
         let (body, envelope) = self.seal_note_files(note, &body, &key, &locking, &mut copies)?;
         note.body = body;
         Envelope::store(Some(&envelope), &mut note.extra);
+        // The first time, the phone says it once (`take_sealed_files_notice`).
+        if self.inner.store.meta(FILES_NOTICE_META)?.is_none() {
+            self.inner.store.set_meta(FILES_NOTICE_META, "pending")?;
+        }
         let count = note_files_from_extra(&note.extra)
             .map(|files| u32::try_from(files.len()).unwrap_or(u32::MAX))
             .unwrap_or_default();
@@ -728,8 +745,12 @@ impl LockSession {
     ) -> Result<(String, Envelope), KansoError> {
         let keys = held(&self.inner.keys).file_keys();
         let events = &self.inner.seal_progress;
+        let cancelled = &self.inner.lock_cancelled;
         let mut watch = |progress: &Progress| {
             events.send(SealProgress::from(*progress));
+            if cancelled.load(Ordering::SeqCst) {
+                return Err("Locking was cancelled.".to_owned());
+            }
             Ok(())
         };
         let mut job = Job::new(&self.inner.store, &keys, locking, copies, &mut watch);
@@ -738,6 +759,42 @@ impl LockSession {
             .and_then(Result::ok)
             .ok_or_else(|| KansoError::invalid("The note's lock is damaged."))?;
         Ok((body, envelope))
+    }
+
+    /// What locking note `id` would seal.
+    pub fn note_lock_summary(&self, id: &str) -> Result<LockSummary, KansoError> {
+        guard(|| {
+            let note = self.library().stored(id)?;
+            let notes = [note];
+            Ok(files::summarize(&self.inner.store, &notes).into())
+        })
+    }
+
+    /// What locking notebook `book_id`, and the notebooks in it, would seal.
+    pub fn notebook_lock_summary(&self, book_id: &str) -> Result<LockSummary, KansoError> {
+        guard(|| {
+            self.require_book(book_id)?;
+            Ok(lock::notebook_summary(&self.inner.store, book_id).into())
+        })
+    }
+
+    /// Stops the lock in progress between two files. The note stays plain,
+    /// and [`LockSession::interrupted_lock`] then offers to finish or undo
+    /// it. A lock that is not running is not affected.
+    pub fn cancel_lock(&self) {
+        self.inner.lock_cancelled.store(true, Ordering::SeqCst);
+    }
+
+    /// Whether the first open of a note locked by an older Kanso sealed its
+    /// attachments since this was last asked: the phone says so once.
+    pub fn take_sealed_files_notice(&self) -> Result<bool, KansoError> {
+        guard(|| {
+            let pending = self.inner.store.meta(FILES_NOTICE_META)?.as_deref() == Some("pending");
+            if pending {
+                self.inner.store.set_meta(FILES_NOTICE_META, "said")?;
+            }
+            Ok(pending)
+        })
     }
 
     /// Whether note `id` carries a lock that stopped between its files (a

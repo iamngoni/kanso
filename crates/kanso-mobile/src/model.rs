@@ -574,6 +574,26 @@ impl From<kanso_engine::lock::files::Progress> for SealProgress {
     }
 }
 
+/// What locking a note or notebook would seal: the pictures and files it
+/// links that are not sealed yet. `shared` of them are also shown by notes
+/// that stay unlocked, so the locked note gets its own sealed copy.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LockSummary {
+    pub files: u32,
+    pub bytes: u64,
+    pub shared: u32,
+}
+
+impl From<kanso_engine::lock::files::Summary> for LockSummary {
+    fn from(summary: kanso_engine::lock::files::Summary) -> LockSummary {
+        LockSummary {
+            files: u32::try_from(summary.files).unwrap_or(u32::MAX),
+            bytes: summary.bytes,
+            shared: u32::try_from(summary.shared).unwrap_or(u32::MAX),
+        }
+    }
+}
+
 /// A lock that stopped between a note's files: the note is plain, `sealed` of
 /// its `files` are sealed, and it waits to be finished or undone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

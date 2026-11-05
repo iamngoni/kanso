@@ -17,6 +17,9 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<bool> biometricsOn();
 
+  /// Stops the lock in progress between two files.
+  Future<void> cancelLock();
+
   Future<int> changePassword({required String old, required String new_});
 
   /// Finishes the lock that stopped on note `id`; `password` is the lock
@@ -53,11 +56,21 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<LockStatus> lockStatus();
 
+  /// What locking note `id` would seal.
+  Future<LockSummary> noteLockSummary({required String id});
+
   Future<bool> notebookIsOpen({required String bookId});
+
+  /// What locking notebook `book_id` would seal.
+  Future<LockSummary> notebookLockSummary({required String bookId});
 
   Future<Saved> removeNoteLock({required String id});
 
   Future<void> removeNotebookLock({required String bookId});
+
+  /// Whether the phone should say, once, that notes locked before this
+  /// update sealed their attachments.
+  Future<bool> takeSealedFilesNotice();
 
   Future<void> turnOffBiometrics();
 

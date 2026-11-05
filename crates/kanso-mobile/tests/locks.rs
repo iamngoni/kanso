@@ -1047,3 +1047,132 @@ proptest! {
         prop_assert!(store.note(&id).unwrap().unwrap().is_locked());
     }
 }
+
+/// A plain file linked from a note, for the tests of sealing attachments.
+fn plain_file(store: &Store, name: &str, bytes: &[u8]) -> String {
+    store
+        .put(
+            DocType::File,
+            json!({"name": name, "contentType": "audio/wav", "publicIn": ["web"],
+                "_attachments": {"index": {"content_type": "audio/wav",
+                "data": base64::engine::general_purpose::STANDARD.encode(bytes)}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id
+}
+
+fn note_with(phone: &Phone, files: &[String]) -> String {
+    let body: String = files
+        .iter()
+        .map(|file| format!("[memo](inkdrop://{file})\n"))
+        .collect();
+    phone
+        .library
+        .create(NewNote {
+            body,
+            ..Default::default()
+        })
+        .unwrap()
+        .id
+}
+
+#[test]
+fn the_lock_dialog_can_count_what_it_seals_and_progress_is_reported() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let files: Vec<String> = (0..3)
+        .map(|i| plain_file(&store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let note = note_with(&phone, &files);
+    let summary = phone.library.locks().note_lock_summary(&note).unwrap();
+    assert_eq!((summary.files, summary.bytes, summary.shared), (3, 1200, 0));
+
+    let (tx, rx) = mpsc::channel();
+    phone
+        .library
+        .locks()
+        .lock_progress(move |progress| tx.send(progress).is_ok());
+    phone
+        .library
+        .locks()
+        .lock_note(&note, LOCK_PASSWORD.into())
+        .unwrap();
+    let seen: Vec<_> = rx.try_iter().collect();
+    let last = seen.last().expect("progress was reported");
+    assert_eq!((last.done, last.total), (3, 3));
+    // Once sealed, nothing is left to count.
+    assert_eq!(
+        phone
+            .library
+            .locks()
+            .note_lock_summary(&note)
+            .unwrap()
+            .files,
+        0
+    );
+}
+
+#[test]
+fn a_cancelled_lock_stops_between_files_and_can_be_finished_or_undone() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let files: Vec<String> = (0..3)
+        .map(|i| plain_file(&store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let note = note_with(&phone, &files);
+
+    // Cancel is pressed once the first file is sealed.
+    let locks = phone.library.locks();
+    let stopper = phone.library.locks();
+    let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    locks.lock_progress(move |progress| {
+        if progress.done == 1 && armed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            stopper.cancel_lock();
+        }
+        true
+    });
+    locks
+        .lock_note(&note, LOCK_PASSWORD.into())
+        .expect_err("the lock stopped");
+    let stopped = locks
+        .interrupted_lock(&note)
+        .unwrap()
+        .expect("a stopped lock");
+    assert_eq!((stopped.files, stopped.sealed), (3, 1));
+
+    // Finishing needs only the lock password, and does not start over.
+    locks
+        .finish_locking(&note, Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    assert_eq!(locks.interrupted_lock(&note).unwrap(), None);
+    assert!(store.note_is_locked(&note).unwrap());
+
+    // Another note is stopped and undone: its files are plain again.
+    let other_files: Vec<String> = (3..5)
+        .map(|i| plain_file(&store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let other = note_with(&phone, &other_files);
+    assert!(locks.interrupted_lock(&other).unwrap().is_none());
+    let stopper = phone.library.locks();
+    let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    locks.lock_progress(move |progress| {
+        if progress.done == 1 && armed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            stopper.cancel_lock();
+        }
+        true
+    });
+    locks
+        .lock_note(&other, LOCK_PASSWORD.into())
+        .expect_err("the lock stopped");
+    assert!(locks.interrupted_lock(&other).unwrap().is_some());
+    locks.undo_locking(&other, None).unwrap();
+    assert_eq!(locks.interrupted_lock(&other).unwrap(), None);
+    for file in &other_files {
+        assert_eq!(
+            store.attachment_state(file).unwrap(),
+            kanso_store::AttachmentState::Plain
+        );
+    }
+}

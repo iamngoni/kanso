@@ -5029,7 +5029,7 @@ abstract class AppLocalizations {
   /// Explains what locking a note does.
   ///
   /// In en, this message translates to:
-  /// **'Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.'**
+  /// **'Its text is sealed, and its earlier versions are deleted. It stays open until the locked notes lock again.'**
   String get lockNoteConfirmMessage;
 
   /// The title of the sheet that asks for the lock password to lock a notebook.
@@ -5047,7 +5047,7 @@ abstract class AppLocalizations {
   /// Explains what locking a notebook does.
   ///
   /// In en, this message translates to:
-  /// **'Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.'**
+  /// **'Every note in it is sealed, and new notes added to it are sealed too.'**
   String get lockNotebookConfirmMessage;
 
   /// The notebook menu action that locks the notebook.
@@ -11697,6 +11697,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Step {number}: {step}'**
   String noticeStep(int number, String step);
+
+  /// The lock dialog's line about the pictures and files that are sealed with a note or notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 picture or file ({size}) is} other{{count} pictures and files ({size}) are}} sealed with it.'**
+  String lockFilesSealed(int count, String size);
+
+  /// The lock dialog's line saying that a file shown by a note that stays unlocked is copied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: locking seals a copy of {count, plural, =1{it} other{them}}, and the other notes keep theirs.'**
+  String lockFilesShared(int count);
+
+  /// The title of the progress sheet while a note locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking note'**
+  String get lockProgressTitleNote;
+
+  /// The title of the progress sheet while a notebook locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking notebook'**
+  String get lockProgressTitleNotebook;
+
+  /// The title of the progress sheet while a lock is taken off.
+  ///
+  /// In en, this message translates to:
+  /// **'Removing the lock'**
+  String get lockProgressTitleRemove;
+
+  /// The progress sheet's line: how many files and how much it seals.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Sealing 1 attachment, {size}} other{Sealing {count} attachments, {size}}}'**
+  String lockProgressLine(int count, String size);
+
+  /// The progress sheet's line while a lock is taken off.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Unsealing 1 attachment, {size}} other{Unsealing {count} attachments, {size}}}'**
+  String lockProgressUnsealingLine(int count, String size);
+
+  /// How many files are done, of how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total}'**
+  String lockProgressCount(int done, int total);
+
+  /// Stops locking between two files.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get lockProgressCancel;
+
+  /// Said once Cancel was pressed while a lock is sealing a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping after this file…'**
+  String get lockProgressStopping;
+
+  /// Said after Cancel stopped a lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking stopped. The note isn\'t locked yet: finish locking it or undo it from the bar above the note.'**
+  String get lockStoppedMessage;
+
+  /// Said after Cancel stopped a notebook lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking stopped. The notebook isn\'t locked yet: lock it again to finish.'**
+  String get lockStoppedNotebookMessage;
+
+  /// The bar above a note whose lock stopped between its files.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking this note didn\'t finish: {sealed} of its {files} pictures and files are sealed, and the note isn\'t locked yet. Finish locking, or undo it to keep everything as it was.'**
+  String lockInterruptedMessage(int sealed, int files);
+
+  /// Finishes a lock that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish locking'**
+  String get lockInterruptedFinish;
+
+  /// Undoes a lock that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo locking'**
+  String get lockInterruptedUndo;
+
+  /// Said while a stopped lock is finished or undone.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get lockInterruptedWorking;
+
+  /// The title of the sheet that asks for the lock password to finish or undo a stopped lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the lock password'**
+  String get lockInterruptedPasswordTitle;
+
+  /// Explains why the lock password is asked.
+  ///
+  /// In en, this message translates to:
+  /// **'The notes are closed. The lock password this note was being locked with finishes or undoes it.'**
+  String get lockInterruptedPasswordMessage;
+
+  /// The button of the sheet that asks for the lock password.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get lockInterruptedContinue;
+
+  /// Said when finishing or undoing a stopped lock failed.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn\'t work. Try again.'**
+  String get lockInterruptedFailed;
+
+  /// The title of the one-time notice about notes locked before attachments were sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked notes now seal their pictures and files'**
+  String get lockFilesNoticeTitle;
+
+  /// The one-time notice about notes locked before attachments were sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'A note locked before this update has its pictures and files sealed the first time you open it. Nothing else is needed.'**
+  String get lockFilesNoticeBody;
+
+  /// Closes the one-time notice about sealed attachments.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get lockFilesNoticeDismiss;
 }
 
 class _AppLocalizationsDelegate
