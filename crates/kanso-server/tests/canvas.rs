@@ -289,6 +289,10 @@ async fn list_canvases_lists_canvases_only_and_not_locked_ones() {
         .collect();
     assert!(ids.contains(&json!(open)) && !ids.contains(&json!("note:plain")));
     assert!(
+        !ids.contains(&json!(sealed)),
+        "a locked canvas is listed: {rows}"
+    );
+    assert!(
         rows.as_array()
             .unwrap()
             .iter()
@@ -1008,10 +1012,12 @@ async fn a_card_points_only_at_what_the_key_could_already_read() {
     let (vault, _) = make_canvas(&app.store, &book, "Vault", &Canvas::default());
     attach(&app.store, &vault, &["file:both"]);
     lock(&app.store, &vault);
-    assert_eq!(
-        app.store.file_owners("file:both").unwrap(),
-        vec![vault.clone()]
-    );
+    // The board's card shows it too, so the board holds it as well.
+    let mut owners = app.store.file_owners("file:both").unwrap();
+    owners.sort();
+    let mut want = vec![vault.clone(), id.clone()];
+    want.sort();
+    assert_eq!(owners, want);
     assert_eq!(
         app.store.file_owners("file:theirs").unwrap(),
         vec![other.clone()]
