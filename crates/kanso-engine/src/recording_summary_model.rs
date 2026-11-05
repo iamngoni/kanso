@@ -31,8 +31,15 @@ pub struct SummarySource {
     pub said: String,
     /// What the model reads: each paragraph behind its time in brackets.
     pub prompt_text: String,
-    /// The words that will be sent.
+    /// The words that will be sent: those before the cap when the
+    /// transcript is longer than it.
     pub words: usize,
+    /// The transcript is longer than the cap, so only its first part is
+    /// sent.
+    pub cut: bool,
+    /// How many recordings with a transcript the note holds. Only the
+    /// first one's is summarised.
+    pub recordings: usize,
     /// The note already holds a summary, which a new one replaces.
     pub replaces: bool,
 }

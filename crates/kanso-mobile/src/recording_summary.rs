@@ -15,7 +15,7 @@ use std::sync::atomic::Ordering;
 
 use kanso_ai::recording_summary::summarize_recording;
 use kanso_engine::recording_summary::{
-    SummaryDraft, SummaryError, SummaryItem, apply_summary, ground, send_line, summary_source,
+    SummaryDraft, SummaryError, SummaryItem, apply_summary, ground, send_words, summary_source,
 };
 use kanso_store::Origin;
 
@@ -96,7 +96,7 @@ impl AiHandle {
             Ok(SummaryOffer {
                 available: true,
                 words: source.words as u32,
-                send_line: send_line(source.words, settings.provider, &settings.base_url, None),
+                send_line: send_words(&source, settings.provider, &settings.base_url, None),
                 replaces: source.replaces,
             })
         })

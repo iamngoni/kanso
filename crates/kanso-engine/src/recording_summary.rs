@@ -23,11 +23,12 @@
 use std::collections::BTreeSet;
 use std::ops::Range;
 
-use kanso_ai::tidy::Tidy;
+use kanso_ai::tidy::{MAX_CHARS, Tidy};
 use kanso_core::DocType;
 use kanso_store::{Origin, Put, Store, StoreError};
 use serde_json::json;
 
+use crate::ask::strip_remote_images;
 use crate::assist::note_for_ai;
 use crate::recording_note::{
     AUDIO_SCHEME, TRANSCRIPT_OPEN, moment_link, parse_moment, stamp, transcript_range,
@@ -66,6 +67,13 @@ fn parse_line(line: &str) -> Option<(u32, String)> {
 /// The recording whose marked transcript comes first in `body`, and where
 /// that block is. Pure.
 pub fn find_recording_transcript(body: &str) -> Option<(String, Range<usize>)> {
+    recording_transcripts(body).into_iter().next()
+}
+
+/// Every recording's marked transcript in `body`, in order, with where its
+/// block is. Pure.
+pub fn recording_transcripts(body: &str) -> Vec<(String, Range<usize>)> {
+    let mut found = Vec::new();
     let mut from = 0;
     while let Some(open) = body[from..].find(TRANSCRIPT_OPEN).map(|at| at + from) {
         let inner = open + TRANSCRIPT_OPEN.len();
@@ -82,11 +90,13 @@ pub fn find_recording_transcript(body: &str) -> Option<(String, Range<usize>)> {
             && let Some(range) = transcript_range(body, &moment.file_id)
             && range.start == open
         {
-            return Some((moment.file_id, range));
+            from = range.end;
+            found.push((moment.file_id, range));
+            continue;
         }
         from = inner;
     }
-    None
+    found
 }
 
 /// Where the summary block is in `body`: from its opening marker to the end
@@ -152,25 +162,45 @@ pub fn has_transcript(body: &str) -> bool {
     })
 }
 
+/// The words of `prompt` that are sent, which stops at the cap: the times
+/// in brackets are not counted. Pure.
+fn words_sent(prompt: &str) -> usize {
+    let sent: String = prompt.chars().take(MAX_CHARS).collect();
+    sent.split_whitespace()
+        .filter(|word| !(word.starts_with('[') && word.ends_with(']')))
+        .count()
+}
+
 /// Reads note `id` for summarising: it holds a recording's transcript and
-/// may be sent to AI. Nothing is read for a note that is locked, trashed or
-/// tagged `#ai-exclude`.
+/// may be sent to AI. The gate comes first: nothing of a note that is
+/// locked, trashed or tagged `#ai-exclude` is read.
 pub fn summary_source(store: &Store, id: &str) -> Result<SummarySource, SummaryError> {
-    let note = store.note(id)?.ok_or(SummaryError::Missing)?;
-    let candidate = note_for_ai(store, id).ok_or(SummaryError::KeptOut)?;
-    let (file_id, range) =
-        find_recording_transcript(&candidate.body).ok_or(SummaryError::NoTranscript)?;
+    let Some(candidate) = note_for_ai(store, id) else {
+        // Only which refusal to give; nothing of the note is used.
+        return Err(match store.note_is_locked(id) {
+            Ok(false) if store.note(id)?.is_none() => SummaryError::Missing,
+            _ => SummaryError::KeptOut,
+        });
+    };
+    let recordings = recording_transcripts(&candidate.body);
+    let (file_id, range) = recordings
+        .first()
+        .cloned()
+        .ok_or(SummaryError::NoTranscript)?;
     let (segments, said) = segments_of(&candidate.body[range]);
     if segments.is_empty() {
         return Err(SummaryError::NoTranscript);
     }
+    let prompt_text = prompt_text(&segments);
     Ok(SummarySource {
-        id: note.id,
+        id: candidate.id,
         title: candidate.title,
         file_id,
-        date: date_label(note.created_at),
-        words: said.split_whitespace().count(),
-        prompt_text: prompt_text(&segments),
+        date: date_label(candidate.created_at),
+        words: words_sent(&prompt_text),
+        cut: prompt_text.chars().count() > MAX_CHARS,
+        recordings: recordings.len(),
+        prompt_text,
         segments,
         said,
         replaces: summary_range(&candidate.body).is_some(),
@@ -187,6 +217,25 @@ fn one_line(text: &str, max: usize) -> String {
     };
     // Never one of our own markers, or a comment that swallows the rest.
     line.replace("<!--", "< !--")
+}
+
+/// `text`, one line, as Markdown that only shows words: the model's words
+/// are untrusted, so no image (a remote one would make the preview fetch,
+/// and carry what was said out in its address) and no raw HTML, our
+/// markers among it. Ordinary links stay links. Pure.
+fn md_line(text: &str, max: usize) -> String {
+    // A backslash of the model's own is escaped first, so it can never
+    // undo the escapes that follow.
+    strip_remote_images(&one_line(text, max))
+        .replace('\\', "\\\\")
+        .replace("![", "\\![")
+        .replace('<', "\\<")
+}
+
+fn some_md(text: &Option<String>) -> Option<String> {
+    text.as_deref()
+        .map(|t| md_line(t, 80))
+        .filter(|t| !t.is_empty())
 }
 
 fn some_line(text: &Option<String>) -> Option<String> {
@@ -296,11 +345,33 @@ pub fn send_line(
     )
 }
 
+/// [`send_line`] for `source`, with what else the person should know
+/// before Send: that a long transcript is cut, and that only the first of
+/// several recordings is sent. Pure.
+pub fn send_words(
+    source: &SummarySource,
+    provider: kanso_ai::Provider,
+    base_url: &str,
+    agent: Option<&str>,
+) -> String {
+    let mut words = send_line(source.words, provider, base_url, agent);
+    if source.cut {
+        words.push_str(" The transcript is long, so only its first part is sent.");
+    }
+    if source.recordings > 1 {
+        words.push_str(&format!(
+            " This note has {} recordings: only the first one's transcript is sent.",
+            source.recordings
+        ));
+    }
+    words
+}
+
 /// The line an action item is written as: `- [ ] Send the draft — Priya,
 /// by the 30th ([00:22](kanso-audio://…))`.
 fn action_line(item: &SummaryItem, file_id: &str) -> String {
-    let mut line = format!("- [ ] {}", one_line(&item.text, ITEM_MAX));
-    let (who, when) = (some_line(&item.who), some_line(&item.when));
+    let mut line = format!("- [ ] {}", md_line(&item.text, ITEM_MAX));
+    let (who, when) = (some_md(&item.who), some_md(&item.when));
     let who: Vec<&str> = [who.as_deref(), when.as_deref()]
         .into_iter()
         .flatten()
@@ -322,7 +393,7 @@ pub fn render_summary(draft: &SummaryDraft, keep: &BTreeSet<usize>) -> Option<St
         let points: Vec<String> = draft
             .overview
             .iter()
-            .map(|p| format!("- {}", one_line(p, ITEM_MAX)))
+            .map(|p| format!("- {}", md_line(p, ITEM_MAX)))
             .collect();
         sections.push(format!("## Summary\n\n{}", points.join("\n")));
     }
@@ -333,7 +404,7 @@ pub fn render_summary(draft: &SummaryDraft, keep: &BTreeSet<usize>) -> Option<St
             .map(|d| {
                 format!(
                     "- {} ({})",
-                    one_line(&d.text, ITEM_MAX),
+                    md_line(&d.text, ITEM_MAX),
                     moment_link(&draft.file_id, d.moment)
                 )
             })
@@ -386,7 +457,9 @@ pub fn put_summary(body: &str, file_id: &str, block: &str) -> Option<(String, bo
 /// note `id` in one `put`, so Undo and the note's history bring the note
 /// back. The note is read again first: it must still be fit for AI, still
 /// hold the transcript, and not change under the write
-/// ([`SummaryError::Changed`]).
+/// ([`SummaryError::Changed`]). The write is made against the revision
+/// that was read, so an edit, a sync or another device that gets in first
+/// is never written over.
 pub fn apply_summary(
     store: &Store,
     id: &str,
@@ -396,6 +469,14 @@ pub fn apply_summary(
 ) -> Result<Applied, SummaryError> {
     let candidate = note_for_ai(store, id).ok_or(SummaryError::KeptOut)?;
     let note = store.note(id)?.ok_or(SummaryError::Missing)?;
+    // The gate and the revision must be of one and the same note: a change
+    // between the two reads (a lock seals the body) is refused.
+    if note.body != candidate.body {
+        return Err(SummaryError::Changed);
+    }
+    if store.note_is_locked(id).unwrap_or(true) {
+        return Err(SummaryError::KeptOut);
+    }
     // A recording id from outside is checked like one read from a link.
     if parse_moment(&format!("{AUDIO_SCHEME}{}", draft.file_id)).is_none() {
         return Err(SummaryError::NoTranscript);
