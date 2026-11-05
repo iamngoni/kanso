@@ -54,6 +54,7 @@ mod api_keys;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
+mod library_key;
 mod pdf;
 mod plugins_panel;
 mod plugins_settings;
@@ -4598,6 +4599,55 @@ fn show_api_keys_notice(cx: &mut HeadlessAppContext) {
     });
 }
 
+/// The "Your library is now encrypted" notice, as if the release had been
+/// reached.
+fn library_encrypted_notices() -> &'static [kanso_core::notices::Notice] {
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::LIBRARY_ENCRYPTED_ID)
+        .expect("the encrypted-library notice ships")
+        .clone();
+    notice.since = semver::Version::new(0, 9, 0);
+    Box::leak(Box::new([notice]))
+}
+
+fn show_library_encrypted_notice(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        // The notice is for a library that isn't signed in to sync.
+        cx.global_mut::<Services>().account = AccountState::SignedOut;
+        cx.set_global(crate::notices::NoticeBoard {
+            list: library_encrypted_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The encrypted-library notice's banner.
+fn library_encrypted_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_encrypted_notice(cx);
+}
+
+/// The encrypted-library notice's How to fix sheet.
+fn library_encrypted_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_encrypted_notice(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&library_encrypted_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
 /// The plain-library notice for a library that could not be encrypted.
 fn library_plain_notices() -> &'static [kanso_core::notices::Notice] {
     let mut notice = kanso_core::notices::NOTICES
@@ -6745,6 +6795,38 @@ fn snapshots() {
             dialog_width: crate::notice_views::SHEET_WIDTH,
             ..shot("light-api-keys-notice-sheet", Light, Split, api_keys_sheet)
         },
+        // The library is encrypted and its key isn't saved (issue #243,
+        // step 11).
+        shot(
+            "dark-notice-library-encrypted-banner",
+            Dark,
+            Split,
+            library_encrypted_banner,
+        ),
+        shot(
+            "light-notice-library-encrypted-banner",
+            Light,
+            Split,
+            library_encrypted_banner,
+        ),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "dark-notice-library-encrypted-sheet",
+                Dark,
+                Split,
+                library_encrypted_sheet,
+            )
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "light-notice-library-encrypted-sheet",
+                Light,
+                Split,
+                library_encrypted_sheet,
+            )
+        },
         // The library could not be encrypted (issue #243, step 10).
         shot(
             "dark-notice-library-plain-banner",
@@ -6864,6 +6946,7 @@ fn snapshots() {
     for (name, prepare, dialog) in plugins_settings::SHOTS
         .iter()
         .chain(api_keys::SHOTS)
+        .chain(library_key::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
         .chain(plugins_panel::SHOTS)
