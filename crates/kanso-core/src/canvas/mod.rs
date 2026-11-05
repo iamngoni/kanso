@@ -30,6 +30,7 @@ mod ops;
 mod recognize;
 #[cfg(test)]
 mod recognize_tests;
+mod sanitize;
 pub mod sketch;
 #[cfg(test)]
 mod tests;
@@ -41,7 +42,8 @@ use serde_json::Value;
 
 pub use bounds::Bounds;
 pub use edit::{
-    Action, CardChange, MIN_SAMPLE_DISTANCE, Refused, StrokeRef, in_polygon, thin, unique_id,
+    Action, CardChange, MIN_SAMPLE_DISTANCE, Refused, StrokeRef, in_polygon, streamed_points, thin,
+    thin_so_far, unique_id,
 };
 pub use ink::{Eraser, Split, covers, split_stroke};
 pub use interop::{ATTACHMENT_PREFIX, EXTENSION, ExportFiles, Imported, MAX_FILE_BYTES};

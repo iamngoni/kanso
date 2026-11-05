@@ -53,9 +53,11 @@ mod ai;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
+mod pdf;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
+mod record_sheet;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -1878,8 +1880,6 @@ fn show_settings(
         let config = &mut cx.global_mut::<AppState>().config;
         config.sync.server = None;
         config.sync.enabled = true;
-        config.server.username = "kanso".into();
-        config.server.password = "demo-password-not-real-7Q2x".into();
         let now = Clock::now_ms(cx);
         let services = cx.global_mut::<Services>();
         services.account = AccountState::SignedIn {
@@ -3148,6 +3148,24 @@ fn sign_out_confirm(
     });
 }
 
+/// Empty Trash with locked notes in it: the question counts them.
+fn empty_trash_locked(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        let (title, body) = crate::trash_words::empty_trash_question(kanso_store::TrashCounts {
+            notes: 12,
+            locked: 2,
+        });
+        crate::dialogs::confirm(title, body, "Empty Trash", window, cx, |_, _| {});
+    })
+    .unwrap();
+}
+
 /// Signing out with a new recovery key still unsaved.
 fn sign_out_unsaved_key(
     cx: &mut HeadlessAppContext,
@@ -4290,6 +4308,83 @@ fn update_toast(
         .unwrap();
 }
 
+/// The one fixture notice the snapshots draw. It is made up for the
+/// pictures; no real notice ships with the mechanism.
+fn demo_notices() -> &'static [kanso_core::notices::Notice] {
+    use kanso_core::notices::{Notice, NoticeAction, NoticePage, Platforms};
+    Box::leak(Box::new([Notice {
+        id: "fixture-example-0.9",
+        since: semver::Version::new(0, 9, 0),
+        title: "Something you set up needs a new step",
+        what_changed: "This update changed how an old setup is read, so anything that used it stops working until it is set up again. Your notes are untouched.",
+        steps: &[
+            "Open Settings \u{203a} Local API.",
+            "Set up each program that used the old setup again.",
+            "Restart those programs.",
+        ],
+        action: Some(NoticeAction::OpenSettings(NoticePage::LocalApi)),
+        applies: |_| true,
+        platforms: Platforms::Both,
+    }]))
+}
+
+/// Puts the fixture notice in front of the app.
+fn show_notices(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: demo_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The banner across the top of the window.
+fn notice_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_notices(cx);
+}
+
+/// How to fix, opened from the banner.
+fn notice_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_notices(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&demo_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
+/// What's new, with "Needs your attention" above the notes.
+fn notice_whats_new(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_notices(cx);
+    set_updates(cx, Phase::UpToDate, false);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::updates::open_notes(
+            crate::updates::ReleaseNotes::from(&demo_update()),
+            crate::updates::SheetKind::Installed,
+            window,
+            cx,
+        )
+    })
+    .unwrap();
+}
+
 /// The usage metrics notice, shown once at launch until OK.
 fn metrics_notice(
     cx: &mut HeadlessAppContext,
@@ -4701,7 +4796,8 @@ fn check_surfaces(image: &image::RgbaImage, shot: &Shot, inspector: bool) {
     }
     // The recording strip pushes the panes down by its own height, so the
     // top band's samples are somewhere else; the strip is checked by eye.
-    if shot.name.contains("recording") {
+    // The update notice's banner does the same.
+    if shot.name.contains("recording") || shot.name.contains("notice") {
         checks.retain(|((_, y), _, _)| *y > 80.);
     }
     // A notebook's homepage fills the editor's pane to the bottom: it has
@@ -5565,6 +5661,25 @@ fn snapshots() {
         shot("dark-settings-general", Dark, Edit, settings_general),
         shot("light-settings-general", Light, Edit, settings_general),
         shot("dark-settings-editor", Dark, Edit, settings_editor),
+        // The Record sheet's system audio choices.
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "light-record-output-picker",
+                Light,
+                Edit,
+                record_sheet::output_picker,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "dark-record-no-monitor",
+                Dark,
+                Edit,
+                record_sheet::no_monitor,
+            )
+        },
         // Quiz Me and Make Flashcards as dialogs over the note.
         Shot {
             dialog_width: crate::learn_view::QUIZ_WIDTH,
@@ -5591,6 +5706,16 @@ fn snapshots() {
         },
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
+        // The PDF reader (issue #43): page 1 drawn by the worker, and the
+        // worker killed under it.
+        shot("dark-pdf-reader", Dark, Split, pdf::reader_page_one),
+        shot("light-pdf-reader", Light, Split, pdf::reader_page_one),
+        shot(
+            "dark-pdf-reader-killed",
+            Dark,
+            Split,
+            pdf::reader_worker_killed,
+        ),
         shot("dark-voice-listening", Dark, Edit, voice::editor_listening),
         shot(
             "light-voice-listening",
@@ -6078,6 +6203,14 @@ fn snapshots() {
         },
         Shot {
             dialog_width: 448.,
+            ..shot("dark-empty-trash-locked", Dark, Edit, empty_trash_locked)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("light-empty-trash-locked", Light, Edit, empty_trash_locked)
+        },
+        Shot {
+            dialog_width: 448.,
             ..shot(
                 "dark-account-sign-out-unsaved-key",
                 Dark,
@@ -6141,6 +6274,25 @@ fn snapshots() {
         },
         shot("dark-update-toast", Dark, Split, update_toast),
         shot("light-update-toast", Light, Split, update_toast),
+        // Update notices (issue #243): the banner, How to fix and What's new.
+        shot("dark-notice-banner", Dark, Split, notice_banner),
+        shot("light-notice-banner", Light, Split, notice_banner),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("dark-notice-sheet", Dark, Split, notice_sheet)
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot("light-notice-sheet", Light, Split, notice_sheet)
+        },
+        Shot {
+            dialog_width: crate::updates::SHEET_WIDTH,
+            ..shot("dark-notice-whats-new", Dark, Split, notice_whats_new)
+        },
+        Shot {
+            dialog_width: crate::updates::SHEET_WIDTH,
+            ..shot("light-notice-whats-new", Light, Split, notice_whats_new)
+        },
         Shot {
             dialog_width: crate::dialogs::FORM_WIDTH,
             ..shot("dark-metrics-notice", Dark, Edit, metrics_notice)

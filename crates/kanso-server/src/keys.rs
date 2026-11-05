@@ -277,9 +277,15 @@ pub fn key_from_header(header: &[u8]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::basic_header;
     use proptest::prelude::*;
     use std::sync::Mutex;
+
+    fn basic_header(username: &str, password: &str) -> String {
+        format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD.encode(format!("{username}:{password}"))
+        )
+    }
 
     fn fixture() -> (tempfile::TempDir, Arc<Store>, Arc<Mutex<i64>>, KeyStore) {
         let dir = tempfile::tempdir().unwrap();

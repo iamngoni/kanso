@@ -11,6 +11,7 @@
 //! together against a library.
 
 pub mod api;
+pub mod canvas_doc;
 pub mod codec;
 pub mod comments;
 pub mod doc;
@@ -22,13 +23,19 @@ pub mod keys;
 pub mod members;
 pub mod memory;
 pub mod model;
+pub mod shared_doc;
 
 pub use api::{Caller, CollabApi, CollabError};
+pub use canvas_doc::CanvasDoc;
 pub use doc::{CollabDoc, Field, Merged, apply_splices, remap, splices};
 pub use engine::{Account, Engine, LiveHandle};
 pub use identity::{Identity, IdentityError, Published, Verified, check_public, fingerprint};
 pub use keys::{LinkSecret, NoteKey, invite_link, parse_invite_link};
 pub use model::*;
+pub use shared_doc::SharedDoc;
+
+#[cfg(test)]
+mod canvas_doc_tests;
 
 #[cfg(test)]
 pub(crate) mod tests {

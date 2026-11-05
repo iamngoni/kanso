@@ -18,8 +18,6 @@ pub struct ServerSettings {
     pub enabled: bool,
     pub port: u16,
     pub bind_address: String,
-    pub username: String,
-    pub password: String,
 }
 
 impl Default for ServerSettings {
@@ -28,8 +26,6 @@ impl Default for ServerSettings {
             enabled: true,
             port: crate::flavour::CURRENT.default_port,
             bind_address: "127.0.0.1".into(),
-            username: String::new(),
-            password: String::new(),
         }
     }
 }
@@ -40,8 +36,6 @@ impl fmt::Debug for ServerSettings {
             .field("enabled", &self.enabled)
             .field("port", &self.port)
             .field("bind_address", &self.bind_address)
-            .field("username", &self.username)
-            .field("password", &"<redacted>")
             .finish()
     }
 }
@@ -795,6 +789,10 @@ pub struct AppConfig {
     pub locked: LockedSettings,
     pub ai: AiSettings,
     pub nudges: Nudges,
+    /// Update notices put away on this computer: dismissed (the banner is
+    /// hidden) and marked fixed (the palette drops them too). Both stay in
+    /// What's new (issue #243).
+    pub notices: kanso_core::notices::NoticeState,
     pub linux: LinuxSettings,
     /// The anonymous daily count's bookkeeping (docs/METRICS.md): this
     /// install's ID and what was counted today. A damaged entry reads as
@@ -846,6 +844,7 @@ impl Default for AppConfig {
             locked: LockedSettings::default(),
             ai: AiSettings::default(),
             nudges: Nudges::default(),
+            notices: Default::default(),
             linux: LinuxSettings::default(),
             metrics: kanso_metrics::Ledger::default(),
         }
@@ -921,20 +920,6 @@ impl AppConfig {
         file.sync_all()?;
         std::fs::rename(&tmp, path)?;
         Ok(())
-    }
-
-    /// Fills in API credentials on first run so the server never runs open.
-    pub fn ensure_credentials(&mut self) -> bool {
-        let mut changed = false;
-        if self.server.username.is_empty() {
-            self.server.username = "kanso".into();
-            changed = true;
-        }
-        if self.server.password.is_empty() {
-            self.server.password = (0..24).map(|_| fastrand::alphanumeric()).collect();
-            changed = true;
-        }
-        changed
     }
 }
 
@@ -1234,8 +1219,6 @@ mod tests {
             any::<bool>(),
             any::<u16>(),
             "[a-z0-9.:]{0,15}",
-            "\\PC{0,12}",
-            "\\PC{0,24}",
             gen_sync(),
             (
                 prop::sample::select(vec![
@@ -1269,8 +1252,6 @@ mod tests {
                     enabled,
                     port,
                     bind,
-                    user,
-                    pass,
                     sync,
                     (theme, font, size, numbers, mode, sidebar, readable),
                     login,
@@ -1283,8 +1264,6 @@ mod tests {
                         enabled,
                         port,
                         bind_address: bind,
-                        username: user,
-                        password: pass,
                     },
                     sync,
                     appearance: Appearance {
@@ -1327,6 +1306,18 @@ mod tests {
                         metrics_notice_seen: version % 3 == 0,
                         metrics_notice_version: u8::try_from(version % 4).unwrap_or(0),
                         overview_notice_seen: version % 2 == 1,
+                    },
+                    notices: kanso_core::notices::NoticeState {
+                        dismissed: if login {
+                            vec![format!("n-{version}")]
+                        } else {
+                            vec![]
+                        },
+                        fixed: if numbers {
+                            vec!["fixed-1".to_owned()]
+                        } else {
+                            vec![]
+                        },
                     },
                     linux: super::LinuxSettings {
                         backend: if numbers {
@@ -1600,14 +1591,27 @@ mod tests {
             config.save(&path).unwrap();
             prop_assert_eq!(AppConfig::load(&path).unwrap(), config);
         }
+    }
 
-        /// Refinement: debug output never contains the password.
-        #[test]
-        fn prop_debug_redacts_password(password in "[a-zA-Z0-9]{8,24}") {
-            let settings = ServerSettings { password: password.clone(), ..ServerSettings::default() };
-            let debug = format!("{settings:?}");
-            prop_assert!(!debug.contains(&password));
-        }
+    /// Dismissing an update notice is written to `config.json` and read
+    /// back, and a file from before notices has none put away.
+    #[test]
+    fn dismissed_notices_survive_a_restart() {
+        let old: AppConfig = serde_json::from_str(r#"{"version": 5}"#).unwrap();
+        assert!(old.notices.dismissed.is_empty() && old.notices.fixed.is_empty());
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let mut config = AppConfig::default();
+        config.notices.dismiss("api-keys-0.10");
+        config.notices.dismiss("api-keys-0.10");
+        config.notices.mark_fixed("library-key-0.10");
+        config.save(&path).unwrap();
+        let back = AppConfig::load(&path).unwrap();
+        assert_eq!(back.notices.dismissed, ["api-keys-0.10"]);
+        assert_eq!(back.notices.fixed, ["library-key-0.10"]);
+        let written: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(written["notices"]["dismissed"][0], "api-keys-0.10");
     }
 
     /// A file from before usage metrics hasn't seen the notice and has no
@@ -1882,7 +1886,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
         std::fs::write(&path, r#"{"server": {"port": 1234}}"#).unwrap();
-        let mut config = AppConfig::load(&path).unwrap();
+        let config = AppConfig::load(&path).unwrap();
         assert_eq!(config.server.port, 1234);
         assert_eq!(config.server.bind_address, "127.0.0.1");
         assert_eq!(config.appearance.view_mode, ViewMode::Split);
@@ -1895,8 +1899,6 @@ mod tests {
         assert!(config.editor.spellcheck);
         // A file from before the setting keeps its secrets where they were.
         assert_eq!(config.sync.secret_store, SecretStoreKind::System);
-        assert!(config.ensure_credentials());
-        assert!(!config.ensure_credentials());
         config.save(&path).unwrap();
         use std::os::unix::fs::PermissionsExt as _;
         assert_eq!(

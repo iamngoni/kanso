@@ -1,5 +1,7 @@
-//! `kanso://` callbacks on Windows and Linux (docs/ACCOUNTS.md › Sign in with
-//! Apple, Google and GitHub).
+//! The local link: how a second `kanso` process talks to the running app,
+//! on every desktop platform. It carries `kanso://` callbacks (Windows and
+//! Linux; docs/ACCOUNTS.md › Sign in with Apple, Google and GitHub), files
+//! to open, sticky notes and notes to capture.
 //!
 //! On macOS, `ASWebAuthenticationSession` hands Apple's callback straight to
 //! the process that started it. Elsewhere the system browser opens
@@ -29,6 +31,11 @@
 //! - And sticky notes to make (`kanso sticky`): a third kind, with the
 //!   colour, the notebook and at most [`MAX_STICKY_TEXT`] bytes of text,
 //!   which the app saves as a note and opens as a sticky (`sticky.rs`).
+//! - And notes to add (`kanso capture`): a fourth kind, one line of JSON
+//!   ([`crate::capture_request`]), which the app saves and answers with the
+//!   new note's ID. The link has no message that reads, searches or lists:
+//!   a program that finds the endpoint file can only add notes, and a
+//!   message of any other kind is refused.
 //! - Each connection is served on its own thread and gets [`IO_TIMEOUT`] in
 //!   all, however it trickles bytes, so a silent or slow local client can't
 //!   hold up a real forward; at most [`MAX_SERVING`] are served at once.
@@ -41,6 +48,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
+use crate::capture_request::{self, CaptureRequest};
 use crate::provider_browser::BrowserError;
 
 /// The scheme the browser returns to.
@@ -105,6 +113,10 @@ pub fn on_stickies(sink: StickySink) {
     STICKIES.set(sink).ok();
 }
 
+/// Where the app adds the notes a forwarder asks for: the new note's ID, or
+/// why it didn't, which goes back to the forwarder.
+pub type CaptureSink = Arc<dyn Fn(CaptureRequest) -> Result<String, String> + Send + Sync>;
+
 /// The endpoint file in the data folder.
 const ENDPOINT_FILE: &str = "sign-in-callback";
 
@@ -139,8 +151,7 @@ pub struct Router {
     waiters: Mutex<Vec<Waiter>>,
 }
 
-/// This process's router. macOS gets Apple's callback from its own sheet.
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+/// This process's router.
 pub static ROUTER: Router = Router::new();
 
 impl Router {
@@ -298,7 +309,26 @@ fn write_endpoint(path: &Path, endpoint: &Endpoint) -> std::io::Result<()> {
 
 /// Starts listening for forwarded callbacks for `router`, and writes the
 /// endpoint into `data_dir`. Runs for the rest of the process.
+#[cfg(test)]
 pub fn listen(data_dir: &Path, router: &'static Router, files: FileSink) -> std::io::Result<()> {
+    listen_with(data_dir, router, files, no_captures())
+}
+
+/// A sink for a link that adds no notes: every capture is refused.
+#[cfg(test)]
+fn no_captures() -> CaptureSink {
+    Arc::new(|_| {
+        Err("This Kanso isn't taking notes from outside yet. Try again in a moment.".into())
+    })
+}
+
+/// [`listen`] with the sink that adds the notes forwarders send.
+pub fn listen_with(
+    data_dir: &Path,
+    router: &'static Router,
+    files: FileSink,
+    captures: CaptureSink,
+) -> std::io::Result<()> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     let endpoint = Arc::new(Endpoint::new(listener.local_addr()?.port()));
     write_endpoint(&endpoint_path(data_dir), &endpoint)?;
@@ -315,11 +345,14 @@ pub fn listen(data_dir: &Path, router: &'static Router, files: FileSink) -> std:
                 let endpoint = endpoint.clone();
                 let slot = serving.clone();
                 let files = files.clone();
+                let captures = captures.clone();
                 let spawned = std::thread::Builder::new()
                     .name("kanso-callback".into())
                     .spawn(move || {
                         let deadline = Instant::now() + IO_TIMEOUT;
-                        if let Err(error) = serve(stream, &endpoint, router, &files, deadline) {
+                        if let Err(error) =
+                            serve(stream, &endpoint, router, &files, &captures, deadline)
+                        {
                             // The error never carries the URL.
                             eprintln!("kanso: a sign-in callback couldn't be read: {error}");
                         }
@@ -374,6 +407,7 @@ fn serve(
     endpoint: &Endpoint,
     router: &Router,
     files: &FileSink,
+    captures: &CaptureSink,
     deadline: Instant,
 ) -> std::io::Result<()> {
     if !stream.peer_addr()?.ip().is_loopback() {
@@ -389,6 +423,20 @@ fn serve(
     reader.read_line(&mut client_token)?;
     if !same(client_token.trim_end(), &endpoint.client_token) {
         return Ok(());
+    }
+    // A capture is one long line of JSON; the other kinds stay short.
+    if reader.fill_buf()?.first() == Some(&b'{') {
+        reader
+            .get_mut()
+            .set_limit(capture_request::MAX_LINE as u64 + 2);
+        let answer = match read_capture(&mut reader)? {
+            Err(reason) => format!("no {reason}"),
+            Ok(request) => match captures(request) {
+                Ok(id) => format!("ok {id}"),
+                Err(reason) => format!("no {}", reason.replace(['\n', '\r'], " ")),
+            },
+        };
+        return writer.write_all(format!("{answer}\n").as_bytes());
     }
     let mut kind = String::new();
     reader.read_line(&mut kind)?;
@@ -422,6 +470,28 @@ fn serve(
         kind.len() as u64 <= MAX_MESSAGE && router.deliver(kind.trim_end()) == Delivery::Delivered
     };
     writer.write_all(if accepted { b"ok\n" } else { b"no\n" })
+}
+
+/// A capture message line. `Err` is the reason it was refused: too long,
+/// not text, or not a capture.
+fn read_capture(
+    reader: &mut impl std::io::BufRead,
+) -> std::io::Result<Result<CaptureRequest, String>> {
+    let mut line = Vec::new();
+    reader.read_until(b'\n', &mut line)?;
+    if line.last() != Some(&b'\n') && line.len() > capture_request::MAX_LINE {
+        return Ok(Err(
+            "That message is too large for Kanso. Send a smaller note.".into(),
+        ));
+    }
+    let Ok(line) = String::from_utf8(line) else {
+        return Ok(Err(
+            "Kanso couldn't read that message: it isn't text. `kanso capture` sends text.".into(),
+        ));
+    };
+    Ok(CaptureRequest::from_line(
+        line.trim_end_matches(['\r', '\n']),
+    ))
 }
 
 /// The count line and that many absolute paths, one per line. `None` for a
@@ -511,6 +581,9 @@ pub enum ForwardError {
     /// A sticky note too long to send, or a notebook name with a line
     /// break.
     BadSticky,
+    /// A note over the limits of the link, or without a title; says why and
+    /// what to do.
+    BadCapture(String),
     /// The running Kanso said why it refused.
     Said(String),
     Io(String),
@@ -529,7 +602,7 @@ impl std::fmt::Display for ForwardError {
                 "a sticky note can have at most {} KB of text, and a notebook's name no line break",
                 MAX_STICKY_TEXT / 1024
             ),
-            ForwardError::Said(reason) => f.write_str(reason),
+            ForwardError::BadCapture(reason) | ForwardError::Said(reason) => f.write_str(reason),
             ForwardError::Io(error) => f.write_str(error),
         }
     }
@@ -540,10 +613,12 @@ pub fn forward(data_dir: &Path, url: &str) -> Result<(), ForwardError> {
     if url.contains(['\n', '\r']) {
         return Err(ForwardError::NotWaiting);
     }
-    send(data_dir, &format!("{url}\n")).map_err(|error| match error {
-        ForwardError::Refused => ForwardError::NotWaiting,
-        other => other,
-    })
+    send(data_dir, &format!("{url}\n"))
+        .map(|_| ())
+        .map_err(|error| match error {
+            ForwardError::Refused => ForwardError::NotWaiting,
+            other => other,
+        })
 }
 
 /// Asks the Kanso running with `data_dir` to open `paths` (absolute), in
@@ -585,12 +660,28 @@ pub fn forward_sticky(data_dir: &Path, request: &StickyRequest) -> Result<(), Fo
         request.text.len(),
         request.text
     );
-    send(data_dir, &body)
+    send(data_dir, &body).map(|_| ())
+}
+
+/// Asks the Kanso running with `data_dir` to add the note `request`.
+/// Returns the new note's ID. This is all the link does with notes: it
+/// has no way to read one.
+pub fn forward_capture(data_dir: &Path, request: &CaptureRequest) -> Result<String, ForwardError> {
+    let line = request.to_line().map_err(ForwardError::BadCapture)?;
+    let id = send(data_dir, &format!("{line}\n"))?;
+    if id.is_empty() {
+        return Err(ForwardError::Said(
+            "Kanso added the note but didn't say which. Look for it in the notebook.".into(),
+        ));
+    }
+    Ok(id)
 }
 
 /// Connects to the running app, proves it is Kanso by its greeting, and
 /// sends the client token and then `body`.
-fn send(data_dir: &Path, body: &str) -> Result<(), ForwardError> {
+/// Returns what the app said after `ok`, trimmed: a note's ID for a
+/// capture, nothing for the rest.
+fn send(data_dir: &Path, body: &str) -> Result<String, ForwardError> {
     let text =
         std::fs::read_to_string(endpoint_path(data_dir)).map_err(|_| ForwardError::NotRunning)?;
     let endpoint = Endpoint::parse(&text).ok_or(ForwardError::NotRunning)?;
@@ -615,7 +706,8 @@ fn send(data_dir: &Path, body: &str) -> Result<(), ForwardError> {
     let mut answer = String::new();
     reader.read_line(&mut answer).map_err(io)?;
     match answer.trim_end() {
-        "ok" => Ok(()),
+        "ok" => Ok(String::new()),
+        answer if answer.starts_with("ok ") => Ok(answer[3..].trim().to_owned()),
         answer => match answer.strip_prefix("no ") {
             Some(reason) if !reason.trim().is_empty() => {
                 Err(ForwardError::Said(reason.trim().to_owned()))
@@ -1116,11 +1208,195 @@ mod tests {
         assert!(seen.lock().unwrap().is_empty());
     }
 
+    /// A running link whose capture sink keeps what it is asked to add and
+    /// answers with an ID of its own.
+    fn running_with_captures() -> (tempfile::TempDir, Endpoint, Arc<Mutex<Vec<CaptureRequest>>>) {
+        let dir = tempfile::tempdir().unwrap();
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let sink: CaptureSink = {
+            let seen = seen.clone();
+            Arc::new(move |request| {
+                let mut seen = seen.lock().unwrap();
+                seen.push(request);
+                Ok(format!("note-{}", seen.len()))
+            })
+        };
+        listen_with(dir.path(), leaked(), no_files(), sink).unwrap();
+        let endpoint =
+            Endpoint::parse(&std::fs::read_to_string(endpoint_path(dir.path())).unwrap()).unwrap();
+        (dir, endpoint, seen)
+    }
+
+    #[test]
+    fn a_captured_note_reaches_the_app_and_its_id_comes_back() {
+        let (dir, _, seen) = running_with_captures();
+        let request = CaptureRequest {
+            title: "Buy milk".into(),
+            body: "and\neggs ✓".into(),
+            book: Some("Ideas".into()),
+        };
+        assert_eq!(forward_capture(dir.path(), &request), Ok("note-1".into()));
+        let inbox = CaptureRequest {
+            book: None,
+            ..request.clone()
+        };
+        assert_eq!(forward_capture(dir.path(), &inbox), Ok("note-2".into()));
+        assert_eq!(*seen.lock().unwrap(), vec![request, inbox]);
+    }
+
+    #[test]
+    fn a_capture_needs_the_token_and_a_sink_that_says_no_is_heard() {
+        let (dir, endpoint, seen) = running_with_captures();
+        let line = CaptureRequest {
+            title: "x".into(),
+            body: String::new(),
+            book: None,
+        }
+        .to_line()
+        .unwrap();
+        let body = format!("{line}\n");
+        assert!(!raw_exchange(&endpoint, &"0".repeat(64), &body).starts_with("ok"));
+        assert!(!raw_exchange(&endpoint, &endpoint.server_token, &body).starts_with("ok"));
+        assert!(seen.lock().unwrap().is_empty());
+        assert!(raw_exchange(&endpoint, &endpoint.client_token, &body).starts_with("ok note-1"));
+        // The app's reason comes back to the forwarder.
+        let refusing = tempfile::tempdir().unwrap();
+        let sink: CaptureSink = Arc::new(|_| Err("That notebook is locked.\nUnlock it.".into()));
+        listen_with(refusing.path(), leaked(), no_files(), sink).unwrap();
+        let request = CaptureRequest {
+            title: "x".into(),
+            body: String::new(),
+            book: None,
+        };
+        assert_eq!(
+            forward_capture(refusing.path(), &request),
+            Err(ForwardError::Said(
+                "That notebook is locked. Unlock it.".into()
+            ))
+        );
+        drop(dir);
+    }
+
+    #[test]
+    fn oversized_and_malformed_captures_add_nothing() {
+        let (dir, endpoint, seen) = running_with_captures();
+        let token = &endpoint.client_token;
+        let too_big = serde_json::json!({
+            "kind": "capture",
+            "title": "t",
+            "body": "x".repeat(capture_request::MAX_BODY + 1),
+        });
+        let over_the_line = format!(
+            "{{\"kind\":\"capture\",\"title\":\"{}",
+            "a".repeat(capture_request::MAX_LINE)
+        );
+        for body in [
+            format!("{too_big}\n"),
+            format!("{over_the_line}\n"),
+            "{\n".to_owned(),
+            "{\"kind\":\"capture\"}\n".to_owned(),
+            "{\"kind\":\"capture\",\"title\":\"t\",\"body\":\"\",\"extra\":1}\n".to_owned(),
+            "{\"kind\":\"capture\",\"title\":\"  \",\"body\":\"\"}\n".to_owned(),
+        ] {
+            let answer = raw_exchange(&endpoint, token, &body);
+            assert!(!answer.starts_with("ok"), "{answer}");
+        }
+        // Not text.
+        let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, endpoint.port)).unwrap();
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut greeting = String::new();
+        reader.read_line(&mut greeting).unwrap();
+        stream
+            .write_all(format!("{token}\n{{\"kind\":\"").as_bytes())
+            .unwrap();
+        stream.write_all(&[0xff, 0xfe, b'\n']).unwrap();
+        let mut answer = String::new();
+        reader.read_line(&mut answer).unwrap();
+        assert!(answer.starts_with("no "), "{answer}");
+        assert!(seen.lock().unwrap().is_empty());
+        // The sender checks first, too.
+        let big = CaptureRequest {
+            title: "t".into(),
+            body: "x".repeat(capture_request::MAX_BODY + 1),
+            book: None,
+        };
+        assert!(matches!(
+            forward_capture(dir.path(), &big),
+            Err(ForwardError::BadCapture(_))
+        ));
+        assert!(seen.lock().unwrap().is_empty());
+    }
+
+    /// The link has no message that reads. Whatever kind arrives, JSON or
+    /// a line, and whatever it asks for, nothing is added and nothing but
+    /// a refusal comes back.
+    #[test]
+    fn the_link_has_no_read_message() {
+        let (_dir, endpoint, seen) = running_with_captures();
+        for kind in [
+            "read",
+            "get-note",
+            "list-notes",
+            "search",
+            "export",
+            "notes",
+            "books",
+            "capture ",
+            "Capture",
+            "",
+        ] {
+            let line = serde_json::json!({"kind": kind, "id": "x", "query": "secret"});
+            let answer = raw_exchange(&endpoint, &endpoint.client_token, &format!("{line}\n"));
+            assert!(answer.starts_with("no"), "{kind}: {answer}");
+            // And as the bare kind line the older messages use.
+            let answer = raw_exchange(&endpoint, &endpoint.client_token, &format!("{kind}\n"));
+            assert!(!answer.starts_with("ok"), "{kind}: {answer}");
+        }
+        assert!(seen.lock().unwrap().is_empty());
+    }
+
     #[test]
     fn tokens_differ_each_time() {
         let tokens: std::collections::HashSet<String> = (0..64).map(|_| token()).collect();
         assert_eq!(tokens.len(), 64);
         assert!(tokens.iter().all(|token| is_token(token)));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(24))]
+
+        /// Through a real listener, with the token: a message of any kind
+        /// but a well-formed `capture` is refused and adds nothing.
+        #[test]
+        fn prop_no_unknown_message_is_taken(
+            kind in "[a-zA-Z_ -]{0,20}",
+            extra in "[a-z]{0,10}",
+            raw in "\\PC{0,120}",
+        ) {
+            prop_assume!(kind != "capture");
+            let (_dir, endpoint, seen) = running_with_captures();
+            let json = serde_json::json!({"kind": kind, "q": extra}).to_string();
+            let answer = raw_exchange(&endpoint, &endpoint.client_token, &format!("{json}\n"));
+            prop_assert!(!answer.starts_with("ok"), "{}", answer);
+            let answer = raw_exchange(&endpoint, &endpoint.client_token, &format!("{{{raw}\n"));
+            prop_assert!(!answer.starts_with("ok"), "{}", answer);
+            prop_assert!(seen.lock().unwrap().is_empty());
+        }
+
+        /// A capture of any text comes out the other side as it went in.
+        #[test]
+        fn prop_a_capture_round_trips_over_the_link(
+            title in "\\PC{1,60}",
+            body in "\\PC{0,200}",
+            book in prop::option::of("\\PC{1,30}"),
+        ) {
+            prop_assume!(!title.trim().is_empty());
+            prop_assume!(book.as_ref().is_none_or(|b| !b.trim().is_empty()));
+            let (dir, _endpoint, seen) = running_with_captures();
+            let request = CaptureRequest { title, body, book };
+            prop_assert!(forward_capture(dir.path(), &request).is_ok());
+            prop_assert_eq!(seen.lock().unwrap().clone(), vec![request]);
+        }
     }
 
     proptest! {

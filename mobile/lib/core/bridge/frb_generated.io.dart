@@ -27,6 +27,7 @@ import 'api/locks.dart';
 import 'api/metrics.dart';
 import 'api/notebook_home.dart';
 import 'api/notebook_home_types.dart';
+import 'api/notices_types.dart';
 import 'api/overview_types.dart';
 import 'api/people.dart';
 import 'api/people_types.dart';
@@ -1119,6 +1120,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PersonRow dco_decode_box_autoadd_person_row(dynamic raw);
+
+  @protected
+  PhoneNotice dco_decode_box_autoadd_phone_notice(dynamic raw);
 
   @protected
   PreviewOptions dco_decode_box_autoadd_preview_options(dynamic raw);
@@ -2286,6 +2290,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PersonRow? dco_decode_opt_box_autoadd_person_row(dynamic raw);
 
   @protected
+  PhoneNotice? dco_decode_opt_box_autoadd_phone_notice(dynamic raw);
+
+  @protected
   PreviewTaskBox? dco_decode_opt_box_autoadd_preview_task_box(dynamic raw);
 
   @protected
@@ -2478,6 +2485,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PersonRow dco_decode_person_row(dynamic raw);
+
+  @protected
+  PhoneNotice dco_decode_phone_notice(dynamic raw);
+
+  @protected
+  PhoneNoticeActionKind dco_decode_phone_notice_action_kind(dynamic raw);
+
+  @protected
+  PhoneNotices dco_decode_phone_notices(dynamic raw);
 
   @protected
   PlannedNote dco_decode_planned_note(dynamic raw);
@@ -3930,6 +3946,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PersonRow sse_decode_box_autoadd_person_row(SseDeserializer deserializer);
 
   @protected
+  PhoneNotice sse_decode_box_autoadd_phone_notice(SseDeserializer deserializer);
+
+  @protected
   PreviewOptions sse_decode_box_autoadd_preview_options(
     SseDeserializer deserializer,
   );
@@ -5315,6 +5334,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  PhoneNotice? sse_decode_opt_box_autoadd_phone_notice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PreviewTaskBox? sse_decode_opt_box_autoadd_preview_task_box(
     SseDeserializer deserializer,
   );
@@ -5533,6 +5557,17 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PersonRow sse_decode_person_row(SseDeserializer deserializer);
+
+  @protected
+  PhoneNotice sse_decode_phone_notice(SseDeserializer deserializer);
+
+  @protected
+  PhoneNoticeActionKind sse_decode_phone_notice_action_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PhoneNotices sse_decode_phone_notices(SseDeserializer deserializer);
 
   @protected
   PlannedNote sse_decode_planned_note(SseDeserializer deserializer);
@@ -7260,6 +7295,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_person_row(
     PersonRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_phone_notice(
+    PhoneNotice self,
     SseSerializer serializer,
   );
 
@@ -9061,6 +9102,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_phone_notice(
+    PhoneNotice? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_preview_task_box(
     PreviewTaskBox? self,
     SseSerializer serializer,
@@ -9350,6 +9397,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_person_row(PersonRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_phone_notice(PhoneNotice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_phone_notice_action_kind(
+    PhoneNoticeActionKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_phone_notices(PhoneNotices self, SseSerializer serializer);
 
   @protected
   void sse_encode_planned_note(PlannedNote self, SseSerializer serializer);

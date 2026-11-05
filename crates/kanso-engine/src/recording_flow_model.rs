@@ -125,6 +125,9 @@ pub struct RecordPlan {
     pub what: WhatToRecord,
     pub destination: Destination,
     pub transcribe: TranscribeWhen,
+    /// The sound output to record when system audio is on: a device `id`
+    /// from the platform's backend, or `None` for the default output.
+    pub system_output: Option<String>,
 }
 
 impl RecordPlan {
@@ -137,6 +140,7 @@ impl RecordPlan {
             what,
             destination: Destination::NewNote { book_id: None },
             transcribe: TranscribeWhen::default_for(what),
+            system_output: None,
         }
     }
 }
