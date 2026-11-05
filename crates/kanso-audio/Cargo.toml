@@ -28,6 +28,14 @@ opus = "0.4"
 symphonia = { version = "0.5.5", default-features = false, features = ["aac", "adpcm", "aiff", "alac", "caf", "flac", "isomp4", "mp3", "ogg", "pcm", "vorbis", "wav"] }
 thiserror.workspace = true
 
+# System audio on Linux is a monitor source, which cpal's ALSA host cannot
+# list; its PulseAudio host (a pure-Rust protocol client, no libpulse) can,
+# and PipeWire answers the same protocol through pipewire-pulse. Cargo
+# unifies features, so kanso-voice's microphone prefers this host too when a
+# sound server answers.
+[target.'cfg(target_os = "linux")'.dependencies]
+cpal = { version = "0.18", features = ["pulseaudio"] }
+
 [dev-dependencies]
 proptest.workspace = true
 tempfile.workspace = true

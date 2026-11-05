@@ -203,7 +203,7 @@ mod tests {
         use kanso_engine::strategies::markdown::{LANGUAGES, agreeing_notes, valid_code};
         use kanso_engine::theme::file::CAPTURES;
         use proptest::prelude::*;
-        use proptest::test_runner::{Config, TestRunner};
+        use proptest::test_runner::{Config, FileFailurePersistence, TestRunner};
 
         /// A theme that colors each token its own color, and the colors.
         fn palette() -> (HighlightTheme, Vec<(Hsla, Token)>) {
@@ -352,12 +352,41 @@ mod tests {
             assert!(seen.len() >= 30, "the notes draw only {seen:?}");
         }
 
+        /// The library's injection query read any block after a leading
+        /// rule and before another as YAML, not only the one between them
+        /// (`(thematic_break) (_) (thematic_break)` skips siblings), and the
+        /// two highlighters disagreed on which blocks got it: a paragraph
+        /// with a `[text][r]` reference link without a definition, or a
+        /// `> [[wiki]]` quote, was drawn as a YAML flow sequence by one.
+        /// Neither is YAML in Markdown; now only a block that touches both
+        /// rules is read that way.
+        #[test]
+        fn blocks_that_are_not_between_two_rules_are_not_yaml() {
+            let (theme, colors) = palette();
+            for note in [
+                "---\n\n\n- a\n\n- a\n\n\n\n`日本語` 日本語 a\n<https://a.b> [[wiki]] [aa](aa)\n日本語 aaa\n\n\n> [[]]\n***\n",
+                "---\n\n\n- a\n\n- a\n\n\n\n`日本語` 日本語 a\n<https://a.b> [[wiki]] [aa](aa)\n日本語 aaa\n\n\n> [[wiki]]\n\n\n***\n\n\n",
+                "[ddycff][r] [63](jxoey) #tag",
+                "[ddycff][r] [63](jxoey) #tag\n",
+                "---\n\n[ddycff][r] [63](jxoey) #tag\n\n---\n",
+            ] {
+                assert_eq!(disagreement(note, &theme, &colors), None, "{note:?}");
+            }
+        }
+
         #[test]
         fn the_editor_and_the_engine_color_generated_notes_alike() {
             let (theme, colors) = palette();
             let mut runner = TestRunner::new(Config {
-                cases: 160,
-                failure_persistence: None,
+                // 160 unless PROPTEST_CASES says more.
+                cases: std::env::var("PROPTEST_CASES")
+                    .ok()
+                    .and_then(|n| n.parse().ok())
+                    .unwrap_or(160),
+                failure_persistence: Some(Box::new(FileFailurePersistence::Direct(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/proptest-regressions/markdown_source.txt"
+                )))),
                 ..Config::default()
             });
             runner

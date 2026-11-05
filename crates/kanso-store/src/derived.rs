@@ -44,6 +44,12 @@ pub(crate) const TABLES: [&str; 10] = [
     "note_revisit",
 ];
 
+/// The `finished_items` kind of a task that was open until a save that
+/// left no task in its place. Never shown as finished.
+pub(crate) const OPEN_KIND: &str = "open";
+/// How long such a task still counts as open, in milliseconds.
+const OPEN_KEPT_MS: i64 = 3_600_000;
+
 /// How long a finished item is remembered, in days.
 const FINISHED_KEEP_DAYS: i64 = 400;
 
@@ -153,10 +159,34 @@ fn record_finished(
     before: &HashSet<String>,
 ) -> Result<()> {
     let now = now_ms();
-    for task in task_items(body) {
+    let tasks = task_items(body);
+    let present: HashSet<String> = tasks.iter().map(|t| task_key(id, &t.text, "")).collect();
+    // A task that stopped being one (the box half-typed, a save in the
+    // middle of an edit) is kept as open for a while, so the tick that
+    // follows still counts.
+    for key in before.iter().filter(|key| !present.contains(*key)) {
+        conn.execute(
+            "INSERT INTO finished_items (note_id, key, kind, text, at)
+             VALUES (?1, ?2, ?3, '', ?4)
+             ON CONFLICT (note_id, key) DO UPDATE SET at = excluded.at
+             WHERE finished_items.kind = ?3",
+            params![id, key, OPEN_KIND, now],
+        )?;
+    }
+    for task in tasks {
         let key = task_key(id, &task.text, "");
         if task.checked {
-            if before.contains(&key) {
+            let kept_open = before.contains(&key)
+                || conn
+                    .query_row(
+                        "SELECT 1 FROM finished_items
+                         WHERE note_id = ?1 AND key = ?2 AND kind = ?3 AND at >= ?4",
+                        params![id, key, OPEN_KIND, now - OPEN_KEPT_MS],
+                        |_| Ok(()),
+                    )
+                    .optional()?
+                    .is_some();
+            if kept_open {
                 conn.execute(
                     "INSERT OR REPLACE INTO finished_items (note_id, key, kind, text, at)
                      VALUES (?1, ?2, 'task', ?3, ?4)",
@@ -165,8 +195,9 @@ fn record_finished(
             }
         } else {
             conn.execute(
-                "DELETE FROM finished_items WHERE note_id = ?1 AND key = ?2 AND kind = 'task'",
-                params![id, key],
+                "DELETE FROM finished_items
+                 WHERE note_id = ?1 AND key = ?2 AND kind IN ('task', ?3)",
+                params![id, key, OPEN_KIND],
             )?;
         }
     }
@@ -392,10 +423,16 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
     Ok(true)
 }
 
-/// Forgets what was finished more than [`FINISHED_KEEP_DAYS`] days ago.
+/// Forgets what was finished more than [`FINISHED_KEEP_DAYS`] days ago,
+/// and open markers past [`OPEN_KEPT_MS`].
 pub(crate) fn prune_finished(conn: &Connection) -> Result<()> {
     let cutoff = now_ms() - FINISHED_KEEP_DAYS * 86_400_000;
     conn.execute("DELETE FROM finished_items WHERE at < ?", [cutoff])?;
+    // A task that went away for good leaves only a short-lived marker.
+    conn.execute(
+        "DELETE FROM finished_items WHERE kind = ?1 AND at < ?2",
+        params![OPEN_KIND, now_ms() - OPEN_KEPT_MS],
+    )?;
     Ok(())
 }
 

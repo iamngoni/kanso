@@ -383,9 +383,19 @@ class _LibraryPaneState extends State<LibraryPane> {
     final l10n = context.l10n;
     final bloc = context.read<LibraryIndexBloc>();
     final host = Navigator.of(context, rootNavigator: true).overlay!.context;
+    // Locked notes go with the rest, so the question counts them.
+    final locked = (await getIt<LibraryRepository>().lockedInTrash()).fold(
+      (_) => 0,
+      (count) => count,
+    );
+    if (!host.mounted) {
+      return;
+    }
     final yes = await KansoConfirmSheet.show(
       host,
-      title: l10n.libraryEmptyTrashTitle(index.overview.trash),
+      title: locked > 0
+          ? l10n.libraryEmptyTrashLockedTitle(index.overview.trash, locked)
+          : l10n.libraryEmptyTrashTitle(index.overview.trash),
       message: l10n.libraryEmptyTrashMessage,
       confirmLabel: l10n.libraryEmptyTrashConfirm,
     );

@@ -2,13 +2,12 @@
 
 use std::collections::HashMap;
 
-use axum::Json;
-use axum::Router;
 use axum::body::Bytes;
 use axum::extract::rejection::{BytesRejection, PathRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::get;
+use axum::{Extension, Json, Router};
 use kanso_core::DocType;
 use kanso_core::id::with_prefix;
 use serde_json::{Value, json};
@@ -16,6 +15,8 @@ use serde_json::{Value, json};
 use crate::AppState;
 use crate::api::{self, NoteQuery, Since};
 use crate::error::{ApiError, ApiResult};
+use crate::keyed::{self, Key};
+use crate::scope::Caller;
 
 type Params = Result<Query<HashMap<String, String>>, QueryRejection>;
 type Body = Result<Bytes, BytesRejection>;
@@ -28,17 +29,25 @@ pub(crate) fn routes() -> Router<AppState> {
         .route("/loops", get(list_loops))
         .route(
             "/notes",
-            get(list_notes).post(|state: State<AppState>, body: Body| {
-                post_collection(state, body, DocType::Note)
-            }),
+            get(list_notes).post(
+                |state: State<AppState>, caller: Extension<Caller>, body: Body| {
+                    post_collection(state, caller, body, DocType::Note)
+                },
+            ),
         );
     for doc_type in [DocType::Book, DocType::Tag, DocType::File] {
         router = router.route(
             &format!("/{}", doc_type.collection()),
-            get(move |state: State<AppState>, params: Params| {
-                list_collection(state, params, doc_type)
-            })
-            .post(move |state: State<AppState>, body: Body| post_collection(state, body, doc_type)),
+            get(
+                move |state: State<AppState>, caller: Extension<Caller>, params: Params| {
+                    list_collection(state, caller, params, doc_type)
+                },
+            )
+            .post(
+                move |state: State<AppState>, caller: Extension<Caller>, body: Body| {
+                    post_collection(state, caller, body, doc_type)
+                },
+            ),
         );
     }
     router
@@ -47,6 +56,26 @@ pub(crate) fn routes() -> Router<AppState> {
             "/{kind}/{id}",
             get(get_alias).post(post_alias).delete(delete_alias),
         )
+}
+
+/// Refuses a write by a key that may not write, before the route runs, so
+/// a write route is never reached by a read or suggest key. `/mcp` is
+/// POST for every key: its tools are gated one by one.
+pub(crate) async fn write_gate(
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::http::Method;
+    use axum::response::IntoResponse as _;
+    let reads = matches!(*request.method(), Method::GET | Method::HEAD);
+    if !reads
+        && request.uri().path() != crate::auth::MCP_PATH
+        && let Some(Caller::Key { access, .. }) = request.extensions().get::<Caller>()
+        && *access != kanso_store::KeyAccess::Write
+    {
+        return ApiError::forbidden(crate::keyed::cannot_write(*access)).into_response();
+    }
+    next.run(request).await
 }
 
 pub(crate) async fn not_found() -> ApiError {
@@ -136,7 +165,11 @@ async fn meta() -> Json<Value> {
     }))
 }
 
-async fn list_notes(State(state): State<AppState>, params: Params) -> JsonResult {
+async fn list_notes(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    params: Params,
+) -> JsonResult {
     let params = QueryParams::parse(params)?;
     let query = NoteQuery {
         keyword: params.get("keyword").unwrap_or_default().to_owned(),
@@ -145,13 +178,20 @@ async fn list_notes(State(state): State<AppState>, params: Params) -> JsonResult
         sort: params.get("sort").map(api::parse_sort).unwrap_or_default(),
         descending: params.flag("descending", true)?,
     };
-    let notes = blocking(&state, move |store| api::list_notes(store, &query)).await?;
-    Ok(Json(Value::Array(notes)))
+    blocking_as(&state, caller, move |store, key| {
+        keyed::list_notes(store, key, &query)
+    })
+    .await
+    .map(|notes| Json(Value::Array(notes)))
 }
 
 /// `GET /loops?bookId=&kind=&limit=`: open loops (things said in notes that
 /// were not checkboxes). Locked notes and the trash have none.
-async fn list_loops(State(state): State<AppState>, params: Params) -> JsonResult {
+async fn list_loops(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    params: Params,
+) -> JsonResult {
     let params = QueryParams::parse(params)?;
     let limit = params.count("limit")?;
     let book_id = params.get("bookId").map(str::to_owned);
@@ -162,110 +202,142 @@ async fn list_loops(State(state): State<AppState>, params: Params) -> JsonResult
                 ApiError::bad_request("'kind' must be mine, waiting or question.")
             })?),
         };
-    let loops = blocking(&state, move |store| {
-        api::list_loops(store, book_id, kind, limit)
+    blocking_as(&state, caller, move |store, key| {
+        keyed::list_loops(store, key, book_id, kind, limit)
     })
-    .await?;
-    Ok(Json(Value::Array(loops)))
+    .await
+    .map(|loops| Json(Value::Array(loops)))
 }
 
 async fn list_collection(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     params: Params,
     doc_type: DocType,
 ) -> JsonResult {
     let params = QueryParams::parse(params)?;
     let limit = params.count("limit")?;
     let skip = params.count("skip")?.unwrap_or(0);
-    let docs = blocking(&state, move |store| {
-        api::list_docs(store, doc_type, limit, skip)
+    blocking_as(&state, caller, move |store, key| {
+        keyed::list_docs(store, key, doc_type, limit, skip)
     })
-    .await?;
-    Ok(Json(Value::Array(docs)))
+    .await
+    .map(|docs| Json(Value::Array(docs)))
 }
 
 async fn post_collection(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     body: Body,
     doc_type: DocType,
 ) -> JsonResult {
+    Key::of(&caller)?.require_write()?;
     let body = json_body(body)?;
-    Ok(Json(
-        blocking(&state, move |store| api::upsert(store, doc_type, body)).await?,
-    ))
+    blocking_as(&state, caller, move |store, key| {
+        let vis = key.visibility(store)?;
+        let fields = body.as_object().cloned().unwrap_or_default();
+        let id = fields.get("_id").and_then(Value::as_str);
+        keyed::check_write(store, key, &vis, doc_type, id, &fields)?;
+        api::upsert(store, doc_type, body)
+    })
+    .await
+    .map(Json)
 }
 
 async fn get_doc(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     path: Result<Path<String>, PathRejection>,
     params: Params,
 ) -> JsonResult {
-    read(state, doc_id(path)?, params).await
+    read(state, caller, doc_id(path)?, params).await
 }
 
 async fn get_alias(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     path: Result<Path<(String, String)>, PathRejection>,
     params: Params,
 ) -> JsonResult {
-    read(state, alias_id(path)?, params).await
+    read(state, caller, alias_id(path)?, params).await
 }
 
-async fn read(state: AppState, id: String, params: Params) -> JsonResult {
+async fn read(state: AppState, caller: Caller, id: String, params: Params) -> JsonResult {
     let params = QueryParams::parse(params)?;
     let rev = params.get("rev").map(str::to_owned);
     let attachments = params.flag("attachments", false)?;
-    let doc = blocking(&state, move |store| {
-        api::get_doc(store, &id, rev.as_deref(), attachments)
+    blocking_as(&state, caller, move |store, key| {
+        keyed::get_doc(store, key, &id, rev.as_deref(), attachments)
     })
-    .await?;
-    Ok(Json(doc))
+    .await
+    .map(Json)
 }
 
 async fn post_doc(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     path: Result<Path<String>, PathRejection>,
     body: Body,
 ) -> JsonResult {
-    merge(state, doc_id(path)?, body).await
+    merge(state, caller, doc_id(path)?, body).await
 }
 
 async fn post_alias(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     path: Result<Path<(String, String)>, PathRejection>,
     body: Body,
 ) -> JsonResult {
-    merge(state, alias_id(path)?, body).await
+    merge(state, caller, alias_id(path)?, body).await
 }
 
-async fn merge(state: AppState, id: String, body: Body) -> JsonResult {
+async fn merge(state: AppState, caller: Caller, id: String, body: Body) -> JsonResult {
+    Key::of(&caller)?.require_write()?;
     let body = json_body(body)?;
-    Ok(Json(
-        blocking(&state, move |store| api::merge(store, &id, body)).await?,
-    ))
+    blocking_as(&state, caller, move |store, key| {
+        let doc_type = DocType::of_id(&id).ok_or_else(ApiError::not_found)?;
+        let vis = key.visibility(store)?;
+        let fields = body.as_object().cloned().unwrap_or_default();
+        keyed::check_write(store, key, &vis, doc_type, Some(&id), &fields)?;
+        api::merge(store, &id, body)
+    })
+    .await
+    .map(Json)
 }
 
 async fn delete_doc(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     path: Result<Path<String>, PathRejection>,
 ) -> JsonResult {
-    let id = doc_id(path)?;
-    Ok(Json(
-        blocking(&state, move |store| api::delete(store, &id)).await?,
-    ))
+    remove(state, caller, doc_id(path)?).await
 }
 
 async fn delete_alias(
     State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
     path: Result<Path<(String, String)>, PathRejection>,
 ) -> JsonResult {
-    let id = alias_id(path)?;
-    Ok(Json(
-        blocking(&state, move |store| api::delete(store, &id)).await?,
-    ))
+    remove(state, caller, alias_id(path)?).await
 }
 
-async fn changes(State(state): State<AppState>, params: Params) -> JsonResult {
+async fn remove(state: AppState, caller: Caller, id: String) -> JsonResult {
+    Key::of(&caller)?.require_write()?;
+    blocking_as(&state, caller, move |store, key| {
+        let doc_type = DocType::of_id(&id).ok_or_else(ApiError::not_found)?;
+        let vis = key.visibility(store)?;
+        keyed::check_write(store, key, &vis, doc_type, Some(&id), &Default::default())?;
+        api::delete(store, &id)
+    })
+    .await
+    .map(Json)
+}
+
+async fn changes(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    params: Params,
+) -> JsonResult {
     let params = QueryParams::parse(params)?;
     let since =
         match params.get("since") {
@@ -278,10 +350,18 @@ async fn changes(State(state): State<AppState>, params: Params) -> JsonResult {
     let limit = params.count("limit")?;
     let descending = params.flag("descending", false)?;
     let include_docs = params.flag("include_docs", false)?;
-    Ok(Json(
-        blocking(&state, move |store| {
-            api::changes(store, since, limit, descending, include_docs)
-        })
-        .await?,
-    ))
+    blocking_as(&state, caller, move |store, key| {
+        keyed::changes(store, key, since, limit, descending, include_docs)
+    })
+    .await
+    .map(Json)
+}
+
+/// [`blocking`] for the key behind `caller`.
+async fn blocking_as<T: Send + 'static>(
+    state: &AppState,
+    caller: Caller,
+    f: impl FnOnce(&kanso_store::Store, &Key) -> ApiResult<T> + Send + 'static,
+) -> ApiResult<T> {
+    blocking(state, move |store| f(store, &Key::of(&caller)?)).await
 }

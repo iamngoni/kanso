@@ -272,6 +272,9 @@ What locking does and doesn't do:
   locked note aren't sealed.
 - The local API reads a locked note with an empty body. It can move, retitle or tag the note, but
   can't change its text, take the lock off, or delete it outright (moving it to the trash still works).
+- **Empty Trash** deletes locked notes too. Its question counts them ("Delete 12 notes permanently,
+  including 2 locked notes and their sealed attachments"), and a locked note's sealed attachments are
+  deleted with it. An attachment a note outside the trash still uses is kept.
 - Export All Notes leaves locked notes, and the notes in locked notebooks, out, and none of them can
   be published.
 - Every device needs this version of Kanso: an older one shows a locked note as empty, and doesn't

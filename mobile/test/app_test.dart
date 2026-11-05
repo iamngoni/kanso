@@ -164,6 +164,7 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = 2.5;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await pumpApp(tester);
+      await tester.pumpAndSettle();
       final scale = MediaQuery.textScalerOf(
         tester.element(find.byType(DesignGalleryPage)),
       ).scale(10);

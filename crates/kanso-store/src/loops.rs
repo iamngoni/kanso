@@ -357,7 +357,7 @@ impl Store {
             let mut stmt = conn.prepare(concat!(
                 "SELECT f.note_id, d.title, f.key, f.kind, f.text, f.at
                  FROM finished_items f JOIN docs d ON d.id = f.note_id
-                 WHERE f.at >= ?1 AND f.at < ?2 AND d.deleted = 0
+                 WHERE f.at >= ?1 AND f.at < ?2 AND f.kind != 'open' AND d.deleted = 0
                    AND IFNULL(d.book_id, '') != 'trash' AND NOT ",
                 note_locked!("d."),
                 " ORDER BY f.at DESC, f.note_id, f.key"

@@ -59,18 +59,23 @@ pub(crate) fn write_file(
     id: &str,
     fields: Option<&Map<String, Value>>,
 ) -> Result<()> {
-    match fields.and_then(ocr_of) {
-        Some((text, md5)) => {
-            conn.execute(
-                "INSERT INTO file_text (file_id, md5, text) VALUES (?1, ?2, ?3)
-                 ON CONFLICT (file_id) DO UPDATE SET md5 = excluded.md5, text = excluded.text",
-                params![id, md5, text],
-            )?;
-        }
-        None => {
+    // A PDF's extracted pages (kept or dropped by the file's current state)
+    // join what was read from the file itself.
+    let pdf = crate::pdf_text::sync_file(conn, id, fields)?;
+    let (text, md5) = match (fields.and_then(ocr_of), pdf) {
+        (None, None) => {
             conn.execute("DELETE FROM file_text WHERE file_id = ?", [id])?;
+            return Ok(());
         }
-    }
+        (Some((text, md5)), None) => (text.to_owned(), md5.to_owned()),
+        (None, Some(pages)) => pages,
+        (Some((ocr, md5)), Some((pages, _))) => (format!("{pages}\n{ocr}"), md5.to_owned()),
+    };
+    conn.execute(
+        "INSERT INTO file_text (file_id, md5, text) VALUES (?1, ?2, ?3)
+         ON CONFLICT (file_id) DO UPDATE SET md5 = excluded.md5, text = excluded.text",
+        params![id, md5, text],
+    )?;
     Ok(())
 }
 

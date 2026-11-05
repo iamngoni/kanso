@@ -8,33 +8,71 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, Method, Request, StatusCode, header};
 use http_body_util::BodyExt;
-use kanso_server::{ServerConfig, basic_header, router};
+use kanso_server::{KeyAccess, KeyStore, ServerConfig, router};
 use kanso_store::Store;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
 pub const USER: &str = "kanso-test";
-pub const PASS: &str = "pa:ss word";
+/// The key every test request is signed with: it can read and write.
+pub const KEY: &str = "kcl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+/// The same key, for tools that only take a login: the password.
+pub const PASS: &str = KEY;
 
 pub fn config() -> ServerConfig {
     ServerConfig {
         bind: SocketAddr::from(([127, 0, 0, 1], 0)),
-        username: USER.into(),
-        password: PASS.into(),
     }
+}
+
+/// Saves `key` in `store` with `access`, limited to `books` (`None` is
+/// every notebook).
+pub fn save_key(store: &Store, key: &str, access: KeyAccess, books: Option<Vec<String>>) {
+    use sha2::{Digest as _, Sha256};
+    let _ = store.api_key_insert(&kanso_store::NewApiKey {
+        id: format!("key-{}", &key[key.len() - 8..]),
+        name: format!("Test key {}", &key[key.len() - 8..]),
+        client: "other".into(),
+        token_hash: Sha256::digest(key.as_bytes()).into(),
+        access,
+        books,
+        created_at: 1,
+    });
+}
+
+/// The library's keys: [`KEY`], which can read and write, is among them.
+pub fn keys_for(store: &Arc<Store>) -> KeyStore {
+    save_key(store, KEY, KeyAccess::Write, None);
+    KeyStore::open(store.clone()).unwrap()
+}
+
+/// The `Authorization` header of [`KEY`].
+pub fn auth() -> String {
+    bearer(KEY)
+}
+
+pub fn bearer(key: &str) -> String {
+    format!("Bearer {key}")
 }
 
 pub struct App {
     pub dir: tempfile::TempDir,
     pub store: Arc<Store>,
     pub router: Router,
+    pub keys: KeyStore,
 }
 
 pub fn app() -> App {
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
-    let router = router(store.clone(), &config());
-    App { dir, store, router }
+    let keys = keys_for(&store);
+    let router = router(store.clone(), &config(), keys.clone());
+    App {
+        dir,
+        store,
+        router,
+        keys,
+    }
 }
 
 /// A runtime for property tests, which are synchronous.
@@ -88,7 +126,7 @@ pub fn request(method: Method, uri: &str, body: Option<&Value>) -> Request<Body>
     let builder = Request::builder()
         .method(method)
         .uri(uri)
-        .header(header::AUTHORIZATION, basic_header(USER, PASS));
+        .header(header::AUTHORIZATION, auth());
     match body {
         Some(body) => builder
             .header(header::CONTENT_TYPE, "application/json")

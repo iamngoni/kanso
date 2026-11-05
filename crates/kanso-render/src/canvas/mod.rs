@@ -8,6 +8,7 @@
 
 pub mod excalidraw;
 pub mod geometry;
+pub mod obsidian;
 pub mod pen;
 
 use std::collections::HashMap;

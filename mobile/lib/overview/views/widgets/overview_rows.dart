@@ -47,9 +47,6 @@ class AgendaTile extends StatelessWidget {
   final VoidCallback? onRevisit;
   final bool dimmed;
 
-  /// The width of the time column.
-  static const double gutter = 52;
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -77,7 +74,7 @@ class AgendaTile extends StatelessWidget {
               )
             : null,
         // The Now bar takes its width out of the padding, so every row's
-        // time, glyph and title line up.
+        // glyph and title line up.
         padding: EdgeInsetsDirectional.only(
           start: KansoSpacing.md - (row.now ? 3 : 0),
           end: KansoSpacing.md,
@@ -87,25 +84,6 @@ class AgendaTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            SizedBox(
-              width: gutter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  row.gutter,
-                  maxLines: 1,
-                  style: typography.meta.copyWith(
-                    color: timeColor,
-                    fontWeight: late || row.now
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
             // One slot for the event's square and the task's tick, so
             // titles start at the same place whatever the row is.
             if (isEvent)
@@ -182,6 +160,26 @@ class AgendaTile extends StatelessWidget {
                   ),
                 ),
               ),
+            // The time trails on the right, in tabular figures.
+            Padding(
+              padding: const EdgeInsetsDirectional.only(
+                start: KansoSpacing.sm,
+                top: 2,
+              ),
+              child: Text(
+                row.gutter,
+                maxLines: 1,
+                style: typography.meta.copyWith(
+                  color: timeColor,
+                  fontWeight: late || row.now
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

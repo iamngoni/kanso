@@ -13,9 +13,7 @@ use base64::engine::general_purpose::STANDARD;
 use common::*;
 use kanso_core::tasks::count_tasks;
 use kanso_core::{DocType, NoteStatus};
-use kanso_server::{
-    AgentScope, READ_TOOLS, ServerConfig, TokenStore, basic_header, router_with_tokens,
-};
+use kanso_server::{AgentScope, READ_TOOLS, TokenStore, router_with_tokens};
 use kanso_store::{Origin, Put, Store, StoreError};
 use proptest::prelude::*;
 use proptest::test_runner::{FileFailurePersistence, TestCaseError};
@@ -55,7 +53,7 @@ fn seed(store: &Store) {
         ),
         (
             DocType::Note,
-            json!({"_id": "note:n1", "bookId": "trash", "title": "N1", "body": ""}),
+            json!({"_id": "note:n1", "bookId": "book:b1", "title": "N1", "body": ""}),
         ),
         (
             DocType::File,
@@ -83,67 +81,55 @@ fn seeded_app() -> App {
 enum Attempt {
     NoHeader,
     Raw(String),
-    Creds(String, String),
+    /// A key-shaped string nobody minted, as a bearer token.
+    Stranger(String),
+    /// The same, as the password of a Basic login.
+    StrangerBasic(String, String),
 }
 
-fn attempt(user: String, pass: String) -> impl Strategy<Value = Attempt> {
-    let exact = Attempt::Creds(user.clone(), pass.clone());
+fn attempt() -> impl Strategy<Value = Attempt> {
     prop_oneof![
-        Just(exact),
         Just(Attempt::NoHeader),
-        "[ -~]{0,24}".prop_map(Attempt::Raw),
-        ("[^:]{0,10}", ".{0,10}").prop_map(|(u, p)| Attempt::Creds(u, p)),
-        (0..4usize, any::<char>()).prop_map(move |(kind, c)| {
-            let (mut u, mut p) = (user.clone(), pass.clone());
-            match kind {
-                0 => u.push(c),
-                1 => p.push(c),
-                2 => {
-                    u.pop();
-                }
-                _ => {
-                    p.pop();
-                }
-            }
-            Attempt::Creds(u, p)
-        }),
+        "[ -~]{0,64}".prop_map(Attempt::Raw),
+        "[A-Za-z0-9_-]{43}".prop_map(|tail| Attempt::Stranger(format!("kcl_{tail}"))),
+        ("[^:]{0,10}", "[A-Za-z0-9_-]{43}")
+            .prop_map(|(user, tail)| Attempt::StrangerBasic(user, format!("kcl_{tail}"))),
     ]
 }
 
-fn shared_store() -> Arc<Store> {
-    static STORE: OnceLock<(tempfile::TempDir, Arc<Store>)> = OnceLock::new();
-    STORE
+fn shared_router() -> Router {
+    static ROUTER: OnceLock<(tempfile::TempDir, Router)> = OnceLock::new();
+    ROUTER
         .get_or_init(|| {
             let dir = tempfile::tempdir().unwrap();
             let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
-            (dir, store)
+            let keys = common::keys_for(&store);
+            (dir, kanso_server::router(store, &common::config(), keys))
         })
         .1
         .clone()
 }
 
+fn basic_with(user: &str, password: &str) -> String {
+    format!("Basic {}", STANDARD.encode(format!("{user}:{password}")))
+}
+
 proptest! {
     #![proptest_config(config(128))]
 
-    /// Auth refinement: only the configured username and password get past
-    /// authentication; every other pair, a missing header or garbage gets 401.
+    /// A random key, or none, or garbage, gets 401 on every kind of route.
     #[test]
-    fn auth_refinement(
-        (user, pass, attempt) in ("[^:]{0,10}", ".{0,10}")
-            .prop_flat_map(|(u, p)| (Just(u.clone()), Just(p.clone()), attempt(u, p)))
-    ) {
-        let config = ServerConfig { username: user.clone(), password: pass.clone(), ..common::config() };
-        let router = kanso_server::router(shared_store(), &config);
+    fn a_random_key_gets_401(attempt in attempt()) {
+        let router = shared_router();
         let header_value = match &attempt {
             Attempt::NoHeader => None,
             Attempt::Raw(raw) => Some(raw.clone()),
-            Attempt::Creds(u, p) => Some(basic_header(u, p)),
+            Attempt::Stranger(key) => Some(bearer(key)),
+            Attempt::StrangerBasic(user, key) => Some(basic_with(user, key)),
         };
-        let exact = match &attempt {
-            Attempt::Creds(u, p) => *u == user && *p == pass,
-            Attempt::Raw(raw) => raw.trim() == basic_header(&user, &pass),
-            Attempt::NoHeader => false,
-        };
+        // The one real key is the all-"A" one: a raw header may be it, by
+        // chance only if it is exactly this.
+        let is_real = header_value.as_deref().is_some_and(|raw| raw.trim() == common::auth());
         block_on(async move {
             for (method, uri) in [(Method::GET, "/"), (Method::GET, "/note:missing"), (Method::POST, "/mcp")] {
                 let mut request = Request::builder().method(method).uri(uri);
@@ -152,7 +138,7 @@ proptest! {
                 }
                 let body = r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#;
                 let response = send(&router, request.body(Body::from(body)).unwrap()).await;
-                prop_assert_eq!(response.status == StatusCode::UNAUTHORIZED, !exact, "{} {:?}", uri, attempt);
+                prop_assert_eq!(response.status == StatusCode::UNAUTHORIZED, !is_real, "{} {:?}", uri, attempt);
             }
             Ok(())
         })?;
@@ -185,7 +171,7 @@ proptest! {
 
         let tokens = TokenStore::new();
         let minted = tokens.mint(AgentScope::with_tools(None, &READ_TOOLS));
-        let router = router_with_tokens(app.store.clone(), &common::config(), tokens);
+        let router = router_with_tokens(app.store.clone(), &common::config(), tokens, app.keys.clone());
         let hidden_title = title.clone();
         let hidden_body = secret.clone();
         block_on(async move {
@@ -240,7 +226,7 @@ fn note_spec() -> impl Strategy<Value = NoteSpec> {
         proptest::option::of("note:[A-Za-z0-9_-]{1,12}"),
         ".{0,40}",
         "(.|\n|- \\[[ x]\\] ){0,40}",
-        prop::sample::select(vec!["book:b0", "book:b1", "trash"]),
+        prop::sample::select(vec!["book:b0", "book:b1"]),
         prop::sample::subsequence(vec!["tag:t0", "tag:t1"], 0..=2),
         prop::sample::select(NoteStatus::ALL.to_vec()),
         prop::sample::select(vec!["private", "public"]),
@@ -853,7 +839,8 @@ proptest! {
     ) {
         let app = app();
         block_on(async move {
-            let (id, rev) = write(&app.router, "/notes", json!({ "bookId": "trash", "title": "", "body": body })).await;
+            let (book, _) = write(&app.router, "/books", json!({ "name": "B" })).await;
+            let (id, rev) = write(&app.router, "/notes", json!({ "bookId": book, "title": "", "body": body })).await;
             let result = tool(&app.router, "patch-note", json!({ "_id": id, "_rev": rev, "old_string": old, "new_string": new })).await;
             let (_, doc) = get(&app.router, &format!("/{id}")).await;
             let occurrences = js_occurrences(&body, &old);
