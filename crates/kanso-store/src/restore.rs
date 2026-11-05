@@ -5,13 +5,19 @@
 //! running app can't swap a library out from under itself, so a restore has
 //! two halves:
 //!
-//! 1. [`stage_restore`] opens the backup with the key it needs, writes a copy
-//!    encrypted with *this* library's key to `<db>.restore`, and checks the
-//!    copy row for row. The library is untouched.
+//! 1. [`stage_restore`] copies the backup to a private file (the backup
+//!    itself is only ever opened read-only), opens the copy with the key it
+//!    needs, writes it encrypted with *this* library's key to `<db>.restore`,
+//!    and checks that row for row. The library is untouched, and a failure
+//!    (wrong words, a file that isn't a backup, a full disk) leaves nothing
+//!    behind.
 //! 2. [`apply_staged_restore`], at the next launch before the library opens,
-//!    keeps the library it replaces as a backup of its own and renames the
-//!    copy over it. A rename is atomic, and the step can be run again after a
-//!    crash: whichever of the two names is missing is finished.
+//!    checks the staged copy, keeps the library as a backup of its own (a
+//!    second name for the same file, or a finished copy), then renames the
+//!    staged copy over `<db>`. The rename is atomic, so `<db>` is always the
+//!    old library or the restored one, never missing and never half of
+//!    either. A crash anywhere leaves the staged copy, and the next launch
+//!    runs the step again.
 //!
 //! The caller holds the data-folder lock.
 
@@ -23,6 +29,9 @@ use crate::encrypt::{export, map_full, open_encrypted, open_plain, shred};
 use crate::encrypt::{sync_dir, sync_file, verify, with_suffix};
 use crate::{EncryptOptions, LibraryFile, LibraryKey, Result, StoreError, schema};
 
+/// A database file's side files.
+const SIDECARS: [&str; 3] = ["-wal", "-shm", "-journal"];
+
 /// Where a restore waits for the next launch.
 pub fn staged_restore_path(db: &Path) -> PathBuf {
     with_suffix(db, ".restore")
@@ -33,6 +42,11 @@ pub fn restore_staged(db: &Path) -> bool {
     staged_restore_path(db).exists()
 }
 
+/// The private copy of the backup that [`stage_restore`] reads from.
+fn source_copy_path(db: &Path) -> PathBuf {
+    with_suffix(&staged_restore_path(db), ".src")
+}
+
 /// Opens `backup` read-only and proves it is a Kanso library that `key`
 /// (none for a plain backup) unlocks. [`StoreError::WrongKey`] says the key
 /// doesn't fit; [`StoreError::Invalid`] that the file isn't a library.
@@ -40,10 +54,9 @@ pub fn check_backup(backup: &Path, key: Option<&LibraryKey>) -> Result<()> {
     open_backup(backup, key, false).map(drop)
 }
 
-/// `writable` is for [`stage_restore`]: SQLite attaches the copy it exports
-/// to with the same flags, so a read-only backup can't be exported. Nothing
-/// is written to the backup either way (it exists, so it is never created;
-/// the flag is for the attached copy).
+/// `writable` is for [`stage_restore`]'s private copy: SQLite attaches the
+/// copy it exports to with the same flags, so a read-only source can't be
+/// exported. The person's backup is only ever opened read-only.
 fn open_backup(backup: &Path, key: Option<&LibraryKey>, writable: bool) -> Result<Connection> {
     let kind = LibraryFile::of(backup);
     match (kind, key) {
@@ -82,10 +95,23 @@ fn open_backup(backup: &Path, key: Option<&LibraryKey>, writable: bool) -> Resul
     Ok(conn)
 }
 
+/// Copies `backup`, and a write-ahead log beside it, to `to`. The copy is
+/// what [`stage_restore`] opens read-write, so the backup is never written
+/// to, and one on a read-only disk can be restored.
+fn copy_source(backup: &Path, to: &Path) -> Result<()> {
+    std::fs::copy(backup, to)?;
+    let wal = with_suffix(backup, "-wal");
+    if wal.exists() {
+        std::fs::copy(&wal, with_suffix(to, "-wal"))?;
+    }
+    Ok(())
+}
+
 /// Writes the backup, re-encrypted with `library_key`, beside the library
 /// as `<db>.restore`, checked against the backup. `backup_key` is the key
 /// the backup was made with (none when it is plain). Nothing about the
-/// library changes until the next launch applies it.
+/// library changes until the next launch applies it, and a failure leaves
+/// no file behind (a restore staged before stays as it was).
 pub fn stage_restore(
     db: &Path,
     backup: &Path,
@@ -94,12 +120,19 @@ pub fn stage_restore(
 ) -> Result<()> {
     let staged = staged_restore_path(db);
     let temp = with_suffix(&staged, ".tmp");
+    let source = source_copy_path(db);
+    // The private copy, then the re-encrypted one.
     let needed = std::fs::metadata(backup)
-        .map(|meta| meta.len())
+        .map(|meta| meta.len().saturating_mul(2))
         .unwrap_or(0);
+    // The key is checked on the backup itself first, read-only, so wrong
+    // words cost no copy.
+    check_backup(backup, backup_key)?;
     remove_with_sidecars(&temp);
+    remove_with_sidecars(&source);
     let made = (|| {
-        let src = open_backup(backup, backup_key, true)?;
+        copy_source(backup, &source)?;
+        let src = open_backup(&source, backup_key, true)?;
         export(&src, &temp, library_key, None)?;
         verify(
             &src,
@@ -109,9 +142,12 @@ pub fn stage_restore(
             0.0,
             1.0,
         )?;
+        drop(src);
         sync_file(&temp)?;
         Ok::<(), StoreError>(())
     })();
+    // A plain backup's copy is plaintext: overwritten, not just unlinked.
+    shred_with_sidecars(&source);
     if let Err(err) = made {
         remove_with_sidecars(&temp);
         return Err(map_full(err, needed));
@@ -123,8 +159,15 @@ pub fn stage_restore(
 
 fn remove_with_sidecars(path: &Path) {
     let _ = std::fs::remove_file(path);
-    for suffix in ["-wal", "-shm", "-journal"] {
+    for suffix in SIDECARS {
         let _ = std::fs::remove_file(with_suffix(path, suffix));
+    }
+}
+
+fn shred_with_sidecars(path: &Path) {
+    let _ = shred(path);
+    for suffix in SIDECARS {
+        let _ = shred(&with_suffix(path, suffix));
     }
 }
 
@@ -135,9 +178,13 @@ pub fn cancel_staged_restore(db: &Path) {
 
 /// If a restore is staged, makes it the library: the library it replaces is
 /// kept in `keep_dir` as a backup made now (`now_ms`), and the staged copy is
-/// renamed over `db`. Returns whether it did. A staged copy that doesn't open
-/// with `library_key` is deleted and reported, so a bad restore can't stop
-/// Kanso from starting at every launch.
+/// renamed over `db`. Returns whether it did.
+///
+/// A staged copy that doesn't open with `library_key`, or fails its check,
+/// can never be applied: it is deleted and reported, and the library is
+/// left alone. Any other failure (the library in use, a full disk, a folder
+/// that can't be written) leaves the library *and* the staged copy as they
+/// are, so the next launch tries again; nothing is lost either way.
 pub fn apply_staged_restore(
     db: &Path,
     library_key: &LibraryKey,
@@ -148,34 +195,52 @@ pub fn apply_staged_restore(
     if !staged.exists() {
         return Ok(false);
     }
-    let applied = (|| {
-        // The copy is the one thing that must be sound.
-        let conn = open_encrypted(&staged, library_key)?;
-        let check: String = conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
-        if check != "ok" {
-            return Err(StoreError::Invalid(format!(
-                "the restored copy failed its check ({check})"
-            )));
+    if let Err(err) = check_staged(&staged, library_key) {
+        if !matches!(err, StoreError::Io(_)) {
+            cancel_staged_restore(db);
         }
-        drop(conn);
-        if db.exists() {
-            keep_library(db, library_key, keep_dir, now_ms)?;
-        }
-        std::fs::rename(&staged, db)?;
-        sync_dir(db);
-        Ok(())
-    })();
-    if applied.is_err() && staged.exists() {
-        cancel_staged_restore(db);
+        return Err(err);
     }
-    applied.map(|()| true)
+    if LibraryFile::of(db) != LibraryFile::New {
+        keep_library(db, library_key, keep_dir, now_ms)?;
+    }
+    std::fs::rename(&staged, db)?;
+    sync_dir(db);
+    remove_with_sidecars(&staged);
+    Ok(true)
 }
 
-/// Moves the library at `db` into `keep_dir` as a backup. Its write-ahead log
-/// goes into it first, and the log and shared memory files are deleted.
+/// The staged copy is the one thing that must be sound.
+fn check_staged(staged: &Path, key: &LibraryKey) -> Result<()> {
+    let conn = open_encrypted(staged, key)?;
+    let check: String = conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+    if check != "ok" {
+        return Err(StoreError::Invalid(format!(
+            "the restored copy failed its check ({check})"
+        )));
+    }
+    Ok(())
+}
+
+/// Where the library is kept: a manual backup made at `now_ms`, or a
+/// millisecond later while that name is taken, so no backup is replaced.
+fn kept_path(keep_dir: &Path, now_ms: i64) -> PathBuf {
+    let mut at = now_ms;
+    loop {
+        let path = crate::backup::manual_backup_path(keep_dir, at);
+        if !path.exists() && !with_suffix(&path, ".tmp").exists() {
+            return path;
+        }
+        at = at.saturating_add(1);
+    }
+}
+
+/// Keeps the library at `db` in `keep_dir` as a backup, leaving `db` in
+/// place: its write-ahead log goes into it first, then it gets a second
+/// name there (a hard link, which costs no space), or, across disks, a copy
+/// that is finished and flushed before it takes a backup's name.
 fn keep_library(db: &Path, key: &LibraryKey, keep_dir: &Path, now_ms: i64) -> Result<()> {
     std::fs::create_dir_all(keep_dir)?;
-    let kept = crate::backup::manual_backup_path(keep_dir, now_ms);
     let conn = if LibraryFile::of(db) == LibraryFile::Plain {
         open_plain(db)?
     } else {
@@ -188,13 +253,17 @@ fn keep_library(db: &Path, key: &LibraryKey, keep_dir: &Path, now_ms: i64) -> Re
         ));
     }
     drop(conn);
-    if std::fs::rename(db, &kept).is_err() {
-        std::fs::copy(db, &kept)?;
-        sync_file(&kept)?;
-        std::fs::remove_file(db)?;
-    }
-    for suffix in ["-wal", "-shm", "-journal"] {
+    // The log is empty now; nothing in it may be replayed into the restored
+    // library. The library itself holds everything.
+    for suffix in SIDECARS {
         shred(&with_suffix(db, suffix))?;
+    }
+    let kept = kept_path(keep_dir, now_ms);
+    if std::fs::hard_link(db, &kept).is_err() {
+        let temp = with_suffix(&kept, ".tmp");
+        std::fs::copy(db, &temp)?;
+        sync_file(&temp)?;
+        std::fs::rename(&temp, &kept)?;
     }
     sync_dir(&kept);
     Ok(())

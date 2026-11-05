@@ -192,8 +192,181 @@ fn a_plain_backup_restores_into_an_encrypted_library() {
     assert_eq!(LibraryFile::of(&db), LibraryFile::Encrypted);
 }
 
-/// A crash between keeping the old library and renaming the copy leaves no
-/// library and a staged copy; the next launch finishes the job.
+/// The files in `dir` and below, with their bytes, for "nothing changed".
+fn snapshot(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut found = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(at) = stack.pop() {
+        for entry in std::fs::read_dir(&at).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                found.push((path.clone(), std::fs::read(&path).unwrap()));
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
+/// A library and a backup of it in `dir`, the library with a later note.
+fn library_with_backup(dir: &Path, key: &LibraryKey) -> PathBuf {
+    let db = db_path(dir);
+    library(dir, key, &["a", "b"]);
+    let backup = Store::open_with_key(&db, Some(key))
+        .unwrap()
+        .backup_now(&dir.join("backups"), 1_000)
+        .unwrap();
+    Store::open_with_key(&db, Some(key))
+        .unwrap()
+        .set_meta("note.c", "yes")
+        .unwrap();
+    backup
+}
+
+/// Wrong words, a plain backup taken for an encrypted one, and a file that
+/// isn't a backup leave every file in the data folder as it was, the backup
+/// included: no staged copy, no private copy, no side files.
+#[test]
+fn a_failed_restore_leaves_every_file_as_it_was() {
+    let dir = tempfile::tempdir().unwrap();
+    let key = key_from(21);
+    let db = db_path(dir.path());
+    let backup = library_with_backup(dir.path(), &key);
+    let junk = dir.path().join("junk.db");
+    std::fs::write(&junk, vec![3u8; 8192]).unwrap();
+    let before = snapshot(dir.path());
+    let typo = LibraryKey::from_words(&key_from(22).to_words()).unwrap();
+    assert!(matches!(
+        stage_restore(&db, &backup, Some(&typo), &key),
+        Err(StoreError::WrongKey)
+    ));
+    assert!(stage_restore(&db, &junk, None, &key).is_err());
+    assert!(stage_restore(&db, &junk, Some(&key), &key).is_err());
+    assert_eq!(snapshot(dir.path()), before);
+}
+
+/// A backup on a read-only disk (or in a folder that can't be written) can
+/// be restored: only a private copy of it is ever opened for writing.
+#[cfg(unix)]
+#[test]
+fn a_read_only_backup_can_be_restored() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = tempfile::tempdir().unwrap();
+    let key = key_from(23);
+    let db = db_path(dir.path());
+    let backup = library_with_backup(dir.path(), &key);
+    let shelf = tempfile::tempdir().unwrap();
+    let on_shelf = shelf.path().join("kanso-manual-1000.db");
+    std::fs::copy(&backup, &on_shelf).unwrap();
+    std::fs::set_permissions(&on_shelf, std::fs::Permissions::from_mode(0o444)).unwrap();
+    std::fs::set_permissions(shelf.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+    let staged = stage_restore(&db, &on_shelf, Some(&key), &key);
+    std::fs::set_permissions(shelf.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+    staged.unwrap();
+    assert!(apply_staged_restore(&db, &key, &dir.path().join("backups"), 2_000).unwrap());
+    assert_eq!(marks(&db, &key), ["a", "b"]);
+}
+
+/// Regression: a restore that can't keep the library it replaces (here the
+/// backups folder is a file) leaves the library and the staged copy as they
+/// are, for the next launch. It used to delete the staged copy, and a
+/// failure after the old library was moved aside left no library at all.
+#[test]
+fn a_restore_that_cannot_keep_the_library_waits_for_the_next_launch() {
+    let dir = tempfile::tempdir().unwrap();
+    let key = key_from(24);
+    let db = db_path(dir.path());
+    let backup = library_with_backup(dir.path(), &key);
+    stage_restore(&db, &backup, Some(&key), &key).unwrap();
+    let blocked = dir.path().join("not-a-folder");
+    std::fs::write(&blocked, b"x").unwrap();
+    assert!(apply_staged_restore(&db, &key, &blocked, 2_000).is_err());
+    assert!(restore_staged(&db), "the restore waits for the next launch");
+    assert_eq!(marks(&db, &key), ["a", "b", "c"]);
+    // The next launch, with somewhere to keep it, finishes.
+    let backups = dir.path().join("backups");
+    assert!(apply_staged_restore(&db, &key, &backups, 3_000).unwrap());
+    assert_eq!(marks(&db, &key), ["a", "b"]);
+    assert_eq!(
+        marks(&backups.join("kanso-manual-3000.db"), &key),
+        ["a", "b", "c"]
+    );
+}
+
+/// Regression: a library another program has open (a reader holding the
+/// log) isn't swapped, and the restore waits rather than being dropped.
+#[test]
+fn a_library_in_use_keeps_the_restore_waiting() {
+    let dir = tempfile::tempdir().unwrap();
+    let key = key_from(25);
+    let db = db_path(dir.path());
+    let backup = library_with_backup(dir.path(), &key);
+    stage_restore(&db, &backup, Some(&key), &key).unwrap();
+    let writer = Store::open_with_key(&db, Some(&key)).unwrap();
+    writer.set_meta("note.d", "yes").unwrap();
+    let reader = rusqlite::Connection::open(&db).unwrap();
+    reader
+        .execute_batch(&format!(
+            "PRAGMA key = \"x'{}'\"; BEGIN; SELECT count(*) FROM meta;",
+            key.to_hex().as_str()
+        ))
+        .unwrap();
+    assert!(apply_staged_restore(&db, &key, &dir.path().join("backups"), 2_000).is_err());
+    assert!(restore_staged(&db));
+    drop(reader);
+    drop(writer);
+    assert_eq!(marks(&db, &key), ["a", "b", "c", "d"]);
+    assert!(apply_staged_restore(&db, &key, &dir.path().join("backups"), 3_000).unwrap());
+    assert_eq!(marks(&db, &key), ["a", "b"]);
+}
+
+/// The library is kept under a name no backup has: one made in the same
+/// millisecond is left alone.
+#[test]
+fn the_kept_library_never_replaces_a_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    let key = key_from(26);
+    let db = db_path(dir.path());
+    let backup = library_with_backup(dir.path(), &key);
+    let backups = dir.path().join("backups");
+    let taken = backups.join("kanso-manual-2000.db");
+    std::fs::copy(&backup, &taken).unwrap();
+    let before = std::fs::read(&taken).unwrap();
+    stage_restore(&db, &backup, Some(&key), &key).unwrap();
+    assert!(apply_staged_restore(&db, &key, &backups, 2_000).unwrap());
+    assert_eq!(std::fs::read(&taken).unwrap(), before);
+    assert_eq!(
+        marks(&backups.join("kanso-manual-2001.db"), &key),
+        ["a", "b", "c"]
+    );
+}
+
+/// A crash after the library was kept and before the swap: the library is
+/// still in place, and the next launch keeps it again and swaps. Nothing is
+/// lost, and the library was never missing.
+#[test]
+fn a_crash_after_keeping_the_library_is_finished_at_the_next_launch() {
+    let dir = tempfile::tempdir().unwrap();
+    let key = key_from(27);
+    let db = db_path(dir.path());
+    let backup = library_with_backup(dir.path(), &key);
+    let backups = dir.path().join("backups");
+    stage_restore(&db, &backup, Some(&key), &key).unwrap();
+    // What the first try left: the library kept under a second name.
+    std::fs::hard_link(&db, backups.join("kanso-manual-2000.db")).unwrap();
+    assert_eq!(marks(&db, &key), ["a", "b", "c"]);
+    assert!(apply_staged_restore(&db, &key, &backups, 2_000).unwrap());
+    assert_eq!(marks(&db, &key), ["a", "b"]);
+    assert_eq!(
+        marks(&backups.join("kanso-manual-2000.db"), &key),
+        ["a", "b", "c"]
+    );
+}
+
+/// A library that is missing when a restore is applied (deleted by hand,
+/// say) takes the staged copy.
 #[test]
 fn a_crash_between_the_two_renames_is_finished_at_the_next_launch() {
     let dir = tempfile::tempdir().unwrap();
