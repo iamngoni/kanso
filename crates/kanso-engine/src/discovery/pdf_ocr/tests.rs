@@ -262,25 +262,52 @@ fn a_pdf_that_cannot_be_opened_is_not_tried_forever() {
 }
 
 #[test]
-fn a_reader_that_fails_on_a_page_leaves_it_empty() {
-    struct Bad;
-    impl WordReader for Bad {
+fn a_reader_that_fails_on_a_page_keeps_prior_pages_and_retries_that_page() {
+    struct FailsOnSecondPage(Mutex<usize>);
+    impl WordReader for FailsOnSecondPage {
         fn engine(&self) -> &'static str {
             "fake"
         }
         fn read_words(&self, _: &[u8]) -> Result<Vec<ReadWord>, String> {
-            Err("vision failed".into())
+            let mut read = self.0.lock().unwrap();
+            *read += 1;
+            if *read == 2 {
+                Err("vision failed".into())
+            } else {
+                Ok(vec![ReadWord::from((
+                    format!("retry{read}"),
+                    Quad::new(0.1, 0.1, 0.4, 0.14),
+                ))])
+            }
         }
     }
     let (_dir, store) = store();
-    let (id, _) = scanned_pdf(&store, 2);
+    let (id, _) = scanned_pdf(&store, 3);
+    let md5 = store.get(&id).unwrap().unwrap().fields["md5digest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let reader = FailsOnSecondPage(Mutex::new(0));
+    assert_eq!(
+        ocr_next(&store, &scans(), &reader, 4, &never).unwrap(),
+        Ocred::ReaderFailed {
+            waiting: 1,
+            error: "vision failed".into()
+        }
+    );
+    assert_eq!(store.pdf_ocr_progress(&id).unwrap().read, 1);
+    assert_eq!(store.pdf_pages_to_ocr(&id, &md5).unwrap(), vec![2, 3]);
+
+    let working = Words;
     assert!(matches!(
-        ocr_next(&store, &scans(), &Bad, 4, &never).unwrap(),
+        ocr_next(&store, &scans(), &working, 4, &never).unwrap(),
         Ocred::Read { finished: true, .. }
     ));
     let ocr = store.pdf_ocr(&id).unwrap().unwrap();
-    assert!(ocr.pages.iter().all(|p| p.words.is_empty()));
-    assert!(store.pdfs_to_ocr(5).unwrap().is_empty());
+    assert_eq!(ocr.pages.len(), 3);
+    assert_eq!(ocr.pages[0].text(), "retry1");
+    assert_eq!(found(&store, "second2"), 1);
+    assert_eq!(found(&store, "second3"), 1);
 }
 
 proptest! {

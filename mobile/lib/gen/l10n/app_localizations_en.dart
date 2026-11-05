@@ -1498,13 +1498,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String pdfNotesColor(String color) {
-    String _temp0 = intl.Intl.selectLogic(color, {
-      'yellow': 'Yellow',
-      'green': 'Green',
-      'blue': 'Blue',
-      'pink': 'Pink',
-      'other': 'Colour',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      color,
+      {
+        'yellow': 'Yellow',
+        'green': 'Green',
+        'blue': 'Blue',
+        'pink': 'Pink',
+        'other': 'Colour',
+      },
+    );
     return '$_temp0';
   }
 

@@ -170,12 +170,13 @@ pub fn ocr_next(
                 None
             }
         };
-        let words = png.map_or_else(Vec::new, |png| {
-            reader.read_words(&png).unwrap_or_else(|err| {
-                eprintln!("kanso: couldn't read page {page} of {}: {err}", pdf.id);
-                Vec::new()
-            })
-        });
+        let words = match png {
+            Some(png) => match reader.read_words(&png) {
+                Ok(words) => words,
+                Err(error) => return Ok(Ocred::ReaderFailed { waiting, error }),
+            },
+            None => Vec::new(),
+        };
         let kept = store.keep_pdf_ocr_page(
             &pdf.id,
             &pdf.md5,
