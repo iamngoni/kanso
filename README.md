@@ -282,9 +282,11 @@ What locking does and doesn't do:
   now" or "Later"), types your lock password once, and seals the attachments of every locked note and
   locked notebook in one pass, with a progress sheet. After "Later" a quiet reminder stays until it is
   done, and **Seal Attachments of Locked Notes…** (Note menu, palette; Settings, Locked notes on a
-  phone) does it at any time. A note you never open with its password is left as it is, and its
-  attachments stay plain; one that uses another lock password waits for that password. If the pass
-  stops (a crash, Cancel), nothing is lost: it finishes the next time you run it, or can be undone.
+  phone) does it at any time. Opening such a note with its password also seals its attachments
+  before it shows, and Kanso says so; a file that can't be sealed stays plain and the note still
+  opens. A note you never open with its password is left as it is, and its attachments stay plain;
+  one that uses another lock password waits for that password. If the pass stops (a crash, Cancel),
+  nothing is lost: it finishes the next time you run it, or can be undone.
 - The local API doesn't see a locked note at all: to an API key it is "not found", so it can't read,
   retitle, tag, move or delete it.
 - **Empty Trash** deletes locked notes too. Its question counts them ("Delete 12 notes permanently,

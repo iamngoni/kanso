@@ -331,6 +331,42 @@ fn migrate_note(
     Ok(counts)
 }
 
+/// Seals the files of locked `note`, which an older Kanso locked, as it is
+/// opened: `key` has just opened its text into `note.body`, and the note is
+/// shown only after this, so what it shows is sealed. A file an unlocked note
+/// also shows is copied and `note.body` links the copy; a file whose bytes
+/// haven't arrived yet waits for the next save. The note is written with its
+/// list, and `note.rev` is the new revision. `None` when the note isn't such
+/// a note (it has its list already). On an error the note keeps its text and
+/// still opens; a file that couldn't be sealed stays plain, and the words
+/// name it. The desktop and the phone both call this, so they behave alike.
+pub fn seal_on_open(
+    store: &Store,
+    book: &KeyBook,
+    note: &mut Note,
+    key: &LockKey,
+) -> Result<Option<super::Counts>, FilesError> {
+    if !is_legacy(note) {
+        return Ok(None);
+    }
+    let locking = HashSet::from([note.id.clone()]);
+    let mut copies = HashMap::new();
+    let mut quiet = |_: &Progress| Ok(());
+    let mut job = Job::new(store, book, &locking, &mut copies, &mut quiet);
+    job.leave_waiting = true;
+    let mut working = note.clone();
+    let text = working.body.clone();
+    let (body, counts) = seal_note_files(&mut job, &mut working, &text, key)?;
+    let mut stored = working.clone();
+    stored.body.clear();
+    let value = serde_json::to_value(&stored).map_err(|err| failed(err.to_string()))?;
+    let written = store.lock_note(value)?;
+    working.rev = Some(written.rev);
+    working.body = body;
+    *note = working;
+    Ok(Some(counts))
+}
+
 /// Takes back what a stopped run did to locked `note`: the files it sealed
 /// are unsealed, the copies it made removed, and the note goes back to
 /// having no list (or the list it had before, if it had files then). `key`

@@ -42,6 +42,11 @@ fn attachments(n: usize) -> String {
     format!("{n} attachment{}", if n == 1 { "" } else { "s" })
 }
 
+/// "1 attachment is" or "2 attachments are", to start a sentence about them.
+fn attachments_are(n: usize) -> String {
+    format!("{} {}", attachments(n), if n == 1 { "is" } else { "are" })
+}
+
 /// What the prompt says. With every waiting note open (the keys held fit
 /// them all) it also counts their attachments and size, as the phone does;
 /// else it says when that is known, rather than count part of them.
@@ -60,7 +65,7 @@ pub fn prompt_words(pending: &Pending, scan: Option<&Scan>) -> String {
             if scan.summary.shared > 0 {
                 words.push_str(&format!(
                     " {} also used by other notes: the locked note gets its own sealed copy, and the other notes keep theirs.",
-                    attachments(scan.summary.shared),
+                    attachments_are(scan.summary.shared),
                 ));
             }
         }
@@ -109,7 +114,7 @@ pub fn finished_words(outcome: &Outcome) -> String {
     if outcome.copied > 0 {
         words.push_str(&format!(
             " {} also used by other notes, so each locked note has its own sealed {}.",
-            attachments(outcome.copied),
+            attachments_are(outcome.copied),
             if outcome.copied == 1 {
                 "copy"
             } else {
@@ -137,6 +142,29 @@ pub fn finished_words(outcome: &Outcome) -> String {
         ));
     }
     words
+}
+
+/// What Kanso says when opening a note an older Kanso locked sealed its
+/// pictures and files: once for that note, which has its list after. Nothing
+/// when it linked none.
+pub(crate) fn opened_words(sealed: &locked::SealedOnOpen) -> Option<String> {
+    match sealed {
+        locked::SealedOnOpen::Sealed(counts) if counts.sealed + counts.copied == 0 => None,
+        locked::SealedOnOpen::Sealed(counts) => {
+            let mut words = format!("Sealed {}.", attachments(counts.sealed + counts.copied));
+            if counts.copied > 0 {
+                words.push_str(&format!(
+                    " {} also used by other notes, so this note has its own sealed {}.",
+                    attachments_are(counts.copied),
+                    if counts.copied == 1 { "copy" } else { "copies" },
+                ));
+            }
+            Some(words)
+        }
+        locked::SealedOnOpen::Failed(words) => Some(format!(
+            "This note's attachments couldn't all be sealed. {words} What wasn't sealed stays as it was; the note opens as usual."
+        )),
+    }
 }
 
 /// What Kanso says after an undo.
@@ -448,7 +476,7 @@ mod tests {
         };
         let words = finished_words(&outcome);
         assert!(words.starts_with("Sealed 6 attachments in 3 locked notes."));
-        assert!(words.contains("2 attachments also used by other notes"));
+        assert!(words.contains("2 attachments are also used by other notes"));
         assert!(words.contains("1 locked note use another lock password"));
         let none = finished_words(&Outcome {
             notes: 2,
@@ -468,6 +496,36 @@ mod tests {
         });
         assert!(failed.contains("couldn't be sealed"));
         assert!(failed.ends_with("Nope."));
+    }
+
+    #[::core::prelude::v1::test]
+    fn opening_a_note_locked_before_says_what_it_sealed_or_which_file_stayed() {
+        use kanso_engine::lock::files::Counts;
+        let sealed = |sealed, copied| {
+            opened_words(&locked::SealedOnOpen::Sealed(Counts {
+                sealed,
+                copied,
+                ..Counts::default()
+            }))
+        };
+        assert_eq!(
+            sealed(0, 0),
+            None,
+            "a note with no attachments says nothing"
+        );
+        assert_eq!(sealed(1, 0).as_deref(), Some("Sealed 1 attachment."));
+        assert_eq!(
+            sealed(2, 1).as_deref(),
+            Some(
+                "Sealed 3 attachments. 1 attachment is also used by other notes, so this note has its own sealed copy."
+            )
+        );
+        let failed = opened_words(&locked::SealedOnOpen::Failed(
+            "\u{201c}scan.pdf\u{201d}: The attachment couldn't be sealed safely.".into(),
+        ))
+        .unwrap();
+        assert!(failed.contains("\u{201c}scan.pdf\u{201d}"), "{failed}");
+        assert!(failed.contains("the note opens as usual"));
     }
 
     proptest! {
@@ -499,6 +557,19 @@ mod tests {
             prop_assert!(reminder_words(&pending).contains(&notes_words));
             let one = notes(1);
             prop_assert_eq!(one, "1 locked note");
+        }
+
+        /// What an open says counts every file it sealed or copied.
+        #[::core::prelude::v1::test]
+        fn prop_the_open_words_count_the_sealed_files(sealed in 0usize..200, copied in 0usize..200) {
+            let counts = kanso_engine::lock::files::Counts { sealed, copied, ..Default::default() };
+            let words = opened_words(&locked::SealedOnOpen::Sealed(counts));
+            prop_assert_eq!(words.is_none(), sealed + copied == 0);
+            if let Some(words) = words {
+                let expected = format!("Sealed {}.", attachments(sealed + copied));
+                prop_assert!(words.starts_with(&expected));
+                prop_assert_eq!(words.contains("own sealed"), copied > 0);
+            }
         }
     }
 }

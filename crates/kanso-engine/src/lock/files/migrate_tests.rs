@@ -704,11 +704,24 @@ fn after_migration_no_plaintext_of_a_migrated_file_is_left_in_the_folder() {
         .id;
     let mut note = world.note(&[image.clone(), pdf.clone()]);
     // Read while the note was plain.
-    let md5 = |id: &str| world.store.file_meta(id).unwrap().unwrap().md5digest.unwrap();
+    let md5 = |id: &str| {
+        world
+            .store
+            .file_meta(id)
+            .unwrap()
+            .unwrap()
+            .md5digest
+            .unwrap()
+    };
     assert!(
         world
             .store
-            .set_image_text(&image, &md5(&image), std::str::from_utf8(OCR).unwrap(), "test")
+            .set_image_text(
+                &image,
+                &md5(&image),
+                std::str::from_utf8(OCR).unwrap(),
+                "test"
+            )
             .unwrap()
     );
     assert!(
@@ -773,8 +786,8 @@ fn opened(world: &World, id: &str, key: &LockKey) -> Note {
     note
 }
 
-/// The migration pass and the lazy seal of a note's first open (the phone)
-/// or first save (the desktop) can reach the same note at once. The second
+/// The migration pass and the lazy seal of a note's first open (the phone
+/// and the desktop) or a save can reach the same note at once. The second
 /// must not write its journal under the first one's feet: the first seals
 /// with its own journal's keys, and a file sealed under keys no stored list
 /// holds is lost when the app quits.
@@ -786,30 +799,35 @@ fn a_second_pass_cannot_rewrite_the_journal_of_a_note_being_sealed() {
     world.legacy_lock(&mut note, &key());
 
     let mut raced = None;
-    let outcome = migrate(&world.store, &KeyBook::default(), &[key()], &mut |progress| {
-        if progress.phase == super::super::Phase::Sealing && raced.is_none() {
-            // The pass wrote its journal and seals next. The lazy seal starts
-            // on the same note, writes its own journal, and is stopped.
-            let before = world.store.note(&note.id).unwrap().unwrap();
-            let mut lazy = opened(&world, &note.id, &key());
-            let text = lazy.body.clone();
-            let locking = HashSet::from([lazy.id.clone()]);
-            let mut copies = HashMap::new();
-            let book = KeyBook::default();
-            let mut stop = |progress: &Progress| {
-                if progress.phase == super::super::Phase::Sealing {
-                    Err("quit".to_owned())
-                } else {
-                    Ok(())
-                }
-            };
-            let mut job = Job::new(&world.store, &book, &locking, &mut copies, &mut stop);
-            let result = seal_note_files(&mut job, &mut lazy, &text, &key());
-            let after = world.store.note(&note.id).unwrap().unwrap();
-            raced = Some((result.is_err(), before == after));
-        }
-        Ok(())
-    });
+    let outcome = migrate(
+        &world.store,
+        &KeyBook::default(),
+        &[key()],
+        &mut |progress| {
+            if progress.phase == super::super::Phase::Sealing && raced.is_none() {
+                // The pass wrote its journal and seals next. The lazy seal starts
+                // on the same note, writes its own journal, and is stopped.
+                let before = world.store.note(&note.id).unwrap().unwrap();
+                let mut lazy = opened(&world, &note.id, &key());
+                let text = lazy.body.clone();
+                let locking = HashSet::from([lazy.id.clone()]);
+                let mut copies = HashMap::new();
+                let book = KeyBook::default();
+                let mut stop = |progress: &Progress| {
+                    if progress.phase == super::super::Phase::Sealing {
+                        Err("quit".to_owned())
+                    } else {
+                        Ok(())
+                    }
+                };
+                let mut job = Job::new(&world.store, &book, &locking, &mut copies, &mut stop);
+                let result = seal_note_files(&mut job, &mut lazy, &text, &key());
+                let after = world.store.note(&note.id).unwrap().unwrap();
+                raced = Some((result.is_err(), before == after));
+            }
+            Ok(())
+        },
+    );
     let (refused, untouched) = raced.expect("the pass reached its files");
     assert!(refused, "the second pass is refused");
     assert!(untouched, "and writes nothing");
@@ -833,26 +851,36 @@ fn a_file_is_only_left_sealed_when_the_stored_list_opens_it() {
     world.legacy_lock(&mut note, &key());
 
     let mut rewritten = false;
-    let outcome = migrate(&world.store, &KeyBook::default(), &[key()], &mut |progress| {
-        if progress.phase == super::super::Phase::Sealing && !rewritten {
-            rewritten = true;
-            // Another device's version of the note, from before its list.
-            let mut theirs = world.store.note(&note.id).unwrap().unwrap();
-            theirs.extra.remove(KANSO_FILES_FIELD);
-            world
-                .store
-                .put(
-                    DocType::Note,
-                    serde_json::to_value(&theirs).unwrap(),
-                    Put::Upsert,
-                    Origin::Sync,
-                )
-                .unwrap();
-        }
-        Ok(())
-    });
+    let outcome = migrate(
+        &world.store,
+        &KeyBook::default(),
+        &[key()],
+        &mut |progress| {
+            if progress.phase == super::super::Phase::Sealing && !rewritten {
+                rewritten = true;
+                // Another device's version of the note, from before its list.
+                let mut theirs = world.store.note(&note.id).unwrap().unwrap();
+                theirs.extra.remove(KANSO_FILES_FIELD);
+                world
+                    .store
+                    .put(
+                        DocType::Note,
+                        serde_json::to_value(&theirs).unwrap(),
+                        Put::Upsert,
+                        Origin::Sync,
+                    )
+                    .unwrap();
+            }
+            Ok(())
+        },
+    );
     assert!(rewritten);
     assert_eq!(outcome.failed.len(), 1, "the note is tried again");
+    assert!(
+        outcome.failed[0].words.contains("\u{201c}a.png\u{201d}"),
+        "the words name the file that stays plain: {}",
+        outcome.failed[0].words
+    );
     assert_eq!(world.state(&file), AttachmentState::Plain);
     assert_eq!(world.stored(&file), b"picture under a rewritten list");
 
@@ -936,4 +964,54 @@ fn a_file_an_unopened_note_may_link_stays_readable_with_that_note_s_password() {
             assert_eq!(world.state(&linked), AttachmentState::Sealed);
         }
     }
+}
+
+#[test]
+fn a_note_locked_before_seals_its_files_as_it_opens_and_leaves_no_canary() {
+    let world = world();
+    let own = world.file("a.png", CANARY);
+    let shared = world.file("b.png", b"shared picture");
+    let unlocked = world.note(std::slice::from_ref(&shared));
+    let mut note = world.note(&[own.clone(), shared.clone()]);
+    world.legacy_lock(&mut note, &key());
+    assert!(holds(&world.raw(), CANARY), "the control: it is on disk");
+    let mut open = opened(&world, &note.id, &key());
+
+    let counts = seal_on_open(&world.store, &KeyBook::default(), &mut open, &key())
+        .unwrap()
+        .expect("a note with no list is sealed as it opens");
+
+    assert_eq!((counts.sealed, counts.copied), (1, 1));
+    assert_eq!(world.state(&own), AttachmentState::Sealed);
+    // The unlocked note keeps the readable original; the opened text links
+    // the sealed copy, and so does the stored one.
+    assert_eq!(world.state(&shared), AttachmentState::Plain);
+    let other = world.store.note(&unlocked.id).unwrap().unwrap();
+    assert_eq!(linked_file_ids(&other.body), vec![shared.clone()]);
+    let links = linked_file_ids(&open.body);
+    assert!(links.contains(&own) && !links.contains(&shared));
+    assert_eq!(world.links(&note.id, &key()), links);
+    let stored = world.store.note(&note.id).unwrap().unwrap();
+    assert_eq!(open.rev, stored.rev, "the editor holds the new revision");
+    assert!(stored.is_locked() && stored.body.is_empty());
+    assert_eq!(note_files_from_extra(&stored.extra).unwrap().len(), 2);
+    assert_eq!(
+        world.contents(&note.id, &key()),
+        vec![Some(CANARY.to_vec()), Some(b"shared picture".to_vec())]
+    );
+    assert!(
+        !holds(&world.raw(), CANARY),
+        "no canary in the database or the log"
+    );
+    assert!(pending(&world.store).is_done());
+
+    // Opened again it has its list: nothing more is done.
+    let mut again = opened(&world, &note.id, &key());
+    let rev = again.rev.clone();
+    assert!(
+        seal_on_open(&world.store, &KeyBook::default(), &mut again, &key())
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(world.store.note(&note.id).unwrap().unwrap().rev, rev);
 }

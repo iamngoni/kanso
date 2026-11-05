@@ -86,7 +86,7 @@ pub fn unsealed_words(copied: usize) -> String {
 /// What Kanso tells, once, the first time it seals the pictures and files of
 /// a note that was locked before: the change in how locked notes behave,
 /// and what to do about other devices.
-pub const FILES_NOTICE: &str = "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you edit it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.";
+pub const FILES_NOTICE: &str = "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.";
 
 /// The sentence the lock dialogs gain: the note's pictures and files are
 /// sealed with it, and a file another note also shows is copied for it.

@@ -830,7 +830,7 @@ pub fn seal_note_files(
                 .insert(&plan.seal, FileKey::from_bytes(*plan.key.as_bytes()));
             continue;
         }
-        seal_file(store, plan, holder)?;
+        seal_file(store, plan, holder).map_err(|err| named(store, &plan.target, err))?;
         job.keys
             .insert(&plan.seal, FileKey::from_bytes(*plan.key.as_bytes()));
         job.progress.done += 1;
@@ -898,6 +898,22 @@ fn owner_title(store: &Store, file: &str, except: &str) -> Option<String> {
         .filter(|owner| owner != except)
         .find_map(|owner| store.note(&owner).ok().flatten())
         .map(|owner| crate::lock::display_title(&owner))
+}
+
+/// `err` with the name of file `id` in front, so the words say which file
+/// wasn't sealed (it stays plain, so its name is its own still).
+fn named(store: &Store, id: &str, err: FilesError) -> FilesError {
+    match err {
+        FilesError::Failed(words) => match store.file_meta(id).ok().flatten() {
+            Some(meta)
+                if !meta.name.is_empty() && meta.name != kanso_core::model::SEALED_FILE_NAME =>
+            {
+                failed(format!("\u{201c}{}\u{201d}: {words}", meta.name))
+            }
+            _ => FilesError::Failed(words),
+        },
+        other => other,
+    }
 }
 
 /// Seals plain file `plan.target` under the plan's key. `holder` is the

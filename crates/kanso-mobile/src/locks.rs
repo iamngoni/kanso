@@ -687,30 +687,24 @@ impl LockSession {
         let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
             return Ok(0);
         };
-        let key = held(&self.inner.keys)
-            .fitting(&envelope)
-            .ok_or(KansoError::Locked)?;
-        let body = note.body.clone();
-        let locking = HashSet::from([note.id.clone()]);
-        let mut copies = HashMap::new();
-        let (body, envelope) =
-            self.seal_note_files(note, &body, &key, &locking, &mut copies, Watch::Save)?;
-        note.body = body;
-        Envelope::store(Some(&envelope), &mut note.extra);
+        let (key, book) = {
+            let keys = held(&self.inner.keys);
+            let key = keys.fitting(&envelope).ok_or(KansoError::Locked)?;
+            (key, keys.file_keys())
+        };
+        // The desktop seals such a note on open with the same call.
+        let Some(_) =
+            migrate::seal_on_open(&self.inner.store, &book, note, &key).map_err(files_error)?
+        else {
+            return Ok(0);
+        };
         // The first time, the phone says it once (`take_sealed_files_notice`).
         if self.inner.store.meta(FILES_NOTICE_META)?.is_none() {
             self.inner.store.set_meta(FILES_NOTICE_META, "pending")?;
         }
-        let count = note_files_from_extra(&note.extra)
+        Ok(note_files_from_extra(&note.extra)
             .map(|files| u32::try_from(files.len()).unwrap_or(u32::MAX))
-            .unwrap_or_default();
-        let mut stored = note.clone();
-        stored.body.clear();
-        let value =
-            serde_json::to_value(stored).map_err(|err| KansoError::storage(err.to_string()))?;
-        let written = self.inner.store.lock_note(value)?;
-        note.rev = Some(written.rev);
-        Ok(count)
+            .unwrap_or_default())
     }
 
     /// Seals linked plaintext files and records this note's wrapped ownership,
