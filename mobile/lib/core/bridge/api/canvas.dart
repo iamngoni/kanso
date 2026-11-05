@@ -103,6 +103,9 @@ abstract class KansoCanvas implements RustOpaqueInterface {
     required List<String> known,
   });
 
+  /// "Open as canvas" (or "Copy as canvas" when read only) on a sketch.
+  Future<Saved> openAsCanvas({required String title});
+
   /// Other people's pointers on the canvas now.
   Future<List<CanvasPointerRow>> pointers();
 
@@ -140,6 +143,10 @@ abstract class KansoCanvas implements RustOpaqueInterface {
     required double y,
     required String tool,
   });
+
+  /// The sketch this is open on, when it is one: its ID, box and whether
+  /// it is read only.
+  SketchInfo? sketchInfo();
 
   /// Streams the stroke being drawn to the others. `true` when someone
   /// erased it meanwhile: the pen's stroke stops there.

@@ -263,7 +263,7 @@ pub(crate) fn open_plain(path: &Path) -> Result<Connection> {
     Ok(conn)
 }
 
-fn open_encrypted(path: &Path, key: &LibraryKey) -> Result<Connection> {
+pub(crate) fn open_encrypted(path: &Path, key: &LibraryKey) -> Result<Connection> {
     let conn = Connection::open(path)?;
     crate::library_key::unlock(&conn, Some(key))?;
     schema::register_functions(&conn)?;

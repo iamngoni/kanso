@@ -7,6 +7,7 @@
 //! kanso-release sign --feed <latest.json> [--key-env KANSO_UPDATE_SIGNING_KEY]
 //! kanso-release verify --feed <latest.json> [--sig <file>] [--key <base64>]...
 //! kanso-release notes --changelog <CHANGELOG.md> --version <v> --out <file>
+//! kanso-release check-notices [--changelog <CHANGELOG.md> --version <v>]
 //! ```
 
 use std::collections::BTreeMap;
@@ -35,6 +36,10 @@ Usage:
   kanso-release notes --changelog <CHANGELOG.md> --version <v> --out <file>
       Writes the changelog's section for <v>: the release's notes, for its
       page and for latest.json alike.
+  kanso-release check-notices [--changelog <CHANGELOG.md> --version <v>]
+      Checks the update notices the app is built with and, with --changelog,
+      that every entry under Breaking in <v>'s section ends with
+      (notice: <id>) for one of them. Fails the release when one doesn't.
 ";
 
 fn main() -> ExitCode {
@@ -45,6 +50,7 @@ fn main() -> ExitCode {
         Some("sign") => sign(&Flags::parse(&args[1..])),
         Some("verify") => verify(&Flags::parse(&args[1..])),
         Some("notes") => notes(&Flags::parse(&args[1..])),
+        Some("check-notices") => check_notices(&Flags::parse(&args[1..])),
         Some("help" | "-h" | "--help") => {
             print!("{USAGE}");
             Ok(())
@@ -276,4 +282,29 @@ fn notes(flags: &Flags) -> Result<(), String> {
         .map_err(|e| format!("writing {}: {e}", out.display()))?;
     println!("Wrote {}", out.display());
     Ok(())
+}
+
+fn check_notices(flags: &Flags) -> Result<(), String> {
+    use kanso_core::notices::NOTICES;
+    use kanso_update::notice_gate::{check_list, check_section};
+    let mut problems = check_list(NOTICES);
+    if flags.has("changelog") || flags.has("version") {
+        let path = flags.need("changelog")?;
+        let version = flags.need("version")?.trim_start_matches('v');
+        let changelog =
+            std::fs::read_to_string(path).map_err(|e| format!("reading {path}: {e}"))?;
+        let section = kanso_update::notes::section(&changelog, version).ok_or_else(|| {
+            format!("{path} has no section for {version}; run scripts/release.sh first")
+        })?;
+        problems.extend(check_section(&section, version, NOTICES));
+    }
+    if problems.is_empty() {
+        println!("Update notices OK.");
+        return Ok(());
+    }
+    let list: Vec<String> = problems.iter().map(|p| format!("  - {p}")).collect();
+    Err(format!(
+        "a breaking change can't ship without an update notice (docs/RELEASING.md \u{203a} Breaking changes):\n{}",
+        list.join("\n")
+    ))
 }

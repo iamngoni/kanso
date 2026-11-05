@@ -54,6 +54,7 @@ mod api_keys;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
+mod library_key;
 mod pdf;
 mod plugins_panel;
 mod plugins_settings;
@@ -1585,6 +1586,90 @@ fn new_drawing(
         crate::image_size::EMPTY_DRAWING
     );
     open_new_note(cx, workspace, store, "Sketch", &body);
+    settle_drawings(cx, window);
+}
+
+/// "Insert sketch": a note with a sketch in it that has been drawn on, and
+/// an empty one under it, the pointer over neither.
+fn sketch_in_note(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use kanso_core::canvas::{Point, Stroke, sketch};
+    crate::sketch_view::REVEAL_TOOLS.store(false, std::sync::atomic::Ordering::Relaxed);
+    let stroke = |points: Vec<(f64, f64)>, color: &str, tool: &str| Stroke {
+        tool: tool.into(),
+        color: color.into(),
+        width: 3.,
+        points: points
+            .into_iter()
+            .map(|(x, y)| Point {
+                x,
+                y,
+                pressure: 0.6,
+                tilt: None,
+            })
+            .collect(),
+        ..Stroke::default()
+    };
+    let mut drawn = sketch::new_sketch("sk-demo", 480, 320);
+    // A wave, a loop and an arrow-ish tick: enough ink to read the pen.
+    let wave: Vec<(f64, f64)> = (0..60)
+        .map(|i| {
+            (
+                30. + f64::from(i) * 6.5,
+                110. + (f64::from(i) / 4.).sin() * 42.,
+            )
+        })
+        .collect();
+    let ring: Vec<(f64, f64)> = (0..40)
+        .map(|i| {
+            let a = f64::from(i) / 39. * std::f64::consts::TAU;
+            (330. + a.cos() * 60., 200. + a.sin() * 52.)
+        })
+        .collect();
+    let tick = vec![(70., 230.), (95., 262.), (150., 190.)];
+    for (n, st) in [
+        stroke(wave, "#1971c2", "pen"),
+        stroke(ring, "#e03131", "marker"),
+        stroke(tick, "#2f9e44", "pen"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let _ = drawn.draw(st, 1000 + n as i64);
+    }
+    let empty = sketch::new_sketch("sk-blank", 320, 240);
+    let body = format!(
+        "How the signal moves.\n\n{}\nWrite on it with a pen, or the mouse.\n\n{}",
+        sketch::to_fence(&drawn),
+        sketch::to_fence(&empty)
+    );
+    open_new_note(cx, workspace, store, "Signal", &body);
+    settle_drawings(cx, window);
+}
+
+/// A sketch past three quarters of its cap, saying so under the box.
+fn sketch_nearly_full(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use kanso_core::canvas::sketch;
+    // The toolbar shows, as under the pointer: in a narrow column the tools
+    // give way and "Open as canvas" stays whole.
+    crate::sketch_view::REVEAL_TOOLS.store(true, std::sync::atomic::Ordering::Relaxed);
+    let mut full = sketch::new_sketch("sk-full", 480, 320);
+    // Kept data (JSON allows any field) standing in for 200 KB of ink.
+    full.extra.insert(
+        "kept".into(),
+        "x".repeat(sketch::WARN_SKETCH_BYTES + 1024).into(),
+    );
+    let body = format!("A busy page.\n\n{}", sketch::to_fence(&full));
+    open_new_note(cx, workspace, store, "Busy", &body);
     settle_drawings(cx, window);
 }
 
@@ -4515,6 +4600,55 @@ fn show_api_keys_notice(cx: &mut HeadlessAppContext) {
     });
 }
 
+/// The "Your library is now encrypted" notice, as if the release had been
+/// reached.
+fn library_encrypted_notices() -> &'static [kanso_core::notices::Notice] {
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::LIBRARY_ENCRYPTED_ID)
+        .expect("the encrypted-library notice ships")
+        .clone();
+    notice.since = semver::Version::new(0, 9, 0);
+    Box::leak(Box::new([notice]))
+}
+
+fn show_library_encrypted_notice(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        // The notice is for a library that isn't signed in to sync.
+        cx.global_mut::<Services>().account = AccountState::SignedOut;
+        cx.set_global(crate::notices::NoticeBoard {
+            list: library_encrypted_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The encrypted-library notice's banner.
+fn library_encrypted_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_encrypted_notice(cx);
+}
+
+/// The encrypted-library notice's How to fix sheet.
+fn library_encrypted_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_encrypted_notice(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&library_encrypted_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
 /// The plain-library notice for a library that could not be encrypted.
 fn library_plain_notices() -> &'static [kanso_core::notices::Notice] {
     let mut notice = kanso_core::notices::NOTICES
@@ -5657,6 +5791,9 @@ fn snapshots() {
         ),
         shot("dark-new-drawing", Dark, Preview, new_drawing),
         shot("light-new-drawing", Light, Split, new_drawing),
+        shot("dark-sketch-in-note", Dark, Split, sketch_in_note),
+        shot("light-sketch-in-note", Light, Split, sketch_in_note),
+        shot("light-sketch-nearly-full", Light, Split, sketch_nearly_full),
         shot("dark-table-before", Dark, Edit, table_before),
         shot("dark-table-after", Dark, Edit, table_after),
         shot("dark-table-after-mono", Dark, Edit, table_after_mono),
@@ -6707,6 +6844,38 @@ fn snapshots() {
             dialog_width: crate::notice_views::SHEET_WIDTH,
             ..shot("light-api-keys-notice-sheet", Light, Split, api_keys_sheet)
         },
+        // The library is encrypted and its key isn't saved (issue #243,
+        // step 11).
+        shot(
+            "dark-notice-library-encrypted-banner",
+            Dark,
+            Split,
+            library_encrypted_banner,
+        ),
+        shot(
+            "light-notice-library-encrypted-banner",
+            Light,
+            Split,
+            library_encrypted_banner,
+        ),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "dark-notice-library-encrypted-sheet",
+                Dark,
+                Split,
+                library_encrypted_sheet,
+            )
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "light-notice-library-encrypted-sheet",
+                Light,
+                Split,
+                library_encrypted_sheet,
+            )
+        },
         // The library could not be encrypted (issue #243, step 10).
         shot(
             "dark-notice-library-plain-banner",
@@ -6826,6 +6995,7 @@ fn snapshots() {
     for (name, prepare, dialog) in plugins_settings::SHOTS
         .iter()
         .chain(api_keys::SHOTS)
+        .chain(library_key::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
         .chain(rename_speakers::SHOTS)

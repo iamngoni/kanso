@@ -454,6 +454,13 @@ jobs:
           target/release/kanso-release notes --changelog CHANGELOG.md \
             --version "${GITHUB_REF_NAME#v}" --out notes/notes.md
 
+      # A breaking change with no update notice stops the release here, as it
+      # does in scripts/release.sh.
+      - name: Update notices
+        run: |
+          target/release/kanso-release check-notices --changelog CHANGELOG.md \
+            --version "${GITHUB_REF_NAME#v}"
+
       - name: Update feed
         run: |
           target/release/kanso-release feed --version "${GITHUB_REF_NAME#v}" \

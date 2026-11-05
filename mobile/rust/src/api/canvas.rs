@@ -8,7 +8,7 @@ use kanso_mobile::{CanvasSession, KansoError, Saved, ink_preview};
 
 use super::canvas_types::{
     CanvasPoint, CanvasPointerRow, CanvasPulse, CanvasRect, CanvasSaved, CanvasView, InkStyle,
-    PenSample, StrokeKey,
+    PenSample, SketchInfo, StrokeKey,
 };
 
 /// The outline of a stroke still being drawn, to paint under the pen each
@@ -162,6 +162,18 @@ impl KansoCanvas {
         known: Vec<String>,
     ) -> Result<(Saved, CanvasView), KansoError> {
         self.0.move_to_new_canvas(keys, title, known)
+    }
+
+    /// The sketch this is open on, when it is one: its ID, box and whether
+    /// it is read only.
+    #[frb(sync)]
+    pub fn sketch_info(&self) -> Option<SketchInfo> {
+        self.0.sketch_info()
+    }
+
+    /// "Open as canvas" (or "Copy as canvas" when read only) on a sketch.
+    pub fn open_as_canvas(&self, title: String) -> Result<Saved, KansoError> {
+        self.0.open_as_canvas(title)
     }
 
     pub fn export_svg(&self, dark: bool) -> Result<String, KansoError> {
