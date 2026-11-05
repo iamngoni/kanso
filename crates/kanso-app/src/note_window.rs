@@ -35,9 +35,10 @@ use crate::note_menu::NoteCommand;
 use crate::theme::Colors;
 use crate::workspace::{
     AppState, CopyKansoLink, CopyNoteLink, Dictate, ExportNote, FocusEditor, FormatTable,
-    InsertSketch, InsertSketchLarge, InsertSketchSmall, NewDrawing, NewNote, OpenCommandPalette, OpenNotePicker, PastePlainText, SaveNote,
-    SearchAllNotes, ShowBacklinks, ShowEditor, ShowHistory, ShowLive, ShowPreview, ShowSplit,
-    TogglePinned, TrashNote, UndoLastChange, Workspace,
+    InsertSketch, InsertSketchLarge, InsertSketchSmall, NewDrawing, NewNote, OpenCommandPalette,
+    OpenNotePicker, PastePlainText, SaveNote, SearchAllNotes, ShowBacklinks, ShowEditor,
+    ShowHistory, ShowLive, ShowPreview, ShowSplit, TogglePinned, TrashNote, UndoLastChange,
+    Workspace,
 };
 
 actions!(kanso, [OpenInNewWindow, OpenAsSticky, CloseNoteWindow]);

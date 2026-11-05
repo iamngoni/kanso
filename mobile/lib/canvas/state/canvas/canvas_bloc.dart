@@ -47,6 +47,8 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
     switch (event) {
       case CanvasStartedEvent(:final noteId):
         await _open(noteId, emit);
+      case CanvasSketchStartedEvent(:final noteId, :final sketchId):
+        await _open(noteId, emit, sketchId: sketchId);
       case CanvasStylusSeenEvent():
         if (!state.stylusSeen) {
           emit(state.copyWith(stylusSeen: true));
@@ -75,7 +77,10 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
         await _change(
           emit,
           (doc) => doc.draw(style, samples, _known()),
-          saveNow: true,
+          // A canvas is written when a stroke ends; a sketch two seconds
+          // later, so a continuous sketch rewrites its note's text at most
+          // every two seconds.
+          saveNow: !_sketch,
         );
       case CanvasErasedEvent(:final path, :final radius, :final partial):
         await _change(
@@ -141,9 +146,19 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
     }
   }
 
-  Future<void> _open(String noteId, Emitter<CanvasState> emit) async {
+  /// Whether the document is an inline sketch in a note.
+  bool _sketch = false;
+
+  Future<void> _open(
+    String noteId,
+    Emitter<CanvasState> emit, {
+    String? sketchId,
+  }) async {
     emit(state.copyWith(status: CanvasStatus.loading));
-    final opened = await _repository.open(noteId);
+    _sketch = sketchId != null;
+    final opened = sketchId == null
+        ? await _repository.open(noteId)
+        : await _repository.openSketch(noteId, sketchId);
     final doc = opened.toOption().toNullable();
     if (doc == null) {
       final error = opened.swap().toOption().toNullable();
@@ -299,7 +314,10 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
   void _fail(Emitter<CanvasState> emit, ApplicationError error) {
     emit(
       state.copyWith(
-        problem: state.view?.budget == CanvasBudget.full
+        // A sketch that refuses ink says it is full (its cap is its own).
+        problem:
+            state.view?.budget == CanvasBudget.full ||
+                (_sketch && error is InvalidError)
             ? CanvasProblem.full
             : CanvasProblem.failed,
       ),

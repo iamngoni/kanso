@@ -147,6 +147,7 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
     return kind == PointerDeviceKind.stylus ||
         kind == PointerDeviceKind.invertedStylus;
   }
+
   CanvasViewport get _viewport => _controller.value;
 
   @override

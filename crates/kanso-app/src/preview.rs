@@ -453,7 +453,12 @@ impl Preview {
     /// trash): they draw as pictures, and "Copy as canvas" makes a private
     /// canvas of one.
     pub fn set_sketch_read_only(&mut self, read_only: bool, cx: &mut Context<Self>) {
-        if self.rich.sketch_read_only.swap(read_only, Ordering::Relaxed) != read_only {
+        if self
+            .rich
+            .sketch_read_only
+            .swap(read_only, Ordering::Relaxed)
+            != read_only
+        {
             cx.notify();
         }
     }

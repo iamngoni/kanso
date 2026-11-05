@@ -4,10 +4,11 @@
 //! carry an outline.
 
 use flutter_rust_bridge::frb;
-use kanso_mobile::{CanvasSession, KansoError, Saved, ink_preview};
+use kanso_mobile::{CanvasSession, KansoError, Saved, ink_preview, sketch_insert};
 
 use super::canvas_types::{
-    CanvasPoint, CanvasRect, CanvasSaved, CanvasView, InkStyle, PenSample, StrokeKey,
+    CanvasPoint, CanvasRect, CanvasSaved, CanvasView, InkStyle, PenSample, SketchInfo,
+    SketchInserted, StrokeKey,
 };
 
 /// The outline of a stroke still being drawn, to paint under the pen each
@@ -15,6 +16,17 @@ use super::canvas_types::{
 #[frb(sync)]
 pub fn canvas_ink_preview(style: InkStyle, samples: Vec<PenSample>) -> Vec<f64> {
     ink_preview(style, samples)
+}
+
+/// A note's text with an empty sketch put in at `at` (UTF-16 units), or why
+/// not (the note's sketches are full).
+pub fn canvas_sketch_insert(
+    body: String,
+    at: u32,
+    width: u32,
+    height: u32,
+) -> Result<SketchInserted, KansoError> {
+    sketch_insert(body, at, width, height)
 }
 
 /// A canvas open for drawing. Cheap to clone on the Rust side; Dart holds one.
@@ -161,6 +173,18 @@ impl KansoCanvas {
         known: Vec<String>,
     ) -> Result<(Saved, CanvasView), KansoError> {
         self.0.move_to_new_canvas(keys, title, known)
+    }
+
+    /// The sketch this is open on, when it is one: its ID, box and whether
+    /// it is read only.
+    #[frb(sync)]
+    pub fn sketch_info(&self) -> Option<SketchInfo> {
+        self.0.sketch_info()
+    }
+
+    /// "Open as canvas" (or "Copy as canvas" when read only) on a sketch.
+    pub fn open_as_canvas(&self, title: String) -> Result<Saved, KansoError> {
+        self.0.open_as_canvas(title)
     }
 
     pub fn export_svg(&self, dark: bool) -> Result<String, KansoError> {

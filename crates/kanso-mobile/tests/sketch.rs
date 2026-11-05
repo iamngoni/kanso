@@ -34,7 +34,11 @@ fn line(y: f64) -> Vec<PenSample> {
 fn note_with_sketches(phone: &Phone) -> String {
     let a = sketch::to_fence(&sketch::new_sketch("sk-a", 320, 240));
     let b = sketch::to_fence(&sketch::new_sketch("sk-b", 480, 320));
-    note(&phone.library, "Notes", &format!("Top\n\n{a}\nmiddle\n\n{b}\nEnd"))
+    note(
+        &phone.library,
+        "Notes",
+        &format!("Top\n\n{a}\nmiddle\n\n{b}\nEnd"),
+    )
 }
 
 fn body(phone: &Phone, id: &str) -> String {
@@ -48,7 +52,10 @@ fn drawing_saves_into_that_sketch_only() {
     let before = body(&phone, &id);
     let session = phone.library.sketch(&id, "sk-b").unwrap();
     let info = session.sketch_info().unwrap();
-    assert_eq!((info.id.as_str(), info.width, info.height), ("sk-b", 480, 320));
+    assert_eq!(
+        (info.id.as_str(), info.width, info.height),
+        ("sk-b", 480, 320)
+    );
     assert!(!info.read_only);
     let view = session.draw(pen(), line(50.0), vec![]).unwrap();
     assert_eq!(view.strokes.len(), 1);
@@ -95,13 +102,11 @@ fn ink_outside_the_box_is_ignored() {
 fn a_full_sketch_refuses_new_ink() {
     let phone = lone_phone();
     let mut full = sketch::new_sketch("sk-f", 320, 240);
-    full.extra
-        .insert("pad".into(), "x".repeat(sketch::MAX_SKETCH_BYTES - 700).into());
-    let id = note(
-        &phone.library,
-        "Full",
-        &sketch::to_fence(&full),
+    full.extra.insert(
+        "pad".into(),
+        "x".repeat(sketch::MAX_SKETCH_BYTES - 700).into(),
     );
+    let id = note(&phone.library, "Full", &sketch::to_fence(&full));
     let session = phone.library.sketch(&id, "sk-f").unwrap();
     let many: Vec<PenSample> = (0..300)
         .map(|i| PenSample {
@@ -123,16 +128,19 @@ fn a_full_sketch_refuses_new_ink() {
 fn a_shared_note_sketch_is_read_only() {
     let fence = sketch::to_fence(&sketch::new_sketch("sk-s", 320, 240));
     let mut id = String::new();
-    let phone = phone_with(&std::sync::Arc::new(kanso_sync::MemoryServer::new()), |store| {
-        id = raw_note(
-            store,
-            json!({
-                "title": "Shared",
-                "body": format!("Hi\n\n{fence}"),
-                "kansoShare": {"shareId": "sh1", "role": "edit", "ownerName": "ada"},
-            }),
-        );
-    });
+    let phone = phone_with(
+        &std::sync::Arc::new(kanso_sync::MemoryServer::new()),
+        |store| {
+            id = raw_note(
+                store,
+                json!({
+                    "title": "Shared",
+                    "body": format!("Hi\n\n{fence}"),
+                    "kansoShare": {"shareId": "sh1", "role": "edit", "ownerName": "ada"},
+                }),
+            );
+        },
+    );
     let session = phone.library.sketch(&id, "sk-s").unwrap();
     assert!(session.sketch_info().unwrap().read_only);
     assert!(session.draw(pen(), line(40.0), vec![]).is_err());

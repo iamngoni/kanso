@@ -6,7 +6,7 @@ use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
     CanvasArrow, CanvasBudget, CanvasCard, CanvasGroup, CanvasPoint, CanvasRect, CanvasSaved,
-    CanvasStroke, CanvasView, InkStyle, PenSample, StrokeKey,
+    CanvasStroke, CanvasView, InkStyle, PenSample, SketchInfo, SketchInserted, StrokeKey,
 };
 
 #[frb(mirror(CanvasPoint))]
@@ -119,4 +119,19 @@ pub struct _CanvasSaved {
     pub rev: String,
     pub bytes: u32,
     pub merged: bool,
+}
+
+#[frb(mirror(SketchInfo))]
+pub struct _SketchInfo {
+    pub id: String,
+    pub width: u32,
+    pub height: u32,
+    pub read_only: bool,
+}
+
+#[frb(mirror(SketchInserted))]
+pub struct _SketchInserted {
+    pub body: String,
+    pub id: String,
+    pub cursor: u32,
 }

@@ -20,6 +20,20 @@ Float64List canvasInkPreview({
   samples: samples,
 );
 
+/// A note's text with an empty sketch put in at `at` (UTF-16 units), or why
+/// not (the note's sketches are full).
+Future<SketchInserted> canvasSketchInsert({
+  required String body,
+  required int at,
+  required int width,
+  required int height,
+}) => KansoCore.instance.api.crateApiCanvasCanvasSketchInsert(
+  body: body,
+  at: at,
+  width: width,
+  height: height,
+);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>
 abstract class KansoCanvas implements RustOpaqueInterface {
   Future<CanvasView> addArrow({
@@ -94,6 +108,9 @@ abstract class KansoCanvas implements RustOpaqueInterface {
     required List<String> known,
   });
 
+  /// "Open as canvas" (or "Copy as canvas" when read only) on a sketch.
+  Future<Saved> openAsCanvas({required String title});
+
   Future<CanvasView> redo({required List<String> known});
 
   /// Writes the canvas if it changed. Called when a stroke ends and after
@@ -113,6 +130,10 @@ abstract class KansoCanvas implements RustOpaqueInterface {
     required String text,
     required List<String> known,
   });
+
+  /// The sketch this is open on, when it is one: its ID, box and whether
+  /// it is read only.
+  SketchInfo? sketchInfo();
 
   Future<CanvasView> undo({required List<String> known});
 

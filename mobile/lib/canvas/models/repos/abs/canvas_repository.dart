@@ -21,6 +21,23 @@ abstract class CanvasRepository {
   /// Opens canvas [noteId]. A locked, closed one is a [LockedError].
   Future<CanvasResult<CanvasDocument>> open(String noteId);
 
+  /// Opens sketch [sketchId] of Markdown note [noteId] for drawing: the same
+  /// document calls as a canvas, saved back into the note's sketch. A locked,
+  /// closed note is a [LockedError].
+  Future<CanvasResult<CanvasDocument>> openSketch(
+    String noteId,
+    String sketchId,
+  );
+
+  /// [body] with an empty [width] by [height] sketch put in at [at] (UTF-16
+  /// units), or why not.
+  Future<CanvasResult<SketchInserted>> insertSketch({
+    required String body,
+    required int at,
+    required int width,
+    required int height,
+  });
+
   /// Makes an empty canvas in [notebookId] (the preferred notebook, then
   /// the first, when null).
   Future<CanvasResult<Saved>> create({String? notebookId, String title = ''});
@@ -124,4 +141,12 @@ abstract class CanvasDocument {
   Future<CanvasResult<String>> exportSvg({required bool dark});
 
   Future<CanvasResult<String>> exportExcalidraw();
+
+  /// What this is when it is an inline sketch: its ID, box and whether it is
+  /// read only. Null for a canvas.
+  SketchInfo? get sketchInfo;
+
+  /// "Open as canvas" (or "Copy as canvas" when read only) on a sketch: a
+  /// new canvas note titled [title].
+  Future<CanvasResult<Saved>> openAsCanvas(String title);
 }

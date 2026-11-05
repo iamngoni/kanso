@@ -96,7 +96,8 @@ pub struct Unsaved {
 /// Takes the ink of `note`'s sketches that has not been written yet, as if it
 /// had been sent: the editor applies it before it leaves the note.
 pub fn take_unsaved(note: Option<&str>, cx: &mut App) -> Vec<Unsaved> {
-    let views: Vec<Entity<SketchView>> = cx.default_global::<Registry>()
+    let views: Vec<Entity<SketchView>> = cx
+        .default_global::<Registry>()
         .0
         .iter()
         .filter(|((n, _), _)| n.as_deref() == note)
@@ -235,11 +236,8 @@ impl SketchView {
             && let Ok(canvas) = serde_json::from_str::<Canvas>(json)
             && canvas.validate_sketch().is_ok()
         {
-            let (tool, color, width) = (
-                self.state.tool,
-                self.state.color.clone(),
-                self.state.width,
-            );
+            let (tool, color, width) =
+                (self.state.tool, self.state.color.clone(), self.state.width);
             self.state = CanvasState::for_sketch(canvas);
             self.state.tool = tool;
             self.state.color = color;
@@ -362,7 +360,12 @@ impl SketchView {
         sample
     }
 
-    fn on_mouse_down(&mut self, event: &MouseDownEvent, window: &mut Window, cx: &mut Context<Self>) {
+    fn on_mouse_down(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         window.focus(&self.focus, cx);
         if self.read_only || event.button != MouseButton::Left {
             return;
@@ -497,7 +500,11 @@ impl SketchView {
                 .rounded_full()
                 .bg(Hsla::from(rgb(shade)))
                 .border_2()
-                .border_color(if chosen { colors.accent } else { colors.divider })
+                .border_color(if chosen {
+                    colors.accent
+                } else {
+                    colors.divider
+                })
                 .cursor_pointer()
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.state.color = color.into();
@@ -511,8 +518,18 @@ impl SketchView {
             .gap(px(2.))
             .when(!self.read_only, |el| {
                 el.child(tool_button(Tool::Pen, "sketch-pen", Lucide::PenTool, cx))
-                    .child(tool_button(Tool::Pencil, "sketch-pencil", Lucide::Pencil, cx))
-                    .child(tool_button(Tool::Marker, "sketch-marker", Lucide::Brush, cx))
+                    .child(tool_button(
+                        Tool::Pencil,
+                        "sketch-pencil",
+                        Lucide::Pencil,
+                        cx,
+                    ))
+                    .child(tool_button(
+                        Tool::Marker,
+                        "sketch-marker",
+                        Lucide::Brush,
+                        cx,
+                    ))
                     .child(tool_button(
                         Tool::Highlighter,
                         "sketch-highlighter",
@@ -520,8 +537,18 @@ impl SketchView {
                         cx,
                     ))
                     .child(divider())
-                    .child(tool_button(Tool::Eraser, "sketch-eraser", Lucide::Trash, cx))
-                    .child(tool_button(Tool::Partial, "sketch-partial", Lucide::Split, cx))
+                    .child(tool_button(
+                        Tool::Eraser,
+                        "sketch-eraser",
+                        Lucide::Trash,
+                        cx,
+                    ))
+                    .child(tool_button(
+                        Tool::Partial,
+                        "sketch-partial",
+                        Lucide::Split,
+                        cx,
+                    ))
                     .child(tool_button(Tool::Lasso, "sketch-lasso", Lucide::Focus, cx))
                     .child(divider())
                     .children(COLORS.iter().map(|&c| swatch(c, cx).into_any_element()))

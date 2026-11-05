@@ -9,6 +9,10 @@ sealed class CanvasEvent with _$CanvasEvent {
   /// Opens canvas [noteId].
   const factory CanvasEvent.started(String noteId) = CanvasStartedEvent;
 
+  /// Opens sketch [sketchId] of note [noteId], drawn on in the note.
+  const factory CanvasEvent.sketchStarted(String noteId, String sketchId) =
+      CanvasSketchStartedEvent;
+
   /// A pen touched the screen: fingers pan and zoom from now on.
   const factory CanvasEvent.stylusSeen() = CanvasStylusSeenEvent;
 

@@ -27,6 +27,31 @@ class RustCanvasRepository implements CanvasRepository {
   );
 
   @override
+  Future<CanvasResult<CanvasDocument>> openSketch(
+    String noteId,
+    String sketchId,
+  ) => attempt(
+    () async => _RustCanvasDocument(
+      await _library.sketch(noteId: noteId, sketchId: sketchId),
+    ),
+  );
+
+  @override
+  Future<CanvasResult<SketchInserted>> insertSketch({
+    required String body,
+    required int at,
+    required int width,
+    required int height,
+  }) => attempt(
+    () => bridge.canvasSketchInsert(
+      body: body,
+      at: at,
+      width: width,
+      height: height,
+    ),
+  );
+
+  @override
   Future<CanvasResult<Saved>> create({String? notebookId, String title = ''}) =>
       attempt(
         () => _library.createCanvas(notebookId: notebookId, title: title),
@@ -178,4 +203,11 @@ class _RustCanvasDocument implements CanvasDocument {
   @override
   Future<CanvasResult<String>> exportExcalidraw() =>
       attempt(_canvas.exportExcalidraw);
+
+  @override
+  SketchInfo? get sketchInfo => _canvas.sketchInfo();
+
+  @override
+  Future<CanvasResult<Saved>> openAsCanvas(String title) =>
+      attempt(() => _canvas.openAsCanvas(title: title));
 }

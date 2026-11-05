@@ -447,6 +447,12 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   KansoShared shared();
 
+  /// Opens sketch `sketch_id` of Markdown note `note_id` for drawing.
+  Future<KansoCanvas> sketch({
+    required String noteId,
+    required String sketchId,
+  });
+
   /// The statuses a note can have, and what the desktop calls them.
   static List<StatusChoice> statuses() =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryStatuses();

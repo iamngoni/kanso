@@ -21,7 +21,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use kanso_core::canvas::{
-    self, Action, Bounds, Budget, Canvas, Edge, INK, Node, Point, Refused, Stroke, StrokeRef, sketch,
+    self, Action, Bounds, Budget, Canvas, Edge, INK, Node, Point, Refused, Stroke, StrokeRef,
+    sketch,
 };
 use kanso_core::model::SHARE_FIELD;
 use kanso_core::{DocType, Note, new_id, now_ms};
@@ -451,7 +452,11 @@ impl CanvasSession {
             };
             let before = state.sketch.is_some().then(|| state.canvas.clone());
             match state.canvas.draw(stroke, now_ms()) {
-                Ok(_) if before.as_ref().is_some_and(|_| !sketch::fits(&state.canvas)) => {
+                Ok(_)
+                    if before
+                        .as_ref()
+                        .is_some_and(|_| !sketch::fits(&state.canvas)) =>
+                {
                     state.canvas = before.unwrap_or_default();
                     return Err(KansoError::invalid(sketch::SKETCH_FULL));
                 }

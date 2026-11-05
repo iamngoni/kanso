@@ -516,6 +516,11 @@ impl KansoLibrary {
         self.0.canvas(&id).map(KansoCanvas::new)
     }
 
+    /// Opens sketch `sketch_id` of Markdown note `note_id` for drawing.
+    pub fn sketch(&self, note_id: String, sketch_id: String) -> Result<KansoCanvas, KansoError> {
+        self.0.sketch(&note_id, &sketch_id).map(KansoCanvas::new)
+    }
+
     /// Whether note `id` is a canvas: the note route opens the canvas view
     /// for it.
     #[frb(sync)]

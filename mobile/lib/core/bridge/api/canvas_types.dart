@@ -57,11 +57,7 @@ class CanvasArrow {
           label == other.label;
 }
 
-enum CanvasBudget {
-  ok,
-  warn,
-  full,
-}
+enum CanvasBudget { ok, warn, full }
 
 class CanvasCard {
   final String id;
@@ -138,10 +134,7 @@ class CanvasPoint {
   final double x;
   final double y;
 
-  const CanvasPoint({
-    required this.x,
-    required this.y,
-  });
+  const CanvasPoint({required this.x, required this.y});
 
   @override
   int get hashCode => x.hashCode ^ y.hashCode;
@@ -384,14 +377,63 @@ class PenSample {
           altitude == other.altitude;
 }
 
+class SketchInfo {
+  final String id;
+  final int width;
+  final int height;
+  final bool readOnly;
+
+  const SketchInfo({
+    required this.id,
+    required this.width,
+    required this.height,
+    required this.readOnly,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ width.hashCode ^ height.hashCode ^ readOnly.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SketchInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          width == other.width &&
+          height == other.height &&
+          readOnly == other.readOnly;
+}
+
+class SketchInserted {
+  final String body;
+  final String id;
+  final int cursor;
+
+  const SketchInserted({
+    required this.body,
+    required this.id,
+    required this.cursor,
+  });
+
+  @override
+  int get hashCode => body.hashCode ^ id.hashCode ^ cursor.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SketchInserted &&
+          runtimeType == other.runtimeType &&
+          body == other.body &&
+          id == other.id &&
+          cursor == other.cursor;
+}
+
 class StrokeKey {
   final String nodeId;
   final String strokeId;
 
-  const StrokeKey({
-    required this.nodeId,
-    required this.strokeId,
-  });
+  const StrokeKey({required this.nodeId, required this.strokeId});
 
   @override
   int get hashCode => nodeId.hashCode ^ strokeId.hashCode;

@@ -8323,5 +8323,78 @@
   "playerTryAgain": "Try Again",
   "@playerTryAgain": {
     "description": "Opens a recording that failed to play once more."
+  },
+  "sketchInsertKey": "Insert sketch",
+  "@sketchInsertKey": {
+    "description": "The label of the editor key that puts a drawing box in the note."
+  },
+  "sketchSizeTitle": "Insert sketch",
+  "@sketchSizeTitle": {
+    "description": "The title of the sheet that asks how big the drawing box is."
+  },
+  "sketchSizeSmall": "Small, 320 by 240",
+  "@sketchSizeSmall": {
+    "description": "A drawing box size."
+  },
+  "sketchSizeMedium": "Medium, 480 by 320",
+  "@sketchSizeMedium": {
+    "description": "A drawing box size."
+  },
+  "sketchSizeLarge": "Large, 640 by 480",
+  "@sketchSizeLarge": {
+    "description": "A drawing box size."
+  },
+  "sketchLabel": "Sketch",
+  "@sketchLabel": {
+    "description": "What a screen reader calls a drawing box in a note."
+  },
+  "sketchOpenAsCanvas": "Open as canvas",
+  "@sketchOpenAsCanvas": {
+    "description": "Turns a sketch in a note into a canvas note."
+  },
+  "sketchCopyAsCanvas": "Copy as canvas",
+  "@sketchCopyAsCanvas": {
+    "description": "Makes a private canvas from a sketch in a shared note."
+  },
+  "sketchShared": "Shared note: copy it to a canvas to draw together.",
+  "@sketchShared": {
+    "description": "Shown under a sketch in a shared note, where it can't be drawn on."
+  },
+  "sketchFull": "This sketch is full. Open it as a canvas to keep drawing.",
+  "@sketchFull": {
+    "description": "Shown when a sketch is at its size limit and refuses new ink."
+  },
+  "sketchFingerDraws": "Draw with a finger",
+  "@sketchFingerDraws": {
+    "description": "Lets a finger draw on a sketch instead of scrolling the note."
+  },
+  "sketchFailed": "This sketch can't be drawn on.",
+  "@sketchFailed": {
+    "description": "Shown when a sketch could not be opened for drawing."
+  },
+  "sketchCanvasMade": "Opened as a canvas",
+  "@sketchCanvasMade": {
+    "description": "Shown after a sketch became a canvas note."
+  },
+  "sketchCanvasCopied": "Copied to a new canvas",
+  "@sketchCanvasCopied": {
+    "description": "Shown after a shared note's sketch was copied to a canvas."
+  },
+  "sketchTitle": "{title} sketch",
+  "@sketchTitle": {
+    "description": "The title of the canvas made from a sketch: the note's title and the word sketch.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "sketchUntitledNote": "Untitled",
+  "@sketchUntitledNote": {
+    "description": "Stands for the title of a note that has none, in the title of a canvas made from its sketch."
+  },
+  "sketchNoteFull": "This note's sketches are full. Open one as a canvas.",
+  "@sketchNoteFull": {
+    "description": "Shown when a note's sketches together are at their limit and no more can be added."
   }
 }

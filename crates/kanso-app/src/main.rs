@@ -40,7 +40,6 @@ mod canvas_state;
 #[cfg(test)]
 mod canvas_state_tests;
 mod canvas_view;
-mod sketch_view;
 mod capture;
 mod capture_cli;
 mod capture_voice;
@@ -194,6 +193,7 @@ mod shared_inbox;
 #[cfg(test)]
 mod shortcuts_parity_tests;
 mod sidebar;
+mod sketch_view;
 mod smart_paste;
 #[cfg(test)]
 mod snapshots;

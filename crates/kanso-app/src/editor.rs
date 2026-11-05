@@ -3303,12 +3303,7 @@ impl NoteEditor {
     /// drawn in. A note whose sketches are full, or a shared one, refuses.
     // no-prop-test: glue; `kanso_core::canvas::sketch::insert` has the
     // properties and `inserting_a_sketch_...` go through it.
-    pub fn insert_sketch(
-        &mut self,
-        size: (u32, u32),
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn insert_sketch(&mut self, size: (u32, u32), window: &mut Window, cx: &mut Context<Self>) {
         let Some(note) = &self.note else { return };
         if note.is_trashed() || note.doctype == "canvas" || self.text_read_only {
             return;
@@ -3381,7 +3376,9 @@ impl NoteEditor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(note) = self.note.clone() else { return };
+        let Some(note) = self.note.clone() else {
+            return;
+        };
         if note.is_locked() || self.lock != LockView::Plain {
             cx.emit(EditorEvent::Notice(
                 "A locked note's sketch can't be opened as a canvas.".into(),

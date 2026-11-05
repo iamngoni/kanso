@@ -1462,7 +1462,12 @@ fn sketch_in_note(
     let mut drawn = sketch::new_sketch("sk-demo", 480, 320);
     // A wave, a loop and an arrow-ish tick: enough ink to read the pen.
     let wave: Vec<(f64, f64)> = (0..60)
-        .map(|i| (30. + f64::from(i) * 6.5, 110. + (f64::from(i) / 4.).sin() * 42.))
+        .map(|i| {
+            (
+                30. + f64::from(i) * 6.5,
+                110. + (f64::from(i) / 4.).sin() * 42.,
+            )
+        })
         .collect();
     let ring: Vec<(f64, f64)> = (0..40)
         .map(|i| {
