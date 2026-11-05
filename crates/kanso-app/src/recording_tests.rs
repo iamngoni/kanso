@@ -131,7 +131,7 @@ fn a_crash_with_system_audio_is_one_recording_with_two_lines(cx: &mut TestAppCon
     let mut found = kanso_audio::recovery::scan(&root, None);
     let track = found.remove(found.iter().position(|r| r.id == "call-1-sys").unwrap());
     let mic = found.remove(0);
-    let done = recording::recover_with(&f.store, &mic, Some(&track)).unwrap();
+    let done = recording::recover_with(&f.store, &mic, Some(&track), None).unwrap();
     let note = f.store.note(&done.saved.note_id).unwrap().unwrap();
     assert!(note.title.starts_with("Meeting — "), "{}", note.title);
     let lines = kanso_engine::recording_player::link_lines(&note.body);
@@ -166,6 +166,100 @@ fn a_system_track_left_alone_joins_its_recordings_note(cx: &mut TestAppContext) 
     let made = recording::recover_now(&f.store, &alone).unwrap();
     let note = f.store.note(&made.saved.note_id).unwrap().unwrap();
     assert!(note.title.starts_with("Meeting — "), "{}", note.title);
+}
+
+/// Makes everything in session folder `dir` look `days` days old.
+fn age(dir: &std::path::Path, days: u64) {
+    let then = std::time::SystemTime::now() - std::time::Duration::from_secs(days * 86_400);
+    for entry in std::fs::read_dir(dir).unwrap().flatten() {
+        std::fs::File::open(entry.path())
+            .unwrap()
+            .set_modified(then)
+            .unwrap();
+    }
+    std::fs::File::open(dir)
+        .unwrap()
+        .set_modified(then)
+        .unwrap();
+}
+
+#[gpui_kit::test]
+fn a_week_old_unfinished_recording_is_swept_and_a_newer_one_stays(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let root = in_progress_dir(f.dir.path());
+    leave_a_session(&root, "old-1", RecordSource::Microphone);
+    leave_a_session(&root, "new-1", RecordSource::Microphone);
+    age(&root.join("old-1"), 8);
+    age(&root.join("new-1"), 6);
+    cx.update(recording::scan);
+    assert!(!root.join("old-1").exists());
+    assert!(root.join("new-1").exists());
+    match notice(cx) {
+        Some(Notice::Crash(banner)) => assert_eq!(banner.id, "new-1"),
+        other => panic!("expected the newer crash banner, got {other:?}"),
+    }
+}
+
+/// A locked note holding `body`, and the key that opens it.
+fn lock_a_note(store: &Store, body: &str) -> (String, kanso_sync::lock::LockKey) {
+    use kanso_sync::lock::{Envelope, LockKey, LockPassword};
+    let key = LockKey::create(
+        &LockPassword::new("correct horse").unwrap(),
+        kanso_sync::KdfParams::TEST,
+    )
+    .unwrap();
+    let book = store
+        .role_book(kanso_core::roles::Role::Inbox, kanso_store::Origin::Ui)
+        .unwrap();
+    let made = store
+        .put(
+            kanso_core::DocType::Note,
+            serde_json::json!({"title": "Private", "body": "", "bookId": book}),
+            kanso_store::Put::Upsert,
+            kanso_store::Origin::Ui,
+        )
+        .unwrap();
+    let mut note = store.note(&made.id).unwrap().unwrap();
+    Envelope::store(Some(&key.seal(&note.id, body)), &mut note.extra);
+    kanso_core::model::store_note_files(Some(&[]), &mut note.extra);
+    store
+        .lock_note(serde_json::to_value(&note).unwrap())
+        .unwrap();
+    (made.id, key)
+}
+
+#[gpui_kit::test]
+fn a_crash_in_a_locked_notes_recording_waits_for_the_key_and_lands_sealed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let root = in_progress_dir(f.dir.path());
+    let (note_id, key) = lock_a_note(&f.store, "Private prose");
+    let mut options = RecorderOptions::new(Channels::Mono, vec![RecordSource::Microphone]);
+    options.id = Some("locked-1".into());
+    options.note_id = Some(note_id.clone());
+    let mut recorder = Recorder::create(&root, options).unwrap();
+    let tone: Vec<f32> = (0..48_000 * 3)
+        .map(|i| (i as f32 / 90.0).sin() * 0.3)
+        .collect();
+    recorder.push(&tone).unwrap();
+    std::mem::forget(recorder);
+    let found = kanso_audio::recovery::scan(&root, None).remove(0);
+    // No key: refused, the audio stays on disk, and no plain note is made.
+    let Err(err) = recording::recover_with(&f.store, &found, None, None) else {
+        panic!("a locked note took a recording with no key");
+    };
+    assert!(err.contains("locked"), "{err}");
+    assert!(root.join("locked-1").exists());
+    assert!(f.store.get("note:rec-locked-1").unwrap().is_none());
+    assert!(f.store.get("file:rec-locked-1-1").unwrap().is_none());
+    // With the key it lands in the locked note, sealed.
+    let done = recording::recover_with(&f.store, &found, None, Some(&key)).unwrap();
+    assert_eq!(done.saved.note_id, note_id);
+    assert_eq!(
+        f.store.attachment_state("file:rec-locked-1-1").unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    assert!(f.store.attachment("file:rec-locked-1-1").unwrap().is_none());
+    assert!(!root.join("locked-1").exists());
 }
 
 #[gpui_kit::test]

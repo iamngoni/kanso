@@ -432,13 +432,29 @@ fn run(mut job: Job, cx: &mut App) {
     let store = cx.global::<AppState>().store.clone();
     let (progress, cancel) = (job.progress.clone(), job.cancel.clone());
     let source = job.source.clone();
+    // A recording in a locked note is sealed in the library: open its parts
+    // here, where the session's keys are, and hand the thread the bytes.
+    let sealed = match &source {
+        Source::Recording { file_ids, .. } => {
+            match crate::locked::opened_parts(&job.note_id, file_ids, cx) {
+                Ok(parts) => parts,
+                Err(why) => {
+                    // The marker stays, so "Finish transcribing" works once
+                    // the note is unlocked.
+                    notify(&job, Notification::error(why), cx);
+                    return;
+                }
+            }
+        }
+        _ => None,
+    };
     let (done_tx, done_rx) = async_channel::bounded(1);
     let spawned = std::thread::Builder::new()
         .name("kanso-transcribe".into())
         .spawn(move || {
             let result = match &source {
-                Source::Recording { file_ids, duration } => {
-                    read_parts(&store, file_ids).and_then(|parts| {
+                Source::Recording { file_ids, duration } => read_parts(&store, file_ids, sealed)
+                    .and_then(|parts| {
                         file::transcribe_parts(
                             parts,
                             Some(*duration),
@@ -446,8 +462,7 @@ fn run(mut job: Job, cx: &mut App) {
                             &cancel,
                             &mut |at| *progress.lock().unwrap() = at,
                         )
-                    })
-                }
+                    }),
                 _ => read_source(&store, &source).and_then(|(media, ext)| {
                     file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
                         *progress.lock().unwrap() = at;
@@ -481,9 +496,22 @@ fn run(mut job: Job, cx: &mut App) {
             let Some(job) = cx.default_global::<Transcription>().job.take() else {
                 return;
             };
+            // Read before the marker goes: it says what to do with the audio.
+            let pending = crate::recording::pending_for(&job.note_id, cx)
+                .filter(|_| matches!(job.source, Source::Recording { .. }));
             forget_if_recording(&job, cx);
             match result {
-                Ok(pieces) => insert(&job, &transcript_text(job.source.file_id(), &pieces), cx),
+                Ok(pieces) => {
+                    insert(&job, &transcript_text(job.source.file_id(), &pieces), cx);
+                    if let Some(pending) = pending {
+                        // "Keep transcript only": save what the editor holds,
+                        // then delete the audio once the stored note has it.
+                        if let Some(editor) = job.editor.upgrade() {
+                            editor.update(cx, |editor, cx| editor.flush(cx));
+                        }
+                        crate::recording::drop_audio_when_saved(pending, cx);
+                    }
+                }
                 Err(err) => {
                     if let Some(words) = voice::error_words(&err) {
                         notify(&job, Notification::error(words), cx);
@@ -517,7 +545,17 @@ pub fn transcript_text(file_id: Option<&str>, pieces: &[file::Timed]) -> String 
 
 /// The parts of a recording made in Kanso, in order, as the decoder reads
 /// them.
-fn read_parts(store: &Store, file_ids: &[String]) -> Result<Vec<file::Part>, VoiceError> {
+fn read_parts(
+    store: &Store,
+    file_ids: &[String],
+    sealed: Option<Vec<Vec<u8>>>,
+) -> Result<Vec<file::Part>, VoiceError> {
+    if let Some(parts) = sealed {
+        return Ok(parts
+            .into_iter()
+            .map(|data| (file::from_bytes(data), Some("opus".to_owned())))
+            .collect());
+    }
     file_ids
         .iter()
         .map(|id| {

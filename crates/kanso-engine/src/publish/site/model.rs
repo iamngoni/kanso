@@ -30,6 +30,12 @@ impl PlannedFile {
     pub fn is_image(&self) -> bool {
         self.content_type.starts_with("image/")
     }
+
+    /// Whether the file is audio, such as a recording: left out of a
+    /// published notebook unless the owner opts in (issue #38, step 11).
+    pub fn is_audio(&self) -> bool {
+        crate::recording_privacy::is_audio_type(&self.content_type)
+    }
 }
 
 /// What publishing a notebook would put on the web, before anything is
@@ -41,7 +47,16 @@ pub struct SitePlan {
     pub notes: Vec<PlannedNote>,
     /// The titles of the locked notes left out.
     pub locked: Vec<String>,
+    /// The attachments the site carries. Audio is among them only when
+    /// `include_audio` is set.
     pub files: Vec<PlannedFile>,
+    /// The audio the notebook's notes link, whether or not the site carries
+    /// it: the sheet offers its toggle when there is some.
+    pub audio: Vec<PlannedFile>,
+    /// The owner chose to publish the audio. Off unless asked for, every
+    /// time: a recording is private, and a long one would not fit the
+    /// bundle anyway.
+    pub include_audio: bool,
     /// The notebook's link, when it is published.
     pub publish: Option<KansoPublish>,
 }
@@ -49,12 +64,19 @@ pub struct SitePlan {
 impl SitePlan {
     /// What the site is made from, for telling whether it changed since it
     /// was published (`KansoPublish::is_outdated`, with the name as title).
+    /// Publishing the audio changes it, so toggling either way shows the
+    /// published version as out of date.
     pub fn fingerprint(&self) -> String {
-        fingerprint(
+        let notes = fingerprint(
             self.notes
                 .iter()
                 .map(|n| (n.id.as_str(), n.title.as_str(), n.body.as_str())),
-        )
+        );
+        if self.include_audio && !self.audio.is_empty() {
+            format!("{notes}+audio")
+        } else {
+            notes
+        }
     }
 
     /// Whether `publish` shows something other than what the notebook

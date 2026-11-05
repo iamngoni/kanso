@@ -17,6 +17,7 @@ use kanso_sync::site::{SiteBundle, SiteError, SiteFile, slug_for};
 
 use crate::export::PageStyle;
 use crate::list::{book_path, notebook_tree};
+use crate::recording_privacy::may_publish;
 
 mod model;
 
@@ -45,8 +46,18 @@ pub fn attachments_in(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// Reads what publishing notebook `book_id` would show.
+/// Reads what publishing notebook `book_id` would show. Audio stays out.
 pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
+    plan_with(store, book_id, false)
+}
+
+/// [`plan`], with the audio the notes link carried too when `include_audio`
+/// is set: the owner's choice, never a default.
+pub fn plan_with(
+    store: &Store,
+    book_id: &str,
+    include_audio: bool,
+) -> Result<SitePlan, StoreError> {
     let books = store.books()?;
     let book = books
         .iter()
@@ -56,6 +67,7 @@ pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
         book_id: book_id.to_owned(),
         name: book.name.clone(),
         publish: book_publish(book),
+        include_audio,
         ..SitePlan::default()
     };
     let mut slugs: HashSet<String> = HashSet::new();
@@ -95,12 +107,18 @@ pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
                 if files.insert(id.clone())
                     && let Some(meta) = store.file_meta(&id)?
                 {
-                    plan.files.push(PlannedFile {
+                    let file = PlannedFile {
                         id,
                         name: meta.name,
                         content_type: meta.content_type,
                         size: meta.content_length,
-                    });
+                    };
+                    if file.is_audio() {
+                        plan.audio.push(file.clone());
+                    }
+                    if may_publish(&file.content_type, include_audio) {
+                        plan.files.push(file);
+                    }
                 }
             }
             plan.notes.push(PlannedNote {
@@ -150,8 +168,14 @@ pub fn build(
         home: &plan.name,
     };
     // Only the attachments of published notes: a locked note's never.
-    let known: HashMap<&str, &PlannedFile> =
-        plan.files.iter().map(|f| (f.id.as_str(), f)).collect();
+    // Audio is never among them unless the owner opted in, whatever the
+    // plan's list says.
+    let known: HashMap<&str, &PlannedFile> = plan
+        .files
+        .iter()
+        .filter(|f| may_publish(&f.content_type, plan.include_audio))
+        .map(|f| (f.id.as_str(), f))
+        .collect();
     let attached = |id: &str| known.contains_key(id).then(|| attachments(id)).flatten();
     let mut bundle = SiteBundle::new(&plan.name);
     let mut downloads: Vec<(String, Vec<String>)> = Vec::new();
@@ -194,6 +218,7 @@ pub fn build(
     let images: Vec<SiteFile> = plan
         .files
         .iter()
+        .filter(|f| known.contains_key(f.id.as_str()))
         .filter(|f| f.is_image())
         .filter_map(|f| {
             let (content_type, bytes) = attached(&f.id)?;
@@ -312,6 +337,21 @@ pub fn contents_line(plan: &SitePlan) -> String {
         format!("{last}.")
     } else {
         format!("{} and {last}.", parts.join(", "))
+    }
+}
+
+/// What the audio toggle says: "The audio of 2 recordings stays on your
+/// devices." or "... goes with the site." Empty with no audio.
+pub fn audio_line(plan: &SitePlan) -> String {
+    let n = plan.audio.len();
+    if n == 0 {
+        return String::new();
+    }
+    let what = count(n, "recording", "recordings");
+    if plan.include_audio {
+        format!("The audio of {what} goes with the site. Anyone with the link can play it.")
+    } else {
+        format!("The audio of {what} stays on your devices. The transcripts are published.")
     }
 }
 
@@ -549,6 +589,7 @@ mod tests {
                 content_type: "application/pdf".into(),
                 size: 3,
             }],
+            ..SitePlan::default()
         };
         let read = |id: &str| {
             (id == "file:pdf" || id == "file:zip")
@@ -564,6 +605,64 @@ mod tests {
         assert_eq!(bundle.files[0].bytes().unwrap(), b"pdf");
         assert_eq!(bundle.pages["a"].downloads, [0]);
         assert_eq!(bundle.pages["b"].downloads, [0]);
+    }
+
+    /// A recording's audio stays on the device by default; the transcript is
+    /// published. The owner can opt in, and only then do the bytes go.
+    // no-prop-test: the policy is `may_publish`, which has its property
+    // test in `recording_privacy`; this is the end-to-end example, and the
+    // property below covers `build`.
+    #[test]
+    fn a_recordings_audio_is_left_out_unless_the_owner_opts_in() {
+        let (_dir, store) = store();
+        store
+            .put(
+                DocType::File,
+                json!({"_id": "file:rec-a-1", "name": "Recording part 1.opus", "contentType": "audio/ogg",
+                    "_attachments": {"index": {"content_type": "audio/ogg", "data": "T2dnUyBzZWNyZXQgYXVkaW8="}}}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        note(
+            &store,
+            "note:rec",
+            "Standup",
+            &format!(
+                "[Audio · 1 min]({FILE}rec-a-1)\n\n[00:00](kanso-audio://file:rec-a-1?t=0) We shipped it."
+            ),
+            "book:work",
+        );
+        let palette = Palette::LIGHT;
+        let read = attachments(&store);
+        let off = super::plan(&store, "book:work").unwrap();
+        assert!(!off.include_audio);
+        assert!(off.files.is_empty());
+        assert_eq!(off.audio.len(), 1);
+        assert_eq!(
+            super::audio_line(&off),
+            "The audio of 1 recording stays on your devices. The transcripts are published."
+        );
+        let bundle = build(&off, &read, &palette, &PageStyle::default()).unwrap();
+        assert!(bundle.files.is_empty());
+        let sent = String::from_utf8_lossy(&bundle.to_bytes()).into_owned();
+        assert!(sent.contains("We shipped it."));
+        assert!(!sent.contains("T2dnUyBzZWNyZXQgYXVkaW8="));
+        // Even a plan that lists the audio doesn't carry it while the
+        // owner hasn't opted in.
+        let forced = SitePlan {
+            files: off.audio.clone(),
+            ..off.clone()
+        };
+        let bundle = build(&forced, &read, &palette, &PageStyle::default()).unwrap();
+        assert!(bundle.files.is_empty());
+        // Opted in: the audio goes, and the published version is "changed".
+        let on = super::plan_with(&store, "book:work", true).unwrap();
+        assert_eq!(on.files.len(), 1);
+        assert_ne!(on.fingerprint(), off.fingerprint());
+        let bundle = build(&on, &read, &palette, &PageStyle::default()).unwrap();
+        assert_eq!(bundle.files.len(), 1);
+        assert!(super::audio_line(&on).contains("goes with the site"));
     }
 
     #[test]
@@ -658,7 +757,7 @@ mod tests {
                 .map(|ix| file(ix, "image/png"))
                 .chain((0..others).map(|ix| file(100 + ix, "application/pdf")))
                 .collect(),
-            publish: None,
+            ..SitePlan::default()
         }
     }
 
@@ -707,6 +806,63 @@ mod tests {
             if images > 0 { prop_assert!(line.contains(&plural(images, "image", "images"))); }
             if others > 0 { prop_assert!(line.contains(&plural(others, "file", "files"))); }
             prop_assert!(line.ends_with('.'));
+        }
+    }
+
+    proptest! {
+        #![proptest_config(text_config())]
+
+        /// A site never carries a file whose type is audio unless the owner
+        /// opted in, whatever the plan lists and however the type is cased.
+        #[test]
+        fn prop_a_site_never_carries_audio_without_opt_in(
+            kinds in prop::collection::vec(
+                prop_oneof![
+                    Just("audio/ogg".to_owned()),
+                    Just("Audio/MPEG".to_owned()),
+                    Just("application/pdf".to_owned()),
+                    Just("image/png".to_owned()),
+                ],
+                0..6,
+            ),
+            include_audio in any::<bool>(),
+        ) {
+            let files: Vec<PlannedFile> = kinds
+                .iter()
+                .enumerate()
+                .map(|(ix, content_type)| PlannedFile {
+                    id: format!("file:{ix}"),
+                    name: format!("f{ix}"),
+                    content_type: content_type.clone(),
+                    size: 4,
+                })
+                .collect();
+            let body: String = files
+                .iter()
+                .map(|f| format!("[x]({FILE}{})\n", &f.id["file:".len()..]))
+                .collect();
+            let plan = SitePlan {
+                notes: vec![PlannedNote {
+                    id: "note:a".into(),
+                    title: "A".into(),
+                    body,
+                    slug: "a".into(),
+                    ..PlannedNote::default()
+                }],
+                files: files.clone(),
+                include_audio,
+                ..SitePlan::default()
+            };
+            let types: std::collections::HashMap<String, String> = files
+                .iter()
+                .map(|f| (f.id.clone(), f.content_type.clone()))
+                .collect();
+            let read = |id: &str| types.get(id).map(|t| (t.clone(), vec![7u8; 4]));
+            let bundle = build(&plan, &read, &Palette::LIGHT, &PageStyle::default()).unwrap();
+            let audio = files.iter().filter(|f| f.is_audio()).count();
+            let carried = bundle.files.len();
+            let expected = files.len() - if include_audio { 0 } else { audio };
+            prop_assert_eq!(carried, expected);
         }
     }
 

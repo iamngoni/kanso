@@ -2,6 +2,7 @@
 //! recording bar draws, what the notice strip under it can say, and the
 //! transcription a quit interrupted.
 
+use kanso_engine::recording_privacy_model::KeepAudio;
 use serde::{Deserialize, Serialize};
 
 /// What the recording bar shows.
@@ -32,6 +33,14 @@ pub struct PendingTranscript {
     pub note_id: String,
     pub file_ids: Vec<String>,
     pub duration_secs: u64,
+    /// What becomes of the audio once the transcript is in the note. A
+    /// marker written before this existed keeps the audio.
+    #[serde(default)]
+    pub keep: KeepAudio,
+    /// Every audio file of the recording, the system track's too: what
+    /// "Keep transcript only" deletes.
+    #[serde(default)]
+    pub audio_ids: Vec<String>,
 }
 
 /// What the strip under the title bar shows, most urgent first.

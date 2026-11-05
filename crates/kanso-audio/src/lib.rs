@@ -45,6 +45,8 @@ pub mod resample;
 pub mod session;
 pub mod source;
 pub mod speaker;
+pub mod sweep;
+mod sweep_model;
 pub mod system_apps;
 pub mod system_audio;
 #[cfg(target_os = "linux")]

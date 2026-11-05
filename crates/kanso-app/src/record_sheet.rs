@@ -26,8 +26,9 @@ use kanso_audio::system_audio::{
 };
 use kanso_audio::{CaptureApp, MEETING_APPS, ScreenAccess};
 use kanso_engine::recording_flow::{
-    Destination, RecordPlan, SystemSource, TranscribeWhen, WhatToRecord,
+    Destination, KeepAudio, RecordPlan, SystemSource, TranscribeWhen, WhatToRecord,
 };
+use kanso_engine::recording_privacy::BACKUP_WARNING;
 
 use crate::recording;
 use crate::theme::Colors;
@@ -174,6 +175,12 @@ impl RecordSheet {
 
     fn choose_destination(&mut self, destination: Destination, cx: &mut Context<Self>) {
         self.plan.destination = destination;
+        cx.notify();
+    }
+
+    /// Picks what becomes of the audio once it is transcribed.
+    pub(crate) fn choose_keep(&mut self, keep: KeepAudio, cx: &mut Context<Self>) {
+        self.plan.keep = keep;
         cx.notify();
     }
 
@@ -414,6 +421,7 @@ impl Render for RecordSheet {
         let open_note = self.open_note.clone();
         let this_note = open_note.clone();
         let what = self.plan.what;
+        let keep = self.plan.keep;
         let system_off: Option<SharedString> = self.system_disabled().map(Into::into);
         let consent = what.uses_system().then(|| {
             let whose = self
@@ -550,6 +558,46 @@ impl Render for RecordSheet {
                         None,
                     )),
             ))
+            .child(row(
+                "After transcribing",
+                colors,
+                h_flex()
+                    .gap(px(6.))
+                    .child(
+                        option(
+                            "rec-keep-audio",
+                            "Keep audio",
+                            keep == KeepAudio::Keep,
+                            None,
+                        )
+                        .on_click(
+                            cx.listener(|this, _, _, cx| this.choose_keep(KeepAudio::Keep, cx)),
+                        ),
+                    )
+                    .child(
+                        option(
+                            "rec-keep-transcript",
+                            "Keep transcript only",
+                            keep == KeepAudio::TranscriptOnly,
+                            None,
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.choose_keep(KeepAudio::TranscriptOnly, cx)
+                        })),
+                    ),
+            ))
+            .when(keep == KeepAudio::TranscriptOnly, |sheet| {
+                sheet.child(
+                    div()
+                        .debug_selector(|| "rec-keep-warning".into())
+                        .child(note(
+                            format!(
+                                "The audio is deleted once the transcript is in the note. If the transcript fails, the audio stays. {BACKUP_WARNING}"
+                            ),
+                            colors,
+                        )),
+                )
+            })
             .when_some(problem, |sheet, problem| {
                 sheet.child(
                     div()
@@ -586,6 +634,7 @@ pub fn open_for_snapshot(
     system: Availability,
     outputs: Vec<SystemAudioDevice>,
     what: WhatToRecord,
+    keep: KeepAudio,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -595,7 +644,10 @@ pub fn open_for_snapshot(
         system: None,
         backend: Some((system, outputs)),
     };
-    open_with(None, Some(fixed), window, cx);
+    let sheet = open_with(None, Some(fixed), window, cx);
+    if let Some(sheet) = sheet {
+        sheet.update(cx, |sheet, cx| sheet.choose_keep(keep, cx));
+    }
 }
 
 /// Opens the sheet over a fixed machine and choice (the snapshots), or the
@@ -605,7 +657,7 @@ pub fn open_with(
     fixed: Option<Fixed>,
     window: &mut Window,
     cx: &mut App,
-) {
+) -> Option<Entity<RecordSheet>> {
     if recording::busy(cx) {
         window.push_notification(
             gpui_kit::component::notification::Notification::info(
@@ -613,10 +665,11 @@ pub fn open_with(
             ),
             cx,
         );
-        return;
+        return None;
     }
     let sheet = cx.new(|cx| RecordSheet::new(open_note, fixed, cx));
     let body = sheet.clone();
+    let opened = sheet.clone();
     window.open_alert_dialog(cx, move |alert, _, _| {
         let start = body.clone();
         alert
@@ -658,4 +711,5 @@ pub fn open_with(
                     ),
             )
     });
+    Some(opened)
 }
