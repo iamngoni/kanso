@@ -72,7 +72,7 @@ describe("Help", () => {
 
   it("covers the topics the apps point people to", () => {
     render(<Help />);
-    for (const title of ["Syncing, and adding a device", "Locked notes", "Sharing", "Crash reports", "Deleting your account", "Getting support"]) {
+    for (const title of ["Syncing, and adding a device", "Locked notes", "Your library key", "Connecting an agent or a script", "Sharing", "Crash reports", "Deleting your account", "Getting support"]) {
       expect(screen.getByRole("heading", { level: 2, name: title })).toBeInTheDocument();
     }
   });
