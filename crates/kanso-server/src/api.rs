@@ -159,6 +159,7 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
         // client's write of the document keeps the marker it has.
         DocType::File => &[
             kanso_core::model::OCR_FIELD,
+            kanso_core::model::PDF_OCR_FIELD,
             kanso_core::model::FILE_LOCK_FIELD,
             kanso_core::model::UNSEALED_FIELD,
         ],

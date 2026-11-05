@@ -30736,6 +30736,7 @@ const _: fn() = || {
         let _: bool = PdfNotes.editable;
         let _: Option<String> = PdfNotes.why;
         let _: Vec<crate::api::types::PdfHighlightRow> = PdfNotes.highlights;
+        let _: u32 = PdfNotes.scanned_pages;
         let _: Vec<crate::api::types::PdfInkRow> = PdfNotes.ink;
     }
     {
@@ -40357,6 +40358,7 @@ impl SseDecode for crate::api::types::PdfNotes {
         let mut var_why = <Option<String>>::sse_decode(deserializer);
         let mut var_highlights =
             <Vec<crate::api::types::PdfHighlightRow>>::sse_decode(deserializer);
+        let mut var_scannedPages = <u32>::sse_decode(deserializer);
         let mut var_ink = <Vec<crate::api::types::PdfInkRow>>::sse_decode(deserializer);
         return crate::api::types::PdfNotes {
             file: var_file,
@@ -40365,6 +40367,7 @@ impl SseDecode for crate::api::types::PdfNotes {
             editable: var_editable,
             why: var_why,
             highlights: var_highlights,
+            scanned_pages: var_scannedPages,
             ink: var_ink,
         };
     }
@@ -52441,6 +52444,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PdfNotes> {
             self.0.editable.into_into_dart().into_dart(),
             self.0.why.into_into_dart().into_dart(),
             self.0.highlights.into_into_dart().into_dart(),
+            self.0.scanned_pages.into_into_dart().into_dart(),
             self.0.ink.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -63105,6 +63109,7 @@ impl SseEncode for crate::api::types::PdfNotes {
         <bool>::sse_encode(self.editable, serializer);
         <Option<String>>::sse_encode(self.why, serializer);
         <Vec<crate::api::types::PdfHighlightRow>>::sse_encode(self.highlights, serializer);
+        <u32>::sse_encode(self.scanned_pages, serializer);
         <Vec<crate::api::types::PdfInkRow>>::sse_encode(self.ink, serializer);
     }
 }

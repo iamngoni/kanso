@@ -39,7 +39,7 @@ const RETRY_FIRST: Duration = Duration::from_secs(15);
 const RETRY_MAX: Duration = Duration::from_secs(30 * 60);
 
 /// How long to wait after `failures` reader failures in a row (1 or more).
-fn retry_after(failures: u32) -> Duration {
+pub(super) fn retry_after(failures: u32) -> Duration {
     let doublings = failures.saturating_sub(1).min(16);
     RETRY_FIRST.saturating_mul(1 << doublings).min(RETRY_MAX)
 }
@@ -80,6 +80,7 @@ pub fn init(cx: &mut App) {
 /// Turns reading on or off, from Settings. Off also forgets the words.
 pub fn set_enabled(on: bool, cx: &mut App) {
     AppState::update_config(cx, |config| config.discovery.pdf_text = on);
+    super::ocr::refresh(cx);
     if on {
         start(cx);
         return;

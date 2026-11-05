@@ -235,6 +235,8 @@ fn run(
         return;
     }
 
+    // The words read from the PDF's scanned pages, once a blank page asks.
+    let mut scans: Option<Option<kanso_pdf::PdfOcr>> = None;
     loop {
         let job = {
             let Ok(mut inbox) = shared.inbox.lock() else {
@@ -252,6 +254,20 @@ fn run(
                     drop(inbox);
                     match worker.text(page) {
                         Ok(text) => {
+                            // A scan has no characters: its words come from
+                            // the pictures that were read (here or by
+                            // another device), at word granularity.
+                            let text = if text.chars.is_empty() {
+                                // The file's words are read once a session,
+                                // not once a page.
+                                let ocr = scans
+                                    .get_or_insert_with(|| store.pdf_ocr(file_id).ok().flatten());
+                                ocr.as_ref()
+                                    .and_then(|ocr| scanned_page(ocr, &text))
+                                    .unwrap_or(text)
+                            } else {
+                                text
+                            };
                             if !send(Event::Text(Box::new(text))) {
                                 worker.close();
                                 return;
@@ -306,6 +322,30 @@ fn run(
         }
     }
     worker.close();
+}
+
+/// The text layer of a page PDFium found no characters on, from the words
+/// read from its picture (step 8), on the page's own size. `None` when
+/// the page was not read.
+#[cfg(test)]
+pub(super) fn scanned_text(
+    store: &Store,
+    file_id: &str,
+    empty: &kanso_pdf::PageText,
+) -> Option<kanso_pdf::PageText> {
+    scanned_page(&store.pdf_ocr(file_id).ok()??, empty)
+}
+
+/// As [`scanned_text`], from the words already read out of the file.
+fn scanned_page(
+    ocr: &kanso_pdf::PdfOcr,
+    empty: &kanso_pdf::PageText,
+) -> Option<kanso_pdf::PageText> {
+    let mut text = ocr.page(empty.page)?.to_page_text();
+    text.width = empty.width;
+    text.height = empty.height;
+    // The words were read on the page as shown, upright: no rotation.
+    (!text.chars.is_empty()).then_some(text)
 }
 
 /// Waits for the person to give a password; `None` when the reader closed.

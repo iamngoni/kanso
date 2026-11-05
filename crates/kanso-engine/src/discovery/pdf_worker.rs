@@ -8,6 +8,8 @@
 //! links only the worker's client: no PDFium, so the app and the phones
 //! build without it. A worker is started for each PDF and ended with it.
 //!
+//! [`WorkerScans`] draws scanned pages for the text reader (step 8).
+//!
 //! A failure is only blamed on the PDF when the worker is known to work:
 //! a refusal about the document (a password, damage, too many pages) is the
 //! PDF's. A crash is tried once more in a fresh worker. A crash, a hang or a
@@ -22,6 +24,7 @@ use std::time::Duration;
 use kanso_pdf::client::{DOCUMENT_TEXT_DEADLINE, Worker, WorkerError, WorkerPaths};
 use kanso_pdf::protocol::ErrorKind;
 
+use super::pdf_ocr::{ScanDoc, ScanSource};
 use super::pdf_text::{ExtractError, PdfTextSource};
 
 /// What the store records as having read a PDF's text.
@@ -141,6 +144,117 @@ impl WorkerText {
     }
 }
 
+/// Draws the pages of PDFs with the PDF worker, as PNGs for a text reader
+/// (issue #43, step 8): the [`ScanSource`] `ocr_next`
+/// (`super::pdf_ocr::ocr_next`) reads scans through. Blame for a failure is
+/// placed as for text: a crash is the PDF's only if the worker then reads a
+/// PDF of our own.
+#[derive(Clone, Debug)]
+pub struct WorkerScans(WorkerText);
+
+impl WorkerScans {
+    /// A source over the worker beside the running app, if there is one.
+    pub fn locate() -> Option<Self> {
+        WorkerText::locate().map(Self)
+    }
+
+    /// A source that starts the worker at `paths`.
+    pub fn new(paths: WorkerPaths) -> Self {
+        Self(WorkerText::new(paths))
+    }
+
+    /// Ends a read in progress, and later ones, when `cancel` is set.
+    pub fn cancelled_by(self, cancel: Arc<AtomicBool>) -> Self {
+        Self(self.0.cancelled_by(cancel))
+    }
+}
+
+impl ScanSource for WorkerScans {
+    fn open(&self, pdf: &[u8]) -> Result<Box<dyn ScanDoc>, ExtractError> {
+        if self.0.cancelled() {
+            return Err(ExtractError::Reader("stopped".to_owned()));
+        }
+        let started = Worker::start(&self.0.paths).and_then(|mut worker| {
+            // No password is ever tried: an encrypted PDF has no scans to read.
+            let opened = worker.open(pdf, None)?;
+            Ok((worker, opened))
+        });
+        match started {
+            Ok((worker, opened)) => Ok(Box::new(WorkerScan {
+                worker: Some(worker),
+                sizes: opened.sizes,
+                source: self.0.clone(),
+            })),
+            Err(error) => Err(self.0.blame(error)),
+        }
+    }
+}
+
+struct WorkerScan {
+    worker: Option<Worker>,
+    sizes: Vec<[f32; 2]>,
+    source: WorkerText,
+}
+
+impl ScanDoc for WorkerScan {
+    fn size(&self, page: u32) -> Option<[f32; 2]> {
+        self.sizes.get(page.checked_sub(1)? as usize).copied()
+    }
+
+    fn render_png(&mut self, page: u32, width_px: u32) -> Result<Vec<u8>, ExtractError> {
+        if self.source.cancelled() {
+            return Err(ExtractError::Reader("stopped".to_owned()));
+        }
+        let Some(worker) = self.worker.as_mut() else {
+            return Err(ExtractError::Reader("the PDF reader is closed".to_owned()));
+        };
+        match worker.render(page.saturating_sub(1), width_px) {
+            Ok(page) => png_of(page)
+                .ok_or_else(|| ExtractError::Document("a page that can't be drawn".to_owned())),
+            Err(error) => Err(self.source.blame(error)),
+        }
+    }
+}
+
+impl Drop for WorkerScan {
+    fn drop(&mut self) {
+        if let Some(worker) = self.worker.take() {
+            worker.close();
+        }
+    }
+}
+
+/// A drawn page (BGRA) as an opaque PNG. The pixels are turned to RGB in
+/// place, so a page at the size cap (64 MB of BGRA) never has a second
+/// copy beside it.
+fn png_of(page: kanso_pdf::client::RenderedPage) -> Option<Vec<u8>> {
+    use image::ImageEncoder as _;
+    use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+    let kanso_pdf::client::RenderedPage {
+        width,
+        height,
+        mut bgra,
+        ..
+    } = page;
+    // The client already refuses a page whose pixels aren't its size; the
+    // encoder would panic on one.
+    let pixels = (width as usize).checked_mul(height as usize)?;
+    if pixels.checked_mul(4) != Some(bgra.len()) {
+        return None;
+    }
+    for i in 0..pixels {
+        let (b, g, r) = (bgra[4 * i], bgra[4 * i + 1], bgra[4 * i + 2]);
+        bgra[3 * i..3 * i + 3].copy_from_slice(&[r, g, b]);
+    }
+    bgra.truncate(pixels * 3);
+    let rgb = bgra;
+    let mut out = Vec::new();
+    PngEncoder::new_with_quality(&mut out, CompressionType::Fast, FilterType::NoFilter)
+        .write_image(&rgb, width, height, image::ExtendedColorType::Rgb8)
+        .ok()?;
+    Some(out)
+}
+
 /// A one-page PDF with a line of text, for asking whether the worker works.
 fn known_pdf() -> Vec<u8> {
     let content = "BT /F1 12 Tf 10 30 Td (Kanso) Tj ET";
@@ -183,6 +297,38 @@ mod tests {
             exe: "/no/such/kanso-pdf-worker".into(),
             library: None,
         })
+    }
+
+    /// A drawn page becomes a PNG of the same pixels, in their own colours,
+    /// turned to RGB in place.
+    #[test]
+    fn a_drawn_page_is_its_own_pixels_as_a_png() {
+        let (width, height) = (3u32, 2u32);
+        let bgra: Vec<u8> = (0..width * height)
+            .flat_map(|i| [i as u8, 100 + i as u8, 200 + i as u8, 255])
+            .collect();
+        let png = png_of(kanso_pdf::client::RenderedPage {
+            page: 0,
+            width,
+            height,
+            bgra,
+        })
+        .unwrap();
+        let back = image::load_from_memory(&png).unwrap().to_rgb8();
+        assert_eq!(back.dimensions(), (width, height));
+        for (i, px) in back.pixels().enumerate() {
+            assert_eq!(px.0, [200 + i as u8, 100 + i as u8, i as u8], "pixel {i}");
+        }
+        // Pixels that don't match the size are refused, not drawn.
+        assert!(
+            png_of(kanso_pdf::client::RenderedPage {
+                page: 0,
+                width: 4,
+                height: 4,
+                bgra: vec![0; 8],
+            })
+            .is_none()
+        );
     }
 
     /// Without a worker to start, the reader failed, not the PDF: nothing
