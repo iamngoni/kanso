@@ -1448,6 +1448,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   FeedbackSent dco_decode_feedback_sent(dynamic raw);
 
   @protected
+  FilesMigration dco_decode_files_migration(dynamic raw);
+
+  @protected
   FoldState dco_decode_fold_state(dynamic raw);
 
   @protected
@@ -2152,6 +2155,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MentionSpan dco_decode_mention_span(dynamic raw);
+
+  @protected
+  MigrationOutcome dco_decode_migration_outcome(dynamic raw);
 
   @protected
   MonthGrid dco_decode_month_grid(dynamic raw);
@@ -4352,6 +4358,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   FeedbackSent sse_decode_feedback_sent(SseDeserializer deserializer);
 
   @protected
+  FilesMigration sse_decode_files_migration(SseDeserializer deserializer);
+
+  @protected
   FoldState sse_decode_fold_state(SseDeserializer deserializer);
 
   @protected
@@ -5206,6 +5215,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MentionSpan sse_decode_mention_span(SseDeserializer deserializer);
+
+  @protected
+  MigrationOutcome sse_decode_migration_outcome(SseDeserializer deserializer);
 
   @protected
   MonthGrid sse_decode_month_grid(SseDeserializer deserializer);
@@ -7874,6 +7886,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_feedback_sent(FeedbackSent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_files_migration(
+    FilesMigration self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_fold_state(FoldState self, SseSerializer serializer);
 
   @protected
@@ -9003,6 +9021,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_mention_span(MentionSpan self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_migration_outcome(
+    MigrationOutcome self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_month_grid(MonthGrid self, SseSerializer serializer);
