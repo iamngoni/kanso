@@ -395,6 +395,17 @@ fn lock(data_dir: &Path) -> Result<kanso_store::DataDirLock, Refusal> {
 
 /// The config, brought up to date and with API credentials, saved when that
 /// changed it.
+/// Opens the library with its key from the secret store the config names
+/// (the library's key lives with the rest of its secrets, whatever store a
+/// new sign-in is about to pick).
+fn open_library(world: &World, config: &AppConfig) -> Result<Arc<Store>, Refusal> {
+    let secrets = (world.open_secrets)(config.sync.secret_store)
+        .map_err(|err| Refusal(format!("{err:#}")))?;
+    let store = crate::library_open::open_store_with(&world.data_dir, secrets.as_ref())
+        .map_err(|err| Refusal(format!("{err:#}")))?;
+    Ok(Arc::new(store))
+}
+
 fn config(data_dir: &Path) -> Result<AppConfig, Refusal> {
     crate::load_config(data_dir).map_err(|err| Refusal(format!("{err:#}")))
 }
@@ -454,7 +465,7 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
         // "signed out" and left behind.
         let secrets = (world.open_secrets)(config.sync.secret_store)
             .map_err(|err| Refusal(format!("{err:#}")))?;
-        let store = Arc::new(Store::open(crate::paths::db_path(&world.data_dir))?);
+        let store = open_library(world, &config)?;
         if let Some(session) = current_session(&flow(world, store, secrets), &config)? {
             return refuse(format!(
                 "this library is signed in as {} already; run `kanso account sign-out` first.",
@@ -485,7 +496,7 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
             ))
         })?;
     }
-    let store = Arc::new(Store::open(crate::paths::db_path(&world.data_dir))?);
+    let store = open_library(world, &config)?;
     let mut machine = world.machine.clone();
     if let Some(name) = &args.device_name {
         machine.computer_name = name.clone();
@@ -891,7 +902,12 @@ fn status(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
         .map_err(|err| Refusal(format!("{err:#}")))?;
     let db = crate::paths::db_path(&world.data_dir);
     let store = if db.exists() {
-        Some(Store::open_read_only(&db)?)
+        let secrets = (world.open_secrets)(config.sync.secret_store)
+            .map_err(|err| Refusal(format!("{err:#}")))?;
+        Some(
+            crate::library_open::open_read_only(&world.data_dir, secrets.as_ref())
+                .map_err(|err| Refusal(format!("{err:#}")))?,
+        )
     } else {
         None
     };
@@ -1029,7 +1045,7 @@ fn signed_in(world: &World) -> Result<(Flow, AppConfig, Session), Refusal> {
     let config = config(&world.data_dir)?;
     let secrets = (world.open_secrets)(config.sync.secret_store)
         .map_err(|err| Refusal(format!("{err:#}")))?;
-    let store = Arc::new(Store::open(crate::paths::db_path(&world.data_dir))?);
+    let store = open_library(world, &config)?;
     let flow = flow(world, store, secrets);
     match current_session(&flow, &config)? {
         Some(session) => Ok((flow, config, session)),

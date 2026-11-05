@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
 use kanso_core::roles::{ROLE_FIELD, Role};
-use kanso_store::{Origin, Store, lock_data_dir};
+use kanso_store::{Origin, lock_data_dir};
 use serde_json::{Value, json};
 
 use crate::capture::{save_capture, split_capture};
@@ -99,7 +99,7 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
         .with_context(|| format!("creating {}", data_dir.display()))?;
     let place = match lock_data_dir(data_dir)? {
         Some(_lock) => {
-            let store = Store::open(crate::paths::db_path(data_dir))?;
+            let store = crate::library_open::open_store(data_dir)?;
             let (book, place) = match &book {
                 Some(wanted) => {
                     let books: Vec<(String, String)> =
@@ -353,14 +353,14 @@ mod tests {
     fn captures_into_the_store_without_the_app() {
         let dir = tempfile::tempdir().unwrap();
         super::run_cli(dir.path(), &["Idea:".into(), "kites".into()]).unwrap();
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         let books = store.books().unwrap();
         assert_eq!(books.len(), 1);
         assert_eq!(books[0].id, "book:inbox");
         assert!(super::run_cli(dir.path(), &[" ".into()]).is_err());
         // --book by ID or name; a name nothing has is an error, and
         // nothing is saved.
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         let ideas = store
             .put(
                 kanso_core::DocType::Book,
@@ -379,7 +379,7 @@ mod tests {
         super::run_cli(dir.path(), &[format!("--book={ideas}"), "Gliders".into()]).unwrap();
         assert!(super::run_cli(dir.path(), &["--book".into(), "Nope".into(), "x".into()]).is_err());
         assert!(super::run_cli(dir.path(), &["x".into(), "--book".into()]).is_err());
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         let titles: Vec<String> = store
             .search_summaries(&Default::default())
             .unwrap()

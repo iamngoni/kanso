@@ -96,6 +96,7 @@ mod launch;
 mod layout;
 mod library;
 mod library_import;
+mod library_open;
 #[cfg(test)]
 mod links_tests;
 mod live_marks;
@@ -253,7 +254,7 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, Result, bail};
 use gpui_kit::*;
-use kanso_store::{Store, lock_data_dir};
+use kanso_store::lock_data_dir;
 
 use crate::config::AppConfig;
 use crate::services::Services;
@@ -552,7 +553,7 @@ fn run_app(
         );
     };
     let config = load_config(&data_dir)?;
-    let store = Arc::new(Store::open(paths::db_path(&data_dir))?);
+    let store = Arc::new(library_open::open_store(&data_dir)?);
     // Files to open: from the command line now, from the system's open
     // events (Finder) and from a second `kanso file.md` later. They wait
     // here until the main window exists.

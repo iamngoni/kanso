@@ -122,13 +122,24 @@ impl Lab {
         run(&self.world(), parse(&args).unwrap(), console)
     }
 
+    /// The secret items other than the library's own key (which a new
+    /// library keeps from the start).
+    fn session_items(&self) -> Vec<String> {
+        self.secrets
+            .items()
+            .into_iter()
+            .filter(|item| !item.starts_with("library-key:"))
+            .collect()
+    }
+
     fn config(&self) -> AppConfig {
         AppConfig::load(&crate::paths::config_path(self.dir.path())).unwrap()
     }
 
     /// A note written before sign-in, as an agent would.
     fn note(&self) {
-        let store = Store::open(crate::paths::db_path(self.dir.path())).unwrap();
+        let store =
+            crate::library_open::open_store_with(self.dir.path(), self.secrets.as_ref()).unwrap();
         let book = store
             .put(
                 DocType::Book,
@@ -215,7 +226,12 @@ fn a_fresh_library_signs_in_with_the_password_on_stdin() {
             &mut unreadable,
         )
         .unwrap_err();
-    assert!(refused.0.contains("reading the session"), "{}", refused.0);
+    // Either the session or, on a library made encrypted, its key can't be read.
+    assert!(
+        refused.0.contains("reading the session") || refused.0.contains("library's key"),
+        "{}",
+        refused.0
+    );
     let mut status = Script::new(false, &[]);
     assert!(lab.run(&["status"], &mut status).is_err());
     lab.secrets.fail_reads(false);
@@ -321,7 +337,7 @@ fn a_wrong_password_saves_nothing() {
         .unwrap_err();
     assert!(!refused.0.is_empty());
     assert!(lab.config().sync.account.is_none());
-    assert!(lab.secrets.items().is_empty());
+    assert!(lab.session_items().is_empty());
 }
 
 #[test]
@@ -714,7 +730,7 @@ fn github_sign_in(interrupt: bool) {
     if interrupt {
         let refused = ran.unwrap_err();
         assert!(refused.0.contains("cancelled"), "{}", refused.0);
-        assert!(lab.secrets.items().is_empty(), "{:?}", lab.secrets.items());
+        assert!(lab.session_items().is_empty(), "{:?}", lab.session_items());
         assert!(lab.config().sync.account.is_none());
         assert!(
             kanso_sync::pending_approvals(server.as_ref(), &alice)

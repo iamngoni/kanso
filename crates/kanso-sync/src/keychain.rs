@@ -60,6 +60,15 @@ pub fn lock_keys_item(library_id: &str) -> String {
     format!("lock-keys:{library_id}")
 }
 
+/// `library-key:<key_id>`: `{"v":1,"key":"<64 hex>"}`, the key of an encrypted
+/// library (issue #243), from the moment the library is made until it is
+/// deleted. The `key_id` is the opaque name in `<db>.keyid` beside the
+/// library, since the library's own ID is inside the encrypted file. It is
+/// unlocked with the login session: no Touch ID prompt.
+pub fn library_key_item(key_id: &str) -> String {
+    format!("library-key:{key_id}")
+}
+
 /// A Keychain failure.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("keychain: {0}")]
