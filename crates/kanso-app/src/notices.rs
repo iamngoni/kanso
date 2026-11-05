@@ -77,9 +77,7 @@ fn context(cx: &App) -> NoticeContext {
     let login = cx
         .try_global::<AppState>()
         .is_some_and(|state| state.config.had_login);
-    let key_saved = cx
-        .try_global::<AppState>()
-        .is_some_and(|state| state.config.library_key_saved);
+    let key_saved = crate::library_key_sheet::key_saved(cx);
     build_context(
         crate::updates::current_version(),
         board.and_then(|board| board.previous.clone()),

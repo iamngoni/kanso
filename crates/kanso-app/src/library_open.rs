@@ -87,9 +87,14 @@ pub fn open_store_reporting(
 /// What a restore staged by Restore from backup… did at this launch: `Ok`
 /// when it took the library's place, the reason when it couldn't. Taken once
 /// by the app, which says so in its window.
-static RESTORE_OUTCOME: std::sync::Mutex<Option<Result<(), String>>> = std::sync::Mutex::new(None);
+static RESTORE_OUTCOME: std::sync::Mutex<Option<Result<(), RestoreFailure>>> =
+    std::sync::Mutex::new(None);
 
-pub fn take_restore_outcome() -> Option<Result<(), String>> {
+/// Why a staged restore didn't apply, and whether it still waits for the
+/// next launch.
+pub type RestoreFailure = (String, bool);
+
+pub fn take_restore_outcome() -> Option<Result<(), RestoreFailure>> {
     RESTORE_OUTCOME
         .lock()
         .unwrap_or_else(|poison| poison.into_inner())
@@ -99,8 +104,12 @@ pub fn take_restore_outcome() -> Option<Result<(), String>> {
 /// Before the library opens: a restore staged by the last run (issue #243
 /// step 11) replaces it, and the library it replaces is kept as a backup. A
 /// secret store that won't answer leaves the restore waiting for the next
-/// launch; one with no key for this library drops it.
-fn apply_pending_restore(data_dir: &Path, secrets: &dyn SecretStore) -> Option<Result<(), String>> {
+/// launch; one with no key for this library drops it. A restore that can't
+/// apply now (the library in use, no room to keep it) waits too.
+fn apply_pending_restore(
+    data_dir: &Path,
+    secrets: &dyn SecretStore,
+) -> Option<Result<(), RestoreFailure>> {
     let db = paths::db_path(data_dir);
     if !kanso_store::restore_staged(&db) || kanso_store::encryption_unfinished(&db) {
         return None;
@@ -130,7 +139,7 @@ fn apply_pending_restore(data_dir: &Path, secrets: &dyn SecretStore) -> Option<R
         Ok(()) => eprintln!("kanso: restored the library from a backup"),
         Err(why) => eprintln!("kanso: couldn't restore the backup: {why}"),
     }
-    Some(outcome)
+    Some(outcome.map_err(|why| (why, kanso_store::restore_staged(&db))))
 }
 
 /// Opens the library in `data_dir`, with the key from the secret store the
@@ -264,6 +273,33 @@ mod tests {
             Some(Err(_))
         ));
         assert!(!kanso_store::restore_staged(&db));
+    }
+
+    /// Regression: a restore that can't apply at this launch (here the
+    /// backups folder is a file, so the library can't be kept) used to be
+    /// dropped. It waits now, says it will be tried again, and the library
+    /// opens as it was.
+    #[test]
+    fn a_restore_that_cannot_apply_now_waits_and_the_library_opens() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = paths::db_path(dir.path());
+        let secrets = kanso_sync::MemorySecrets::new();
+        let (store, _) = open_store_reporting(dir.path(), &secrets, &|_| {}).unwrap();
+        let elsewhere = tempfile::tempdir().unwrap();
+        let backup = store.backup_now(elsewhere.path(), 1_000).unwrap();
+        store.set_meta("later", "yes").unwrap();
+        let key = store.library_key().unwrap().clone();
+        drop(store);
+        kanso_store::stage_restore(&db, &backup, Some(&key), &key).unwrap();
+        std::fs::write(paths::backups_dir(dir.path()), b"not a folder").unwrap();
+
+        assert!(matches!(
+            apply_pending_restore(dir.path(), &secrets),
+            Some(Err((_, true)))
+        ));
+        assert!(kanso_store::restore_staged(&db));
+        let (store, _) = open_store_reporting(dir.path(), &secrets, &|_| {}).unwrap();
+        assert_eq!(store.meta("later").unwrap().as_deref(), Some("yes"));
     }
 
     /// A backups folder that can't be read doesn't keep the library from

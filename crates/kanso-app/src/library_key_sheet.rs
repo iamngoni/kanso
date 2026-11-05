@@ -21,7 +21,7 @@ use zeroize::Zeroizing;
 
 use crate::library_key_model::{
     APPLIED, CONFIRM_BODY, COPIED, NOT_CONFIRMED, SAVE_BODY, SAVE_TITLE, SHOW_BODY, SHOW_TITLE,
-    key_row_detail, not_applied, numbered, offer_save_sheet,
+    WAITING, key_row_detail, not_applied, numbered, offer_save_sheet, sync_holds_notes,
 };
 use crate::settings::Row;
 use crate::theme::Colors;
@@ -78,7 +78,7 @@ impl LibraryKeySheet {
         Some(LibraryKeySheet {
             mode,
             words: Some(words),
-            already_saved: state.config.library_key_saved,
+            already_saved: key_saved(cx),
             copied: false,
         })
     }
@@ -241,8 +241,27 @@ impl Render for KeyFooter {
 /// Records that the person saved the key. The save sheet stops coming back,
 /// and the encrypted-library notice goes.
 pub fn mark_saved(cx: &mut App) {
-    AppState::update_config(cx, |config| config.library_key_saved = true);
+    let Some(mark) = cx
+        .global::<AppState>()
+        .store
+        .library_key()
+        .map(kanso_store::LibraryKey::fingerprint)
+    else {
+        return;
+    };
+    AppState::update_config(cx, |config| config.saved_library_key = Some(mark));
     cx.refresh_windows();
+}
+
+/// Whether the person said they saved the library's key, and it is still
+/// that key.
+pub fn key_saved(cx: &App) -> bool {
+    cx.try_global::<AppState>().is_some_and(|state| {
+        crate::library_key_model::key_saved(
+            state.config.saved_library_key.as_deref(),
+            state.store.library_key(),
+        )
+    })
 }
 
 fn open(sheet: Entity<LibraryKeySheet>, window: &mut Window, cx: &mut App) {
@@ -297,15 +316,15 @@ const SETTLE_POLL: std::time::Duration = std::time::Duration::from_millis(250);
 const SETTLE_MAX: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// At launch, once the account has been read back: asks the person to save
-/// the key when the library is encrypted, not signed in to sync, and the
-/// key hasn't been saved. It does not interrupt a dialog already open.
+/// the key when the library is encrypted, sync doesn't hold its notes, and
+/// the key hasn't been saved. It does not interrupt a dialog already open.
 pub fn offer_at_launch(window: &mut Window, cx: &mut App) {
     // A restore the last run staged was applied (or not) before the library
     // opened; say so.
     match crate::library_open::take_restore_outcome() {
         Some(Ok(())) => window.push_notification(Notification::success(APPLIED), cx),
-        Some(Err(why)) => {
-            window.push_notification(Notification::error(not_applied(&why)), cx);
+        Some(Err((why, again))) => {
+            window.push_notification(Notification::error(not_applied(&why, again)), cx);
         }
         None => {}
     }
@@ -344,23 +363,26 @@ fn wants_save_sheet(cx: &App) -> bool {
         .try_global::<services::Services>()
         .is_some_and(|services| services.signed_in() || services.has_locked_session())
         || state.config.sync.account.is_some();
+    // A count that can't be read is taken as notes not sent: ask.
+    let never_sent = state.store.never_sent_count().unwrap_or(usize::MAX);
     offer_save_sheet(
         state.store.is_encrypted(),
-        state.config.library_key_saved,
-        signed_in,
+        key_saved(cx),
+        sync_holds_notes(signed_in, never_sent),
     )
 }
 
 // MARK: Show key…
 
-/// Show key…: asks for Touch ID (Windows Hello), or, where there is none,
-/// for a confirmation, then opens the sheet.
+/// Show key…: asks for Touch ID or the account password (macOS), Windows
+/// Hello, or, where the system has neither (Linux), for a confirmation,
+/// then opens the sheet.
 pub fn show_key(window: &mut Window, cx: &mut App) {
     if !cx.global::<AppState>().store.is_encrypted() {
         return;
     }
     let reason = "show your library key";
-    let Some(answer) = crate::touch_id::authenticate(reason, cx) else {
+    let Some(answer) = crate::touch_id::confirm_owner(reason, cx) else {
         dialogs::confirm(
             "Show your library key?",
             CONFIRM_BODY,
@@ -395,7 +417,8 @@ pub fn show_key(window: &mut Window, cx: &mut App) {
 pub fn backup_rows(cx: &mut Context<crate::settings::SettingsView>) -> Vec<Row> {
     let state = cx.global::<AppState>();
     let encrypted = state.store.is_encrypted();
-    let saved = state.config.library_key_saved;
+    let saved = key_saved(cx);
+    let waiting = kanso_store::restore_staged(&crate::paths::db_path(&state.data_dir));
     let mut rows = Vec::new();
     if encrypted {
         rows.push(
@@ -410,6 +433,26 @@ pub fn backup_rows(cx: &mut Context<crate::settings::SettingsView>) -> Vec<Row> 
                         .on_click(|_, window, cx| show_key(window, cx)),
                 ),
         );
+        // A restore staged by mistake can be called off before the launch
+        // that would apply it.
+        if waiting {
+            rows.push(
+                Row::new(Lucide::DatabaseBackup, "Restore waiting")
+                    .detail(WAITING)
+                    .trailing(
+                        Button::new("cancel-restore")
+                            .outline()
+                            .small()
+                            .label("Cancel restore")
+                            .debug_selector(|| "cancel-restore".into())
+                            .on_click(|_, _, cx| {
+                                let db = crate::paths::db_path(&cx.global::<AppState>().data_dir);
+                                kanso_store::cancel_staged_restore(&db);
+                                cx.refresh_windows();
+                            }),
+                    ),
+            );
+        }
         rows.push(
             Row::new(Lucide::DatabaseBackup, "Restore from backup")
                 .detail("Replaces this library with a backup. A backup from another computer needs its 24 words. The library you have now is kept as a backup.")

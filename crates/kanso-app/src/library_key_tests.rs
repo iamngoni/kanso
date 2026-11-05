@@ -133,7 +133,11 @@ fn the_save_sheet_shows_the_words_and_wipes_them_when_it_closes(cx: &mut TestApp
     assert!(!f.dialog_open(cx));
     assert!(sheet.upgrade().is_none(), "the closed sheet is dropped");
     // Later saves nothing: the sheet comes back at the next launch.
-    assert!(!cx.read(|cx| cx.global::<AppState>().config.library_key_saved));
+    assert!(!cx.read(crate::library_key_sheet::key_saved));
+    assert_eq!(
+        cx.read(|cx| cx.global::<AppState>().config.saved_library_key.clone()),
+        None
+    );
 }
 
 /// "I've saved it" records it for good and the notice goes with it.
@@ -162,7 +166,12 @@ fn i_have_saved_it_stops_the_sheet_and_the_notice(cx: &mut TestAppContext) {
     f.click(cx, "library-key-saved");
     assert!(!f.dialog_open(cx));
     assert!(sheet.upgrade().is_none());
-    assert!(f.saved_config().library_key_saved);
+    assert_eq!(
+        f.saved_config().saved_library_key,
+        Some(demo_key(4).fingerprint()),
+        "the key is named by its fingerprint, never written down"
+    );
+    assert!(cx.read(crate::library_key_sheet::key_saved));
     assert!(cx.read(crate::notices::banner).is_none());
     assert!(!f.drawn(cx, "notice-banner"));
 
@@ -342,6 +351,28 @@ fn restoring_a_backup_from_another_computer_asks_for_its_words(cx: &mut TestAppC
         sheet.upgrade().is_none(),
         "the sheet and its words are gone"
     );
+}
+
+/// A restore staged by mistake can be called off: Backups says one is
+/// waiting, and Cancel restore forgets it before the next launch.
+#[gpui_kit::test]
+fn a_waiting_restore_can_be_cancelled(cx: &mut TestAppContext) {
+    let key = demo_key(12);
+    let f = setup(cx, Some(&key));
+    let db = crate::paths::db_path(f.dir.path());
+    let backup = cx.read(|cx| {
+        cx.global::<AppState>()
+            .store
+            .backup_now(&crate::paths::backups_dir(f.dir.path()), 1_000)
+            .unwrap()
+    });
+    open_backups(&f, cx);
+    assert!(!f.drawn(cx, "cancel-restore"));
+    kanso_store::stage_restore(&db, &backup, Some(&key), &key).unwrap();
+    assert!(f.drawn(cx, "cancel-restore"));
+    f.click(cx, "cancel-restore");
+    assert!(!kanso_store::restore_staged(&db));
+    assert!(!f.drawn(cx, "cancel-restore"));
 }
 
 /// A file that isn't a backup is refused before any sheet opens.

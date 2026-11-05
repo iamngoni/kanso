@@ -3,7 +3,7 @@
 //! save sheet comes back, and how a backup that didn't open is explained.
 //! The sheets are in `library_key_sheet` and `restore_sheet`.
 
-use kanso_store::{LibraryFile, StoreError, WordsError};
+use kanso_store::{LibraryFile, LibraryKey, StoreError, WordsError};
 
 /// The save sheet's title, right after encryption and at each launch until
 /// the key is saved.
@@ -27,11 +27,28 @@ pub const NOT_CONFIRMED: &str = "Couldn't confirm it's you, so the key stays hid
 pub const CONFIRM_BODY: &str = "The key opens every backup of your library. Make sure no one can see your screen, then show it.";
 
 /// Whether the save sheet comes up at this launch: the library is
-/// encrypted, the person hasn't said they saved the key, and the library
-/// isn't signed in to sync (signing in on a new computer brings the notes
-/// back, so it needs no key).
-pub fn offer_save_sheet(encrypted: bool, saved: bool, signed_in: bool) -> bool {
-    encrypted && !saved && !signed_in
+/// encrypted, the person hasn't said they saved the key, and sync doesn't
+/// hold the notes (signing in on a new computer brings them back, so they
+/// need no key). `synced` is [`sync_holds_notes`].
+pub fn offer_save_sheet(encrypted: bool, saved: bool, synced: bool) -> bool {
+    encrypted && !saved && !synced
+}
+
+/// Whether sync can bring the notes back on another computer without the
+/// key: the library is signed in, and every note has reached the server at
+/// least once. The key itself never syncs; a library signed in whose notes
+/// haven't gone up yet (`never_sent` of them) still needs the words.
+pub fn sync_holds_notes(signed_in: bool, never_sent: usize) -> bool {
+    signed_in && never_sent == 0
+}
+
+/// Whether the key the person said they saved (`saved`, its fingerprint)
+/// is the library's key now. A library with no key has nothing to save.
+pub fn key_saved(saved: Option<&str>, key: Option<&LibraryKey>) -> bool {
+    match (saved, key) {
+        (Some(saved), Some(key)) => saved == key.fingerprint(),
+        _ => false,
+    }
 }
 
 /// What the Library key row says under its name.
@@ -64,13 +81,17 @@ pub fn needs_words(file: LibraryFile, opens_with_this_key: bool) -> bool {
 /// they belong to another library, not that none were given).
 pub fn restore_problem(err: &StoreError, typed_words: bool) -> String {
     match err {
+        // The checksum lets about 1 in 256 typos through, so this may be one.
         StoreError::WrongKey if typed_words => {
-            "These words are a real library key, but they don't open this backup. They may belong to another library.".to_owned()
+            "These words don't open this backup. Check each word and their order; if they're all right, the backup was made with another library's key.".to_owned()
         }
         StoreError::WrongKey => {
             "This backup is encrypted with another key. Enter the 24 words of the library it came from.".to_owned()
         }
         StoreError::Invalid(why) => why.clone(),
+        StoreError::DiskFull { needed_mb } => format!(
+            "There isn't enough free space to restore this backup. Kanso needs about {needed_mb} MB free on the disk that holds your library."
+        ),
         other => format!("Couldn't read that backup: {other}"),
     }
 }
@@ -87,10 +108,20 @@ pub const STAGED: &str = "The backup is ready. Quit Kanso and open it again to f
 pub const APPLIED: &str =
     "Restored from your backup. The library you had before is kept in your backups.";
 
-/// What the next launch says when it couldn't.
-pub fn not_applied(why: &str) -> String {
-    format!("Couldn't restore the backup: {why}. Your library is as it was.")
+/// What the next launch says when it couldn't. `again`: the restore still
+/// waits, and the next launch tries it again.
+pub fn not_applied(why: &str, again: bool) -> String {
+    if again {
+        format!(
+            "Couldn't restore the backup yet: {why}. Your library is as it was; Kanso tries again the next time it opens."
+        )
+    } else {
+        format!("Couldn't restore the backup: {why}. Your library is as it was.")
+    }
 }
+
+/// What the Restore from backup row says while a restore waits.
+pub const WAITING: &str = "A backup replaces this library the next time Kanso opens. The library you have now is kept as a backup.";
 
 #[cfg(test)]
 mod tests {
@@ -143,6 +174,78 @@ mod tests {
                 kind == LibraryFile::Encrypted && !opens
             );
         }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: None,
+            ..ProptestConfig::default()
+        })]
+
+        /// Invariants: a key counts as saved only when the mark is that
+        /// key's; another key's mark, no mark, or no key is not saved.
+        #[test]
+        fn prop_saved_means_this_key_was_saved(
+            ours in any::<[u8; kanso_store::KEY_BYTES]>(),
+            other in any::<[u8; kanso_store::KEY_BYTES]>(),
+        ) {
+            let ours = LibraryKey::from_bytes(ours);
+            let other = LibraryKey::from_bytes(other);
+            prop_assert!(key_saved(Some(&ours.fingerprint()), Some(&ours)));
+            prop_assert_eq!(
+                key_saved(Some(&other.fingerprint()), Some(&ours)),
+                other == ours
+            );
+            prop_assert!(!key_saved(None, Some(&ours)));
+            prop_assert!(!key_saved(Some(&ours.fingerprint()), None));
+        }
+
+        /// Invariants: sync holds the notes only when signed in with
+        /// nothing that never reached the server.
+        #[test]
+        fn prop_sync_holds_the_notes_once_they_went_up(
+            signed_in in any::<bool>(),
+            never_sent in 0usize..5,
+        ) {
+            prop_assert_eq!(
+                sync_holds_notes(signed_in, never_sent),
+                signed_in && never_sent == 0
+            );
+        }
+    }
+
+    /// Regression: "I've saved it" was a plain yes in config.json, so a
+    /// library made again with a new key (the old one deleted, the settings
+    /// kept) never asked for the new key's words.
+    #[test]
+    fn a_new_key_is_not_the_saved_one() {
+        let old = LibraryKey::from_bytes([1; kanso_store::KEY_BYTES]);
+        let new = LibraryKey::from_bytes([2; kanso_store::KEY_BYTES]);
+        assert!(key_saved(Some(&old.fingerprint()), Some(&old)));
+        assert!(!key_saved(Some(&old.fingerprint()), Some(&new)));
+        assert!(offer_save_sheet(
+            true,
+            key_saved(Some(&old.fingerprint()), Some(&new)),
+            false
+        ));
+    }
+
+    /// Regression: signed in to sync used to skip the sheet even while
+    /// notes had never gone up, so neither sync nor the key could bring
+    /// them back.
+    #[test]
+    fn signed_in_with_notes_not_sent_still_asks() {
+        assert!(offer_save_sheet(true, false, sync_holds_notes(true, 3)));
+        assert!(!offer_save_sheet(true, false, sync_holds_notes(true, 0)));
+    }
+
+    #[test]
+    fn a_full_disk_says_restore_not_encrypt() {
+        let why = restore_problem(&StoreError::DiskFull { needed_mb: 12 }, false);
+        assert!(why.contains("restore") && why.contains("12 MB"), "{why}");
+        assert!(not_applied("x", true).contains("tries again"));
+        assert!(!not_applied("x", false).contains("tries again"));
     }
 
     #[test]
