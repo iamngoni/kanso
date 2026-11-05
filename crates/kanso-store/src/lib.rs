@@ -34,6 +34,7 @@ mod ocr;
 mod overview;
 mod passage_embed;
 mod passages;
+pub mod pdf_ink;
 mod pdf_text;
 mod pdf_text_model;
 mod plugin;
