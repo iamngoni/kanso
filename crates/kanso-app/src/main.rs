@@ -174,6 +174,9 @@ mod record_sheet;
 mod recording;
 mod recording_bar;
 mod recording_model;
+mod recording_summary;
+#[cfg(test)]
+mod recording_summary_tests;
 #[cfg(test)]
 mod recording_tests;
 mod related;
@@ -225,6 +228,8 @@ mod settings_flashcards;
 #[cfg(all(target_os = "macos", not(test)))]
 mod spellcheck_macos;
 mod split;
+mod startup_error;
+mod startup_error_model;
 mod sticky;
 mod sticky_cli;
 mod sync_nudge;
@@ -451,6 +456,8 @@ fn main() -> Result<()> {
         Some("serve") => serve_cli::run_cli(args.data_dir, &args.rest),
         // The window an encryption of the library shows; started by the app.
         Some("encrypt-progress") => encrypt_progress::run_child(),
+        // The window for a library that won't open; started by the app.
+        Some("startup-error") => startup_error::run_child(),
         Some("account") => account_cli::run_cli(&args.data_dir, &args.rest),
         Some("import") => library_import::run_cli(&args.data_dir, &args.rest),
         Some("theme") => theme_import::run_cli(&args.data_dir, &args.rest),
@@ -562,28 +569,74 @@ fn open_library_showing_progress(
 /// it to let go of the data folder.
 const AFTER_UPDATE_WAIT: std::time::Duration = std::time::Duration::from_secs(20);
 
+/// What starting Kanso holds until the main window opens.
+struct Started {
+    lock: kanso_store::DataDirLock,
+    config: AppConfig,
+    store: kanso_store::Store,
+    plain_because: Option<String>,
+}
+
+/// Makes the data folder, takes its lock, reads the settings and opens the
+/// library, or says which of them failed. Waits for the lock when an update
+/// opened this Kanso.
+fn start(
+    data_dir: &std::path::Path,
+    wait_for_update: bool,
+) -> Result<Started, startup_error_model::Failure> {
+    use startup_error_model::Failure;
+    std::fs::create_dir_all(data_dir).map_err(|err| Failure::Folder(err.to_string()))?;
+    let mut lock = lock_data_dir(data_dir).map_err(|err| Failure::LockFailed(err.to_string()))?;
+    let started = std::time::Instant::now();
+    while lock.is_none() && wait_for_update && started.elapsed() < AFTER_UPDATE_WAIT {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        lock = lock_data_dir(data_dir).map_err(|err| Failure::LockFailed(err.to_string()))?;
+    }
+    let Some(lock) = lock else {
+        return Err(Failure::Locked);
+    };
+    let config = load_config(data_dir).map_err(|err| Failure::Config(format!("{err:#}")))?;
+    let (store, plain_because) = open_library_showing_progress(data_dir)
+        .map_err(|err| Failure::Library(startup_error_model::classify(&err)))?;
+    Ok(Started {
+        lock,
+        config,
+        store,
+        plain_because,
+    })
+}
+
 fn run_app(
     data_dir: PathBuf,
     after_update: bool,
     safe_mode: bool,
     files: Vec<PathBuf>,
 ) -> Result<()> {
-    std::fs::create_dir_all(&data_dir)
-        .with_context(|| format!("creating {}", data_dir.display()))?;
-    let mut lock = lock_data_dir(&data_dir)?;
-    let started = std::time::Instant::now();
-    while lock.is_none() && after_update && started.elapsed() < AFTER_UPDATE_WAIT {
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        lock = lock_data_dir(&data_dir)?;
-    }
-    let Some(lock) = lock else {
-        bail!(
-            "Kanso is already running with the data folder {}",
-            data_dir.display()
-        );
+    // What can stop Kanso before any window opens is shown in a window of
+    // its own: launched from the Finder or the dock there is no terminal to
+    // read standard error in. Try again goes round once more.
+    let mut wait_for_update = after_update;
+    let Started {
+        lock,
+        config,
+        store,
+        plain_because,
+    } = loop {
+        let failure = match start(&data_dir, wait_for_update) {
+            Ok(started) => break started,
+            Err(failure) => failure,
+        };
+        wait_for_update = false;
+        let screen = startup_error_model::describe(&failure, &data_dir);
+        eprintln!("kanso: {}. {}", screen.title, screen.message);
+        for (ix, step) in screen.steps.iter().enumerate() {
+            eprintln!("  {}. {step}", ix + 1);
+        }
+        match startup_error::show(&failure, &data_dir) {
+            Some(startup_error::Choice::TryAgain) => {}
+            Some(startup_error::Choice::Quit) | None => std::process::exit(1),
+        }
     };
-    let config = load_config(&data_dir)?;
-    let (store, plain_because) = open_library_showing_progress(&data_dir)?;
     let store = Arc::new(store);
     // Files to open: from the command line now, from the system's open
     // events (Finder) and from a second `kanso file.md` later. They wait
