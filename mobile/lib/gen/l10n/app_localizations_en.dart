@@ -3308,19 +3308,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 
@@ -5076,19 +5073,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTroubleKey =>
-      'Your model turned the key down. Check the API key in AI settings.';
+      'Your model turned the key down. The API key was refused. Check it in Settings › AI, then try again.';
 
   @override
   String get aiTroubleBusy =>
-      'Your model is busy right now. Wait a moment, then try again.';
+      'Your model is busy. It\'s limiting requests right now. Wait a moment, then try again.';
 
   @override
   String get aiTroubleSlow =>
-      'Your model took too long to answer. Try again, or pick a smaller model.';
+      'Your model took too long. It didn\'t answer in time. Try again, or pick a smaller model in Settings › AI.';
 
   @override
   String get aiTroubleMissing =>
-      'The model in AI settings isn\'t available. Choose another, then try again.';
+      'Your model wasn\'t found. The model named in Settings › AI isn\'t available. Choose another, then try again.';
 
   @override
   String aiTroubleReachLocal(String app) {
@@ -5097,15 +5094,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTroubleReach =>
-      'Couldn\'t reach your model. Check your connection and the address in AI settings.';
+      'Couldn\'t reach your model. Check your connection and the address in Settings › AI, then try again.';
 
   @override
   String get aiTroubleSetup =>
-      'AI isn\'t set up yet. Choose a model in AI settings to use this.';
+      'AI isn\'t set up yet. Choose a model in Settings › AI to use this.';
 
   @override
   String get aiTroubleOther =>
-      'Your model ran into a problem. Try again, or check AI settings.';
+      'Your model ran into a problem. Try again. If it keeps happening, check Settings › AI.';
+
+  @override
+  String get aiTroubleMissingKey =>
+      'No API key is saved. Add one in Settings › AI: choose your provider, then paste the key into API key.';
+
+  @override
+  String get aiTroubleMissingModel =>
+      'No model is chosen. Pick a model in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleMissingUrl =>
+      'No server address is set. Enter the server\'s address in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleNoAgent =>
+      'No agent is set up. Choose an agent in Settings › AI, or type the command of your own. Then try again.';
+
+  @override
+  String get aiTroubleAgentNotInstalled =>
+      'Your agent isn\'t installed. Install it, or choose another agent in Settings › AI and use Find to check again.';
+
+  @override
+  String get aiTroubleAgentNeedsNode =>
+      'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.';
+
+  @override
+  String get aiTroubleNoTools =>
+      'This model can\'t use tools. Pick a model that supports tools in Settings › AI.';
+
+  @override
+  String get aiTroubleServerDown =>
+      'Your model\'s server had a problem. That\'s on its side. Wait a moment, then try again.';
 
   @override
   String get aiTroubleRetry => 'Try again';

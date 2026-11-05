@@ -498,102 +498,14 @@ pub struct AiTrouble {
     pub raw: String,
 }
 
-/// The words for model error `raw`. Never the raw text as the title; the
-/// detail says what to do.
-/// Whether `text` has HTTP status `code` as a number of its own: "status
-/// 401", "HTTP 401:", "(401)", not the 401 inside "14010" or "a401b".
-fn has_status_code(text: &str, code: &str) -> bool {
-    text.match_indices(code).any(|(at, _)| {
-        let before = text[..at].chars().next_back();
-        let after = text[at + code.len()..].chars().next();
-        let edge = |c: Option<char>| c.is_none_or(|c| !c.is_alphanumeric() && c != '_');
-        edge(before) && edge(after)
-    })
-}
-
+/// The words for model error `raw`: never the raw text as the title; the
+/// detail says what to do. The reading is `kanso_ai::classify_trouble`'s, the
+/// one every AI feature and the phone share.
 pub fn ai_trouble(raw: &str) -> AiTrouble {
-    let lower = raw.to_lowercase();
-    let has = |words: &[&str]| words.iter().any(|w| lower.contains(w));
-    let code = |codes: &[&str]| codes.iter().any(|c| has_status_code(&lower, c));
-    let local = if lower.contains("ollama") {
-        Some("Ollama")
-    } else if lower.contains("lm studio") || lower.contains("lmstudio") {
-        Some("LM Studio")
-    } else {
-        None
-    };
-    let (title, detail) =
-        if code(&["401", "403"]) || has(&["unauthori", "api key", "invalid key", "forbidden"]) {
-            (
-                "Your model turned the key down",
-                "Check the API key in Settings › AI, then try again.".to_owned(),
-            )
-        } else if code(&["429"]) || has(&["rate limit", "quota", "too many requests"]) {
-            (
-                "Your model is busy",
-                "It's limiting requests right now. Wait a moment, then try again.".to_owned(),
-            )
-        } else if has(&["timed out", "timeout"]) {
-            (
-                "Your model took too long",
-                "It didn't answer in time. Try again, or pick a smaller model in Settings › AI."
-                    .to_owned(),
-            )
-        } else if code(&["404"])
-            || has(&[
-                "not found",
-                "no such model",
-                "unknown model",
-                "model_not_found",
-            ])
-        {
-            (
-                "Your model wasn't found",
-                "The model named in Settings › AI isn't available. Choose another, then try again."
-                    .to_owned(),
-            )
-        } else if has(&[
-            "transport",
-            "connect",
-            "connection",
-            "refused",
-            "unreachable",
-            "dns",
-            "network",
-            "failed to call",
-            "error sending request",
-        ]) {
-            match local {
-                Some(app) => (
-                    "Couldn't reach your model",
-                    format!("Is {app} running? Start it, then try again."),
-                ),
-                None => (
-                    "Couldn't reach your model",
-                    "Check your connection and the address in Settings › AI, then try again."
-                        .to_owned(),
-                ),
-            }
-        } else if has(&[
-            "not set up",
-            "not configured",
-            "no model",
-            "no provider",
-            "ai is off",
-        ]) {
-            (
-                "AI isn't set up yet",
-                "Choose a model in Settings › AI to use this.".to_owned(),
-            )
-        } else {
-            (
-                "Your model ran into a problem",
-                "Try again. If it keeps happening, check Settings › AI.".to_owned(),
-            )
-        };
+    let words = kanso_ai::classify_trouble(raw).words();
     AiTrouble {
-        title: title.to_owned(),
-        detail,
+        title: words.title.to_owned(),
+        detail: words.detail,
         raw: raw.trim().to_owned(),
     }
 }
@@ -720,10 +632,18 @@ mod tests {
     use proptest::prelude::*;
 
     const TITLES: &[&str] = &[
+        "No API key is saved",
         "Your model turned the key down",
+        "No model is chosen",
+        "No server address is set",
+        "No agent is set up",
+        "Your agent isn't installed",
+        "Your agent needs a newer Node",
+        "This model can't use tools",
         "Your model is busy",
         "Your model took too long",
         "Your model wasn't found",
+        "Your model's server had a problem",
         "Couldn't reach your model",
         "AI isn't set up yet",
         "Your model ran into a problem",
@@ -789,6 +709,19 @@ mod tests {
             prop_assert!(!t.detail.is_empty());
             prop_assert!(TITLES.contains(&t.title.as_str()), "{}", t.title);
         }
+    }
+
+    #[test]
+    fn a_missing_key_and_a_missing_agent_say_so_and_how_to_fix_it() {
+        use kanso_ai::AiError;
+        let key = ai_trouble(&AiError::MissingKey.to_string());
+        assert_eq!(key.title, "No API key is saved");
+        assert!(key.detail.contains("Settings › AI"), "{}", key.detail);
+        let agent = ai_trouble(
+            &AiError::Agent("Set the agent's command in Settings › AI.".into()).to_string(),
+        );
+        assert_eq!(agent.title, "No agent is set up");
+        assert!(agent.detail.contains("Choose an agent in Settings › AI"));
     }
 
     #[test]

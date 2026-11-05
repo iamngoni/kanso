@@ -8641,25 +8641,25 @@ abstract class AppLocalizations {
   /// An AI request was refused for its key.
   ///
   /// In en, this message translates to:
-  /// **'Your model turned the key down. Check the API key in AI settings.'**
+  /// **'Your model turned the key down. The API key was refused. Check it in Settings › AI, then try again.'**
   String get aiTroubleKey;
 
   /// An AI request was rate limited.
   ///
   /// In en, this message translates to:
-  /// **'Your model is busy right now. Wait a moment, then try again.'**
+  /// **'Your model is busy. It\'s limiting requests right now. Wait a moment, then try again.'**
   String get aiTroubleBusy;
 
   /// An AI request timed out.
   ///
   /// In en, this message translates to:
-  /// **'Your model took too long to answer. Try again, or pick a smaller model.'**
+  /// **'Your model took too long. It didn\'t answer in time. Try again, or pick a smaller model in Settings › AI.'**
   String get aiTroubleSlow;
 
   /// The configured model was not found.
   ///
   /// In en, this message translates to:
-  /// **'The model in AI settings isn\'t available. Choose another, then try again.'**
+  /// **'Your model wasn\'t found. The model named in Settings › AI isn\'t available. Choose another, then try again.'**
   String get aiTroubleMissing;
 
   /// A local model server could not be reached.
@@ -8671,20 +8671,68 @@ abstract class AppLocalizations {
   /// A model could not be reached.
   ///
   /// In en, this message translates to:
-  /// **'Couldn\'t reach your model. Check your connection and the address in AI settings.'**
+  /// **'Couldn\'t reach your model. Check your connection and the address in Settings › AI, then try again.'**
   String get aiTroubleReach;
 
   /// AI is not configured.
   ///
   /// In en, this message translates to:
-  /// **'AI isn\'t set up yet. Choose a model in AI settings to use this.'**
+  /// **'AI isn\'t set up yet. Choose a model in Settings › AI to use this.'**
   String get aiTroubleSetup;
 
   /// Any other AI failure.
   ///
   /// In en, this message translates to:
-  /// **'Your model ran into a problem. Try again, or check AI settings.'**
+  /// **'Your model ran into a problem. Try again. If it keeps happening, check Settings › AI.'**
   String get aiTroubleOther;
+
+  /// An AI request needs an API key and none is saved.
+  ///
+  /// In en, this message translates to:
+  /// **'No API key is saved. Add one in Settings › AI: choose your provider, then paste the key into API key.'**
+  String get aiTroubleMissingKey;
+
+  /// No model name is set.
+  ///
+  /// In en, this message translates to:
+  /// **'No model is chosen. Pick a model in Settings › AI, then try again.'**
+  String get aiTroubleMissingModel;
+
+  /// The model server's address is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No server address is set. Enter the server\'s address in Settings › AI, then try again.'**
+  String get aiTroubleMissingUrl;
+
+  /// No agent is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent is set up. Choose an agent in Settings › AI, or type the command of your own. Then try again.'**
+  String get aiTroubleNoAgent;
+
+  /// The chosen agent is not on the computer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agent isn\'t installed. Install it, or choose another agent in Settings › AI and use Find to check again.'**
+  String get aiTroubleAgentNotInstalled;
+
+  /// The chosen agent needs a newer Node.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.'**
+  String get aiTroubleAgentNeedsNode;
+
+  /// A task needs a model that can use tools.
+  ///
+  /// In en, this message translates to:
+  /// **'This model can\'t use tools. Pick a model that supports tools in Settings › AI.'**
+  String get aiTroubleNoTools;
+
+  /// The model's server answered with a 5xx error.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model\'s server had a problem. That\'s on its side. Wait a moment, then try again.'**
+  String get aiTroubleServerDown;
 
   /// Retries the AI action that failed.
   ///

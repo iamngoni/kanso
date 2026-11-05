@@ -6414,19 +6414,19 @@
   "@digestReviewEmptyMessage": {
     "description": "Under the title when the weekly review has nothing to show."
   },
-  "aiTroubleKey": "Your model turned the key down. Check the API key in AI settings.",
+  "aiTroubleKey": "Your model turned the key down. The API key was refused. Check it in Settings › AI, then try again.",
   "@aiTroubleKey": {
     "description": "An AI request was refused for its key."
   },
-  "aiTroubleBusy": "Your model is busy right now. Wait a moment, then try again.",
+  "aiTroubleBusy": "Your model is busy. It's limiting requests right now. Wait a moment, then try again.",
   "@aiTroubleBusy": {
     "description": "An AI request was rate limited."
   },
-  "aiTroubleSlow": "Your model took too long to answer. Try again, or pick a smaller model.",
+  "aiTroubleSlow": "Your model took too long. It didn't answer in time. Try again, or pick a smaller model in Settings › AI.",
   "@aiTroubleSlow": {
     "description": "An AI request timed out."
   },
-  "aiTroubleMissing": "The model in AI settings isn't available. Choose another, then try again.",
+  "aiTroubleMissing": "Your model wasn't found. The model named in Settings › AI isn't available. Choose another, then try again.",
   "@aiTroubleMissing": {
     "description": "The configured model was not found."
   },
@@ -6439,17 +6439,49 @@
       }
     }
   },
-  "aiTroubleReach": "Couldn't reach your model. Check your connection and the address in AI settings.",
+  "aiTroubleReach": "Couldn't reach your model. Check your connection and the address in Settings › AI, then try again.",
   "@aiTroubleReach": {
     "description": "A model could not be reached."
   },
-  "aiTroubleSetup": "AI isn't set up yet. Choose a model in AI settings to use this.",
+  "aiTroubleSetup": "AI isn't set up yet. Choose a model in Settings › AI to use this.",
   "@aiTroubleSetup": {
     "description": "AI is not configured."
   },
-  "aiTroubleOther": "Your model ran into a problem. Try again, or check AI settings.",
+  "aiTroubleOther": "Your model ran into a problem. Try again. If it keeps happening, check Settings › AI.",
   "@aiTroubleOther": {
     "description": "Any other AI failure."
+  },
+  "aiTroubleMissingKey": "No API key is saved. Add one in Settings › AI: choose your provider, then paste the key into API key.",
+  "@aiTroubleMissingKey": {
+    "description": "An AI request needs an API key and none is saved."
+  },
+  "aiTroubleMissingModel": "No model is chosen. Pick a model in Settings › AI, then try again.",
+  "@aiTroubleMissingModel": {
+    "description": "No model name is set."
+  },
+  "aiTroubleMissingUrl": "No server address is set. Enter the server's address in Settings › AI, then try again.",
+  "@aiTroubleMissingUrl": {
+    "description": "The model server's address is empty."
+  },
+  "aiTroubleNoAgent": "No agent is set up. Choose an agent in Settings › AI, or type the command of your own. Then try again.",
+  "@aiTroubleNoAgent": {
+    "description": "No agent is chosen."
+  },
+  "aiTroubleAgentNotInstalled": "Your agent isn't installed. Install it, or choose another agent in Settings › AI and use Find to check again.",
+  "@aiTroubleAgentNotInstalled": {
+    "description": "The chosen agent is not on the computer."
+  },
+  "aiTroubleAgentNeedsNode": "Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.",
+  "@aiTroubleAgentNeedsNode": {
+    "description": "The chosen agent needs a newer Node."
+  },
+  "aiTroubleNoTools": "This model can't use tools. Pick a model that supports tools in Settings › AI.",
+  "@aiTroubleNoTools": {
+    "description": "A task needs a model that can use tools."
+  },
+  "aiTroubleServerDown": "Your model's server had a problem. That's on its side. Wait a moment, then try again.",
+  "@aiTroubleServerDown": {
+    "description": "The model's server answered with a 5xx error."
   },
   "aiTroubleRetry": "Try again",
   "@aiTroubleRetry": {

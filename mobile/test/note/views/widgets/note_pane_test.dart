@@ -5,7 +5,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/models/data/ai_settings.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/state/navigation_history/navigation_history_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_button.dart';
@@ -265,6 +267,49 @@ void main() {
       expect(find.bySemanticsLabel('Loading the note'), findsOneWidget);
       expect(find.byType(KansoSkeleton), findsWidgets);
       handle.dispose();
+    });
+
+    group('the More menu', () {
+      Future<void> openMore(WidgetTester tester, {required bool aiOn}) async {
+        final blocs = await BrowseBlocs.start();
+        final note = await blocs.noteOf(MockIds.syncDesign);
+        await atMockNow(
+          () => pumpRouted(
+            tester,
+            blocs.provide(const NotePane(inPane: false), note: note),
+          ),
+        );
+        await tester.pumpAndSettle();
+        blocs.aiStatus.add(
+          AiStatusEvent.settingsChanged(
+            AiSettings(
+              enabled: aiOn,
+              provider: 'anthropic',
+              host: 'api.anthropic.com',
+              isRemote: true,
+              privacy: '',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('More').last);
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('offers Summarise recording while AI is on', (tester) async {
+        final handle = tester.ensureSemantics();
+        await openMore(tester, aiOn: true);
+        expect(find.text('Summarise recording'), findsOneWidget);
+        handle.dispose();
+      });
+
+      testWidgets('hides Summarise recording while AI is off', (tester) async {
+        final handle = tester.ensureSemantics();
+        await openMore(tester, aiOn: false);
+        expect(find.text('Summarise recording'), findsNothing);
+        expect(find.text('Export as PDF'), findsOneWidget);
+        handle.dispose();
+      });
     });
 
     group('the bars', () {
