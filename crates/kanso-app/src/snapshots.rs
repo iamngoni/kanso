@@ -50,6 +50,7 @@ use crate::updates::{Phase, Problem as UpdateProblem, Updates};
 use crate::workspace::{AppState, Workspace, apply_theme};
 
 mod ai;
+mod api_keys;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
@@ -6430,6 +6431,7 @@ fn snapshots() {
     // Plugins: Settings › Plugins, the sheets and a panel.
     for (name, prepare, dialog) in plugins_settings::SHOTS
         .iter()
+        .chain(api_keys::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
         .chain(plugins_panel::SHOTS)
@@ -6445,7 +6447,11 @@ fn snapshots() {
         }
         // A short confirmation sits near the top, as the account's do, and
         // the developer sheet has its warning where the check usually looks.
-        if name.ends_with("-remove") || name.ends_with("-plugin-developer") {
+        if name.ends_with("-remove")
+            || name.ends_with("-revoke")
+            || name.ends_with("-api-key-new")
+            || name.ends_with("-plugin-developer")
+        {
             plugin_shot.dialog_sample_y = Some(30.);
         }
         shots.push(plugin_shot);

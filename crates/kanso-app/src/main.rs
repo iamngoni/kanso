@@ -23,6 +23,7 @@ mod agent_task_panel;
 mod agent_task_tests;
 mod ai_agent;
 mod ai_feature;
+mod api_keys_model;
 
 #[cfg(test)]
 mod ask_agent_tests;
@@ -182,6 +183,7 @@ mod serve_cli;
 mod services;
 mod settings;
 mod settings_ai;
+mod settings_api_keys;
 mod settings_briefs;
 mod settings_capture;
 mod settings_discovery;
