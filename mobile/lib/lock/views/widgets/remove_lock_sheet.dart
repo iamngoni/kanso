@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/models/data/application_error.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
+import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../injection.dart';
 import '../../models/data/lock_target.dart';
 import '../../models/data/remove_status.dart';
@@ -59,18 +60,22 @@ class RemoveLockSheet extends StatelessWidget {
           context.read<LockStatusBloc>().add(const LockStatusEvent.refreshed());
           // Files copied because another locked note still shows the sealed
           // ones, said once.
-          final messenger = ScaffoldMessenger.maybeOf(context);
+          final feedback = KansoFeedback.maybeOf(context);
           final copied = copyNoticeWords(context.l10n, state.copyNotice);
           Navigator.of(context).pop();
           if (copied != null) {
-            messenger?.showSnackBar(SnackBar(content: Text(copied)));
+            feedback?.show(
+              KansoFeedbackMessage(text: copied, tone: KansoFeedbackTone.info),
+            );
           }
         } else if (state.status == RemoveStatus.stopped) {
           // Cancel stopped it before anything changed.
-          final messenger = ScaffoldMessenger.maybeOf(context);
+          final feedback = KansoFeedback.maybeOf(context);
           final words = context.l10n.lockRemoveStoppedMessage;
           Navigator.of(context).pop();
-          messenger?.showSnackBar(SnackBar(content: Text(words)));
+          feedback?.show(
+            KansoFeedbackMessage(text: words, tone: KansoFeedbackTone.info),
+          );
         }
       },
       builder: (context, state) {

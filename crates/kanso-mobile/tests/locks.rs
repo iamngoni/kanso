@@ -1478,3 +1478,113 @@ fn remove_lock_copies_a_file_another_locked_note_still_shows() {
     assert!(!plain.is_locked());
     assert!(!plain.body.contains(&file), "its link moved to the copy");
 }
+
+/// While a lock the person started runs, the editors' saves wait: a save
+/// landing between two steps would write over the note being sealed. The
+/// typing is not lost; it is saved once the lock is on. Before, an autosave
+/// during the lock wrote the plain note mid-lock.
+// no-prop-test: ordering of two threads' writes; the property is that no
+// save lands inside the lock, which one deterministic run shows.
+#[test]
+fn a_running_lock_holds_the_editors_saves_and_they_go_after_it() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let files: Vec<String> = (0..3)
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let id = note_with(&phone, &files);
+    let session = phone.library.edit(&id).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    let end = u32::try_from(snapshot.text.encode_utf16().count()).unwrap();
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snapshot.version,
+            start: end,
+            end,
+            text: "typed during the lock".into(),
+            selection: kanso_mobile::Range16 {
+                start: end + 21,
+                end: end + 21,
+            },
+            composing: None,
+        })
+        .unwrap();
+
+    // At every step the lock reports, the autosave is due and gets its turn.
+    // The typing must not be written then.
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (library, typing, log) = (phone.library.clone(), session.clone(), seen.clone());
+    let note_id = id.clone();
+    phone.library.locks().lock_progress(move |_| {
+        // The first report comes before the lock writes anything, when a
+        // save would still succeed and then be written over.
+        typing.tick(Instant::now() + Duration::from_secs(3600));
+        let body = library.store().note(&note_id).unwrap().unwrap().body;
+        log.lock()
+            .unwrap()
+            .push(body.contains("typed during the lock"));
+        true
+    });
+    phone
+        .library
+        .locks()
+        .lock_note(&id, LOCK_PASSWORD.into())
+        .unwrap();
+
+    let seen = seen.lock().unwrap();
+    assert!(!seen.is_empty(), "the lock reported its files");
+    assert!(
+        seen.iter().all(|saved| !saved),
+        "a save landed inside the lock: {seen:?}"
+    );
+    drop(seen);
+    assert!(store.note(&id).unwrap().unwrap().is_locked());
+
+    // The typing waits in the session, not lost.
+    assert!(
+        session
+            .snapshot()
+            .unwrap()
+            .text
+            .contains("typed during the lock")
+    );
+}
+
+/// A lock that fails lets the held saves go: typing in an open note is saved
+/// after a Lock Note that was refused.
+// no-prop-test: one refused lock then one save; no input to vary.
+#[test]
+fn a_refused_lock_lets_the_editors_saves_go() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let first = note_with(&phone, &[]);
+    phone
+        .library
+        .locks()
+        .lock_note(&first, LOCK_PASSWORD.into())
+        .unwrap();
+    let id = note(&phone.library, "Second", "base");
+    let session = phone.library.edit(&id).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snapshot.version,
+            start: 4,
+            end: 4,
+            text: "!".into(),
+            selection: kanso_mobile::Range16 { start: 5, end: 5 },
+            composing: None,
+        })
+        .unwrap();
+    let refused = phone
+        .library
+        .locks()
+        .lock_note(&id, "not the lock password".into());
+    assert!(
+        matches!(refused, Err(KansoError::Auth { .. })),
+        "{refused:?}"
+    );
+
+    session.tick(Instant::now() + Duration::from_secs(3600));
+    assert_eq!(store.note(&id).unwrap().unwrap().body, "base!");
+}

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/views/widgets/kanso_feedback.dart';
 import 'package:kanso/lock/models/data/lock_target.dart';
 import 'package:kanso/lock/state/lock_status/lock_status_bloc.dart';
 import 'package:kanso/lock/views/widgets/interrupted_lock_bar.dart';
@@ -18,6 +19,7 @@ import 'package:kanso/lock/views/widgets/remove_lock_sheet.dart';
 
 import '../../../helpers/fixture_device_lock_repository.dart';
 import '../../../helpers/fixture_session_repository.dart';
+import '../../../helpers/kanso_test_app.dart';
 import '../../../helpers/pump.dart';
 import '../../../helpers/register_lock_blocs.dart';
 
@@ -43,6 +45,30 @@ Future<FixtureSessionRepository> _pumpHost(
     ),
   );
   return session;
+}
+
+/// What the sheets said through the app's feedback pill. The pill's host
+/// wraps the app's navigator in the app; a test keeps its controller above
+/// the test app instead and reads what was said.
+late KansoFeedbackController _said;
+
+/// What was said, taken: its timer goes with it.
+String? _heard() {
+  final text = _said.current?.text;
+  _said.hide();
+  return text;
+}
+
+Future<void> _pumpSheetPage(WidgetTester tester, Widget child) async {
+  _said = KansoFeedbackController();
+  addTearDown(_said.dispose);
+  await tester.pumpWidget(
+    KansoFeedbackScope(
+      controller: _said,
+      child: KansoTestApp(home: Center(child: child)),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -143,7 +169,7 @@ void main() {
       registerLockBlocs(session, FixtureDeviceLockRepository());
       final status = LockStatusBloc(session, FixtureDeviceLockRepository());
       addTearDown(status.close);
-      await pumpKanso(
+      await _pumpSheetPage(
         tester,
         BlocProvider<LockStatusBloc>.value(
           value: status,
@@ -219,11 +245,9 @@ void main() {
       await tester.tap(find.text('Lock').last);
       await tester.pumpAndSettle();
       expect(
-        find.text(
-          'Locked. 2 attachments are also used by other notes, so this note '
-          'has its own sealed copies.',
-        ),
-        findsOneWidget,
+        _heard(),
+        'Locked. 2 attachments are also used by other notes, so this note '
+        'has its own sealed copies.',
       );
     });
 
@@ -252,24 +276,16 @@ void main() {
       registerLockBlocs(session, FixtureDeviceLockRepository());
       final status = LockStatusBloc(session, FixtureDeviceLockRepository());
       addTearDown(status.close);
-      await pumpKanso(
+      await _pumpSheetPage(
         tester,
-        const ScaffoldMessenger(child: Scaffold(body: SizedBox())),
-      );
-      await pumpKanso(
-        tester,
-        ScaffoldMessenger(
-          child: Scaffold(
-            body: BlocProvider<LockStatusBloc>.value(
-              value: status,
-              child: Builder(
-                builder: (context) => TextButton(
-                  onPressed: () => unawaited(
-                    RemoveLockSheet.show(context, target, status: status),
-                  ),
-                  child: const Text('open'),
-                ),
+        BlocProvider<LockStatusBloc>.value(
+          value: status,
+          child: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => unawaited(
+                RemoveLockSheet.show(context, target, status: status),
               ),
+              child: const Text('open'),
             ),
           ),
         ),
@@ -337,11 +353,9 @@ void main() {
       // Stopped before anything changed: the sheet goes, and says so.
       expect(find.byType(LockProgressSheet), findsNothing);
       expect(
-        find.text(
-          'Removing the lock stopped. The note is still locked, and its '
-          'pictures and files are still sealed.',
-        ),
-        findsOneWidget,
+        _heard(),
+        'Removing the lock stopped. The note is still locked, and its '
+        'pictures and files are still sealed.',
       );
     });
 
@@ -352,11 +366,9 @@ void main() {
       await tester.tap(find.text('Remove Lock').last);
       await tester.pumpAndSettle();
       expect(
-        find.text(
-          'Lock removed. 1 attachment was copied for this note, because '
-          'another locked note still shows the sealed one.',
-        ),
-        findsOneWidget,
+        _heard(),
+        'Lock removed. 1 attachment was copied for this note, because '
+        'another locked note still shows the sealed one.',
       );
     });
   });

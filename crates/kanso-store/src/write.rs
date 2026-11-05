@@ -1200,7 +1200,6 @@ struct PutRules<'a> {
     allow_sealed_note_links: bool,
 }
 
-/// [`Store::put_keeping`] inside the writer's transaction.
 /// Turns sealed file `file` back into a plain file holding `plaintext`,
 /// inside transaction `tx` (what [`Store::put_unsealed_file`] writes).
 fn unseal_in(
@@ -1269,6 +1268,7 @@ fn unseal_in(
     Ok(WriteResult { id, rev })
 }
 
+/// [`Store::put_keeping`] inside the writer's transaction.
 fn put_in(
     tx: &Transaction,
     changes: &mut Vec<Change>,

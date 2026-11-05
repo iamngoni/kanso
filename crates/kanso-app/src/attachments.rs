@@ -220,7 +220,7 @@ mod tests {
 
     use kanso_core::DocType;
     use kanso_engine::lock::files::OpenedFile;
-    use kanso_store::{Origin, Put};
+    use kanso_store::{AttachmentState, Origin, Put};
     use kanso_sync::KdfParams;
     use kanso_sync::lock::LockPassword;
 

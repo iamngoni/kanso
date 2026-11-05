@@ -1234,3 +1234,55 @@ proptest! {
         }
     }
 }
+
+/// A PDF over the 10 MB image limit (the PDF limit is 50 MB) seals with its
+/// note and comes back byte for byte when the lock is removed: the lock
+/// itself has no 10 MB limit of its own.
+// no-prop-test: one large file; the size is the input and a property run
+// would repeat 12 MB seals for nothing.
+#[test]
+fn a_pdf_over_ten_megabytes_seals_and_comes_back_when_the_lock_is_removed() {
+    let world = world();
+    let mut pdf = b"%PDF-1.7\n".to_vec();
+    pdf.resize(
+        kanso_core::model::MAX_ATTACHMENT_SIZE + 2 * 1024 * 1024,
+        b'p',
+    );
+    let id = world
+        .store
+        .put(
+            DocType::File,
+            json!({
+                "name": "contract.pdf",
+                "contentType": "application/pdf",
+                "_attachments": {"index": {
+                    "content_type": "application/pdf",
+                    "data": STANDARD.encode(&pdf),
+                }},
+            }),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let keys = KeyBook::default();
+    let mut note = world.note(std::slice::from_ref(&id));
+    world.lock(&mut note, &key(), &keys);
+    assert_eq!(
+        world.store.attachment_state(&id).unwrap(),
+        AttachmentState::Sealed
+    );
+    assert!(world.store.attachment(&id).unwrap().is_none());
+
+    let stored = world.store.note(&note.id).unwrap().unwrap();
+    let mut open = stored.clone();
+    let envelope = Envelope::from_extra(&stored.extra).unwrap().unwrap();
+    open.body = key().open(&stored.id, &envelope).unwrap().to_string();
+    world.remove_lock(&mut open, None).unwrap();
+    assert_eq!(
+        world.store.attachment_state(&id).unwrap(),
+        AttachmentState::Plain
+    );
+    let (_, back) = world.store.attachment(&id).unwrap().unwrap();
+    assert_eq!(back.data, pdf);
+}
