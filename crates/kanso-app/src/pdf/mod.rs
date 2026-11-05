@@ -244,8 +244,25 @@ impl PdfReader {
             focus: cx.focus_handle(),
             _subscriptions: subscriptions,
         };
+        // The textures leave the window's atlas with the reader: they are the
+        // document in the clear, and up to 64 MB a page.
+        cx.on_release(|reader: &mut PdfReader, cx| reader.release_textures(cx))
+            .detach();
         reader.start(window, cx);
         reader
+    }
+
+    /// Lets go of every texture, in every window.
+    fn release_textures(&mut self, cx: &mut App) {
+        self.forget_pages();
+        let images: Vec<Arc<RenderImage>> = self.trash.drain(..).collect();
+        // Deferred: the window this runs in may be mid-update, and out of the
+        // app's reach until it ends.
+        cx.defer(move |cx| {
+            for image in images {
+                cx.drop_image(image, None);
+            }
+        });
     }
 
     pub fn focus_handle(&self) -> &FocusHandle {
