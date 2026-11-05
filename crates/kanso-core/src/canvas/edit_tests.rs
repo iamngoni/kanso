@@ -483,3 +483,61 @@ proptest! {
         prop_assert_ne!(second, "s-streamed");
     }
 }
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+        ..config(64)
+    })]
+
+    /// Invariant: what a shared canvas streams of a stroke (the desktop's
+    /// view and the phones both go through `stream_target`) is where the
+    /// finished stroke lands: the same ink node, the same points once the
+    /// node's origin is added back, and the same stacking order, above all
+    /// that was there. The layer is made only on a canvas with none.
+    #[test]
+    fn prop_a_streamed_stroke_lands_where_it_was_streamed(
+        before in proptest::collection::vec(
+            proptest::collection::vec((-500.0f64..500.0, -500.0f64..500.0), 2..12),
+            0..5,
+        ),
+        shift in (-300.0f64..300.0, -300.0f64..300.0),
+        drawn in proptest::collection::vec((-500.0f64..500.0, -500.0f64..500.0), 2..40),
+    ) {
+        let mut c = Canvas::default();
+        for points in &before {
+            let _ = c.draw(pen(points), 1);
+        }
+        if let Some(node) = c.nodes.iter_mut().find(|n| n.kind == INK) {
+            // An ink layer someone moved: points are relative to it.
+            node.x += shift.0;
+            node.y += shift.1;
+        }
+        let had_layer = c.nodes.iter().any(|n| n.kind == INK && !n.deleted);
+        let top = c.top_z();
+        let target = c.stream_target(2);
+        prop_assert_eq!(target.layer_made, !had_layer);
+        let layer = c.node(&target.ink).unwrap();
+        prop_assert_eq!(layer.kind.as_str(), INK);
+        prop_assert_eq!(target.origin, (layer.x, layer.y));
+        prop_assert!(target.z > top);
+        // Asking again changes nothing.
+        let again = c.stream_target(2);
+        prop_assert!(!again.layer_made);
+        prop_assert_eq!((&again.ink, again.origin, again.z), (&target.ink, target.origin, target.z));
+
+        let stroke = pen(&drawn);
+        let streamed = streamed_points(&stroke.points, target.origin);
+        let mut finished = stroke.clone();
+        finished.id = "s-live".into();
+        let Ok((id, _)) = c.draw_as(finished, 3) else {
+            // Nothing usable once thinned: nothing streams either.
+            prop_assert!(streamed.len() < 2);
+            return Ok(());
+        };
+        prop_assert_eq!(id.as_str(), "s-live");
+        let landed = c.node(&target.ink).and_then(|n| n.strokes.iter().find(|s| s.id == "s-live")).unwrap();
+        prop_assert_eq!(landed.kanso_z, target.z);
+        prop_assert_eq!(&landed.points, &streamed);
+    }
+}

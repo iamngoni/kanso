@@ -345,6 +345,7 @@ fn letter_text(page: u32, chars: &str) -> PageText {
                 ch,
                 quad: Quad::new(0.1 + i as f64 * 0.01, 0.1, 0.11 + i as f64 * 0.01, 0.12),
                 turns: 0,
+                space_before: false,
             })
             .collect(),
     }
@@ -380,6 +381,21 @@ fn a_text_page_that_is_what_was_asked_for_is_believed() {
     let text = letter_text(1, "Hello");
     let json = serde_json::to_vec(&text).unwrap();
     assert_eq!(ask_text(text_frame(0, 5, &json)).unwrap(), text);
+}
+
+/// The space mark is a plain flag: it is carried as sent, however a worker
+/// that has been taken over sets it, and it adds no character to the count.
+#[test]
+fn the_space_mark_is_carried_and_changes_no_count() {
+    let mut text = letter_text(1, "Hello");
+    for c in &mut text.chars {
+        c.space_before = true;
+    }
+    let json = serde_json::to_vec(&text).unwrap();
+    assert_eq!(ask_text(text_frame(0, 5, &json)).unwrap(), text);
+    // A mark for a space is not a character: a count that includes one is
+    // not the count sent.
+    assert!(ask_text(text_frame(0, 6, &json)).is_err());
 }
 
 #[test]
