@@ -37,7 +37,7 @@ build=$(sed -n 's/^PDFIUM_BUILD=\([0-9][0-9]*\)$/\1/p' "$fetch")
 [ -n "$build" ] || fail "scripts/fetch-pdfium.sh has no PDFIUM_BUILD=<number> line."
 [ "$(printf '%s\n' "$build" | wc -l)" -eq 1 ] || fail "scripts/fetch-pdfium.sh has more than one PDFIUM_BUILD line."
 
-for platform in mac-arm64 mac-x64 linux-x64 linux-arm64 win-x64 win-arm64; do
+for platform in mac-arm64 mac-x64 linux-x64 linux-arm64 win-x64 win-arm64 ios-device-arm64 ios-simulator-arm64 ios-simulator-x64 android-arm64 android-arm android-x64; do
     sum=$(sed -n "s/^    $platform) echo \([0-9a-f]*\) ;;\$/\1/p" "$fetch")
     case "$sum" in
     '') fail "scripts/fetch-pdfium.sh has no checksum for $platform." ;;

@@ -239,6 +239,42 @@ fn failure(kind: ErrorKind) -> (Response, Vec<u8>) {
 /// Answers requests until the app closes the document or the pipe.
 fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> ExitCode {
     let mut document: Option<PdfDocument<'_>> = None;
+    serve_document(pdfium, input, output, true, None, &mut document)
+}
+
+/// [`serve`], for the loop the phones run inside the app (see
+/// [`crate::local`]). There the process is the whole app, so its resident
+/// size is not the reader's to judge: `watch_memory` is off, and the page and
+/// document caps are the budget.
+///
+/// PDFium is not safe to enter from two threads at once, whatever the
+/// binding's per-call lock (readers on separate threads crashed it in the
+/// tests), and in one process every reader shares it. So each request, and
+/// the closing of the document, is handled holding `gate`: one reader is
+/// inside PDFium at a time, and the others wait their turn between
+/// requests, not while they wait for the app to ask.
+pub(crate) fn serve_with(
+    pdfium: &Pdfium,
+    input: &mut impl Read,
+    output: &mut impl Write,
+    watch_memory: bool,
+    gate: &std::sync::Mutex<()>,
+) -> ExitCode {
+    let mut document: Option<PdfDocument<'_>> = None;
+    let code = serve_document(pdfium, input, output, watch_memory, Some(gate), &mut document);
+    let _turn = gate.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    drop(document);
+    code
+}
+
+fn serve_document<'a>(
+    pdfium: &'a Pdfium,
+    input: &mut impl Read,
+    output: &mut impl Write,
+    watch_memory: bool,
+    gate: Option<&std::sync::Mutex<()>>,
+    document: &mut Option<PdfDocument<'a>>,
+) -> ExitCode {
     loop {
         let (request, blob) = match read_frame::<Request>(input, MAX_BLOB_BYTES) {
             Ok(Some(frame)) => frame,
@@ -251,6 +287,9 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
             }
             Err(FrameError::Io(_)) => return ExitCode::from(2),
         };
+        // This request is handled alone (see [`serve_with`]); the turn ends
+        // with the iteration.
+        let _turn = gate.map(|g| g.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let (response, blob, done) = match request {
             Request::Open { password } => {
                 let (response, blob) = if document.is_some() {
@@ -258,7 +297,7 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
                 } else {
                     match open(pdfium, blob, password.as_deref()) {
                         Ok((opened, doc)) => {
-                            document = Some(doc);
+                            *document = Some(doc);
                             (opened, Vec::new())
                         }
                         Err(failed) => failed,
@@ -271,21 +310,21 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
                 width_px,
                 smart_invert,
             } => {
-                let (response, blob) = match &document {
+                let (response, blob) = match &*document {
                     Some(doc) => render(doc, page, width_px, smart_invert),
                     None => failure(ErrorKind::Protocol),
                 };
                 (response, blob, false)
             }
             Request::Text { page } => {
-                let (response, blob) = match &document {
+                let (response, blob) = match &*document {
                     Some(doc) => text_page(doc, page),
                     None => failure(ErrorKind::Protocol),
                 };
                 (response, blob, false)
             }
             Request::PlainText { from, count } => {
-                let (response, blob) = match &document {
+                let (response, blob) = match &*document {
                     Some(doc) => plain_text(doc, from, count),
                     None => failure(ErrorKind::Protocol),
                 };
@@ -301,7 +340,7 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
         }
         // macOS treats the address-space limit as advice; the resident size
         // is the budget there, and the same check backs it up elsewhere.
-        if contain::resident_bytes().is_some_and(|bytes| bytes > MEMORY_BUDGET) {
+        if watch_memory && contain::resident_bytes().is_some_and(|bytes| bytes > MEMORY_BUDGET) {
             return ExitCode::from(EXIT_OVER_BUDGET);
         }
     }
