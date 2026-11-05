@@ -27,6 +27,36 @@ fn tell(window: &mut Window, cx: &mut App, notification: Notification) {
     window.push_notification(notification, cx);
 }
 
+/// Says what the canvases embedded in `body` need said before the export
+/// (a whole-canvas embed that is large), as the preview's banner does. It
+/// still exports: the warning is the behaviour, not a refusal.
+fn tell_about_embeds(
+    store: &Arc<Store>,
+    body: &str,
+    palette: &kanso_render::Palette,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    if !body.contains("```canvas") {
+        return;
+    }
+    let (store, body, palette) = (store.clone(), body.to_owned(), *palette);
+    let work = cx
+        .background_executor()
+        .spawn(async move { kanso_engine::canvas_embed::notices(&store, &body, &palette) });
+    window
+        .spawn(cx, async move |cx| {
+            let notices = work.await;
+            cx.update(|window, cx| {
+                for notice in notices {
+                    tell(window, cx, Notification::warning(notice.text()));
+                }
+            })
+            .ok();
+        })
+        .detach();
+}
+
 /// Asks where to save the page, then writes it there and shows it.
 pub fn export_html(
     store: Arc<Store>,
@@ -37,6 +67,7 @@ pub fn export_html(
     cx: &mut App,
 ) {
     let palette = crate::preview_rich::palette(cx);
+    tell_about_embeds(&store, &body, &palette, window, cx);
     let style = crate::export_style::for_palette(cx, &palette);
     let picked = cx.prompt_for_new_path(&documents(), Some(&file_name(&title, "html")));
     window
@@ -89,6 +120,7 @@ pub fn export_pdf(
     cx: &mut App,
 ) {
     let palette = print_palette(crate::preview_rich::palette(cx));
+    tell_about_embeds(&store, &body, &palette, window, cx);
     let style = crate::export_style::for_palette(cx, &palette);
     #[cfg(target_os = "macos")]
     {

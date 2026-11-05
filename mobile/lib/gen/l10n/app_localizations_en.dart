@@ -1459,6 +1459,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
+  String get previewCanvasLocked => 'Locked canvas';
+
+  @override
+  String get previewCanvasMissing => 'Canvas not found';
+
+  @override
+  String get previewCanvasNotCanvas => 'This note isn\'t a canvas';
+
+  @override
+  String get previewCanvasInvalid => 'Couldn\'t draw this canvas';
+
+  @override
+  String get previewCanvasWholeCanvas =>
+      'This embeds the whole canvas. Name a group to embed less.';
+
+  @override
+  String get previewCanvasGroupMissing =>
+      'That group is gone, so this shows the whole canvas.';
+
+  @override
+  String get previewCanvasOpen => 'Open canvas';
+
+  @override
   String get previewQueryEmpty => 'No notes match.';
 
   @override
