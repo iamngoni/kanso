@@ -939,7 +939,13 @@ fn append_highlight_appearances(bytes: &mut Vec<u8>) -> Result<(), ()> {
                 "C",
                 Object::Array(
                     tint.iter()
-                        .map(|value| Object::Real(*value as f32))
+                        .map(|value| {
+                            // `Object::Real` holds f32 or f64 depending on
+                            // lopdf's features in the build; the cast is a
+                            // no-op in one of them.
+                            #[allow(clippy::unnecessary_cast)]
+                            Object::Real(*value as f32)
+                        })
                         .collect(),
                 ),
             );
@@ -947,7 +953,13 @@ fn append_highlight_appearances(bytes: &mut Vec<u8>) -> Result<(), ()> {
                 "IC",
                 Object::Array(
                     tint.iter()
-                        .map(|value| Object::Real(*value as f32))
+                        .map(|value| {
+                            // `Object::Real` holds f32 or f64 depending on
+                            // lopdf's features in the build; the cast is a
+                            // no-op in one of them.
+                            #[allow(clippy::unnecessary_cast)]
+                            Object::Real(*value as f32)
+                        })
                         .collect(),
                 ),
             );
@@ -956,7 +968,7 @@ fn append_highlight_appearances(bytes: &mut Vec<u8>) -> Result<(), ()> {
                 "q /GS1 gs {:.5} {:.5} {:.5} rg\n",
                 tint[0], tint[1], tint[2]
             );
-            for quad in points.chunks_exact(8) {
+            for quad in points.as_chunks::<8>().0 {
                 let mut points = Vec::with_capacity(8);
                 for value in quad {
                     points.push(f64::from(value.as_float().map_err(|_| ())?));
@@ -2075,12 +2087,12 @@ mod tests {
             .expect("save light snapshot");
 
         let mut bgra = Vec::with_capacity(rgba.len());
-        for pixel in rgba.chunks_exact(4) {
+        for pixel in rgba.as_chunks::<4>().0 {
             bgra.extend_from_slice(&[pixel[2], pixel[1], pixel[0], pixel[3]]);
         }
         crate::invert::smart_invert(&mut bgra, width, height, &[]);
         let mut dark_rgba = Vec::with_capacity(bgra.len());
-        for pixel in bgra.chunks_exact(4) {
+        for pixel in bgra.as_chunks::<4>().0 {
             dark_rgba.extend_from_slice(&[pixel[2], pixel[1], pixel[0], pixel[3]]);
         }
         image::RgbaImage::from_raw(width, height, dark_rgba)
