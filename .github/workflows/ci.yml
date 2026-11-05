@@ -189,12 +189,23 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # The PDFium binary and the `pdfium-render` wrapper are a pair: the
+      # wrapper's `pdfium_<build>` feature is the pinned build, so the weekly
+      # bump (.github/workflows/pdfium-bump.yml) cannot ship one without the
+      # other (issue #43, step 15).
+      - name: PDFium binary and wrapper are a pair
+        run: |
+          scripts/test-check-pdfium-pair.sh
+          scripts/check-pdfium-pair.sh
       - name: PDFium is not a V8 build
         run: |
           scripts/test-check-pdfium.sh --real-v8
           scripts/fetch-pdfium.sh linux-x64
           scripts/check-pdfium-no-v8.sh vendor/pdfium
       - run: scripts/ci-rust.sh
+      # Cargo refuses a `pdfium_<build>` feature the pinned wrapper doesn't have.
+      - name: pdfium-render has the feature
+        run: cargo tree --locked -p kanso-pdf --features render -e features -i pdfium-render >/dev/null
       - run: rustup toolchain install nightly --profile minimal
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
