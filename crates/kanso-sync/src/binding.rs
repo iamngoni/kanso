@@ -523,6 +523,32 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    /// The store's list of the keys a restore keeps (`SYNC_BINDING_KEYS`) is
+    /// the binding and the device identity here, no more and no less.
+    #[test]
+    fn a_restore_keeps_exactly_the_binding_and_the_device_identity() {
+        let mut kept = vec![
+            meta_keys::ORIGIN,
+            meta_keys::ACCOUNT_ID,
+            meta_keys::USERNAME,
+            meta_keys::SERVER,
+            meta_keys::LIBRARY_ID,
+            meta_keys::DEVICE_SECRET,
+            meta_keys::HARDWARE,
+        ];
+        let mut stored = kanso_store::SYNC_BINDING_KEYS.to_vec();
+        kept.sort_unstable();
+        stored.sort_unstable();
+        assert_eq!(kept, stored);
+        // The cursor and everything per account are dropped.
+        for key in meta_keys::PER_ACCOUNT
+            .iter()
+            .chain(&[meta_keys::LAST_SEQ, meta_keys::LEGACY_LAST_SEQ])
+        {
+            assert!(!stored.contains(key), "{key}");
+        }
+    }
+
     #[test]
     fn device_name_examples() {
         assert_eq!(device_name("Ngoni’s MacBook Pro"), "Ngoni’s MacBook Pro");

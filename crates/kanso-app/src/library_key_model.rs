@@ -101,6 +101,18 @@ pub fn words_problem(err: WordsError) -> String {
     err.to_string()
 }
 
+/// Why a restore isn't staged while the library is signed in to sync (issue
+/// #243): sync would bring back the notes the account holds over the ones
+/// restored, partly undoing it.
+pub const RESTORE_SIGNED_IN: &str = "This library is signed in to sync, so it can't be restored now. Sign out first (Settings › Account), then restore the backup, then sign in again. Signing in again merges the restored library with your account: a note deleted in the backup but still in your account comes back, and a note that differs keeps both versions.";
+
+/// Whether a restore must wait for the person to sign out: the library is
+/// signed in to sync, or a sign-in is waiting on a password or key
+/// (`locked`).
+pub fn restore_refusal(signed_in: bool, locked: bool) -> Option<&'static str> {
+    (signed_in || locked).then_some(RESTORE_SIGNED_IN)
+}
+
 /// What a finished restore says, once it is staged.
 pub const STAGED: &str = "The backup is ready. Quit Kanso and open it again to finish. The library you have now is kept as a backup.";
 
@@ -199,6 +211,15 @@ mod tests {
             );
             prop_assert!(!key_saved(None, Some(&ours)));
             prop_assert!(!key_saved(Some(&ours.fingerprint()), None));
+        }
+
+        /// Invariants: a restore is refused exactly when signed in or locked.
+        #[test]
+        fn prop_restore_refused_iff_signed_in_or_locked(signed_in in any::<bool>(), locked in any::<bool>()) {
+            prop_assert_eq!(
+                restore_refusal(signed_in, locked).is_some(),
+                signed_in || locked
+            );
         }
 
         /// Invariants: sync holds the notes only when signed in with

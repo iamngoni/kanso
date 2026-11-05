@@ -391,3 +391,61 @@ fn a_file_that_is_not_a_backup_opens_no_sheet(cx: &mut TestAppContext) {
     assert!(opened.is_none());
     assert!(!f.dialog_open(cx));
 }
+
+/// Regression: a restore into a library signed in to sync was staged, and
+/// sync then undid part of it. It is refused up front, in words that say to
+/// sign out first, and nothing is staged. Signed out, the same backup opens
+/// the sheet.
+#[gpui_kit::test]
+fn a_restore_is_refused_while_signed_in_to_sync(cx: &mut TestAppContext) {
+    use crate::services::AccountState;
+    let key = demo_key(13);
+    let f = setup(cx, Some(&key));
+    let db = crate::paths::db_path(f.dir.path());
+    let backup = cx.read(|cx| {
+        cx.global::<AppState>()
+            .store
+            .backup_now(&crate::paths::backups_dir(f.dir.path()), 1_000)
+            .unwrap()
+    });
+    let sign_in = |cx: &mut TestAppContext| {
+        cx.update(|cx| {
+            cx.global_mut::<Services>().account = AccountState::SignedIn {
+                username: "alice".into(),
+            };
+        });
+    };
+    let try_begin = |cx: &mut TestAppContext| {
+        f.window
+            .update(cx, |_, window, cx| {
+                crate::restore_sheet::begin(backup.clone(), window, cx)
+            })
+            .unwrap()
+    };
+
+    sign_in(cx);
+    assert!(try_begin(cx).is_none(), "signed in: no sheet");
+    assert!(!f.dialog_open(cx));
+    assert!(!kanso_store::restore_staged(&db));
+    assert!(
+        crate::library_key_model::RESTORE_SIGNED_IN.contains("Sign out first"),
+        "the refusal says to sign out first"
+    );
+
+    cx.update(|cx| cx.global_mut::<Services>().account = AccountState::SignedOut);
+    let sheet = try_begin(cx).expect("signed out: the sheet opens");
+    // Signing in while the sheet is open still stages nothing.
+    sign_in(cx);
+    f.draw(cx);
+    f.click(cx, "restore-go");
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(500));
+    cx.run_until_parked();
+    assert!(!kanso_store::restore_staged(&db));
+    let error = cx.read(|cx| {
+        sheet
+            .upgrade()
+            .and_then(|sheet| sheet.read(cx).error_for_test().map(str::to_owned))
+    });
+    assert!(error.is_some_and(|error| error.contains("Sign out first")));
+}

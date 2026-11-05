@@ -324,9 +324,14 @@ In Settings › General › Data › **Backups**:
 - **Restore from backup** › **Restore…** takes a backup file. One this computer's key opens, or a
   plain one, goes straight to the question; a backup made on another computer asks for its 24
   words first. Kanso stages the backup, re-encrypted with this library's key, and asks you to quit
-  and open it again. At that launch it swaps the backup in and keeps the library you had as a
-  backup. A restore also brings back the API keys the backup held (see [The local
-  API](#the-local-api)).
+  and open it again. At that launch the app swaps the backup in and keeps the library you had as
+  a backup; `kanso capture`, `serve`, `sticky`, the importers and `kanso-sync` leave a waiting
+  restore alone and say "A restore is waiting; open Kanso to apply it." The API keys stay the
+  library's own (see [The local API](#the-local-api)), and so does its sync account.
+  A library signed in to sync can't be restored: sign out (Settings › Account) first, restore,
+  then sign in again. Signing in again merges the restored library with your account, so a note
+  deleted in the backup but still in your account comes back, and a note that differs keeps both
+  versions.
 
 Both rows show only for an encrypted library. Without the key (and without sync) a backup can't be
 opened: that is the cost of encryption.

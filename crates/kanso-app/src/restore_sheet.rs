@@ -21,7 +21,9 @@ use gpui_kit::*;
 use kanso_store::{LibraryFile, LibraryKey, StoreError, backup_name, check_backup, stage_restore};
 
 use crate::clock::Clock;
-use crate::library_key_model::{STAGED, needs_words, restore_problem, words_problem};
+use crate::library_key_model::{
+    STAGED, needs_words, restore_problem, restore_refusal, words_problem,
+};
 use crate::paths;
 use crate::theme::Colors;
 use crate::workspace::AppState;
@@ -57,6 +59,10 @@ pub fn start(window: &mut Window, cx: &mut App) {
 /// Looks at the backup at `path`: opens the sheet, with the words field when
 /// this computer's key doesn't open it, or says why it can't be restored.
 pub fn begin(path: PathBuf, window: &mut Window, cx: &mut App) -> Option<WeakEntity<RestoreSheet>> {
+    if let Some(why) = signed_in_refusal(cx) {
+        window.push_notification(Notification::error(why), cx);
+        return None;
+    }
     let key = cx.global::<AppState>().store.library_key().cloned();
     let kind = LibraryFile::of(&path);
     let checked = check_backup(&path, key.as_ref());
@@ -72,6 +78,12 @@ pub fn begin(path: PathBuf, window: &mut Window, cx: &mut App) -> Option<WeakEnt
     let weak = sheet.downgrade();
     open(sheet, window, cx);
     Some(weak)
+}
+
+/// Why a restore can't be staged now: the library is signed in to sync.
+fn signed_in_refusal(cx: &App) -> Option<&'static str> {
+    let services = cx.try_global::<crate::services::Services>()?;
+    restore_refusal(services.signed_in(), services.has_locked_session())
 }
 
 /// The sheet: what is being restored, the words if they're needed, and the
@@ -146,6 +158,12 @@ impl RestoreSheet {
     /// Reads the words (if they're asked for), then stages the restore off
     /// the main thread.
     fn restore(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Signed in since the sheet opened.
+        if let Some(why) = signed_in_refusal(cx) {
+            self.error = Some(why.to_owned());
+            cx.notify();
+            return;
+        }
         let state = cx.global::<AppState>();
         let db = paths::db_path(&state.data_dir);
         let Some(library_key) = state.store.library_key().cloned() else {

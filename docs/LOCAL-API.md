@@ -32,9 +32,8 @@ turned back into it. If you lose a key, revoke it and make another.
 A key looks like `kcl_` followed by 43 characters (47 in all). The prefix tells it
 apart from the short-lived tokens Kanso gives its own agents, and makes a leaked key
 easy to search for. Keys live in your library, never sync, and work on this computer
-only. A backup holds the keys as they were when it was made, so restoring one brings
-those keys back, including any you revoked since. Check Settings › API keys after a
-restore.
+only. A backup never carries them: restoring one keeps the keys the library has now, so
+a key you revoked stays revoked and one made after the backup keeps working.
 
 Terminal commands for Claude Code, Gemini CLI and Codex start with a space, so a
 shell set to skip such lines (fish, or bash and zsh with `ignorespace`) keeps the

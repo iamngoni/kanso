@@ -26,7 +26,13 @@ pub fn will_encrypt(data_dir: &Path) -> bool {
     LibraryFile::of(&db) == LibraryFile::Plain || kanso_store::encryption_unfinished(&db)
 }
 
-/// Opens the library in `data_dir`, with its key from `secrets`.
+/// What every program but the app says when a restore is staged: it leaves
+/// the restore alone, because only the app can tell the person it happened.
+pub const RESTORE_WAITING: &str = "A restore is waiting; open Kanso to apply it.";
+
+/// Opens the library in `data_dir`, with its key from `secrets`. A staged
+/// restore is left alone (and said so on stderr): only the app applies one
+/// ([`open_store_applying_restore`]).
 pub fn open_store_with(data_dir: &Path, secrets: &dyn SecretStore) -> Result<Store> {
     let reporter = crate::encrypt_progress::Reporter::stderr();
     Ok(open_store_reporting(data_dir, secrets, &|progress| reporter.report(progress))?.0)
@@ -39,12 +45,34 @@ pub fn open_store_reporting(
     secrets: &dyn SecretStore,
     progress: &(dyn Fn(EncryptProgress) + Sync),
 ) -> Result<(Store, Option<String>)> {
-    let db = paths::db_path(data_dir);
+    if kanso_store::restore_staged(&paths::db_path(data_dir)) {
+        eprintln!("{RESTORE_WAITING}");
+    }
+    open_after_restore(data_dir, secrets, progress)
+}
+
+/// [`open_store_reporting`] for the app: a restore staged by the last run
+/// replaces the library first, and [`take_restore_outcome`] says what
+/// happened, for the toast.
+pub fn open_store_applying_restore(
+    data_dir: &Path,
+    secrets: &dyn SecretStore,
+    progress: &(dyn Fn(EncryptProgress) + Sync),
+) -> Result<(Store, Option<String>)> {
     if let Some(outcome) = apply_pending_restore(data_dir, secrets) {
         *RESTORE_OUTCOME
             .lock()
             .unwrap_or_else(|poison| poison.into_inner()) = Some(outcome);
     }
+    open_after_restore(data_dir, secrets, progress)
+}
+
+fn open_after_restore(
+    data_dir: &Path,
+    secrets: &dyn SecretStore,
+    progress: &(dyn Fn(EncryptProgress) + Sync),
+) -> Result<(Store, Option<String>)> {
+    let db = paths::db_path(data_dir);
     let opts = EncryptOptions {
         progress: Some(progress),
         ..EncryptOptions::default()
@@ -143,32 +171,50 @@ fn apply_pending_restore(
 }
 
 /// Opens the library in `data_dir`, with the key from the secret store the
-/// config names.
+/// config names. For `capture`, `serve`, `sticky` and the importers: a staged
+/// restore is left for the app.
 pub fn open_store(data_dir: &Path) -> Result<Store> {
     let reporter = crate::encrypt_progress::Reporter::stderr();
-    Ok(open_store_progress(data_dir, &|progress| reporter.report(progress))?.0)
+    Ok(open_with_config_secrets(data_dir, false, &|progress| reporter.report(progress))?.0)
 }
 
-/// [`open_store`], telling `progress` how far an encryption has got, and
-/// giving back why the library is plain when it is.
+/// [`open_store_applying_restore`] with the secret store the config names,
+/// telling `progress` how far an encryption has got. The app's own open.
 pub fn open_store_progress(
     data_dir: &Path,
     progress: &(dyn Fn(EncryptProgress) + Sync),
 ) -> Result<(Store, Option<String>)> {
+    open_with_config_secrets(data_dir, true, progress)
+}
+
+/// The one in-memory secret store the tests' opens share.
+#[cfg(test)]
+pub(crate) fn test_secrets() -> &'static kanso_sync::MemorySecrets {
+    static SECRETS: std::sync::OnceLock<kanso_sync::MemorySecrets> = std::sync::OnceLock::new();
+    SECRETS.get_or_init(kanso_sync::MemorySecrets::new)
+}
+
+fn open_with_config_secrets(
+    data_dir: &Path,
+    apply_restore: bool,
+    progress: &(dyn Fn(EncryptProgress) + Sync),
+) -> Result<(Store, Option<String>)> {
+    let open = |data_dir: &Path, secrets: &dyn SecretStore| {
+        if apply_restore {
+            open_store_applying_restore(data_dir, secrets, progress)
+        } else {
+            open_store_reporting(data_dir, secrets, progress)
+        }
+    };
     // Tests never touch the system's keychain: one in-memory store stands in.
     #[cfg(test)]
     {
-        static SECRETS: std::sync::OnceLock<kanso_sync::MemorySecrets> = std::sync::OnceLock::new();
-        open_store_reporting(
-            data_dir,
-            SECRETS.get_or_init(kanso_sync::MemorySecrets::new),
-            progress,
-        )
+        open(data_dir, test_secrets())
     }
     #[cfg(not(test))]
     {
         let secrets = secrets_for(data_dir);
-        open_store_reporting(data_dir, secrets.as_ref(), progress)
+        open(data_dir, secrets.as_ref())
     }
 }
 

@@ -14,7 +14,9 @@
 //! 2. [`apply_staged_restore`], at the next launch before the library opens,
 //!    checks the staged copy, gives it the library's API keys in place of
 //!    the backup's (keys never travel with a backup, so a revoked key stays
-//!    revoked), keeps the library as a backup of its own (a
+//!    revoked) and the library's sync binding in place of the backup's
+//!    (a backup from another computer carries that library's account and
+//!    device identity, which this one must never adopt), keeps the library as a backup of its own (a
 //!    second name for the same file, or a finished copy), then renames the
 //!    staged copy over `<db>`. The rename is atomic, so `<db>` is always the
 //!    old library or the restored one, never missing and never half of
@@ -203,7 +205,7 @@ pub fn apply_staged_restore(
         }
         return Err(err);
     }
-    keep_api_keys(&staged, db, library_key)?;
+    keep_local_state(&staged, db, library_key)?;
     if LibraryFile::of(db) != LibraryFile::New {
         keep_library(db, library_key, keep_dir, now_ms)?;
     }
@@ -217,11 +219,36 @@ pub fn apply_staged_restore(
 const API_KEY_COLUMNS: &str =
     "id, name, client, token_hash, access, books, created_at, last_used_at, revoked_at";
 
+/// The `meta` keys that say which account a library syncs with and which
+/// device it is there. A restore keeps the library's own, never the
+/// backup's. Mirrored by `kanso_sync::binding::meta_keys` (a test there
+/// checks they agree).
+pub const SYNC_BINDING_KEYS: [&str; 7] = [
+    "sync.v2.origin",
+    "sync.v2.account_id",
+    "sync.v2.username",
+    "sync.v2.server",
+    "sync.v2.library_id",
+    "sync.v2.device_secret",
+    "sync.v2.hardware",
+];
+
 /// API keys never travel with a backup (issue #243: a key works on one
 /// computer only, and a revoked key stays revoked). The staged copy's
 /// `api_keys` are replaced by the library's as they are now; with no
-/// library, it has none. Run again after a crash, it gives the same table.
-fn keep_api_keys(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
+/// library, it has none.
+///
+/// Sync state doesn't travel either. Every `sync.*` entry of the staged
+/// copy goes: the backup's account, server, device identity, cursor and
+/// epoch describe another library (or this one at another time). The
+/// library's own binding and device identity ([`SYNC_BINDING_KEYS`]) are
+/// copied in, or nothing when there is no library; the cursor and epoch
+/// stay out, so the next sync reads the whole account again. Every note
+/// becomes unsynced, as when a library is bound to another account
+/// (`Store::reset_sync`), so sync merges it with the account and keeps both
+/// versions of what differs. Run again after a crash, it gives the same
+/// result.
+fn keep_local_state(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
     let conn = open_encrypted(staged, key)?;
     // A backup from before API keys has no table yet; the open that
     // migrates it would make one, empty. Made now, so it can be filled.
@@ -237,8 +264,10 @@ fn keep_api_keys(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
             last_used_at INTEGER,
             revoked_at INTEGER
         ) WITHOUT ROWID;
-        DELETE FROM api_keys;",
+        DELETE FROM api_keys;
+        DELETE FROM meta WHERE key LIKE 'sync.%';",
     )?;
+    unsync_docs(&conn)?;
     let kind = LibraryFile::of(db);
     if kind == LibraryFile::New {
         return Ok(());
@@ -266,7 +295,49 @@ fn keep_api_keys(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
              COMMIT;"
         ))?;
     }
+    let table = conn.query_row(
+        "SELECT count(*) FROM current.sqlite_master WHERE type = 'table' AND name = 'meta'",
+        [],
+        |row| row.get::<_, i64>(0),
+    )?;
+    if table > 0 {
+        let keys = SYNC_BINDING_KEYS
+            .iter()
+            .map(|key| format!("'{key}'"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        conn.execute_batch(&format!(
+            "INSERT OR REPLACE INTO main.meta (key, value)
+                 SELECT key, value FROM current.meta WHERE key IN ({keys});"
+        ))?;
+    }
     conn.execute_batch("DETACH DATABASE current")?;
+    Ok(())
+}
+
+/// What `Store::reset_sync` does to the documents: live ones forget what
+/// they synced, deletions count as synced, and every replay floor goes to
+/// 0. A backup from before a column existed is left to the migration, which
+/// fills that column in from `synced_rev`, already cleared.
+fn unsync_docs(conn: &Connection) -> Result<()> {
+    let has = |column: &str| -> Result<bool> {
+        Ok(conn.query_row(
+            "SELECT count(*) FROM pragma_table_info('docs') WHERE name = ?1",
+            [column],
+            |row| row.get::<_, i64>(0),
+        )? > 0)
+    };
+    let mut extra = String::new();
+    if has("synced_gen")? {
+        extra.push_str(", synced_gen = 0");
+    }
+    if has("sent_rev")? {
+        extra.push_str(", sent_rev = NULL");
+    }
+    conn.execute_batch(&format!(
+        "UPDATE docs SET synced_rev = NULL{extra} WHERE deleted = 0;
+         UPDATE docs SET synced_rev = rev{extra} WHERE deleted != 0;"
+    ))?;
     Ok(())
 }
 
