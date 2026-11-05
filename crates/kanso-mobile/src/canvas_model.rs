@@ -153,3 +153,23 @@ pub struct CanvasSaved {
     /// merged (strokes from both are kept).
     pub merged: bool,
 }
+
+/// An inline sketch a session is open on: its ID in the note, its box in
+/// points, and whether it can't be drawn on (the note is shared or in the
+/// trash: "Copy as canvas" is what is offered).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SketchInfo {
+    pub id: String,
+    pub width: u32,
+    pub height: u32,
+    pub read_only: bool,
+}
+
+/// A note's text with an empty sketch put in it: `body`, the new sketch's
+/// `id`, and where the cursor goes (after it, in UTF-16 units).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SketchInserted {
+    pub body: String,
+    pub id: String,
+    pub cursor: u32,
+}

@@ -5,8 +5,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../canvas/views/widgets/sketch_block.dart';
 import '../../../../core/bridge/api/types.dart';
+import '../../../state/preview/preview_bloc.dart';
 import 'preview_code.dart';
 import 'preview_figure.dart';
 import 'preview_list.dart';
@@ -166,6 +169,13 @@ class PreviewBlockView extends StatelessWidget {
         kind: kind,
         svg: svg,
       ),
+      PreviewBlock_Sketch(
+        :final id,
+        :final width,
+        :final height,
+        :final svg,
+      ) =>
+        _sketch(context, id, width, height, svg),
       PreviewBlock_EmptyDrawing() => const PreviewEmptyDrawing(),
       PreviewBlock_PdfNotes(:final summary) => PreviewPdfNotes(
         summary: summary,
@@ -197,6 +207,34 @@ class PreviewBlockView extends StatelessWidget {
       PreviewBlock_Html(:final text) => Text(text, style: style.body),
     };
   }
+}
+
+/// An inline sketch: drawn on in place when the preview belongs to a note
+/// (it has a [PreviewBloc]), a picture otherwise.
+Widget _sketch(
+  BuildContext context,
+  String id,
+  int width,
+  int height,
+  PreviewSvg svg,
+) {
+  String? noteId;
+  try {
+    noteId = context.read<PreviewBloc>().state.noteId;
+  } on Object {
+    noteId = null;
+  }
+  if (noteId == null || noteId.isEmpty) {
+    return PreviewFigure(kind: PreviewFigureKind.drawing, svg: svg);
+  }
+  return SketchBlock(
+    key: ValueKey<String>('sketch-$noteId-$id'),
+    noteId: noteId,
+    id: id,
+    width: width,
+    height: height,
+    svg: svg,
+  );
 }
 
 /// A quote: its blocks beside a bar, in the quote colour.

@@ -41,6 +41,7 @@ anyhow = "1"
 argon2 = { version = "0.6", default-features = false, features = ["alloc", "parallel", "zeroize"] }
 async-channel = "2.5"
 base64 = "0.22"
+bip39 = { version = "3.0", default-features = false, features = ["std"] }
 cbc = { version = "0.1", features = ["alloc"] }
 # Shared notes (docs/ACCOUNTS.md › Collaboration): X25519 receives note keys, Ed25519 signs
 # what each member writes. Both were already in Cargo.lock.

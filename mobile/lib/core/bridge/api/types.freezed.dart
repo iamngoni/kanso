@@ -7942,7 +7942,7 @@ extension PreviewBlockPatterns on PreviewBlock {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewBlock_Heading value)?  heading,TResult Function( PreviewBlock_Paragraph value)?  paragraph,TResult Function( PreviewBlock_List value)?  list,TResult Function( PreviewBlock_Quote value)?  quote,TResult Function( PreviewBlock_Code value)?  code,TResult Function( PreviewBlock_Rule value)?  rule,TResult Function( PreviewBlock_Table value)?  table,TResult Function( PreviewBlock_Figure value)?  figure,TResult Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult Function( PreviewBlock_PdfNotes value)?  pdfNotes,TResult Function( PreviewBlock_Canvas value)?  canvas,TResult Function( PreviewBlock_Failed value)?  failed,TResult Function( PreviewBlock_Query value)?  query,TResult Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult Function( PreviewBlock_Html value)?  html,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewBlock_Heading value)?  heading,TResult Function( PreviewBlock_Paragraph value)?  paragraph,TResult Function( PreviewBlock_List value)?  list,TResult Function( PreviewBlock_Quote value)?  quote,TResult Function( PreviewBlock_Code value)?  code,TResult Function( PreviewBlock_Rule value)?  rule,TResult Function( PreviewBlock_Table value)?  table,TResult Function( PreviewBlock_Figure value)?  figure,TResult Function( PreviewBlock_Sketch value)?  sketch,TResult Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult Function( PreviewBlock_PdfNotes value)?  pdfNotes,TResult Function( PreviewBlock_Canvas value)?  canvas,TResult Function( PreviewBlock_Failed value)?  failed,TResult Function( PreviewBlock_Query value)?  query,TResult Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult Function( PreviewBlock_Html value)?  html,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
@@ -7953,7 +7953,8 @@ return quote(_that);case PreviewBlock_Code() when code != null:
 return code(_that);case PreviewBlock_Rule() when rule != null:
 return rule(_that);case PreviewBlock_Table() when table != null:
 return table(_that);case PreviewBlock_Figure() when figure != null:
-return figure(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
+return figure(_that);case PreviewBlock_Sketch() when sketch != null:
+return sketch(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
 return emptyDrawing(_that);case PreviewBlock_PdfNotes() when pdfNotes != null:
 return pdfNotes(_that);case PreviewBlock_Canvas() when canvas != null:
 return canvas(_that);case PreviewBlock_Failed() when failed != null:
@@ -7978,7 +7979,7 @@ return html(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewBlock_Heading value)  heading,required TResult Function( PreviewBlock_Paragraph value)  paragraph,required TResult Function( PreviewBlock_List value)  list,required TResult Function( PreviewBlock_Quote value)  quote,required TResult Function( PreviewBlock_Code value)  code,required TResult Function( PreviewBlock_Rule value)  rule,required TResult Function( PreviewBlock_Table value)  table,required TResult Function( PreviewBlock_Figure value)  figure,required TResult Function( PreviewBlock_EmptyDrawing value)  emptyDrawing,required TResult Function( PreviewBlock_PdfNotes value)  pdfNotes,required TResult Function( PreviewBlock_Canvas value)  canvas,required TResult Function( PreviewBlock_Failed value)  failed,required TResult Function( PreviewBlock_Query value)  query,required TResult Function( PreviewBlock_QueryInvalid value)  queryInvalid,required TResult Function( PreviewBlock_Html value)  html,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewBlock_Heading value)  heading,required TResult Function( PreviewBlock_Paragraph value)  paragraph,required TResult Function( PreviewBlock_List value)  list,required TResult Function( PreviewBlock_Quote value)  quote,required TResult Function( PreviewBlock_Code value)  code,required TResult Function( PreviewBlock_Rule value)  rule,required TResult Function( PreviewBlock_Table value)  table,required TResult Function( PreviewBlock_Figure value)  figure,required TResult Function( PreviewBlock_Sketch value)  sketch,required TResult Function( PreviewBlock_EmptyDrawing value)  emptyDrawing,required TResult Function( PreviewBlock_PdfNotes value)  pdfNotes,required TResult Function( PreviewBlock_Canvas value)  canvas,required TResult Function( PreviewBlock_Failed value)  failed,required TResult Function( PreviewBlock_Query value)  query,required TResult Function( PreviewBlock_QueryInvalid value)  queryInvalid,required TResult Function( PreviewBlock_Html value)  html,}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading():
@@ -7989,7 +7990,8 @@ return quote(_that);case PreviewBlock_Code():
 return code(_that);case PreviewBlock_Rule():
 return rule(_that);case PreviewBlock_Table():
 return table(_that);case PreviewBlock_Figure():
-return figure(_that);case PreviewBlock_EmptyDrawing():
+return figure(_that);case PreviewBlock_Sketch():
+return sketch(_that);case PreviewBlock_EmptyDrawing():
 return emptyDrawing(_that);case PreviewBlock_PdfNotes():
 return pdfNotes(_that);case PreviewBlock_Canvas():
 return canvas(_that);case PreviewBlock_Failed():
@@ -8010,7 +8012,7 @@ return html(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewBlock_Heading value)?  heading,TResult? Function( PreviewBlock_Paragraph value)?  paragraph,TResult? Function( PreviewBlock_List value)?  list,TResult? Function( PreviewBlock_Quote value)?  quote,TResult? Function( PreviewBlock_Code value)?  code,TResult? Function( PreviewBlock_Rule value)?  rule,TResult? Function( PreviewBlock_Table value)?  table,TResult? Function( PreviewBlock_Figure value)?  figure,TResult? Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult? Function( PreviewBlock_PdfNotes value)?  pdfNotes,TResult? Function( PreviewBlock_Canvas value)?  canvas,TResult? Function( PreviewBlock_Failed value)?  failed,TResult? Function( PreviewBlock_Query value)?  query,TResult? Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult? Function( PreviewBlock_Html value)?  html,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewBlock_Heading value)?  heading,TResult? Function( PreviewBlock_Paragraph value)?  paragraph,TResult? Function( PreviewBlock_List value)?  list,TResult? Function( PreviewBlock_Quote value)?  quote,TResult? Function( PreviewBlock_Code value)?  code,TResult? Function( PreviewBlock_Rule value)?  rule,TResult? Function( PreviewBlock_Table value)?  table,TResult? Function( PreviewBlock_Figure value)?  figure,TResult? Function( PreviewBlock_Sketch value)?  sketch,TResult? Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult? Function( PreviewBlock_PdfNotes value)?  pdfNotes,TResult? Function( PreviewBlock_Canvas value)?  canvas,TResult? Function( PreviewBlock_Failed value)?  failed,TResult? Function( PreviewBlock_Query value)?  query,TResult? Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult? Function( PreviewBlock_Html value)?  html,}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
@@ -8021,7 +8023,8 @@ return quote(_that);case PreviewBlock_Code() when code != null:
 return code(_that);case PreviewBlock_Rule() when rule != null:
 return rule(_that);case PreviewBlock_Table() when table != null:
 return table(_that);case PreviewBlock_Figure() when figure != null:
-return figure(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
+return figure(_that);case PreviewBlock_Sketch() when sketch != null:
+return sketch(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
 return emptyDrawing(_that);case PreviewBlock_PdfNotes() when pdfNotes != null:
 return pdfNotes(_that);case PreviewBlock_Canvas() when canvas != null:
 return canvas(_that);case PreviewBlock_Failed() when failed != null:
@@ -8045,7 +8048,7 @@ return html(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult Function( List<PreviewInline> inlines)?  paragraph,TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult Function( List<PreviewBlock> blocks)?  quote,TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult Function()?  rule,TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult Function()?  emptyDrawing,TResult Function( String? url,  String summary)?  pdfNotes,TResult Function( String note,  String? group,  PreviewCanvasShown shown)?  canvas,TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult Function( String code,  String message)?  queryInvalid,TResult Function( String text)?  html,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult Function( List<PreviewInline> inlines)?  paragraph,TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult Function( List<PreviewBlock> blocks)?  quote,TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult Function()?  rule,TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult Function( String id,  int width,  int height,  bool empty,  PreviewSvg svg)?  sketch,TResult Function()?  emptyDrawing,TResult Function( String? url,  String summary)?  pdfNotes,TResult Function( String note,  String? group,  PreviewCanvasShown shown)?  canvas,TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult Function( String code,  String message)?  queryInvalid,TResult Function( String text)?  html,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph() when paragraph != null:
@@ -8055,7 +8058,8 @@ return quote(_that.blocks);case PreviewBlock_Code() when code != null:
 return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule() when rule != null:
 return rule();case PreviewBlock_Table() when table != null:
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure() when figure != null:
-return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
+return figure(_that.kind,_that.svg);case PreviewBlock_Sketch() when sketch != null:
+return sketch(_that.id,_that.width,_that.height,_that.empty,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
 return emptyDrawing();case PreviewBlock_PdfNotes() when pdfNotes != null:
 return pdfNotes(_that.url,_that.summary);case PreviewBlock_Canvas() when canvas != null:
 return canvas(_that.note,_that.group,_that.shown);case PreviewBlock_Failed() when failed != null:
@@ -8080,7 +8084,7 @@ return html(_that.text);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int level,  String id,  List<PreviewInline> inlines)  heading,required TResult Function( List<PreviewInline> inlines)  paragraph,required TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)  list,required TResult Function( List<PreviewBlock> blocks)  quote,required TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)  code,required TResult Function()  rule,required TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)  table,required TResult Function( PreviewFigureKind kind,  PreviewSvg svg)  figure,required TResult Function()  emptyDrawing,required TResult Function( String? url,  String summary)  pdfNotes,required TResult Function( String note,  String? group,  PreviewCanvasShown shown)  canvas,required TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)  failed,required TResult Function( List<String> columns,  List<PreviewQueryRow> rows)  query,required TResult Function( String code,  String message)  queryInvalid,required TResult Function( String text)  html,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int level,  String id,  List<PreviewInline> inlines)  heading,required TResult Function( List<PreviewInline> inlines)  paragraph,required TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)  list,required TResult Function( List<PreviewBlock> blocks)  quote,required TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)  code,required TResult Function()  rule,required TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)  table,required TResult Function( PreviewFigureKind kind,  PreviewSvg svg)  figure,required TResult Function( String id,  int width,  int height,  bool empty,  PreviewSvg svg)  sketch,required TResult Function()  emptyDrawing,required TResult Function( String? url,  String summary)  pdfNotes,required TResult Function( String note,  String? group,  PreviewCanvasShown shown)  canvas,required TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)  failed,required TResult Function( List<String> columns,  List<PreviewQueryRow> rows)  query,required TResult Function( String code,  String message)  queryInvalid,required TResult Function( String text)  html,}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading():
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph():
@@ -8090,7 +8094,8 @@ return quote(_that.blocks);case PreviewBlock_Code():
 return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule():
 return rule();case PreviewBlock_Table():
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure():
-return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing():
+return figure(_that.kind,_that.svg);case PreviewBlock_Sketch():
+return sketch(_that.id,_that.width,_that.height,_that.empty,_that.svg);case PreviewBlock_EmptyDrawing():
 return emptyDrawing();case PreviewBlock_PdfNotes():
 return pdfNotes(_that.url,_that.summary);case PreviewBlock_Canvas():
 return canvas(_that.note,_that.group,_that.shown);case PreviewBlock_Failed():
@@ -8111,7 +8116,7 @@ return html(_that.text);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult? Function( List<PreviewInline> inlines)?  paragraph,TResult? Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult? Function( List<PreviewBlock> blocks)?  quote,TResult? Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult? Function()?  rule,TResult? Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult? Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult? Function()?  emptyDrawing,TResult? Function( String? url,  String summary)?  pdfNotes,TResult? Function( String note,  String? group,  PreviewCanvasShown shown)?  canvas,TResult? Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult? Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult? Function( String code,  String message)?  queryInvalid,TResult? Function( String text)?  html,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult? Function( List<PreviewInline> inlines)?  paragraph,TResult? Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult? Function( List<PreviewBlock> blocks)?  quote,TResult? Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult? Function()?  rule,TResult? Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult? Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult? Function( String id,  int width,  int height,  bool empty,  PreviewSvg svg)?  sketch,TResult? Function()?  emptyDrawing,TResult? Function( String? url,  String summary)?  pdfNotes,TResult? Function( String note,  String? group,  PreviewCanvasShown shown)?  canvas,TResult? Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult? Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult? Function( String code,  String message)?  queryInvalid,TResult? Function( String text)?  html,}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph() when paragraph != null:
@@ -8121,7 +8126,8 @@ return quote(_that.blocks);case PreviewBlock_Code() when code != null:
 return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule() when rule != null:
 return rule();case PreviewBlock_Table() when table != null:
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure() when figure != null:
-return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
+return figure(_that.kind,_that.svg);case PreviewBlock_Sketch() when sketch != null:
+return sketch(_that.id,_that.width,_that.height,_that.empty,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
 return emptyDrawing();case PreviewBlock_PdfNotes() when pdfNotes != null:
 return pdfNotes(_that.url,_that.summary);case PreviewBlock_Canvas() when canvas != null:
 return canvas(_that.note,_that.group,_that.shown);case PreviewBlock_Failed() when failed != null:
@@ -8691,6 +8697,80 @@ class _$PreviewBlock_FigureCopyWithImpl<$Res>
   return _then(PreviewBlock_Figure(
 kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
 as PreviewFigureKind,svg: null == svg ? _self.svg : svg // ignore: cast_nullable_to_non_nullable
+as PreviewSvg,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PreviewBlock_Sketch extends PreviewBlock {
+  const PreviewBlock_Sketch({required this.id, required this.width, required this.height, required this.empty, required this.svg}): super._();
+  
+
+ final  String id;
+ final  int width;
+ final  int height;
+ final  bool empty;
+ final  PreviewSvg svg;
+
+/// Create a copy of PreviewBlock
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PreviewBlock_SketchCopyWith<PreviewBlock_Sketch> get copyWith => _$PreviewBlock_SketchCopyWithImpl<PreviewBlock_Sketch>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewBlock_Sketch&&(identical(other.id, id) || other.id == id)&&(identical(other.width, width) || other.width == width)&&(identical(other.height, height) || other.height == height)&&(identical(other.empty, empty) || other.empty == empty)&&(identical(other.svg, svg) || other.svg == svg));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,width,height,empty,svg);
+
+@override
+String toString() {
+  return 'PreviewBlock.sketch(id: $id, width: $width, height: $height, empty: $empty, svg: $svg)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PreviewBlock_SketchCopyWith<$Res> implements $PreviewBlockCopyWith<$Res> {
+  factory $PreviewBlock_SketchCopyWith(PreviewBlock_Sketch value, $Res Function(PreviewBlock_Sketch) _then) = _$PreviewBlock_SketchCopyWithImpl;
+@useResult
+$Res call({
+ String id, int width, int height, bool empty, PreviewSvg svg
+});
+
+
+
+
+}
+/// @nodoc
+class _$PreviewBlock_SketchCopyWithImpl<$Res>
+    implements $PreviewBlock_SketchCopyWith<$Res> {
+  _$PreviewBlock_SketchCopyWithImpl(this._self, this._then);
+
+  final PreviewBlock_Sketch _self;
+  final $Res Function(PreviewBlock_Sketch) _then;
+
+/// Create a copy of PreviewBlock
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? width = null,Object? height = null,Object? empty = null,Object? svg = null,}) {
+  return _then(PreviewBlock_Sketch(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,width: null == width ? _self.width : width // ignore: cast_nullable_to_non_nullable
+as int,height: null == height ? _self.height : height // ignore: cast_nullable_to_non_nullable
+as int,empty: null == empty ? _self.empty : empty // ignore: cast_nullable_to_non_nullable
+as bool,svg: null == svg ? _self.svg : svg // ignore: cast_nullable_to_non_nullable
 as PreviewSvg,
   ));
 }

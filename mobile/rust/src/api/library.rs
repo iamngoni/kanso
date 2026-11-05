@@ -23,6 +23,7 @@ use super::account_settings::KansoAccountSettings;
 use super::ai::KansoAi;
 use super::approvals::KansoApprovals;
 use super::canvas::KansoCanvas;
+use super::canvas_types::SketchInserted;
 use super::cards::KansoCards;
 use super::discovery::KansoDiscovery;
 use super::draft::KansoDrafting;
@@ -534,6 +535,32 @@ impl KansoLibrary {
     /// Opens canvas note `id` for drawing.
     pub fn canvas(&self, id: String) -> Result<KansoCanvas, KansoError> {
         self.0.canvas(&id).map(KansoCanvas::new)
+    }
+
+    /// Opens sketch `sketch_id` of Markdown note `note_id` for drawing.
+    pub fn sketch(&self, note_id: String, sketch_id: String) -> Result<KansoCanvas, KansoError> {
+        self.0.sketch(&note_id, &sketch_id).map(KansoCanvas::new)
+    }
+
+    /// "Insert sketch" in note `note_id`: the editor's `body` with an empty
+    /// sketch put in at `at` (UTF-16 units), or why not (a shared note, or
+    /// the note's sketches are full).
+    pub fn sketch_insert(
+        &self,
+        note_id: String,
+        body: String,
+        at: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<SketchInserted, KansoError> {
+        self.0.sketch_insert(&note_id, body, at, width, height)
+    }
+
+    /// Whether "Insert sketch" may put a sketch in note `note_id`: not a
+    /// shared note, one in the trash or a canvas.
+    #[frb(sync)]
+    pub fn takes_sketches(&self, note_id: String) -> bool {
+        self.0.takes_sketches(&note_id)
     }
 
     /// Whether note `id` is a canvas: the note route opens the canvas view
