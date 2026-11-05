@@ -171,6 +171,88 @@ fn opening_as_canvas_keeps_every_stroke() {
     assert!(session.open_as_canvas("Again".into()).is_err());
 }
 
+/// While a session is open on one device, another writes the same note: it
+/// adds text and draws in the same sketch (as sync would bring it). The
+/// session's save keeps that text and both devices' ink, and later saves go
+/// on from there.
+// no-prop-test: the session glue; `sketch::replace_merged` has the
+// properties.
+#[test]
+fn a_save_keeps_the_other_devices_text_and_ink() {
+    let phone = lone_phone();
+    let id = note_with_sketches(&phone);
+    let session = phone.library.sketch(&id, "sk-b").unwrap();
+    session.draw(pen(), line(40.0), vec![]).unwrap();
+    // The other device's version: new text, and a stroke in sk-b.
+    let now = phone.library.note(&id).unwrap();
+    let mut theirs = sketch::find_by_id(now.body.as_deref().unwrap(), "sk-b")
+        .unwrap()
+        .1;
+    let _ = theirs.draw(
+        kanso_core::canvas::Stroke {
+            tool: "pen".into(),
+            color: "#1e1e1e".into(),
+            width: 3.0,
+            points: vec![
+                kanso_core::canvas::Point::new(5.0, 200.0, 0.5),
+                kanso_core::canvas::Point::new(90.0, 210.0, 0.5),
+            ],
+            ..Default::default()
+        },
+        5,
+    );
+    let other = sketch::replace(now.body.as_deref().unwrap(), "sk-b", &theirs)
+        .unwrap()
+        .replace("middle", "middle, and a line from the laptop");
+    phone.library.save(&id, &now.rev, other).unwrap();
+    let saved = session.save().unwrap();
+    assert!(saved.merged);
+    let text = body(&phone, &id);
+    assert!(text.contains("a line from the laptop"));
+    let b = sketch::find_by_id(&text, "sk-b").unwrap().1;
+    assert_eq!(b.live_strokes().count(), 2);
+    // The session shows the merge, and its next save writes on top of it.
+    assert_eq!(session.view(vec![]).unwrap().strokes.len(), 2);
+    session.draw(pen(), line(120.0), vec![]).unwrap();
+    assert!(!session.save().unwrap().merged);
+    let b = sketch::find_by_id(&body(&phone, &id), "sk-b").unwrap().1;
+    assert_eq!(b.live_strokes().count(), 3);
+}
+
+/// "Insert sketch" is refused in a shared note by the library, whatever the
+/// shell does, and works in a private one.
+// no-prop-test: the refusal glue; `prop_insert_keeps_the_text` has the
+// properties of the insert itself.
+#[test]
+fn a_shared_note_takes_no_new_sketch() {
+    let mut id = String::new();
+    let phone = phone_with(
+        &std::sync::Arc::new(kanso_sync::MemoryServer::new()),
+        |store| {
+            id = raw_note(
+                store,
+                json!({
+                    "title": "Shared",
+                    "body": "Hi",
+                    "kansoShare": {"shareId": "sh1", "role": "edit", "ownerName": "ada"},
+                }),
+            );
+        },
+    );
+    match phone.library.sketch_insert(&id, "Hi".into(), 2, 320, 240) {
+        Err(KansoError::Invalid { message }) => {
+            assert_eq!(message, kanso_mobile::SHARED_INSERT_WORDS)
+        }
+        other => panic!("expected the shared refusal, got {other:?}"),
+    }
+    let private = note(&phone.library, "Mine", "Hi");
+    let done = phone
+        .library
+        .sketch_insert(&private, "Hi".into(), 2, 320, 240)
+        .unwrap();
+    assert_eq!(sketch::sketches(&done.body).len(), 1);
+}
+
 #[test]
 fn a_sketch_the_note_lacks_is_not_found() {
     let phone = lone_phone();

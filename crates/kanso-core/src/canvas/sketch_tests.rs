@@ -241,3 +241,131 @@ proptest! {
         prop_assert!(!b.contains(f64::NAN, y) && !b.contains(x, f64::INFINITY));
     }
 }
+
+fn ids(c: &Canvas) -> std::collections::BTreeSet<String> {
+    c.live_strokes().map(|(_, s)| s.id.clone()).collect()
+}
+
+fn a_stroke() -> Stroke {
+    Stroke {
+        tool: "pen".into(),
+        color: "#1e1e1e".into(),
+        width: 3.0,
+        points: vec![Point::new(4.0, 4.0, 0.5), Point::new(40.0, 30.0, 0.5)],
+        ..Stroke::default()
+    }
+}
+
+proptest! {
+    #![proptest_config(config(48))]
+
+    /// A sketch written over a fence another writer changed meanwhile keeps
+    /// both: every stroke either side drew, a stroke one side erased stays
+    /// erased, and the handwriting words the other side kept. Over a fence
+    /// nobody else touched it is exactly what was drawn. The prose around it
+    /// and the note's other sketches are untouched.
+    #[test]
+    fn prop_a_replace_over_another_writer_keeps_both(
+        base_strokes in prop::collection::vec(arb_stroke(), 1..5),
+        mine_strokes in prop::collection::vec(arb_stroke(), 0..4),
+        theirs_strokes in prop::collection::vec(arb_stroke(), 0..4),
+        erase_mine in any::<bool>(),
+        word in "[a-z]{4,10}",
+        prose in arb_prose(),
+    ) {
+        prop_assume!(!prose.contains("```"));
+        let base = drawn("sk-m", (480, 320), base_strokes);
+        let other = drawn("sk-o", (320, 240), Vec::new());
+        let erased = base.live_strokes().next().map(|(n, s)| StrokeRef {
+            node: n.id.clone(),
+            stroke: s.id.clone(),
+        });
+        let mut mine = base.clone();
+        for (i, s) in mine_strokes.into_iter().enumerate() {
+            let _ = mine.draw(s, 5000 + i as i64);
+        }
+        if erase_mine && let Some(r) = &erased {
+            mine.delete_strokes(std::slice::from_ref(r), 6000);
+        }
+        let mut theirs = base.clone();
+        for (i, s) in theirs_strokes.into_iter().enumerate() {
+            let _ = theirs.draw(s, 7000 + i as i64);
+        }
+        theirs.kanso_ink_ocr.push(InkOcr {
+            node: "i1".into(),
+            md5: "m".into(),
+            engine: "vision".into(),
+            text: word.clone(),
+        });
+        let note = |s: &Canvas| {
+            format!("{prose}\n\n{}\n{}\nend", sketch::to_fence(s), sketch::to_fence(&other))
+        };
+        // Nobody else wrote: what was drawn, exactly.
+        let (out, written) = sketch::replace_merged(&note(&base), "sk-m", &mine, &base).unwrap();
+        prop_assert_eq!(&written, &mine);
+        prop_assert_eq!(out, note(&mine));
+        // Someone else wrote: both sides' ink, and their words.
+        let (out, written) = sketch::replace_merged(&note(&theirs), "sk-m", &mine, &base).unwrap();
+        let gone = |id: &String| erase_mine && erased.as_ref().is_some_and(|r| &r.stroke == id);
+        let want: std::collections::BTreeSet<String> = ids(&mine)
+            .union(&ids(&theirs))
+            .filter(|id| !gone(id))
+            .cloned()
+            .collect();
+        prop_assert_eq!(ids(&written), want);
+        prop_assert!(written.search_text().contains(&word));
+        prop_assert!(written.validate_sketch().is_ok());
+        prop_assert_eq!(written.kanso_sketch, mine.kanso_sketch);
+        let (_, read) = sketch::find_by_id(&out, "sk-m").unwrap();
+        prop_assert_eq!(&read, &written);
+        prop_assert_eq!(sketch::find_by_id(&out, "sk-o").unwrap().1, other.clone());
+        prop_assert!(out.starts_with(&prose) && out.ends_with("end"));
+        // A sketch gone from the note is never written back.
+        prop_assert_eq!(
+            sketch::replace_merged(&prose, "sk-m", &mine, &base),
+            Err(sketch::Refusal::Missing)
+        );
+    }
+
+    /// An edit adds a sketch only when a Kanso sketch fence appears that
+    /// wasn't there: a new one, or a copy of one. Drawing in, moving or
+    /// removing one adds none, and neither does any other `sketch` block.
+    #[test]
+    fn prop_adds_sketch_sees_only_new_fences(
+        strokes in prop::collection::vec(arb_stroke(), 0..3),
+        prose in arb_prose(),
+        arduino in "[a-z(){};]{0,40}",
+    ) {
+        prop_assume!(!prose.contains("```"));
+        let a = sketch::new_sketch("sk-a", 320, 240);
+        let b = drawn("sk-b", (320, 240), strokes);
+        let before = format!("{prose}\n{}\n", sketch::to_fence(&a));
+        let mut drawn_in = a.clone();
+        let _ = drawn_in.draw(a_stroke(), 9);
+        let redrawn = format!("{prose}\n{}\n", sketch::to_fence(&drawn_in));
+        prop_assert!(!sketch::adds_sketch(&before, &redrawn));
+        let moved = format!("{}\n{prose}\n", sketch::to_fence(&a));
+        prop_assert!(!sketch::adds_sketch(&before, &moved));
+        prop_assert!(!sketch::adds_sketch(&before, &prose));
+        let code = format!("{before}\n```sketch\n{arduino}\n```\n");
+        prop_assert!(!sketch::adds_sketch(&before, &code));
+        // A new one, or a pasted copy, is.
+        let added = format!("{before}\n{}", sketch::to_fence(&b));
+        prop_assert!(sketch::adds_sketch(&before, &added));
+        let copied = format!("{before}\n{}", sketch::to_fence(&a));
+        prop_assert!(sketch::adds_sketch(&before, &copied));
+    }
+
+    /// The budget warns from 75% of the cap and is full at the cap.
+    #[test]
+    fn prop_budget_warns_at_three_quarters(bytes in 0usize..(2 * sketch::MAX_SKETCH_BYTES)) {
+        let want = if bytes >= sketch::MAX_SKETCH_BYTES {
+            Budget::Full
+        } else if bytes * 4 >= sketch::MAX_SKETCH_BYTES * 3 {
+            Budget::Warn
+        } else {
+            Budget::Ok
+        };
+        prop_assert_eq!(sketch::budget(bytes), want);
+    }
+}

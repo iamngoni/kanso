@@ -68,6 +68,11 @@ enum Entry {
 struct SketchTarget {
     id: String,
     read_only: bool,
+    /// The sketch as the note held it when the session read or last wrote
+    /// it. A save that finds the fence changed since (another device drew in
+    /// it, or the handwriting reader kept its words) merges the two instead
+    /// of writing over them.
+    base: Canvas,
 }
 
 struct State {
@@ -185,6 +190,7 @@ impl Library {
                     sketch: Some(SketchTarget {
                         id: sketch_id.to_owned(),
                         read_only,
+                        base: canvas.clone(),
                     }),
                     id: note.id,
                     rev: note.rev.unwrap_or_default(),
@@ -198,6 +204,33 @@ impl Library {
                     measurements: Cell::new(0),
                 })),
             })
+        })
+    }
+
+    /// "Insert sketch" in note `note_id`: [`sketch_insert`] on the editor's
+    /// `body`, refused for a shared note (two people replacing one sketch's
+    /// JSON would be merged into a broken fence), one in the trash and a
+    /// canvas.
+    pub fn sketch_insert(
+        &self,
+        note_id: &str,
+        body: String,
+        at: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<SketchInserted, KansoError> {
+        guard(|| {
+            let note = self.stored(note_id)?;
+            if note.doctype == "canvas" {
+                return Err(KansoError::invalid("A canvas has no sketches."));
+            }
+            if note.extra.contains_key(SHARE_FIELD) {
+                return Err(KansoError::invalid(SHARED_INSERT_WORDS));
+            }
+            if note.is_trashed() {
+                return Err(KansoError::invalid("A note in the trash takes no sketch."));
+            }
+            sketch_insert(body, at, width, height)
         })
     }
 
@@ -751,20 +784,42 @@ impl CanvasSession {
                 if target.read_only {
                     return Err(KansoError::invalid(SHARED_WORDS));
                 }
-                // The sketch's fence is replaced in the note as it is now;
-                // the rest of the note is whoever wrote it last.
-                let (id, sketch_id, canvas) =
-                    (state.id.clone(), target.id.clone(), state.canvas.clone());
+                // Only the sketch's fence is replaced, in the note as it is
+                // now: text another device wrote meanwhile stays. A fence
+                // changed since the session read it (another device's ink,
+                // the handwriting reader's words) is merged, not written over.
+                let (id, sketch_id, canvas, base) = (
+                    state.id.clone(),
+                    target.id.clone(),
+                    state.canvas.clone(),
+                    target.base.clone(),
+                );
+                let written = std::cell::RefCell::new(None);
                 let (rev, bytes) = self.lib.write_text(&id, |text| {
-                    sketch::replace_checked(text, &sketch_id, &canvas)
-                        .map_err(|why| KansoError::invalid(why.words()))
+                    let (next, sketch) = sketch::replace_merged(text, &sketch_id, &canvas, &base)
+                        .map_err(|why| KansoError::invalid(why.words()))?;
+                    *written.borrow_mut() = Some(sketch);
+                    Ok(next)
                 })?;
+                let merged = written
+                    .into_inner()
+                    .filter(|sketch| *sketch != state.canvas);
+                let was_merged = merged.is_some();
+                if let Some(sketch) = merged {
+                    // The session now shows what the note holds.
+                    state.canvas = sketch;
+                    state.edits += 1;
+                }
+                let now = state.canvas.clone();
+                if let Some(target) = state.sketch.as_mut() {
+                    target.base = now;
+                }
                 state.rev = rev.clone();
                 state.dirty = false;
                 return Ok(CanvasSaved {
                     rev,
                     bytes: bytes as u32,
-                    merged: false,
+                    merged: was_merged,
                 });
             }
             let mut merged = false;
@@ -1042,6 +1097,10 @@ impl CanvasSession {
 /// What a read only sketch says.
 const SHARED_WORDS: &str = "Shared note: copy it to a canvas to draw together.";
 
+/// What "Insert sketch" in a shared note says.
+pub const SHARED_INSERT_WORDS: &str =
+    "Sketches can't be added to a shared note. Add one to a private note, or draw on a canvas.";
+
 impl State {
     /// Refuses an edit to a sketch that is read only.
     fn writable(&self) -> Result<(), KansoError> {
@@ -1203,19 +1262,16 @@ fn view(state: &State, titles: &HashMap<String, String>, known: &HashSet<String>
         arrows,
         bounds: canvas.content_bounds().as_ref().map(rect),
         bytes: bytes as u32,
-        budget: if state.sketch.is_some() {
-            // A sketch's cap is its own (256 KB), not a canvas's.
-            match bytes {
-                b if b >= sketch::MAX_SKETCH_BYTES => CanvasBudget::Full,
-                b if b >= sketch::MAX_SKETCH_BYTES / 4 * 3 => CanvasBudget::Warn,
-                _ => CanvasBudget::Ok,
-            }
+        // A sketch's cap is its own (256 KB, a warning from 75%), not a
+        // canvas's.
+        budget: match if state.sketch.is_some() {
+            sketch::budget(bytes)
         } else {
-            match canvas::budget(bytes) {
-                Budget::Ok => CanvasBudget::Ok,
-                Budget::Warn => CanvasBudget::Warn,
-                Budget::Full => CanvasBudget::Full,
-            }
+            canvas::budget(bytes)
+        } {
+            Budget::Ok => CanvasBudget::Ok,
+            Budget::Warn => CanvasBudget::Warn,
+            Budget::Full => CanvasBudget::Full,
         },
         can_undo: !state.undo.is_empty(),
         can_redo: !state.redo.is_empty(),

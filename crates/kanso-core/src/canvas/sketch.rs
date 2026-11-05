@@ -3,12 +3,12 @@
 //! plus `kansoSketch` (the box) and `kansoSketchId` (its identity in the note,
 //! because a note can hold several and the text around them moves).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
 use super::edit::unique_id;
 use super::model::{Canvas, INK, Node, Sketch};
-use super::{FENCE as CANVAS_FENCE, NOTE_PREFIX};
+use super::{Budget, FENCE as CANVAS_FENCE, NOTE_PREFIX};
 
 /// The fence's info string.
 pub const FENCE: &str = "sketch";
@@ -18,6 +18,9 @@ pub const MAX_SKETCH_BYTES: usize = 256 * 1024;
 
 /// All of one note's sketches together.
 pub const MAX_NOTE_SKETCH_BYTES: usize = 512 * 1024;
+
+/// A sketch this long (75% of its cap) warns that it is nearly full.
+pub const WARN_SKETCH_BYTES: usize = MAX_SKETCH_BYTES / 4 * 3;
 
 /// The sizes "Insert sketch" offers, in points.
 pub const SIZES: &[(u32, u32)] = &[(320, 240), (480, 320), (640, 480)];
@@ -242,6 +245,65 @@ pub fn to_fence(sketch: &Canvas) -> String {
 /// Whether `sketch` is within its own cap. Pure.
 pub fn fits(sketch: &Canvas) -> bool {
     to_json(sketch).len() <= MAX_SKETCH_BYTES
+}
+
+/// How a sketch whose JSON is `bytes` long stands against its cap: a warning
+/// from 75%, full at the cap. Pure.
+pub fn budget(bytes: usize) -> Budget {
+    if bytes >= MAX_SKETCH_BYTES {
+        Budget::Full
+    } else if bytes >= WARN_SKETCH_BYTES {
+        Budget::Warn
+    } else {
+        Budget::Ok
+    }
+}
+
+/// What a sketch past 75% of its cap says.
+pub const SKETCH_NEARLY_FULL: &str =
+    "This sketch is nearly full. Open it as a canvas to keep drawing without a limit.";
+
+/// Whether `after` holds a Kanso sketch that `before` didn't: a new ID, or
+/// one more fence with an ID it had (a pasted copy). Moving or editing a
+/// sketch adds none. A shared note refuses an edit that adds one. Pure.
+pub fn adds_sketch(before: &str, after: &str) -> bool {
+    let count = |body: &str| {
+        let mut ids: HashMap<String, usize> = HashMap::new();
+        for (_, canvas) in sketches(body) {
+            *ids.entry(canvas.kanso_sketch_id.unwrap_or_default())
+                .or_default() += 1;
+        }
+        ids
+    };
+    let (was, now) = (count(before), count(after));
+    now.iter()
+        .any(|(id, n)| *n > was.get(id).copied().unwrap_or(0))
+}
+
+/// [`replace_checked`] for `mine`, a sketch drawn from `base`, keeping what
+/// another writer did to the same sketch meanwhile (another device through
+/// sync, or the handwriting reader): when the note's fence is no longer
+/// `base`, the two are merged, every stroke and erasure of both kept, and the
+/// merge is written. Comes back with the note's text and the sketch written.
+/// Pure.
+pub fn replace_merged(
+    body: &str,
+    id: &str,
+    mine: &Canvas,
+    base: &Canvas,
+) -> Result<(String, Canvas), Refusal> {
+    let (_, current) = find_by_id(body, id).ok_or(Refusal::Missing)?;
+    let next = if current == *base || current == *mine {
+        mine.clone()
+    } else {
+        let mut merged = super::merge(mine, &current);
+        // The box and the ID are the sketch's own.
+        merged.kanso_sketch = mine.kanso_sketch;
+        merged.kanso_sketch_id = mine.kanso_sketch_id.clone();
+        merged
+    };
+    let out = replace_checked(body, id, &next)?;
+    Ok((out, next))
 }
 
 impl Sketch {

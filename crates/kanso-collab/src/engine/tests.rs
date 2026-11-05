@@ -1085,6 +1085,43 @@ fn an_edit_past_the_size_limit_is_kept_as_a_private_note() {
     );
 }
 
+// no-prop-test: the engine glue; `sketch::adds_sketch` has the properties.
+#[test]
+fn a_shared_note_takes_no_new_sketch_from_any_writer() {
+    use kanso_core::canvas::sketch;
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let old = sketch::to_fence(&sketch::new_sketch("sk-old", 320, 240));
+    let start = format!("Plan\n\n{old}");
+    let share = shared(&a, &[(&b, Role::Edit)], &start);
+    sync(&[&a, &b], &share);
+    let fresh = sketch::to_fence(&sketch::new_sketch("sk-new", 480, 320));
+    // The editor (and through it an API write the library took first)
+    // hands over a text with a new sketch: the shared text stays as it was.
+    let note = a.store.note(&a.store.shared_note(&share).unwrap().unwrap().note_id);
+    let note = note.unwrap().unwrap();
+    let added = format!("{}\n{fresh}", note.body);
+    let merge = a.engine.sync_editor(&share, &note.title, &added).unwrap();
+    assert!(sketch::find_by_id(&merge.body_text, "sk-new").is_none());
+    assert!(sketch::find_by_id(&merge.body_text, "sk-old").is_some());
+    sync(&[&a, &b], &share);
+    assert!(!body_of(&b, &share).contains("sk-new"));
+    // Nothing is lost: the edit is a private note, and the person is told.
+    let book = note.book_id.clone();
+    assert!(
+        a.store
+            .notes_in_books(&[book])
+            .unwrap()
+            .iter()
+            .any(|n| n.title.ends_with("(not shared)") && n.body.contains("sk-new"))
+    );
+    assert!(a.engine.problems().iter().any(|p| p.share_id == share));
+    // An ordinary edit beside the sketch still goes through.
+    let typed = format!("Plan, revised\n\n{old}");
+    let merge = a.engine.sync_editor(&share, &note.title, &typed).unwrap();
+    assert_eq!(merge.body_text, typed);
+}
+
 #[test]
 fn coming_back_on_two_devices_makes_one_note() {
     let server = MemoryCollab::new();

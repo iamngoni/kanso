@@ -4,11 +4,10 @@
 //! carry an outline.
 
 use flutter_rust_bridge::frb;
-use kanso_mobile::{CanvasSession, KansoError, Saved, ink_preview, sketch_insert};
+use kanso_mobile::{CanvasSession, KansoError, Saved, ink_preview};
 
 use super::canvas_types::{
-    CanvasPoint, CanvasRect, CanvasSaved, CanvasView, InkStyle, PenSample, SketchInfo,
-    SketchInserted, StrokeKey,
+    CanvasPoint, CanvasRect, CanvasSaved, CanvasView, InkStyle, PenSample, SketchInfo, StrokeKey,
 };
 
 /// The outline of a stroke still being drawn, to paint under the pen each
@@ -16,17 +15,6 @@ use super::canvas_types::{
 #[frb(sync)]
 pub fn canvas_ink_preview(style: InkStyle, samples: Vec<PenSample>) -> Vec<f64> {
     ink_preview(style, samples)
-}
-
-/// A note's text with an empty sketch put in at `at` (UTF-16 units), or why
-/// not (the note's sketches are full).
-pub fn canvas_sketch_insert(
-    body: String,
-    at: u32,
-    width: u32,
-    height: u32,
-) -> Result<SketchInserted, KansoError> {
-    sketch_insert(body, at, width, height)
 }
 
 /// A canvas open for drawing. Cheap to clone on the Rust side; Dart holds one.
