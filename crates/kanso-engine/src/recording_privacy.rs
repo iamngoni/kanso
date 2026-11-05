@@ -10,12 +10,13 @@
 //! audio where it is.
 
 use kanso_core::links::LINK_SCHEME;
-use kanso_store::{Origin, Store};
+use kanso_store::{FileDrop, Origin, Store};
 use kanso_sync::lock::LockKey;
 
 use crate::recording_flow::FlowError;
 use crate::recording_note::{AUDIO_SCHEME, transcript_range};
 pub use crate::recording_privacy_model::*;
+pub use crate::recording_seal::edit_text;
 use crate::recording_seal::open_target;
 
 /// The line that stands where the audio was.
@@ -114,7 +115,9 @@ pub fn transcript_saved(body: &str, file_id: &str) -> bool {
 /// released), then the files go, so a failure part way leaves audio that a
 /// second call deletes, never a transcript lost.
 ///
-/// Nothing is deleted unless the stored transcript is there.
+/// Nothing is deleted unless the stored transcript is there, and a file
+/// another live note still links (a copy of the note, a duplicate, a merged
+/// note, a canvas card) is kept: only this note lets go of it.
 pub fn delete_audio_after_transcript(
     store: &Store,
     note_id: &str,
@@ -135,15 +138,18 @@ pub fn delete_audio_after_transcript(
     target
         .rewrite(store, &body, audio, origin)
         .map_err(|err| DropError::Store(err.to_string()))?;
-    let mut files = 0;
+    let mut dropped = Dropped::default();
     for id in audio {
-        match store.delete(id, origin) {
-            Ok(_) => files += 1,
-            Err(kanso_store::StoreError::NotFound) => {}
+        // Another live note may link the same file (a copy, a duplicate, a
+        // merged note, a canvas card): then it stays.
+        match store.delete_file_if_unowned(id, origin) {
+            Ok(FileDrop::Deleted) => dropped.files += 1,
+            Ok(FileDrop::Owned) => dropped.kept += 1,
+            Ok(FileDrop::Gone) => {}
             Err(err) => return Err(DropError::Store(err.to_string())),
         }
     }
-    Ok(Dropped { files })
+    Ok(dropped)
 }
 
 #[cfg(test)]
@@ -307,6 +313,87 @@ mod tests {
         assert!(reread.body.is_empty());
     }
 
+    /// The note holding `saved`'s recording, with its transcript saved.
+    fn with_transcript(store: &Store, saved: &crate::recording_flow::SavedRecording) -> String {
+        let file = saved.first_file().to_owned();
+        let note = store.note(&saved.note_id).unwrap().unwrap();
+        let body = format!("{}\n\n{}\n", note.body.trim_end(), transcript(&file));
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": note.id, "_rev": note.rev, "body": body}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+        body
+    }
+
+    /// A note linking the same audio as `body` does, in the trash or in
+    /// the Inbox.
+    fn copy_of(store: &Store, id: &str, body: &str, trashed: bool) {
+        let book = if trashed {
+            "trash".to_owned()
+        } else {
+            store
+                .role_book(kanso_core::roles::Role::Inbox, Origin::Ui)
+                .unwrap()
+        };
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": id, "title": "Copy", "body": body, "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn a_copy_of_the_note_keeps_the_audio_it_links() {
+        let (dir, store) = store();
+        let saved = saved(dir.path(), &store, "e-5");
+        let file = saved.first_file().to_owned();
+        let body = with_transcript(&store, &saved);
+        // A copy of the note (Duplicate, a merge, a share copy) links the
+        // same file.
+        copy_of(&store, "note:copy", &body, false);
+        let done = delete_audio_after_transcript(
+            &store,
+            &saved.note_id,
+            &file,
+            &saved.file_ids,
+            None,
+            Origin::Ui,
+        )
+        .unwrap();
+        assert_eq!(done, Dropped { files: 0, kept: 1 });
+        assert!(store.get(&file).unwrap().is_some());
+        // This note lets go of it; the copy still plays it.
+        assert!(body_of(&store, &saved.note_id).contains(DELETED_LINE));
+        assert_eq!(body_of(&store, "note:copy"), body);
+    }
+
+    /// A single published note (and a web page export) inlines images only,
+    /// so its recording's audio never goes with it.
+    #[test]
+    fn a_published_note_page_never_carries_its_audio() {
+        use base64::Engine as _;
+        let (dir, store) = store();
+        let saved = saved(dir.path(), &store, "g-7");
+        let body = with_transcript(&store, &saved);
+        let page = crate::export::page_without_queries(
+            &store,
+            "Standup",
+            &body,
+            &kanso_render::Palette::LIGHT,
+            &crate::export::PageStyle::default(),
+        );
+        let audio = base64::engine::general_purpose::STANDARD.encode(b"OggS fake audio");
+        assert!(page.contains("The beta is on track."));
+        assert!(!page.contains(&audio) && !page.contains("data:audio"));
+    }
+
     #[test]
     fn audio_is_left_out_unless_the_owner_opts_in() {
         assert!(is_audio_type("audio/ogg") && is_audio_type("Audio/MPEG"));
@@ -391,6 +478,28 @@ mod tests {
             prop_assert!(after.contains(prose.trim()));
             prop_assert!(!after.contains(&file));
             prop_assert!(store.get(&file).unwrap().is_none());
+        }
+
+        /// The audio is deleted exactly when no other live note links it,
+        /// however many copies there are and wherever they sit (a notebook
+        /// or the trash).
+        #[test]
+        fn prop_audio_another_note_links_is_never_deleted(
+            copies in proptest::collection::vec(proptest::bool::ANY, 0..3),
+        ) {
+            let (dir, store) = store();
+            let saved = saved(dir.path(), &store, "f-6");
+            let file = saved.first_file().to_owned();
+            let body = with_transcript(&store, &saved);
+            for (ix, trashed) in copies.iter().enumerate() {
+                copy_of(&store, &format!("note:copy-{ix}"), &body, *trashed);
+            }
+            let done = delete_audio_after_transcript(
+                &store, &saved.note_id, &file, &saved.file_ids, None, Origin::Ui,
+            ).unwrap();
+            prop_assert_eq!(store.get(&file).unwrap().is_some(), !copies.is_empty());
+            prop_assert_eq!(done.files, usize::from(copies.is_empty()));
+            prop_assert!(body_of(&store, &saved.note_id).contains("The beta is on track."));
         }
 
         /// Audio never goes into a published notebook unless the owner

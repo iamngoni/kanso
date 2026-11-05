@@ -227,19 +227,29 @@ fn age(dir: &std::path::Path, days: u64) {
 }
 
 #[gpui_kit::test]
-fn a_week_old_unfinished_recording_is_swept_and_a_newer_one_stays(cx: &mut TestAppContext) {
+fn a_week_old_folder_with_no_audio_is_swept_and_recoverable_audio_never_is(
+    cx: &mut TestAppContext,
+) {
     let f = setup(cx);
     let root = in_progress_dir(f.dir.path());
+    // A crash a month ago, never recovered (the person was away): kept.
     leave_a_session(&root, "old-1", RecordSource::Microphone);
-    leave_a_session(&root, "new-1", RecordSource::Microphone);
-    age(&root.join("old-1"), 8);
-    age(&root.join("new-1"), 6);
+    age(&root.join("old-1"), 30);
+    // A folder with nothing playable in it, a week and more old: swept.
+    std::fs::create_dir_all(root.join("torn-1")).unwrap();
+    std::fs::write(
+        root.join("torn-1")
+            .join(kanso_audio::session::part_file_name(0)),
+        b"Ogg",
+    )
+    .unwrap();
+    age(&root.join("torn-1"), 8);
     cx.update(recording::scan);
-    assert!(!root.join("old-1").exists());
-    assert!(root.join("new-1").exists());
+    assert!(root.join("old-1").exists());
+    assert!(!root.join("torn-1").exists());
     match notice(cx) {
-        Some(Notice::Crash(banner)) => assert_eq!(banner.id, "new-1"),
-        other => panic!("expected the newer crash banner, got {other:?}"),
+        Some(Notice::Crash(banner)) => assert_eq!(banner.id, "old-1"),
+        other => panic!("expected the crash banner, got {other:?}"),
     }
 }
 
@@ -400,7 +410,7 @@ fn the_quit_question_opens_when_quit_comes_from_the_main_window(cx: &mut TestApp
 }
 
 #[gpui_kit::test]
-fn a_system_track_left_for_a_locked_note_is_recovered_into_a_note_of_its_own(
+fn a_system_track_left_for_a_locked_note_waits_for_the_unlock_and_never_goes_plain(
     cx: &mut TestAppContext,
 ) {
     let f = setup(cx);
@@ -438,9 +448,15 @@ fn a_system_track_left_for_a_locked_note_is_recovered_into_a_note_of_its_own(
     recorder.push(&vec![0.2f32; 48_000]).unwrap();
     std::mem::forget(recorder);
     let track = kanso_audio::recovery::scan(&root, None).remove(0);
-    // Not an error that the banner would offer again and again.
-    let done = recording::recover_now(&f.store, &track).unwrap();
-    assert_ne!(done.saved.note_id, locked.id);
+    // No key: refused, and the audio meant for the lock never lands plain in
+    // a new note. The session stays for Recover after the unlock.
+    let notes = f.store.search(&Default::default()).unwrap().len();
+    assert!(recording::recover_now(&f.store, &track).is_err());
+    assert_eq!(f.store.search(&Default::default()).unwrap().len(), notes);
     assert_eq!(f.store.note(&locked.id).unwrap().unwrap().body, "");
-    assert!(!root.join("call-4-sys").exists());
+    assert!(root.join("call-4-sys").exists());
+    // Nor does the sweep take it, however long the unlock takes.
+    age(&root.join("call-4-sys"), 30);
+    cx.update(recording::scan);
+    assert!(root.join("call-4-sys").exists());
 }

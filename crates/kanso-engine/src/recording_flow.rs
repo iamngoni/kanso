@@ -203,9 +203,11 @@ pub fn check_destination_with(
     }
 }
 
-/// [`save_recording`], but a recording whose note was deleted or locked
-/// while it ran (or before a crash was recovered) goes into a new note
-/// instead, so the audio is never kept out of the library for good.
+/// [`save_recording`], but a recording whose note was deleted while it ran
+/// (or before a crash was recovered) goes into a new note instead, so the
+/// audio is never kept out of the library for good. A note that is locked
+/// is not a note that is gone: its audio never lands plain in a new note,
+/// so that is refused and the session waits for the key.
 // no-prop-test: glue over `save_recording`; the example test covers it.
 pub fn save_recording_or_new(
     store: &Store,
@@ -217,8 +219,9 @@ pub fn save_recording_or_new(
 }
 
 /// [`save_recording_or_new`], with the lock `key` the session holds, which
-/// lets a locked note take the audio sealed. A note that is locked and has no
-/// key sends the audio to a new note, as one that is gone does.
+/// lets a locked note take the audio sealed. A note that is locked with no
+/// key (or not sealable yet) is refused, never swapped for a plain new note:
+/// the audio was meant for a lock.
 // no-prop-test: glue over `save_recording_with`; the example test covers it.
 pub fn save_recording_or_new_with(
     store: &Store,
@@ -228,9 +231,7 @@ pub fn save_recording_or_new_with(
     origin: Origin,
 ) -> Result<SavedRecording, FlowError> {
     match save_recording_with(store, recorded, destination, key, origin) {
-        Err(FlowError::Locked | FlowError::Missing | FlowError::NotSealable)
-            if matches!(destination, Destination::ThisNote { .. }) =>
-        {
+        Err(FlowError::Missing) if matches!(destination, Destination::ThisNote { .. }) => {
             let new = Destination::NewNote { book_id: None };
             save_recording_with(store, recorded, &new, None, origin)
         }

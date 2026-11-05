@@ -640,13 +640,16 @@ pub fn finish(finish: Finish, cx: &mut App) {
         lock_key,
         ..
     } = active;
-    // The key held since the start; failing that, one the session holds now
-    // (the note was locked while recording).
-    let key = lock_key.or_else(|| {
-        plan.destination
-            .note_id()
-            .and_then(|note| crate::locked::key_for_note(note, cx))
-    });
+    // A key the session holds for the note now (the lock may have been
+    // re-keyed while recording); failing that, the one held since the start
+    // (the notes locked again meanwhile). It lives until the save is done
+    // and is wiped with the last `Arc`; without one, the session stays on
+    // disk and Recover waits for the unlock.
+    let key = plan
+        .destination
+        .note_id()
+        .and_then(|note| crate::locked::key_for_note(note, cx))
+        .or(lock_key);
     let (tx, rx) = async_channel::bounded(1);
     let thread_id = id.clone();
     let spawned = std::thread::Builder::new()
@@ -1003,14 +1006,20 @@ fn drop_attempt(pending: PendingTranscript, tries: u32, cx: &mut App) {
             .await
             .unwrap_or_else(|_| Err(DropError::Store("the delete stopped".into())));
         match result {
-            Ok(_) => cx.update(|cx| {
-                notify(
-                    Notification::info(format!(
+            Ok(dropped) => cx.update(|cx| {
+                // Audio another note still links stays for that note.
+                let words = match (dropped.files, dropped.kept) {
+                    (0, kept) if kept > 0 => "This note keeps only the transcript. Another note links the same audio, so the audio stays there.".to_owned(),
+                    (_, 0) => format!(
                         "The audio is deleted and the transcript stays. {}",
                         recording_privacy::BACKUP_WARNING
-                    )),
-                    cx,
-                );
+                    ),
+                    _ => format!(
+                        "The audio is deleted and the transcript stays, except the audio another note still links. {}",
+                        recording_privacy::BACKUP_WARNING
+                    ),
+                };
+                notify(Notification::info(words), cx);
             }),
             Err(DropError::NoTranscript) if tries + 1 < DROP_TRIES => {
                 cx.background_executor().timer(DROP_WAIT).await;
@@ -1081,14 +1090,11 @@ pub fn scan(cx: &mut App) {
     let active = cx
         .try_global::<Recording>()
         .and_then(|r| r.active.as_ref().map(|a| a.id.clone()));
-    // An unfinished recording nobody recovered or discarded for a week goes;
-    // the one running now, and anything touched since, never does.
+    // A session folder left a week with no audio in it goes, quietly; one
+    // with audio to recover never does (it waits for Recover or Discard,
+    // a locked note's for the unlock), nor the one running now.
     let live: Vec<&str> = active.as_deref().into_iter().collect();
-    let swept =
-        kanso_audio::sweep::sweep_in_progress(&root, &live, now_ms(), kanso_audio::sweep::KEEP_MS);
-    if !swept.removed.is_empty() {
-        notify(Notification::info(sweep_words(swept.removed.len())), cx);
-    }
+    kanso_audio::sweep::sweep_in_progress(&root, &live, now_ms(), kanso_audio::sweep::KEEP_MS);
     let mut found = recovery::scan(&root, active.as_deref());
     // The system track of the recording running now is not left behind.
     if let Some(active) = &active {
@@ -1101,17 +1107,6 @@ pub fn scan(cx: &mut App) {
         recording.pending = pending;
     }
     cx.refresh_windows();
-}
-
-/// What the notice says after the sweep deleted `n` old unfinished
-/// recordings. Pure.
-fn sweep_words(n: usize) -> String {
-    let what = if n == 1 {
-        "1 unfinished recording".to_owned()
-    } else {
-        format!("{n} unfinished recordings")
-    };
-    format!("Deleted {what} that Kanso had kept for over 7 days without you recovering it.")
 }
 
 /// Recover: finishes the partial file, attaches it and transcribes what
@@ -1207,15 +1202,17 @@ pub(crate) fn recover_with(
     let system_only = session.sources.contains(&RecordSource::SystemAudio)
         && !session.sources.contains(&RecordSource::Microphone);
     if system_only && let Some(base) = system_track_of(&found.id) {
-        // Only a note the track can go into: one that is there and not
-        // locked. Else it is a note of its own below, so Recover never
-        // fails on the same locked note again and again.
+        // Only a note the track can go into: one that is there, and plain
+        // or opened by `key`. Else it goes through `save_finished` below: a
+        // note of its own when the note is gone, and refused (the session
+        // kept for after the unlock) when the note is locked.
         let usable = |note: &String| {
-            recording_flow::check_destination(
+            check_destination_with(
                 store,
                 &Destination::ThisNote {
                     note_id: note.clone(),
                 },
+                key,
             )
             .is_ok()
         };
@@ -1395,11 +1392,5 @@ mod tests {
         let pending: PendingTranscript = serde_json::from_slice(old).unwrap();
         assert!(!pending.keep.deletes_audio());
         assert!(pending.audio_ids.is_empty());
-    }
-
-    #[test]
-    fn the_sweep_words_count_what_went() {
-        assert!(super::sweep_words(1).starts_with("Deleted 1 unfinished recording that"));
-        assert!(super::sweep_words(3).starts_with("Deleted 3 unfinished recordings that"));
     }
 }

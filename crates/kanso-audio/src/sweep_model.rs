@@ -9,6 +9,11 @@ pub struct SweepEntry {
     /// When anything in the folder last changed, in ms since the epoch;
     /// `None` when the folder can't say (it is then never swept).
     pub last_active_ms: Option<u64>,
+    /// The folder holds audio Recover can still save, or a part the sweep
+    /// couldn't read to tell. Such a folder is never swept: it goes only
+    /// when the person recovers or discards it (including a recording into
+    /// a locked note, waiting for the unlock).
+    pub recoverable: bool,
 }
 
 /// What a sweep did.

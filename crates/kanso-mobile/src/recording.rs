@@ -186,8 +186,9 @@ fn save_finished(
         mic_only: WhatToRecord::Microphone.mic_only(),
         when: recording_flow::when_text(started_ms as i64),
     };
-    // A note deleted or locked while recording sends the audio to a new
-    // note rather than leaving it out of the library.
+    // A note deleted while recording sends the audio to a new note rather
+    // than leaving it out of the library. One locked meanwhile doesn't: its
+    // audio never lands plain, so the session stays for Recover.
     match save_recording_or_new(&library.inner.store, &recorded, &destination, Origin::Ui) {
         Ok(saved) => {
             let _ = remove_session(&finished.dir);

@@ -42,8 +42,10 @@ pub enum DropError {
 }
 
 /// What deleting the audio did.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Dropped {
     /// The audio files deleted.
     pub files: usize,
+    /// The audio files kept because another live note still links them.
+    pub kept: usize,
 }

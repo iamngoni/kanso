@@ -154,7 +154,7 @@ fn a_recording_in_a_locked_note_is_sealed_and_opens_with_the_key() {
 }
 
 #[test]
-fn a_locked_note_with_no_key_sends_the_audio_to_a_new_note_not_into_itself() {
+fn a_locked_note_with_no_key_refuses_the_audio_and_no_plain_note_takes_it() {
     let (dir, store) = store();
     let key = key();
     let id = locked_note(&store, &key, "My private prose");
@@ -162,11 +162,30 @@ fn a_locked_note_with_no_key_sends_the_audio_to_a_new_note_not_into_itself() {
         note_id: id.clone(),
     };
     let rec = recorded(dir.path(), &[b"OggS x".to_vec()]);
-    let saved = save_recording_or_new_with(&store, &rec, &dest, None, Origin::Ui).unwrap();
-    assert!(saved.created);
-    assert_ne!(saved.note_id, id);
+    let notes_before = store.search(&Default::default()).unwrap().len();
+    assert!(matches!(
+        save_recording_or_new_with(&store, &rec, &dest, None, Origin::Ui),
+        Err(FlowError::Locked)
+    ));
+    // Nothing was stored: no new note, no part, plain or sealed.
+    assert_eq!(
+        store.search(&Default::default()).unwrap().len(),
+        notes_before
+    );
+    assert!(
+        store
+            .get(&crate::recording_flow::part_file_id(&rec.session_id, 0))
+            .unwrap()
+            .is_none()
+    );
     let (_, parts) = opened(&store, &key, &id);
     assert!(parts.is_empty());
+    // A note that is gone still sends the audio to a new note.
+    let gone = Destination::ThisNote {
+        note_id: "note:gone".into(),
+    };
+    let saved = save_recording_or_new_with(&store, &rec, &gone, None, Origin::Ui).unwrap();
+    assert!(saved.created);
 }
 
 #[test]
@@ -209,6 +228,44 @@ fn a_note_locked_before_sealing_that_links_nothing_takes_a_recording() {
     save_recording_with(&store, &rec, &dest, Some(&key), Origin::Ui).unwrap();
     let (_, parts) = opened(&store, &key, &id);
     assert_eq!(parts, vec![b"OggS x".to_vec()]);
+}
+
+#[test]
+fn a_transcript_goes_into_a_locked_note_sealed_with_its_files_kept() {
+    let (dir, store) = store();
+    let key = key();
+    let id = locked_note(&store, &key, "My private prose");
+    let dest = Destination::ThisNote {
+        note_id: id.clone(),
+    };
+    let rec = recorded(dir.path(), &[b"OggS x".to_vec()]);
+    save_recording_with(&store, &rec, &dest, Some(&key), Origin::Ui).unwrap();
+    let words = "Secret words spoken";
+    let add = |body: &str| Some(format!("{body}\n\n{words}\n"));
+    // No key: refused, and the note is as it was.
+    let before = store.note(&id).unwrap().unwrap();
+    assert!(matches!(
+        crate::recording_seal::edit_text(&store, &id, None, add, Origin::Ui),
+        Err(FlowError::Locked)
+    ));
+    assert_eq!(store.note(&id).unwrap().unwrap().rev, before.rev);
+    // With the key: sealed in, never stored plain, and the audio still opens.
+    assert!(crate::recording_seal::edit_text(&store, &id, Some(&key), add, Origin::Ui).unwrap());
+    let stored = store.get(&id).unwrap().unwrap();
+    assert!(
+        !serde_json::to_string(&stored.to_api(Default::default()))
+            .unwrap()
+            .contains(words)
+    );
+    let (text, parts) = opened(&store, &key, &id);
+    assert!(text.contains("My private prose") && text.contains(words));
+    assert_eq!(parts, vec![b"OggS x".to_vec()]);
+    // Nothing to change: nothing is written.
+    let rev = store.note(&id).unwrap().unwrap().rev;
+    assert!(
+        !crate::recording_seal::edit_text(&store, &id, Some(&key), |_| None, Origin::Ui).unwrap()
+    );
+    assert_eq!(store.note(&id).unwrap().unwrap().rev, rev);
 }
 
 #[test]

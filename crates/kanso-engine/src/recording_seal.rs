@@ -13,7 +13,19 @@
 //! attachment of a locked note. This is the one thing recordings need of it:
 //! seal a new part into a locked note that is open. It reads and writes the
 //! same documents (`kansoFileLock`, `kansoFiles`), so the two reconcile by
-//! one calling the other.
+//! one calling the other. When step 3 lands:
+//!
+//! - `SealedTarget::attach` calls its seal-an-attachment helper instead of
+//!   sealing here, and `SealedTarget::write`/[`edit_text`] go through its
+//!   locked-note save rather than `Store::lock_note` directly.
+//! - The `NotSealable` refusal in [`open_target`] (no `kansoFiles`, links
+//!   files) narrows to notes never unlocked since: step 3 seals those on
+//!   unlock.
+//! - The app's `locked::key_for_note`/`opened_parts` read file keys from
+//!   step 3's session map (`FileKeys`) instead of unwrapping per call.
+//! - Recording into a new note in a locked notebook can be allowed.
+//!
+//! Rekey needs nothing here: it re-wraps the `kansoFiles` keys this writes.
 //!
 //! A locked note that has no `kansoFiles` list was locked before sealing
 //! existed and may link attachments that are still plain. It takes a
@@ -96,6 +108,26 @@ pub(crate) fn open_target<'k>(
         envelope,
         files,
     })))
+}
+
+/// Rewrites the text of note `note_id` as `edit` returns it (`None` leaves
+/// it as it is), as stored: a plain note as it is, a locked one opened with
+/// `key` and sealed again, its list of sealed files untouched. A transcript
+/// for a locked note that isn't open goes in this way, never through the
+/// clipboard. Returns whether the note changed.
+pub fn edit_text(
+    store: &Store,
+    note_id: &str,
+    key: Option<&LockKey>,
+    edit: impl FnOnce(&str) -> Option<String>,
+    origin: Origin,
+) -> Result<bool, FlowError> {
+    let target = open_target(store, note_id, key)?;
+    let Some(body) = edit(target.body()) else {
+        return Ok(false);
+    };
+    target.rewrite(store, &body, &[], origin)?;
+    Ok(true)
 }
 
 impl Target<'_> {

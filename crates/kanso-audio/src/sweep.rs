@@ -1,13 +1,18 @@
 //! Clearing out what recordings leave behind (issue #38, step 11): a
-//! session folder that was never recovered or discarded is deleted once
-//! nothing has touched it for seven days.
+//! session folder with no audio left to recover is deleted once nothing has
+//! touched it for seven days.
 //!
 //! A folder is swept only when it is certainly abandoned: it is not a
 //! recording in progress (nor the system track of one), its newest file is
-//! older than [`KEEP_MS`], and its name is a session ID. Anything the sweep
-//! can't date is kept. A recording being written changes its folder every
-//! second, so even one this process doesn't know about is never recent
-//! enough to be swept.
+//! older than [`KEEP_MS`], its name is a session ID, and it holds no audio
+//! Recover could save. Anything the sweep can't date or read is kept. A
+//! recording being written changes its folder every second, so even one
+//! this process doesn't know about is never recent enough to be swept.
+//!
+//! Audio that can be recovered is never swept, however old: a crash before
+//! a week away, or a recording into a locked note waiting for its unlock,
+//! must not lose the audio unseen. It goes when the person picks Recover or
+//! Discard.
 
 use std::fs;
 use std::path::Path;
@@ -15,6 +20,7 @@ use std::time::UNIX_EPOCH;
 
 pub use crate::sweep_model::{SweepEntry, SweepReport};
 
+use crate::recovery;
 use crate::session::{remove_session, valid_id};
 
 /// How long an unfinished recording is kept: seven days.
@@ -34,12 +40,12 @@ fn is_live(id: &str, live: &[&str]) -> bool {
     })
 }
 
-/// The sessions in `entries` that are due to be deleted: not live, and idle
-/// for more than `keep_ms` at `now_ms`. Pure.
+/// The sessions in `entries` that are due to be deleted: not live, holding
+/// no recoverable audio, and idle for more than `keep_ms` at `now_ms`. Pure.
 pub fn stale(entries: &[SweepEntry], live: &[&str], now_ms: u64, keep_ms: u64) -> Vec<String> {
     entries
         .iter()
-        .filter(|entry| valid_id(&entry.id) && !is_live(&entry.id, live))
+        .filter(|entry| valid_id(&entry.id) && !is_live(&entry.id, live) && !entry.recoverable)
         .filter(|entry| {
             entry
                 .last_active_ms
@@ -66,6 +72,15 @@ fn last_active(dir: &Path) -> Option<u64> {
     Some(newest)
 }
 
+/// Whether `dir` holds audio Recover could save, or a part that couldn't be
+/// opened to tell: either way the folder is kept.
+fn holds_audio(dir: &Path) -> bool {
+    let Ok(parts) = recovery::part_files(dir) else {
+        return true;
+    };
+    recovery::find(dir).is_some() || parts.iter().any(|(_, path)| fs::File::open(path).is_err())
+}
+
 /// The session folders under `root` (the in-progress folder), dated.
 pub fn entries(root: &Path) -> Vec<SweepEntry> {
     let Ok(listing) = fs::read_dir(root) else {
@@ -79,6 +94,7 @@ pub fn entries(root: &Path) -> Vec<SweepEntry> {
             let id = entry.file_name().to_str()?.to_owned();
             Some(SweepEntry {
                 last_active_ms: last_active(&entry.path()),
+                recoverable: holds_audio(&entry.path()),
                 id,
             })
         })
@@ -109,6 +125,7 @@ mod tests {
         SweepEntry {
             id: id.to_owned(),
             last_active_ms: at,
+            recoverable: false,
         }
     }
 
@@ -123,6 +140,19 @@ mod tests {
             entry("future-1", Some(now + DAY)),
         ];
         assert_eq!(stale(&entries, &[], now, KEEP_MS), vec!["old-1"]);
+    }
+
+    #[test]
+    fn a_folder_with_audio_to_recover_is_never_swept() {
+        let now = 400 * DAY;
+        let entries = [
+            SweepEntry {
+                recoverable: true,
+                ..entry("crash-1", Some(1))
+            },
+            entry("empty-1", Some(1)),
+        ];
+        assert_eq!(stale(&entries, &[], now, KEEP_MS), vec!["empty-1"]);
     }
 
     #[test]
@@ -161,17 +191,20 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig { rng_seed: proptest::test_runner::RngSeed::Fixed(20261017), ..ProptestConfig::default() })]
 
-        /// The sweep never deletes a live or recent recording, whatever the
-        /// folders, the clock and the live list.
+        /// The sweep never deletes a live or recent recording, nor one with
+        /// audio left to recover, whatever the folders, the clock and the
+        /// live list.
         #[test]
         fn prop_the_sweep_never_deletes_a_live_or_recent_recording(
-            folders in proptest::collection::vec(("[a-z0-9]{1,6}-[a-z0-9]{1,6}", proptest::option::of(0u64..400 * DAY)), 0..12),
+            folders in proptest::collection::vec(("[a-z0-9]{1,6}-[a-z0-9]{1,6}", proptest::option::of(0u64..400 * DAY), proptest::bool::ANY), 0..12),
             live_picks in proptest::collection::vec(0usize..12, 0..4),
             now in 0u64..400 * DAY,
             sys in proptest::bool::ANY,
         ) {
-            let entries: Vec<SweepEntry> =
-                folders.iter().map(|(id, at)| entry(id, *at)).collect();
+            let entries: Vec<SweepEntry> = folders
+                .iter()
+                .map(|(id, at, recoverable)| SweepEntry { recoverable: *recoverable, ..entry(id, *at) })
+                .collect();
             let mut live: Vec<String> = live_picks
                 .iter()
                 .filter_map(|ix| entries.get(*ix).map(|e| e.id.clone()))
@@ -185,6 +218,10 @@ mod tests {
             let swept = stale(&entries, &live_refs, now, KEEP_MS);
             for id in &swept {
                 prop_assert!(!live.contains(id), "swept a live recording {id}");
+                prop_assert!(
+                    entries.iter().filter(|e| &e.id == id).all(|e| !e.recoverable),
+                    "swept audio that could be recovered {id}"
+                );
                 let at = entries.iter().find(|e| &e.id == id).and_then(|e| e.last_active_ms);
                 let at = at.expect("an undated folder was swept");
                 prop_assert!(now > at && now - at > KEEP_MS, "swept a recent recording {id}");
