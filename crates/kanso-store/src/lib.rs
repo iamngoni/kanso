@@ -111,7 +111,7 @@ pub use replace::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
-pub use trash_model::{Emptied, TrashCounts};
+pub use trash_model::{Emptied, FileDrop, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use write::{Put, WriteResult};
 

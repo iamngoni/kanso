@@ -215,6 +215,43 @@ pub(crate) fn opened_file(
     Some((metadata, content.bytes))
 }
 
+/// The key this session holds for note `note_id`, when the note is locked and
+/// a key opens it. A recording into the note seals its audio under it.
+// no-prop-test: reads the store and the session's keys.
+pub(crate) fn key_for_note(note_id: &str, cx: &App) -> Option<Arc<LockKey>> {
+    let note = store(cx).note(note_id).ok()??;
+    let envelope = Envelope::from_extra(&note.extra)?.ok()?;
+    LockKeys::fitting(cx, &envelope)
+}
+
+/// The bytes of the audio files `file_ids` of note `note_id` when the note is
+/// locked (opened with the key this session holds), or `None` when it isn't
+/// and the files are ordinary attachments. Fails in plain words when the
+/// note is locked and no key opens it.
+// no-prop-test: reads the store and the session's keys; the sealing has its
+// tests in `kanso_engine::recording_seal`.
+pub(crate) fn opened_parts(
+    note_id: &str,
+    file_ids: &[String],
+    cx: &App,
+) -> Result<Option<Vec<Vec<u8>>>, String> {
+    let Some(note) = store(cx).note(note_id).ok().flatten() else {
+        return Ok(None);
+    };
+    if !note.is_locked() {
+        return Ok(None);
+    }
+    file_ids
+        .iter()
+        .map(|id| {
+            opened_file(&note, id, cx)
+                .map(|(_, bytes)| bytes)
+                .ok_or_else(|| "Unlock the note to transcribe its recording.".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(Some)
+}
+
 // MARK: Dialogs
 
 pub(crate) fn store(cx: &App) -> Arc<Store> {

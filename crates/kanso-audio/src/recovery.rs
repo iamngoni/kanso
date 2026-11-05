@@ -22,7 +22,7 @@ use crate::session::{
 };
 
 /// The part files in `dir`, in order.
-fn part_files(dir: &Path) -> std::io::Result<Vec<(u32, PathBuf)>> {
+pub(crate) fn part_files(dir: &Path) -> std::io::Result<Vec<(u32, PathBuf)>> {
     let mut parts = Vec::new();
     for entry in fs::read_dir(dir)? {
         let entry = entry?;

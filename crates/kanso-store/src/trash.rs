@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 use kanso_core::DocType;
 use rusqlite::Transaction;
 
-use crate::trash_model::{Emptied, TrashCounts};
+use crate::trash_model::{Emptied, FileDrop, TrashCounts};
 use crate::write::{delete_row, load_row};
 use crate::{Origin, Result, Store};
 
@@ -73,6 +73,27 @@ impl Store {
                 locked: notes.iter().filter(|(_, locked)| *locked).count() as u32,
                 files: deleted_files,
             })
+        })
+    }
+
+    /// Deletes attachment `file` unless a live note still owns it (the same
+    /// test Empty Trash uses: `note_files`, or any live note whose stored
+    /// JSON names it, a canvas card included), in one transaction, so a note
+    /// that links it in between can't lose it. A note in the trash still
+    /// owns its files.
+    pub fn delete_file_if_unowned(&self, file: &str, origin: Origin) -> Result<FileDrop> {
+        self.write(|tx, changes| {
+            let Some(prev) = load_row(tx, file)?.filter(|row| !row.deleted) else {
+                return Ok(FileDrop::Gone);
+            };
+            if prev.doc_type != DocType::File {
+                return Ok(FileDrop::Gone);
+            }
+            if still_owned(tx, file)? {
+                return Ok(FileDrop::Owned);
+            }
+            delete_row(tx, file, &prev, origin, changes)?;
+            Ok(FileDrop::Deleted)
         })
     }
 }
