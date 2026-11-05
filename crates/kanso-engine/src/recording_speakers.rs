@@ -206,6 +206,16 @@ fn moment_seconds(line: &str) -> Option<u32> {
     parse_moment(&line[open..close]).map(|m| m.seconds)
 }
 
+/// One of Kanso's labels in a new transcript, and what the old transcript
+/// said at its paragraphs' moments.
+struct Tally<'a> {
+    label: &'a str,
+    /// Its paragraphs that fall in an old paragraph.
+    heard: usize,
+    /// The given names those old paragraphs had, with how many each.
+    votes: Vec<(&'a str, usize)>,
+}
+
 /// `new_body`'s transcript of `file_id`, from a fresh transcription of the
 /// same recording, with the names the person gave its voices in
 /// `old_body`'s transcript kept: a voice Kanso labels (`Speaker 2`, `You`)
@@ -237,7 +247,7 @@ pub fn carry_names(old_body: &str, new_body: &str, file_id: &str) -> Option<Stri
     let new_range = transcript_range(new_body, file_id)?;
     // Per label of ours in the new transcript: how many of its paragraphs
     // fall in an old paragraph, and the votes for each old name.
-    let mut tallies: Vec<(&str, usize, Vec<(&str, usize)>)> = Vec::new();
+    let mut tallies: Vec<Tally> = Vec::new();
     for line in new_body[new_range].lines() {
         let (Some(at), Some((a, b))) = (moment_seconds(line), name_range(line)) else {
             continue;
@@ -249,35 +259,45 @@ pub fn carry_names(old_body: &str, new_body: &str, file_id: &str) -> Option<Stri
         let Some(&(_, name)) = old.iter().rev().find(|(start, _)| *start <= at) else {
             continue;
         };
-        let at = match tallies.iter().position(|(l, ..)| *l == label) {
+        let at = match tallies.iter().position(|t| t.label == label) {
             Some(at) => at,
             None => {
-                tallies.push((label, 0, Vec::new()));
+                tallies.push(Tally {
+                    label,
+                    heard: 0,
+                    votes: Vec::new(),
+                });
                 tallies.len() - 1
             }
         };
-        let (_, heard, votes) = &mut tallies[at];
-        *heard += 1;
+        let tally = &mut tallies[at];
+        tally.heard += 1;
         if let Some(name) = name {
-            match votes.iter_mut().find(|(n, _)| *n == name) {
+            match tally.votes.iter_mut().find(|(n, _)| *n == name) {
                 Some((_, count)) => *count += 1,
-                None => votes.push((name, 1)),
+                None => tally.votes.push((name, 1)),
             }
         }
     }
     let changes: Vec<(String, String)> = tallies
         .into_iter()
-        .filter_map(|(label, heard, votes)| {
-            // The first name to reach the most votes, for a stable answer.
-            let (name, count) =
-                votes
-                    .into_iter()
-                    .fold(None, |best: Option<(&str, usize)>, (n, c)| match best {
+        .filter_map(
+            |Tally {
+                 label,
+                 heard,
+                 votes,
+             }| {
+                // The first name to reach the most votes, for a stable answer.
+                let (name, count) = votes.into_iter().fold(
+                    None,
+                    |best: Option<(&str, usize)>, (n, c)| match best {
                         Some((_, b)) if b >= c => best,
                         _ => Some((n, c)),
-                    })?;
-            (count * 2 > heard).then(|| (label.to_owned(), name.to_owned()))
-        })
+                    },
+                )?;
+                (count * 2 > heard).then(|| (label.to_owned(), name.to_owned()))
+            },
+        )
         .collect();
     rename_many(new_body, file_id, &changes)
 }
