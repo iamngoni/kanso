@@ -108,6 +108,96 @@ fn a_secret_store_that_refuses_gives_a_plain_new_library_and_no_orphans() {
     assert!(!key_id_path(&db(&dir)).exists());
 }
 
+/// The bug this guards: a library that was there but couldn't be opened
+/// (its permissions) read as new, so a fresh key's name replaced its own and
+/// was then deleted, leaving it unopenable once the permissions were fixed.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_library_keeps_its_key_name() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = tempfile::tempdir().unwrap();
+    let secrets = MemorySecrets::new();
+    let opened = open_library(&db(&dir), &secrets).unwrap();
+    opened.store.set_meta("kept", "yes").unwrap();
+    drop(opened);
+    let id = key_id(&dir);
+    let items = secrets.items();
+
+    std::fs::set_permissions(db(&dir), std::fs::Permissions::from_mode(0o000)).unwrap();
+    if std::fs::File::open(db(&dir)).is_ok() {
+        // Running as root: permissions don't stop the open.
+        return;
+    }
+    assert_eq!(LibraryFile::of(&db(&dir)), LibraryFile::Encrypted);
+    assert!(open_library(&db(&dir), &secrets).is_err());
+    assert_eq!(key_id(&dir), id);
+    assert_eq!(secrets.items(), items);
+
+    std::fs::set_permissions(db(&dir), std::fs::Permissions::from_mode(0o600)).unwrap();
+    let again = open_library(&db(&dir), &secrets).unwrap();
+    assert_eq!(again.store.meta("kept").unwrap().as_deref(), Some("yes"));
+}
+
+/// A create that stopped after naming its key (or whose database file is
+/// still empty) reuses that key rather than replacing it.
+#[test]
+fn a_named_key_without_its_library_is_reused() {
+    let dir = tempfile::tempdir().unwrap();
+    let secrets = MemorySecrets::new();
+    drop(open_library(&db(&dir), &secrets).unwrap());
+    let id = key_id(&dir);
+    std::fs::remove_file(db(&dir)).unwrap();
+    let _ = std::fs::remove_file(dir.path().join("kanso.db-wal"));
+    let _ = std::fs::remove_file(dir.path().join("kanso.db-shm"));
+    std::fs::write(db(&dir), b"").unwrap();
+
+    let opened = open_library(&db(&dir), &secrets).unwrap();
+    assert_eq!(opened.encryption, Encryption::Encrypted);
+    drop(opened);
+    assert_eq!(key_id(&dir), id);
+    assert_eq!(secrets.items(), vec![library_key_item(&id)]);
+    assert!(open_library(&db(&dir), &secrets).is_ok());
+}
+
+/// A sign-in that moves the secrets to another store takes the library's
+/// key along: the library then opens from the new store alone.
+#[test]
+fn the_key_copies_to_another_store_and_is_forgotten_in_the_old() {
+    let dir = tempfile::tempdir().unwrap();
+    let system = MemorySecrets::new();
+    let file = MemorySecrets::new();
+    drop(open_library(&db(&dir), &system).unwrap());
+    assert!(matches!(
+        open_library(&db(&dir), &file).err().unwrap(),
+        OpenLibraryError::Store(StoreError::WrongKey)
+    ));
+    assert!(kanso_sync::library_key::copy_key(&db(&dir), &system, &file).unwrap());
+    kanso_sync::library_key::forget_key(&db(&dir), &system, &file).unwrap();
+    assert!(system.items().is_empty());
+    // Never the only copy: one store as both, or a store without it.
+    kanso_sync::library_key::forget_key(&db(&dir), &file, &file).unwrap();
+    kanso_sync::library_key::forget_key(&db(&dir), &file, &system).unwrap();
+    assert_eq!(file.items().len(), 1);
+    assert_eq!(
+        open_library(&db(&dir), &file).unwrap().encryption,
+        Encryption::Encrypted
+    );
+
+    // A store that refuses the copy is an error, and the key stays put.
+    let refusing = MemorySecrets::new();
+    refusing.fail_writes_to(Some("library-key:"));
+    assert!(matches!(
+        kanso_sync::library_key::copy_key(&db(&dir), &file, &refusing),
+        Err(OpenLibraryError::Keychain(_))
+    ));
+    assert!(open_library(&db(&dir), &file).is_ok());
+
+    // A plain library has no key to copy.
+    let plain = tempfile::tempdir().unwrap();
+    drop(Store::open(db(&plain)).unwrap());
+    assert!(!kanso_sync::library_key::copy_key(&db(&plain), &system, &file).unwrap());
+}
+
 proptest! {
     #![proptest_config(ProptestConfig { cases: 16, ..ProptestConfig::default() })]
 

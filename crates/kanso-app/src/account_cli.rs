@@ -393,8 +393,6 @@ fn lock(data_dir: &Path) -> Result<kanso_store::DataDirLock, Refusal> {
     }
 }
 
-/// The config, brought up to date and with API credentials, saved when that
-/// changed it.
 /// Opens the library with its key from the secret store the config names
 /// (the library's key lives with the rest of its secrets, whatever store a
 /// new sign-in is about to pick).
@@ -406,6 +404,8 @@ fn open_library(world: &World, config: &AppConfig) -> Result<Arc<Store>, Refusal
     Ok(Arc::new(store))
 }
 
+/// The config, brought up to date and with API credentials, saved when that
+/// changed it.
 fn config(data_dir: &Path) -> Result<AppConfig, Refusal> {
     crate::load_config(data_dir).map_err(|err| Refusal(format!("{err:#}")))
 }
@@ -497,6 +497,19 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
         })?;
     }
     let store = open_library(world, &config)?;
+    // The config is about to name another store: the library's key goes
+    // there first, so the library opens whichever store the config names
+    // when this sign-in ends or fails.
+    let previous = config.sync.secret_store;
+    if kind != previous {
+        let old = (world.open_secrets)(previous).map_err(|err| Refusal(format!("{err:#}")))?;
+        kanso_sync::library_key::copy_key(
+            &crate::paths::db_path(&world.data_dir),
+            old.as_ref(),
+            secrets.as_ref(),
+        )
+        .map_err(|err| Refusal(format!("couldn't move the library's key: {err}")))?;
+    }
     let mut machine = world.machine.clone();
     if let Some(name) = &args.device_name {
         machine.computer_name = name.clone();
@@ -522,6 +535,16 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
         Some(session.server.clone()).filter(|s| !kanso_engine::account::is_default_server(s));
     config.sync.secret_store = kind;
     save_config(&world.data_dir, &config)?;
+    if kind != previous {
+        // The config names the new store now; the old copy of the key goes.
+        if let (Ok(old), Ok(now)) = ((world.open_secrets)(previous), (world.open_secrets)(kind)) {
+            let _ = kanso_sync::library_key::forget_key(
+                &crate::paths::db_path(&world.data_dir),
+                old.as_ref(),
+                now.as_ref(),
+            );
+        }
+    }
     flow.flush_logouts(&library_id);
     if let Some(evicted) = evicted {
         console.say(&format!(

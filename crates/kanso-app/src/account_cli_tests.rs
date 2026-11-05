@@ -325,6 +325,51 @@ fn the_file_store_is_chosen_and_its_folder_made_owner_only() {
     );
 }
 
+/// The bug this guards: `--secrets file` moved the session to the file
+/// but left the library's key in the system's store, so the next open,
+/// which reads the store the config names, couldn't unlock the library.
+#[test]
+fn moving_to_the_file_store_takes_the_library_key_along() {
+    let lab = Lab::new();
+    let file = Arc::new(MemorySecrets::new());
+    let mut world = lab.world();
+    let (system, file_store) = (lab.secrets.clone(), file.clone());
+    world.open_secrets = Box::new(move |kind| {
+        let secrets: Arc<dyn Secrets> = match kind {
+            SecretStoreKind::System => system.clone(),
+            SecretStoreKind::File => file_store.clone(),
+        };
+        Ok(secrets)
+    });
+    let args = |line: &[&str]| -> Vec<String> { line.iter().map(|a| a.to_string()).collect() };
+    let sign_in = args(&[
+        "sign-in",
+        "--username",
+        "alice",
+        "--password-stdin",
+        "--secrets",
+        "file",
+    ]);
+    run(
+        &world,
+        parse(&sign_in).unwrap(),
+        &mut Script::new(false, &[PASSWORD]),
+    )
+    .unwrap();
+    assert_eq!(lab.config().sync.secret_store, SecretStoreKind::File);
+    let is_key = |item: &String| item.starts_with("library-key:");
+    assert!(!lab.secrets.items().iter().any(is_key));
+    assert!(file.items().iter().any(is_key));
+    drop(crate::library_open::open_store_with(lab.dir.path(), file.as_ref()).unwrap());
+    let mut status = Script::new(false, &[]);
+    run(&world, parse(&args(&["status"])).unwrap(), &mut status).unwrap();
+    assert!(
+        status.transcript().contains("Secrets   file"),
+        "{}",
+        status.transcript()
+    );
+}
+
 #[test]
 fn a_wrong_password_saves_nothing() {
     let lab = Lab::new();

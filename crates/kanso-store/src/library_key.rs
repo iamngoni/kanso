@@ -11,11 +11,15 @@ use crate::{LibraryFile, LibraryKey, Result, Store, StoreError};
 const PLAIN_HEADER: &[u8; 16] = b"SQLite format 3\0";
 
 impl LibraryFile {
-    /// What is at `path`. An unreadable file reads as encrypted: the open
-    /// that follows says why.
+    /// What is at `path`. Only a missing (or empty) file is new: a file that
+    /// is there but can't be read (its permissions, a lock, a directory in
+    /// its place) reads as encrypted, so the open that follows says why and
+    /// nothing is made over it or its key's name.
     pub fn of(path: &Path) -> LibraryFile {
-        let Ok(mut file) = std::fs::File::open(path) else {
-            return LibraryFile::New;
+        let mut file = match std::fs::File::open(path) {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return LibraryFile::New,
+            Err(_) => return LibraryFile::Encrypted,
         };
         let mut head = [0u8; 16];
         let mut read = 0;

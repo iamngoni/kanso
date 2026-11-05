@@ -123,6 +123,18 @@ pub fn open_library(
 }
 
 fn create_library(db: &Path, secrets: &dyn SecretStore) -> Result<OpenedLibrary, OpenLibraryError> {
+    // A key's name already beside a library that isn't there yet: a create
+    // that stopped after naming the key (or a database file still empty,
+    // its first pages in the WAL). Its key is reused, never replaced, so
+    // nothing written under it becomes unreadable.
+    if let Some(key_id) = read_key_id(db)
+        && let Some(key) = load_key(secrets, &key_id).map_err(OpenLibraryError::Keychain)?
+    {
+        return Ok(OpenedLibrary {
+            store: Store::open_with_key(db, Some(&key))?,
+            encryption: Encryption::Encrypted,
+        });
+    }
     let key = LibraryKey::generate();
     let key_id = new_key_id();
     let kept = save_key(secrets, &key_id, &key).and_then(|()| match load_key(secrets, &key_id)? {
@@ -138,7 +150,7 @@ fn create_library(db: &Path, secrets: &dyn SecretStore) -> Result<OpenedLibrary,
     }
     // The key is safe before the library exists, so a crash between the two
     // leaves an unused item, never a library with no key.
-    let named = std::fs::write(key_id_path(db), &key_id);
+    let named = write_key_id(db, &key_id);
     let opened = named
         .map_err(StoreError::from)
         .and_then(|()| Store::open_with_key(db, Some(&key)));
@@ -148,9 +160,79 @@ fn create_library(db: &Path, secrets: &dyn SecretStore) -> Result<OpenedLibrary,
             encryption: Encryption::Encrypted,
         }),
         Err(err) => {
-            let _ = secrets.delete(&library_key_item(&key_id));
-            let _ = std::fs::remove_file(key_id_path(db));
+            // Undone only while nothing was written under the key: once the
+            // file has pages, its key and name stay, so the next open
+            // finishes the job instead of finding a library it can't read.
+            if LibraryFile::of(db) == LibraryFile::New {
+                let _ = secrets.delete(&library_key_item(&key_id));
+                let _ = std::fs::remove_file(key_id_path(db));
+            }
             Err(err.into())
         }
     }
+}
+
+/// Writes the key's name beside the library: to a temporary file, flushed,
+/// then renamed over, so a crash leaves the old name or the new one.
+fn write_key_id(db: &Path, key_id: &str) -> std::io::Result<()> {
+    use std::io::Write as _;
+    let path = key_id_path(db);
+    let mut temp = path.clone().into_os_string();
+    temp.push(".tmp");
+    let temp = PathBuf::from(temp);
+    {
+        let mut file = std::fs::File::create(&temp)?;
+        file.write_all(key_id.as_bytes())?;
+        file.sync_all()?;
+    }
+    std::fs::rename(&temp, &path)
+}
+
+/// Copies the key of the library at `db` from `from` to `to`, read back, so
+/// the library opens with either store: for a sign-in that moves the
+/// library's secrets to another store. Nothing to do (`false`) for a plain
+/// or missing library. A key `from` doesn't hold is
+/// [`StoreError::WrongKey`]; `to` refusing it is
+/// [`OpenLibraryError::Keychain`], and the library still opens from `from`.
+pub fn copy_key(
+    db: &Path,
+    from: &dyn SecretStore,
+    to: &dyn SecretStore,
+) -> Result<bool, OpenLibraryError> {
+    if LibraryFile::of(db) != LibraryFile::Encrypted {
+        return Ok(false);
+    }
+    let key_id = read_key_id(db).ok_or(StoreError::WrongKey)?;
+    let key = load_key(from, &key_id)
+        .map_err(OpenLibraryError::Keychain)?
+        .ok_or(StoreError::WrongKey)?;
+    save_key(to, &key_id, &key).map_err(OpenLibraryError::Keychain)?;
+    match load_key(to, &key_id).map_err(OpenLibraryError::Keychain)? {
+        Some(read) if read == key => Ok(true),
+        _ => Err(OpenLibraryError::Keychain(SecretError(
+            "the key did not read back".into(),
+        ))),
+    }
+}
+
+/// Deletes the key of the library at `db` from `from`, once `kept` holds it
+/// ([`copy_key`]). Never deletes the only copy: nothing happens unless
+/// `kept` reads the key back, and if the two are one store the key is put
+/// back. Nothing to do for a plain library.
+pub fn forget_key(
+    db: &Path,
+    from: &dyn SecretStore,
+    kept: &dyn SecretStore,
+) -> Result<(), SecretError> {
+    let Some(key_id) = read_key_id(db) else {
+        return Ok(());
+    };
+    let Some(key) = load_key(kept, &key_id)? else {
+        return Ok(());
+    };
+    from.delete(&library_key_item(&key_id))?;
+    if load_key(kept, &key_id)?.as_ref() != Some(&key) {
+        save_key(kept, &key_id, &key)?;
+    }
+    Ok(())
 }
