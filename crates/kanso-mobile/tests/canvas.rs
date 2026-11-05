@@ -395,6 +395,55 @@ fn canvases_have_their_own_place() {
     assert_eq!(hits.len(), 2);
 }
 
+/// Handwriting a Mac read arrives in the canvas's body (`kansoInkOcr`); the
+/// phone, which doesn't read ink itself, searches those words and nothing
+/// of the JSON around them.
+#[test]
+fn handwriting_a_mac_read_is_searchable_on_the_phone() {
+    use kanso_core::DocType;
+    use kanso_core::canvas::{self, INK, InkOcr, Node};
+    use kanso_store::{Origin, Put, Store};
+
+    let phone = library();
+    let id = new_canvas(&phone.library, "Board");
+    let mut doc = canvas::Canvas::default();
+    doc.put_node(
+        Node {
+            id: "i1".into(),
+            kind: INK.into(),
+            width: 100.0,
+            height: 50.0,
+            ..Node::default()
+        },
+        1,
+    );
+    doc.kanso_ink_ocr.push(InkOcr {
+        node: "i1".into(),
+        md5: "abc".into(),
+        engine: "vision".into(),
+        text: "groceries for friday".into(),
+    });
+    let store = Store::open(phone.path()).unwrap();
+    let rev = store.get(&id).unwrap().unwrap().rev;
+    store
+        .put(
+            DocType::Note,
+            serde_json::json!({"_id": id, "_rev": rev, "body": canvas::to_body(&doc)}),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    let find = |query: &str| {
+        phone
+            .library
+            .search(query, SearchScope::default(), 0)
+            .unwrap()
+            .len()
+    };
+    assert_eq!(find("groceries"), 1);
+    assert_eq!(find("kansoInkOcr"), 0);
+}
+
 #[test]
 fn exports_and_excalidraw_import() {
     let phone = library();
