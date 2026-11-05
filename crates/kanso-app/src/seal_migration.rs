@@ -461,11 +461,11 @@ mod tests {
         })]
 
         /// Whatever the counts, the words use the right number and plural.
-        #[test]
+        #[::core::prelude::v1::test]
         fn prop_the_words_count_what_they_say(
-            legacy in 0usize..50, unsealed in 0usize..50, stopped in 0usize..50,
-            files in 0usize..500, bytes in 0u64..(1 << 40),
+            (counts, files, bytes) in ((0usize..50, 0usize..50, 0usize..50), 0usize..500, 0u64..(1 << 40)),
         ) {
+            let (legacy, unsealed, stopped) = counts;
             let pending = pending(legacy, unsealed, stopped);
             let total = pending.notes();
             let scan = Scan {

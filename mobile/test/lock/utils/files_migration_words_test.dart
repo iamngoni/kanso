@@ -52,7 +52,7 @@ void main() {
         _l10n,
         _info(counted: true, files: 12, bytes: 84000000, shared: 3),
       );
-      expect(words, contains('12 attachments (80.1 MB) will be sealed.'));
+      expect(words, contains('12 attachments (84 MB) will be sealed.'));
       expect(words, contains('3 attachments are also used by other notes'));
       expect(words, isNot(contains('once the password opens')));
     });
