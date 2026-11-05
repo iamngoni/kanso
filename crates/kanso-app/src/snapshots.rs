@@ -1435,6 +1435,62 @@ fn new_drawing(
     settle_drawings(cx, window);
 }
 
+/// "Insert sketch": a note with a sketch in it that has been drawn on, and
+/// an empty one under it, the pointer over neither.
+fn sketch_in_note(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use kanso_core::canvas::{Point, Stroke, sketch};
+    let stroke = |points: Vec<(f64, f64)>, color: &str, tool: &str| Stroke {
+        tool: tool.into(),
+        color: color.into(),
+        width: 3.,
+        points: points
+            .into_iter()
+            .map(|(x, y)| Point {
+                x,
+                y,
+                pressure: 0.6,
+                tilt: None,
+            })
+            .collect(),
+        ..Stroke::default()
+    };
+    let mut drawn = sketch::new_sketch("sk-demo", 480, 320);
+    // A wave, a loop and an arrow-ish tick: enough ink to read the pen.
+    let wave: Vec<(f64, f64)> = (0..60)
+        .map(|i| (30. + f64::from(i) * 6.5, 110. + (f64::from(i) / 4.).sin() * 42.))
+        .collect();
+    let ring: Vec<(f64, f64)> = (0..40)
+        .map(|i| {
+            let a = f64::from(i) / 39. * std::f64::consts::TAU;
+            (330. + a.cos() * 60., 200. + a.sin() * 52.)
+        })
+        .collect();
+    let tick = vec![(70., 230.), (95., 262.), (150., 190.)];
+    for (n, st) in [
+        stroke(wave, "#1971c2", "pen"),
+        stroke(ring, "#e03131", "marker"),
+        stroke(tick, "#2f9e44", "pen"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let _ = drawn.draw(st, 1000 + n as i64);
+    }
+    let empty = sketch::new_sketch("sk-blank", 320, 240);
+    let body = format!(
+        "How the signal moves.\n\n{}\nWrite on it with a pen, or the mouse.\n\n{}",
+        sketch::to_fence(&drawn),
+        sketch::to_fence(&empty)
+    );
+    open_new_note(cx, workspace, store, "Signal", &body);
+    settle_drawings(cx, window);
+}
+
 /// A table as typed, its pipes all over the place.
 const ROUGH_TABLE: &str = "# Pantry\n\nWhat to buy this week.\n\n| Item | Qty | Price |\n|:--|:-:|--:|\n| Apples | 6 | 3.20 |\n| Oat milk | 2 | 4.50 |\n| Coffee beans | 1 | 12.00 |\n| Café crème | 12 | 0.90 |\n\nThe rest can wait.\n";
 
@@ -5264,6 +5320,8 @@ fn snapshots() {
         ),
         shot("dark-new-drawing", Dark, Preview, new_drawing),
         shot("light-new-drawing", Light, Split, new_drawing),
+        shot("dark-sketch-in-note", Dark, Split, sketch_in_note),
+        shot("light-sketch-in-note", Light, Split, sketch_in_note),
         shot("dark-table-before", Dark, Edit, table_before),
         shot("dark-table-after", Dark, Edit, table_after),
         shot("dark-table-after-mono", Dark, Edit, table_after_mono),

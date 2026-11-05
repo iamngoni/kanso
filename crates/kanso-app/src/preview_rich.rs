@@ -8,6 +8,7 @@
 //! drawn shows as its code, with a badge saying why.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
@@ -42,12 +43,20 @@ pub struct Rich {
     pub note: Arc<Mutex<Option<String>>>,
     /// How much larger than the setting text is drawn: 1, except on a slide.
     pub text_scale: Mutex<f32>,
+    /// Whether the sketches in the note can't be drawn on: the note is
+    /// shared, in the trash, or read only for another reason.
+    pub sketch_read_only: AtomicBool,
 }
 
 impl Rich {
     /// How much larger than the setting text is drawn.
     pub fn text_scale(&self) -> f32 {
         self.text_scale.lock().map_or(1., |scale| *scale)
+    }
+
+    /// Whether the sketches in the note can't be drawn on.
+    pub fn sketch_read_only(&self) -> bool {
+        self.sketch_read_only.load(Ordering::Relaxed)
     }
 
     fn waker(&self) -> impl FnOnce() + Send + 'static {
@@ -117,6 +126,13 @@ pub fn block(node: &markdown_ast::Node, markdown: &str) -> Option<Block> {
         }
         Node::Code(code) if fence_is(&code.lang, "excalidraw") => {
             (Kind::Excalidraw, code.value.clone(), None)
+        }
+        // A Kanso sketch; any other `sketch` block is code.
+        Node::Code(code)
+            if fence_is(&code.lang, "sketch")
+                && kanso_render::canvas::sketch::parse(&code.value).is_some() =>
+        {
+            (Kind::Sketch, code.value.clone(), None)
         }
         Node::Code(code)
             if code
@@ -358,6 +374,9 @@ fn render_block(
         return div().into_any_element();
     };
     let at = node.source_range().map_or(0, |r| r.start) as u64;
+    if block.kind == Kind::Sketch {
+        return crate::sketch_view::element(block, at, rich, window, cx);
+    }
     let source = match &block.file {
         Some(id) => match scene_file(id, rich, cx) {
             Some(Some(scene)) => scene,

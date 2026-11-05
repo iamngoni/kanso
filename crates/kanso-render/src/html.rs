@@ -492,6 +492,19 @@ fn collect(
                 app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
             },
         ),
+        // A Kanso sketch (any other `sketch` block is code, below).
+        Node::Code(code)
+            if fence_is(&code.lang, "sketch")
+                && crate::canvas::sketch::parse(&code.value).is_some() =>
+        {
+            block(
+                draw(Kind::Sketch, &code.value),
+                "kanso-drawing",
+                &|failure| {
+                    app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
+                },
+            )
+        }
         Node::Code(code) if code.lang.as_deref().is_some_and(crate::is_plugin_language) => {
             let language = code.lang.as_deref().unwrap_or_default().trim();
             block(

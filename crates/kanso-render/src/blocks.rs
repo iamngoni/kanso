@@ -68,6 +68,15 @@ pub enum Block {
         kind: FigureKind,
         svg: Svg,
     },
+    /// An inline sketch (a `sketch` fence): its ID in the note, its box in
+    /// points, whether it has any ink yet, and the drawing of it.
+    Sketch {
+        id: String,
+        width: u32,
+        height: u32,
+        empty: bool,
+        svg: Svg,
+    },
     /// An Excalidraw scene with nothing in it yet.
     EmptyDrawing,
     /// A source that couldn't be drawn: its code, with a badge saying why
@@ -646,6 +655,21 @@ impl<'a> Walk<'a> {
             }
             let outcome = self.draw(Kind::Excalidraw, &code.value);
             return self.figure(outcome, FigureKind::Drawing, lang, &code.value, copy);
+        }
+        if is("sketch")
+            && let Some(sketch) = crate::canvas::sketch::parse(&code.value)
+        {
+            let outcome = self.draw(Kind::Sketch, &code.value);
+            return match outcome {
+                Ok(svg) => Block::Sketch {
+                    id: sketch.kanso_sketch_id.clone().unwrap_or_default(),
+                    width: sketch.kanso_sketch.map_or(0, |s| s.w),
+                    height: sketch.kanso_sketch.map_or(0, |s| s.h),
+                    empty: sketch.live_strokes().next().is_none(),
+                    svg,
+                },
+                Err(failure) => failed(&failure, lang, &code.value, copy),
+            };
         }
         if let Some(plugin) = code
             .lang

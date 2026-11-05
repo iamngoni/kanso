@@ -997,7 +997,7 @@ struct Surface {
     minimap: Option<[f32; 4]>,
 }
 
-fn ink_hsla(color: &str, dark: bool) -> Hsla {
+pub(crate) fn ink_hsla(color: &str, dark: bool) -> Hsla {
     // A near-black pen on a dark page draws in the text colour, as the
     // export does (`pen::ink_color`).
     let palette = if dark {
@@ -1055,7 +1055,7 @@ fn edge_point(b: &canvas::Bounds, toward: (f64, f64)) -> (f64, f64) {
 
 /// A closed outline as one filled path, its corners rounded through the
 /// midpoints of its edges.
-fn fill_path(
+pub(crate) fn fill_path(
     polygon: &[[f64; 2]],
     origin: (f64, f64),
     to_px: &impl Fn(f64, f64) -> Point<Pixels>,

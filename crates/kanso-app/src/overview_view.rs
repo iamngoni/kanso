@@ -85,6 +85,8 @@ impl OverviewParts {
                 edits,
                 note: Arc::new(Mutex::new(None)),
                 text_scale: Mutex::new(1.),
+                // An overview shows notes; it never edits them.
+                sketch_read_only: std::sync::atomic::AtomicBool::new(true),
             }),
             _dead_links: dead_links,
             links,

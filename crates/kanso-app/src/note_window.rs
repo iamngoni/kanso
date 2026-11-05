@@ -35,7 +35,7 @@ use crate::note_menu::NoteCommand;
 use crate::theme::Colors;
 use crate::workspace::{
     AppState, CopyKansoLink, CopyNoteLink, Dictate, ExportNote, FocusEditor, FormatTable,
-    NewDrawing, NewNote, OpenCommandPalette, OpenNotePicker, PastePlainText, SaveNote,
+    InsertSketch, InsertSketchLarge, InsertSketchSmall, NewDrawing, NewNote, OpenCommandPalette, OpenNotePicker, PastePlainText, SaveNote,
     SearchAllNotes, ShowBacklinks, ShowEditor, ShowHistory, ShowLive, ShowPreview, ShowSplit,
     TogglePinned, TrashNote, UndoLastChange, Workspace,
 };
@@ -1013,6 +1013,21 @@ impl Render for NoteWindow {
             .on_action(cx.listener(|this, _: &NewDrawing, window, cx| {
                 this.editor
                     .update(cx, |editor, cx| editor.insert_drawing(window, cx));
+            }))
+            .on_action(cx.listener(|this, _: &InsertSketch, window, cx| {
+                this.editor.update(cx, |editor, cx| {
+                    editor.insert_sketch(kanso_core::canvas::sketch::SIZES[1], window, cx)
+                });
+            }))
+            .on_action(cx.listener(|this, _: &InsertSketchSmall, window, cx| {
+                this.editor.update(cx, |editor, cx| {
+                    editor.insert_sketch(kanso_core::canvas::sketch::SIZES[0], window, cx)
+                });
+            }))
+            .on_action(cx.listener(|this, _: &InsertSketchLarge, window, cx| {
+                this.editor.update(cx, |editor, cx| {
+                    editor.insert_sketch(kanso_core::canvas::sketch::SIZES[2], window, cx)
+                });
             }))
             .on_action(cx.listener(|this, _: &OpenInNewWindow, window, cx| {
                 this.run_command(NoteCommand::OpenInNewWindow, window, cx);

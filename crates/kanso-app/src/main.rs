@@ -40,6 +40,7 @@ mod canvas_state;
 #[cfg(test)]
 mod canvas_state_tests;
 mod canvas_view;
+mod sketch_view;
 mod capture;
 mod capture_cli;
 mod capture_voice;

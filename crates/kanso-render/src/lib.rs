@@ -153,6 +153,8 @@ pub enum Kind {
     Excalidraw,
     /// A fence in a language a plugin draws; see [`Job::plugin`].
     Plugin,
+    /// A `sketch` fence: an inline drawing's JSON.
+    Sketch,
 }
 
 /// One thing to draw.
@@ -237,6 +239,7 @@ pub fn render(job: &Job) -> Outcome {
         Kind::Mermaid => mermaid::render_with(job.mermaid, &job.source, &job.palette),
         Kind::Excalidraw => excalidraw::render(&job.source, &job.palette),
         Kind::Plugin => plugin::render(job),
+        Kind::Sketch => canvas::sketch::render(&job.source, &job.palette),
     }
 }
 

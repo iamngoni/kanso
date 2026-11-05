@@ -7,6 +7,7 @@
 //! chunks of a long note parses it, which runs off the main thread.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use gpui_kit::assets::IconName as Lucide;
@@ -69,6 +70,12 @@ pub enum PreviewEdit {
     Replace { source: String, replacement: String },
     /// A task box ticked or cleared.
     Task(TaskTick),
+    /// A sketch drawn on: the fence with this ID in the note becomes this
+    /// JSON, if it fits the caps.
+    Sketch { id: String, json: String },
+    /// "Open as canvas" (or "Copy as canvas" in a shared note) on the sketch
+    /// with this ID.
+    SketchToCanvas { id: String },
 }
 
 /// Where the preview's edits go.
@@ -157,6 +164,7 @@ impl Preview {
             edits: resizes.clone(),
             note: note.clone(),
             text_scale: Mutex::new(1.),
+            sketch_read_only: AtomicBool::new(false),
         });
         let edits = resizes.clone();
         let extensions = quote_extensions(
@@ -218,6 +226,9 @@ impl Preview {
             }
         });
         if changed.unwrap_or(false) {
+            // Another note's sketches are let go (their ink was handed to the
+            // editor before it left).
+            crate::sketch_view::keep_only(changed_id.as_deref(), cx);
             if let Ok(mut images) = self.images.lock() {
                 images.clear();
             }
@@ -434,6 +445,15 @@ impl Preview {
     pub fn set_readable(&mut self, readable: bool, cx: &mut Context<Self>) {
         if self.readable != readable {
             self.readable = readable;
+            cx.notify();
+        }
+    }
+
+    /// Whether the sketches in the note are read only (it is shared or in the
+    /// trash): they draw as pictures, and "Copy as canvas" makes a private
+    /// canvas of one.
+    pub fn set_sketch_read_only(&mut self, read_only: bool, cx: &mut Context<Self>) {
+        if self.rich.sketch_read_only.swap(read_only, Ordering::Relaxed) != read_only {
             cx.notify();
         }
     }

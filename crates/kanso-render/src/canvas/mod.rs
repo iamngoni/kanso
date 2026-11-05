@@ -10,6 +10,7 @@ pub mod excalidraw;
 pub mod geometry;
 pub mod obsidian;
 pub mod pen;
+pub mod sketch;
 
 use std::collections::HashMap;
 use std::fmt::Write as _;

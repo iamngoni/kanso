@@ -139,6 +139,13 @@ pub struct CanvasState {
     pub card_selection: Option<String>,
     /// The lasso loop being drawn, in canvas coordinates.
     pub lasso: Vec<(f64, f64)>,
+    /// The box of an inline sketch, which this state is when it has one:
+    /// ink outside it is ignored, and an edit that would pass the sketch's
+    /// size cap is taken back.
+    pub sketch: Option<canvas::Sketch>,
+    /// The sketch as it was when the gesture began, for taking back an edit
+    /// that passed the cap.
+    gesture_base: Option<Canvas>,
     live: Option<Live>,
     dragging: Option<Drag>,
     undo: Vec<Action>,
@@ -191,6 +198,8 @@ impl CanvasState {
             selection: Vec::new(),
             card_selection: None,
             lasso: Vec::new(),
+            sketch: None,
+            gesture_base: None,
             live: None,
             dragging: None,
             undo: Vec::new(),
@@ -198,6 +207,18 @@ impl CanvasState {
             card_drag: Action::default(),
             outlines: HashMap::new(),
         }
+    }
+
+    /// A state for an inline sketch: drawn inside its box, to its cap.
+    pub fn for_sketch(canvas: Canvas) -> Self {
+        let mut state = Self::new(canvas);
+        state.sketch = state.canvas.kanso_sketch;
+        state
+    }
+
+    /// Whether a sample is inside the sketch's box (always, off a sketch).
+    fn inside_box(&self, sample: &PenSample) -> bool {
+        self.sketch.is_none_or(|b| b.contains(sample.x, sample.y))
     }
 
     /// A state for a note's body; an empty canvas when it holds none. An
@@ -250,12 +271,17 @@ impl CanvasState {
     pub fn begin(&mut self, sample: PenSample, radius: f64, now: i64) -> Outcome {
         self.finish_gesture();
         self.card_selection = None;
+        self.gesture_base = self.sketch.is_some().then(|| self.canvas.clone());
         let tool = self.tool_for(&sample);
         match tool {
             Tool::Pen | Tool::Pencil | Tool::Marker | Tool::Highlighter => {
                 self.selection.clear();
                 self.live = Some(Live {
-                    points: vec![sample.point()],
+                    points: if self.inside_box(&sample) {
+                        vec![sample.point()]
+                    } else {
+                        Vec::new()
+                    },
                     tool,
                 });
                 Outcome::Nothing
@@ -296,8 +322,13 @@ impl CanvasState {
     /// samples are drawn for the frame only and never stored: pass them to
     /// [`CanvasState::live_outline`] instead.
     pub fn extend(&mut self, sample: PenSample, radius: f64, now: i64) -> Outcome {
-        if let Some(live) = &mut self.live {
-            live.points.push(sample.point());
+        if self.live.is_some() {
+            // Ink outside a sketch's box is ignored.
+            if self.inside_box(&sample)
+                && let Some(live) = &mut self.live
+            {
+                live.points.push(sample.point());
+            }
             return Outcome::Nothing;
         }
         match self.dragging.take() {
@@ -346,8 +377,24 @@ impl CanvasState {
         }
     }
 
-    /// Ends the gesture.
+    /// Ends the gesture. In a sketch, an edit that left it over its size cap
+    /// is taken back whole, and refused.
     pub fn end(&mut self, now: i64) -> Outcome {
+        let outcome = self.end_gesture(now);
+        let base = self.gesture_base.take();
+        if outcome == Outcome::Changed
+            && let Some(base) = base
+            && !canvas::sketch::fits(&self.canvas)
+        {
+            self.canvas = base;
+            self.undo.pop();
+            self.selection.clear();
+            return Outcome::Refused(Refused::Full);
+        }
+        outcome
+    }
+
+    fn end_gesture(&mut self, now: i64) -> Outcome {
         if let Some(live) = self.live.take() {
             return self.commit_stroke(live, now);
         }
