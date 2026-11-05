@@ -70,6 +70,11 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
         })?;
     let say: Say = Arc::new(|line| eprintln!("{line}"));
     let keys = kanso_server::KeyStore::open(store.clone())?;
+    if keys.list()?.iter().all(|row| row.revoked_at.is_some()) {
+        eprintln!(
+            "kanso serve: this library has no API keys, so every request is refused. Stop `kanso serve` and run `kanso api-key create --name <name>` to make one."
+        );
+    }
     let handle = kanso_server::spawn(store.clone(), server, keys);
     match handle.bind_result() {
         Ok(addr) => eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it."),

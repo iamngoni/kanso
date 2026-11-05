@@ -2045,7 +2045,7 @@ static COMMANDS: &[Command] = &[
         id: "settings-api",
         label: "Settings: Local API",
         label_when_pinned: None,
-        description: "Kanso's local API: its address, port, username and password, and the MCP endpoint.",
+        description: "Kanso's local API: its address, port, API keys, and the MCP endpoint.",
         icon: IconName::Plug,
         keywords: &[
             "preferences",

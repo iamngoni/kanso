@@ -6795,6 +6795,7 @@ fn snapshots() {
         if name.ends_with("-remove")
             || name.ends_with("-revoke")
             || name.ends_with("-api-key-new")
+            || name.ends_with("-api-key-shown")
             || name.ends_with("-plugin-developer")
         {
             plugin_shot.dialog_sample_y = Some(30.);
