@@ -167,6 +167,14 @@ class RustSessionRepository implements SessionRepository {
       attempt(_locks.takeSealedFilesNotice);
 
   @override
+  Future<Either<ApplicationError, String?>> takeSealFailureNotice() =>
+      attempt(_locks.takeSealFailureNotice);
+
+  @override
+  Future<Either<ApplicationError, LockCopyNotice?>> takeCopyNotice() =>
+      attempt(_locks.takeCopyNotice);
+
+  @override
   Future<Either<ApplicationError, FilesMigration>> filesMigration() =>
       attempt(_locks.filesMigration);
 

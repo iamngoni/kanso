@@ -1,6 +1,6 @@
 //! Attaching a photo or a PDF from the editor: where it goes in the text,
 //! that its file is readable, that Undo takes it out, and that a locked
-//! note and a file that is neither are refused.
+//! note that is still closed and a file that is neither are refused.
 
 mod common;
 
@@ -73,8 +73,42 @@ fn a_file_that_is_neither_is_refused_in_words_and_the_text_is_kept() {
     assert_eq!(session.snapshot().unwrap().text, "Kept");
 }
 
+/// An open locked note takes an attachment, as the desktop's does, and its
+/// save seals the file with the note: before, the phone refused it.
 #[test]
-fn a_locked_note_takes_no_attachment() {
+fn an_open_locked_note_takes_an_attachment_and_its_save_seals_it() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let id = note(&phone.library, "Secret", "Words");
+    phone
+        .library
+        .locks()
+        .lock_note(&id, LOCK_PASSWORD.into())
+        .unwrap();
+    let session = phone.library.edit(&id).unwrap();
+    session.attach(file("IMG.png", PNG)).unwrap();
+    let text = session.snapshot().unwrap().text;
+    let file_id = linked_id(&text);
+    session.flush().unwrap();
+
+    assert_eq!(
+        store.attachment_state(&file_id).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    let stored = store.note(&id).unwrap().unwrap();
+    assert!(stored.is_locked());
+    assert!(stored.body.is_empty(), "no text beside the lock");
+    let listed = kanso_core::model::note_files_from_extra(&stored.extra).unwrap();
+    assert!(listed.iter().any(|entry| entry.file == file_id));
+    assert_eq!(phone.library.attachment(&file_id).unwrap().bytes, PNG);
+    // Closed again: the file is not readable.
+    phone.library.locks().lock().unwrap();
+    assert_eq!(phone.library.attachment(&file_id), Err(KansoError::Locked));
+}
+
+/// A note that locked while its session was open takes nothing more.
+#[test]
+fn a_note_that_closed_takes_no_attachment() {
     let phone = lone_phone();
     let id = note(&phone.library, "Secret", "Words");
     phone
@@ -83,12 +117,9 @@ fn a_locked_note_takes_no_attachment() {
         .lock_note(&id, LOCK_PASSWORD.into())
         .unwrap();
     let session = phone.library.edit(&id).unwrap();
+    phone.library.locks().lock().unwrap();
     let refused = session.attach(file("IMG.png", PNG));
-    assert!(
-        matches!(refused, Err(KansoError::Invalid { .. })),
-        "{refused:?}"
-    );
-    assert_eq!(session.snapshot().unwrap().text, "Words");
+    assert!(refused.is_err(), "{refused:?}");
 }
 
 proptest! {

@@ -3,4 +3,12 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 /// Where removing a lock is.
-enum RemoveStatus { idle, working, done, failed }
+enum RemoveStatus {
+  idle,
+  working,
+  done,
+  failed,
+
+  /// Cancel stopped it before it changed anything: the note is still locked.
+  stopped,
+}

@@ -521,17 +521,24 @@ impl Library {
                 Ok(false) => {}
             }
         }
-        let view = held(&self.inner.keys).reveal(note, Some(&self.inner.store));
+        // Without the store: this runs under the session's lock, and a note
+        // that was plain a moment ago but whose notebook was locked since
+        // would be sealed (files and all) with that lock held. It shows
+        // plain this once, and the next open above seals it.
+        let view = held(&self.inner.keys).reveal(note, None);
         if view == LockView::Open {
             let locks = self.locks();
             locks.cache_note_file_keys_for_note(note);
+            // A note an older Kanso locked has its files sealed as it opens,
+            // as on the desktop. The session's lock is not held here.
             if note.is_locked()
                 && !note
                     .extra
                     .contains_key(kanso_core::model::KANSO_FILES_FIELD)
                 && let Err(error) = locks.migrate_note_attachments(note)
             {
-                eprintln!("kanso: locked notes: couldn't seal an attachment list: {error}");
+                locks.remember_seal_failure(error.to_string());
+                eprintln!("kanso: locked notes: couldn't seal an attachment list");
             }
         }
         view

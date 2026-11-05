@@ -54,5 +54,8 @@ abstract class NoteState with _$NoteState {
 
     /// Why reading failed, while [status] is failed.
     ApplicationError? error,
+
+    /// What could not be sealed when an older locked note opened, if any.
+    String? openNotice,
   }) = _NoteState;
 }

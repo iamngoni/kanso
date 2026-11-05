@@ -23,8 +23,8 @@ pub use kanso_mobile::{
     InvitationRow, JoinRow, KansoError, LibraryOverview, LinkTarget, LinkedProviderRow, ListPlace,
     ListQuery, ListShape, LiveBatch, LiveDocBlock, LiveDocBlockKind, LiveDocLink, LiveDocLinkKind,
     LiveDocMarker, LiveDocMarkerKind, LiveDocStyle, LiveDocStyleKind, LiveDocWidget, LiveDocument,
-    LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime, LockEvent, LockReason, LockState,
-    LockStatus, LockSummary, LockedInfo, LoopAction, LoopProposal, LoopScan, MadeNote,
+    LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime, LockCopyNotice, LockEvent, LockReason,
+    LockState, LockStatus, LockSummary, LockedInfo, LoopAction, LoopProposal, LoopScan, MadeNote,
     MeaningResult, MemberRow, MentionSpan, MigrationOutcome, MonthGrid, NewNote, NoteChange,
     NoteList, NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow,
     OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PaletteDto,
@@ -476,6 +476,12 @@ pub enum _SealPhase {
     Preparing,
     Sealing,
     Locking,
+}
+
+#[frb(mirror(LockCopyNotice))]
+pub struct _LockCopyNotice {
+    pub removed: bool,
+    pub copied: u32,
 }
 
 #[frb(mirror(LockSummary))]

@@ -16,6 +16,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::{Map, Value, json};
 
 use crate::doc::Attachment;
+use crate::unseal_model::Unsealing;
 use crate::validate::{Refs, normalize, strip_reserved};
 use crate::{Change, Origin, Result, Store, StoreError, schema};
 
@@ -829,6 +830,16 @@ impl Store {
     /// Only this path may keep a link to a sealed file still owned by another
     /// locked note; ordinary plain-note writes retain the sealed-file guard.
     pub fn unlock_note(&self, body: Value) -> Result<WriteResult> {
+        self.unlock_note_in(body, |_, _| Ok(()))
+    }
+
+    /// [`Store::unlock_note`], with `first` run in the same transaction
+    /// before the note is checked and written.
+    fn unlock_note_in(
+        &self,
+        body: Value,
+        first: impl FnOnce(&Transaction, &mut Vec<Change>) -> Result<()>,
+    ) -> Result<WriteResult> {
         let Value::Object(fields) = body else {
             return Err(StoreError::Invalid("Expected a JSON object.".into()));
         };
@@ -848,6 +859,7 @@ impl Store {
             {
                 return Err(StoreError::Conflict);
             }
+            first(tx, changes)?;
             let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
             for file_id in shown_file_ids(body) {
                 let sealed: bool = tx.query_row(
@@ -934,66 +946,41 @@ impl Store {
     /// The plaintext must fit the ordinary attachment limit; the file's
     /// history and OCR text are dropped with the container.
     pub fn put_unsealed_file(&self, file: FileMeta, plaintext: Attachment) -> Result<WriteResult> {
-        check_attachment_size(&file.content_type, &plaintext.data).map_err(StoreError::Invalid)?;
-        let lock = checked_file_lock(&file)?;
-        let Value::Object(mut fields) = serde_json::to_value(file)? else {
-            return Err(StoreError::Invalid("Expected a JSON object.".into()));
-        };
-        let id = fields
-            .get("_id")
-            .and_then(Value::as_str)
-            .map(str::to_owned)
-            .ok_or_else(|| StoreError::Invalid("The file has no ID.".into()))?;
-        let given_rev = fields
-            .remove("_rev")
-            .and_then(|v| v.as_str().map(str::to_owned));
-        self.write(|tx, changes| {
-            let previous = load_row(tx, &id)?;
-            let Some(prev) = previous.as_ref().filter(|p| !p.deleted) else {
-                return Err(StoreError::NotFound);
+        self.write(|tx, changes| unseal_in(tx, changes, file, plaintext))
+    }
+
+    /// Takes a locked note's lock off, files and all, in one transaction:
+    /// the `unsealing.copies` are created, the `unsealing.files` turned back
+    /// into plain files, and `body`, the plain note, written as
+    /// [`Store::unlock_note`] writes it. Either all of it happens or none:
+    /// a crash or a failure at any point leaves the note locked with every
+    /// file still sealed, so a locked note never lists a file that is
+    /// already plain, and no plain copy is left behind.
+    pub fn unlock_note_unsealing(&self, body: Value, unsealing: Unsealing) -> Result<WriteResult> {
+        let Unsealing { files, copies } = unsealing;
+        let mut made = Vec::with_capacity(copies.len());
+        for copy in copies {
+            let Value::Object(fields) = copy else {
+                return Err(StoreError::Invalid("Expected a JSON object.".into()));
             };
-            if prev.doc_type != DocType::File
-                || FileLock::from_extra(&prev.fields).as_ref() != Some(&lock)
-                || given_rev.as_deref() != Some(prev.rev.as_str())
-            {
-                return Err(StoreError::Conflict);
+            made.push(fields);
+        }
+        self.unlock_note_in(body, |tx, changes| {
+            for fields in made {
+                put_in(
+                    tx,
+                    changes,
+                    DocType::File,
+                    fields,
+                    Put::Upsert,
+                    Origin::Ui,
+                    PutRules::default(),
+                )?;
             }
-            fields.remove(FILE_LOCK_FIELD);
-            fields.remove(OCR_FIELD);
-            fields.remove(kanso_core::model::PDF_OCR_FIELD);
-            fields.insert(UNSEALED_FIELD.into(), json!({"seal": lock.seal}));
-            let mut normalized = normalize(
-                DocType::File,
-                &id,
-                fields,
-                Some(&prev.fields),
-                now_ms(),
-                Refs::Check(tx),
-            )?;
-            normalized.insert("contentLength".into(), plaintext.data.len().into());
-            normalized.insert("md5digest".into(), plaintext.md5_hex().into());
-            tx.execute(
-                "INSERT INTO blobs (file_id, md5, data) VALUES (?1, ?2, ?3)
-                 ON CONFLICT (file_id) DO UPDATE SET md5 = excluded.md5, data = excluded.data",
-                params![id, plaintext.md5_hex(), plaintext.data],
-            )?;
-            let rev = next_rev(previous.as_ref(), &Value::Object(normalized.clone()))?;
-            store_row(
-                tx,
-                &id,
-                DocType::File,
-                &rev,
-                false,
-                &normalized,
-                previous.as_ref(),
-                Synced::Keep,
-                Origin::Ui,
-                changes,
-            )?;
-            tx.execute("DELETE FROM revisions WHERE doc_id = ?", [&id])?;
-            tx.execute("DELETE FROM file_text WHERE file_id = ?", [&id])?;
-            FORGOT_TEXT.set(true);
-            Ok(WriteResult { id, rev })
+            for (file, plaintext) in files {
+                unseal_in(tx, changes, file, plaintext)?;
+            }
+            Ok(())
         })
     }
 
@@ -1060,8 +1047,8 @@ impl Store {
     /// marker or replace a sealed file's bytes — the ordinary [`Store::put`]
     /// path refuses both — so the app's lock steps seal through here. The
     /// stored `contentLength` and `md5digest` describe the container, and
-    /// the container must fit [`MAX_SEALED_ATTACHMENT`]: the 10 MiB
-    /// plaintext limit plus the container's overhead. The write-ahead log is
+    /// the container must fit [`MAX_SEALED_ATTACHMENT`]: the 50 MiB PDF
+    /// limit (the largest plaintext) plus the container's overhead. The write-ahead log is
     /// checkpointed after the write ([`Store::write`]), as for a locked
     /// note's forgotten text, so the plaintext the container replaced
     /// doesn't linger there.
@@ -1244,6 +1231,75 @@ struct PutRules<'a> {
     /// True only for the deliberate unlock of a note: a plain note may keep
     /// a link to a sealed file another locked note still owns.
     allow_sealed_note_links: bool,
+}
+
+/// Turns sealed file `file` back into a plain file holding `plaintext`,
+/// inside transaction `tx` (what [`Store::put_unsealed_file`] writes).
+fn unseal_in(
+    tx: &Transaction,
+    changes: &mut Vec<Change>,
+    file: FileMeta,
+    plaintext: Attachment,
+) -> Result<WriteResult> {
+    check_attachment_size(&file.content_type, &plaintext.data).map_err(StoreError::Invalid)?;
+    let lock = checked_file_lock(&file)?;
+    let Value::Object(mut fields) = serde_json::to_value(file)? else {
+        return Err(StoreError::Invalid("Expected a JSON object.".into()));
+    };
+    let id = fields
+        .get("_id")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| StoreError::Invalid("The file has no ID.".into()))?;
+    let given_rev = fields
+        .remove("_rev")
+        .and_then(|v| v.as_str().map(str::to_owned));
+    let previous = load_row(tx, &id)?;
+    let Some(prev) = previous.as_ref().filter(|p| !p.deleted) else {
+        return Err(StoreError::NotFound);
+    };
+    if prev.doc_type != DocType::File
+        || FileLock::from_extra(&prev.fields).as_ref() != Some(&lock)
+        || given_rev.as_deref() != Some(prev.rev.as_str())
+    {
+        return Err(StoreError::Conflict);
+    }
+    fields.remove(FILE_LOCK_FIELD);
+    fields.remove(OCR_FIELD);
+    fields.remove(kanso_core::model::PDF_OCR_FIELD);
+    fields.insert(UNSEALED_FIELD.into(), json!({"seal": lock.seal}));
+    let mut normalized = normalize(
+        DocType::File,
+        &id,
+        fields,
+        Some(&prev.fields),
+        now_ms(),
+        Refs::Check(tx),
+    )?;
+    normalized.insert("contentLength".into(), plaintext.data.len().into());
+    normalized.insert("md5digest".into(), plaintext.md5_hex().into());
+    tx.execute(
+        "INSERT INTO blobs (file_id, md5, data) VALUES (?1, ?2, ?3)
+             ON CONFLICT (file_id) DO UPDATE SET md5 = excluded.md5, data = excluded.data",
+        params![id, plaintext.md5_hex(), plaintext.data],
+    )?;
+    let rev = next_rev(previous.as_ref(), &Value::Object(normalized.clone()))?;
+    store_row(
+        tx,
+        &id,
+        DocType::File,
+        &rev,
+        false,
+        &normalized,
+        previous.as_ref(),
+        Synced::Keep,
+        Origin::Ui,
+        changes,
+    )?;
+    tx.execute("DELETE FROM revisions WHERE doc_id = ?", [&id])?;
+    tx.execute("DELETE FROM file_text WHERE file_id = ?", [&id])?;
+    FORGOT_TEXT.set(true);
+    Ok(WriteResult { id, rev })
 }
 
 /// [`Store::put_keeping`] inside the writer's transaction.

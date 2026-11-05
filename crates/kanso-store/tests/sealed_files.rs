@@ -7,8 +7,8 @@ use base64::Engine as _;
 use kanso_core::DocType;
 use kanso_core::model::{
     FILE_LOCK_FIELD, FileLock, KANSO_FILES_FIELD, LOCK_FIELD, MAX_ATTACHMENT_SIZE,
-    MAX_SEALED_ATTACHMENT, NoteFile, OCR_FIELD, SEALED_FILE_CONTENT_TYPE, SEALED_FILE_NAME,
-    UNSEALED_FIELD,
+    MAX_SEALED_ATTACHMENT, NoteFile, OCR_FIELD, PDF_OCR_FIELD, SEALED_FILE_CONTENT_TYPE,
+    SEALED_FILE_NAME, UNSEALED_FIELD,
 };
 use kanso_store::{Attachment, AttachmentState, Origin, Put, Store, StoreError};
 use proptest::prelude::*;
@@ -627,8 +627,12 @@ fn sealing_and_unsealing_drop_ocr_history_and_transition_markers() {
 
     let sealed = container(b"sealed image");
     seal(&store, &id, &sealed);
-    let meta = store.file_meta(&id).unwrap().unwrap();
+    let mut meta = store.file_meta(&id).unwrap().unwrap();
     let expected_seal = FileLock::from_extra(&meta.extra).unwrap().seal;
+    // A sealed file's decrypted metadata can still contain scan text from
+    // its pre-seal contents; unlocking must not restore that text.
+    meta.extra
+        .insert(PDF_OCR_FIELD.into(), json!({"text": "secret scan words"}));
     assert!(meta.extra.get(OCR_FIELD).is_none(), "{:?}", meta.extra);
     assert_eq!(store.image_text(&id).unwrap(), None);
     assert!(
@@ -645,6 +649,7 @@ fn sealing_and_unsealing_drop_ocr_history_and_transition_markers() {
     let plain = store.get(&id).unwrap().unwrap();
     assert_eq!(plain.fields[UNSEALED_FIELD]["seal"], expected_seal);
     assert!(plain.fields.get(OCR_FIELD).is_none());
+    assert!(plain.fields.get(PDF_OCR_FIELD).is_none());
     assert_eq!(store.image_text(&id).unwrap(), None);
     assert!(store.revisions(&id).unwrap().is_empty());
 
