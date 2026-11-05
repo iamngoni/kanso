@@ -83,9 +83,11 @@ impl From<StoreError> for KansoError {
             StoreError::GuardFailed => KansoError::storage(
                 "The library is no longer bound to the account this started with.",
             ),
-            StoreError::Sqlite(_) | StoreError::Json(_) | StoreError::Io(_) => {
-                KansoError::storage(err.to_string())
-            }
+            StoreError::Sqlite(_)
+            | StoreError::Json(_)
+            | StoreError::Io(_)
+            | StoreError::WrongKey
+            | StoreError::NoEncryption => KansoError::storage(err.to_string()),
         }
     }
 }
