@@ -16,6 +16,9 @@
 //! edits), [`embed`] (the fence that shows a canvas in a note), [`merge`] (private sync), [`text`] (summary and search text) and
 //! [`sketch`] (inline sketches in a Markdown note).
 
+mod batch;
+#[cfg(test)]
+mod batch_tests;
 mod bounds;
 mod edit;
 #[cfg(test)]
@@ -43,6 +46,10 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
 
+pub use batch::{
+    Applied, Batch, Context as BatchContext, MAX_OPS, NewStroke, Op, Refusal,
+    SHARED_ATTACHMENT_CARDS, SHARED_ATTACHMENT_REFUSAL, Stale, StrokeId, apply as apply_batch,
+};
 pub use bounds::Bounds;
 pub use edit::{
     Action, CardChange, MIN_SAMPLE_DISTANCE, Refused, StreamTarget, StrokeRef, in_polygon,

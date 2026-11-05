@@ -1224,6 +1224,26 @@ impl NoteEditor {
         self.lock = note
             .as_mut()
             .map_or(LockView::Plain, |note| crate::locked::reveal(note, cx));
+        // A note an older Kanso locked has its pictures and files sealed
+        // before it shows, as on the phone; its text then links any sealed
+        // copy made. A file that can't be sealed is named, and the note
+        // opens anyway.
+        if self.lock == LockView::Open
+            && let Some(sealed) = note
+                .as_mut()
+                .and_then(|note| crate::locked::seal_on_open(note, cx))
+        {
+            if matches!(&sealed, crate::locked::SealedOnOpen::Sealed(counts) if counts.sealed + counts.copied > 0)
+            {
+                self.said_files_sealed(cx);
+            }
+            if let Some(message) = crate::seal_migration::opened_words(&sealed) {
+                cx.emit(EditorEvent::Told {
+                    message,
+                    stays: matches!(sealed, crate::locked::SealedOnOpen::Failed(_)),
+                });
+            }
+        }
         self.interrupted = note
             .as_ref()
             .filter(|_| self.lock == LockView::Plain)

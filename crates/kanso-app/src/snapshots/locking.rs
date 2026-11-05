@@ -92,3 +92,90 @@ pub(super) fn lock_interrupted(
     })
     .unwrap();
 }
+
+/// Seal Attachments of Locked Notes: the prompt at the first launch, with
+/// the notes open so it counts the attachments and their size.
+pub(super) fn seal_prompt(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use kanso_engine::lock::files::migrate::{Pending, Scan};
+    let pending = Pending {
+        legacy: 4,
+        unsealed: 0,
+        stopped: 0,
+    };
+    let scan = Scan {
+        notes: 4,
+        unopened: 0,
+        summary: summary(),
+    };
+    cx.update_window(window, |_, window, cx| {
+        crate::seal_migration::open_prompt(
+            crate::seal_migration::prompt_words(&pending, Some(&scan)),
+            true,
+            window,
+            cx,
+        );
+    })
+    .unwrap();
+}
+
+/// The same prompt with the notes closed: the notes are counted, the
+/// attachments wait for the password.
+pub(super) fn seal_prompt_closed(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use kanso_engine::lock::files::migrate::Pending;
+    let pending = Pending {
+        legacy: 4,
+        unsealed: 0,
+        stopped: 0,
+    };
+    cx.update_window(window, |_, window, cx| {
+        crate::seal_migration::open_prompt(
+            crate::seal_migration::prompt_words(&pending, None),
+            true,
+            window,
+            cx,
+        );
+    })
+    .unwrap();
+}
+
+/// The progress sheet of the pass, seven of twelve files sealed.
+pub(super) fn seal_progress(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update_window(window, |_, window, cx| {
+        let summary = summary();
+        let sheet = crate::lock_flow::open_sheet(
+            "Sealing attachments",
+            crate::lock_flow::sheet_line(&summary),
+            &summary,
+            window,
+            cx,
+        );
+        sheet.update(cx, |sheet, cx| {
+            sheet.show(
+                Progress {
+                    phase: Phase::Sealing,
+                    done: 7,
+                    total: summary.files,
+                    bytes_done: 49 * 1024 * 1024,
+                    bytes_total: summary.bytes,
+                },
+                cx,
+            )
+        });
+    })
+    .unwrap();
+}
