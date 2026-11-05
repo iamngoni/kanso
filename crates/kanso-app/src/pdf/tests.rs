@@ -230,6 +230,7 @@ fn page_one_draws_as_a_texture(cx: &mut TestAppContext) {
         "the picture is not where the marks are"
     );
     assert!(has(cx, &f, "pdf-page-label"));
+    assert!(has(cx, &f, "pdf-export"), "the reader has no export action");
     assert!(!has(cx, &f, "pdf-error"));
     let image = cx.read(|cx| f.reader.read(cx).page_texture(0)).unwrap();
     let bytes = image.as_bytes(0).unwrap();

@@ -234,6 +234,18 @@ impl KansoLibrary {
         self.0.pdf_ink_clear(&note_id, &base_rev, &file, page)
     }
 
+    /// The phone export hook is feature-flagged off until its isolated
+    /// renderer boundary is chosen and reviewed (PR #310).
+    #[frb(sync)]
+    pub fn pdf_export_enabled(&self) -> bool {
+        self.0.pdf_export_enabled()
+    }
+
+    /// Reserved for the eventual phone renderer; fails closed while disabled.
+    pub fn pdf_export_copy(&self, note_id: String, file: String) -> Result<Vec<u8>, KansoError> {
+        self.0.pdf_export_copy(&note_id, &file)
+    }
+
     pub fn create_linked_note(
         &self,
         title: String,

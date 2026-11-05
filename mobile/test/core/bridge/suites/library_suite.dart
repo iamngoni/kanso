@@ -286,6 +286,15 @@ void librarySuite(OpenLibrary open) {
       },
     );
 
+    test('phone PDF export is present as a disabled bridge hook', () async {
+      final library = await open();
+      expect(library.pdfExportEnabled(), isFalse);
+      await expectLater(
+        library.pdfExportCopy(noteId: 'note:unused', file: 'file:unused'),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+    });
+
     test(
       "a new note takes its list's place and the preferred notebook",
       () async {
