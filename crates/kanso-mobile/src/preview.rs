@@ -91,6 +91,7 @@ impl Renderer {
                         size: options.size,
                         highlight: page.highlight,
                         app: Some(page.mode),
+                        notes: None,
                     },
                 )
             })
@@ -650,10 +651,14 @@ fn preview_of<R>(
     let offset = i64::from(options.utc_offset_secs);
     let chip = move |url: &str| due_chip(url, now_ms() + offset * 1000);
     let colors = CodeColors::new(&options.code);
+    // The canvas a `canvas` fence names; a locked one is found without its
+    // text being read.
+    let canvases = |note: &str| library.embed_note(note);
     let mode = AppMode {
         tasks: &tasks,
         query: Some(&views),
         due: Some(&chip),
+        notes: Some(&canvases),
     };
     let attachments = |file: &str| resolved_attachments.get(file).cloned();
     Ok(draw(&PreviewSource {

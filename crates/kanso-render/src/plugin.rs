@@ -128,6 +128,7 @@ pub(crate) fn render(job: &Job) -> Outcome {
         width,
         height,
         baseline: None,
+        notices: Vec::new(),
     })
 }
 

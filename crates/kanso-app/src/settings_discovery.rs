@@ -1,6 +1,6 @@
 //! Settings › General › Discovery: the switches for
 //! the features that find notes by their words (`related.rs`, `ocr.rs`,
-//! `ink_ocr.rs`),
+//! `pdf/index.rs`, `ink_ocr.rs`),
 //! and where each stands.
 
 use gpui_kit::assets::IconName as Lucide;
@@ -11,6 +11,7 @@ use gpui_kit::*;
 
 use crate::ink_ocr::{self, InkText};
 use crate::ocr::{self, ImageText};
+use crate::pdf::index::{self as pdf_index, PdfText};
 use crate::related::{self, Related, Status};
 use crate::settings::{Row, SettingsView, section};
 use crate::theme::Colors;
@@ -108,6 +109,39 @@ pub fn sections(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
         )
     };
     rows.push(image_row);
+
+    let pdf_row = if pdf_index::supported() {
+        let reading = cx
+            .try_global::<PdfText>()
+            .map(|s| s.status.clone())
+            .unwrap_or_default();
+        let detail = match reading {
+            pdf_index::Status::Indexing { left } if discovery.pdf_text && left > 0 => format!(
+                "Reading PDFs… {} to go.",
+                crate::text_stats::format_count(left)
+            ),
+            pdf_index::Status::Waiting { left } if discovery.pdf_text => format!(
+                "Kanso's PDF reader isn't working right now. It will try again soon; {} to go.",
+                crate::text_stats::format_count(left)
+            ),
+            _ => format!(
+                "Reads the words in PDFs you attach, on {device}, so search finds the notes they're in. Turning this off forgets them."
+            ),
+        };
+        Row::new(Lucide::FileText, "Search text in PDFs")
+            .detail(detail)
+            .trailing(
+                div().debug_selector(|| "pdf-text".into()).child(
+                    Switch::new("pdf-text")
+                        .checked(discovery.pdf_text)
+                        .on_click(|on, _, cx| pdf_index::set_enabled(*on, cx)),
+                ),
+            )
+    } else {
+        Row::new(Lucide::FileText, "Search text in PDFs")
+            .detail("Kanso couldn't find its PDF reader, so the words in PDFs can't be searched.")
+    };
+    rows.push(pdf_row);
     rows.push(ink_row(&discovery, device, cx));
     vec![section("Discovery", rows, colors)]
 }

@@ -15,6 +15,7 @@ pub mod contain;
 pub mod fixtures;
 #[cfg(feature = "test-support")]
 pub mod hostile;
+pub mod invert;
 pub mod link;
 pub mod model;
 pub mod protocol;

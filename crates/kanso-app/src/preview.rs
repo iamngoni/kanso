@@ -158,6 +158,7 @@ impl Preview {
             wake,
             store: store.clone(),
             edits: resizes.clone(),
+            links: links.clone(),
             note: note.clone(),
             text_scale: Mutex::new(1.),
         });
@@ -258,6 +259,14 @@ impl Preview {
         // player reads `opened_files` too.
         if locked_away {
             self.player.update(cx, |player, cx| player.unload(cx));
+        }
+    }
+
+    /// Note or notebook `id` changed: a canvas this preview embeds may have
+    /// been locked, trashed or redrawn, so it is read again and drawn anew.
+    pub fn canvas_changed(&mut self, id: &str, cx: &mut Context<Self>) {
+        if crate::preview_canvas::forget(id, &self.shown) {
+            self.drawings_ready(cx);
         }
     }
 
@@ -725,8 +734,8 @@ const PICTURE: &str = "kanso-picture";
 const FRONT_MATTER: &str = "kanso-front-matter";
 /// Changes when [`quote_extensions`] parses differently, so a text view
 /// re-parses its note. 3: math, diagrams and drawings. 4: due-date chips.
-/// 5: query views. 6: front matter hidden.
-const QUOTE_PARSER_REVISION: u64 = 6;
+/// 5: query views. 6: front matter hidden. 7: embedded canvases.
+const QUOTE_PARSER_REVISION: u64 = 7;
 
 /// Front matter, drawn as nothing: the Properties section shows it.
 fn front_matter_node(node: &markdown_ast::Node) -> Option<MarkdownNode> {
