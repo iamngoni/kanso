@@ -2601,6 +2601,74 @@ fn a_locked_note_shows_no_properties(cx: &mut TestAppContext) {
     assert_eq!(vcx.debug_bounds("inspector-properties"), None);
 }
 
+/// A note an older Kanso locked (no `kansoFiles`) has its pictures and
+/// files sealed when it opens with a key the session holds, before it
+/// shows, as the phone does (#44, step 7): not only at its next save.
+#[gpui_kit::test]
+fn opening_a_note_locked_before_seals_its_attachments_before_it_shows(cx: &mut TestAppContext) {
+    use base64::Engine as _;
+    use kanso_sync::lock::{Envelope, LockKey, LockPassword};
+
+    let f = setup(cx);
+    let book = f.store.books().unwrap()[0].id.clone();
+    let file = f
+        .store
+        .put(
+            DocType::File,
+            json!({"name": "a.png", "contentType": "image/png",
+                   "_attachments": {"index": {"content_type": "image/png",
+                       "data": base64::engine::general_purpose::STANDARD.encode(b"plain picture")}}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let text = format!("Private\n![](inkdrop://{file})\n");
+    let id = f
+        .store
+        .put(
+            DocType::Note,
+            json!({"title": "Old lock", "body": "", "bookId": book}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let key = LockKey::create(
+        &LockPassword::new("correct horse").unwrap(),
+        kanso_sync::KdfParams::TEST,
+    )
+    .unwrap();
+    let mut note = f.store.note(&id).unwrap().unwrap();
+    Envelope::store(Some(&key.seal(&id, &text)), &mut note.extra);
+    f.store
+        .lock_note(serde_json::to_value(&note).unwrap())
+        .unwrap();
+    assert_eq!(
+        f.store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    cx.update(|cx| crate::locked::LockKeys::add(key, cx));
+
+    f.select(cx, &id);
+
+    assert_eq!(
+        f.store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed,
+        "sealed on open, with no save"
+    );
+    let stored = f.store.note(&id).unwrap().unwrap();
+    assert!(stored.is_locked());
+    assert_eq!(
+        kanso_core::model::note_files_from_extra(&stored.extra)
+            .unwrap()
+            .len(),
+        1
+    );
+    let shown = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(shown.contains(&file), "the note opens: {shown}");
+}
+
 #[gpui_kit::test]
 fn a_query_view_draws_a_table_in_the_preview(cx: &mut TestAppContext) {
     use crate::config::ViewMode;

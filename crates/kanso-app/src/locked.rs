@@ -72,6 +72,13 @@ impl LockKeys {
         Self::get(cx).is_some_and(|keys| keys.0.is_unlocked())
     }
 
+    /// Every key this session holds.
+    pub(crate) fn all(cx: &App) -> Vec<Arc<LockKey>> {
+        Self::get(cx)
+            .map(|keys| keys.0.keys().to_vec())
+            .unwrap_or_default()
+    }
+
     pub(crate) fn fitting(cx: &App, envelope: &Envelope) -> Option<Arc<LockKey>> {
         Self::get(cx)?.0.fitting(envelope)
     }
@@ -158,6 +165,38 @@ pub fn reveal(note: &mut Note, cx: &mut App) -> LockView {
     match LockKeys::get(cx) {
         Some(keys) => keys.0.reveal(note, store.as_deref()),
         None => kanso_engine::lock::Session::default().reveal(note, store.as_deref()),
+    }
+}
+
+/// What opening a note an older Kanso locked did to its pictures and files,
+/// which [`seal_on_open`] seals before the note shows (#44, step 7).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SealedOnOpen {
+    /// Sealed (or copied, or found sealed already): the counts.
+    Sealed(kanso_engine::lock::files::Counts),
+    /// Something couldn't be sealed, in words: the note opens anyway, and
+    /// what wasn't sealed stays as it was.
+    Failed(String),
+}
+
+/// Seals the files of `note`, opened with a key this session holds, when an
+/// older Kanso locked it (it has no list): before it shows, as the phone
+/// does on open. `note.body` then links any sealed copy made, and its
+/// revision is the one written. `None` when there is nothing to do.
+// no-prop-test: delegates to kanso_engine::lock::files::migrate::seal_on_open, tested there.
+pub(crate) fn seal_on_open(note: &mut Note, cx: &mut App) -> Option<SealedOnOpen> {
+    use kanso_engine::lock::files::migrate;
+    if !migrate::is_legacy(note) {
+        return None;
+    }
+    let envelope = Envelope::from_extra(&note.extra)?.ok()?;
+    let key = LockKeys::fitting(cx, &envelope)?;
+    let store = cx.try_global::<AppState>()?.store.clone();
+    let files = crate::attachments::FileKeys::of(cx);
+    match migrate::seal_on_open(&store, files.book(), note, &key) {
+        Ok(Some(counts)) => Some(SealedOnOpen::Sealed(counts)),
+        Ok(None) => None,
+        Err(err) => Some(SealedOnOpen::Failed(err.to_string())),
     }
 }
 

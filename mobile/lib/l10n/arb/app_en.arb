@@ -8849,6 +8849,176 @@
   "@lockInterruptedFailed": {
     "description": "Said when finishing or undoing a stopped lock failed."
   },
+  "lockFilesNoticeDismiss": "Dismiss",
+  "@lockFilesNoticeDismiss": {
+    "description": "Closes the notice about the attachments of locked notes."
+  },
+  "lockMigrationTitle": "Seal attachments of locked notes",
+  "@lockMigrationTitle": {
+    "description": "The title of the sheet that seals the attachments of notes locked before attachments were sealed."
+  },
+  "lockMigrationPrompt": "Attachments of your locked notes aren't sealed yet. Enter your lock password to seal them now.",
+  "@lockMigrationPrompt": {
+    "description": "What the first-launch prompt says."
+  },
+  "lockMigrationNotes": "{count, plural, =1{1 locked note still has pictures and files stored in plain form.} other{{count} locked notes still have pictures and files stored in plain form.}}",
+  "@lockMigrationNotes": {
+    "description": "How many locked notes still have attachments that are not sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationCounted": "{count, plural, =1{1 attachment ({size}) will be sealed.} other{{count} attachments ({size}) will be sealed.}}",
+  "@lockMigrationCounted": {
+    "description": "How many attachments, and how much, sealing will do, when the notes are open.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockMigrationShared": "{count, plural, =1{1 attachment is also used by another note: the locked note gets its own sealed copy, and the other note keeps the original.} other{{count} attachments are also used by other notes: each locked note gets its own sealed copy, and the other notes keep theirs.}}",
+  "@lockMigrationShared": {
+    "description": "Says that attachments an unlocked note also shows are copied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationUncounted": "Kanso counts them, and their size, once the password opens the notes.",
+  "@lockMigrationUncounted": {
+    "description": "Said when the notes are closed and the attachments cannot be counted yet."
+  },
+  "lockMigrationSealNow": "Seal now",
+  "@lockMigrationSealNow": {
+    "description": "The button that starts sealing."
+  },
+  "lockMigrationLater": "Later",
+  "@lockMigrationLater": {
+    "description": "Leaves sealing for later; a quiet reminder stays."
+  },
+  "lockMigrationPasswordMessage": "Type your lock password. Kanso seals the attachments of every locked note it opens.",
+  "@lockMigrationPasswordMessage": {
+    "description": "Explains why the lock password is asked before sealing."
+  },
+  "lockMigrationSealing": "Sealing attachments",
+  "@lockMigrationSealing": {
+    "description": "The title of the progress sheet while the attachments of locked notes are sealed."
+  },
+  "lockMigrationStoppedTitle": "Sealing didn't finish",
+  "@lockMigrationStoppedTitle": {
+    "description": "The title when an earlier sealing pass stopped part way."
+  },
+  "lockMigrationStoppedMessage": "{count, plural, =1{1 locked note was left half done.} other{{count} locked notes were left half done.}} Some attachments are sealed, and none is lost. Finish sealing, or undo it to keep everything as it was.",
+  "@lockMigrationStoppedMessage": {
+    "description": "Explains a sealing pass that stopped part way.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationFinish": "Finish sealing",
+  "@lockMigrationFinish": {
+    "description": "Finishes a sealing pass that stopped."
+  },
+  "lockMigrationUndo": "Undo",
+  "@lockMigrationUndo": {
+    "description": "Undoes a sealing pass that stopped."
+  },
+  "lockMigrationDone": "{files, plural, =1{Sealed 1 attachment} other{Sealed {files} attachments}} in {notes, plural, =1{1 locked note} other{{notes} locked notes}}.",
+  "@lockMigrationDone": {
+    "description": "Said when sealing is done.",
+    "placeholders": {
+      "files": {
+        "type": "int"
+      },
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationNothing": "{notes, plural, =1{Checked 1 locked note: no attachments needed sealing.} other{Checked {notes} locked notes: no attachments needed sealing.}}",
+  "@lockMigrationNothing": {
+    "description": "Said when sealing found nothing to seal.",
+    "placeholders": {
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationCopies": "{count, plural, =1{1 attachment also used by another note has its own sealed copy.} other{{count} attachments also used by other notes have their own sealed copies.}}",
+  "@lockMigrationCopies": {
+    "description": "Said after sealing made copies of shared attachments.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationUnopened": "{count, plural, =1{1 locked note uses another lock password and was left as it is.} other{{count} locked notes use another lock password and were left as they are.}}",
+  "@lockMigrationUnopened": {
+    "description": "Said when some notes were not opened by the password.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationFailedNotes": "{count, plural, =1{1 locked note couldn't be sealed and stays as it was.} other{{count} locked notes couldn't be sealed and stay as they were.}}",
+  "@lockMigrationFailedNotes": {
+    "description": "Said when some notes could not be sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationStopped": "Sealing stopped. Open Settings, then Locked notes, to finish it.",
+  "@lockMigrationStopped": {
+    "description": "Said when Cancel stopped the sealing."
+  },
+  "lockMigrationUndone": "{count, plural, =1{Undone. 1 attachment is readable again, as before.} other{Undone. {count} attachments are readable again, as before.}}",
+  "@lockMigrationUndone": {
+    "description": "Said after a stopped sealing pass was undone.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationReminder": "{count, plural, =1{Attachments of 1 locked note aren't sealed yet.} other{Attachments of {count} locked notes aren't sealed yet.}}",
+  "@lockMigrationReminder": {
+    "description": "The quiet reminder shown until the attachments are sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSealAttachments": "Seal attachments of locked notes…",
+  "@settingsSealAttachments": {
+    "description": "Opens the sheet that seals the attachments of notes locked before attachments were sealed."
+  },
+  "settingsSealAttachmentsValue": "{count, plural, =1{1 note} other{{count} notes}}",
+  "@settingsSealAttachmentsValue": {
+    "description": "How many locked notes wait to have their attachments sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationClose": "Done",
+  "@lockMigrationClose": {
+    "description": "Closes the sheet that says how sealing the attachments of locked notes went."
+  },
   "lockFilesNotice": "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.",
   "@lockFilesNotice": {
     "description": "The one-time notice about notes locked before attachments were sealed, with what to do on other devices."

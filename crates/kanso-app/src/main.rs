@@ -193,6 +193,7 @@ mod resurface;
 mod review_queue;
 #[cfg(test)]
 mod review_tests;
+mod seal_migration;
 mod secrets;
 mod security_key_flow;
 mod selection;
