@@ -10,7 +10,7 @@ use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 use kanso_engine::recording_note::transcript_range;
-use kanso_engine::recording_speakers::{self, SpeakerName};
+use kanso_engine::recording_speakers::{self, SpeakerName, SpeakersError};
 
 use crate::dialogs::{self, Field, FormSpec, Progress, Submit};
 use crate::editor::NoteEditor;
@@ -38,9 +38,29 @@ pub fn nobody_words(has_transcript: bool) -> &'static str {
     }
 }
 
+/// Why the note `id` shown in the editor can't have its speakers renamed,
+/// if it can't: it is in the trash or tagged `#ai-exclude`, or gone. A
+/// locked note is the editor's to refuse: while its lock is open the words
+/// are in the editor (never read as plaintext from disk), and while it is
+/// closed the edit is refused there. Fails closed.
+pub fn refused(store: &kanso_store::Store, id: &str) -> Option<String> {
+    match recording_speakers::refusal(store, id) {
+        None | Some(SpeakersError::Locked) => None,
+        Some(why) => Some(why.to_string()),
+    }
+}
+
 /// Opens the sheet for the note shown in `editor`, or says why it can't.
 // no-prop-test: glue over `recording_speakers`, which has the properties.
 pub fn open(editor: Entity<NoteEditor>, window: &mut Window, cx: &mut App) {
+    let Some(note_id) = editor.read(cx).note_id().map(str::to_owned) else {
+        return;
+    };
+    let store = cx.global::<crate::workspace::AppState>().store.clone();
+    if let Some(why) = refused(&store, &note_id) {
+        window.push_notification(Notification::info(why), cx);
+        return;
+    }
     let body = editor.read(cx).body_text(cx).to_string();
     let found = recording_speakers::first_recording(&body);
     let names = found
@@ -52,11 +72,12 @@ pub fn open(editor: Entity<NoteEditor>, window: &mut Window, cx: &mut App) {
         window.push_notification(Notification::info(words), cx);
         return;
     };
-    show(editor, file_id, names, window, cx);
+    show(editor, note_id, file_id, names, window, cx);
 }
 
 fn show(
     editor: Entity<NoteEditor>,
+    note_id: String,
     file_id: String,
     names: Vec<SpeakerName>,
     window: &mut Window,
@@ -71,7 +92,7 @@ fn show(
         if asked.is_empty() {
             return finished(Ok(()));
         }
-        finished(apply(&editor, &file_id, &asked, window, cx))
+        finished(apply(&editor, &note_id, &file_id, &asked, window, cx))
     })
 }
 
@@ -85,11 +106,21 @@ fn finished(result: Result<(), String>) -> Submit {
 /// Writes the new names into the open note as one step.
 fn apply(
     editor: &Entity<NoteEditor>,
+    note_id: &str,
     file_id: &str,
     changes: &[(String, String)],
     window: &mut Window,
     cx: &mut App,
 ) -> Result<(), String> {
+    // The sheet's note, still: not another one opened meanwhile, and not
+    // one trashed or tagged #ai-exclude since.
+    if editor.read(cx).note_id() != Some(note_id) {
+        return Err("Another note is open now. Open Rename Speakers again on this one.".into());
+    }
+    let store = cx.global::<crate::workspace::AppState>().store.clone();
+    if let Some(why) = refused(&store, note_id) {
+        return Err(why);
+    }
     let body = editor.read(cx).body_text(cx).to_string();
     let renamed = recording_speakers::rename_many(&body, file_id, changes)
         .ok_or("The names in the note changed since this sheet opened. Open it again.")?;
@@ -115,12 +146,13 @@ pub fn open_for_snapshot(
     window: &mut Window,
     cx: &mut App,
 ) -> Entity<dialogs::FormView> {
-    show(editor, "file:snapshot".into(), names, window, cx)
+    let note_id = editor.read(cx).note_id().unwrap_or_default().to_owned();
+    show(editor, note_id, "file:snapshot".into(), names, window, cx)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{field_label, nobody_words};
+    use super::{field_label, nobody_words, refused};
     use kanso_engine::recording_speakers::SpeakerName;
     use proptest::prelude::*;
 
@@ -140,6 +172,57 @@ mod tests {
             prop_assert!(label.contains(&n.to_string()));
             prop_assert_eq!(label.ends_with("paragraph"), n == 1);
         }
+    }
+
+    #[test]
+    fn trashed_and_ai_exclude_notes_are_refused_and_a_locked_one_is_the_editors() {
+        use kanso_core::DocType;
+        use kanso_store::{Origin, Put, Store};
+        use serde_json::json;
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path().join("kanso.db")).unwrap();
+        let put = |fields: serde_json::Value| {
+            store
+                .put(DocType::Note, fields, Put::Upsert, Origin::Ui)
+                .unwrap()
+                .id
+        };
+        let book = store
+            .put(
+                DocType::Book,
+                json!({"name": "Work"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let plain = put(json!({"title": "A", "body": "x", "bookId": book}));
+        let trashed =
+            put(json!({"title": "B", "body": "x", "bookId": kanso_core::model::TRASH_BOOK_ID}));
+        let tag = store
+            .put(
+                DocType::Tag,
+                json!({"name": "ai-exclude"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let excluded = put(json!({"title": "C", "body": "x", "bookId": book, "tags": [tag]}));
+        let locked = put(json!({"title": "D", "body": "x", "bookId": book}));
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": locked, "kansoLock": {"salt": "abc"}}),
+                Put::Merge,
+                Origin::Sync,
+            )
+            .unwrap();
+        assert_eq!(refused(&store, &plain), None);
+        assert_eq!(refused(&store, &locked), None);
+        assert!(refused(&store, &trashed).is_some_and(|w| w.contains("trash")));
+        assert!(refused(&store, &excluded).is_some_and(|w| w.contains("#ai-exclude")));
+        assert!(refused(&store, "note:gone").is_some());
     }
 
     #[test]

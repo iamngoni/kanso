@@ -27,9 +27,9 @@ fn map(err: SpeakersError) -> KansoError {
 impl Library {
     /// The names before the paragraphs of note `id`'s first recording, in
     /// the order they first appear. Empty (not an error) when the note has
-    /// none to rename: no transcript, one that does not say who spoke, a
-    /// locked note or one in the trash. The shell shows the action only for
-    /// a note that has some.
+    /// none to rename: no transcript, or one that does not say who spoke. A
+    /// locked note, or one in the trash or tagged `#ai-exclude`, is refused
+    /// with why, so the sheet can say it.
     pub fn speaker_names(&self, id: &str) -> Result<Vec<SpeakerNameView>, KansoError> {
         guard(|| match offer(&self.inner.store, id) {
             Ok(offered) => Ok(offered
@@ -41,10 +41,7 @@ impl Library {
                 })
                 .collect()),
             Err(
-                SpeakersError::Missing
-                | SpeakersError::Locked
-                | SpeakersError::NoTranscript
-                | SpeakersError::NoSpeakers,
+                SpeakersError::Missing | SpeakersError::NoTranscript | SpeakersError::NoSpeakers,
             ) => Ok(Vec::new()),
             Err(other) => Err(map(other)),
         })

@@ -123,6 +123,41 @@ void main() {
     expect(find.text('Rename'), findsNothing);
   });
 
+  // no-prop-test: a note the core refuses (locked, trashed, #ai-exclude).
+  testWidgets('a refused note says why and offers no fields', (tester) async {
+    when(() => repository.names(any())).thenAnswer(
+      (_) async => const Left<ApplicationError, List<SpeakerNameView>>(
+        ApplicationError.locked(message: 'The note is locked.'),
+      ),
+    );
+    await pumpRouted(tester, sheet());
+    await tester.pumpAndSettle();
+    expect(find.textContaining('The note is locked.'), findsOneWidget);
+    expect(find.byType(KansoTextField), findsNothing);
+    expect(find.text('Rename'), findsNothing);
+  });
+
+  // no-prop-test: two taps while the write is on its way.
+  testWidgets('a second tap while renaming does not write twice', (
+    tester,
+  ) async {
+    when(() => repository.rename(any(), any())).thenAnswer((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      return const Right<ApplicationError, SpeakersRenamed>(
+        SpeakersRenamed(undo: 3),
+      );
+    });
+    await pumpRouted(tester, sheet());
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(KansoTextField).at(1), 'Priya');
+    await tester.tap(find.text('Rename'));
+    await tester.pump();
+    await tester.tap(find.text('Rename'), warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+    verify(() => repository.rename(any(), any())).called(1);
+  });
+
   for (final brightness in Brightness.values) {
     // no-prop-test: pixels.
     testWidgets('the sheet, ${brightness.name}', (tester) async {

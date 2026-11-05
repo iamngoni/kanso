@@ -94,7 +94,10 @@ fn nobody_to_rename_is_an_empty_list_and_a_locked_note_is_refused() {
             Origin::Sync,
         )
         .unwrap();
-    assert!(phone.library.speaker_names(&locked).unwrap().is_empty());
+    assert_eq!(
+        phone.library.speaker_names(&locked).unwrap_err(),
+        KansoError::Locked
+    );
     assert_eq!(
         phone
             .library
@@ -102,6 +105,54 @@ fn nobody_to_rename_is_an_empty_list_and_a_locked_note_is_refused() {
             .unwrap_err(),
         KansoError::Locked
     );
+}
+
+// no-prop-test: two fixed notes, one in the trash and one tagged #ai-exclude.
+#[test]
+fn trashed_and_ai_exclude_notes_are_refused_and_never_written() {
+    let phone = lone_phone();
+    let body = body_with(&[Some("Speaker 1"), Some("Speaker 2")]);
+    let trashed = note(&phone.library, "Trashed", &body);
+    let excluded = note(&phone.library, "Excluded", &body);
+    let store = Store::open(phone.path()).unwrap();
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": trashed, "bookId": kanso_core::model::TRASH_BOOK_ID}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let tag = store
+        .put(
+            DocType::Tag,
+            json!({"name": "ai-exclude"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": excluded, "tags": [tag]}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    for id in [&trashed, &excluded] {
+        assert!(matches!(
+            phone.library.speaker_names(id),
+            Err(KansoError::Invalid { .. })
+        ));
+        assert!(
+            phone
+                .library
+                .rename_speakers(id, vec![change("Speaker 1", "Priya")])
+                .is_err()
+        );
+        assert_eq!(store.note(id).unwrap().unwrap().body, body);
+    }
 }
 
 proptest! {

@@ -30,6 +30,11 @@ pub enum SpeakersError {
         "A locked note's transcript can't be renamed here. Open it on a computer where it is unlocked."
     )]
     Locked,
+    /// In the trash, or tagged `#ai-exclude`: renaming leaves it alone.
+    #[error(
+        "This note is in the trash or tagged #ai-exclude, so Kanso leaves its transcript alone."
+    )]
+    KeptOut,
     #[error("This note has no recording with a transcript.")]
     NoTranscript,
     #[error("This transcript doesn't say who spoke.")]

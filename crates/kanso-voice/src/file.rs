@@ -414,12 +414,16 @@ pub fn transcribe_parts(
 
 /// Works out who spoke when in a recording made of several `parts`, read
 /// as one timeline like [`transcribe_parts`]. The speaker models are in the
-/// folders `segmentation` and `embedding`. A two-track recording is listened
-/// to on its system-audio track only. `progress` hears how far it has got.
+/// folders `segmentation` and `embedding`. With `two_tracks` (a recording
+/// made in Kanso, microphone left and system audio right) a two-channel
+/// recording is listened to on its system-audio track only; any other file
+/// is listened to as its mix, every channel, as it was transcribed.
+/// `progress` hears how far it has got.
 // no-prop-test: runs the real models; `diarize::timeline`, `cluster` and
 // `assign` have the properties.
 pub fn diarize_parts(
     parts: Vec<Part>,
+    two_tracks: bool,
     total: Option<Duration>,
     segmentation: &std::path::Path,
     embedding: &std::path::Path,
@@ -430,7 +434,7 @@ pub fn diarize_parts(
     let mut samples_before = 0usize;
     for (source, extension) in parts {
         let base = time_at(samples_before);
-        decode_meeting(source, extension.as_deref(), cancel, &mut |samples, at| {
+        let mut sink = |samples: &[f32], at: Progress| {
             samples_before += samples.len();
             diarizer.push(samples, cancel)?;
             progress(Progress {
@@ -438,7 +442,12 @@ pub fn diarize_parts(
                 total,
             });
             Ok(())
-        })?;
+        };
+        if two_tracks {
+            decode_meeting(source, extension.as_deref(), cancel, &mut sink)?;
+        } else {
+            decode_pieces(source, extension.as_deref(), cancel, &mut sink)?;
+        }
     }
     diarizer.finish(cancel)
 }
@@ -585,6 +594,47 @@ mod tests {
         .unwrap();
         let (total, _) = labels(wav_lr(16_000, 16_000 * 40, 0.8, 0.1));
         assert_eq!(lengths.iter().sum::<usize>(), total);
+    }
+
+    /// The loudness of what the meeting decoder hands on, and of what the
+    /// plain one does.
+    fn heard(bytes: Vec<u8>) -> (f32, f32) {
+        let energy = |samples: &[f32]| samples.iter().map(|s| s * s).sum::<f32>();
+        let mut meeting = 0.;
+        decode_meeting(
+            from_bytes(bytes.clone()),
+            Some("wav"),
+            &AtomicBool::new(false),
+            &mut |samples, _| {
+                meeting += energy(samples);
+                Ok(())
+            },
+        )
+        .unwrap();
+        let mut mix = 0.;
+        decode_pieces(
+            from_bytes(bytes),
+            Some("wav"),
+            &AtomicBool::new(false),
+            &mut |samples, _| {
+                mix += energy(samples);
+                Ok(())
+            },
+        )
+        .unwrap();
+        (meeting, mix)
+    }
+
+    #[test]
+    fn telling_speakers_apart_hears_the_right_track_of_a_recording_and_all_of_a_file() {
+        // Speech only on the left (the microphone): the meeting track is
+        // silent, the mix is not. A dropped stereo file is diarized on the
+        // mix, so a voice on its left channel is never lost.
+        let (meeting, mix) = heard(wav_lr(16_000, 16_000 * 12, 0.8, 0.));
+        assert!(meeting < 1e-3, "{meeting}");
+        assert!(mix > 100., "{mix}");
+        let (meeting, _) = heard(wav_lr(16_000, 16_000 * 12, 0., 0.8));
+        assert!(meeting > 100., "{meeting}");
     }
 
     #[test]

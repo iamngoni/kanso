@@ -193,15 +193,22 @@ fn speaker_rows(cx: &mut Context<SettingsView>, on: bool, colors: &Colors) -> Ve
                         if on && missing {
                             speakers::start_download(cx);
                         }
+                        // Off stops a download on its way; what arrived is
+                        // kept, and Remove deletes it.
+                        if !on {
+                            speakers::cancel_download(cx);
+                        }
                     }),
             ),
         );
     let mut rows = vec![switch];
-    if on {
-        let state = cx
-            .try_global::<speakers::Speakers>()
-            .map(|s| s.model.clone())
-            .unwrap_or_default();
+    let state = cx
+        .try_global::<speakers::Speakers>()
+        .map(|s| s.model.clone())
+        .unwrap_or_default();
+    // Off, the models stay on disk until removed, so a downloaded pair
+    // keeps its row (and its Remove button) with the switch off too.
+    if speakers::model_row_shown(on, &state) {
         rows.push(speaker_model_row(&state, colors));
     }
     rows

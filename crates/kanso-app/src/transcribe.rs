@@ -472,14 +472,17 @@ fn run(mut job: Job, cx: &mut App) {
         _ => None,
     };
     let speaker_dirs = crate::speakers::ready(cx);
+    // Telling speakers apart reads the parts again; a sealed recording's
+    // opened bytes are kept for that only when it will happen.
+    let sealed_for_speakers = speaker_dirs.as_ref().and(sealed.clone());
     let telling = job.telling.clone();
     let (done_tx, done_rx) = async_channel::bounded(1);
     let spawned = std::thread::Builder::new()
         .name("kanso-transcribe".into())
         .spawn(move || {
             let result = match &source {
-                Source::Recording { file_ids, duration } => {
-                    read_parts(&store, file_ids, sealed.clone()).and_then(|parts| {
+                Source::Recording { file_ids, duration } => read_parts(&store, file_ids, sealed)
+                    .and_then(|parts| {
                         file::transcribe_parts(
                             parts,
                             Some(*duration),
@@ -487,8 +490,7 @@ fn run(mut job: Job, cx: &mut App) {
                             &cancel,
                             &mut |at| *progress.lock().unwrap() = at,
                         )
-                    })
-                }
+                    }),
                 _ => read_source(&store, &source).and_then(|(media, ext)| {
                     file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
                         *progress.lock().unwrap() = at;
@@ -504,12 +506,18 @@ fn run(mut job: Job, cx: &mut App) {
                 telling.store(true, Ordering::Relaxed);
                 *progress.lock().unwrap() = Progress::default();
                 let parts = match &source {
-                    Source::Recording { file_ids, .. } => read_parts(&store, file_ids, sealed),
+                    Source::Recording { file_ids, .. } => {
+                        read_parts(&store, file_ids, sealed_for_speakers)
+                    }
                     _ => read_source(&store, &source).map(|one| vec![one]),
                 };
                 let spoken = parts.and_then(|parts| {
                     file::diarize_parts(
                         parts,
+                        // Only Kanso's own recordings put the microphone
+                        // on the left and the meeting on the right; a
+                        // dropped file is heard whole.
+                        matches!(source, Source::Recording { .. }),
                         match &source {
                             Source::Recording { duration, .. } => Some(*duration),
                             _ => None,
@@ -561,6 +569,12 @@ fn run(mut job: Job, cx: &mut App) {
                     let spoken = match spoken {
                         Ok(spoken) => spoken,
                         Err(why) => {
+                            // A model that failed its check (or to load)
+                            // is looked at again, so Settings offers the
+                            // download instead of saying it is ready.
+                            if matches!(why, VoiceError::Model(_)) {
+                                crate::speakers::recheck(cx);
+                            }
                             notify(
                                 &job,
                                 Notification::info(format!(

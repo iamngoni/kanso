@@ -16,11 +16,11 @@ use ort::value::Tensor;
 
 use super::cluster::{THRESHOLD, cluster_weighted};
 use super::fbank::{BANDS, features};
-use super::model::{Diarization, EMBEDDING, SEGMENTATION};
+use super::model::{Diarization, EMBEDDING, SEGMENTATION, read_pinned};
 use super::powerset::{CLASSES, SPEAKERS, decode};
 use super::timeline::{FRAME_SAMPLES, FRAME_SECONDS, Window, turns};
 use crate::VoiceError;
-use crate::engine::open;
+use crate::engine::open_bytes;
 
 /// The segmentation model's window: ten seconds.
 const WINDOW: usize = 160_000;
@@ -68,12 +68,17 @@ pub struct Diarizer {
 impl Diarizer {
     /// Loads the models from the folders `segmentation` and `embedding`
     /// under the app's data folder, which hold [`SEGMENTATION`] and
-    /// [`EMBEDDING`].
-    // no-prop-test: loads real files; the ignored model test runs it.
+    /// [`EMBEDDING`]. Each file is read whole and its size and SHA-256
+    /// checked first; ONNX Runtime gets those same bytes, so a partial,
+    /// damaged or swapped file never loads.
+    // no-prop-test: loads real files; the ignored model test runs it, and
+    // `model::is_pinned` has the property.
     pub fn load(segmentation: &Path, embedding: &Path) -> Result<Diarizer, VoiceError> {
+        let segmentation_bytes = read_pinned(segmentation, &SEGMENTATION)?;
+        let embedding_bytes = read_pinned(embedding, &EMBEDDING)?;
         Ok(Diarizer {
-            segmentation: open(&segmentation.join(SEGMENTATION.name))?,
-            embedding: open(&embedding.join(EMBEDDING.name))?,
+            segmentation: open_bytes(SEGMENTATION.name, &segmentation_bytes)?,
+            embedding: open_bytes(EMBEDDING.name, &embedding_bytes)?,
             buffer: Vec::new(),
             buffer_start: 0,
             total: 0,

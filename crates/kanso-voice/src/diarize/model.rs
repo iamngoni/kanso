@@ -28,9 +28,12 @@ pub const SEGMENTATION: Pinned = Pinned {
     sha256: "d582f4b4c6b48205de7e0643c57df0df5615a3c176189be3fc461e9d18827b5d",
 };
 
-/// WeSpeaker's ResNet34 speaker embedding (Apache-2.0, trained on
-/// VoxCeleb), as ONNX: a stretch of one person's speech in, 256 numbers
-/// that are close for the same voice.
+/// WeSpeaker's ResNet34 speaker embedding, trained on VoxCeleb, as ONNX: a
+/// stretch of one person's speech in, 256 numbers that are close for the
+/// same voice. WeSpeaker's code is Apache-2.0, but its pretrained models
+/// take their dataset's licence, and VoxCeleb's is CC BY 4.0 (WeSpeaker's
+/// `docs/pretrained.md`, "Model License"), so the model is CC BY 4.0 and is
+/// credited in [`ATTRIBUTION`] like the speech model.
 pub const EMBEDDING: Pinned = Pinned {
     repository: "csukuangfj/speaker-embedding-models",
     revision: "0743f301363dec56491a490f6d6cbc9d67f9a3bf",
@@ -41,7 +44,48 @@ pub const EMBEDDING: Pinned = Pinned {
 };
 
 /// Who made the models, for the settings row beside the download.
-pub const ATTRIBUTION: &str = "Speaker segmentation: pyannote 3.0 (MIT), ONNX export by the sherpa-onnx project. Speaker embedding: WeSpeaker ResNet34 (Apache-2.0).";
+pub const ATTRIBUTION: &str = "Speaker segmentation: pyannote segmentation 3.0 by CNRS (MIT), ONNX export by the sherpa-onnx project. Speaker embedding: WeSpeaker ResNet34 trained on VoxCeleb (CC BY 4.0).";
+
+/// The speaker embedding's licence.
+pub const EMBEDDING_LICENSE_URL: &str = "https://creativecommons.org/licenses/by/4.0/";
+
+/// Whether `bytes` are exactly `pinned`'s file: its size and SHA-256. A
+/// cut-short download, a damaged file or a different model is not. Pure.
+pub fn is_pinned(bytes: &[u8], pinned: &Pinned) -> bool {
+    use sha2::{Digest as _, Sha256};
+    if bytes.len() as u64 != pinned.size {
+        return false;
+    }
+    let hash: String = Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    hash == pinned.sha256
+}
+
+/// The file of `pinned` in `dir`, read whole and checked before anything
+/// loads it: the bytes that are checked are the bytes that run, so a file
+/// swapped after the check is never the one loaded.
+// no-prop-test: reads a file; `is_pinned` has the property.
+pub fn read_pinned(dir: &std::path::Path, pinned: &Pinned) -> Result<Vec<u8>, crate::VoiceError> {
+    let path = dir.join(pinned.name);
+    let missing = || {
+        crate::VoiceError::Model(format!(
+            "the speaker model {} isn't the downloaded one. Download it again in Settings.",
+            pinned.name
+        ))
+    };
+    // Never read more than the pinned size (and one byte to tell it is longer).
+    let file = std::fs::File::open(&path).map_err(|_| missing())?;
+    let mut bytes = Vec::with_capacity(pinned.size as usize);
+    std::io::Read::read_to_end(&mut std::io::Read::take(file, pinned.size + 1), &mut bytes)
+        .map_err(|_| missing())?;
+    if is_pinned(&bytes, pinned) {
+        Ok(bytes)
+    } else {
+        Err(missing())
+    }
+}
 
 /// How many bytes both models download.
 pub const fn total_size() -> u64 {
@@ -83,5 +127,83 @@ impl Diarization {
             .map(|t| t.speaker)
             .collect::<std::collections::BTreeSet<_>>()
             .len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use proptest::test_runner::{FileFailurePersistence, RngSeed};
+    use sha2::{Digest as _, Sha256};
+
+    fn pinned_of(bytes: &[u8]) -> Pinned {
+        let hash: String = Sha256::digest(bytes)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        Pinned {
+            repository: "r",
+            revision: "v",
+            folder: "f",
+            name: "model.onnx",
+            size: bytes.len() as u64,
+            sha256: Box::leak(hash.into_boxed_str()),
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// Only the exact file passes: cut short, longer, or one byte
+        /// changed, it is refused.
+        #[test]
+        fn prop_only_the_pinned_bytes_pass(
+            bytes in proptest::collection::vec(any::<u8>(), 1..256),
+            at in any::<prop::sample::Index>(),
+            flip in 1u8..=255,
+        ) {
+            let pinned = pinned_of(&bytes);
+            prop_assert!(is_pinned(&bytes, &pinned));
+            prop_assert!(!is_pinned(&bytes[..bytes.len() - 1], &pinned));
+            let mut longer = bytes.clone();
+            longer.push(0);
+            prop_assert!(!is_pinned(&longer, &pinned));
+            let mut changed = bytes.clone();
+            let i = at.index(changed.len());
+            changed[i] ^= flip;
+            prop_assert!(!is_pinned(&changed, &pinned));
+        }
+    }
+
+    #[test]
+    fn a_partial_or_swapped_file_on_disk_is_never_read_as_the_model() {
+        let dir = tempfile::tempdir().unwrap();
+        let good = b"the real model bytes".to_vec();
+        let pinned = pinned_of(&good);
+        let path = dir.path().join(pinned.name);
+        assert!(read_pinned(dir.path(), &pinned).is_err(), "missing");
+        std::fs::write(&path, &good[..5]).unwrap();
+        assert!(read_pinned(dir.path(), &pinned).is_err(), "partial");
+        std::fs::write(&path, b"the fake model bytes").unwrap();
+        assert!(
+            read_pinned(dir.path(), &pinned).is_err(),
+            "same size, swapped"
+        );
+        std::fs::write(&path, &good).unwrap();
+        assert_eq!(read_pinned(dir.path(), &pinned).unwrap(), good);
+    }
+
+    #[test]
+    fn the_pinned_models_are_the_published_ones() {
+        assert_eq!(SEGMENTATION.revision.len(), 40);
+        assert_eq!(EMBEDDING.revision.len(), 40);
+        assert_eq!(total_size(), 28_071_056);
+        assert!(ATTRIBUTION.contains("MIT") && ATTRIBUTION.contains("CC BY 4.0"));
     }
 }

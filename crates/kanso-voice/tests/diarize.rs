@@ -40,6 +40,10 @@ fn two_people_taking_turns_are_two_voices() {
             file::from_path(&wav).unwrap(),
             wav.extension().map(|e| e.to_string_lossy().into_owned()),
         )],
+        // A file named `*.opus` is taken for a recording made in Kanso
+        // (microphone left, system audio right); anything else is a
+        // dropped file, heard as its mix.
+        wav.extension().is_some_and(|e| e == "opus"),
         None,
         &dir("KANSO_DIARIZE_SEGMENTATION_DIR"),
         &dir("KANSO_DIARIZE_EMBEDDING_DIR"),

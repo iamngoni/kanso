@@ -211,16 +211,32 @@ pub fn changes(names: &[SpeakerName], typed: &[String]) -> Vec<(String, String)>
         .collect()
 }
 
+/// Why note `id` may not have its speakers renamed, if it may not: it is
+/// gone, locked (its words are sealed), in the trash, or tagged
+/// `#ai-exclude`. Fails closed: a check that cannot be made refuses.
+pub fn refusal(store: &Store, id: &str) -> Option<SpeakersError> {
+    let note = match store.note(id) {
+        Ok(Some(note)) => note,
+        Ok(None) => return Some(SpeakersError::Missing),
+        Err(err) => return Some(err.into()),
+    };
+    if store.note_is_locked(id).unwrap_or(true) {
+        return Some(SpeakersError::Locked);
+    }
+    if note.book_id == TRASH_BOOK_ID || !crate::assist::eligible(store, id) {
+        return Some(SpeakersError::KeptOut);
+    }
+    None
+}
+
 /// The speakers of note `id`'s first recording, read from the store. Not
-/// for a locked note, whose words are sealed, and not for one in the trash.
+/// for a locked note, whose words are sealed, nor one in the trash or
+/// tagged `#ai-exclude` ([`refusal`]).
 pub fn offer(store: &Store, id: &str) -> Result<SpeakerOffer, SpeakersError> {
+    if let Some(why) = refusal(store, id) {
+        return Err(why);
+    }
     let note = store.note(id)?.ok_or(SpeakersError::Missing)?;
-    if store.note_is_locked(id)? {
-        return Err(SpeakersError::Locked);
-    }
-    if note.book_id == TRASH_BOOK_ID {
-        return Err(SpeakersError::Missing);
-    }
     let file_id = first_recording(&note.body).ok_or(SpeakersError::NoTranscript)?;
     let names = speakers(&note.body, &file_id);
     if names.is_empty() {
@@ -461,6 +477,68 @@ mod tests {
         assert!(matches!(
             offer(&store, "note:nope"),
             Err(SpeakersError::Missing)
+        ));
+    }
+
+    #[test]
+    fn locked_trashed_and_ai_exclude_notes_are_refused_and_left_unchanged() {
+        let (_dir, store, plain) = library(&meeting());
+        let book = store.note(&plain).unwrap().unwrap().book_id;
+        let put = |extra: serde_json::Value| {
+            let mut fields = json!({"title": "Meeting", "body": meeting(), "bookId": book});
+            fields
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            store
+                .put(DocType::Note, fields, Put::Upsert, Origin::Ui)
+                .unwrap()
+                .id
+        };
+        let locked = put(json!({}));
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": locked, "kansoLock": {"salt": "abc"}}),
+                Put::Merge,
+                Origin::Sync,
+            )
+            .unwrap();
+        let tag = store
+            .put(
+                DocType::Tag,
+                json!({"name": "ai-exclude"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let excluded = put(json!({"tags": [tag]}));
+        let trashed = put(json!({"bookId": TRASH_BOOK_ID}));
+        let rename = [("Speaker 1".to_owned(), "Priya".to_owned())];
+        assert!(refusal(&store, &plain).is_none());
+        assert!(matches!(offer(&store, &locked), Err(SpeakersError::Locked)));
+        assert!(matches!(
+            apply_renames(&store, &locked, &rename, Origin::Ui),
+            Err(SpeakersError::Locked)
+        ));
+        for id in [&excluded, &trashed] {
+            assert!(
+                matches!(offer(&store, id), Err(SpeakersError::KeptOut)),
+                "{id}"
+            );
+            assert!(matches!(
+                apply_renames(&store, id, &rename, Origin::Ui),
+                Err(SpeakersError::KeptOut)
+            ));
+        }
+        for id in [&locked, &excluded, &trashed] {
+            let body = store.note(id).unwrap().unwrap().body;
+            assert!(!body.contains("Priya"), "{id} was changed");
+        }
+        assert!(matches!(
+            refusal(&store, "note:missing"),
+            Some(SpeakersError::Missing)
         ));
     }
 

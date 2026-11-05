@@ -96,6 +96,14 @@ pub fn ready(cx: &App) -> Option<(PathBuf, PathBuf)> {
 // no-prop-test: glue; `Model::missing` has the tests.
 pub fn init(cx: &mut App) {
     cx.set_global(Speakers::default());
+    recheck(cx);
+}
+
+/// Checks the models on disk again (size and SHA-256), in the background,
+/// and says what it found: after a load refused a file, Settings offers the
+/// download again.
+// no-prop-test: glue; `Model::missing` has the tests.
+pub fn recheck(cx: &mut App) {
     let (segmentation, embedding) = dirs(&cx.global::<AppState>().data_dir);
     cx.spawn(async move |cx| {
         let missing = cx
@@ -107,7 +115,7 @@ pub fn init(cx: &mut App) {
             })
             .await;
         cx.update(|cx| {
-            let speakers = cx.global_mut::<Speakers>();
+            let speakers = cx.default_global::<Speakers>();
             if !matches!(speakers.model, ModelState::Downloading { .. }) {
                 speakers.model = match missing {
                     Ok(true) => ModelState::Ready,
@@ -220,6 +228,13 @@ pub fn remove_models(cx: &mut App) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Whether Settings shows the models' row: always while the setting is on,
+/// and with it off while the models still take room on this device (so
+/// they can be removed). Pure.
+pub fn model_row_shown(on: bool, state: &ModelState) -> bool {
+    on || matches!(state, ModelState::Ready | ModelState::Downloading { .. })
+}
+
 /// The settings row's title and line for `state`. Pure.
 pub fn model_words(state: &ModelState) -> (String, String) {
     let size = crate::settings_discovery::megabytes(total_size());
@@ -259,7 +274,7 @@ pub fn model_words(state: &ModelState) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{EMBEDDING, SEGMENTATION, model_words, total_size};
+    use super::{EMBEDDING, SEGMENTATION, model_row_shown, model_words, total_size};
     use crate::voice::ModelState;
     use kanso_voice::diarize;
     use proptest::prelude::*;
@@ -298,6 +313,22 @@ mod tests {
                 prop_assert!(!title.is_empty() && !detail.is_empty());
             }
             prop_assert!(model_words(&ModelState::Failed(why.clone())).1.contains(&why));
+        }
+
+        /// The models' row is there whenever the setting is on, and with it
+        /// off exactly when the models take room (so Remove is reachable).
+        #[test]
+        fn prop_downloaded_models_can_always_be_removed(on in any::<bool>(), done in 0u64..30_000_000) {
+            for state in [
+                ModelState::Unknown,
+                ModelState::Missing,
+                ModelState::Ready,
+                ModelState::Downloading { done, total: 28_071_056 },
+                ModelState::Failed("x".into()),
+            ] {
+                let takes_room = matches!(state, ModelState::Ready | ModelState::Downloading { .. });
+                prop_assert_eq!(model_row_shown(on, &state), on || takes_room);
+            }
         }
     }
 }

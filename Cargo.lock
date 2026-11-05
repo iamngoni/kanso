@@ -5065,7 +5065,9 @@ dependencies = [
  "regex",
  "rtrb",
  "rubato",
+ "sha2 0.11.1",
  "symphonia",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

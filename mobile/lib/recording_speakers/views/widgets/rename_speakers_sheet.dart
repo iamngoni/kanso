@@ -71,6 +71,10 @@ class _RenameSpeakersSheetState extends State<RenameSpeakersSheet> {
   List<TextEditingController> _controllers = <TextEditingController>[];
   String? _failure;
 
+  /// A rename is on its way: a second tap would ask again for names that
+  /// are already changed.
+  bool _busy = false;
+
   @override
   void initState() {
     super.initState();
@@ -115,6 +119,9 @@ class _RenameSpeakersSheetState extends State<RenameSpeakersSheet> {
   }
 
   Future<void> _rename() async {
+    if (_busy) {
+      return;
+    }
     final changes = speakerChanges(_names, <String>[
       for (final controller in _controllers) controller.text,
     ]);
@@ -124,10 +131,12 @@ class _RenameSpeakersSheetState extends State<RenameSpeakersSheet> {
     }
     final l10n = context.l10n;
     final undo = widget.undoNotice;
+    setState(() => _busy = true);
     final result = await widget.repository.rename(widget.noteId, changes);
     if (!mounted) {
       return;
     }
+    setState(() => _busy = false);
     result.fold(
       (error) => setState(() {
         _phase = SpeakersPhase.failed;
@@ -245,7 +254,7 @@ class _RenameSpeakersSheetState extends State<RenameSpeakersSheet> {
           Expanded(
             child: KansoButton(
               label: l10n.recordingSpeakersRename,
-              onPressed: _rename,
+              onPressed: _busy ? null : _rename,
             ),
           ),
         ],

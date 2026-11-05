@@ -37,7 +37,7 @@ pub fn intra_threads(cores: usize) -> usize {
 }
 
 // no-prop-test: ONNX Runtime setup; the model test runs it.
-pub(crate) fn open(path: &Path) -> Result<Session, VoiceError> {
+fn open(path: &Path) -> Result<Session, VoiceError> {
     let fail = |e: String| VoiceError::Model(format!("{}: {e}", path.display()));
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
     Session::builder(environment()?)
@@ -47,6 +47,21 @@ pub(crate) fn open(path: &Path) -> Result<Session, VoiceError> {
         .with_intra_threads(intra_threads(cores))
         .map_err(|e| fail(e.to_string()))?
         .commit_from_file(path)
+        .map_err(|e| fail(e.to_string()))
+}
+
+/// [`open`] for a model already in memory (read and checked by the caller).
+// no-prop-test: ONNX Runtime setup; the model test runs it.
+pub(crate) fn open_bytes(name: &str, bytes: &[u8]) -> Result<Session, VoiceError> {
+    let fail = |e: String| VoiceError::Model(format!("{name}: {e}"));
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    Session::builder(environment()?)
+        .map_err(|e| fail(e.to_string()))?
+        .with_optimization_level(GraphOptimizationLevel::Level3)
+        .map_err(|e| fail(e.to_string()))?
+        .with_intra_threads(intra_threads(cores))
+        .map_err(|e| fail(e.to_string()))?
+        .commit_from_memory(bytes)
         .map_err(|e| fail(e.to_string()))
 }
 

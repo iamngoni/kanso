@@ -19,6 +19,8 @@ kanso-audio.workspace = true
 ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "download-binaries", "tls-rustls", "api-24"] }
 # The speaker embedding's filterbank features.
 realfft = "3.5"
+# The speaker models' SHA-256, checked on the bytes that are loaded.
+sha2.workspace = true
 # Spaces before punctuation come out of the transcript as onnx-asr does it.
 regex.workspace = true
 # The microphone callback hands samples over without locking or allocating.
@@ -41,3 +43,4 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 # Reads the spoken fixture in the model test.
 hound = "3.5"
 proptest.workspace = true
+tempfile.workspace = true

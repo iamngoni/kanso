@@ -148,6 +148,45 @@ mod tests {
             }
         }
 
+        /// On one track, with two or more voices: two paragraphs share a
+        /// name exactly when one voice said both, names first appear in the
+        /// order 1, 2, 3..., and a paragraph where nobody was heard has no
+        /// name. With fewer than two voices nobody is named at all.
+        #[test]
+        fn prop_names_follow_the_voices_in_order(
+            voices in proptest::collection::vec(proptest::option::of(0usize..5), 1..40),
+        ) {
+            let starts: Vec<Duration> = (0..voices.len()).map(|i| secs(i as f64 * 10.)).collect();
+            let turns = voices
+                .iter()
+                .enumerate()
+                .filter_map(|(i, v)| v.map(|v| turn(i as f64 * 10., i as f64 * 10. + 10., v)))
+                .collect();
+            let diarization = Diarization { turns, seconds: voices.len() as f64 * 10. };
+            let out = names(&starts, &diarization, &vec![None; voices.len()]);
+            let distinct: std::collections::BTreeSet<usize> = voices.iter().flatten().copied().collect();
+            if distinct.len() < 2 {
+                prop_assert!(out.iter().all(Option::is_none));
+                return Ok(());
+            }
+            let mut first_seen: Vec<String> = Vec::new();
+            for (i, name) in out.iter().enumerate() {
+                prop_assert_eq!(name.is_some(), voices[i].is_some());
+                if let Some(name) = name
+                    && !first_seen.contains(name)
+                {
+                    first_seen.push(name.clone());
+                }
+                for j in 0..i {
+                    if let (Some(a), Some(b)) = (voices[i], voices[j]) {
+                        prop_assert_eq!(a == b, out[i] == out[j]);
+                    }
+                }
+            }
+            let expected: Vec<String> = (1..=distinct.len()).map(speaker_name).collect();
+            prop_assert_eq!(first_seen, expected);
+        }
+
         /// Renaming the model's ids (any bijection) changes no label.
         #[test]
         fn prop_the_models_ids_do_not_matter(
