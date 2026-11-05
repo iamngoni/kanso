@@ -34,6 +34,7 @@ mod ocr;
 mod overview;
 mod passage_embed;
 mod passages;
+mod pdf_ocr;
 mod pdf_text;
 mod pdf_text_model;
 mod plugin;
@@ -105,6 +106,7 @@ pub use passage_embed::{
     EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
 };
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
+pub use pdf_ocr::{OcrProgress, PdfToOcr};
 pub use pdf_text_model::{MAX_PAGE_CHARS, MAX_PDF_CHARS, PdfToIndex};
 pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,

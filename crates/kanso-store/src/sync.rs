@@ -433,6 +433,7 @@ impl Store {
             .chain(crate::embed::TABLES)
             .chain(crate::ocr::TABLES)
             .chain(crate::pdf_text::TABLES)
+            .chain(crate::pdf_ocr::TABLES)
             .chain(crate::triage::TABLES)
             .chain(crate::entities::TABLES)
             .chain(crate::overview::TABLES)
@@ -648,6 +649,7 @@ impl Store {
                 && fields.contains_key(kanso_core::model::FILE_LOCK_FIELD)
             {
                 fields.remove(kanso_core::model::OCR_FIELD);
+                fields.remove(kanso_core::model::PDF_OCR_FIELD);
             }
             let requested_unseal = fields
                 .remove(UNSEALED_FIELD)

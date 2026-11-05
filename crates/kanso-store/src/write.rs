@@ -896,6 +896,7 @@ impl Store {
             }
             fields.remove(FILE_LOCK_FIELD);
             fields.remove(OCR_FIELD);
+            fields.remove(kanso_core::model::PDF_OCR_FIELD);
             fields.insert(UNSEALED_FIELD.into(), json!({"seal": lock.seal}));
             let mut normalized = normalize(
                 DocType::File,
@@ -1044,6 +1045,7 @@ impl Store {
                 return Err(StoreError::Conflict);
             }
             fields.remove(OCR_FIELD);
+            fields.remove(kanso_core::model::PDF_OCR_FIELD);
             fields.remove(UNSEALED_FIELD);
             let mut normalized = normalize(
                 DocType::File,
@@ -1264,6 +1266,7 @@ fn put_in(
                 }
             }
             merged.remove(OCR_FIELD);
+            merged.remove(kanso_core::model::PDF_OCR_FIELD);
         } else {
             merged.remove(FILE_LOCK_FIELD);
         }
