@@ -142,6 +142,31 @@ fn redact_hides_keys_and_keeps_the_rest() {
     assert_eq!(redact("short words only"), "short words only");
 }
 
+/// Standard base64 has slashes in it, so its parts between them are short;
+/// it is hidden whole. Paths with long, spaced or UUID folder names stay.
+#[test]
+fn redact_hides_standard_base64_and_keeps_paths() {
+    let keys = [
+        // 32 bytes, padded, as `base64` writes them.
+        "q3Xb/9kL2mN+fA0e/Rt7uV1wYz4sPj8hGc6dEi5oBnK=",
+        // Unpadded, no `+`.
+        "q3Xb/9kL2mNafA0e/Rt7uV1wYz4sPj8hGc6dEi5oBnK",
+    ];
+    for key in keys {
+        let out = redact(&format!("the key {key} is wrong"));
+        assert_eq!(out, "the key [hidden] is wrong", "{key}");
+    }
+    for path in [
+        "/Users/me/Library/Application Support/Kanso/config.json",
+        "/Users/me/Library/Containers/0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0/Data/kanso.db",
+        "/Volumes/Backup Disk 2024/Projects/Kanso Library Q3/Notes2024Final/config.json",
+        "/Users/me/Code/C++/kanso-data/config.json",
+    ] {
+        let text = format!("reading {path}: expected value at line 3");
+        assert_eq!(redact(&text), text, "{path}");
+    }
+}
+
 /// The screen survives the line it travels in.
 #[test]
 fn the_screen_round_trips_as_json() {
@@ -151,7 +176,20 @@ fn the_screen_round_trips_as_json() {
 }
 
 fn secret() -> impl Strategy<Value = String> {
-    prop_oneof!["[0-9a-f]{64}", "[A-Za-z0-9+_=-]{44}", "kcl_[A-Za-z0-9]{40}",]
+    prop_oneof![
+        "[0-9a-f]{64}",
+        "[A-Za-z0-9+_=-]{44}",
+        "kcl_[A-Za-z0-9]{40}",
+        // Standard base64 of 32 bytes: slashes, and one `=` at the end.
+        "[A-Za-z0-9+/]{43}=",
+    ]
+}
+
+/// A path made of ordinary folder names: each shorter than a key, with
+/// single spaces, dots and dashes in them.
+fn ordinary_path() -> impl Strategy<Value = String> {
+    prop::collection::vec("[A-Za-z0-9_-]{1,8}([ .][A-Za-z0-9_-]{1,8}){0,2}", 1..10)
+        .prop_map(|parts| format!("/{}", parts.join("/")))
 }
 
 fn why() -> impl Strategy<Value = (String, String)> {
@@ -196,6 +234,21 @@ proptest! {
         for piece in screen.texts() {
             prop_assert!(!piece.contains(&key), "secret in {piece}");
         }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x0070_6174_6873),
+        ..ProptestConfig::with_cases(512)
+    })]
+
+    /// Invariant: a path of ordinary folder names, in an error's text,
+    /// comes through redaction unchanged.
+    #[test]
+    fn prop_redact_keeps_ordinary_paths(path in ordinary_path()) {
+        let text = format!("reading {path}: permission denied");
+        prop_assert_eq!(redact(&text), text);
     }
 }
 

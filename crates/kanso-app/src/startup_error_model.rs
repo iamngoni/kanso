@@ -83,32 +83,92 @@ impl Screen {
     }
 }
 
-/// Text from outside Kanso with anything that looks like a key taken out:
-/// a run of 32 or more letters, digits and `_ - + =` (a hex or base64 key,
-/// a `kcl_` API key, a key ID) becomes `[hidden]`. A path is split at its
-/// slashes, so a long folder name is the only ordinary text this touches.
+/// Text from outside Kanso with anything that looks like a key taken out.
+///
+/// A word is a run of letters, digits and `_ - + = /`. Each part of it
+/// between slashes that is 32 or more characters long (a hex or base64url
+/// key, a `kcl_` API key) becomes `[hidden]`, unless it is a UUID: a folder
+/// can be named by one, and Kanso keeps no secret in that shape. A whole
+/// word of 32 or more characters with a slash in it is standard base64, not
+/// a path, when it ends in `=`, or when it doesn't start with a slash or go
+/// on a path after one space or dot (`Application Support/…`) and has a `+` or
+/// mixes digits with upper- and lowercase letters; it becomes `[hidden]`
+/// too. A path keeps its ordinary folder names.
 pub fn redact(text: &str) -> String {
-    const RUN: usize = 32;
     let mut out = String::with_capacity(text.len());
-    let mut run = String::new();
-    let flush = |run: &mut String, out: &mut String| {
-        if run.chars().count() >= RUN {
-            out.push_str("[hidden]");
-        } else {
-            out.push_str(run);
-        }
-        run.clear();
-    };
+    let mut word = String::new();
+    // Whether the last word was in a path and one space or dot came after
+    // it: the next word is then the rest of the path (`Application
+    // Support/…`, `v1.2/…`).
+    let mut path_goes_on = false;
+    let mut between = 0;
     for c in text.chars() {
-        if c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '+' | '=') {
-            run.push(c);
-        } else {
-            flush(&mut run, &mut out);
-            out.push(c);
+        if in_word(c) {
+            word.push(c);
+            continue;
         }
+        if !word.is_empty() {
+            let in_path = path_goes_on && between == 1;
+            out.push_str(&redact_word(&word, in_path));
+            path_goes_on = in_path || word.contains('/');
+            between = 0;
+            word.clear();
+        }
+        if matches!(c, ' ' | '.') {
+            between += 1;
+        } else {
+            path_goes_on = false;
+        }
+        out.push(c);
     }
-    flush(&mut run, &mut out);
+    out.push_str(&redact_word(&word, path_goes_on && between == 1));
     out
+}
+
+/// How long a run must be to count as a key.
+const KEY_RUN: usize = 32;
+
+fn in_word(c: char) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '+' | '=' | '/')
+}
+
+fn redact_word(word: &str, in_path: bool) -> String {
+    if word.len() >= KEY_RUN && word.contains('/') && looks_like_base64(word, in_path) {
+        return "[hidden]".to_owned();
+    }
+    word.split('/')
+        .map(|part| {
+            if part.len() >= KEY_RUN && !is_uuid(part) {
+                "[hidden]"
+            } else {
+                part
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// Whether `word`, which has a slash, reads as standard base64 rather than
+/// a path. `in_path`: it goes on a path that had a space in it.
+fn looks_like_base64(word: &str, in_path: bool) -> bool {
+    let has = |test: fn(&char) -> bool| word.chars().any(|c| test(&c));
+    word.ends_with('=')
+        || (!word.starts_with('/')
+            && !in_path
+            && (word.contains('+')
+                || (has(char::is_ascii_digit)
+                    && has(char::is_ascii_uppercase)
+                    && has(char::is_ascii_lowercase))))
+}
+
+/// `8-4-4-4-12` hex digits.
+fn is_uuid(part: &str) -> bool {
+    let groups: Vec<&str> = part.split('-').collect();
+    groups.len() == 5
+        && groups
+            .iter()
+            .zip([8, 4, 4, 4, 12])
+            .all(|(group, len)| group.len() == len && group.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
 /// The kind of failure an error from opening the library is.
