@@ -90,6 +90,46 @@ impl Engine {
         })
     }
 
+    /// Changes the open shared canvas without a view: `change` is given the
+    /// canvas as the CRDT has it now and returns the canvas it wants and
+    /// whatever it made; the difference is written to the CRDT as one batch
+    /// of updates, so people drawing on it see it arrive like a
+    /// collaborator's. This is how the local API and MCP edit a shared
+    /// canvas. An open view is left as it is: it takes the change in at its
+    /// next sync. `change` runs under the note's lock and must not call the
+    /// engine.
+    pub fn edit_canvas<T>(
+        &self,
+        share_id: &str,
+        change: impl FnOnce(&Canvas) -> std::result::Result<(Canvas, T), String>,
+    ) -> Result<T> {
+        let loaded = self.loaded(share_id)?;
+        let mut loaded = lock(&loaded);
+        let Some(doc) = loaded.doc.canvas() else {
+            return Err(not_a_canvas());
+        };
+        if loaded.ended || loaded.reloading {
+            return Err(CollabError::Refused(
+                "The canvas is not ready to change: try again in a moment.".into(),
+            ));
+        }
+        if !loaded.role().may_edit() {
+            return Err(CollabError::Refused(
+                "The canvas was shared with you to read: it can't be changed here.".into(),
+            ));
+        }
+        let base = doc.view();
+        let (next, out) = change(&base).map_err(CollabError::Refused)?;
+        if size_of(&next) > canvas::MAX_BYTES {
+            return Err(CollabError::Refused(FULL.into()));
+        }
+        if self.take_canvas_edit(&mut loaded, &base, &next)? {
+            loaded.canvas_dirty = true;
+        }
+        self.settle_canvas(&mut loaded, true)?;
+        Ok(out)
+    }
+
     /// Writes what the view changed since `base` to the CRDT, as updates in
     /// the outbox. Whether anything was written.
     fn take_canvas_edit(&self, loaded: &mut Loaded, base: &Canvas, local: &Canvas) -> Result<bool> {

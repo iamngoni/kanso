@@ -21,6 +21,7 @@
 pub mod agent_tools;
 mod api;
 mod auth;
+mod canvas;
 mod changeset;
 mod error;
 mod key_model;
@@ -47,6 +48,7 @@ use axum::middleware;
 use axum::routing::post;
 use kanso_store::Store;
 
+pub use canvas::SharedCanvases;
 pub use changeset::{
     AppliedSet, ApplyFailure, ChangeSet, ChangeSets, Counts, MergeTarget, OpKind, OpState,
     ProposedOp, Selection, TaskId, undo as undo_changes,
@@ -113,6 +115,9 @@ pub(crate) struct AppState {
     pub store: Arc<Store>,
     /// The agents' tokens, to count and record what each one reads.
     pub tokens: TokenStore,
+    /// How a shared canvas is changed, when the app can (see
+    /// [`SharedCanvases`]).
+    pub canvases: canvas::Host,
 }
 
 /// The full API: REST endpoints, `/mcp`, sign-in by API key and the body
@@ -128,9 +133,22 @@ pub fn router_with_tokens(
     tokens: TokenStore,
     keys: KeyStore,
 ) -> Router {
+    router_with_canvases(store, _config, tokens, keys, None)
+}
+
+/// [`router_with_tokens`], where `canvases` changes the canvases that are
+/// shared.
+pub fn router_with_canvases(
+    store: Arc<Store>,
+    _config: &ServerConfig,
+    tokens: TokenStore,
+    keys: KeyStore,
+    canvases: Option<Arc<dyn SharedCanvases>>,
+) -> Router {
     let state = AppState {
         store,
         tokens: tokens.clone(),
+        canvases,
     };
     let gate = auth::Gate {
         keys: Some(keys),
@@ -156,6 +174,7 @@ pub fn agents_router(store: Arc<Store>, tokens: TokenStore) -> Router {
     let state = AppState {
         store,
         tokens: tokens.clone(),
+        canvases: None,
     };
     let gate = auth::Gate { keys: None, tokens };
     Router::new()
@@ -246,7 +265,19 @@ pub fn spawn_with_tokens(
     tokens: TokenStore,
     keys: KeyStore,
 ) -> ServerHandle {
-    let app = router_with_tokens(store, &config, tokens.clone(), keys);
+    spawn_with_canvases(store, config, tokens, keys, None)
+}
+
+/// [`spawn_with_tokens`], where `canvases` changes the canvases that are
+/// shared.
+pub fn spawn_with_canvases(
+    store: Arc<Store>,
+    config: ServerConfig,
+    tokens: TokenStore,
+    keys: KeyStore,
+    canvases: Option<Arc<dyn SharedCanvases>>,
+) -> ServerHandle {
+    let app = router_with_canvases(store, &config, tokens.clone(), keys, canvases);
     spawn_router(config.bind, app, tokens)
 }
 

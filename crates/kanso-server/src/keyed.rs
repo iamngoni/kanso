@@ -282,6 +282,36 @@ pub(crate) fn list_notes(store: &Store, key: &Key, query: &NoteQuery) -> ApiResu
     }
 }
 
+/// `GET /note:<id>/canvas` for a key.
+pub(crate) fn read_canvas(
+    store: &Store,
+    key: &Key,
+    id: &str,
+    group: Option<&str>,
+) -> ApiResult<Value> {
+    let vis = key.visibility(store)?;
+    if !key.sees(&vis, id) {
+        return Err(ApiError::not_found());
+    }
+    crate::canvas::read(store, id, group)
+}
+
+/// `PATCH /note:<id>/canvas` for a key that can write.
+pub(crate) fn edit_canvas(
+    store: &Store,
+    host: &crate::canvas::Host,
+    key: &Key,
+    id: &str,
+    body: &Value,
+) -> ApiResult<Value> {
+    let vis = key.visibility(store)?;
+    check_write(store, key, &vis, DocType::Note, Some(id), &Map::new())?;
+    if !key.sees(&vis, id) {
+        return Err(ApiError::not_found());
+    }
+    crate::canvas::edit(store, host, id, body)
+}
+
 /// `GET /loops` for a key: loops in notes it sees.
 pub(crate) fn list_loops(
     store: &Store,

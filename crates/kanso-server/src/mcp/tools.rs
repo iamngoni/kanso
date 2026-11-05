@@ -74,6 +74,8 @@ pub(crate) fn call(
         ("read-note", vis) => read_note(store, vis, &args),
         ("search-notes", vis) => search_notes(store, vis, &args),
         ("list-notes", vis) => list_notes(store, vis, &args),
+        ("list-canvases", vis) => list_canvases(store, vis, &args),
+        ("read-canvas", vis) => read_canvas(store, vis, &args),
         ("list-templates", vis) => list_templates(store, vis, &args),
         ("list-notebooks", Some(vis)) => list_visible_books(store, vis),
         ("kanso-get-outline", vis) => get_outline(store, vis, &args),
@@ -190,6 +192,12 @@ fn guard_write(
                 return Err(ApiError::not_found().into());
             }
         }
+        "edit-canvas" => {
+            let id = note("noteId");
+            keyed::check_write(store, key, vis, DocType::Note, Some(&id), &Args::new())?;
+            sees(&id)?;
+        }
+        "create-canvas" => keyed::check_write(store, key, vis, DocType::Note, None, args)?,
         "kanso-set-task-done"
         | "kanso-attach-file"
         | "kanso-list-attachments"
@@ -230,6 +238,8 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
     match name {
         "read-backlinks" => read_backlinks(store, vis, &args),
         "create-note" => upsert(store, DocType::Note, args),
+        "create-canvas" => create_canvas(store, args),
+        "edit-canvas" => edit_canvas(state, &args),
         "update-note" => update_note(store, args),
         "patch-note" => patch_note(store, &args),
         "list-tags" => list(keyed::list_docs(store, key, DocType::Tag, None, 0)?),
@@ -896,7 +906,12 @@ fn js_trim(s: &str) -> &str {
 }
 
 /// A note as `search-notes` and `list-notes` show it: body cut to 200 characters.
+/// A canvas's body is already its summary (up to about 4,000 characters), shown
+/// whole.
 fn summary(mut note: Value) -> Value {
+    if note.get("doctype").and_then(Value::as_str) == Some("canvas") {
+        return note;
+    }
     if let Some(Value::String(body)) = note.get_mut("body") {
         let cut = js_prefix(body, 200).len();
         body.truncate(cut);
@@ -1384,8 +1399,103 @@ fn list_notes(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
             .get("descending")
             .and_then(Value::as_bool)
             .unwrap_or(true),
+        doctype: None,
     };
     summaries(visible_rows(vis, api::list_notes(store, &query)?, limit))
+}
+
+/// A canvas failure in words an agent can act on: what was refused and, for
+/// a stale edit, the versions now.
+fn canvas_error(err: ApiError) -> ToolError {
+    if err.status == axum::http::StatusCode::FORBIDDEN || err.reason == "missing" {
+        return err.into();
+    }
+    match &err.details {
+        Some(details) => ToolError(format!("{} {}", err.reason, details)),
+        None => ToolError(err.reason),
+    }
+}
+
+fn list_canvases(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    if let (Some(vis), Some(book)) = (vis, opt_str(args, "bookId"))
+        && !book.is_empty()
+        && !vis.book_visible(book)
+    {
+        return result(vec![text(pretty(&json!([])))]);
+    }
+    let tag_ids = args
+        .get("tagIds")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let limit = args.get("limit").and_then(Value::as_f64).unwrap_or(100.0);
+    let limit = api::count_param("limit", limit)?;
+    let query = NoteQuery {
+        keyword: list_notes_keyword(opt_str(args, "bookId"), tag_ids, opt_str(args, "keyword")),
+        limit: Some(if vis.is_some() {
+            limit.saturating_mul(SCOPED_WIDEN)
+        } else {
+            limit
+        }),
+        skip: 0,
+        sort: api::parse_sort(str_arg(args, "sort")),
+        descending: args
+            .get("descending")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        doctype: Some("canvas".into()),
+    };
+    let rows = visible_rows(vis, api::list_notes(store, &query)?, usize::MAX);
+    let canvases: Vec<Value> = rows
+        .into_iter()
+        .filter(|row| {
+            // A locked canvas is not listed at all.
+            row.get("_id")
+                .and_then(Value::as_str)
+                .is_some_and(|id| !store.note_is_locked(id).unwrap_or(true))
+        })
+        .take(limit)
+        .map(|row| {
+            json!({
+                "_id": row["_id"], "_rev": row["_rev"], "title": row["title"],
+                "bookId": row["bookId"], "tags": row["tags"], "size": row["size"],
+                "updatedAt": row["updatedAt"], "summary": row["body"],
+            })
+        })
+        .collect();
+    result(vec![text(pretty(&Value::Array(canvases)))])
+}
+
+fn read_canvas(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    if vis.is_some_and(|vis| !vis.allows(&id)) {
+        return Err(ApiError::not_found().into());
+    }
+    let canvas = crate::canvas::read(store, &id, opt_str(args, "groupId")).map_err(canvas_error)?;
+    if let Some(vis) = vis {
+        vis.show(&id);
+    }
+    result(vec![text(pretty(&canvas))])
+}
+
+fn create_canvas(store: &Store, args: Args) -> ToolResult {
+    let res = crate::canvas::create(store, args).map_err(canvas_error)?;
+    result(vec![text(pretty(&res))])
+}
+
+fn edit_canvas(state: &AppState, args: &Args) -> ToolResult {
+    let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let mut batch = Map::new();
+    batch.insert(
+        "ops".into(),
+        args.get("ops").cloned().unwrap_or(Value::Null),
+    );
+    if let Some(rev) = args.get("ifRev") {
+        batch.insert("ifRev".into(), rev.clone());
+    }
+    let res = crate::canvas::edit(&state.store, &state.canvases, &id, &Value::Object(batch))
+        .map_err(canvas_error)?;
+    result(vec![text(pretty(&res))])
 }
 
 fn upsert(store: &Store, doc_type: DocType, args: Args) -> ToolResult {
@@ -1414,6 +1524,8 @@ fn update_note(store: &Store, args: Args) -> ToolResult {
         Value::Object(note) => note,
         _ => Map::new(),
     };
+    // Only `read-canvas` and `edit-canvas` change what a canvas holds.
+    note.remove("canvasJson");
     note.extend(args);
     note.insert("updatedAt".into(), now_ms().into());
     upsert_note(store, note)

@@ -386,6 +386,8 @@ mod tests {
         assert_eq!(
             &names[18..],
             [
+                "create-canvas",
+                "edit-canvas",
                 "kanso-ask-read-lines",
                 "kanso-ask-search",
                 "kanso-ask-when",
@@ -410,7 +412,9 @@ mod tests {
                 "kanso-resolve-wikilink",
                 "kanso-run-query-view",
                 "kanso-search-by-meaning",
-                "kanso-set-task-done"
+                "kanso-set-task-done",
+                "list-canvases",
+                "read-canvas"
             ]
         );
         assert!(validate("kanso-list-open-loops", json!({"kind": "waiting"})).is_ok());

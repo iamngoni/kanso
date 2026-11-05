@@ -883,3 +883,90 @@ proptest! {
         prop_assert_eq!(held_a, guard.doc.canvas().unwrap().to_canvas());
     }
 }
+
+// ---------------------------------------------------- the local API's edits
+
+#[test]
+fn an_api_edit_reaches_the_library_and_the_other_device_without_a_view() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let mut canvas = Canvas::default();
+    canvas.put_card(card("c1", "hello"), 1);
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &canvas);
+    let made = a
+        .engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            next.move_node("c1", 77.0, 88.0, 20);
+            next.put_card(card("api1", "from the API"), 21);
+            Ok((next, 2))
+        })
+        .unwrap();
+    assert_eq!(made, 2);
+    // The library holds it at once: the edit settles the projection.
+    let held = library(&a, &share);
+    assert_eq!(held.node("c1").unwrap().x, 77.0);
+    assert!(held.node("api1").is_some());
+    // The other device gets it as it gets a collaborator's.
+    a.engine.sync_note(&share).unwrap();
+    b.engine.sync_note(&share).unwrap();
+    let view = open(&b, &share);
+    assert_eq!(view.node("c1").unwrap().x, 77.0);
+    assert_eq!(
+        view.node("api1").unwrap().text.as_deref(),
+        Some("from the API")
+    );
+}
+
+#[test]
+fn an_api_edit_leaves_an_open_views_own_drawing_alone() {
+    let server = MemoryCollab::new();
+    let a = device(&server, 1, 1);
+    let share = shared_canvas(&a, &[], &Canvas::default());
+    let mut view = open(&a, &share);
+    // The person draws, and has not synced yet.
+    view.put_card(card("mine", "typed"), 5);
+    a.engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            next.put_card(card("api1", "agent"), 6);
+            Ok((next, ()))
+        })
+        .unwrap();
+    // The view's next sync keeps both.
+    let merged = pass(&a, &share, &view);
+    assert!(merged.node("mine").is_some() && merged.node("api1").is_some());
+}
+
+#[test]
+fn an_api_edit_is_refused_for_a_viewer_a_full_canvas_and_a_refusing_change() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared_canvas(&a, &[(&b, Role::View)], &Canvas::default());
+    let err = b
+        .engine
+        .edit_canvas(&share, |live| Ok((live.clone(), ())))
+        .unwrap_err();
+    assert!(matches!(err, CollabError::Refused(_)), "{err:?}");
+    let err = a
+        .engine
+        .edit_canvas::<()>(&share, |_| Err("not today".into()))
+        .unwrap_err();
+    assert!(err.to_string().contains("not today"), "{err}");
+    let err = a
+        .engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            next.put_card(card("huge", &"x".repeat(canvas::MAX_BYTES + 10)), 3);
+            Ok((next, ()))
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("full"), "{err}");
+    assert!(library(&a, &share).node("huge").is_none());
+    // A note that is not shared is not a room at all.
+    assert!(
+        a.engine
+            .edit_canvas("share-none", |l| Ok((l.clone(), ())))
+            .is_err()
+    );
+}
