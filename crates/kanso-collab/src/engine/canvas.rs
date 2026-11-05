@@ -153,6 +153,26 @@ impl Engine {
         Ok(Ok(streamed))
     }
 
+    /// Takes back the stroke streamed under `id` that the pen won't finish
+    /// ([`CanvasDoc::abandon`](crate::canvas_doc::CanvasDoc::abandon)): what
+    /// the others already got of it goes.
+    pub fn abandon_stroke(&self, share_id: &str, id: &str) -> Result<()> {
+        let loaded = self.loaded(share_id)?;
+        let mut loaded = lock(&loaded);
+        if !loaded.role().may_edit() || loaded.ended || loaded.reloading {
+            return Ok(());
+        }
+        let Some(doc) = loaded.doc.canvas() else {
+            return Err(not_a_canvas());
+        };
+        if let Some(update) = doc.abandon(id) {
+            self.store
+                .push_outbox(&loaded.note.share_id, "u", &update)?;
+            loaded.canvas_dirty = true;
+        }
+        Ok(())
+    }
+
     /// Where this device's pointer is on the canvas (`None` when it left),
     /// for the presence others see. Nothing is sent for a pointer that
     /// hasn't moved.

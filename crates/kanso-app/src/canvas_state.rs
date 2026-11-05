@@ -774,6 +774,11 @@ impl CanvasState {
         ))
     }
 
+    /// The ID of the stroke being drawn, if a pen is down.
+    pub fn live_id(&self) -> Option<&str> {
+        self.live.as_ref().map(|live| live.id.as_str())
+    }
+
     /// Takes the canvas a shared canvas's engine gives back, keeping the
     /// view, the tool and what is still there of the selection.
     pub fn take_canvas(&mut self, canvas: Canvas) {

@@ -175,6 +175,17 @@ pub(crate) fn guard_shared(
                 .into(),
         ));
     }
+    // Nor can a shared text note become a canvas: its CRDT is text, so the
+    // canvas's JSON would be merged character by character.
+    if let Some(prev) = previous
+        && share_of(prev).is_some()
+        && !is_canvas(prev)
+        && is_canvas(fields)
+    {
+        return Err(StoreError::Invalid(
+            "The note is shared as text: stop sharing it before making it a canvas.".into(),
+        ));
+    }
     if share_of(fields).is_some() && (fields.contains_key(LOCK_FIELD) || in_locked) {
         return Err(StoreError::Invalid(
             "The note is shared: stop sharing it before locking it or moving it into a locked notebook."

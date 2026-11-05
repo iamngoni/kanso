@@ -578,6 +578,15 @@ impl Engine {
 
     /// The note stops being shared here: its text stays, as a private note.
     pub(crate) fn keep_private_copy(&self, share_id: &str) -> Result<()> {
+        // A canvas's library body trails its document by up to two seconds
+        // (`WRITE_EVERY_MS`): the copy kept is the canvas as it is now.
+        if let Some(loaded) = lock(&self.notes).get(share_id).cloned() {
+            let mut loaded = lock(&loaded);
+            if loaded.doc.canvas().is_some() {
+                loaded.canvas_dirty = true;
+                let _ = self.settle_canvas(&mut loaded, true);
+            }
+        }
         self.unload(share_id);
         if let Some(note) = self.store.shared_note(share_id)?
             && let Some(local) = self.store.note(&note.note_id)?

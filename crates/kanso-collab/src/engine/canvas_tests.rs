@@ -591,6 +591,172 @@ fn stopping_leaves_a_private_canvas_that_can_be_edited_again() {
         .unwrap();
 }
 
+#[test]
+fn stopping_or_leaving_keeps_what_was_drawn_just_before() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &Canvas::default());
+    let mut a_view = open(&a, &share);
+    let mut b_view = open(&b, &share);
+    // Two edits in a row: the library is written for the first, and the
+    // second is inside the two seconds between writes.
+    a_view.put_card(card("first", "1"), 1);
+    a_view = pass(&a, &share, &a_view);
+    a_view.put_card(card("second", "2"), 2);
+    let _ = pass(&a, &share, &a_view);
+    b_view.put_card(card("b-first", "1"), 3);
+    b_view = pass(&b, &share, &b_view);
+    b_view.put_card(card("b-second", "2"), 4);
+    let _ = pass(&b, &share, &b_view);
+    // B leaves and A stops, both at once: each keeps its canvas as drawn.
+    let b_id = b.store.shared_note(&share).unwrap().unwrap().note_id;
+    b.engine.leave(&share).unwrap();
+    a.engine.stop(&share).unwrap();
+    let held = canvas::parse(&a.store.note("note:board").unwrap().unwrap().body).unwrap();
+    assert!(held.node("second").is_some(), "{held:?}");
+    let held = canvas::parse(&b.store.note(&b_id).unwrap().unwrap().body).unwrap();
+    assert!(held.node("b-second").is_some(), "{held:?}");
+}
+
+#[test]
+fn a_card_with_a_long_text_goes_in_parts_under_the_cap() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &Canvas::default());
+    let mut view = open(&a, &share);
+    let long = "a long paste, ".repeat(25_000);
+    assert!(long.len() > crate::envelope::MAX_UPDATE);
+    view.put_card(card("long", &long), 1);
+    let view = pass(&a, &share, &view);
+    sync(&[&a, &b], &share);
+    sync(&[&a, &b], &share);
+    assert!(a.engine.problems().is_empty(), "{:?}", a.engine.problems());
+    let b_view = open(&b, &share);
+    assert_eq!(
+        b_view.node("long").and_then(|n| n.text.as_deref()),
+        Some(long.as_str())
+    );
+    let _ = view;
+}
+
+#[test]
+fn an_update_too_large_to_send_is_not_sent_again_after_the_restart() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &Canvas::default());
+    let mut view = open(&a, &share);
+    // One field no update can carry.
+    let mut big = card("big", "x");
+    big.extra.insert("huge".into(), json!("z".repeat(300_000)));
+    view.put_card(big, 1);
+    view = pass(&a, &share, &view);
+    let _ = a.engine.sync_note(&share);
+    // The view keeps drawing on what it has, then syncs a few times.
+    for i in 0..3 {
+        view.put_card(card(&format!("after{i}"), "ok"), 2 + i);
+        view = pass(&a, &share, &view);
+        let _ = a.engine.sync_note(&share);
+    }
+    let book = a.store.note("note:board").unwrap().unwrap().book_id;
+    let copies = a
+        .store
+        .notes_in_books(&[book])
+        .unwrap()
+        .into_iter()
+        .filter(|n| n.title.contains("(not shared)"))
+        .count();
+    assert_eq!(copies, 1, "the private copy is made once");
+    sync(&[&a, &b], &share);
+    let seen = open(&b, &share);
+    assert!(seen.node("after2").is_some());
+    assert!(seen.node("big").is_none());
+}
+
+#[test]
+fn a_shared_text_note_cant_become_a_canvas() {
+    let server = MemoryCollab::new();
+    let a = device(&server, 1, 1);
+    let book = book(&a.store);
+    a.store
+        .put(
+            DocType::Note,
+            json!({"_id": "note:text", "bookId": book, "title": "T", "body": "words"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    let _share = a.engine.share("note:text", &[]).unwrap();
+    let body = canvas::to_body(&Canvas::default());
+    assert!(
+        a.store
+            .put(
+                DocType::Note,
+                json!({"_id": "note:text", "doctype": "canvas", "body": body}),
+                Put::Merge,
+                Origin::Api,
+            )
+            .is_err()
+    );
+    assert!(
+        a.store
+            .put(
+                DocType::Note,
+                json!({"_id": "note:text", "doctype": "canvas"}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn a_streamed_stroke_the_pen_wont_finish_leaves_nothing_behind() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &Canvas::default());
+    let mut a_view = open(&a, &share);
+    let ink = a_view.ink_layer(5);
+    a_view = pass(&a, &share, &a_view);
+    let head = StrokeHead {
+        id: "s-cut".into(),
+        ink,
+        owner: a.engine.caller().account_id.clone(),
+        tool: "pen".into(),
+        color: "#1e1e1e".into(),
+        width: 2.0,
+        z: 9.0,
+    };
+    let points: Vec<Point> = (0..40)
+        .map(|i| Point::new(f64::from(i), 0.0, 0.5))
+        .collect();
+    a.engine
+        .stream_stroke(&share, &head, &points)
+        .unwrap()
+        .unwrap();
+    sync(&[&a, &b], &share);
+    let b_view = open(&b, &share);
+    assert_eq!(b_view.live_strokes().count(), 1, "B sees the ink coming");
+    // The pen's stroke is refused when it ends (or the view closes under
+    // it): A takes it back.
+    a.engine.abandon_stroke(&share, "s-cut").unwrap();
+    let a_view = pass(&a, &share, &a_view);
+    assert_eq!(a_view.live_strokes().count(), 0);
+    sync(&[&a, &b], &share);
+    let b_view = pass(&b, &share, &b_view);
+    assert_eq!(b_view.live_strokes().count(), 0, "no ghost on B");
+    a.engine.detach(&share);
+    b.engine.detach(&share);
+    assert_eq!(library(&a, &share), library(&b, &share));
+    assert_eq!(library(&b, &share).live_strokes().count(), 0);
+    // A finished stroke is never taken back this way.
+    let mut a_view = open(&a, &share);
+    a_view.draw(pen(&[(0.0, 0.0), (30.0, 30.0)]), 7).unwrap();
+    let a_view = pass(&a, &share, &a_view);
+    let done = a_view.live_strokes().next().unwrap().1.id.clone();
+    a.engine.abandon_stroke(&share, &done).unwrap();
+    assert_eq!(pass(&a, &share, &a_view).live_strokes().count(), 1);
+}
+
 // ---------------------------------------------------------------- property
 
 /// What a person does to the canvas in their open view.

@@ -49,6 +49,27 @@ impl NoteEditor {
         self.shared.as_ref().is_some_and(|s| !s.ended && s.canvas)
     }
 
+    /// The canvas view's read-only state for `note`: as the account and the
+    /// trash say, and also for a shared canvas that can't be drawn on here,
+    /// because it was shared to read or this is a note's own window (which
+    /// isn't in the room, so its drawing could never be saved).
+    pub(super) fn canvas_read_only(&self, note: &kanso_core::Note) -> bool {
+        self.account_read_only
+            || note.is_trashed()
+            || share_mark(&note.extra)
+                .is_some_and(|(_, role, _)| self.standalone || !role.may_edit())
+    }
+
+    /// Whether the open note is a shared canvas shown as text: its body is
+    /// the drawing's, so it is read only there.
+    pub(super) fn shared_canvas_as_text(&self) -> bool {
+        self.canvas_as_text
+            && self
+                .note
+                .as_ref()
+                .is_some_and(|n| n.doctype == "canvas" && share_mark(&n.extra).is_some())
+    }
+
     /// Whether the open note was shared with this account to view or
     /// comment on only.
     pub(super) fn collab_read_only(&self) -> bool {
@@ -458,6 +479,15 @@ impl NoteEditor {
                     if old_title.as_deref() == Some(shown.as_str()) && shown != title {
                         self.title
                             .update(cx, |state, cx| state.set_value(title, window, cx));
+                    }
+                    // Shown as text (read only), it follows the drawing.
+                    if self.canvas_as_text {
+                        let body = library.1;
+                        self.body.update(cx, |state, cx| {
+                            if state.value().as_ref() != body {
+                                state.set_value(body, window, cx);
+                            }
+                        });
                     }
                     cx.notify();
                     return;

@@ -57,6 +57,8 @@ const SCHEMA: i64 = 1;
 /// rest reach everyone when the stroke ends.
 pub const MAX_STREAM_POINTS: usize = 4_000;
 
+/// The most bytes of a card's text written in one update.
+const TEXT_PART: usize = 32 * 1024;
 /// Points written to the array in one go.
 const POINTS_PER_PUSH: usize = 512;
 /// What a field adds to an update besides its value, at most.
@@ -356,7 +358,7 @@ impl CanvasDoc {
         if old.is_some() && set.is_empty() && remove.is_empty() && !text_changed {
             return;
         }
-        let mut cost = FIELD_COST * (set.len() + remove.len() + 1);
+        let cost = FIELD_COST * (set.len() + remove.len() + 1);
         let txn = batch.txn();
         let map = match self.nodes.get(&*txn, &new.id) {
             Some(Out::YMap(map)) => map,
@@ -365,28 +367,32 @@ impl CanvasDoc {
                 .insert(&mut *txn, new.id.as_str(), MapPrelim::default()),
         };
         write_fields(txn, &map, &set, &remove);
-        match (&new.text, map.get(&*txn, "text")) {
+        let text_write = match (&new.text, map.get(&*txn, "text")) {
             (None, Some(_)) => {
                 map.remove(txn, "text");
+                None
             }
-            (Some(text), Some(Out::YText(current))) => {
-                if text_changed {
-                    let now = current.get_string(&*txn);
-                    let base = old_text.unwrap_or("");
-                    // What was typed here since the view last had the text,
-                    // made again on the text as it is now.
-                    let target = rebase(base, text, &now);
-                    rewrite(txn, &current, &now, &target);
-                    cost += text.len();
-                }
+            (Some(text), Some(Out::YText(current))) if text_changed => {
+                let now = current.get_string(&*txn);
+                let base = old_text.unwrap_or("");
+                // What was typed here since the view last had the text,
+                // made again on the text as it is now.
+                let target = rebase(base, text, &now);
+                Some((current, now, target))
             }
+            (Some(_), Some(Out::YText(_))) => None,
             (Some(text), _) => {
-                map.insert(txn, "text", TextPrelim::new(text.as_str()));
-                cost += text.len();
+                let fresh = map.insert(txn, "text", TextPrelim::new(""));
+                Some((fresh, String::new(), text.clone()))
             }
-            (None, None) => {}
-        }
+            (None, None) => None,
+        };
         batch.spend(cost);
+        // A long text (a paste) goes in parts: one update of it could be
+        // past what the server takes, and would be refused for good.
+        if let Some((text, now, target)) = text_write {
+            rewrite_in_parts(batch, &text, &now, &target);
+        }
     }
 
     fn edit_edge(&self, batch: &mut Batch<'_>, old: Option<&Edge>, new: &Edge) {
@@ -494,6 +500,29 @@ impl CanvasDoc {
             update: changed.then(|| txn.encode_update_v1()),
             full: upto >= MAX_STREAM_POINTS,
         })
+    }
+
+    /// Takes back a stroke this device streamed but won't finish (the pen's
+    /// stroke was refused when it ended, or the view went away under the
+    /// pen): it becomes a tombstone, so nobody is left with half of it. A
+    /// stroke that is done, deleted or not there is left alone. The update
+    /// to send, or `None`.
+    pub fn abandon(&self, id: &str) -> Option<Vec<u8>> {
+        let mut txn = self.doc.transact_mut();
+        let Some(Out::YMap(map)) = self.strokes.get(&txn, id) else {
+            return None;
+        };
+        if flag_true(&txn, &map, "deleted") || flag_true(&txn, &map, "done") {
+            return None;
+        }
+        let version = match map.get(&txn, "kansoVersion") {
+            Some(Out::Any(Any::Number(n))) => n.as_i64().unwrap_or(0),
+            _ => 0,
+        };
+        map.insert(&mut txn, "deleted", true);
+        map.insert(&mut txn, "kansoVersion", version.max(0).saturating_add(1));
+        map.remove(&mut txn, "points");
+        Some(txn.encode_update_v1())
     }
 
     /// Takes the weight of deleted items off the document: a tombstone keeps
@@ -739,6 +768,48 @@ fn rewrite(txn: &mut TransactionMut, text: &TextRef, old: &str, new: &str) {
         }
         if !edit.insert.is_empty() {
             text.insert(txn, start, &edit.insert);
+        }
+    }
+}
+
+/// [`rewrite`] through `batch`: what is inserted goes at most a part's
+/// worth (and never more than [`TEXT_PART`] bytes) per update.
+fn rewrite_in_parts(batch: &mut Batch<'_>, text: &TextRef, old: &str, new: &str) {
+    if old == new {
+        return;
+    }
+    let size = batch.part.clamp(1, TEXT_PART);
+    let edits = edits(old, new);
+    let mut spans = Vec::with_capacity(edits.len());
+    let (mut byte, mut unit) = (0, 0);
+    for edit in &edits {
+        unit += units(&old[byte..edit.at]);
+        let delete = units(&old[edit.at..edit.at + edit.delete]);
+        spans.push((unit, delete));
+        unit += delete;
+        byte = edit.at + edit.delete;
+    }
+    // From the end, so every offset still refers to the old text.
+    for (edit, &(start, delete)) in edits.iter().zip(&spans).rev() {
+        if edit.delete > 0 {
+            text.remove_range(batch.txn(), start, delete);
+            batch.spend(FIELD_COST);
+        }
+        let (mut at, mut rest) = (start, edit.insert.as_str());
+        while !rest.is_empty() {
+            let mut cut = rest.len().min(size);
+            while !rest.is_char_boundary(cut) {
+                cut -= 1;
+            }
+            if cut == 0 {
+                // One character wider than a part: it goes whole.
+                cut = rest.chars().next().map_or(rest.len(), char::len_utf8);
+            }
+            let (piece, tail) = rest.split_at(cut);
+            text.insert(batch.txn(), at, piece);
+            at += units(piece);
+            batch.spend(piece.len() + FIELD_COST);
+            rest = tail;
         }
     }
 }

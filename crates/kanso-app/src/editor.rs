@@ -376,6 +376,8 @@ pub struct NoteEditor {
     shared: Option<crate::collab_model::OpenShare>,
     /// Effective read-only state for the title and text inputs.
     text_read_only: bool,
+    /// The text input's own: also set for a shared canvas shown as text.
+    body_read_only: bool,
     /// Read-only because account unlock and binding consent are incomplete.
     account_read_only: bool,
     /// The shared-note role's read-only state, independent of the account gate.
@@ -706,6 +708,7 @@ impl NoteEditor {
             live_scale: 0.,
             shared: None,
             text_read_only: false,
+            body_read_only: false,
             account_read_only: false,
             collab_read_only: false,
             meaning,
@@ -1200,7 +1203,7 @@ impl NoteEditor {
             && !self.canvas_as_text;
         self.canvas_body = None;
         if is_canvas && let Some(n) = &note {
-            let read_only = self.account_read_only || n.is_trashed();
+            let read_only = self.canvas_read_only(n);
             self.canvas_body = Some(std::mem::take(&mut body));
             let (id, canvas_body) = (n.id.clone(), n.body.clone());
             self.canvas
@@ -1209,6 +1212,7 @@ impl NoteEditor {
             self.canvas.update(cx, |view, cx| view.clear(cx));
         }
         self.note = note;
+        self.refresh_text_read_only(cx);
         // Loading isn't typing: the text set here goes to no other editor.
         self.peer_echo = Some((title.clone(), body.clone()));
         self.title.update(cx, |state, cx| {
@@ -1844,12 +1848,15 @@ impl NoteEditor {
     /// note role, and updates both text inputs when either changes.
     pub(super) fn refresh_text_read_only(&mut self, cx: &mut Context<Self>) {
         let read_only = self.account_read_only || self.collab_read_only;
-        if self.text_read_only == read_only {
+        // A shared canvas's JSON is the drawing's: only its title is typed.
+        let body_read_only = read_only || self.shared_canvas_as_text();
+        if self.text_read_only == read_only && self.body_read_only == body_read_only {
             return;
         }
         self.text_read_only = read_only;
+        self.body_read_only = body_read_only;
         self.body
-            .update(cx, |state, cx| state.set_readonly(read_only, cx));
+            .update(cx, |state, cx| state.set_readonly(body_read_only, cx));
         self.title
             .update(cx, |state, cx| state.set_readonly(read_only, cx));
         cx.notify();
@@ -3825,6 +3832,7 @@ impl NoteEditor {
         };
         if self.title.read(cx).focus_handle(cx).is_focused(window) {
             return Input::new(&self.title)
+                .readonly(self.text_read_only)
                 .appearance(false)
                 .text_size(px(28.))
                 .line_height(px(36.))
@@ -5103,6 +5111,9 @@ impl Render for NoteEditor {
                     .when_some(measure, |el, width| el.max_w(width))
                     .child(
                         Editor::new(&self.body)
+                            // The element sets the state's read-only mode on
+                            // every frame: it must carry the editor's own.
+                            .readonly(self.body_read_only)
                             .context_menu({
                                 let view = cx.entity().downgrade();
                                 move |menu, _, cx| {

@@ -541,3 +541,114 @@ fn a_shared_canvas_takes_the_others_drawing_and_sends_its_own(cx: &mut TestAppCo
     let editor = app.editor(cx);
     assert!(cx.read(|cx| !editor.read(cx).has_unsaved_edits(cx)));
 }
+
+/// The owner and a member (at `role`) of a shared, empty canvas, the
+/// member's window open on it.
+fn shared_canvas_open(
+    cx: &mut TestAppContext,
+    server: &MemoryCollab,
+    role: Role,
+) -> (Device, Device, String, App) {
+    let (owner, member) = (device(server, 1), device(server, 2));
+    let book = owner
+        .store
+        .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+        .unwrap()
+        .id;
+    let id = owner
+        .store
+        .put(
+            DocType::Note,
+            json!({
+                "title": "Board",
+                "bookId": book,
+                "doctype": "canvas",
+                "body": kanso_core::canvas::to_body(&kanso_core::canvas::Canvas::default()),
+            }),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    owner.engine.person("user2").unwrap();
+    let share = owner
+        .engine
+        .share(&id, &[("user2".to_owned(), role)])
+        .unwrap();
+    member.engine.refresh().unwrap();
+    member.engine.accept(&share).unwrap();
+    let note = member.store.note_with_share(&share).unwrap().unwrap();
+    let app = open(cx, &member, &note);
+    (owner, member, share, app)
+}
+
+fn redraw(app: &App, cx: &mut TestAppContext) {
+    cx.run_until_parked();
+    app.window
+        .update(cx, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    cx.run_until_parked();
+}
+
+/// What others drew while a viewer held the canvas (a pan, which is what a
+/// viewer's press does) comes in when it is let go, not at the next edit.
+// no-prop-test: drives one window with the pointer.
+#[gpui_kit::test]
+fn others_drawing_held_back_during_a_pan_comes_in_when_it_ends(cx: &mut TestAppContext) {
+    use gpui_kit::{Modifiers, MouseButton, VisualTestContext};
+    let server = MemoryCollab::new();
+    let (owner, member, share, app) = shared_canvas_open(cx, &server, Role::View);
+    let editor = app.editor(cx);
+    let view = cx.read(|cx| editor.read(cx).canvas_for_test());
+    let strokes = |cx: &mut TestAppContext| {
+        view.update(cx, |v, _| {
+            v.state_for_test()
+                .map_or(0, |s| s.canvas.live_strokes().count())
+        })
+    };
+    let mut vcx = VisualTestContext::from_window(app.window, cx);
+    redraw(&app, &mut vcx);
+    let middle = vcx.debug_bounds("canvas-surface").unwrap().center();
+    vcx.simulate_mouse_down(middle, MouseButton::Left, Modifiers::none());
+    // The owner draws meanwhile; the room says so.
+    owner.engine.attach(&share).unwrap();
+    let mut mine = owner.engine.canvas(&share).unwrap();
+    mine.draw(canvas_pen(&[(0.0, 0.0), (30.0, 30.0)]), 1)
+        .unwrap();
+    owner.engine.sync_canvas(&share, &mine).unwrap();
+    owner.engine.sync_note(&share).unwrap();
+    member.engine.sync_note(&share).unwrap();
+    app.update(&mut vcx, |e, _, cx| e.canvas_sync_for_test(cx));
+    assert_eq!(strokes(&mut vcx), 0, "held back while the pan goes on");
+    vcx.simulate_mouse_up(middle, MouseButton::Left, Modifiers::none());
+    redraw(&app, &mut vcx);
+    assert_eq!(strokes(&mut vcx), 1, "taken in once the pan ends");
+}
+
+/// A shared canvas shown as text is read only there: its body is the
+/// drawing's, and typing in it would be thrown away.
+// no-prop-test: editor glue around one event.
+#[gpui_kit::test]
+fn a_shared_canvas_as_text_is_read_only(cx: &mut TestAppContext) {
+    let server = MemoryCollab::new();
+    let (_owner, _member, _share, app) = shared_canvas_open(cx, &server, Role::Edit);
+    let editor = app.editor(cx);
+    let view = cx.read(|cx| editor.read(cx).canvas_for_test());
+    let body_read_only = |cx: &mut TestAppContext| {
+        cx.read(|cx| {
+            let body = app.workspace.read(cx).editor.read(cx).body_state();
+            body.read(cx).presentation().is_readonly()
+        })
+    };
+    assert!(!body_read_only(cx));
+    view.update(cx, |_, cx| {
+        cx.emit(crate::canvas_view::CanvasEvent::EditAsText)
+    });
+    cx.run_until_parked();
+    assert!(cx.read(|cx| !editor.read(cx).is_canvas_shown()));
+    assert!(body_read_only(cx), "the JSON can't be typed over");
+    assert!(cx.read(|cx| !editor.read(cx).has_unsaved_edits(cx)));
+}

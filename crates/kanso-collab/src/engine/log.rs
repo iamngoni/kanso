@@ -572,7 +572,9 @@ impl Engine {
             }
         }
         loaded.doc = crate::shared_doc::SharedDoc::new(loaded.note.kind);
-        loaded.canvas_base = None;
+        // An open canvas view keeps its base: only what it changed since
+        // goes onto the log's canvas, not everything it shows (which would
+        // send again the edit that couldn't go, and undo what others did).
         // The library's canvas is the log's, once it has merged.
         loaded.canvas_dirty = true;
         loaded.canvas_full = false;

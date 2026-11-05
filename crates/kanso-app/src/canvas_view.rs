@@ -262,6 +262,14 @@ impl CanvasView {
     /// canvas again, as it stands.
     pub fn unshare(&mut self, cx: &mut Context<Self>) {
         if let Some(shared) = self.shared.take() {
+            // A stroke streamed under a pen that is still down will never
+            // be finished here: the others don't keep half of it.
+            if shared.streamed.is_some()
+                && let Some(id) = self.state.as_ref().and_then(|s| s.live_id())
+                && let Err(err) = shared.engine.abandon_stroke(&shared.share_id, id)
+            {
+                eprintln!("kanso: taking back a stroke on the shared canvas: {err}");
+            }
             shared.engine.set_pointer(&shared.share_id, None);
             cx.notify();
         }
@@ -286,6 +294,18 @@ impl CanvasView {
             return;
         }
         self.sync_now(cx);
+    }
+
+    /// Takes in what others did while a gesture or a drag held it back,
+    /// once nothing is in hand: whatever way the gesture ended (a pan, a
+    /// card let go without moving, a stroke erased under the pen).
+    fn catch_up(&mut self, cx: &mut Context<Self>) {
+        if self.gesture.is_none()
+            && self.grab.is_none()
+            && self.shared.as_ref().is_some_and(|s| s.behind)
+        {
+            self.sync_now(cx);
+        }
     }
 
     fn sync_now(&mut self, cx: &mut Context<Self>) {
@@ -353,10 +373,12 @@ impl CanvasView {
     /// Streams the stroke being drawn to the others, a chunk about every
     /// 150 ms, so they see the ink as it is made.
     fn stream_live(&mut self, cx: &mut Context<Self>) {
+        // A full canvas takes no more ink (the pen's stroke is refused when
+        // it ends), so none streams either.
         if self
             .shared
             .as_ref()
-            .is_none_or(|s| s.streamed.is_some_and(|at| at.elapsed() < STREAM_EVERY))
+            .is_none_or(|s| s.full || s.streamed.is_some_and(|at| at.elapsed() < STREAM_EVERY))
         {
             return;
         }
@@ -387,11 +409,15 @@ impl CanvasView {
                 .engine
                 .stream_stroke(&shared.share_id, &head, &stream.points)
         {
-            // Someone erased the stroke under the pen: it stops there.
+            // Someone erased the stroke under the pen: it stops there, and
+            // the erase comes in now.
+            shared.streamed = None;
+            shared.behind = true;
             if let Some(state) = &mut self.state {
                 state.cancel();
             }
             self.gesture = None;
+            self.catch_up(cx);
             cx.notify();
         }
     }
@@ -593,6 +619,7 @@ impl CanvasView {
                 if let Some(Grab::Card { moved, .. }) = self.grab.take() {
                     self.end_card_grab(moved, cx);
                 }
+                self.catch_up(cx);
                 return;
             }
             match grab {
@@ -661,10 +688,10 @@ impl CanvasView {
     fn on_mouse_up(&mut self, _: &MouseUpEvent, _: &mut Window, cx: &mut Context<Self>) {
         if let Some(Grab::Card { moved, .. }) = self.grab.take() {
             self.end_card_grab(moved, cx);
-            return;
+        } else {
+            self.finish(cx);
         }
-        self.grab = None;
-        self.finish(cx);
+        self.catch_up(cx);
     }
 
     /// Lets go of a pressed card: its drag becomes one undo step, saved if
@@ -684,22 +711,35 @@ impl CanvasView {
         if self.gesture.take().is_none() {
             return;
         }
+        // The stroke that streamed to the others while the pen was down.
+        let streamed = self
+            .shared
+            .as_ref()
+            .filter(|s| s.streamed.is_some())
+            .and_then(|_| self.state.as_ref()?.live_id().map(str::to_owned));
         let now = Self::now(cx);
         let outcome = match &mut self.state {
             Some(state) => state.end(now),
             None => Outcome::Nothing,
         };
+        let kept = matches!(outcome, Outcome::Changed);
         // Only a gesture that changed the document (now, or in an earlier
         // step of the drag) asks for a save: a lasso that only selected
         // writes nothing.
         self.report(outcome, true, cx);
         if let Some(shared) = &mut self.shared {
             shared.streamed = None;
-            // What others drew while the pen was down comes in now.
-            if shared.behind {
-                self.sync_now(cx);
+            // A streamed stroke the canvas refused when it ended (too long,
+            // the canvas full) is taken back from the others too.
+            if let Some(id) = streamed.filter(|_| !kept) {
+                if let Err(err) = shared.engine.abandon_stroke(&shared.share_id, &id) {
+                    eprintln!("kanso: taking back a stroke on the shared canvas: {err}");
+                }
+                shared.behind = true;
             }
         }
+        // What others drew while the pen was down comes in now.
+        self.catch_up(cx);
     }
 
     fn on_scroll(&mut self, event: &ScrollWheelEvent, _: &mut Window, cx: &mut Context<Self>) {
