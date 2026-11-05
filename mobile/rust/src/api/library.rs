@@ -358,7 +358,13 @@ impl KansoLibrary {
         Library::statuses()
     }
 
-    /// Deletes every note in the trash for good; says how many.
+    /// How many notes in the trash are locked.
+    pub fn locked_in_trash(&self) -> Result<u32, KansoError> {
+        self.0.locked_in_trash()
+    }
+
+    /// Deletes every note in the trash for good, locked ones and their
+    /// sealed attachments too; says how many notes.
     pub fn empty_trash(&self) -> Result<u32, KansoError> {
         self.0.empty_trash()
     }

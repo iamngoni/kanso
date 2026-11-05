@@ -3933,6 +3933,23 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String libraryEmptyTrashLockedTitle(int count, int locked) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes',
+      one: '1 note',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      locked,
+      locale: localeName,
+      other: '$locked locked notes and their sealed attachments',
+      one: '1 locked note and its sealed attachments',
+    );
+    return 'Delete $_temp0 permanently, including $_temp1?';
+  }
+
+  @override
   String get libraryEmptyTrashMessage => 'They can’t be restored afterwards.';
 
   @override

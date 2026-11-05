@@ -10,9 +10,7 @@ use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _, v_flex};
 use gpui_kit::*;
 use kanso_import::safe_storage::{SAFE_STORAGE_SERVICE, keychain_secret};
-use kanso_import::{
-    ImportReport, LocalServerCredentials, Phase, Progress, find_pouch_db, read_local_server_config,
-};
+use kanso_import::{ImportReport, Phase, Progress, find_pouch_db, read_local_server_config};
 use kanso_store::Store;
 
 use crate::config::ServerSettings;
@@ -28,36 +26,25 @@ pub enum Copied {
     PortOnly,
 }
 
-/// Copies the library's local server port, address and credentials into
-/// `settings`. `secret` supplies the Keychain secret when the credentials are
-/// encrypted; it is only called then. On error `settings` is unchanged.
+/// Copies the library's local server port and address into `settings`. On
+/// error `settings` is unchanged.
 pub fn copy_server_settings(
     library_dir: &Path,
     settings: &mut ServerSettings,
     secret: impl FnOnce() -> anyhow::Result<String>,
 ) -> anyhow::Result<Copied> {
-    let Some(mut server) = read_local_server_config(library_dir)? else {
+    let Some(server) = read_local_server_config(library_dir)? else {
         bail!(
             "there are no local server settings in {}",
             library_dir.display()
         );
     };
-    if matches!(server.credentials, LocalServerCredentials::Encrypted { .. }) {
-        server.decrypt_credentials(&secret()?)?;
-    }
-    if matches!(server.credentials, LocalServerCredentials::Unrecognized) {
-        bail!("the credentials are in a format Kanso doesn't know");
-    }
+    // The other app's username and password are not taken: Kanso's API
+    // signs in with API keys, not a login.
+    let _ = secret;
     settings.port = server.port;
     settings.bind_address = server.bind_address.clone();
-    match (server.username(), server.password()) {
-        (Some(username), Some(password)) => {
-            settings.username = username.to_owned();
-            settings.password = password.to_owned();
-            Ok(Copied::Everything)
-        }
-        _ => Ok(Copied::PortOnly),
-    }
+    Ok(Copied::PortOnly)
 }
 
 /// The PouchDB library's data folder and database, when there is one to
@@ -360,44 +347,27 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
 
-        /// Round-trip: credentials the source app encrypted come out as Kanso's
-        /// server settings unchanged.
+        /// Whatever the other app stored for its login, encrypted or plain,
+        /// only its port is taken, and the Keychain is never asked.
         #[test]
-        fn prop_encrypted_credentials_are_copied(user in "[a-z]{1,12}", pass in "[ -~]{1,24}", secret in "[A-Za-z0-9]{16}", port in 1024u16..65535) {
-            let data = kanso_import::safe_storage::encrypt(format!("{user}:{pass}").as_bytes(), &secret);
-            let auth = base64::engine::general_purpose::STANDARD.encode(data);
-            let dir = library_dir(serde_json::json!(auth), port);
+        fn prop_only_the_port_is_copied(
+            user in "[a-z]{1,12}",
+            pass in "[ -~]{1,24}",
+            encrypted in any::<bool>(),
+            port in 1024u16..65535,
+        ) {
+            let auth = if encrypted {
+                let data = kanso_import::safe_storage::encrypt(format!("{user}:{pass}").as_bytes(), "s");
+                serde_json::json!(base64::engine::general_purpose::STANDARD.encode(data))
+            } else {
+                serde_json::json!(format!("{user}:{pass}"))
+            };
+            let dir = library_dir(auth, port);
             let mut settings = ServerSettings::default();
-            let copied = copy_server_settings(dir.path(), &mut settings, || Ok(secret.clone())).unwrap();
-            prop_assert_eq!(copied, Copied::Everything);
-            prop_assert_eq!((settings.port, settings.username, settings.password), (port, user, pass));
-        }
-    }
-
-    #[test]
-    fn a_failed_keychain_read_changes_nothing() {
-        let data = kanso_import::safe_storage::encrypt(b"a:b", "s");
-        let dir = library_dir(
-            serde_json::json!(base64::engine::general_purpose::STANDARD.encode(data)),
-            4000,
-        );
-        let mut settings = ServerSettings::default();
-        let before = settings.clone();
-        assert!(
-            copy_server_settings(dir.path(), &mut settings, || anyhow::bail!("denied")).is_err()
-        );
-        assert_eq!(settings, before);
-    }
-
-    #[test]
-    fn plain_credentials_need_no_keychain() {
-        let dir = library_dir(serde_json::json!("me:pw"), 19841);
-        let mut settings = ServerSettings::default();
-        let copied =
-            copy_server_settings(dir.path(), &mut settings, || panic!("no keychain needed"))
+            let copied = copy_server_settings(dir.path(), &mut settings, || panic!("no keychain needed"))
                 .unwrap();
-        assert_eq!(copied, Copied::Everything);
-        assert_eq!(settings.port, 19841);
-        assert_eq!(settings.username, "me");
+            prop_assert_eq!(copied, Copied::PortOnly);
+            prop_assert_eq!(settings.port, port);
+        }
     }
 }

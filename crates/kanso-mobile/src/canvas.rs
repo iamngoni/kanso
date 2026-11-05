@@ -15,6 +15,7 @@
 //! canvas's text is JSON, so none of the note-text rules run on it (no
 //! inline `#tags`).
 
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -67,6 +68,15 @@ struct State {
     undo: Vec<Entry>,
     redo: Vec<Entry>,
     dirty: bool,
+    /// Counts every change to `canvas`, so the size measured below can be
+    /// told stale.
+    edits: u64,
+    /// The document's size in bytes as of edit `.0`. Measuring means writing
+    /// the whole JSON, so it is done once per change, not once per call: an
+    /// eraser that touched nothing measures nothing.
+    measured: Cell<Option<(u64, usize)>>,
+    /// How many times the document was measured.
+    measurements: Cell<u32>,
 }
 
 /// A canvas open for drawing. Cheap to clone; clones share the session.
@@ -109,6 +119,9 @@ impl Library {
                     undo: Vec::new(),
                     redo: Vec::new(),
                     dirty: false,
+                    edits: 0,
+                    measured: Cell::new(None),
+                    measurements: Cell::new(0),
                 })),
             })
         })
@@ -274,6 +287,13 @@ impl CanvasSession {
         held(&self.state)
     }
 
+    /// How many times the whole document was written out to measure it. A
+    /// call that changed nothing adds none. For tests.
+    #[doc(hidden)]
+    pub fn size_measurements(&self) -> u32 {
+        self.lock().measurements.get()
+    }
+
     /// The canvas as the shell paints it. Outlines are built only for strokes
     /// whose ID is not in `known`; the others come back with `known` set and
     /// no outline, for the shell to reuse what it holds.
@@ -295,6 +315,8 @@ impl CanvasSession {
     ) -> Result<CanvasView, KansoError> {
         guard(|| {
             let mut state = self.lock();
+            // `draw` may add the ink layer even when it then refuses.
+            state.edits += 1;
             let stroke = Stroke {
                 tool: style.tool,
                 color: style.color,
@@ -586,7 +608,7 @@ impl CanvasSession {
             if !state.dirty {
                 return Ok(CanvasSaved {
                     rev: state.rev.clone(),
-                    bytes: canvas::to_body(&state.canvas).len() as u32,
+                    bytes: state.size() as u32,
                     merged: false,
                 });
             }
@@ -605,6 +627,7 @@ impl CanvasSession {
                     Err(KansoError::Conflict { .. }) => {
                         let (note, theirs) = self.lib.read_canvas(&state.id)?;
                         state.canvas = canvas::merge(&state.canvas, &theirs);
+                        state.edits += 1;
                         state.rev = note.rev.unwrap_or_default();
                         merged = true;
                     }
@@ -768,6 +791,7 @@ impl CanvasSession {
                     }
                 }
                 state.dirty = true;
+                state.edits += 1;
                 if undo {
                     state.redo.push(entry);
                 } else {
@@ -787,6 +811,21 @@ impl State {
         }
         self.redo.clear();
         self.dirty = true;
+        self.edits += 1;
+    }
+
+    /// The document's size in bytes: measured when it changed since the last
+    /// time, remembered otherwise.
+    fn size(&self) -> usize {
+        if let Some((at, bytes)) = self.measured.get()
+            && at == self.edits
+        {
+            return bytes;
+        }
+        let bytes = canvas::to_body(&self.canvas).len();
+        self.measured.set(Some((self.edits, bytes)));
+        self.measurements.set(self.measurements.get() + 1);
+        bytes
     }
 }
 
@@ -902,7 +941,7 @@ fn view(state: &State, titles: &HashMap<String, String>, known: &HashSet<String>
             })
         })
         .collect();
-    let bytes = canvas::to_body(canvas).len();
+    let bytes = state.size();
     CanvasView {
         note_id: state.id.clone(),
         rev: state.rev.clone(),

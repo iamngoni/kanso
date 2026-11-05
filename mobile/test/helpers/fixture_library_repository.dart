@@ -353,6 +353,9 @@ class FixtureLibraryRepository implements LibraryRepository {
   /// How many notes `emptyTrash` answers.
   int emptyTrashCount = 0;
 
+  /// How many notes in the trash `lockedInTrash` says are locked.
+  int lockedInTrashCount = 0;
+
   /// What `noteLink` answers.
   CopiedLink link = const CopiedLink(
     text: '[[Design sync]]',
@@ -362,6 +365,10 @@ class FixtureLibraryRepository implements LibraryRepository {
   @override
   Future<Either<ApplicationError, List<StatusChoice>>> statuses() async =>
       Right<ApplicationError, List<StatusChoice>>(statusChoices);
+
+  @override
+  Future<Either<ApplicationError, int>> lockedInTrash() async =>
+      Right<ApplicationError, int>(lockedInTrashCount);
 
   @override
   Future<Either<ApplicationError, int>> emptyTrash() async {

@@ -166,7 +166,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Opens note `id` for editing. Locked while it is locked and closed.
   Future<KansoEditor> edit({required String id});
 
-  /// Deletes every note in the trash for good; says how many.
+  /// Deletes every note in the trash for good, locked ones and their
+  /// sealed attachments too; says how many notes.
   Future<int> emptyTrash();
 
   /// Send feedback and My feedback for this library.
@@ -229,6 +230,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   KansoLinking linking();
 
   Future<NoteList> list({required ListQuery query});
+
+  /// How many notes in the trash are locked.
+  Future<int> lockedInTrash();
 
   KansoLocks locks();
 

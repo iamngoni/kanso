@@ -6724,6 +6724,12 @@ abstract class AppLocalizations {
   /// **'Delete {count, plural, =1{1 note} other{{count} notes}} in the trash permanently?'**
   String libraryEmptyTrashTitle(num count);
 
+  /// Asks whether to empty the trash when it holds locked notes: names how many notes it holds and how many of them are locked, and says their sealed attachments are deleted too.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count, plural, =1{1 note} other{{count} notes}} permanently, including {locked, plural, =1{1 locked note and its sealed attachments} other{{locked} locked notes and their sealed attachments}}?'**
+  String libraryEmptyTrashLockedTitle(int count, int locked);
+
   /// Says emptying the trash cannot be undone.
   ///
   /// In en, this message translates to:

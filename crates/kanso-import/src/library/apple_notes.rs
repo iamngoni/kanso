@@ -1044,6 +1044,7 @@ impl Source for AppleNotesSource {
                 pinned: note.pinned,
                 status: None,
                 trashed,
+                canvas: false,
                 embedded: converted.embedded,
             })?;
         }

@@ -53,9 +53,11 @@ mod ai;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
+mod pdf;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
+mod record_sheet;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -1878,8 +1880,6 @@ fn show_settings(
         let config = &mut cx.global_mut::<AppState>().config;
         config.sync.server = None;
         config.sync.enabled = true;
-        config.server.username = "kanso".into();
-        config.server.password = "demo-password-not-real-7Q2x".into();
         let now = Clock::now_ms(cx);
         let services = cx.global_mut::<Services>();
         services.account = AccountState::SignedIn {
@@ -3146,6 +3146,24 @@ fn sign_out_confirm(
     account_dialog(cx, window, workspace, store, |window, cx| {
         crate::account_page::sign_out_dialog(window, cx);
     });
+}
+
+/// Empty Trash with locked notes in it: the question counts them.
+fn empty_trash_locked(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        let (title, body) = crate::trash_words::empty_trash_question(kanso_store::TrashCounts {
+            notes: 12,
+            locked: 2,
+        });
+        crate::dialogs::confirm(title, body, "Empty Trash", window, cx, |_, _| {});
+    })
+    .unwrap();
 }
 
 /// Signing out with a new recovery key still unsaved.
@@ -5625,6 +5643,25 @@ fn snapshots() {
         shot("dark-settings-general", Dark, Edit, settings_general),
         shot("light-settings-general", Light, Edit, settings_general),
         shot("dark-settings-editor", Dark, Edit, settings_editor),
+        // The Record sheet's system audio choices.
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "light-record-output-picker",
+                Light,
+                Edit,
+                record_sheet::output_picker,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "dark-record-no-monitor",
+                Dark,
+                Edit,
+                record_sheet::no_monitor,
+            )
+        },
         // Quiz Me and Make Flashcards as dialogs over the note.
         Shot {
             dialog_width: crate::learn_view::QUIZ_WIDTH,
@@ -5651,6 +5688,16 @@ fn snapshots() {
         },
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
+        // The PDF reader (issue #43): page 1 drawn by the worker, and the
+        // worker killed under it.
+        shot("dark-pdf-reader", Dark, Split, pdf::reader_page_one),
+        shot("light-pdf-reader", Light, Split, pdf::reader_page_one),
+        shot(
+            "dark-pdf-reader-killed",
+            Dark,
+            Split,
+            pdf::reader_worker_killed,
+        ),
         shot("dark-voice-listening", Dark, Edit, voice::editor_listening),
         shot(
             "light-voice-listening",
@@ -6135,6 +6182,14 @@ fn snapshots() {
         Shot {
             dialog_width: 448.,
             ..shot("dark-account-sign-out", Dark, Edit, sign_out_confirm)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("dark-empty-trash-locked", Dark, Edit, empty_trash_locked)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("light-empty-trash-locked", Light, Edit, empty_trash_locked)
         },
         Shot {
             dialog_width: 448.,

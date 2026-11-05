@@ -5,6 +5,8 @@
 //! `BEGIN IMMEDIATE`; reads use a small pool of connections. Each committed
 //! write is broadcast to subscribers as a [`Change`].
 
+mod api_keys;
+mod api_keys_model;
 mod backup;
 mod cards;
 mod cards_model;
@@ -26,6 +28,8 @@ mod ocr;
 mod overview;
 mod passage_embed;
 mod passages;
+mod pdf_text;
+mod pdf_text_model;
 mod plugin;
 mod query_view;
 mod read;
@@ -35,6 +39,8 @@ mod roles;
 mod schema;
 mod sync;
 mod tasks;
+mod trash;
+mod trash_model;
 mod triage;
 mod validate;
 mod write;
@@ -44,6 +50,7 @@ use std::sync::Mutex;
 
 use rusqlite::Connection;
 
+pub use api_keys_model::{ApiKeyRow, KeyAccess, LiveKey, NewApiKey};
 pub use backup::{BackupName, BackupPolicy, backup_name};
 pub use cards_model::{
     CardCounts, CardScope, CardSettings, CardStats, DueCard, HardCard, NoteCard,
@@ -85,6 +92,7 @@ pub use passage_embed::{
     EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
 };
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
+pub use pdf_text_model::{MAX_PAGE_CHARS, MAX_PDF_CHARS, PdfToIndex};
 pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,
     agent_batch_id, plugin_data, set_plugin_data,
@@ -98,6 +106,7 @@ pub use replace::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
+pub use trash_model::{Emptied, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use write::{Put, WriteResult};
 
@@ -281,6 +290,14 @@ impl Store {
     /// Writes a value to the `meta` table.
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
         self.write(|tx, _| schema::set_meta(tx, key, value))
+    }
+
+    /// Removes a value from the `meta` table. Missing is fine.
+    pub fn remove_meta(&self, key: &str) -> Result<()> {
+        self.write(|tx, _| {
+            tx.execute("DELETE FROM meta WHERE key = ?", [key])?;
+            Ok(())
+        })
     }
 }
 

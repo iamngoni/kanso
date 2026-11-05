@@ -209,15 +209,13 @@ pub struct Flat {
     pub height: f32,
 }
 
-/// `svg` with its text turned to outlines (so it looks the same wherever it
-/// is shown, fonts or not), cropped to what it draws plus `pad` on each
-/// side, and sized in points. `None` if it doesn't parse or draws nothing.
-pub fn flatten(svg: &str, pad: f32) -> Option<Flat> {
+/// How a drawing is parsed: with this machine's fonts, and a family it
+/// lacks falling back to its sans-serif, then to any face, rather than
+/// leaving the text out.
+fn tree_options() -> usvg::Options<'static> {
     let default_font = usvg::FontResolver::default_font_selector();
-    let options = usvg::Options {
+    usvg::Options {
         fontdb: fonts(),
-        // A family this machine lacks falls back to its sans-serif, then to
-        // any face, rather than leaving the text out.
         font_resolver: usvg::FontResolver {
             select_font: Box::new(move |font, db| {
                 default_font(font, db).or_else(|| {
@@ -231,8 +229,38 @@ pub fn flatten(svg: &str, pad: f32) -> Option<Flat> {
             select_fallback: usvg::FontResolver::default_fallback_selector(),
         },
         ..usvg::Options::default()
-    };
-    let tree = usvg::Tree::from_str(svg, &options).ok()?;
+    }
+}
+
+/// `svg` drawn as a PNG, `scale` pixels to the point, with the long side cut
+/// to at most `max_side` pixels (the drawing is made smaller to fit, not
+/// cropped) and the background left clear. `None` if it doesn't parse or has
+/// no size.
+// no-prop-test: hands the drawing to resvg; the canvas export's tests draw through it.
+pub fn rasterize(svg: &str, scale: f32, max_side: u32) -> Option<Vec<u8>> {
+    let tree = usvg::Tree::from_str(svg, &tree_options()).ok()?;
+    let size = tree.size();
+    let (w, h) = (size.width() * scale, size.height() * scale);
+    if !(w.is_finite() && h.is_finite() && w > 0. && h > 0.) {
+        return None;
+    }
+    let fit = (max_side as f32 / w.max(h)).min(1.);
+    let px_w = ((w * fit).round() as u32).max(1);
+    let px_h = ((h * fit).round() as u32).max(1);
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(px_w, px_h)?;
+    let transform = resvg::tiny_skia::Transform::from_scale(
+        px_w as f32 / size.width(),
+        px_h as f32 / size.height(),
+    );
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+    pixmap.encode_png().ok()
+}
+
+/// `svg` with its text turned to outlines (so it looks the same wherever it
+/// is shown, fonts or not), cropped to what it draws plus `pad` on each
+/// side, and sized in points. `None` if it doesn't parse or draws nothing.
+pub fn flatten(svg: &str, pad: f32) -> Option<Flat> {
+    let tree = usvg::Tree::from_str(svg, &tree_options()).ok()?;
     let bounds = tree.root().abs_layer_bounding_box();
     if !tree.root().has_children() {
         return None;

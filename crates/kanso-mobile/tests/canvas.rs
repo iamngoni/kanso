@@ -570,3 +570,78 @@ proptest! {
         prop_assert!(!reopened.dirty);
     }
 }
+
+#[test]
+fn an_erase_that_touches_nothing_does_not_write_the_document_out() {
+    let phone = library();
+    let id = new_canvas(&phone.library, "Board");
+    let session = phone.library.canvas(&id).unwrap();
+    session.draw(pen(), line(0.0), vec![]).unwrap();
+    let opened = session.view(vec![]).unwrap();
+    let before = session.size_measurements();
+    // Views of an unchanged document, and erasers that miss, measure nothing.
+    session.view(vec![]).unwrap();
+    for _ in 0..5 {
+        let v = session
+            .erase_strokes_along(
+                vec![
+                    CanvasPoint { x: 900.0, y: 900.0 },
+                    CanvasPoint { x: 950.0, y: 950.0 },
+                ],
+                4.0,
+                vec![],
+            )
+            .unwrap();
+        assert_eq!(v.bytes, opened.bytes);
+        let v = session
+            .erase_along(vec![CanvasPoint { x: 900.0, y: 900.0 }], 4.0, vec![])
+            .unwrap();
+        assert_eq!(v.bytes, opened.bytes);
+    }
+    assert_eq!(session.size_measurements(), before);
+    // A whole drag that does erase is one measurement, however long.
+    let path: Vec<CanvasPoint> = (0..40)
+        .map(|i| CanvasPoint {
+            x: f64::from(i) * 3.0,
+            y: 1.0,
+        })
+        .collect();
+    let v = session.erase_strokes_along(path, 4.0, vec![]).unwrap();
+    assert!(v.strokes.is_empty());
+    assert_eq!(session.size_measurements(), before + 1);
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(12))]
+
+    /// The size a view reports is always that of the document, though it is
+    /// measured at most once per call, and only when the document changed.
+    #[test]
+    fn prop_the_reported_size_is_the_documents(steps in steps()) {
+        let phone = library();
+        let id = new_canvas(&phone.library, "Board");
+        let session = phone.library.canvas(&id).unwrap();
+        for step in steps {
+            let before = session.size_measurements();
+            let view = match step {
+                Step::Draw(row) => session.draw(pen(), line(f64::from(row) * 30.0), vec![]).unwrap(),
+                Step::Erase(row) => session.erase_strokes_along(
+                    vec![CanvasPoint { x: 40.0, y: f64::from(row) * 30.0 }], 4.0, vec![]).unwrap(),
+                Step::Partial(row) => {
+                    let y = f64::from(row) * 30.0;
+                    session.erase_along(vec![CanvasPoint { x: 50.0, y: y - 6.0 }, CanvasPoint { x: 50.0, y: y + 6.0 }], 4.0, vec![]).unwrap()
+                }
+                Step::Undo => session.undo(vec![]).unwrap(),
+                Step::Redo => session.redo(vec![]).unwrap(),
+                Step::Save => session.view(vec![]).unwrap(),
+            };
+            prop_assert!(session.size_measurements() - before <= 1);
+            let saved = session.save().unwrap();
+            prop_assert_eq!(view.bytes, saved.bytes);
+            // Asking again for an unchanged document measures nothing.
+            let again = session.size_measurements();
+            session.view(vec![]).unwrap();
+            prop_assert_eq!(session.size_measurements(), again);
+        }
+    }
+}

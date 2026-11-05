@@ -18,8 +18,6 @@ pub struct ServerSettings {
     pub enabled: bool,
     pub port: u16,
     pub bind_address: String,
-    pub username: String,
-    pub password: String,
 }
 
 impl Default for ServerSettings {
@@ -28,8 +26,6 @@ impl Default for ServerSettings {
             enabled: true,
             port: crate::flavour::CURRENT.default_port,
             bind_address: "127.0.0.1".into(),
-            username: String::new(),
-            password: String::new(),
         }
     }
 }
@@ -40,8 +36,6 @@ impl fmt::Debug for ServerSettings {
             .field("enabled", &self.enabled)
             .field("port", &self.port)
             .field("bind_address", &self.bind_address)
-            .field("username", &self.username)
-            .field("password", &"<redacted>")
             .finish()
     }
 }
@@ -923,20 +917,6 @@ impl AppConfig {
         std::fs::rename(&tmp, path)?;
         Ok(())
     }
-
-    /// Fills in API credentials on first run so the server never runs open.
-    pub fn ensure_credentials(&mut self) -> bool {
-        let mut changed = false;
-        if self.server.username.is_empty() {
-            self.server.username = "kanso".into();
-            changed = true;
-        }
-        if self.server.password.is_empty() {
-            self.server.password = (0..24).map(|_| fastrand::alphanumeric()).collect();
-            changed = true;
-        }
-        changed
-    }
 }
 
 #[cfg(test)]
@@ -1232,8 +1212,6 @@ mod tests {
             any::<bool>(),
             any::<u16>(),
             "[a-z0-9.:]{0,15}",
-            "\\PC{0,12}",
-            "\\PC{0,24}",
             gen_sync(),
             (
                 prop::sample::select(vec![
@@ -1267,8 +1245,6 @@ mod tests {
                     enabled,
                     port,
                     bind,
-                    user,
-                    pass,
                     sync,
                     (theme, font, size, numbers, mode, sidebar, readable),
                     login,
@@ -1281,8 +1257,6 @@ mod tests {
                         enabled,
                         port,
                         bind_address: bind,
-                        username: user,
-                        password: pass,
                     },
                     sync,
                     appearance: Appearance {
@@ -1610,14 +1584,6 @@ mod tests {
             config.save(&path).unwrap();
             prop_assert_eq!(AppConfig::load(&path).unwrap(), config);
         }
-
-        /// Refinement: debug output never contains the password.
-        #[test]
-        fn prop_debug_redacts_password(password in "[a-zA-Z0-9]{8,24}") {
-            let settings = ServerSettings { password: password.clone(), ..ServerSettings::default() };
-            let debug = format!("{settings:?}");
-            prop_assert!(!debug.contains(&password));
-        }
     }
 
     /// Dismissing an update notice is written to `config.json` and read
@@ -1913,7 +1879,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
         std::fs::write(&path, r#"{"server": {"port": 1234}}"#).unwrap();
-        let mut config = AppConfig::load(&path).unwrap();
+        let config = AppConfig::load(&path).unwrap();
         assert_eq!(config.server.port, 1234);
         assert_eq!(config.server.bind_address, "127.0.0.1");
         assert_eq!(config.appearance.view_mode, ViewMode::Split);
@@ -1926,8 +1892,6 @@ mod tests {
         assert!(config.editor.spellcheck);
         // A file from before the setting keeps its secrets where they were.
         assert_eq!(config.sync.secret_store, SecretStoreKind::System);
-        assert!(config.ensure_credentials());
-        assert!(!config.ensure_credentials());
         config.save(&path).unwrap();
         use std::os::unix::fs::PermissionsExt as _;
         assert_eq!(

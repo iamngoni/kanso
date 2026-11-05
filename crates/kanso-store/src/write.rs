@@ -785,6 +785,8 @@ impl Store {
             )?;
             tx.execute("DELETE FROM revisions WHERE doc_id = ?", [&result.id])?;
             crate::embed::forget_note(tx, &result.id)?;
+            // A PDF only this note linked is no longer read, nor kept.
+            crate::pdf_text::forget_unlinked(tx)?;
             FORGOT_TEXT.set(true);
             Ok(result)
         })?;
@@ -973,7 +975,7 @@ impl Store {
                 crate::embed::forget_note(tx, &result.id)?;
                 FORGOT_TEXT.set(true);
             }
-            put_in(
+            let result = put_in(
                 tx,
                 changes,
                 DocType::Book,
@@ -981,7 +983,9 @@ impl Store {
                 Put::Upsert,
                 Origin::Ui,
                 PutRules::default(),
-            )
+            )?;
+            crate::pdf_text::forget_unlinked(tx)?;
+            Ok(result)
         })
     }
 

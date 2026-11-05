@@ -118,13 +118,17 @@ fn an_obsidian_vault_comes_in_whole() {
     let vault = env.copy("obsidian");
     let report = env.import(SourceKind::Obsidian, &vault);
     assert!(report.is_clean(), "{report}");
-    assert_eq!(report.found.notes, 3, "{report}");
-    assert_eq!(report.notes.created, 3);
+    // Three notes and the board.
+    assert_eq!(report.found.notes, 4, "{report}");
+    assert_eq!(report.notes.created, 4);
     // The vault, Projects and People.
     assert_eq!(report.notebooks.created, 3);
     assert_eq!(report.attachments.created, 2);
     assert_eq!(report.embeds_as_links, 1);
-    assert_eq!(report.unresolved_links, 1, "[[Missing note]]");
+    assert_eq!(
+        report.unresolved_links, 2,
+        "[[Missing note]] and the board's missing card"
+    );
     let mut skipped: Vec<(&str, &str)> = report
         .skipped
         .iter()
@@ -133,7 +137,7 @@ fn an_obsidian_vault_comes_in_whole() {
     skipped.sort();
     assert_eq!(
         skipped.iter().map(|(p, _)| *p).collect::<Vec<_>>(),
-        [".obsidian/", ".trash/", "Board.canvas", "orphan.png"]
+        [".obsidian/", ".trash/", "orphan.png"]
     );
 
     let welcome = env.note("Welcome");
@@ -187,6 +191,84 @@ fn an_obsidian_vault_comes_in_whole() {
 }
 
 #[test]
+fn a_vault_canvas_becomes_a_canvas_note_pointing_at_what_came_in() {
+    let env = Env::new();
+    let vault = env.copy("obsidian");
+    env.import(SourceKind::Obsidian, &vault);
+    let board = env.note("Board");
+    assert_eq!(board.str_field("doctype"), Some("canvas"));
+    assert_eq!(
+        env.book_name(board.str_field("bookId").unwrap()),
+        "obsidian"
+    );
+    let canvas = kanso_core::canvas::parse(board.str_field("body").unwrap()).unwrap();
+    assert_eq!(canvas.nodes.len(), 9);
+    assert_eq!(canvas.edges.len(), 3);
+
+    // Paths became the IDs of the notes the import made, with or without .md.
+    let card = |id: &str| canvas.node(&format!("3c9d1e7a5b2f4a{id}")).unwrap();
+    for (card_id, title) in [("03", "Plan"), ("05", "Welcome"), ("06", "Ada Lovelace")] {
+        let note = env.note(title);
+        let node = card(card_id);
+        assert_eq!(
+            kanso_core::canvas::Canvas::note_id(node),
+            Some(note.id.as_str())
+        );
+        assert_eq!(node.title.as_deref(), Some(title));
+    }
+    assert_eq!(card("03").subpath.as_deref(), Some("#Milestones"));
+
+    // Pictures and PDFs became attachments, with their bytes.
+    let diagram = kanso_core::canvas::Canvas::attachment_id(card("04")).unwrap();
+    let (content_type, attachment) = env.store.attachment(diagram).unwrap().unwrap();
+    assert_eq!(content_type, "image/png");
+    assert_eq!(attachment.data, b"\x89PNG\r\n\x1a\nfixture");
+    let pdf = kanso_core::canvas::Canvas::attachment_id(card("07")).unwrap();
+    assert_eq!(
+        env.store.attachment(pdf).unwrap().unwrap().0,
+        "application/pdf"
+    );
+
+    // A path nothing matched stays as written, for a missing card.
+    assert_eq!(card("08").file.as_deref(), Some("Missing/Gone.md"));
+    // Text, groups, links, arrows and what Kanso has no use for are kept.
+    assert!(
+        card("02")
+            .text
+            .as_deref()
+            .unwrap()
+            .starts_with("# Launch plan")
+    );
+    assert_eq!(card("01").label.as_deref(), Some("Launch"));
+    assert_eq!(
+        card("09").url.as_deref(),
+        Some("https://jsoncanvas.org/spec/1.0/")
+    );
+    assert!(
+        canvas
+            .edges
+            .iter()
+            .any(|e| e.label.as_deref() == Some("see the diagram"))
+    );
+    assert!(canvas.extra.contains_key("metadata"));
+}
+
+#[test]
+fn a_canvas_that_is_not_one_is_skipped_with_a_reason() {
+    let env = Env::new();
+    let vault = env.copy("obsidian");
+    std::fs::write(vault.join("Broken.canvas"), "{ not json").unwrap();
+    let report = env.import(SourceKind::Obsidian, &vault);
+    assert_eq!(report.notes.created, 4, "{report}");
+    let skipped = report
+        .skipped
+        .iter()
+        .filter(|s| s.path == "Broken.canvas")
+        .count();
+    assert_eq!(skipped, 1, "{report}");
+}
+
+#[test]
 fn importing_again_changes_only_what_changed_in_the_source() {
     let env = Env::new();
     let vault = env.copy("obsidian");
@@ -194,7 +276,7 @@ fn importing_again_changes_only_what_changed_in_the_source() {
     let before = env.notes();
 
     let again = env.import(SourceKind::Obsidian, &vault);
-    assert_eq!(again.notes.unchanged, 3, "{again}");
+    assert_eq!(again.notes.unchanged, 4, "{again}");
     assert_eq!(again.notes.written(), 0);
     assert_eq!(again.notebooks.unchanged, 3);
     assert_eq!(again.attachments.unchanged, 2);
@@ -210,11 +292,11 @@ fn importing_again_changes_only_what_changed_in_the_source() {
             third.notes.updated,
             third.notes.unchanged
         ),
-        (1, 1, 2),
+        (1, 1, 3),
         "{third}"
     );
     assert_eq!(env.note("Plan").str_field("body"), Some("Revised.\n"));
-    assert_eq!(env.notes().len(), 4, "no duplicates");
+    assert_eq!(env.notes().len(), 5, "no duplicates");
 }
 
 #[test]
@@ -249,7 +331,7 @@ fn a_preview_writes_nothing() {
     let vault = fixture("obsidian");
     let report = preview(SourceKind::Obsidian, &vault, &env.store, |_| {}).unwrap();
     assert!(report.dry_run);
-    assert_eq!(report.notes.created, 3, "{report}");
+    assert_eq!(report.notes.created, 4, "{report}");
     assert_eq!(report.notebooks.created, 3);
     assert_eq!(report.attachments.created, 2);
     assert_eq!(report.tags_created, 3);
