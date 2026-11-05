@@ -460,6 +460,13 @@ async fn read_keys_read_suggest_keys_suggest_and_write_keys_write() {
             "kanso-attach-file",
             "kanso-list-attachments",
             "kanso-read-attachment",
+            "kanso-search-pdf",
+            "kanso-read-pdf-page",
+            "kanso-list-pdf-highlights",
+            "kanso-add-pdf-highlight",
+            "kanso-edit-pdf-highlight",
+            "kanso-edit-pdf-comment",
+            "kanso-delete-pdf-highlight",
         ] {
             let result = tool_as(
                 &app.router,
@@ -474,6 +481,15 @@ async fn read_keys_read_suggest_keys_suggest_and_write_keys_write() {
                 "{name}: {result}"
             );
         }
+        let (status, _, _) = call_as(
+            &app.router,
+            key,
+            Method::GET,
+            "/pdf/search?query=secret",
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN);
     }
     let (status, doc, _) = call_as(
         &app.router,

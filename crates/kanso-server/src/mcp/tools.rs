@@ -76,6 +76,9 @@ pub(crate) fn call(
         ("list-notes", vis) => list_notes(store, vis, &args),
         ("kanso-list-canvases", vis) => list_canvases(store, vis, &args),
         ("kanso-read-canvas", vis) => read_canvas(store, vis, &args),
+        ("kanso-search-pdf", Some(vis)) => pdf_search(store, vis, &args),
+        ("kanso-read-pdf-page", Some(vis)) => pdf_page(store, vis, &args),
+        ("kanso-list-pdf-highlights", Some(vis)) => pdf_highlights(store, vis, &args),
         ("list-templates", vis) => list_templates(store, vis, &args),
         ("list-notebooks", Some(vis)) => list_visible_books(store, vis),
         ("kanso-get-outline", vis) => get_outline(store, vis, &args),
@@ -197,6 +200,18 @@ fn guard_write(
             keyed::check_write(store, key, vis, DocType::Note, Some(&id), &Args::new())?;
             sees(&id)?;
         }
+        "kanso-add-pdf-highlight"
+        | "kanso-edit-pdf-highlight"
+        | "kanso-edit-pdf-comment"
+        | "kanso-delete-pdf-highlight" => {
+            let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
+            keyed::check_write(store, key, vis, DocType::Note, Some(&id), &Args::new())?;
+            sees(&id)?;
+            let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+            if !keyed::file_visible(key.scope, vis, &file) {
+                return Err(ApiError::not_found().into());
+            }
+        }
         "kanso-create-canvas" => {
             // Without a notebook the canvas goes to the Inbox, which may not
             // be one of the key's notebooks.
@@ -249,6 +264,10 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
         "create-note" => upsert(store, DocType::Note, args),
         "kanso-create-canvas" => create_canvas(store, vis, args),
         "kanso-edit-canvas" => edit_canvas(state, key, vis, &args),
+        "kanso-add-pdf-highlight" => pdf_add(state, vis, &args),
+        "kanso-edit-pdf-highlight" => pdf_edit(state, vis, &args),
+        "kanso-edit-pdf-comment" => pdf_comment(state, vis, &args),
+        "kanso-delete-pdf-highlight" => pdf_delete(state, vis, &args),
         "update-note" => update_note(store, args),
         "patch-note" => patch_note(store, &args),
         "list-tags" => list(keyed::list_docs(store, key, DocType::Tag, None, 0)?),
@@ -846,6 +865,121 @@ fn str_arg<'a>(args: &'a Args, key: &str) -> &'a str {
 
 fn opt_str<'a>(args: &'a Args, key: &str) -> Option<&'a str> {
     args.get(key).and_then(Value::as_str)
+}
+
+fn pdf_search(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
+    let query = str_arg(args, "query");
+    let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(20) as usize;
+    crate::pdf_tools::search(store, vis, query, limit)
+        .map_err(ToolError::from)
+        .and_then(|value| result(vec![text(pretty(&value))]))
+}
+
+fn pdf_page(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
+    let note = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+    let page = args
+        .get("page")
+        .and_then(Value::as_u64)
+        .and_then(|n| u32::try_from(n).ok())
+        .unwrap_or(0);
+    crate::pdf_tools::read_page(store, vis, &note, &file, page)
+        .map_err(ToolError::from)
+        .and_then(|value| result(vec![text(pretty(&value))]))
+}
+
+fn pdf_highlights(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
+    let note = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+    crate::pdf_tools::list(store, vis, &note, &file)
+        .map_err(ToolError::from)
+        .and_then(|value| result(vec![text(pretty(&value))]))
+}
+
+fn pdf_add(state: &AppState, vis: &Visibility, args: &Args) -> ToolResult {
+    let store = &state.store;
+    let note = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+    let page = args
+        .get("page")
+        .and_then(Value::as_u64)
+        .and_then(|n| u32::try_from(n).ok())
+        .unwrap_or(0);
+    let value = crate::pdf_tools::add(
+        store,
+        &state.canvases,
+        vis,
+        crate::pdf_tools::AddHighlight {
+            note_id: &note,
+            file_id: &file,
+            page,
+            quote: str_arg(args, "quote"),
+            color: opt_str(args, "color").unwrap_or("yellow"),
+            comment: opt_str(args, "comment"),
+            include_quote: args
+                .get("includeQuote")
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
+        },
+    )?;
+    result(vec![text(pretty(&value))])
+}
+
+fn pdf_comment(state: &AppState, vis: &Visibility, args: &Args) -> ToolResult {
+    let store = &state.store;
+    let note = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+    let value = crate::pdf_tools::comment(
+        store,
+        &state.canvases,
+        vis,
+        &note,
+        &file,
+        str_arg(args, "highlightId"),
+        opt_str(args, "comment"),
+    )?;
+    result(vec![text(pretty(&value))])
+}
+
+fn pdf_edit(state: &AppState, vis: &Visibility, args: &Args) -> ToolResult {
+    let note = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+    let comment = args.get("comment").map(|value| value.as_str());
+    if args
+        .get("comment")
+        .is_some_and(|value| !value.is_null() && value.as_str().is_none())
+    {
+        return Err(ToolError("The comment must be text or null.".into()));
+    }
+    let color = opt_str(args, "color");
+    let value = crate::pdf_tools::edit(
+        &state.store,
+        &state.canvases,
+        vis,
+        crate::pdf_tools::EditHighlight {
+            note_id: &note,
+            file_id: &file,
+            highlight_id: str_arg(args, "highlightId"),
+            color,
+            comment,
+        },
+    )?;
+    result(vec![text(pretty(&value))])
+}
+
+fn pdf_delete(state: &AppState, vis: &Visibility, args: &Args) -> ToolResult {
+    let store = &state.store;
+    let note = with_prefix(DocType::Note, str_arg(args, "noteId"));
+    let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+    let value = crate::pdf_tools::delete(
+        store,
+        &state.canvases,
+        vis,
+        &note,
+        &file,
+        str_arg(args, "highlightId"),
+    )?;
+    result(vec![text(pretty(&value))])
 }
 
 fn bool_arg(args: &Args, key: &str) -> bool {

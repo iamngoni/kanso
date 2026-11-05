@@ -52,6 +52,21 @@ pub fn definitions_for(scope: &AgentScope) -> Vec<Value> {
         .collect()
 }
 
+/// What a key's MCP catalog exposes; Read and Suggest keys never see
+/// attachment tools, even when their note scope otherwise includes them.
+pub(crate) fn definitions_for_key(scope: &AgentScope, can_read_files: bool) -> Vec<Value> {
+    definitions_for(scope)
+        .into_iter()
+        .filter(|tool| {
+            can_read_files
+                || !tool
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|name| ATTACHMENT_TOOLS.contains(&name))
+        })
+        .collect()
+}
+
 pub(crate) fn call_with_state(
     state: &AppState,
     token: TokenId,
@@ -123,6 +138,9 @@ pub(crate) fn call_for_key(
     if key.can_write() {
         return tools::call_write(state, key, &vis, name, arguments);
     }
+    if ATTACHMENT_TOOLS.contains(&name) {
+        return tools::error_result(keyed::cannot_attach(key.access));
+    }
     if !key.scope.allows_tool(name) {
         let message = if ATTACHMENT_TOOLS.contains(&name) {
             keyed::cannot_attach(key.access)
@@ -146,12 +164,19 @@ pub(crate) fn call_for_key(
 
 /// The tools that reach attachments: a key that can only read or suggest
 /// has none of them.
-const ATTACHMENT_TOOLS: [&str; 5] = [
+const ATTACHMENT_TOOLS: [&str; 12] = [
     "create-file",
     "read-file",
     "kanso-attach-file",
     "kanso-list-attachments",
     "kanso-read-attachment",
+    "kanso-search-pdf",
+    "kanso-add-pdf-highlight",
+    "kanso-edit-pdf-highlight",
+    "kanso-edit-pdf-comment",
+    "kanso-delete-pdf-highlight",
+    "kanso-read-pdf-page",
+    "kanso-list-pdf-highlights",
 ];
 
 /// The notes a task has been shown so far, over all its tokens.

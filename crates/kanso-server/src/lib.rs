@@ -28,6 +28,7 @@ mod key_model;
 mod keyed;
 mod keys;
 mod mcp;
+mod pdf_tools;
 mod proposal;
 mod rest;
 mod review;

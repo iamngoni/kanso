@@ -4940,6 +4940,7 @@ dependencies = [
  "getrandom 0.4.3",
  "http-body-util",
  "kanso-core",
+ "kanso-pdf",
  "kanso-render",
  "kanso-store",
  "proptest",

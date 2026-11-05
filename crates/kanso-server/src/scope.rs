@@ -27,9 +27,10 @@ use crate::changeset::TaskId;
 use crate::key_model::KeyId;
 use crate::tokens::TokenId;
 
-/// The tools an agent may ever be given: reads, and none that reach
-/// attachments. Everything else is denied.
-pub const READ_TOOLS: [&str; 24] = [
+/// Read tools offered to an agent. Attachment bytes remain unavailable;
+/// PDF tools expose only the extracted, page-scoped text and annotations
+/// after the owning note has passed the same visibility checks.
+pub const READ_TOOLS: [&str; 27] = [
     "search-notes",
     "read-note",
     "list-notes",
@@ -54,6 +55,9 @@ pub const READ_TOOLS: [&str; 24] = [
     "kanso-ask-when",
     "kanso-list-canvases",
     "kanso-read-canvas",
+    "kanso-search-pdf",
+    "kanso-read-pdf-page",
+    "kanso-list-pdf-highlights",
 ];
 
 /// The tools Ask your notes gives an agent: the same five a model with an
@@ -226,6 +230,9 @@ impl AgentScope {
                 "kanso-list-backlinks",
                 "kanso-list-tags",
                 "kanso-get-properties",
+                "kanso-search-pdf",
+                "kanso-read-pdf-page",
+                "kanso-list-pdf-highlights",
             ],
         );
         let mut write: Vec<&str> = vec!["kanso-list-proposed", "kanso-task-done"];
