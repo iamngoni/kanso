@@ -26,6 +26,9 @@ impl Store {
         path: impl AsRef<Path>,
         key: Option<&crate::LibraryKey>,
     ) -> Result<ReadOnlyStore> {
+        if crate::encryption_unfinished(path.as_ref()) {
+            return Err(crate::StoreError::Converting);
+        }
         let conn = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,

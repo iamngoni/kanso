@@ -50,6 +50,9 @@ pub struct NoticeContext {
     pub signed_in_to_sync: bool,
     /// The person has saved the library key.
     pub library_key_saved: bool,
+    /// This library is still a plain file: encrypting it didn't happen (the
+    /// system's key store refused the key, or the disk was too small).
+    pub library_plain: bool,
 }
 
 /// A change that breaks something people rely on, and the steps to fix what

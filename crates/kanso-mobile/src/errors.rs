@@ -87,7 +87,10 @@ impl From<StoreError> for KansoError {
             | StoreError::Json(_)
             | StoreError::Io(_)
             | StoreError::WrongKey
-            | StoreError::NoEncryption => KansoError::storage(err.to_string()),
+            | StoreError::NoEncryption
+            | StoreError::Converting
+            | StoreError::DiskFull { .. }
+            | StoreError::EncryptFailed(_) => KansoError::storage(err.to_string()),
         }
     }
 }
