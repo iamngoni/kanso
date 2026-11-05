@@ -210,9 +210,8 @@ fn hostile_numbers_in_a_word_are_held_to_the_page() {
 #[test]
 fn a_field_with_absurd_counts_is_capped() {
     let word = json!(["w", 1, 1, 10, 10]);
-    let page = |n: usize| {
-        json!({"page": n, "width": 1.0, "height": 1.0, "words": vec![word.clone(); 50]})
-    };
+    let page =
+        |n: usize| json!({"page": n, "width": 1.0, "height": 1.0, "words": vec![word.clone(); 50]});
     let pages: Vec<Value> = (1..=MAX_OCR_PAGES + 500).map(page).collect();
     let ocr = PdfOcr::from_value(&json!({"md5": "m", "pages": pages})).unwrap();
     assert_eq!(ocr.pages.len(), MAX_OCR_PAGES);
@@ -517,5 +516,91 @@ proptest! {
         let _ = PdfOcr::from_value(&value);
         let value = json!({"md5": raw, "pages": pages});
         let _ = PdfOcr::from_value(&value);
+    }
+}
+
+/// Lines of `words` laid out apart on page 1, as a reader gives them.
+fn laid_out(lines: &[Vec<String>]) -> OcrPage {
+    let mut words = Vec::new();
+    for (row, line) in lines.iter().enumerate() {
+        let y = 0.05 + row as f64 * 0.06;
+        let mut x = 0.02;
+        for w in line {
+            let width = 0.012 * w.chars().count() as f64;
+            words.push((w.clone(), q(x, y, x + width, y + 0.04)));
+            x += width + 0.015;
+        }
+    }
+    OcrPage::new(1, 612.0, 792.0, words)
+}
+
+/// A highlight on the word under the middle of `word`'s box, made with the
+/// reader's own selection and the highlights code, as for typed text.
+fn highlight_word(
+    a: &mut crate::Annotations,
+    page: &OcrPage,
+    word: usize,
+    color: crate::Color,
+) -> String {
+    let text = page.to_page_text();
+    let doc = TextDoc::new([&text]);
+    let [x0, y0, x1, y1] = page.words[word].quad.0;
+    let at = crate::text::Point {
+        page: 1,
+        x: (x0 + x1) / 2.0,
+        y: (y0 + y1) / 2.0,
+    };
+    let range = doc.word_at(doc.hit(at).expect("a hit")).expect("a word");
+    a.add(doc.highlight_parts(&range), color, 1).expect("added")
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { rng_seed: RngSeed::Fixed(SEED), ..ProptestConfig::with_cases(64) })]
+
+    /// A highlight on a scanned word goes through the same block, merge and
+    /// hit code as one on typed text: it saves into the note, reads back,
+    /// is found under the word, and survives a merge with another device's
+    /// highlight made on the words that device got by sync.
+    #[test]
+    fn prop_a_highlight_on_a_scanned_word_round_trips(
+        lines in prop::collection::vec(prop::collection::vec("[A-Za-z0-9]{1,9}", 1..6), 1..5),
+        pick in any::<prop::sample::Index>(),
+        other in any::<prop::sample::Index>(),
+    ) {
+        let page = laid_out(&lines);
+        let n = page.words.len();
+        let (pick, other) = (pick.index(n), other.index(n));
+        let word = page.words[pick].text.clone();
+
+        // The Mac that read the scan highlights a word.
+        let mut mac = crate::Annotations::new("file:scan", "md5");
+        let id = highlight_word(&mut mac, &page, pick, crate::Color::Yellow);
+        let body = "Notes\n".to_owned();
+        let body = mac.save_edit(&body).unwrap().expect("an edit").apply(&body);
+        let back = crate::Annotations::from_body(&body, "file:scan", "md5");
+        prop_assert!(back.is_editable());
+        let h = back.get(&id).expect("read back");
+        prop_assert_eq!(&h.text, &word);
+        prop_assert_eq!(h.page, 1);
+        prop_assert_eq!(h, mac.get(&id).unwrap());
+        let [x0, y0, x1, y1] = page.words[pick].quad.0;
+        prop_assert_eq!(back.hit(1, (x0 + x1) / 2.0, (y0 + y1) / 2.0).map(|h| h.id.as_str()), Some(id.as_str()));
+        prop_assert_eq!(back.save_edit(&body).unwrap(), None);
+
+        // Another device has only the synced words, and highlights there.
+        let synced = PdfOcr { md5: "md5".into(), engine: "vision".into(), at: 1, pages: vec![page.clone()] };
+        let synced = PdfOcr::from_value(&synced.to_value()).unwrap();
+        let elsewhere_page = synced.page(1).unwrap().clone();
+        prop_assert_eq!(elsewhere_page.to_page_text().chars.len(), page.to_page_text().chars.len());
+        let mut pc = crate::Annotations::new("file:scan", "md5");
+        let theirs = highlight_word(&mut pc, &elsewhere_page, other, crate::Color::Blue);
+        prop_assert_eq!(&pc.get(&theirs).unwrap().text, &page.words[other].text);
+        let their_body = pc.save_edit("Notes\n").unwrap().unwrap().apply("Notes\n");
+
+        // Sync keeps both sides' highlights.
+        let merged = crate::merge::merge_bodies(&body, &their_body).expect("a merge");
+        let both = crate::Annotations::from_body(&merged, "file:scan", "md5");
+        prop_assert_eq!(both.get(&id), mac.get(&id));
+        prop_assert_eq!(both.get(&theirs), pc.get(&theirs));
     }
 }
