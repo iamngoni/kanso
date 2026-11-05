@@ -937,31 +937,11 @@ fn append_highlight_appearances(bytes: &mut Vec<u8>) -> Result<(), ()> {
                 .map_err(|_| ())?;
             highlight.set(
                 "C",
-                Object::Array(
-                    tint.iter()
-                        .map(|value| {
-                            // `Object::Real` holds f32 or f64 depending on
-                            // lopdf's features in the build; the cast is a
-                            // no-op in one of them.
-                            #[allow(clippy::unnecessary_cast)]
-                            Object::Real(*value as f32)
-                        })
-                        .collect(),
-                ),
+                Object::Array(tint.iter().map(|value| Object::Real(*value)).collect()),
             );
             highlight.set(
                 "IC",
-                Object::Array(
-                    tint.iter()
-                        .map(|value| {
-                            // `Object::Real` holds f32 or f64 depending on
-                            // lopdf's features in the build; the cast is a
-                            // no-op in one of them.
-                            #[allow(clippy::unnecessary_cast)]
-                            Object::Real(*value as f32)
-                        })
-                        .collect(),
-                ),
+                Object::Array(tint.iter().map(|value| Object::Real(*value)).collect()),
             );
             highlight.set("CA", Object::Real(1.0));
             let mut content = format!(

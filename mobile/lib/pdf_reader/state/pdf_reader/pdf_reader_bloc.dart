@@ -613,7 +613,7 @@ class PdfReaderBloc extends Bloc<PdfReaderEvent, PdfReaderState> {
         info: null,
         marks: null,
         declined: const PdfDeclined.lockedNote(
-          message: 'Unlock this note to open its PDF.',
+          message: 'Unlock the note to open its PDF.',
         ),
         error: null,
         marksError: null,
