@@ -1,6 +1,6 @@
 //! Writes: create, replace, merge, delete and import.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use base64::Engine as _;
 use kanso_core::id::is_valid_id;
@@ -10,7 +10,7 @@ use kanso_core::model::{
     OCR_FIELD, TRASH_BOOK_ID, UNSEALED_FIELD, check_attachment_size, note_files_from_extra,
     store_note_files,
 };
-use kanso_core::tasks::linked_file_ids;
+use kanso_core::tasks::shown_file_ids;
 use kanso_core::{DocType, Rev, new_id, now_ms};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::{Map, Value, json};
@@ -849,7 +849,7 @@ impl Store {
                 return Err(StoreError::Conflict);
             }
             let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
-            for file_id in linked_file_ids(body) {
+            for file_id in shown_file_ids(body) {
                 let sealed: bool = tx.query_row(
                     "SELECT EXISTS (SELECT 1 FROM docs WHERE id = ?1 AND type = 'file' AND deleted = 0
                      AND json_extract(json, '$.kansoFileLock') IS NOT NULL)",
@@ -883,17 +883,49 @@ impl Store {
             .ok_or(StoreError::NotFound)?;
         let mut fields = doc.fields;
         store_note_files(Some(files), &mut fields);
-        self.put(
-            DocType::Note,
-            Value::Object({
-                let mut body = fields;
-                body.insert("_id".into(), Value::String(doc.id));
-                body.insert("_rev".into(), Value::String(doc.rev));
-                body
-            }),
-            Put::Upsert,
-            Origin::Ui,
-        )
+        fields.insert("_id".into(), Value::String(doc.id));
+        fields.insert("_rev".into(), Value::String(doc.rev));
+        // The list is the note's claim on its files, so a lock that stopped
+        // between them can write it again while some are already sealed.
+        // Only those: the text may link a sealed file only when the list
+        // holds a key for it, so this can't point a plain note at another
+        // note's sealed file.
+        let listed: HashSet<&str> = files.iter().map(|file| file.file.as_str()).collect();
+        let body = fields
+            .get("body")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_owned();
+        self.write(|tx, changes| {
+            for file_id in shown_file_ids(&body) {
+                if listed.contains(file_id.as_str()) {
+                    continue;
+                }
+                let sealed: bool = tx.query_row(
+                    "SELECT EXISTS (SELECT 1 FROM docs WHERE id = ?1 AND type = 'file' AND deleted = 0
+                     AND json_extract(json, '$.kansoFileLock') IS NOT NULL)",
+                    [&file_id],
+                    |row| row.get(0),
+                )?;
+                if sealed {
+                    return Err(StoreError::Invalid(
+                        "That attachment belongs to a locked note.".into(),
+                    ));
+                }
+            }
+            put_in(
+                tx,
+                changes,
+                DocType::Note,
+                fields.clone(),
+                Put::Upsert,
+                Origin::Ui,
+                PutRules {
+                    allow_sealed_note_links: true,
+                    ..PutRules::default()
+                },
+            )
+        })
     }
 
     /// Turns a sealed file back into a plain file after the app has opened
@@ -1340,7 +1372,7 @@ fn put_in(
         && !rules.allow_sealed_note_links
     {
         let body = normalized.get("body").and_then(Value::as_str).unwrap_or("");
-        for file_id in linked_file_ids(body) {
+        for file_id in shown_file_ids(body) {
             let sealed: bool = tx.query_row(
                 "SELECT EXISTS (SELECT 1 FROM docs WHERE id = ?1 AND type = 'file' AND deleted = 0
                  AND json_extract(json, '$.kansoFileLock') IS NOT NULL)",

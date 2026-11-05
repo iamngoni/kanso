@@ -22,7 +22,7 @@ use serde_json::json;
 
 pub use crate::recording_flow_model::*;
 use crate::recording_note;
-use crate::recording_seal::{Target, open_target};
+use crate::recording_seal::{Target, new_in_locked_book, open_target};
 
 /// What a system audio track's session ID adds to its recording's.
 pub const SYSTEM_SUFFIX: &str = "-sys";
@@ -269,6 +269,9 @@ pub fn save_recording_with(
     if recorded.parts.is_empty() {
         return Err(FlowError::Empty);
     }
+    // A new note in a locked notebook is made sealed, under the key that
+    // opens the notebook, and takes the audio sealed like any locked note.
+    let mut made_sealed = false;
     let (existing, book) = match destination {
         Destination::ThisNote { note_id } => (Some(open_target(store, note_id, key)?), None),
         Destination::NewNote { book_id } => {
@@ -277,9 +280,15 @@ pub fn save_recording_with(
                 None => store.role_book(Role::Inbox, origin)?,
             };
             if store.locked_books()?.contains(&book) {
-                return Err(FlowError::Locked);
+                let id = note_id(&recorded.session_id);
+                made_sealed = store.get(&id)?.is_none();
+                let title = recording_note::title(recorded.mic_only, &recorded.when);
+                let target =
+                    new_in_locked_book(store, &id, &title, &book, key)?.ok_or(FlowError::Locked)?;
+                (Some(target), None)
+            } else {
+                (None, Some(book))
             }
-            (None, Some(book))
         }
     };
     let mut existing = existing;
@@ -313,7 +322,7 @@ pub fn save_recording_with(
             if !target.body().contains(&file_ids[0]) {
                 target.append(store, &line, origin)?;
             }
-            (id, false)
+            (id, made_sealed)
         }
         (None, Some(book)) => {
             let id = note_id(&recorded.session_id);

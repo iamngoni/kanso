@@ -523,6 +523,36 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    /// The store's list of the sync keys a restore keeps
+    /// (`DEVICE_IDENTITY_KEYS`) is the device identity here, no more and no
+    /// less: the binding, the cursor and everything per account are dropped,
+    /// so the next sign-in asks before merging (PR #301 review).
+    #[test]
+    fn a_restore_keeps_exactly_the_device_identity() {
+        let mut kept = vec![
+            meta_keys::LIBRARY_ID,
+            meta_keys::DEVICE_SECRET,
+            meta_keys::HARDWARE,
+        ];
+        let mut stored = kanso_store::DEVICE_IDENTITY_KEYS.to_vec();
+        kept.sort_unstable();
+        stored.sort_unstable();
+        assert_eq!(kept, stored);
+        for key in [
+            meta_keys::ORIGIN,
+            meta_keys::ACCOUNT_ID,
+            meta_keys::USERNAME,
+            meta_keys::SERVER,
+            meta_keys::LAST_SEQ,
+            meta_keys::LEGACY_LAST_SEQ,
+        ]
+        .iter()
+        .chain(meta_keys::PER_ACCOUNT)
+        {
+            assert!(!stored.contains(key), "{key}");
+        }
+    }
+
     #[test]
     fn device_name_examples() {
         assert_eq!(device_name("Ngoni’s MacBook Pro"), "Ngoni’s MacBook Pro");

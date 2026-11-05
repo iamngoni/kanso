@@ -109,6 +109,17 @@ impl Runtime {
         *held(&self.restoring) = false;
         self.restored_cv.notify_all();
     }
+
+    /// Blocks while the launch check is running.
+    pub fn wait_restored(&self) {
+        let mut restoring = held(&self.restoring);
+        while *restoring {
+            restoring = self
+                .restored_cv
+                .wait(restoring)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+    }
 }
 
 /// The right to run an account task: released when dropped.
@@ -125,16 +136,7 @@ impl Drop for Busy {
 /// Takes the one account task slot, once the launch check is done. An error
 /// when another task has it.
 pub(crate) fn begin(inner: &Arc<Inner>) -> Result<Busy, KansoError> {
-    {
-        let mut restoring = held(&inner.account.restoring);
-        while *restoring {
-            restoring = inner
-                .account
-                .restored_cv
-                .wait(restoring)
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-        }
-    }
+    inner.account.wait_restored();
     inner
         .account
         .busy

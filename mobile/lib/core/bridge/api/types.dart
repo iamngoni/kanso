@@ -2106,6 +2106,27 @@ class InstalledIconThemeRow {
           iconCount == other.iconCount;
 }
 
+class InterruptedLock {
+  final int files;
+  final int sealed;
+
+  const InterruptedLock({
+    required this.files,
+    required this.sealed,
+  });
+
+  @override
+  int get hashCode => files.hashCode ^ sealed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InterruptedLock &&
+          runtimeType == other.runtimeType &&
+          files == other.files &&
+          sealed == other.sealed;
+}
+
 class InvitationRow {
   final String shareId;
   final String? title;
@@ -2846,6 +2867,30 @@ class LockStatus {
           hasLockPassword == other.hasLockPassword &&
           unlocked == other.unlocked &&
           biometricsOn == other.biometricsOn;
+}
+
+class LockSummary {
+  final int files;
+  final int bytes;
+  final int shared;
+
+  const LockSummary({
+    required this.files,
+    required this.bytes,
+    required this.shared,
+  });
+
+  @override
+  int get hashCode => files.hashCode ^ bytes.hashCode ^ shared.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockSummary &&
+          runtimeType == other.runtimeType &&
+          files == other.files &&
+          bytes == other.bytes &&
+          shared == other.shared;
 }
 
 class LockedInfo {
@@ -5146,6 +5191,47 @@ class Saved {
           runtimeType == other.runtimeType &&
           id == other.id &&
           rev == other.rev;
+}
+
+enum SealPhase {
+  preparing,
+  sealing,
+  locking,
+}
+
+class SealProgress {
+  final SealPhase phase;
+  final int done;
+  final int total;
+  final int bytesDone;
+  final int bytesTotal;
+
+  const SealProgress({
+    required this.phase,
+    required this.done,
+    required this.total,
+    required this.bytesDone,
+    required this.bytesTotal,
+  });
+
+  @override
+  int get hashCode =>
+      phase.hashCode ^
+      done.hashCode ^
+      total.hashCode ^
+      bytesDone.hashCode ^
+      bytesTotal.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SealProgress &&
+          runtimeType == other.runtimeType &&
+          phase == other.phase &&
+          done == other.done &&
+          total == other.total &&
+          bytesDone == other.bytesDone &&
+          bytesTotal == other.bytesTotal;
 }
 
 @freezed

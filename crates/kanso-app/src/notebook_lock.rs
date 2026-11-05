@@ -25,13 +25,13 @@ use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
 use kanso_sync::lock::{LockKey, LockPassword};
 
-pub use kanso_engine::lock::{seal_notebook, take_lock_off};
+pub use kanso_engine::lock::{seal_notebook_with, take_lock_off};
 
 use crate::dialogs::{self, Field, FormSpec, FormView, Submit};
 use crate::editor::NoteEditor;
 use crate::locked::{
     LockKeys, Target, after_password, any_lock, key_for, password, run_in_background, sentence,
-    store, touch_id_on, with_touch_id,
+    store, touch_id_on, with_files, with_touch_id,
 };
 
 /// What runs once a key is in hand.
@@ -58,27 +58,50 @@ pub fn lock_notebook(
 ) -> Option<Entity<FormView>> {
     editor.update(cx, |editor, cx| editor.flush(cx));
     let name = book_name(&book_id, cx);
+    let summary = kanso_engine::lock::notebook_summary(&store(cx), &book_id);
     let done: WithKey = {
         let editor = editor.clone();
-        Rc::new(
-            move |key, window, cx| match seal_notebook(&store(cx), &book_id, &key) {
-                Ok(_) => {
-                    crate::metrics::record(cx, crate::metrics::Feature::Lock);
-                    editor.update(cx, |editor, cx| editor.lock_keys_changed(window, cx));
-                    cx.refresh_windows();
-                }
-                Err(err) => window.push_notification(
-                    Notification::error(format!("Couldn't lock the notebook: {err}")),
-                    cx,
-                ),
-            },
-        )
+        let book_id = book_id.clone();
+        Rc::new(move |key, window, cx| {
+            // The pictures and files are sealed with the notes, off the main
+            // thread when there are many.
+            let (store, files) = (store(cx), crate::attachments::FileKeys::of(cx));
+            let (book_id, editor) = (book_id.clone(), editor.clone());
+            let summary = kanso_engine::lock::notebook_summary(&store, &book_id);
+            crate::lock_flow::run(
+                "Locking notebook",
+                crate::lock_flow::sheet_line(&summary),
+                summary,
+                window,
+                cx,
+                move |watch| seal_notebook_with(&store, &book_id, &key, files.book(), watch),
+                move |result, window, cx| match result {
+                    Ok(_) => {
+                        crate::metrics::record(cx, crate::metrics::Feature::Lock);
+                        editor.update(cx, |editor, cx| editor.lock_keys_changed(window, cx));
+                        cx.refresh_windows();
+                    }
+                    Err(err) => {
+                        window.push_notification(
+                            Notification::error(format!("Couldn't lock the notebook: {err}")),
+                            cx,
+                        );
+                        // A note a stopped lock reached shows the bar that
+                        // finishes or undoes it.
+                        editor.update(cx, |editor, cx| editor.lock_keys_changed(window, cx));
+                    }
+                },
+            );
+        })
     };
     if let Some(key) = LockKeys::current(cx) {
         dialogs::confirm(
             "Lock this notebook?",
-            format!(
-                "Every note in \u{201c}{name}\u{201d} and the notebooks inside it will only open with your lock password, and so will notes put there later. Their earlier versions are deleted, and they won't show in search, backlinks or tasks while locked."
+            with_files(
+                format!(
+                    "Every note in \u{201c}{name}\u{201d} and the notebooks inside it will only open with your lock password, and so will notes put there later. Their earlier versions are deleted, and they won't show in search, backlinks or tasks while locked."
+                ),
+                &summary,
             ),
             "Lock",
             window,
@@ -88,7 +111,7 @@ pub fn lock_notebook(
         return None;
     }
     let Some(target) = any_lock(&store(cx)) else {
-        return Some(new_password_form(name, done, window, cx));
+        return Some(new_password_form(name, summary, done, window, cx));
     };
     let ask = {
         let name = name.clone();
@@ -97,8 +120,11 @@ pub fn lock_notebook(
                 password_form(
                     "Lock this notebook",
                     "Lock",
-                    format!(
-                        "Type your lock password to lock \u{201c}{name}\u{201d} and every note in it. Their earlier versions are deleted."
+                    with_files(
+                        format!(
+                            "Type your lock password to lock \u{201c}{name}\u{201d} and every note in it. Their earlier versions are deleted."
+                        ),
+                        &summary,
                     ),
                     target,
                     done,
@@ -277,13 +303,17 @@ fn password_form(
 /// password, typed twice.
 fn new_password_form(
     name: String,
+    summary: kanso_engine::lock::files::Summary,
     then: WithKey,
     window: &mut Window,
     cx: &mut App,
 ) -> Entity<FormView> {
     let spec = FormSpec::new("Set a lock password", "Lock")
-        .description(format!(
-            "Locked notes open with this password, on this device and any other that syncs with it. Kanso can't recover it: forget it, and the notes locked with it can't be read. The earlier versions of the notes in \u{201c}{name}\u{201d} are deleted."
+        .description(with_files(
+            format!(
+                "Locked notes open with this password, on this device and any other that syncs with it. Kanso can't recover it: forget it, and the notes locked with it can't be read. The earlier versions of the notes in \u{201c}{name}\u{201d} are deleted."
+            ),
+            &summary,
         ))
         .field(Field::secret("Lock password").hint("At least 8 characters."))
         .field(Field::secret("Type it again"));

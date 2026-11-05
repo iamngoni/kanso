@@ -669,7 +669,7 @@ impl NewKeySheet {
 }
 
 /// Where an agent's setup goes, from its own instructions.
-fn agent_where(agent: crate::mcp_setup::Agent) -> &'static str {
+fn agent_where(agent: crate::mcp_setup::Agent) -> String {
     agent.instructions()
 }
 

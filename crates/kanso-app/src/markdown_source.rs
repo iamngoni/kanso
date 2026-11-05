@@ -247,6 +247,15 @@ mod tests {
         ) -> Vec<Option<Token>> {
             ensure_registered();
             crate::code_lang::ensure_registered();
+            // The library gives up on an injection parse after 20 ms, which
+            // is plenty at rest and not under a loaded machine's full
+            // parallel run: it would color less, and the two would
+            // "disagree" about the machine and not the note. The engine has
+            // no deadline, so none is the like-for-like comparison; a
+            // minute only ends a parse that never would.
+            gpui_kit::component::highlighter::set_injection_parse_timeout(Some(
+                std::time::Duration::from_secs(60),
+            ));
             let mut highlighter = SyntaxHighlighter::new("markdown");
             highlighter.update(None, &Rope::from_str(source), None);
             let mut tokens = vec![None; source.len()];

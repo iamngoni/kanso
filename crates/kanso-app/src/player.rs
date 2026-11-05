@@ -77,6 +77,8 @@ enum LoadError {
 pub struct RecordingPlayer {
     store: Arc<Store>,
     opened_files: OpenedFiles,
+    /// The file keys of the notes this session has open.
+    files: crate::attachments::FileKeys,
     note: Option<String>,
     body: SharedString,
     /// Whether a file is audio, by file ID, for lines the user wrote.
@@ -111,6 +113,7 @@ impl RecordingPlayer {
         RecordingPlayer {
             store,
             opened_files,
+            files: crate::attachments::FileKeys::of(cx),
             note: None,
             body: SharedString::default(),
             audio: HashMap::new(),
@@ -279,10 +282,14 @@ impl RecordingPlayer {
     }
 
     fn measure_in_background(&mut self, recording: &RecordingRef, cx: &mut Context<Self>) {
-        let (store, opened) = (self.store.clone(), self.opened_files.clone());
+        let (store, opened, keys) = (
+            self.store.clone(),
+            self.opened_files.clone(),
+            self.files.clone(),
+        );
         let ids = recording.file_ids.clone();
         let task = cx.background_executor().spawn(async move {
-            let parts = load_parts(&store, &opened, &ids).ok()?;
+            let parts = load_parts(&store, &opened, &keys, &ids).ok()?;
             Some((ids, measure(&parts).ok()?.total_us()))
         });
         self.measuring = Some(cx.spawn(async move |this, cx| {
@@ -354,11 +361,15 @@ impl RecordingPlayer {
         }
         self.phase = Phase::Opening;
         self.want = Some(want);
-        let (store, opened) = (self.store.clone(), self.opened_files.clone());
+        let (store, opened, keys) = (
+            self.store.clone(),
+            self.opened_files.clone(),
+            self.files.clone(),
+        );
         let ids = recording.file_ids.clone();
         let wanted = ids.clone();
         let task = cx.background_executor().spawn(async move {
-            let parts = load_parts(&store, &opened, &wanted)?;
+            let parts = load_parts(&store, &opened, &keys, &wanted)?;
             Player::open(parts).map_err(|e| LoadError::Failed(e.to_string()))
         });
         self.opening = Some(cx.spawn(async move |this, cx| {
@@ -609,6 +620,7 @@ impl RecordingPlayer {
 fn load_parts(
     store: &Store,
     opened: &OpenedFiles,
+    keys: &crate::attachments::FileKeys,
     ids: &[String],
 ) -> Result<Vec<PartInput>, LoadError> {
     let mut parts = Vec::with_capacity(ids.len());
@@ -616,16 +628,15 @@ fn load_parts(
         let from_lock = opened.lock().ok().and_then(|f| f.get(id).cloned());
         let (content_type, bytes) = match from_lock {
             Some(file) => file,
-            None => match store.attachment(id) {
-                Ok(Some((content_type, attachment))) => (content_type, attachment.data),
-                Ok(None) => {
+            None => match crate::attachments::open_with(store, id, keys) {
+                crate::attachments::Opened::Opened(file) => (file.content_type, file.bytes),
+                crate::attachments::Opened::Locked | crate::attachments::Opened::Missing => {
                     return Err(if matches!(store.file_meta(id), Ok(Some(_))) {
                         LoadError::NotHere
                     } else {
                         LoadError::Missing
                     });
                 }
-                Err(e) => return Err(LoadError::Failed(e.to_string())),
             },
         };
         parts.push(PartInput::new(bytes, extension_for(&content_type)));

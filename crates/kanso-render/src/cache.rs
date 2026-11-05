@@ -110,6 +110,16 @@ pub fn forget_plugin_drawings() {
     forget_kind(Kind::Plugin);
 }
 
+/// Drops every kept drawing, of any kind: what was drawn from a locked
+/// note's text or attachments must not outlive the lock keys.
+pub fn forget_all() {
+    plugin::next_generation();
+    if let Ok(mut state) = STATE.lock() {
+        state.done.clear();
+        state.bytes = 0;
+    }
+}
+
 /// Drops every kept drawing of `kind`. For plugin drawings, also moves the
 /// generation on first, so a drawing in flight isn't kept afterwards.
 pub(crate) fn forget_kind(kind: Kind) {

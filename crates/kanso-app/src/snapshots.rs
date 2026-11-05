@@ -7,6 +7,9 @@
 //!     cargo test -p kanso-app snapshots -- --ignored --nocapture
 //! ```
 //!
+//! The theme thumbnails test (`theme_thumbnails`) also matches that filter;
+//! it skips unless `KANSO_THEME_THUMBS_DIR` is set.
+//!
 //! Without `KANSO_SNAPSHOT_DB` a demo library is used, with the clock fixed
 //! so every run draws the same picture. The database is copied first, so the
 //! original is never written. Each shot also checks that the panes are
@@ -55,12 +58,14 @@ pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
 mod library_key;
+mod locking;
 mod pdf;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
 mod record_sheet;
 mod recording_sheet;
+mod recording_summary;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -5380,15 +5385,21 @@ const THUMB_GAP: f32 = 12.;
 /// Renders each theme's three cards (UI, syntax, preview) to
 /// `<file stem>.png` in `KANSO_THEME_THUMBS_DIR`: the themes in
 /// `KANSO_THEMES_DIR` when set (a checkout of the themes repository, say),
-/// else the built-in ones. `themes/scripts/check.sh` runs it.
+/// else the built-in ones. `themes/scripts/check.sh` runs it. Without
+/// `KANSO_THEME_THUMBS_DIR` it skips with a note, so the documented snapshot
+/// command (which matches it) passes with only `KANSO_SNAPSHOT_DIR` set.
 #[test]
 #[ignore = "writes PNGs; run on demand with KANSO_THEME_THUMBS_DIR set"]
 fn theme_thumbnails() {
     use crate::settings_themes::{CARD_WIDTH, THUMB_HEIGHT};
     use crate::theme_file::ThemeFile;
     use crate::themes::ThemeEntry;
-    let out =
-        PathBuf::from(std::env::var("KANSO_THEME_THUMBS_DIR").expect("set KANSO_THEME_THUMBS_DIR"));
+    // The snapshot filter (`snapshots -- --ignored`) matches this test too;
+    // without its own directory there is nowhere to write, so it skips.
+    let Some(out) = std::env::var_os("KANSO_THEME_THUMBS_DIR").map(PathBuf::from) else {
+        eprintln!("theme_thumbnails: skipped, KANSO_THEME_THUMBS_DIR is not set");
+        return;
+    };
     std::fs::create_dir_all(&out).unwrap();
     let themes: Vec<(String, Arc<ThemeEntry>)> = match std::env::var_os("KANSO_THEMES_DIR") {
         Some(dir) => {
@@ -6319,6 +6330,41 @@ fn snapshots() {
                 learn_modals::cards_editing,
             )
         },
+        // Locking with pictures and files: the dialog's line about them and
+        // the copies it makes, the progress sheet, and the bar a lock that
+        // stopped leaves on the note.
+        Shot {
+            dialog_width: 448.,
+            ..shot("dark-lock-dialog", Dark, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("light-lock-dialog", Light, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("dark-lock-progress", Dark, Edit, locking::lock_progress)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("light-lock-progress", Light, Edit, locking::lock_progress)
+        },
+        shot(
+            "dark-lock-interrupted",
+            Dark,
+            Edit,
+            locking::lock_interrupted,
+        ),
+        shot(
+            "light-lock-interrupted",
+            Light,
+            Edit,
+            locking::lock_interrupted,
+        ),
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
         // The PDF reader (issue #43): page 1 drawn by the worker, and the
@@ -7195,6 +7241,7 @@ fn snapshots() {
         .chain(library_key::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
+        .chain(recording_summary::SHOTS)
         .chain(plugins_panel::SHOTS)
     {
         let theme = if name.starts_with("dark-") {
@@ -7211,6 +7258,7 @@ fn snapshots() {
         if name.ends_with("-remove")
             || name.ends_with("-revoke")
             || name.ends_with("-api-key-new")
+            || name.ends_with("-api-key-shown")
             || name.ends_with("-plugin-developer")
         {
             plugin_shot.dialog_sample_y = Some(30.);

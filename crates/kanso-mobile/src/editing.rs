@@ -1955,6 +1955,21 @@ impl Shared {
             sealed_now = true;
         }
         let open = lock == LockView::Open || sealed_now;
+        // The pictures and files an open locked note shows are sealed with
+        // the save (the desktop's `attachments::seal`): a link pasted or
+        // brought back by Undo never leaves a plain file beside a locked
+        // note. The sealed text links any copy made; the editor keeps its
+        // own.
+        let mut sealed_text: Option<String> = None;
+        if open && !sealed_now && note.is_locked() {
+            let locks = crate::locks::LockSession {
+                inner: self.inner.clone(),
+            };
+            match locks.seal_open_files(&mut note) {
+                Ok(text) => sealed_text = text,
+                Err(words) => return Done::Failed(format!("Couldn't save: {words}")),
+            }
+        }
         // A sync can move the revision between reading and writing without
         // changing the note: then the write goes on top of the new revision.
         let mut retried = false;
@@ -1962,6 +1977,9 @@ impl Shared {
             // A locked note goes to the store sealed; the session keeps its
             // text.
             let mut stored = note.clone();
+            if let Some(text) = &sealed_text {
+                stored.body = text.clone();
+            }
             if stored.is_locked() {
                 let sealed = if open {
                     held(&self.inner.keys).seal(&mut stored, Instant::now())

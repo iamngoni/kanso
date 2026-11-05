@@ -23,6 +23,7 @@ mod agent_task_panel;
 mod agent_task_tests;
 mod ai_agent;
 mod ai_feature;
+mod api_key_cli;
 mod api_keys_model;
 
 #[cfg(test)]
@@ -31,6 +32,7 @@ mod ask_panel;
 #[cfg(test)]
 mod ask_tests;
 mod assets;
+mod attachments;
 mod board_view;
 mod book_colors;
 mod book_icons;
@@ -108,6 +110,7 @@ mod library_open;
 #[cfg(test)]
 mod links_tests;
 mod live_marks;
+mod lock_flow;
 mod locked;
 mod markdown_edit;
 mod markdown_source;
@@ -173,12 +176,17 @@ mod record_sheet;
 mod recording;
 mod recording_bar;
 mod recording_model;
+mod recording_summary;
+#[cfg(test)]
+mod recording_summary_tests;
 #[cfg(test)]
 mod recording_tests;
 mod related;
 mod reminders;
 mod replace;
 mod restore_sheet;
+#[cfg(test)]
+mod restore_waiting_tests;
 mod resurface;
 mod review_queue;
 #[cfg(test)]
@@ -300,8 +308,7 @@ Commands:
                     `kanso import help` lists what each takes
   import pouchdb    Import the PouchDB notes library found on this computer
                     [--library-dir <dir>] [--credentials]
-                    --credentials also takes its local API port, username
-                    and password (macOS asks to allow Keychain access)
+                    --credentials also takes its local API port and address
   capture [text]    Save a note to the Inbox, or [--book <name or id>];
                     with no text, from standard input. Works with
                     Kanso open or closed
@@ -313,6 +320,8 @@ Commands:
                     output, for AI agents that start a program; needs
                     Kanso open with its local API on, or `kanso serve`
                     running
+  api-key           Make, list and revoke API keys without the app, for
+                    `kanso serve`; `kanso api-key help` lists how
   theme             Work with themes; `kanso theme help` lists how
   icon-theme        Work with icon themes; `kanso icon-theme help` lists
                     how
@@ -460,6 +469,7 @@ fn main() -> Result<()> {
         Some("capture") => capture_cli::run_cli(&args.data_dir, &args.rest),
         Some("sticky") => sticky_cli::run_cli(&args.data_dir, &args.rest),
         Some("mcp") => mcp_cli::run_cli(&args.data_dir, &args.rest),
+        Some("api-key") => api_key_cli::run_cli(&args.data_dir, &args.rest),
         Some("plugin") => plugins::run_cli(&args.data_dir, &args.rest),
         Some("help") => {
             println!("{USAGE}{DATA_DIR_NOTE}");

@@ -16,4 +16,11 @@ sealed class LockSetupEvent with _$LockSetupEvent {
 
   /// The person confirmed locking with the notes open.
   const factory LockSetupEvent.confirmed() = LockSetupConfirmedEvent;
+
+  /// Sealing the files got as far as [progress].
+  const factory LockSetupEvent.progressed(SealProgress progress) =
+      LockSetupProgressedEvent;
+
+  /// The person pressed Cancel on the progress sheet.
+  const factory LockSetupEvent.cancelled() = LockSetupCancelledEvent;
 }
