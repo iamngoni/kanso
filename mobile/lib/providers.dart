@@ -27,6 +27,7 @@ import 'lock/state/privacy_cover/privacy_cover_bloc.dart';
 import 'note/state/note_assist_intent/note_assist_intent_bloc.dart';
 import 'note/state/note_mode_intent/note_mode_intent_bloc.dart';
 import 'note/state/word_goal_intent/word_goal_intent_bloc.dart';
+import 'notices/state/notices_cubit.dart';
 import 'push/state/push_registration/push_registration_bloc.dart';
 import 'push/views/widgets/push_lifecycle_host.dart';
 import 'settings/state/backup_notice/backup_notice_bloc.dart';
@@ -147,6 +148,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider<NoteCreationBloc>(
           create: (_) => getIt<NoteCreationBloc>(),
         ),
+        BlocProvider<NoticesCubit>(create: (_) => getIt<NoticesCubit>()),
         BlocProvider<TabsBloc>(
           create: (_) => getIt<TabsBloc>()..add(const TabsEvent.started()),
         ),

@@ -18,10 +18,19 @@ impl Store {
     /// Opens the database at `path` read-only. A missing file is an error;
     /// nothing is created or migrated, and nothing can be written through it.
     pub fn open_read_only(path: impl AsRef<Path>) -> Result<ReadOnlyStore> {
+        Store::open_read_only_with_key(path, None)
+    }
+
+    /// [`Store::open_read_only`] for a library encrypted with `key`.
+    pub fn open_read_only_with_key(
+        path: impl AsRef<Path>,
+        key: Option<&crate::LibraryKey>,
+    ) -> Result<ReadOnlyStore> {
         let conn = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )?;
+        crate::library_key::unlock(&conn, key)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.pragma_update(None, "query_only", "ON")?;
         Ok(ReadOnlyStore {

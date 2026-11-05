@@ -24,6 +24,8 @@ pub mod events;
 pub mod feedback;
 mod http;
 pub mod keychain;
+pub mod library_key;
+mod library_key_model;
 pub mod lock;
 mod memory;
 pub mod methods;
@@ -85,6 +87,8 @@ pub use keychain::Keychain;
 #[cfg(feature = "file-secrets")]
 pub use keychain::{FileSecrets, SECRETS_FILE, SECRETS_KEY_FILE_ENV};
 pub use keychain::{MemorySecrets, SecretError, SecretStore};
+pub use library_key::{OpenLibraryError, open_library};
+pub use library_key_model::{Encryption, OpenedLibrary};
 pub use memory::{
     AccountSnapshot, DEFAULT_SETTINGS, Limits, MEMORY_PASSKEY_ORIGIN, MEMORY_PASSKEY_RP_ID,
     MEMORY_PASSKEY_SERVER, MemoryServer, QuotaOverride, ServerDevice, ServerStats, Signup,

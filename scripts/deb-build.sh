@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Makes Kanso's .deb from the binaries `cargo build --release -p kanso-app
-# -p kanso-plugin-host` already made (docs/APT.md).
+# -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render` already made
+# (docs/APT.md), with scripts/fetch-pdfium.sh's library in vendor/pdfium.
 # Usage: scripts/deb-build.sh <version> <out-dir>
 #
 # <version> is the release's version, as the release workflow's Version step
@@ -32,13 +33,50 @@ mkdir -p "$out"
 out=$(cd "$out" && pwd)
 
 cd "$(dirname "$0")/.."
-for binary in kanso kanso-plugin-host; do
+for binary in kanso kanso-plugin-host kanso-pdf-worker; do
 	if [ ! -x "target/release/$binary" ]; then
 		echo "$0: target/release/$binary is missing; build it first:" >&2
-		echo "  cargo build --release --locked -p kanso-app -p kanso-plugin-host" >&2
+		echo "  cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render" >&2
 		exit 1
 	fi
 done
+
+# The PDFium build for the machine the binaries were made for: PDFIUM_PLATFORM
+# (the release workflow sets it per leg), or this machine's.
+platform=${PDFIUM_PLATFORM:-}
+if [ -z "$platform" ]; then
+	case "$(uname -m)" in
+	x86_64) platform=linux-x64 ;;
+	aarch64 | arm64) platform=linux-arm64 ;;
+	*)
+		echo "$0: no PDFium build for $(uname -m); set PDFIUM_PLATFORM" >&2
+		exit 1
+		;;
+	esac
+fi
+case "$platform" in
+linux-x64 | linux-arm64) ;;
+*)
+	echo "$0: PDFIUM_PLATFORM '$platform' isn't linux-x64 or linux-arm64" >&2
+	exit 2
+	;;
+esac
+pdfium=vendor/pdfium/$platform
+if [ ! -f "$pdfium/lib/libpdfium.so" ]; then
+	echo "$0: the PDFium library is missing; fetch it first:" >&2
+	echo "  scripts/fetch-pdfium.sh $platform" >&2
+	exit 1
+fi
+# The library that goes in the package is the build without V8 (issue #43),
+# for the same machine as the worker beside it.
+scripts/check-pdfium-no-v8.sh "$pdfium/lib/libpdfium.so"
+scripts/check-pdfium-arch.sh "$pdfium/lib/libpdfium.so" target/release/kanso-pdf-worker
+# cargo-deb's asset paths are fixed ([package.metadata.deb]); they point here.
+rm -rf target/deb/pdfium
+mkdir -p target/deb/pdfium/lib
+cp "$pdfium/lib/libpdfium.so" target/deb/pdfium/lib/libpdfium.so
+cp "$pdfium/LICENSE" target/deb/pdfium/LICENSE
+cp -R "$pdfium/licenses" target/deb/pdfium/licenses
 
 maintainer=$(sed -n 's/^maintainer = "\(.*\)"$/\1/p' crates/kanso-app/Cargo.toml | head -1)
 if [ -z "$maintainer" ]; then
