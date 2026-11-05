@@ -432,3 +432,60 @@ fn one_session_folder_is_found_and_finished_after_a_refused_write() {
     assert!(finished.session.samples >= secs(5) as u64);
     assert_eq!(finished.session.state, SessionState::Stopped);
 }
+
+/// A tone at `hz` of `samples` samples at `rate`.
+fn pure_tone(samples: usize, rate: u32, hz: f32, level: f32) -> Vec<f32> {
+    (0..samples)
+        .map(|i| level * (std::f32::consts::TAU * hz * i as f32 / rate as f32).sin())
+        .collect()
+}
+
+/// Two sources on different rates and clocks become one stereo recording:
+/// you on the left, the meeting on the right, as long as the clock says.
+#[test]
+fn both_sources_are_written_as_left_you_and_right_meeting() {
+    use kanso_audio::MixPipeline;
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let mut o = RecorderOptions::new(
+        Channels::Stereo,
+        vec![RecordSource::Microphone, RecordSource::SystemAudio],
+    );
+    o.id = Some("both".into());
+    let recorder = Recorder::create(&root, o).unwrap();
+    let mut pipeline = MixPipeline::new(recorder, 44_100, 48_000).unwrap();
+    // You say something loud for five seconds; the meeting is quiet.
+    let you = pure_tone(44_100 * 5, 44_100, 300.0, 0.6);
+    let meeting = pure_tone(48_000 * 5, 48_000, 500.0, 0.05);
+    for (a, b) in you.chunks(882).zip(meeting.chunks(960)) {
+        pipeline.feed_you(a);
+        pipeline.feed_meeting(b);
+        pipeline.flush().unwrap();
+    }
+    let finished = pipeline.finish().unwrap();
+    assert_eq!(finished.session.channels, 2);
+    assert_eq!(finished.session.sources.len(), 2);
+    assert_eq!(finished.session.samples, secs(5) as u64);
+    let mut reader = OpusReader::open(fs::File::open(&finished.parts[0].0).unwrap()).unwrap();
+    assert_eq!(reader.info().channels, Channels::Stereo);
+    let pcm = reader.read_to_end().unwrap();
+    let (mut left, mut right) = (0.0f64, 0.0f64);
+    for &[l, r] in pcm.as_chunks::<2>().0 {
+        left += f64::from(l).powi(2);
+        right += f64::from(r).powi(2);
+    }
+    assert!(left > right * 20.0, "{left} vs {right}");
+    assert_eq!(
+        kanso_audio::speaker_of(left, right),
+        Some(kanso_audio::Speaker::You)
+    );
+}
+
+/// A mono recorder is refused by the stereo pipeline.
+#[test]
+fn the_stereo_pipeline_wants_a_stereo_recorder() {
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let recorder = Recorder::create(&root, options()).unwrap();
+    assert!(kanso_audio::MixPipeline::new(recorder, 48_000, 48_000).is_err());
+}

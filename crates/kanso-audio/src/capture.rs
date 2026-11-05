@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 
 use crate::error::AudioError;
 use crate::mic::{self, Failure, Microphone};
+use crate::mix::MixPipeline;
 use crate::model::{Channels, SAMPLE_RATE};
 use crate::record_model::{Finished, Progress, RecordSource};
 use crate::resample::To48k;
@@ -28,6 +29,29 @@ const LEVEL_WINDOW: usize = SAMPLE_RATE as usize / 20;
 /// A microphone that sends nothing for this long, while not paused, is gone:
 /// some systems stop the stream on unplug without reporting an error.
 const SILENT_DEVICE: Duration = Duration::from_secs(3);
+
+/// The check for a microphone that went quiet without saying so. It looks at
+/// microphones only: a system source (WASAPI loopback sends nothing while no
+/// program plays) is silent for good reasons and is kept on the clock by
+/// padding instead.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct MicWatch {
+    silent: Duration,
+}
+
+impl MicWatch {
+    /// A poll `dt` after the last: whether anything `delivered` sound, and
+    /// whether the recording is `paused`. True once the microphone has sent
+    /// nothing for three seconds of recording.
+    pub fn tick(&mut self, dt: Duration, delivered: bool, paused: bool) -> bool {
+        if paused || delivered {
+            self.silent = Duration::ZERO;
+        } else {
+            self.silent += dt;
+        }
+        self.silent >= SILENT_DEVICE
+    }
+}
 
 /// Mono sound at the device's rate in, a recording on disk out: resample to
 /// 48 kHz, drop the audio while paused, hand the rest to the recorder.
@@ -139,6 +163,9 @@ pub struct CaptureStatus {
     /// The recorder has stopped by itself; call [`Capture::stop`] for the
     /// result.
     pub ended: Option<StopReason>,
+    /// Why the system audio of a recording with both sources stopped; the
+    /// microphone records on and the meeting's channel is silent.
+    pub system_failure: Option<String>,
 }
 
 impl CaptureStatus {
@@ -163,12 +190,16 @@ struct Shared {
     samples: AtomicU64,
     rms: AtomicU32,
     ended: Mutex<Option<StopReason>>,
+    system_failure: Mutex<Option<String>>,
 }
 
 /// What a capture listens to.
 enum Kind {
     Microphone,
     System(SystemAudioTarget),
+    /// Both, on one stereo timeline: you on the left, the meeting on the
+    /// right.
+    Both(SystemAudioTarget),
 }
 
 /// Where a capture's sound comes from while it runs.
@@ -183,6 +214,12 @@ impl Feed {
             Feed::Mic(mic, _) => mic.rate,
             Feed::System(source) => source.sample_rate(),
         }
+    }
+
+    /// Whether silence from this feed means the device is gone: true of a
+    /// microphone only. Loopback sends nothing while nothing plays.
+    fn watched(&self) -> bool {
+        matches!(self, Feed::Mic(..))
     }
 
     /// Appends the sound that arrived since the last call to `out`.
@@ -250,13 +287,31 @@ impl Capture {
         Self::launch(root, options, Kind::System(target))
     }
 
+    /// Records the microphone and system audio together as one stereo
+    /// recording (left you, right the meeting), their clocks kept together
+    /// by the [`Mixer`](crate::mix::Mixer). The microphone's errors and the
+    /// system's both come back here; if the system audio stops later, the
+    /// microphone goes on ([`CaptureStatus::system_failure`]).
+    pub fn start_both(
+        root: &Path,
+        mut options: RecorderOptions,
+        target: SystemAudioTarget,
+    ) -> Result<Capture, AudioError> {
+        options.sources = vec![RecordSource::Microphone, RecordSource::SystemAudio];
+        Self::launch(root, options, Kind::Both(target))
+    }
+
     fn launch(
         root: &Path,
         mut options: RecorderOptions,
         kind: Kind,
     ) -> Result<Capture, AudioError> {
-        options.encode.channels = Channels::Mono;
-        options.encode.bitrate = Channels::Mono.default_bitrate();
+        let channels = match kind {
+            Kind::Both(_) => Channels::Stereo,
+            _ => Channels::Mono,
+        };
+        options.encode.channels = channels;
+        options.encode.bitrate = channels.default_bitrate();
         let shared = Arc::new(Shared::default());
         let (ready_tx, ready_rx) = sync_channel::<Result<PathBuf, AudioError>>(1);
         let root = root.to_path_buf();
@@ -291,6 +346,11 @@ impl Capture {
                 .ended
                 .lock()
                 .map_or(None, |reason| reason.clone()),
+            system_failure: self
+                .shared
+                .system_failure
+                .lock()
+                .map_or(None, |why| why.clone()),
         }
     }
 
@@ -351,6 +411,77 @@ fn recover_written(dir: &Path) -> Result<Finished, AudioError> {
     crate::recovery::recover(&found)
 }
 
+/// What `run` and `run_both` close at the end: a mono or a stereo pipeline.
+trait Writes {
+    fn close(self) -> Result<Finished, AudioError>;
+    fn delete(self) -> std::io::Result<()>;
+}
+
+impl Writes for Pipeline {
+    fn close(self) -> Result<Finished, AudioError> {
+        self.finish()
+    }
+    fn delete(self) -> std::io::Result<()> {
+        self.discard()
+    }
+}
+
+impl Writes for MixPipeline {
+    fn close(self) -> Result<Finished, AudioError> {
+        self.finish()
+    }
+    fn delete(self) -> std::io::Result<()> {
+        self.discard()
+    }
+}
+
+/// Maps a failure to start onto what the caller is told.
+fn start_error(e: &AudioError) -> AudioError {
+    match e {
+        AudioError::MicrophoneDenied => AudioError::MicrophoneDenied,
+        AudioError::NoMicrophone => AudioError::NoMicrophone,
+        AudioError::ScreenRecordingDenied => AudioError::ScreenRecordingDenied,
+        AudioError::SystemAudio(why) => AudioError::SystemAudio(why.clone()),
+        other => AudioError::Device(other.to_string()),
+    }
+}
+
+/// Ends the recorder thread: says why, drops the devices' work, and closes
+/// or deletes the recording.
+fn conclude<P: Writes>(
+    pipeline: P,
+    dir: &Path,
+    shared: &Shared,
+    mut reason: StopReason,
+) -> Result<Option<Stopped>, AudioError> {
+    if let Ok(mut ended) = shared.ended.lock()
+        && reason != StopReason::Requested
+    {
+        *ended = Some(reason.clone());
+    }
+    if shared.discard.load(Ordering::Relaxed) {
+        pipeline.delete()?;
+        return Ok(None);
+    }
+    // After a refused write the open part may end in a torn page, and
+    // closing it would put good pages after the tear. A full (or failing)
+    // disk may refuse the closing pages and the sidecar too. Either way,
+    // what reached the disk is finished the way a crash is recovered.
+    let finished = if matches!(reason, StopReason::Disk(_)) {
+        drop(pipeline);
+        recover_written(dir)?
+    } else {
+        match pipeline.close() {
+            Ok(finished) => finished,
+            Err(e) => {
+                reason = StopReason::Disk(e.to_string());
+                recover_written(dir).map_err(|_| e)?
+            }
+        }
+    };
+    Ok(Some(Stopped { finished, reason }))
+}
+
 /// The recorder thread.
 // no-prop-test: needs a microphone; `Pipeline`, the resampler and the recorder it drives have the properties.
 fn run(
@@ -361,10 +492,17 @@ fn run(
     ready: &std::sync::mpsc::SyncSender<Result<PathBuf, AudioError>>,
 ) -> Result<Option<Stopped>, AudioError> {
     let failure: Failure = Arc::new(Mutex::new(None));
+    let target = match &kind {
+        Kind::Both(target) => {
+            return run_both(root, options, target, shared, ready);
+        }
+        Kind::Microphone => None,
+        Kind::System(target) => Some(target.clone()),
+    };
     let started = (|| {
-        let feed = match &kind {
-            Kind::Microphone => Feed::Mic(mic::open(failure.clone())?, failure.clone()),
-            Kind::System(target) => {
+        let feed = match &target {
+            None => Feed::Mic(mic::open(failure.clone())?, failure.clone()),
+            Some(target) => {
                 let backend = platform_backend().ok_or_else(|| {
                     AudioError::SystemAudio("this system can't record other sound yet".into())
                 })?;
@@ -379,13 +517,7 @@ fn run(
     let (mut feed, mut pipeline, dir) = match started {
         Ok(started) => started,
         Err(e) => {
-            let _ = ready.send(Err(match &e {
-                AudioError::MicrophoneDenied => AudioError::MicrophoneDenied,
-                AudioError::NoMicrophone => AudioError::NoMicrophone,
-                AudioError::ScreenRecordingDenied => AudioError::ScreenRecordingDenied,
-                AudioError::SystemAudio(why) => AudioError::SystemAudio(why.clone()),
-                other => AudioError::Device(other.to_string()),
-            }));
+            let _ = ready.send(Err(start_error(&e)));
             return Err(e);
         }
     };
@@ -393,8 +525,7 @@ fn run(
 
     let mut reason = StopReason::Requested;
     let mut chunk: Vec<f32> = Vec::new();
-    let mut last_sound = Instant::now();
-    let system = matches!(kind, Kind::System(_));
+    let mut watch = MicWatch::default();
     let mut filler = GapFiller::new();
     let mut last_tick = Instant::now();
     loop {
@@ -416,26 +547,23 @@ fn run(
         if !was_paused {
             chunk.resize(chunk.len() + dropped as usize, 0.0);
         }
-        if system {
+        if feed.watched() {
+            if watch.tick(dt, !chunk.is_empty(), was_paused) {
+                reason = StopReason::Device("the microphone stopped sending sound".into());
+                break;
+            }
+        } else {
             // An app that isn't playing sends nothing; that is not a dead
             // device, and the track must stay as long as the microphone's.
             filler.advance(dt, was_paused);
             if !was_paused {
-                // Everything is counted at 48 kHz; the chunk is at the
-                // device's rate (48 kHz too, unless the system says otherwise).
-                let rate = u64::from(feed.rate());
-                let coming = chunk.len() as u64 * u64::from(SAMPLE_RATE) / rate;
-                let owed = filler.owed(pipeline.recorder().samples() + coming) as u64;
-                chunk.resize(
-                    chunk.len() + (owed * rate / u64::from(SAMPLE_RATE)) as usize,
-                    0.0,
+                pad_to_clock(
+                    &filler,
+                    &mut chunk,
+                    feed.rate(),
+                    pipeline.recorder().samples(),
                 );
             }
-        } else if was_paused || !chunk.is_empty() {
-            last_sound = Instant::now();
-        } else if last_sound.elapsed() >= SILENT_DEVICE {
-            reason = StopReason::Device("the microphone stopped sending sound".into());
-            break;
         }
         match pipeline.feed(&chunk) {
             Ok(progress) => {
@@ -464,31 +592,205 @@ fn run(
             break;
         }
     }
-    if let Ok(mut ended) = shared.ended.lock()
-        && reason != StopReason::Requested
-    {
-        *ended = Some(reason.clone());
-    }
     drop(feed);
-    if shared.discard.load(Ordering::Relaxed) {
-        pipeline.discard()?;
-        return Ok(None);
-    }
-    // After a refused write the open part may end in a torn page, and
-    // closing it would put good pages after the tear. A full (or failing)
-    // disk may refuse the closing pages and the sidecar too. Either way,
-    // what reached the disk is finished the way a crash is recovered.
-    let finished = if matches!(reason, StopReason::Disk(_)) {
-        drop(pipeline);
-        recover_written(&dir)?
-    } else {
-        match pipeline.finish() {
-            Ok(finished) => finished,
-            Err(e) => {
-                reason = StopReason::Disk(e.to_string());
-                recover_written(&dir).map_err(|_| e)?
-            }
+    conclude(pipeline, &dir, shared, reason)
+}
+
+/// Adds the silence a source owes the wall clock to `chunk` (at the
+/// source's `rate`), given the `written` samples at 48 kHz so far.
+fn pad_to_clock(filler: &GapFiller, chunk: &mut Vec<f32>, rate: u32, written: u64) {
+    // Everything is counted at 48 kHz; the chunk is at the device's rate
+    // (48 kHz too, unless the system says otherwise).
+    let rate = u64::from(rate);
+    let coming = chunk.len() as u64 * u64::from(SAMPLE_RATE) / rate;
+    let owed = filler.owed(written + coming) as u64;
+    chunk.resize(
+        chunk.len() + (owed * rate / u64::from(SAMPLE_RATE)) as usize,
+        0.0,
+    );
+}
+
+/// The recorder thread of a recording with both sources: the microphone
+/// (checked for going quiet) and system audio (padded to the clock when it
+/// sends nothing, and given up, with the microphone going on, if it fails),
+/// mixed onto one stereo timeline.
+// no-prop-test: needs a microphone; `Mixer`, `MicWatch` and the pipeline have the properties.
+fn run_both(
+    root: &Path,
+    options: RecorderOptions,
+    target: &SystemAudioTarget,
+    shared: &Shared,
+    ready: &std::sync::mpsc::SyncSender<Result<PathBuf, AudioError>>,
+) -> Result<Option<Stopped>, AudioError> {
+    let failure: Failure = Arc::new(Mutex::new(None));
+    let started = (|| {
+        let mic = Feed::Mic(mic::open(failure.clone())?, failure.clone());
+        let backend = platform_backend().ok_or_else(|| {
+            AudioError::SystemAudio("this system can't record other sound yet".into())
+        })?;
+        let system = Feed::System(backend.open(target)?);
+        let recorder = Recorder::create(root, options)?;
+        let dir = recorder.dir().to_path_buf();
+        let pipeline = MixPipeline::new(recorder, mic.rate(), system.rate())?;
+        Ok::<_, AudioError>((mic, system, pipeline, dir))
+    })();
+    let (mut mic, system, mut pipeline, dir) = match started {
+        Ok(started) => started,
+        Err(e) => {
+            let _ = ready.send(Err(start_error(&e)));
+            return Err(e);
         }
     };
-    Ok(Some(Stopped { finished, reason }))
+    let _ = ready.send(Ok(dir.clone()));
+
+    let system_rate = system.rate();
+    let mut system = Some(system);
+    let mut reason = StopReason::Requested;
+    let mut heard: Vec<f32> = Vec::new();
+    let mut meeting: Vec<f32> = Vec::new();
+    let mut watch = MicWatch::default();
+    let mut filler = GapFiller::new();
+    let mut last_tick = Instant::now();
+    loop {
+        thread::sleep(POLL);
+        let now = Instant::now();
+        let dt = now.duration_since(last_tick);
+        last_tick = now;
+        let stopping = shared.stop.load(Ordering::Relaxed);
+        let was_paused = shared.paused.load(Ordering::Relaxed);
+        if let Err(e) = pipeline.set_paused(was_paused) {
+            reason = StopReason::Disk(e.to_string());
+            break;
+        }
+        heard.clear();
+        mic.read(&mut heard);
+        let dropped = mic.take_dropped();
+        if !was_paused {
+            heard.resize(heard.len() + dropped as usize, 0.0);
+        }
+        // Only the microphone is checked for going quiet.
+        if watch.tick(dt, !heard.is_empty(), was_paused) {
+            reason = StopReason::Device("the microphone stopped sending sound".into());
+            break;
+        }
+        meeting.clear();
+        if let Some(source) = &mut system {
+            source.read(&mut meeting);
+            let dropped = source.take_dropped();
+            if !was_paused {
+                meeting.resize(meeting.len() + dropped as usize, 0.0);
+            }
+        }
+        // Whatever the system sends or doesn't, its channel stays on the
+        // clock, silent when it has nothing (or has failed).
+        filler.advance(dt, was_paused);
+        if !was_paused {
+            pad_to_clock(&filler, &mut meeting, system_rate, pipeline.given_meeting());
+        }
+        pipeline.feed_you(&heard);
+        pipeline.feed_meeting(&meeting);
+        match pipeline.flush() {
+            Ok(progress) => {
+                shared.samples.store(progress.samples, Ordering::Relaxed);
+                shared
+                    .rms
+                    .store(pipeline.rms().to_bits(), Ordering::Relaxed);
+                if progress.warned {
+                    shared.warned.store(true, Ordering::Relaxed);
+                }
+                if progress.capped {
+                    reason = StopReason::Cap;
+                    break;
+                }
+            }
+            Err(e) => {
+                reason = StopReason::Disk(e.to_string());
+                break;
+            }
+        }
+        if let Some(message) = mic.failure() {
+            reason = StopReason::Device(message);
+            break;
+        }
+        if let Some(message) = system.as_ref().and_then(Feed::failure) {
+            if let Ok(mut why) = shared.system_failure.lock() {
+                *why = Some(message);
+            }
+            system = None;
+        }
+        if stopping {
+            break;
+        }
+    }
+    drop(mic);
+    drop(system);
+    conclude(pipeline, &dir, shared, reason)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use proptest::test_runner::{FileFailurePersistence, RngSeed};
+
+    /// A system source that never sends a sample, as WASAPI loopback does
+    /// while no program plays.
+    struct Quiet;
+
+    impl SystemAudioSource for Quiet {
+        fn sample_rate(&self) -> u32 {
+            48_000
+        }
+        fn read(&mut self, _out: &mut Vec<f32>) {}
+        fn take_dropped(&mut self) -> u64 {
+            0
+        }
+        fn failure(&self) -> Option<String> {
+            None
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// A system source is never checked for going quiet, however long
+        /// it sends nothing; the microphone check is the only one.
+        #[test]
+        fn prop_system_sources_are_never_declared_dead(
+            ticks in proptest::collection::vec((1u64..2_000, any::<bool>()), 0..200),
+        ) {
+            let feed = Feed::System(Box::new(Quiet));
+            prop_assert!(!feed.watched());
+            let mut watch = MicWatch::default();
+            for (ms, paused) in ticks {
+                // The loop asks the watch only of a watched feed.
+                let dead = feed.watched() && watch.tick(Duration::from_millis(ms), false, paused);
+                prop_assert!(!dead);
+            }
+        }
+
+        /// A microphone is declared dead once it has sent nothing for three
+        /// seconds of recording, and never while it sends or is paused.
+        #[test]
+        fn prop_mic_watch_trips_after_three_quiet_seconds(
+            ticks in proptest::collection::vec((1u64..500, any::<bool>(), any::<bool>()), 0..200),
+        ) {
+            let mut watch = MicWatch::default();
+            let mut quiet = Duration::ZERO;
+            for (ms, delivered, paused) in ticks {
+                let dt = Duration::from_millis(ms);
+                if paused || delivered {
+                    quiet = Duration::ZERO;
+                } else {
+                    quiet += dt;
+                }
+                prop_assert_eq!(watch.tick(dt, delivered, paused), quiet >= SILENT_DEVICE);
+            }
+        }
+    }
 }
