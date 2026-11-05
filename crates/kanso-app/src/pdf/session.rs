@@ -250,6 +250,14 @@ fn run(
                     drop(inbox);
                     match worker.text(page) {
                         Ok(text) => {
+                            // A scan has no characters: its words come from
+                            // the pictures that were read (here or by
+                            // another device), at word granularity.
+                            let text = if text.chars.is_empty() {
+                                scanned_text(store, file_id, &text).unwrap_or(text)
+                            } else {
+                                text
+                            };
                             if !send(Event::Text(Box::new(text))) {
                                 worker.close();
                                 return;
@@ -304,6 +312,22 @@ fn run(
         }
     }
     worker.close();
+}
+
+/// The text layer of a page PDFium found no characters on, from the words
+/// read from its picture (step 8), on the page's own size. `None` when
+/// the page was not read.
+pub(super) fn scanned_text(
+    store: &Store,
+    file_id: &str,
+    empty: &kanso_pdf::PageText,
+) -> Option<kanso_pdf::PageText> {
+    let ocr = store.pdf_ocr(file_id).ok()??;
+    let mut text = ocr.page(empty.page)?.to_page_text();
+    text.width = empty.width;
+    text.height = empty.height;
+    // The words were read on the page as shown, upright: no rotation.
+    (!text.chars.is_empty()).then_some(text)
 }
 
 /// Waits for the person to give a password; `None` when the reader closed.

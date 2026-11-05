@@ -2067,6 +2067,41 @@ fn settings_general(
     show_settings(cx, window, workspace, SettingsPage::General);
 }
 
+/// Settings › General while scanned PDF pages are being read: page 40 of 300
+/// of the first PDF, two PDFs waiting (issue #43, step 8).
+fn settings_scans_reading(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    cx.update(|cx| {
+        crate::pdf::ocr::set_paused(false, cx);
+        cx.default_global::<crate::pdf::ocr::ScannedPages>().status =
+            crate::pdf::ocr::Status::Reading {
+                read: 39,
+                scanned: 300,
+                waiting: 2,
+            };
+    });
+    settings_general(cx, window, workspace, store);
+}
+
+/// The same, paused by the person.
+fn settings_scans_paused(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    cx.update(|cx| {
+        crate::pdf::ocr::set_paused(true, cx);
+        cx.default_global::<crate::pdf::ocr::ScannedPages>().status =
+            crate::pdf::ocr::Status::Paused { waiting: 2 };
+    });
+    settings_general(cx, window, workspace, store);
+}
+
 /// Zooms the whole app to `percent`, as the View menu does, after the
 /// window has opened at actual size.
 fn zoom_to(cx: &mut HeadlessAppContext, percent: u32) {
@@ -5973,6 +6008,31 @@ fn snapshots() {
         ),
         shot("dark-settings-general", Dark, Edit, settings_general),
         shot("light-settings-general", Light, Edit, settings_general),
+        // Scanned PDF pages being read, and paused.
+        shot(
+            "dark-settings-scans-reading",
+            Dark,
+            Edit,
+            settings_scans_reading,
+        ),
+        shot(
+            "light-settings-scans-reading",
+            Light,
+            Edit,
+            settings_scans_reading,
+        ),
+        shot(
+            "dark-settings-scans-paused",
+            Dark,
+            Edit,
+            settings_scans_paused,
+        ),
+        shot(
+            "light-settings-scans-paused",
+            Light,
+            Edit,
+            settings_scans_paused,
+        ),
         shot("dark-settings-editor", Dark, Edit, settings_editor),
         // The Record sheet's system audio choices.
         Shot {

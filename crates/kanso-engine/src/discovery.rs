@@ -12,6 +12,8 @@
 //! [`pdf_text`] is the queue that reads the words in PDFs through the PDF
 //! worker, behind a trait; [`pdf_worker`] (the `pdf-worker` feature) is that
 //! trait over the worker's client.
+//! [`pdf_ocr`] reads the scanned pages of PDFs the same way, with the
+//! platform's text reader.
 //! [`measure`] says what the model costs on a device.
 //!
 //! The store keeps the vectors and decides who may be read (`kanso-store`'s
@@ -25,6 +27,8 @@ pub mod meaning;
 pub mod measure;
 pub mod model_fetch;
 pub mod ocr;
+#[cfg(feature = "pdf-worker")]
+pub mod pdf_ocr;
 pub mod pdf_text;
 #[cfg(feature = "pdf-worker")]
 pub mod pdf_worker;

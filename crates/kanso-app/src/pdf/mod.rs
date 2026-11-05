@@ -27,6 +27,7 @@ mod budget;
 pub mod index;
 mod layout;
 mod model;
+pub mod ocr;
 mod prefetch;
 mod session;
 mod texture;

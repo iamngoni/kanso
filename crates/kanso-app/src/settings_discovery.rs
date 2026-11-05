@@ -12,6 +12,7 @@ use gpui_kit::*;
 use crate::ink_ocr::{self, InkText};
 use crate::ocr::{self, ImageText};
 use crate::pdf::index::{self as pdf_index, PdfText};
+use crate::pdf::ocr::{self as pdf_scans, ScannedPages};
 use crate::related::{self, Related, Status};
 use crate::settings::{Row, SettingsView, section};
 use crate::theme::Colors;
@@ -142,6 +143,7 @@ pub fn sections(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
             .detail("Kanso couldn't find its PDF reader, so the words in PDFs can't be searched.")
     };
     rows.push(pdf_row);
+    rows.push(scans_row(&discovery, device, cx));
     rows.push(
         Row::new(Lucide::Quote, "Quote highlights into the note")
             .detail(
@@ -160,6 +162,58 @@ pub fn sections(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
     );
     rows.push(ink_row(&discovery, device, cx));
     vec![section("Discovery", rows, colors)]
+}
+
+/// The scanned-pages row: where reading them stands and a pause, where this
+/// device can read them; where it can't, why, and that words a Mac read are
+/// used here.
+// no-prop-test: layout and a button; `pdf/ocr.rs` tests the words it says.
+fn scans_row(
+    discovery: &crate::config::DiscoverySettings,
+    device: &str,
+    cx: &Context<SettingsView>,
+) -> Row {
+    let title = "Search scanned PDF pages";
+    if !pdf_scans::supported() {
+        return Row::new(Lucide::ScanText, title).detail(
+            "Kanso reads scanned PDF pages on macOS. Words read there sync with the PDF, and search, selecting and highlighting use them here too.",
+        );
+    }
+    let state = cx.try_global::<ScannedPages>();
+    let status = state.map(|s| s.status.clone()).unwrap_or_default();
+    let paused = state.is_some_and(ScannedPages::is_paused);
+    let on = discovery.pdf_text && discovery.image_text;
+    let detail = if !on {
+        "Turn on Search text in PDFs and Search text in images to read scanned pages.".to_owned()
+    } else {
+        pdf_scans::words(&status).unwrap_or_else(|| {
+            format!(
+                "Reads the words on scanned PDF pages, on {device}, in the background. You can select, copy and highlight them, and search finds them. The words sync with the PDF."
+            )
+        })
+    };
+    let mut row = Row::new(Lucide::ScanText, title).detail(detail);
+    let active = matches!(
+        status,
+        pdf_scans::Status::Reading { .. }
+            | pdf_scans::Status::Paused { .. }
+            | pdf_scans::Status::Waiting { .. }
+    );
+    if on && (active || paused) {
+        let (label, id) = if paused {
+            ("Resume", "pdf-scans-resume")
+        } else {
+            ("Pause", "pdf-scans-pause")
+        };
+        row = row.trailing(
+            Button::new(id)
+                .outline()
+                .small()
+                .label(label)
+                .on_click(move |_, _, cx| pdf_scans::set_paused(!paused, cx)),
+        );
+    }
+    row
 }
 
 /// The handwriting row: a switch where this device can read ink, the same

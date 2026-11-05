@@ -8,6 +8,8 @@
 //! links only the worker's client: no PDFium, so the app and the phones
 //! build without it. A worker is started for each PDF and ended with it.
 //!
+//! [`WorkerScans`] draws scanned pages for the text reader (step 8).
+//!
 //! A failure is only blamed on the PDF when the worker is known to work:
 //! a refusal about the document (a password, damage, too many pages) is the
 //! PDF's. A crash is tried once more in a fresh worker. A crash, a hang or a
@@ -22,6 +24,7 @@ use std::time::Duration;
 use kanso_pdf::client::{DOCUMENT_TEXT_DEADLINE, Worker, WorkerError, WorkerPaths};
 use kanso_pdf::protocol::ErrorKind;
 
+use super::pdf_ocr::{ScanDoc, ScanSource};
 use super::pdf_text::{ExtractError, PdfTextSource};
 
 /// What the store records as having read a PDF's text.
@@ -139,6 +142,106 @@ impl WorkerText {
         self.read(&known_pdf(), KNOWN_PDF_BUDGET)
             .is_ok_and(|pages| pages.len() == 1)
     }
+}
+
+/// Draws the pages of PDFs with the PDF worker, as PNGs for a text reader
+/// (issue #43, step 8): the [`ScanSource`] `ocr_next`
+/// (`super::pdf_ocr::ocr_next`) reads scans through. Blame for a failure is
+/// placed as for text: a crash is the PDF's only if the worker then reads a
+/// PDF of our own.
+#[derive(Clone, Debug)]
+pub struct WorkerScans(WorkerText);
+
+impl WorkerScans {
+    /// A source over the worker beside the running app, if there is one.
+    pub fn locate() -> Option<Self> {
+        WorkerText::locate().map(Self)
+    }
+
+    /// A source that starts the worker at `paths`.
+    pub fn new(paths: WorkerPaths) -> Self {
+        Self(WorkerText::new(paths))
+    }
+
+    /// Ends a read in progress, and later ones, when `cancel` is set.
+    pub fn cancelled_by(self, cancel: Arc<AtomicBool>) -> Self {
+        Self(self.0.cancelled_by(cancel))
+    }
+}
+
+impl ScanSource for WorkerScans {
+    fn open(&self, pdf: &[u8]) -> Result<Box<dyn ScanDoc>, ExtractError> {
+        if self.0.cancelled() {
+            return Err(ExtractError::Reader("stopped".to_owned()));
+        }
+        let started = Worker::start(&self.0.paths).and_then(|mut worker| {
+            // No password is ever tried: an encrypted PDF has no scans to read.
+            let opened = worker.open(pdf, None)?;
+            Ok((worker, opened))
+        });
+        match started {
+            Ok((worker, opened)) => Ok(Box::new(WorkerScan {
+                worker: Some(worker),
+                sizes: opened.sizes,
+                source: self.0.clone(),
+            })),
+            Err(error) => Err(self.0.blame(error)),
+        }
+    }
+}
+
+struct WorkerScan {
+    worker: Option<Worker>,
+    sizes: Vec<[f32; 2]>,
+    source: WorkerText,
+}
+
+impl ScanDoc for WorkerScan {
+    fn size(&self, page: u32) -> Option<[f32; 2]> {
+        self.sizes.get(page.checked_sub(1)? as usize).copied()
+    }
+
+    fn render_png(&mut self, page: u32, width_px: u32) -> Result<Vec<u8>, ExtractError> {
+        if self.source.cancelled() {
+            return Err(ExtractError::Reader("stopped".to_owned()));
+        }
+        let Some(worker) = self.worker.as_mut() else {
+            return Err(ExtractError::Reader("the PDF reader is closed".to_owned()));
+        };
+        match worker.render(page.saturating_sub(1), width_px) {
+            Ok(page) => png_of(&page)
+                .ok_or_else(|| ExtractError::Document("a page that can't be drawn".to_owned())),
+            Err(error) => Err(self.source.blame(error)),
+        }
+    }
+}
+
+impl Drop for WorkerScan {
+    fn drop(&mut self) {
+        if let Some(worker) = self.worker.take() {
+            worker.close();
+        }
+    }
+}
+
+/// A drawn page (BGRA) as an opaque PNG.
+fn png_of(page: &kanso_pdf::client::RenderedPage) -> Option<Vec<u8>> {
+    use image::ImageEncoder as _;
+    use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+    let mut rgb = Vec::with_capacity(page.bgra.len() / 4 * 3);
+    for px in page.bgra.chunks_exact(4) {
+        rgb.extend_from_slice(&[px[2], px[1], px[0]]);
+    }
+    let mut out = Vec::new();
+    PngEncoder::new_with_quality(&mut out, CompressionType::Fast, FilterType::NoFilter)
+        .write_image(
+            &rgb,
+            page.width,
+            page.height,
+            image::ExtendedColorType::Rgb8,
+        )
+        .ok()?;
+    Some(out)
 }
 
 /// A one-page PDF with a line of text, for asking whether the worker works.
