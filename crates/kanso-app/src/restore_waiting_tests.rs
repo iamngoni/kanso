@@ -172,6 +172,28 @@ fn the_app_waits_while_the_library_is_signed_in() {
     }
 }
 
+/// Regression (PR #301 review): when the current library won't open to read
+/// its ID, the launch said the keychain wouldn't answer and left the
+/// restore waiting with no word to the person. It says why, as a failed
+/// apply does, and the restore still waits.
+#[test]
+fn the_app_says_why_when_the_library_will_not_open() {
+    let _turn = APP_OPENS
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    staged_library(dir.path());
+    let db = paths::db_path(dir.path());
+    std::fs::write(&db, vec![0x5a; 8192]).unwrap();
+
+    let _ = library_open::open_store_progress(dir.path(), &|_| {});
+    let Some(Err((_, again))) = library_open::take_restore_outcome() else {
+        panic!("the launch says the restore didn't apply");
+    };
+    assert!(again, "it is tried again at the next launch");
+    assert!(kanso_store::restore_staged(&db));
+}
+
 // MARK: Who may apply a restore
 
 /// A Rust source file reduced to its code: identifiers with the function
@@ -382,11 +404,17 @@ fn allowed() -> BTreeMap<&'static str, Vec<(&'static str, Option<&'static str>)>
                     "restore_waiting_tests.rs",
                     Some("the_app_waits_while_the_library_is_signed_in"),
                 ),
+                (
+                    "restore_waiting_tests.rs",
+                    Some("the_app_says_why_when_the_library_will_not_open"),
+                ),
             ],
         ),
         (
             "open_library_showing_progress",
-            vec![("main.rs", None), ("main.rs", Some("run_app"))],
+            // The launch's `start`, which `run_app` calls (and calls again on
+            // Try again); `start` itself is too common a name to follow.
+            vec![("main.rs", None), ("main.rs", Some("start"))],
         ),
     ])
 }

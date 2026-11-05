@@ -156,8 +156,11 @@ fn apply_pending_restore(
             Err("this computer has no key for the library".to_owned())
         }
         Ok(Some(key)) => match signed_in_now(&db, &key, secrets) {
+            // The library itself wouldn't open: say why, as a failed apply
+            // would; the restore stays staged.
+            Err(SignedInError::Library(err)) => Err(err),
             // The keychain wouldn't say: wait, as above.
-            Err(err) => {
+            Err(SignedInError::Keychain(err)) => {
                 eprintln!(
                     "kanso: a restore is waiting, but the system keychain wouldn't say whether the library is signed in: {err}"
                 );
@@ -181,6 +184,14 @@ fn apply_pending_restore(
     Some(outcome.map_err(|why| (why, kanso_store::restore_staged(&db))))
 }
 
+/// Why [`signed_in_now`] couldn't tell.
+enum SignedInError {
+    /// The library wouldn't open to read its id.
+    Library(String),
+    /// The secret store wouldn't answer.
+    Keychain(String),
+}
+
 /// Whether the library at `db` holds a sync session in `secrets`, signed in
 /// (`sync-account`) or with a sign-in waiting on its key (`sync-pending`).
 /// The restore sheet refuses to stage while signed in, but a sign-in can
@@ -191,13 +202,13 @@ fn signed_in_now(
     db: &Path,
     key: &kanso_store::LibraryKey,
     secrets: &dyn SecretStore,
-) -> std::result::Result<bool, String> {
+) -> std::result::Result<bool, SignedInError> {
     if LibraryFile::of(db) == LibraryFile::New {
         return Ok(false);
     }
     let library_id = Store::open_read_only_with_key(db, Some(key))
         .and_then(|store| store.meta(kanso_sync::meta_keys::LIBRARY_ID))
-        .map_err(|err| err.to_string())?;
+        .map_err(|err| SignedInError::Library(err.to_string()))?;
     let Some(library_id) = library_id else {
         // Never had an account action: no item can name it.
         return Ok(false);
@@ -206,7 +217,11 @@ fn signed_in_now(
         kanso_sync::keychain::account_item(&library_id),
         kanso_sync::keychain::pending_item(&library_id),
     ] {
-        if secrets.get(&item).map_err(|err| err.to_string())?.is_some() {
+        if secrets
+            .get(&item)
+            .map_err(|err| SignedInError::Keychain(err.to_string()))?
+            .is_some()
+        {
             return Ok(true);
         }
     }
