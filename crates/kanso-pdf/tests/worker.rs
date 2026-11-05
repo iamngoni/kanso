@@ -368,3 +368,55 @@ fn an_encrypted_pdf_asks_for_its_password_and_opens_with_it() {
         "the decrypted text was not drawn"
     );
 }
+
+/// Dark mode (issue #43, step 4): the worker turns the text light and the
+/// page dark, while the photo keeps its colours exactly and a red and a blue
+/// chart bar stay red and blue.
+#[test]
+fn smart_invert_turns_text_and_keeps_a_photo_and_a_chart() {
+    use kanso_pdf::fixtures::{CHART_BARS, PHOTO_CENTRE, PHOTO_RGB, photo_pdf};
+    let mut worker = Worker::start(&paths()).unwrap();
+    worker.open(&photo_pdf(), None).unwrap();
+    // Half size: a point is half a pixel.
+    let plain = worker.render_as(0, 306, false).unwrap();
+    let dark = worker.render_as(0, 306, true).unwrap();
+    assert_eq!((plain.width, plain.height), (dark.width, dark.height));
+    let at = |page: &kanso_pdf::client::RenderedPage, [x, y]: [f32; 2]| {
+        let i = ((y / 2.0) as usize * page.width as usize + (x / 2.0) as usize) * 4;
+        let p = &page.bgra[i..i + 4];
+        [p[2], p[1], p[0]]
+    };
+
+    // The page was white and is now dark; the text was black and is now light.
+    assert_eq!(at(&plain, [20.0, 20.0]), [255, 255, 255]);
+    let page = at(&dark, [20.0, 20.0]);
+    assert!(page.iter().all(|c| *c < 60), "the page is {page:?}");
+    let lightest_text = dark
+        .bgra
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|p| p[0])
+        .max()
+        .unwrap();
+    assert!(lightest_text > 200, "no light text: {lightest_text}");
+
+    // The photo is byte-for-byte what was drawn, and it is the photo's colour.
+    assert_eq!(at(&plain, PHOTO_CENTRE), PHOTO_RGB);
+    assert_eq!(at(&dark, PHOTO_CENTRE), PHOTO_RGB);
+
+    // The bars were drawn red and blue, and still are.
+    let [(red_at, _), (blue_at, _)] = CHART_BARS;
+    let red = at(&dark, red_at);
+    assert!(
+        red[0] > 120 && red[0] > red[1].saturating_add(60) && red[0] > red[2].saturating_add(60),
+        "the red bar is {red:?}"
+    );
+    let blue = at(&dark, blue_at);
+    assert!(
+        blue[2] > 120
+            && blue[2] > blue[0].saturating_add(60)
+            && blue[2] > blue[1].saturating_add(40),
+        "the blue bar is {blue:?}"
+    );
+}

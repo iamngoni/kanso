@@ -39,8 +39,15 @@ pub enum Request {
         password: Option<String>,
     },
     /// Draws a page, `width_px` wide (the worker clamps it, see
-    /// [`render_size`]).
-    Render { page: u32, width_px: u32 },
+    /// [`render_size`]). With `smart_invert` the page is drawn for a dark
+    /// reader: text turned light, pictures left as they are (see
+    /// [`crate::invert`]).
+    Render {
+        page: u32,
+        width_px: u32,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        smart_invert: bool,
+    },
     /// Closes the document; the worker answers [`Response::Closed`] and exits.
     Close,
 }
@@ -199,8 +206,13 @@ mod tests {
     fn arb_request() -> impl Strategy<Value = Request> {
         prop_oneof![
             proptest::option::of(".{0,40}").prop_map(|password| Request::Open { password }),
-            (any::<u32>(), any::<u32>())
-                .prop_map(|(page, width_px)| Request::Render { page, width_px }),
+            (any::<u32>(), any::<u32>(), any::<bool>()).prop_map(
+                |(page, width_px, smart_invert)| Request::Render {
+                    page,
+                    width_px,
+                    smart_invert
+                }
+            ),
             Just(Request::Close),
         ]
     }

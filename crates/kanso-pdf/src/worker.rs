@@ -13,6 +13,7 @@ use std::process::ExitCode;
 use pdfium_render::prelude::*;
 
 use crate::contain::{self, Allow, ContainError, MEMORY_BUDGET};
+use crate::invert::{self, PixelRect};
 use crate::protocol::{
     BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_PAGES, Request, Response,
     page_is_sound, read_frame, render_size, write_frame,
@@ -222,9 +223,13 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
                 };
                 (response, blob, false)
             }
-            Request::Render { page, width_px } => {
+            Request::Render {
+                page,
+                width_px,
+                smart_invert,
+            } => {
                 let (response, blob) = match &document {
-                    Some(doc) => render(doc, page, width_px),
+                    Some(doc) => render(doc, page, width_px, smart_invert),
                     None => failure(ErrorKind::Protocol, "no document is open"),
                 };
                 (response, blob, false)
@@ -292,7 +297,12 @@ fn open<'a>(
     ))
 }
 
-fn render(doc: &PdfDocument<'_>, index: u32, width_px: u32) -> (Response, Vec<u8>) {
+fn render(
+    doc: &PdfDocument<'_>,
+    index: u32,
+    width_px: u32,
+    smart_invert: bool,
+) -> (Response, Vec<u8>) {
     let Ok(page_index) = PdfPageIndex::try_from(index) else {
         return failure(ErrorKind::NoSuchPage, "There is no such page.");
     };
@@ -318,10 +328,14 @@ fn render(doc: &PdfDocument<'_>, index: u32, width_px: u32) -> (Response, Vec<u8
         return failure(ErrorKind::Internal, "This page couldn't be drawn.");
     };
     let (w, h) = (bitmap.width() as u32, bitmap.height() as u32);
-    let bytes = bitmap.as_raw_bytes();
+    let mut bytes = bitmap.as_raw_bytes();
     if !page_is_sound(w, h, bytes.len()) || bytes.len() != w as usize * h as usize * BYTES_PER_PIXEL
     {
         return failure(ErrorKind::Internal, "This page couldn't be drawn.");
+    }
+    if smart_invert {
+        let keep = invert::keep_rects(&picture_boxes(&page, &config, w, h), w, h);
+        invert::smart_invert(&mut bytes, w, h, &keep);
     }
     (
         Response::Page {
@@ -331,6 +345,36 @@ fn render(doc: &PdfDocument<'_>, index: u32, width_px: u32) -> (Response, Vec<u8
         },
         bytes,
     )
+}
+
+/// Where the page's pictures are in the bitmap just drawn, in pixels. Only
+/// the page's own picture objects are looked at (not those inside a form
+/// XObject); the same transform PDFium drew the page with places them, so a
+/// rotated page is right.
+fn picture_boxes(page: &PdfPage<'_>, config: &PdfRenderConfig, w: u32, h: u32) -> Vec<PixelRect> {
+    let mut boxes = Vec::new();
+    for object in page.objects().iter() {
+        if object.as_image_object().is_none() {
+            continue;
+        }
+        let Ok(bounds) = object.bounds() else {
+            continue;
+        };
+        let rect = bounds.to_rect();
+        let corner = |x, y| {
+            page.points_to_pixels(x, y, config)
+                .ok()
+                .map(|(x, y)| (x as f32, y as f32))
+        };
+        if let (Some(a), Some(b)) = (
+            corner(rect.left(), rect.top()),
+            corner(rect.right(), rect.bottom()),
+        ) && let Some(rect) = PixelRect::from_corners(a, b, w, h)
+        {
+            boxes.push(rect);
+        }
+    }
+    boxes
 }
 
 #[cfg(test)]
