@@ -209,7 +209,7 @@ impl ScanDoc for WorkerScan {
             return Err(ExtractError::Reader("the PDF reader is closed".to_owned()));
         };
         match worker.render(page.saturating_sub(1), width_px) {
-            Ok(page) => png_of(&page)
+            Ok(page) => png_of(page)
                 .ok_or_else(|| ExtractError::Document("a page that can't be drawn".to_owned())),
             Err(error) => Err(self.source.blame(error)),
         }
@@ -224,22 +224,33 @@ impl Drop for WorkerScan {
     }
 }
 
-/// A drawn page (BGRA) as an opaque PNG.
-fn png_of(page: &kanso_pdf::client::RenderedPage) -> Option<Vec<u8>> {
+/// A drawn page (BGRA) as an opaque PNG. The pixels are turned to RGB in
+/// place, so a page at the size cap (64 MB of BGRA) never has a second
+/// copy beside it.
+fn png_of(page: kanso_pdf::client::RenderedPage) -> Option<Vec<u8>> {
     use image::ImageEncoder as _;
     use image::codecs::png::{CompressionType, FilterType, PngEncoder};
-    let mut rgb = Vec::with_capacity(page.bgra.len() / 4 * 3);
-    for px in page.bgra.as_chunks::<4>().0 {
-        rgb.extend_from_slice(&[px[2], px[1], px[0]]);
+    let kanso_pdf::client::RenderedPage {
+        width,
+        height,
+        mut bgra,
+        ..
+    } = page;
+    // The client already refuses a page whose pixels aren't its size; the
+    // encoder would panic on one.
+    let pixels = (width as usize).checked_mul(height as usize)?;
+    if pixels.checked_mul(4) != Some(bgra.len()) {
+        return None;
     }
+    for i in 0..pixels {
+        let (b, g, r) = (bgra[4 * i], bgra[4 * i + 1], bgra[4 * i + 2]);
+        bgra[3 * i..3 * i + 3].copy_from_slice(&[r, g, b]);
+    }
+    bgra.truncate(pixels * 3);
+    let rgb = bgra;
     let mut out = Vec::new();
     PngEncoder::new_with_quality(&mut out, CompressionType::Fast, FilterType::NoFilter)
-        .write_image(
-            &rgb,
-            page.width,
-            page.height,
-            image::ExtendedColorType::Rgb8,
-        )
+        .write_image(&rgb, width, height, image::ExtendedColorType::Rgb8)
         .ok()?;
     Some(out)
 }
@@ -286,6 +297,38 @@ mod tests {
             exe: "/no/such/kanso-pdf-worker".into(),
             library: None,
         })
+    }
+
+    /// A drawn page becomes a PNG of the same pixels, in their own colours,
+    /// turned to RGB in place.
+    #[test]
+    fn a_drawn_page_is_its_own_pixels_as_a_png() {
+        let (width, height) = (3u32, 2u32);
+        let bgra: Vec<u8> = (0..width * height)
+            .flat_map(|i| [i as u8, 100 + i as u8, 200 + i as u8, 255])
+            .collect();
+        let png = png_of(kanso_pdf::client::RenderedPage {
+            page: 0,
+            width,
+            height,
+            bgra,
+        })
+        .unwrap();
+        let back = image::load_from_memory(&png).unwrap().to_rgb8();
+        assert_eq!(back.dimensions(), (width, height));
+        for (i, px) in back.pixels().enumerate() {
+            assert_eq!(px.0, [200 + i as u8, 100 + i as u8, i as u8], "pixel {i}");
+        }
+        // Pixels that don't match the size are refused, not drawn.
+        assert!(
+            png_of(kanso_pdf::client::RenderedPage {
+                page: 0,
+                width: 4,
+                height: 4,
+                bgra: vec![0; 8],
+            })
+            .is_none()
+        );
     }
 
     /// Without a worker to start, the reader failed, not the PDF: nothing

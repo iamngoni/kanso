@@ -165,7 +165,7 @@ mod vision {
     //! Apple's Vision framework: `VNRecognizeTextRequest` on the image's
     //! bytes, accurate, with language correction.
 
-    use kanso_pdf::ocr::{quad_from_bottom_left, word_ranges};
+    use kanso_pdf::ocr::{quad_from_bottom_left, turns_from_corners, word_ranges};
     use objc2::AnyThread as _;
     use objc2::rc::{Retained, autoreleasepool};
     use objc2_foundation::{NSArray, NSData, NSDictionary, NSRange};
@@ -218,7 +218,7 @@ mod vision {
         /// Each recognised line's words, with the box Vision gives the
         /// range of the word in the line (`boundingBox(for:)`), flipped to
         /// the top-left origin.
-        fn read_words(&self, image: &[u8]) -> Result<Vec<(String, kanso_pdf::Quad)>, String> {
+        fn read_words(&self, image: &[u8]) -> Result<Vec<kanso_pdf::ReadWord>, String> {
             autoreleasepool(|_| {
                 let data = NSData::with_bytes(image);
                 let handler = VNImageRequestHandler::initWithData_options(
@@ -250,17 +250,24 @@ mod vision {
                             }) else {
                                 continue;
                             };
-                            // SAFETY: a plain getter on an observation Vision made.
-                            let b = unsafe { found.boundingBox() };
-                            words.push((
-                                word.to_owned(),
-                                quad_from_bottom_left(
+                            // SAFETY: plain getters on an observation Vision made.
+                            let (b, top_left, top_right) =
+                                unsafe { (found.boundingBox(), found.topLeft(), found.topRight()) };
+                            words.push(kanso_pdf::ReadWord {
+                                text: word.to_owned(),
+                                quad: quad_from_bottom_left(
                                     b.origin.x,
                                     b.origin.y,
                                     b.size.width,
                                     b.size.height,
                                 ),
-                            ));
+                                // A word on a turned line reads along the
+                                // top edge of its own rectangle.
+                                turns: turns_from_corners(
+                                    (top_left.x, top_left.y),
+                                    (top_right.x, top_right.y),
+                                ),
+                            });
                         }
                     }
                 }
@@ -332,10 +339,11 @@ mod tests {
     fn vision_reads_word_boxes() {
         use kanso_engine::discovery::pdf_ocr::WordReader as _;
         let words = vision::VisionReader.read_words(&kanso_png()).unwrap();
-        let (text, quad) = words
+        let kanso_pdf::ReadWord { text, quad, turns } = words
             .iter()
-            .find(|(w, _)| w.to_lowercase().contains("kanso"))
+            .find(|w| w.text.to_lowercase().contains("kanso"))
             .unwrap_or_else(|| panic!("read {words:?}"));
+        assert_eq!(*turns, 0, "{text} reads left to right");
         let [x0, y0, x1, y1] = quad.0;
         assert!(x0 < 0.2 && x1 > 0.7, "{text} at {quad:?}");
         assert!(y0 > 0.1 && y1 < 0.9 && y0 < y1, "{text} at {quad:?}");

@@ -98,12 +98,16 @@ fn a_field_from_elsewhere_is_taken_with_care() {
             {"page": 1, "width": 50.0, "height": 1.0, "words": []},
         ],
     });
-    // A page with a malformed word is dropped whole (it cannot be
-    // trusted), so the first page 3 goes and the repeat of it is the one
-    // kept; page 0 and the page without a number go.
+    // A malformed word is dropped, not trusted, and its page keeps the
+    // sound ones; the repeat of page 3 goes, and so do page 0 and the page
+    // without a number.
     let ocr = PdfOcr::from_value(&value).unwrap();
     let pages: Vec<u32> = ocr.pages.iter().map(|p| p.page).collect();
     assert_eq!(pages, [1, 3]);
+    let three = ocr.page(3).unwrap();
+    assert_eq!(three.width, 100.0);
+    let kept: Vec<&str> = three.words.iter().map(|w| w.text.as_str()).collect();
+    assert_eq!(kept, ["ok"]);
     assert!(PdfOcr::from_value(&json!({"pages": []})).is_none());
     assert!(PdfOcr::from_value(&json!({"md5": "", "pages": []})).is_none());
     assert!(PdfOcr::from_value(&json!("text")).is_none());
@@ -168,6 +172,223 @@ fn words_of_a_line_are_found_by_utf16_range() {
 fn vision_boxes_flip_to_the_top_left() {
     let quad = quad_from_bottom_left(0.1, 0.8, 0.3, 0.1);
     assert_eq!(quad.0, [0.1, 0.1, 0.4, 0.2]);
+}
+
+/// Numbers from anywhere: huge, negative, fractional or of the wrong kind
+/// are held to the page or refused, never trusted and never a panic.
+#[test]
+fn hostile_numbers_in_a_word_are_held_to_the_page() {
+    let value = json!({
+        "md5": "m",
+        "pages": [{"page": 1, "width": -5.0, "height": 1e300, "words": [
+            ["big", i64::MAX, i64::MAX, i64::MAX, i64::MAX],
+            ["neg", i64::MIN, i64::MIN, i64::MAX, i64::MAX],
+            ["frac", 0.5, 1, 2, 3],
+            ["text", "1", 2, 3, 4],
+            ["short", 1, 2],
+            ["turned", 100, 100, 200, 900, -7],
+            ["extra", 100, 100, 200, 300, 0, "more", [1, 2]],
+        ]}],
+    });
+    let ocr = PdfOcr::from_value(&value).unwrap();
+    let page = ocr.page(1).unwrap();
+    assert!(page.width >= 1.0 && page.height <= 75_000.0);
+    let kept: Vec<(&str, u8)> = page
+        .words
+        .iter()
+        .map(|w| (w.text.as_str(), w.turns))
+        .collect();
+    // "big" starts past the page's edge (no area once clipped); "neg" is
+    // clipped to the whole page; -7 turns is 1 turn.
+    assert_eq!(kept, [("neg", 0), ("turned", 1), ("extra", 0)]);
+    for word in &page.words {
+        assert!(word.quad.is_valid(), "{word:?}");
+    }
+}
+
+/// A field with far more pages and words than may be kept keeps the caps.
+#[test]
+fn a_field_with_absurd_counts_is_capped() {
+    let word = json!(["w", 1, 1, 10, 10]);
+    let page = |n: usize| {
+        json!({"page": n, "width": 1.0, "height": 1.0, "words": vec![word.clone(); 50]})
+    };
+    let pages: Vec<Value> = (1..=MAX_OCR_PAGES + 500).map(page).collect();
+    let ocr = PdfOcr::from_value(&json!({"md5": "m", "pages": pages})).unwrap();
+    assert_eq!(ocr.pages.len(), MAX_OCR_PAGES);
+    let words: usize = ocr.pages.iter().map(|p| p.words.len()).sum();
+    assert_eq!(words, MAX_DOC_WORDS.min(MAX_OCR_PAGES * 50));
+    // Every page the same number: one kept.
+    let same: Vec<Value> = (0..20_000).map(|_| page(7)).collect();
+    let ocr = PdfOcr::from_value(&json!({"md5": "m", "pages": same})).unwrap();
+    assert_eq!(ocr.pages.len(), 1);
+    // One page over its cap keeps the first words.
+    let crowded = json!({"md5": "m", "pages": [{"page": 1, "width": 1.0, "height": 1.0,
+        "words": vec![word.clone(); MAX_WORDS_PER_PAGE + 100]}]});
+    let ocr = PdfOcr::from_value(&crowded).unwrap();
+    assert_eq!(ocr.pages[0].words.len(), MAX_WORDS_PER_PAGE);
+    // Tags past their length are cut; an MD5 that long is no MD5.
+    let long = "x".repeat(10_000);
+    let ocr = PdfOcr::from_value(&json!({"md5": "m", "engine": long, "pages": []})).unwrap();
+    assert_eq!(ocr.engine.chars().count(), MAX_TAG_CHARS);
+    assert!(PdfOcr::from_value(&json!({"md5": long, "pages": []})).is_none());
+}
+
+/// A box too thin to measure in ten-thousandths still reads back.
+#[test]
+fn a_sliver_of_a_word_reads_back() {
+    let word = OcrWord::new("i", Quad([0.5, 0.5, 0.50001, 0.52])).unwrap();
+    let value = serde_json::to_value(&word).unwrap();
+    assert_eq!(value, json!(["i", 5000, 5000, 1, 200]));
+    let back: OcrWord = serde_json::from_value(value).unwrap();
+    assert_eq!(back.text, "i");
+}
+
+/// A word that reads down the page is split down its box, top first, and
+/// one that reads up is split from the bottom; the text layer keeps the
+/// way each runs, so selecting it takes its letters in order.
+#[test]
+fn a_turned_word_is_split_along_the_way_it_reads() {
+    let down = ReadWord {
+        text: "DOWN".into(),
+        quad: q(0.10, 0.10, 0.14, 0.50),
+        turns: 1,
+    };
+    let up = ReadWord {
+        text: "UP".into(),
+        quad: q(0.80, 0.20, 0.84, 0.60),
+        turns: 3,
+    };
+    let back = ReadWord {
+        text: "AB".into(),
+        quad: q(0.30, 0.80, 0.50, 0.84),
+        turns: 2,
+    };
+    let page = OcrPage::read(1, 612.0, 792.0, [down, up, back]);
+    let text = page.to_page_text();
+    let letters: Vec<(char, u8, [f64; 4])> = text
+        .chars
+        .iter()
+        .map(|c| (c.ch, c.turns, c.quad.0))
+        .collect();
+    let near = |a: f64, b: f64| (a - b).abs() < 1e-9;
+    // D is at the top of its box, N at the bottom.
+    assert_eq!((letters[0].0, letters[0].1), ('D', 1));
+    assert!(near(letters[0].2[1], 0.10) && near(letters[0].2[3], 0.20));
+    assert!(near(letters[3].2[3], 0.50));
+    // U is at the bottom of its box.
+    assert_eq!((letters[4].0, letters[4].1), ('U', 3));
+    assert!(near(letters[4].2[3], 0.60) && near(letters[4].2[1], 0.40));
+    // Upside down: A is on the right.
+    assert_eq!((letters[6].0, letters[6].1), ('A', 2));
+    assert!(near(letters[6].2[2], 0.50));
+    // Selecting everything copies each word in its reading order.
+    let doc = TextDoc::new([&text]);
+    let all = doc.select_all().unwrap();
+    let copied = doc.text(&all);
+    for word in ["DOWN", "UP", "AB"] {
+        assert!(copied.contains(word), "{word} in {copied:?}");
+    }
+    // The field keeps the turns, and only when they aren't 0.
+    let value = serde_json::to_value(&page.words[0]).unwrap();
+    assert_eq!(value.as_array().unwrap().len(), 6);
+    let ocr = PdfOcr {
+        md5: "m".into(),
+        engine: "e".into(),
+        at: 0,
+        pages: vec![page],
+    };
+    assert_eq!(PdfOcr::from_value(&ocr.to_value()), Some(ocr));
+}
+
+#[test]
+fn corners_say_which_way_a_word_reads() {
+    // Vision measures from the bottom-left: y grows upward.
+    assert_eq!(turns_from_corners((0.1, 0.9), (0.5, 0.9)), 0);
+    assert_eq!(turns_from_corners((0.1, 0.9), (0.1, 0.5)), 1);
+    assert_eq!(turns_from_corners((0.5, 0.1), (0.1, 0.1)), 2);
+    assert_eq!(turns_from_corners((0.1, 0.1), (0.1, 0.5)), 3);
+    // Slanted a little: still left to right.
+    assert_eq!(turns_from_corners((0.1, 0.5), (0.5, 0.45)), 0);
+    assert_eq!(turns_from_corners((0.1, 0.5), (0.1, 0.5)), 0);
+    assert_eq!(turns_from_corners((f64::NAN, 0.5), (0.1, 0.5)), 0);
+}
+
+/// A JSON number of any kind: whole, huge, negative, fractional.
+fn any_number() -> impl Strategy<Value = Value> {
+    prop_oneof![
+        any::<i64>().prop_map(Value::from),
+        (-20_000i64..30_000).prop_map(Value::from),
+        any::<f64>()
+            .prop_filter("JSON has no NaN", |f| f.is_finite())
+            .prop_map(Value::from),
+        Just(Value::from(u64::MAX)),
+    ]
+}
+
+/// Anything at all, a little deep.
+fn any_json() -> impl Strategy<Value = Value> {
+    let leaf = prop_oneof![
+        Just(Value::Null),
+        any::<bool>().prop_map(Value::from),
+        any_number(),
+        "\\PC{0,12}".prop_map(Value::from),
+    ];
+    leaf.prop_recursive(3, 24, 4, |inner| {
+        prop_oneof![
+            prop::collection::vec(inner.clone(), 0..5).prop_map(Value::from),
+            prop::collection::btree_map("[a-z]{1,6}", inner, 0..4)
+                .prop_map(|m| Value::Object(m.into_iter().collect())),
+        ]
+    })
+}
+
+/// A word, mostly shaped like one.
+fn hostile_word() -> impl Strategy<Value = Value> {
+    prop_oneof![
+        8 => ("\\PC{0,80}", prop::collection::vec(any_number(), 0..8)).prop_map(|(t, n)| {
+            let mut v = vec![Value::from(t)];
+            v.extend(n);
+            Value::from(v)
+        }),
+        1 => any_json(),
+    ]
+}
+
+/// A page, mostly shaped like one.
+fn hostile_page() -> impl Strategy<Value = Value> {
+    prop_oneof![
+        8 => (
+            any_number(),
+            any_number(),
+            any_number(),
+            prop::collection::vec(hostile_word(), 0..12)
+        )
+            .prop_map(|(page, w, h, words)| {
+                json!({"page": page, "width": w, "height": h, "words": words})
+            }),
+        1 => (0u32..4).prop_map(|p| json!({"page": p, "width": 1.0, "height": 1.0, "words": "x"})),
+        1 => any_json(),
+    ]
+}
+
+/// A whole field, mostly shaped like one.
+fn hostile_field() -> impl Strategy<Value = Value> {
+    prop_oneof![
+        8 => (
+            prop_oneof![
+                Just(Value::from("m")),
+                any_json(),
+                "\\PC{0,80}".prop_map(Value::from)
+            ],
+            any_json(),
+            prop::collection::vec(hostile_page(), 0..12)
+        )
+            .prop_map(|(md5, engine, pages)| {
+                json!({"md5": md5, "engine": engine, "at": 1, "pages": pages})
+            }),
+        1 => any_json(),
+    ]
 }
 
 fn word_strategy() -> impl Strategy<Value = (String, Quad)> {
@@ -250,6 +471,39 @@ proptest! {
         prop_assert_eq!(words.iter().map(|w| w.0).collect::<Vec<_>>(), joined);
         for (text, start, len) in words {
             prop_assert_eq!(String::from_utf16(&units[start..start + len]).unwrap(), text);
+        }
+    }
+
+    /// Any field at all (any JSON a device or the sync server could send in
+    /// its place) is refused or read within the caps: every page numbered
+    /// within the document, in order and once, every word sound, never a
+    /// panic.
+    #[test]
+    fn prop_any_field_is_refused_or_capped(value in hostile_field()) {
+        if let Some(ocr) = PdfOcr::from_value(&value) {
+            prop_assert!(!ocr.md5.is_empty() && ocr.md5.len() <= MAX_TAG_CHARS);
+            prop_assert!(ocr.engine.chars().count() <= MAX_TAG_CHARS);
+            prop_assert!(ocr.pages.len() <= MAX_OCR_PAGES);
+            prop_assert!(ocr.pages.windows(2).all(|w| w[0].page < w[1].page));
+            let mut words = 0;
+            for page in &ocr.pages {
+                prop_assert!(page.page >= 1 && page.page as usize <= MAX_OCR_PAGES);
+                prop_assert!((1.0..=75_000.0).contains(&page.width));
+                prop_assert!((1.0..=75_000.0).contains(&page.height));
+                prop_assert!(page.words.len() <= MAX_WORDS_PER_PAGE);
+                for word in &page.words {
+                    prop_assert!(word.quad.is_valid());
+                    prop_assert!(word.turns < 4);
+                    prop_assert!(!word.text.is_empty());
+                    prop_assert!(word.text.chars().count() <= MAX_WORD_CHARS);
+                }
+                words += page.words.len();
+                // The text layer takes any page that was kept.
+                let _ = page.to_page_text();
+            }
+            prop_assert!(words <= MAX_DOC_WORDS);
+            // What was kept writes and reads back as itself.
+            prop_assert_eq!(PdfOcr::from_value(&ocr.to_value()), Some(ocr));
         }
     }
 

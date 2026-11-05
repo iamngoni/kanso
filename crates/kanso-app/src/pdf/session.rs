@@ -233,6 +233,8 @@ fn run(
         return;
     }
 
+    // The words read from the PDF's scanned pages, once a blank page asks.
+    let mut scans: Option<Option<kanso_pdf::PdfOcr>> = None;
     loop {
         let job = {
             let Ok(mut inbox) = shared.inbox.lock() else {
@@ -254,7 +256,13 @@ fn run(
                             // the pictures that were read (here or by
                             // another device), at word granularity.
                             let text = if text.chars.is_empty() {
-                                scanned_text(store, file_id, &text).unwrap_or(text)
+                                // The file's words are read once a session,
+                                // not once a page.
+                                let ocr = scans
+                                    .get_or_insert_with(|| store.pdf_ocr(file_id).ok().flatten());
+                                ocr.as_ref()
+                                    .and_then(|ocr| scanned_page(ocr, &text))
+                                    .unwrap_or(text)
                             } else {
                                 text
                             };
@@ -322,7 +330,14 @@ pub(super) fn scanned_text(
     file_id: &str,
     empty: &kanso_pdf::PageText,
 ) -> Option<kanso_pdf::PageText> {
-    let ocr = store.pdf_ocr(file_id).ok()??;
+    scanned_page(&store.pdf_ocr(file_id).ok()??, empty)
+}
+
+/// As [`scanned_text`], from the words already read out of the file.
+fn scanned_page(
+    ocr: &kanso_pdf::PdfOcr,
+    empty: &kanso_pdf::PageText,
+) -> Option<kanso_pdf::PageText> {
     let mut text = ocr.page(empty.page)?.to_page_text();
     text.width = empty.width;
     text.height = empty.height;

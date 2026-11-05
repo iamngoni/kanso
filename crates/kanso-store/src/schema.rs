@@ -483,6 +483,15 @@ CREATE TABLE IF NOT EXISTS pdf_ocr_pending (
     PRIMARY KEY (file_id, page)
 ) WITHOUT ROWID;
 "#,
+    // PDFs a note linked when it was locked (issue #43 step 8), on this
+    // device: the words read from their scans are dropped once no note
+    // outside a lock links them, and never taken again while that holds.
+    // File ids only; a locked note's own list of links is sealed with it.
+    r#"
+CREATE TABLE IF NOT EXISTS pdf_locked_files (
+    file_id TEXT PRIMARY KEY
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked

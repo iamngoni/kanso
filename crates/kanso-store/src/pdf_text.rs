@@ -40,7 +40,7 @@ pub(crate) fn is_plain_pdf(fields: &Map<String, Value>) -> bool {
             .is_some_and(|t| t.eq_ignore_ascii_case("application/pdf"))
 }
 
-fn forget(conn: &Connection, id: &str) -> Result<()> {
+pub(crate) fn forget(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("DELETE FROM pdf_page_text WHERE file_id = ?", [id])?;
     conn.execute("DELETE FROM pdf_state WHERE file_id = ?", [id])?;
     // Scans read so far were read from the bytes these pages were.

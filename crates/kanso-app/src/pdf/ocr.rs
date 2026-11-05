@@ -19,7 +19,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use gpui_kit::{App, Global, Task};
 use kanso_engine::discovery::pdf_ocr::{Ocred, ScanSource, WordReader, ocr_next};
@@ -40,6 +40,8 @@ const CHUNK_PAUSE: Duration = Duration::from_millis(200);
 const LOOK_AGAIN: Duration = Duration::from_secs(20);
 /// How often a paused loop looks at the switch.
 const PAUSED_LOOK: Duration = Duration::from_millis(500);
+/// How often a paused loop counts the PDFs still waiting, for Settings.
+const PAUSED_RECOUNT: Duration = Duration::from_secs(30);
 
 /// Whether this device can read scanned pages: a text reader and the PDF
 /// worker are both here.
@@ -174,25 +176,39 @@ fn start(cx: &mut App) {
     let scans = Arc::new(scans.cancelled_by(cancel.clone()));
     let task = cx.spawn(async move |cx| {
         let mut failures = 0u32;
+        // When the PDFs waiting were last counted while paused.
+        let mut counted: Option<Instant> = None;
         loop {
             if cancel.load(Ordering::Relaxed) {
                 return;
             }
             if paused.load(Ordering::Relaxed) {
-                cx.update(|cx| {
-                    let waiting = store.pdfs_to_ocr(usize::MAX).map(|w| w.len()).unwrap_or(0);
-                    set_status(
-                        if waiting == 0 {
-                            Status::Idle
-                        } else {
-                            Status::Paused { waiting }
-                        },
-                        cx,
-                    );
-                });
+                // Counted when the pause starts and now and then after, off
+                // the main thread; the switch itself is looked at often.
+                if counted.is_none_or(|at| at.elapsed() >= PAUSED_RECOUNT) {
+                    let store2 = store.clone();
+                    let waiting = cx
+                        .background_executor()
+                        .spawn(async move {
+                            store2.pdfs_to_ocr(usize::MAX).map(|w| w.len()).unwrap_or(0)
+                        })
+                        .await;
+                    counted = Some(Instant::now());
+                    cx.update(|cx| {
+                        set_status(
+                            if waiting == 0 {
+                                Status::Idle
+                            } else {
+                                Status::Paused { waiting }
+                            },
+                            cx,
+                        )
+                    });
+                }
                 cx.background_executor().timer(PAUSED_LOOK).await;
                 continue;
             }
+            counted = None;
             let (store2, scans2, reader2) = (store.clone(), scans.clone(), reader.clone());
             let (cancel2, paused2) = (cancel.clone(), paused.clone());
             let step = cx

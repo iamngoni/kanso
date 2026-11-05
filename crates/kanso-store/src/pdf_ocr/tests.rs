@@ -282,6 +282,248 @@ fn a_pdf_only_a_locked_note_links_is_not_read_or_kept() {
     assert!(find(&store, "secret").is_empty());
 }
 
+// MARK: Locked notes (the words never stay in plain text for a locked PDF)
+
+/// Reads every page of `file`'s scan, with `words` on page 2, and writes
+/// the set into the file.
+fn read_all(store: &Store, file: &str, md5: &str, words: &[&str]) {
+    assert!(store.keep_pdf_ocr_page(file, md5, &page(2, words)).unwrap());
+    assert!(store.keep_pdf_ocr_page(file, md5, &page(3, &[])).unwrap());
+    assert!(store.finish_pdf_ocr(file, md5, "vision").unwrap());
+}
+
+/// Where the words of `file`'s scan are on this device: in its document,
+/// its search row, its past versions, and the pages kept so far.
+#[derive(Debug, PartialEq)]
+struct Traces {
+    field: bool,
+    search_row: bool,
+    history: i64,
+    kept: i64,
+}
+
+fn traces(store: &Store, file: &str) -> Traces {
+    let field = store
+        .get(file)
+        .unwrap()
+        .is_some_and(|d| d.fields.contains_key(PDF_OCR_FIELD));
+    store
+        .read(|conn| {
+            let count = |sql: &str| -> rusqlite::Result<i64> {
+                conn.query_row(sql, [file], |row| row.get(0))
+            };
+            Ok(Traces {
+                field,
+                search_row: count("SELECT COUNT(*) FROM file_text WHERE file_id = ?")? > 0,
+                history: count(&format!(
+                    "SELECT COUNT(*) FROM revisions WHERE doc_id = ?
+                     AND json_extract(json, '$.{PDF_OCR_FIELD}') IS NOT NULL"
+                ))?,
+                kept: count("SELECT COUNT(*) FROM pdf_ocr_pending WHERE file_id = ?")?,
+            })
+        })
+        .unwrap()
+}
+
+const NONE: Traces = Traces {
+    field: false,
+    search_row: false,
+    history: 0,
+    kept: 0,
+};
+
+/// The version of `file` the next sync sends, if it sends one.
+fn pushed(store: &Store, file: &str) -> Option<crate::SyncDoc> {
+    store
+        .pending_push(1_000)
+        .unwrap()
+        .into_iter()
+        .find(|d| d.id == file)
+}
+
+/// A version of `id` from another device: its fields changed by `change`,
+/// one generation on, newer than anything here.
+fn from_elsewhere(store: &Store, id: &str, change: impl FnOnce(&mut serde_json::Map<String, Value>)) {
+    let doc = store.get(id).unwrap().unwrap();
+    let mut fields = doc.fields.clone();
+    change(&mut fields);
+    fields.insert("updatedAt".into(), json!(now_ms() + 3_600_000));
+    let rev: kanso_core::Rev = doc.rev.parse().unwrap();
+    let remote = crate::SyncDoc {
+        id: id.to_owned(),
+        rev: format!("{}-{}", rev.generation + 1, "ab".repeat(16)),
+        deleted: false,
+        fields,
+        base_rev: None,
+    };
+    store.apply_remote(&remote, None, None).unwrap();
+}
+
+fn sealed(fields: &mut serde_json::Map<String, Value>) {
+    fields.insert("body".into(), "".into());
+    fields.insert(
+        "kansoLock".into(),
+        json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "sealed"}),
+    );
+}
+
+fn unlock(store: &Store, note: &str, file: &str) {
+    let mut open = store.get_api(note, None, false).unwrap();
+    open.as_object_mut().unwrap().remove("kansoLock");
+    open["body"] = format!("[scan.pdf](inkdrop://{file})").into();
+    store.unlock_note(open).unwrap();
+}
+
+#[test]
+fn locking_drops_the_words_everywhere_and_the_drop_syncs() {
+    let (_dir, store) = open();
+    let (file, shows, md5) = scanned(&store, "lock");
+    read_all(&store, &file, &md5, &["confidential", "diagnosis"]);
+    // A later change to the file keeps a version with the words in history.
+    let rev = store.get(&file).unwrap().unwrap().rev;
+    store
+        .put(
+            DocType::File,
+            json!({"_id": file, "_rev": rev, "name": "renamed.pdf"}),
+            Put::Merge,
+            Origin::Api,
+        )
+        .unwrap();
+    assert!(traces(&store, &file).field && traces(&store, &file).search_row);
+    assert!(traces(&store, &file).history > 0);
+
+    lock(&store, &shows);
+    assert_eq!(traces(&store, &file), NONE);
+    // The file's next version, without the words, is what sync sends.
+    let sent = pushed(&store, &file).expect("the drop syncs");
+    assert!(!sent.fields.contains_key(PDF_OCR_FIELD));
+    assert_eq!(sent.fields["name"], "renamed.pdf");
+    assert!(store.pdfs_to_ocr(10).unwrap().is_empty());
+}
+
+#[test]
+fn a_lock_from_another_device_drops_the_words_here() {
+    let (_dir, store) = open();
+    let (file, shows, md5) = scanned(&store, "remote-lock");
+    read_all(&store, &file, &md5, &["payslip"]);
+    from_elsewhere(&store, &shows, sealed);
+    assert!(store.get(&shows).unwrap().unwrap().fields.contains_key("kansoLock"));
+    assert_eq!(traces(&store, &file), NONE);
+    assert!(!pushed(&store, &file).unwrap().fields.contains_key(PDF_OCR_FIELD));
+}
+
+#[test]
+fn words_written_after_the_lock_are_never_kept() {
+    let (_dir, store) = open();
+    let (file, shows, md5) = scanned(&store, "late");
+    read_all(&store, &file, &md5, &["first"]);
+    let words = store.get(&file).unwrap().unwrap().fields[PDF_OCR_FIELD].clone();
+    lock(&store, &shows);
+    // A device that hadn't seen the lock sends the words again.
+    from_elsewhere(&store, &file, |f| {
+        f.insert(PDF_OCR_FIELD.into(), words.clone());
+    });
+    assert_eq!(traces(&store, &file), NONE);
+    assert!(!pushed(&store, &file).unwrap().fields.contains_key(PDF_OCR_FIELD));
+    // Nor does a write here keep them.
+    let rev = store.get(&file).unwrap().unwrap().rev;
+    store
+        .put(
+            DocType::File,
+            json!({"_id": file, "_rev": rev, PDF_OCR_FIELD: words}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    assert_eq!(traces(&store, &file), NONE);
+}
+
+#[test]
+fn a_shared_pdf_keeps_its_words_until_no_open_note_links_it() {
+    let (_dir, store) = open();
+    let (file, locked, md5) = scanned(&store, "shared");
+    let open = note(&store, &file);
+    read_all(&store, &file, &md5, &["minutes"]);
+    lock(&store, &locked);
+    // The open note still shows it: its words stay, and search finds them
+    // there.
+    assert!(traces(&store, &file).field);
+    assert_eq!(find(&store, "minutes"), vec![open.clone()]);
+    // The open note lets go of it.
+    let rev = store.get(&open).unwrap().unwrap().rev;
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": open, "_rev": rev, "body": "No PDF here now."}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    assert_eq!(traces(&store, &file), NONE);
+    assert!(find(&store, "minutes").is_empty());
+}
+
+#[test]
+fn unlocking_reads_the_scan_again() {
+    let (_dir, store) = open();
+    let (file, shows, md5) = scanned(&store, "unlock");
+    read_all(&store, &file, &md5, &["receipt"]);
+    lock(&store, &shows);
+    assert_eq!(traces(&store, &file), NONE);
+    unlock(&store, &shows, &file);
+    // Its text is read first, then its scans.
+    assert!(store.pdfs_to_index(10).unwrap().iter().any(|p| p.id == file));
+    store
+        .set_pdf_text(&file, &md5, &["Typed".into(), "".into(), "".into()], "test")
+        .unwrap();
+    assert_eq!(store.pdfs_to_ocr(10).unwrap().len(), 1);
+    read_all(&store, &file, &md5, &["receipt"]);
+    assert_eq!(find(&store, "receipt"), vec![shows]);
+}
+
+#[test]
+fn an_unlocked_note_never_drops_words() {
+    let (_dir, store) = open();
+    let (file, shows, md5) = scanned(&store, "plain");
+    read_all(&store, &file, &md5, &["agenda"]);
+    // Edits, a second note, a note in the trash: no lock, nothing dropped.
+    let rev = store.get(&shows).unwrap().unwrap().rev;
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": shows, "_rev": rev, "title": "Renamed"}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    note(&store, &file);
+    assert!(traces(&store, &file).field);
+    assert!(store.pdf_ocr(&file).unwrap().is_some());
+}
+
+#[test]
+fn a_kept_page_that_no_longer_reads_is_finished_not_read_forever() {
+    let (_dir, store) = open();
+    let (file, _, md5) = scanned(&store, "broken");
+    store
+        .keep_pdf_ocr_page(&file, &md5, &page(2, &["fine"]))
+        .unwrap();
+    store
+        .write(|tx, _| {
+            tx.execute(
+                "INSERT INTO pdf_ocr_pending (file_id, md5, page, json) VALUES (?1, ?2, 3, 'garbage')",
+                params![file, md5],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+    assert!(store.pdf_pages_to_ocr(&file, &md5).unwrap().is_empty());
+    assert!(store.finish_pdf_ocr(&file, &md5, "vision").unwrap());
+    assert!(store.pdfs_to_ocr(10).unwrap().is_empty());
+    let ocr = store.pdf_ocr(&file).unwrap().unwrap();
+    assert_eq!(ocr.pages.iter().map(|p| p.page).collect::<Vec<_>>(), [2, 3]);
+}
+
 fn strs(v: &[String]) -> Vec<&str> {
     v.iter().map(String::as_str).collect()
 }
@@ -359,17 +601,55 @@ proptest! {
         prop_assert_eq!(store.get(&file).unwrap().unwrap().rev, rev);
     }
 
-    /// A PDF only a locked note links leaks nothing, whenever it was locked.
+    /// A PDF only a locked note links leaks nothing, whenever it was locked
+    /// and however the lock and the words arrived: not in the file's
+    /// document (so not in sync), not in search, not in its history, not
+    /// in the pages kept so far. A second, open note keeps the words until
+    /// it lets go of the PDF.
     #[test]
-    fn prop_locking_forgets_scans(read_first in any::<bool>(), w in word()) {
+    fn prop_locking_forgets_scans(
+        read_first in any::<bool>(),
+        part_read in any::<bool>(),
+        lock_by_sync in any::<bool>(),
+        words_again in any::<bool>(),
+        shared in any::<bool>(),
+        w in word(),
+    ) {
         let (_dir, store) = open();
         let (file, shows, md5) = scanned(&store, "l");
+        let open_note = shared.then(|| note(&store, &file));
         if read_first {
+            read_all(&store, &file, &md5, &[&w]);
+        } else if part_read {
             store.keep_pdf_ocr_page(&file, &md5, &page(2, &[&w])).unwrap();
-            store.keep_pdf_ocr_page(&file, &md5, &page(3, &[])).unwrap();
-            store.finish_pdf_ocr(&file, &md5, "t").unwrap();
         }
-        lock(&store, &shows);
+        let words = store.get(&file).unwrap().unwrap().fields.get(PDF_OCR_FIELD).cloned();
+        if lock_by_sync {
+            from_elsewhere(&store, &shows, sealed);
+        } else {
+            lock(&store, &shows);
+        }
+        if words_again && let Some(words) = words.clone() {
+            from_elsewhere(&store, &file, |f| {
+                f.insert(PDF_OCR_FIELD.into(), words);
+            });
+        }
+        if let Some(open_note) = open_note {
+            prop_assert_eq!(traces(&store, &file).field, words.is_some());
+            let rev = store.get(&open_note).unwrap().unwrap().rev;
+            store
+                .put(
+                    DocType::Note,
+                    json!({"_id": open_note, "_rev": rev, "body": ""}),
+                    Put::Merge,
+                    Origin::Ui,
+                )
+                .unwrap();
+        }
+        prop_assert_eq!(traces(&store, &file), NONE);
+        if words.is_some() {
+            prop_assert!(!pushed(&store, &file).unwrap().fields.contains_key(PDF_OCR_FIELD));
+        }
         prop_assert!(store.pdfs_to_ocr(5).unwrap().is_empty());
         prop_assert!(find(&store, &w).is_empty());
         prop_assert!(!store.keep_pdf_ocr_page(&file, &md5, &page(2, &[&w])).unwrap());

@@ -1,7 +1,7 @@
 use super::*;
 use base64::Engine as _;
 use kanso_core::DocType;
-use kanso_pdf::Quad;
+use kanso_pdf::{Quad, ReadWord};
 use kanso_store::{Origin, Put, SearchParams};
 use proptest::prelude::*;
 use proptest::test_runner::RngSeed;
@@ -46,14 +46,14 @@ impl WordReader for Words {
     fn engine(&self) -> &'static str {
         "fake"
     }
-    fn read_words(&self, png: &[u8]) -> Result<Vec<(String, Quad)>, String> {
+    fn read_words(&self, png: &[u8]) -> Result<Vec<ReadWord>, String> {
         let n: u32 = String::from_utf8_lossy(png)
             .trim_start_matches("page ")
             .parse()
             .map_err(|_| "not a page".to_owned())?;
         Ok(vec![
-            (format!("scanword{n}"), Quad::new(0.1, 0.1, 0.4, 0.14)),
-            (format!("second{n}"), Quad::new(0.42, 0.1, 0.7, 0.14)),
+            (format!("scanword{n}"), Quad::new(0.1, 0.1, 0.4, 0.14)).into(),
+            (format!("second{n}"), Quad::new(0.42, 0.1, 0.7, 0.14)).into(),
         ])
     }
 }
@@ -268,7 +268,7 @@ fn a_reader_that_fails_on_a_page_leaves_it_empty() {
         fn engine(&self) -> &'static str {
             "fake"
         }
-        fn read_words(&self, _: &[u8]) -> Result<Vec<(String, Quad)>, String> {
+        fn read_words(&self, _: &[u8]) -> Result<Vec<ReadWord>, String> {
             Err("vision failed".into())
         }
     }

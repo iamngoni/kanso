@@ -15,9 +15,8 @@
 //! whose text was extracted first are offered (that is how blank pages are
 //! known), and only those a note that may be read links (the store decides).
 
-use kanso_pdf::OcrPage;
-use kanso_pdf::Quad;
 use kanso_pdf::ocr::read_width_px;
+use kanso_pdf::{OcrPage, ReadWord};
 use kanso_store::Store;
 
 use super::pdf_text::ExtractError;
@@ -27,9 +26,9 @@ pub trait WordReader: Send + Sync {
     /// Names the reader in the file's `kansoPdfOcr`.
     fn engine(&self) -> &'static str;
     /// The words in a PNG, each with its box on the picture, normalised to
-    /// it with the origin at the top-left, in reading order. A picture with
-    /// no words gives none.
-    fn read_words(&self, png: &[u8]) -> Result<Vec<(String, Quad)>, String>;
+    /// it with the origin at the top-left, and the way it reads, in reading
+    /// order. A picture with no words gives none.
+    fn read_words(&self, png: &[u8]) -> Result<Vec<ReadWord>, String>;
 }
 
 /// Draws pages of a PDF as pictures for a [`WordReader`].
@@ -180,7 +179,7 @@ pub fn ocr_next(
         let kept = store.keep_pdf_ocr_page(
             &pdf.id,
             &pdf.md5,
-            &OcrPage::new(page, f64::from(w), f64::from(h), words),
+            &OcrPage::read(page, f64::from(w), f64::from(h), words),
         )?;
         if !kept {
             // The file changed or was locked: its pages are no longer ours.
