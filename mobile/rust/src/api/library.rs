@@ -221,6 +221,18 @@ impl KansoLibrary {
             .pdf_highlight_change(&note_id, &base_rev, &file, &id, change)
     }
 
+    /// Clears the pencil marks on one page of a PDF in a note drawn at
+    /// `base_rev` (the phone cannot draw on a page, but it can rub one out).
+    pub fn pdf_ink_clear(
+        &self,
+        note_id: String,
+        base_rev: String,
+        file: String,
+        page: u32,
+    ) -> Result<Saved, KansoError> {
+        self.0.pdf_ink_clear(&note_id, &base_rev, &file, page)
+    }
+
     pub fn create_linked_note(
         &self,
         title: String,

@@ -51,8 +51,8 @@ class PdfNotesScope extends InheritedWidget {
 /// The highlights a note holds for its PDFs, as the desktop reader's panel
 /// has them: each with its page, its words, its comment and whether its quote
 /// is in the note. A tap opens a highlight to write a comment, change its
-/// colour, put its quote back into the note or delete it. The phone has no PDF
-/// reader, so the page is named, not shown.
+/// colour, put its quote back into the note or delete it. A tap can open the
+/// PDF reader at the highlight or pencil-marked page.
 class PdfHighlightsSheet extends StatefulWidget {
   const PdfHighlightsSheet({required this.noteId, this.repository, super.key});
 
@@ -193,7 +193,9 @@ class _PdfHighlightsSheetState extends State<PdfHighlightsSheet> {
               shrinkWrap: true,
               padding: const EdgeInsets.only(bottom: KansoSpacing.md),
               children: <Widget>[
-                if (notes.every((pdf) => pdf.highlights.isEmpty))
+                if (notes.every(
+                  (pdf) => pdf.highlights.isEmpty && pdf.ink.isEmpty,
+                ))
                   Padding(
                     padding: const EdgeInsets.all(KansoSpacing.md),
                     child: Text(
@@ -210,7 +212,7 @@ class _PdfHighlightsSheetState extends State<PdfHighlightsSheet> {
   }
 
   List<Widget> _pdf(BuildContext context, PdfNotes pdf) {
-    if (pdf.highlights.isEmpty && pdf.why == null) {
+    if (pdf.highlights.isEmpty && pdf.ink.isEmpty && pdf.why == null) {
       return const <Widget>[];
     }
     final l10n = context.l10n;
@@ -237,7 +239,86 @@ class _PdfHighlightsSheetState extends State<PdfHighlightsSheet> {
           ),
         ),
       for (final row in pdf.highlights) _row(context, pdf, row),
+      if (pdf.ink.isNotEmpty) ...<Widget>[
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            KansoSpacing.md,
+            KansoSpacing.sm,
+            KansoSpacing.md,
+            KansoSpacing.xs,
+          ),
+          child: Text(
+            l10n.pdfNotesInkTitle,
+            key: ValueKey<String>('pdf-ink-title-${pdf.file}'),
+            style: context.typography.sectionLabel,
+          ),
+        ),
+        for (final row in pdf.ink) _inkRow(context, pdf, row),
+      ],
     ];
+  }
+
+  /// One page with pencil marks. Drawing happens in the PDF reader; the sheet
+  /// can also clear all marks from this page.
+  Widget _inkRow(BuildContext context, PdfNotes pdf, PdfInkRow row) {
+    final l10n = context.l10n;
+    return Container(
+      key: ValueKey<String>('pdf-ink-row-${pdf.file}-${row.page}'),
+      margin: const EdgeInsets.symmetric(
+        horizontal: KansoSpacing.sm,
+        vertical: 2,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: KansoSpacing.sm,
+        vertical: KansoSpacing.xs,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              '${l10n.pdfNotesPage(row.page)} · '
+              '${l10n.pdfNotesInkStrokes(row.strokes)}',
+              style: context.typography.body,
+            ),
+          ),
+          if (pdf.editable)
+            KansoButton(
+              key: ValueKey<String>('pdf-ink-clear-${pdf.file}-${row.page}'),
+              label: l10n.pdfNotesInkClear,
+              compact: true,
+              expanded: false,
+              variant: KansoButtonVariant.secondary,
+              onPressed: _busy ? null : () => _clearInk(pdf, row),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _clearInk(PdfNotes pdf, PdfInkRow row) async {
+    setState(() => _busy = true);
+    final Either<ApplicationError, Saved> done = await _library.pdfInkClear(
+      noteId: widget.noteId,
+      baseRev: _rev,
+      file: pdf.file,
+      page: row.page,
+    );
+    if (!mounted) {
+      return;
+    }
+    await done.fold(
+      (error) async {
+        setState(() => _error = error);
+        await _load();
+      },
+      (saved) async {
+        _rev = saved.rev;
+        await _load();
+      },
+    );
+    if (mounted) {
+      setState(() => _busy = false);
+    }
   }
 
   Widget _row(BuildContext context, PdfNotes pdf, PdfHighlightRow row) {

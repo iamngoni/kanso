@@ -92,6 +92,19 @@ class PdfReaderBloc extends Bloc<PdfReaderEvent, PdfReaderState> {
       _onHighlightRequested,
       transformer: sequential(),
     );
+    on<PdfReaderInkDrawingChangedEvent>((event, emit) {
+      emit(state.copyWith(inkDrawing: event.enabled, selection: null));
+    });
+    on<PdfReaderInkColorChangedEvent>((event, emit) {
+      emit(state.copyWith(inkColor: event.color));
+    });
+    on<PdfReaderInkWidthChangedEvent>((event, emit) {
+      emit(state.copyWith(inkWidth: event.width));
+    });
+    on<PdfReaderInkStrokeRequestedEvent>(
+      _onInkStrokeRequested,
+      transformer: sequential(),
+    );
     on<PdfReaderHighlightFocusedEvent>((event, emit) async {
       final info = state.info;
       if (info == null) {
@@ -527,6 +540,45 @@ class PdfReaderBloc extends Bloc<PdfReaderEvent, PdfReaderState> {
             focusHighlight: saved.id,
           ),
         );
+        await _readMarks(emit);
+    }
+  }
+
+  Future<void> _onInkStrokeRequested(
+    PdfReaderInkStrokeRequestedEvent event,
+    Emitter<PdfReaderState> emit,
+  ) async {
+    final session = _session;
+    final marks = state.marks;
+    final info = state.info;
+    if (session == null ||
+        marks == null ||
+        info == null ||
+        !marks.editable ||
+        state.addingInk ||
+        !state.inkDrawing ||
+        event.page < 1 ||
+        event.page > info.pages ||
+        event.stroke.points.isEmpty) {
+      return;
+    }
+    emit(state.copyWith(addingInk: true, notice: null));
+    final edited = await session.addInkStroke(
+      baseRev: marks.rev,
+      page: event.page,
+      stroke: event.stroke,
+    );
+    if (emit.isDone || !identical(session, _session)) {
+      return;
+    }
+    switch (edited) {
+      case Left(:final value):
+        emit(state.copyWith(addingInk: false, notice: value));
+      case Right():
+        emit(state.copyWith(addingInk: false));
+        // The edit may have merged with a newer note revision. Always reload
+        // the marks so the next stroke uses the merged revision and all ink
+        // written by other devices remains visible.
         await _readMarks(emit);
     }
   }

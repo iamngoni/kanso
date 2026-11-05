@@ -80,6 +80,18 @@ abstract class PdfReaderState with _$PdfReaderState {
     /// Whether a selection is being highlighted.
     @Default(false) bool adding,
 
+    /// Whether page gestures draw pencil ink.
+    @Default(false) bool inkDrawing,
+
+    /// The selected pencil color.
+    @Default('#1e1e1e') String inkColor,
+
+    /// The selected pencil width in PDF page units.
+    @Default(4) double inkWidth,
+
+    /// Whether a pencil stroke is being saved.
+    @Default(false) bool addingInk,
+
     /// Whether the password last typed was wrong.
     @Default(false) bool passwordWrong,
 

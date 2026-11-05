@@ -19,6 +19,8 @@ Widget _page({
   void Function(int, double, double)? onLine,
   void Function(int, double, double, {required bool fromStart})? onExtend,
   VoidCallback? onClear,
+  bool inkDrawing = false,
+  void Function(int, PdfInkStroke)? onInkStroke,
 }) => KansoTestApp(
   home: Scaffold(
     body: Center(
@@ -47,12 +49,17 @@ Widget _page({
             ),
           ],
           selection: selection,
+          ink: const <PdfInkStroke>[],
           search: null,
           focus: null,
           onWordSelected: onWord ?? (_, _, _) {},
           onLineSelected: onLine ?? (_, _, _) {},
           onSelectionExtended: onExtend ?? (_, _, _, {required fromStart}) {},
           onSelectionCleared: onClear ?? () {},
+          inkDrawing: inkDrawing,
+          inkColor: '#1e1e1e',
+          inkWidth: 4,
+          onInkStroke: onInkStroke ?? (_, _) {},
         ),
       ),
     ),
@@ -94,6 +101,37 @@ void main() {
     expect(at!.$1, 1);
     expect(at!.$2, closeTo(0.5, 0.02));
     expect(at!.$3, closeTo(0.5, 0.02));
+  });
+
+  testWidgets('drawing records touch points in page units', (tester) async {
+    PdfInkStroke? stroke;
+    await tester.pumpWidget(
+      _page(
+        session: FakePdfSession(),
+        inkDrawing: true,
+        onInkStroke: (_, value) => stroke = value,
+      ),
+    );
+    await _settlePicture(tester);
+
+    final page = tester.getRect(find.byType(PdfPageView));
+    final gesture = await tester.startGesture(
+      Offset(page.left + page.width * 0.25, page.top + page.height * 0.5),
+    );
+    await gesture.moveTo(
+      Offset(page.left + page.width * 0.5, page.top + page.height * 0.75),
+    );
+    await gesture.up();
+    await tester.pump();
+
+    expect(stroke, isNotNull);
+    expect(stroke!.tool, 'pen');
+    expect(stroke!.points, hasLength(2));
+    expect(stroke!.points.first.x, closeTo(250, 1));
+    expect(stroke!.points.first.y, closeTo(500, 1));
+    expect(stroke!.points.first.pressure, 1);
+    expect(stroke!.points.last.x, closeTo(500, 1));
+    expect(stroke!.points.last.y, closeTo(750, 1));
   });
 
   testWidgets('a selection has a handle at each end', (tester) async {

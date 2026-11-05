@@ -55,7 +55,7 @@ extension PdfReaderEventPatterns on PdfReaderEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PdfReaderStartedEvent value)?  started,TResult Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult Function( PdfReaderRetriedEvent value)?  retried,TResult Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult Function( PdfReaderJumpToEvent value)?  jumpTo,TResult Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult Function( PdfReaderSearchRunEvent value)?  searchRun,TResult Function( PdfReaderSearchNextEvent value)?  searchNext,TResult Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,TResult Function( PdfReaderLockChangedEvent value)?  lockChanged,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PdfReaderStartedEvent value)?  started,TResult Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult Function( PdfReaderRetriedEvent value)?  retried,TResult Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult Function( PdfReaderJumpToEvent value)?  jumpTo,TResult Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult Function( PdfReaderSearchRunEvent value)?  searchRun,TResult Function( PdfReaderSearchNextEvent value)?  searchNext,TResult Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult Function( PdfReaderInkDrawingChangedEvent value)?  inkDrawingChanged,TResult Function( PdfReaderInkColorChangedEvent value)?  inkColorChanged,TResult Function( PdfReaderInkWidthChangedEvent value)?  inkWidthChanged,TResult Function( PdfReaderInkStrokeRequestedEvent value)?  inkStrokeRequested,TResult Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,TResult Function( PdfReaderLockChangedEvent value)?  lockChanged,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
@@ -76,7 +76,11 @@ return searchRun(_that);case PdfReaderSearchNextEvent() when searchNext != null:
 return searchNext(_that);case PdfReaderSearchPreviousEvent() when searchPrevious != null:
 return searchPrevious(_that);case PdfReaderSearchClosedEvent() when searchClosed != null:
 return searchClosed(_that);case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
-return highlightRequested(_that);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
+return highlightRequested(_that);case PdfReaderInkDrawingChangedEvent() when inkDrawingChanged != null:
+return inkDrawingChanged(_that);case PdfReaderInkColorChangedEvent() when inkColorChanged != null:
+return inkColorChanged(_that);case PdfReaderInkWidthChangedEvent() when inkWidthChanged != null:
+return inkWidthChanged(_that);case PdfReaderInkStrokeRequestedEvent() when inkStrokeRequested != null:
+return inkStrokeRequested(_that);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
 return noticeDismissed(_that);case PdfReaderLockChangedEvent() when lockChanged != null:
 return lockChanged(_that);case _:
@@ -97,7 +101,7 @@ return lockChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PdfReaderStartedEvent value)  started,required TResult Function( PdfReaderPasswordSubmittedEvent value)  passwordSubmitted,required TResult Function( PdfReaderRetriedEvent value)  retried,required TResult Function( PdfReaderZoomChangedEvent value)  zoomChanged,required TResult Function( PdfReaderInvertChangedEvent value)  invertChanged,required TResult Function( PdfReaderDarkChangedEvent value)  darkChanged,required TResult Function( PdfReaderPageChangedEvent value)  pageChanged,required TResult Function( PdfReaderJumpToEvent value)  jumpTo,required TResult Function( PdfReaderWordSelectedEvent value)  wordSelected,required TResult Function( PdfReaderLineSelectedEvent value)  lineSelected,required TResult Function( PdfReaderSelectionExtendedEvent value)  selectionExtended,required TResult Function( PdfReaderSelectionClearedEvent value)  selectionCleared,required TResult Function( PdfReaderSearchChangedEvent value)  searchChanged,required TResult Function( PdfReaderSearchRunEvent value)  searchRun,required TResult Function( PdfReaderSearchNextEvent value)  searchNext,required TResult Function( PdfReaderSearchPreviousEvent value)  searchPrevious,required TResult Function( PdfReaderSearchClosedEvent value)  searchClosed,required TResult Function( PdfReaderHighlightRequestedEvent value)  highlightRequested,required TResult Function( PdfReaderHighlightFocusedEvent value)  highlightFocused,required TResult Function( PdfReaderNoticeDismissedEvent value)  noticeDismissed,required TResult Function( PdfReaderLockChangedEvent value)  lockChanged,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PdfReaderStartedEvent value)  started,required TResult Function( PdfReaderPasswordSubmittedEvent value)  passwordSubmitted,required TResult Function( PdfReaderRetriedEvent value)  retried,required TResult Function( PdfReaderZoomChangedEvent value)  zoomChanged,required TResult Function( PdfReaderInvertChangedEvent value)  invertChanged,required TResult Function( PdfReaderDarkChangedEvent value)  darkChanged,required TResult Function( PdfReaderPageChangedEvent value)  pageChanged,required TResult Function( PdfReaderJumpToEvent value)  jumpTo,required TResult Function( PdfReaderWordSelectedEvent value)  wordSelected,required TResult Function( PdfReaderLineSelectedEvent value)  lineSelected,required TResult Function( PdfReaderSelectionExtendedEvent value)  selectionExtended,required TResult Function( PdfReaderSelectionClearedEvent value)  selectionCleared,required TResult Function( PdfReaderSearchChangedEvent value)  searchChanged,required TResult Function( PdfReaderSearchRunEvent value)  searchRun,required TResult Function( PdfReaderSearchNextEvent value)  searchNext,required TResult Function( PdfReaderSearchPreviousEvent value)  searchPrevious,required TResult Function( PdfReaderSearchClosedEvent value)  searchClosed,required TResult Function( PdfReaderHighlightRequestedEvent value)  highlightRequested,required TResult Function( PdfReaderInkDrawingChangedEvent value)  inkDrawingChanged,required TResult Function( PdfReaderInkColorChangedEvent value)  inkColorChanged,required TResult Function( PdfReaderInkWidthChangedEvent value)  inkWidthChanged,required TResult Function( PdfReaderInkStrokeRequestedEvent value)  inkStrokeRequested,required TResult Function( PdfReaderHighlightFocusedEvent value)  highlightFocused,required TResult Function( PdfReaderNoticeDismissedEvent value)  noticeDismissed,required TResult Function( PdfReaderLockChangedEvent value)  lockChanged,}){
 final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent():
@@ -118,7 +122,11 @@ return searchRun(_that);case PdfReaderSearchNextEvent():
 return searchNext(_that);case PdfReaderSearchPreviousEvent():
 return searchPrevious(_that);case PdfReaderSearchClosedEvent():
 return searchClosed(_that);case PdfReaderHighlightRequestedEvent():
-return highlightRequested(_that);case PdfReaderHighlightFocusedEvent():
+return highlightRequested(_that);case PdfReaderInkDrawingChangedEvent():
+return inkDrawingChanged(_that);case PdfReaderInkColorChangedEvent():
+return inkColorChanged(_that);case PdfReaderInkWidthChangedEvent():
+return inkWidthChanged(_that);case PdfReaderInkStrokeRequestedEvent():
+return inkStrokeRequested(_that);case PdfReaderHighlightFocusedEvent():
 return highlightFocused(_that);case PdfReaderNoticeDismissedEvent():
 return noticeDismissed(_that);case PdfReaderLockChangedEvent():
 return lockChanged(_that);}
@@ -135,7 +143,7 @@ return lockChanged(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PdfReaderStartedEvent value)?  started,TResult? Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult? Function( PdfReaderRetriedEvent value)?  retried,TResult? Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult? Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult? Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult? Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult? Function( PdfReaderJumpToEvent value)?  jumpTo,TResult? Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult? Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult? Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult? Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult? Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult? Function( PdfReaderSearchRunEvent value)?  searchRun,TResult? Function( PdfReaderSearchNextEvent value)?  searchNext,TResult? Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult? Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult? Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult? Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult? Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,TResult? Function( PdfReaderLockChangedEvent value)?  lockChanged,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PdfReaderStartedEvent value)?  started,TResult? Function( PdfReaderPasswordSubmittedEvent value)?  passwordSubmitted,TResult? Function( PdfReaderRetriedEvent value)?  retried,TResult? Function( PdfReaderZoomChangedEvent value)?  zoomChanged,TResult? Function( PdfReaderInvertChangedEvent value)?  invertChanged,TResult? Function( PdfReaderDarkChangedEvent value)?  darkChanged,TResult? Function( PdfReaderPageChangedEvent value)?  pageChanged,TResult? Function( PdfReaderJumpToEvent value)?  jumpTo,TResult? Function( PdfReaderWordSelectedEvent value)?  wordSelected,TResult? Function( PdfReaderLineSelectedEvent value)?  lineSelected,TResult? Function( PdfReaderSelectionExtendedEvent value)?  selectionExtended,TResult? Function( PdfReaderSelectionClearedEvent value)?  selectionCleared,TResult? Function( PdfReaderSearchChangedEvent value)?  searchChanged,TResult? Function( PdfReaderSearchRunEvent value)?  searchRun,TResult? Function( PdfReaderSearchNextEvent value)?  searchNext,TResult? Function( PdfReaderSearchPreviousEvent value)?  searchPrevious,TResult? Function( PdfReaderSearchClosedEvent value)?  searchClosed,TResult? Function( PdfReaderHighlightRequestedEvent value)?  highlightRequested,TResult? Function( PdfReaderInkDrawingChangedEvent value)?  inkDrawingChanged,TResult? Function( PdfReaderInkColorChangedEvent value)?  inkColorChanged,TResult? Function( PdfReaderInkWidthChangedEvent value)?  inkWidthChanged,TResult? Function( PdfReaderInkStrokeRequestedEvent value)?  inkStrokeRequested,TResult? Function( PdfReaderHighlightFocusedEvent value)?  highlightFocused,TResult? Function( PdfReaderNoticeDismissedEvent value)?  noticeDismissed,TResult? Function( PdfReaderLockChangedEvent value)?  lockChanged,}){
 final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
@@ -156,7 +164,11 @@ return searchRun(_that);case PdfReaderSearchNextEvent() when searchNext != null:
 return searchNext(_that);case PdfReaderSearchPreviousEvent() when searchPrevious != null:
 return searchPrevious(_that);case PdfReaderSearchClosedEvent() when searchClosed != null:
 return searchClosed(_that);case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
-return highlightRequested(_that);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
+return highlightRequested(_that);case PdfReaderInkDrawingChangedEvent() when inkDrawingChanged != null:
+return inkDrawingChanged(_that);case PdfReaderInkColorChangedEvent() when inkColorChanged != null:
+return inkColorChanged(_that);case PdfReaderInkWidthChangedEvent() when inkWidthChanged != null:
+return inkWidthChanged(_that);case PdfReaderInkStrokeRequestedEvent() when inkStrokeRequested != null:
+return inkStrokeRequested(_that);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
 return noticeDismissed(_that);case PdfReaderLockChangedEvent() when lockChanged != null:
 return lockChanged(_that);case _:
@@ -176,7 +188,7 @@ return lockChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult Function( String password)?  passwordSubmitted,TResult Function()?  retried,TResult Function( PdfZoom zoom)?  zoomChanged,TResult Function( bool invert)?  invertChanged,TResult Function( bool dark)?  darkChanged,TResult Function( int page)?  pageChanged,TResult Function( int page)?  jumpTo,TResult Function( int page,  double x,  double y)?  wordSelected,TResult Function( int page,  double x,  double y)?  lineSelected,TResult Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult Function()?  selectionCleared,TResult Function( String query)?  searchChanged,TResult Function( String query)?  searchRun,TResult Function()?  searchNext,TResult Function()?  searchPrevious,TResult Function()?  searchClosed,TResult Function( String color,  bool quote)?  highlightRequested,TResult Function( String? id)?  highlightFocused,TResult Function()?  noticeDismissed,TResult Function()?  lockChanged,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult Function( String password)?  passwordSubmitted,TResult Function()?  retried,TResult Function( PdfZoom zoom)?  zoomChanged,TResult Function( bool invert)?  invertChanged,TResult Function( bool dark)?  darkChanged,TResult Function( int page)?  pageChanged,TResult Function( int page)?  jumpTo,TResult Function( int page,  double x,  double y)?  wordSelected,TResult Function( int page,  double x,  double y)?  lineSelected,TResult Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult Function()?  selectionCleared,TResult Function( String query)?  searchChanged,TResult Function( String query)?  searchRun,TResult Function()?  searchNext,TResult Function()?  searchPrevious,TResult Function()?  searchClosed,TResult Function( String color,  bool quote)?  highlightRequested,TResult Function( bool enabled)?  inkDrawingChanged,TResult Function( String color)?  inkColorChanged,TResult Function( double width)?  inkWidthChanged,TResult Function( int page,  PdfInkStroke stroke)?  inkStrokeRequested,TResult Function( String? id)?  highlightFocused,TResult Function()?  noticeDismissed,TResult Function()?  lockChanged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
 return started(_that.noteId,_that.file,_that.name,_that.page,_that.highlight,_that.dark);case PdfReaderPasswordSubmittedEvent() when passwordSubmitted != null:
@@ -196,7 +208,11 @@ return searchRun(_that.query);case PdfReaderSearchNextEvent() when searchNext !=
 return searchNext();case PdfReaderSearchPreviousEvent() when searchPrevious != null:
 return searchPrevious();case PdfReaderSearchClosedEvent() when searchClosed != null:
 return searchClosed();case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
-return highlightRequested(_that.color,_that.quote);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
+return highlightRequested(_that.color,_that.quote);case PdfReaderInkDrawingChangedEvent() when inkDrawingChanged != null:
+return inkDrawingChanged(_that.enabled);case PdfReaderInkColorChangedEvent() when inkColorChanged != null:
+return inkColorChanged(_that.color);case PdfReaderInkWidthChangedEvent() when inkWidthChanged != null:
+return inkWidthChanged(_that.width);case PdfReaderInkStrokeRequestedEvent() when inkStrokeRequested != null:
+return inkStrokeRequested(_that.page,_that.stroke);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that.id);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
 return noticeDismissed();case PdfReaderLockChangedEvent() when lockChanged != null:
 return lockChanged();case _:
@@ -217,7 +233,7 @@ return lockChanged();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)  started,required TResult Function( String password)  passwordSubmitted,required TResult Function()  retried,required TResult Function( PdfZoom zoom)  zoomChanged,required TResult Function( bool invert)  invertChanged,required TResult Function( bool dark)  darkChanged,required TResult Function( int page)  pageChanged,required TResult Function( int page)  jumpTo,required TResult Function( int page,  double x,  double y)  wordSelected,required TResult Function( int page,  double x,  double y)  lineSelected,required TResult Function( int page,  double x,  double y,  bool fromStart)  selectionExtended,required TResult Function()  selectionCleared,required TResult Function( String query)  searchChanged,required TResult Function( String query)  searchRun,required TResult Function()  searchNext,required TResult Function()  searchPrevious,required TResult Function()  searchClosed,required TResult Function( String color,  bool quote)  highlightRequested,required TResult Function( String? id)  highlightFocused,required TResult Function()  noticeDismissed,required TResult Function()  lockChanged,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)  started,required TResult Function( String password)  passwordSubmitted,required TResult Function()  retried,required TResult Function( PdfZoom zoom)  zoomChanged,required TResult Function( bool invert)  invertChanged,required TResult Function( bool dark)  darkChanged,required TResult Function( int page)  pageChanged,required TResult Function( int page)  jumpTo,required TResult Function( int page,  double x,  double y)  wordSelected,required TResult Function( int page,  double x,  double y)  lineSelected,required TResult Function( int page,  double x,  double y,  bool fromStart)  selectionExtended,required TResult Function()  selectionCleared,required TResult Function( String query)  searchChanged,required TResult Function( String query)  searchRun,required TResult Function()  searchNext,required TResult Function()  searchPrevious,required TResult Function()  searchClosed,required TResult Function( String color,  bool quote)  highlightRequested,required TResult Function( bool enabled)  inkDrawingChanged,required TResult Function( String color)  inkColorChanged,required TResult Function( double width)  inkWidthChanged,required TResult Function( int page,  PdfInkStroke stroke)  inkStrokeRequested,required TResult Function( String? id)  highlightFocused,required TResult Function()  noticeDismissed,required TResult Function()  lockChanged,}) {final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent():
 return started(_that.noteId,_that.file,_that.name,_that.page,_that.highlight,_that.dark);case PdfReaderPasswordSubmittedEvent():
@@ -237,7 +253,11 @@ return searchRun(_that.query);case PdfReaderSearchNextEvent():
 return searchNext();case PdfReaderSearchPreviousEvent():
 return searchPrevious();case PdfReaderSearchClosedEvent():
 return searchClosed();case PdfReaderHighlightRequestedEvent():
-return highlightRequested(_that.color,_that.quote);case PdfReaderHighlightFocusedEvent():
+return highlightRequested(_that.color,_that.quote);case PdfReaderInkDrawingChangedEvent():
+return inkDrawingChanged(_that.enabled);case PdfReaderInkColorChangedEvent():
+return inkColorChanged(_that.color);case PdfReaderInkWidthChangedEvent():
+return inkWidthChanged(_that.width);case PdfReaderInkStrokeRequestedEvent():
+return inkStrokeRequested(_that.page,_that.stroke);case PdfReaderHighlightFocusedEvent():
 return highlightFocused(_that.id);case PdfReaderNoticeDismissedEvent():
 return noticeDismissed();case PdfReaderLockChangedEvent():
 return lockChanged();}
@@ -254,7 +274,7 @@ return lockChanged();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult? Function( String password)?  passwordSubmitted,TResult? Function()?  retried,TResult? Function( PdfZoom zoom)?  zoomChanged,TResult? Function( bool invert)?  invertChanged,TResult? Function( bool dark)?  darkChanged,TResult? Function( int page)?  pageChanged,TResult? Function( int page)?  jumpTo,TResult? Function( int page,  double x,  double y)?  wordSelected,TResult? Function( int page,  double x,  double y)?  lineSelected,TResult? Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult? Function()?  selectionCleared,TResult? Function( String query)?  searchChanged,TResult? Function( String query)?  searchRun,TResult? Function()?  searchNext,TResult? Function()?  searchPrevious,TResult? Function()?  searchClosed,TResult? Function( String color,  bool quote)?  highlightRequested,TResult? Function( String? id)?  highlightFocused,TResult? Function()?  noticeDismissed,TResult? Function()?  lockChanged,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId,  String file,  String name,  int? page,  String? highlight,  bool dark)?  started,TResult? Function( String password)?  passwordSubmitted,TResult? Function()?  retried,TResult? Function( PdfZoom zoom)?  zoomChanged,TResult? Function( bool invert)?  invertChanged,TResult? Function( bool dark)?  darkChanged,TResult? Function( int page)?  pageChanged,TResult? Function( int page)?  jumpTo,TResult? Function( int page,  double x,  double y)?  wordSelected,TResult? Function( int page,  double x,  double y)?  lineSelected,TResult? Function( int page,  double x,  double y,  bool fromStart)?  selectionExtended,TResult? Function()?  selectionCleared,TResult? Function( String query)?  searchChanged,TResult? Function( String query)?  searchRun,TResult? Function()?  searchNext,TResult? Function()?  searchPrevious,TResult? Function()?  searchClosed,TResult? Function( String color,  bool quote)?  highlightRequested,TResult? Function( bool enabled)?  inkDrawingChanged,TResult? Function( String color)?  inkColorChanged,TResult? Function( double width)?  inkWidthChanged,TResult? Function( int page,  PdfInkStroke stroke)?  inkStrokeRequested,TResult? Function( String? id)?  highlightFocused,TResult? Function()?  noticeDismissed,TResult? Function()?  lockChanged,}) {final _that = this;
 switch (_that) {
 case PdfReaderStartedEvent() when started != null:
 return started(_that.noteId,_that.file,_that.name,_that.page,_that.highlight,_that.dark);case PdfReaderPasswordSubmittedEvent() when passwordSubmitted != null:
@@ -274,7 +294,11 @@ return searchRun(_that.query);case PdfReaderSearchNextEvent() when searchNext !=
 return searchNext();case PdfReaderSearchPreviousEvent() when searchPrevious != null:
 return searchPrevious();case PdfReaderSearchClosedEvent() when searchClosed != null:
 return searchClosed();case PdfReaderHighlightRequestedEvent() when highlightRequested != null:
-return highlightRequested(_that.color,_that.quote);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
+return highlightRequested(_that.color,_that.quote);case PdfReaderInkDrawingChangedEvent() when inkDrawingChanged != null:
+return inkDrawingChanged(_that.enabled);case PdfReaderInkColorChangedEvent() when inkColorChanged != null:
+return inkColorChanged(_that.color);case PdfReaderInkWidthChangedEvent() when inkWidthChanged != null:
+return inkWidthChanged(_that.width);case PdfReaderInkStrokeRequestedEvent() when inkStrokeRequested != null:
+return inkStrokeRequested(_that.page,_that.stroke);case PdfReaderHighlightFocusedEvent() when highlightFocused != null:
 return highlightFocused(_that.id);case PdfReaderNoticeDismissedEvent() when noticeDismissed != null:
 return noticeDismissed();case PdfReaderLockChangedEvent() when lockChanged != null:
 return lockChanged();case _:
@@ -1332,6 +1356,272 @@ as bool,
 /// @nodoc
 
 
+class PdfReaderInkDrawingChangedEvent implements PdfReaderEvent {
+  const PdfReaderInkDrawingChangedEvent(this.enabled);
+
+
+ final  bool enabled;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PdfReaderInkDrawingChangedEventCopyWith<PdfReaderInkDrawingChangedEvent> get copyWith => _$PdfReaderInkDrawingChangedEventCopyWithImpl<PdfReaderInkDrawingChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfReaderInkDrawingChangedEvent&&(identical(other.enabled, enabled) || other.enabled == enabled));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,enabled);
+
+@override
+String toString() {
+  return 'PdfReaderEvent.inkDrawingChanged(enabled: $enabled)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PdfReaderInkDrawingChangedEventCopyWith<$Res> implements $PdfReaderEventCopyWith<$Res> {
+  factory $PdfReaderInkDrawingChangedEventCopyWith(PdfReaderInkDrawingChangedEvent value, $Res Function(PdfReaderInkDrawingChangedEvent) _then) = _$PdfReaderInkDrawingChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ bool enabled
+});
+
+
+
+
+}
+/// @nodoc
+class _$PdfReaderInkDrawingChangedEventCopyWithImpl<$Res>
+    implements $PdfReaderInkDrawingChangedEventCopyWith<$Res> {
+  _$PdfReaderInkDrawingChangedEventCopyWithImpl(this._self, this._then);
+
+  final PdfReaderInkDrawingChangedEvent _self;
+  final $Res Function(PdfReaderInkDrawingChangedEvent) _then;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? enabled = null,}) {
+  return _then(PdfReaderInkDrawingChangedEvent(
+null == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PdfReaderInkColorChangedEvent implements PdfReaderEvent {
+  const PdfReaderInkColorChangedEvent(this.color);
+
+
+ final  String color;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PdfReaderInkColorChangedEventCopyWith<PdfReaderInkColorChangedEvent> get copyWith => _$PdfReaderInkColorChangedEventCopyWithImpl<PdfReaderInkColorChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfReaderInkColorChangedEvent&&(identical(other.color, color) || other.color == color));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,color);
+
+@override
+String toString() {
+  return 'PdfReaderEvent.inkColorChanged(color: $color)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PdfReaderInkColorChangedEventCopyWith<$Res> implements $PdfReaderEventCopyWith<$Res> {
+  factory $PdfReaderInkColorChangedEventCopyWith(PdfReaderInkColorChangedEvent value, $Res Function(PdfReaderInkColorChangedEvent) _then) = _$PdfReaderInkColorChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ String color
+});
+
+
+
+
+}
+/// @nodoc
+class _$PdfReaderInkColorChangedEventCopyWithImpl<$Res>
+    implements $PdfReaderInkColorChangedEventCopyWith<$Res> {
+  _$PdfReaderInkColorChangedEventCopyWithImpl(this._self, this._then);
+
+  final PdfReaderInkColorChangedEvent _self;
+  final $Res Function(PdfReaderInkColorChangedEvent) _then;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? color = null,}) {
+  return _then(PdfReaderInkColorChangedEvent(
+null == color ? _self.color : color // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PdfReaderInkWidthChangedEvent implements PdfReaderEvent {
+  const PdfReaderInkWidthChangedEvent(this.width);
+
+
+ final  double width;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PdfReaderInkWidthChangedEventCopyWith<PdfReaderInkWidthChangedEvent> get copyWith => _$PdfReaderInkWidthChangedEventCopyWithImpl<PdfReaderInkWidthChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfReaderInkWidthChangedEvent&&(identical(other.width, width) || other.width == width));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,width);
+
+@override
+String toString() {
+  return 'PdfReaderEvent.inkWidthChanged(width: $width)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PdfReaderInkWidthChangedEventCopyWith<$Res> implements $PdfReaderEventCopyWith<$Res> {
+  factory $PdfReaderInkWidthChangedEventCopyWith(PdfReaderInkWidthChangedEvent value, $Res Function(PdfReaderInkWidthChangedEvent) _then) = _$PdfReaderInkWidthChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ double width
+});
+
+
+
+
+}
+/// @nodoc
+class _$PdfReaderInkWidthChangedEventCopyWithImpl<$Res>
+    implements $PdfReaderInkWidthChangedEventCopyWith<$Res> {
+  _$PdfReaderInkWidthChangedEventCopyWithImpl(this._self, this._then);
+
+  final PdfReaderInkWidthChangedEvent _self;
+  final $Res Function(PdfReaderInkWidthChangedEvent) _then;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? width = null,}) {
+  return _then(PdfReaderInkWidthChangedEvent(
+null == width ? _self.width : width // ignore: cast_nullable_to_non_nullable
+as double,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PdfReaderInkStrokeRequestedEvent implements PdfReaderEvent {
+  const PdfReaderInkStrokeRequestedEvent({required this.page, required this.stroke});
+
+
+ final  int page;
+ final  PdfInkStroke stroke;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PdfReaderInkStrokeRequestedEventCopyWith<PdfReaderInkStrokeRequestedEvent> get copyWith => _$PdfReaderInkStrokeRequestedEventCopyWithImpl<PdfReaderInkStrokeRequestedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfReaderInkStrokeRequestedEvent&&(identical(other.page, page) || other.page == page)&&(identical(other.stroke, stroke) || other.stroke == stroke));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,page,stroke);
+
+@override
+String toString() {
+  return 'PdfReaderEvent.inkStrokeRequested(page: $page, stroke: $stroke)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PdfReaderInkStrokeRequestedEventCopyWith<$Res> implements $PdfReaderEventCopyWith<$Res> {
+  factory $PdfReaderInkStrokeRequestedEventCopyWith(PdfReaderInkStrokeRequestedEvent value, $Res Function(PdfReaderInkStrokeRequestedEvent) _then) = _$PdfReaderInkStrokeRequestedEventCopyWithImpl;
+@useResult
+$Res call({
+ int page, PdfInkStroke stroke
+});
+
+
+
+
+}
+/// @nodoc
+class _$PdfReaderInkStrokeRequestedEventCopyWithImpl<$Res>
+    implements $PdfReaderInkStrokeRequestedEventCopyWith<$Res> {
+  _$PdfReaderInkStrokeRequestedEventCopyWithImpl(this._self, this._then);
+
+  final PdfReaderInkStrokeRequestedEvent _self;
+  final $Res Function(PdfReaderInkStrokeRequestedEvent) _then;
+
+/// Create a copy of PdfReaderEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? page = null,Object? stroke = null,}) {
+  return _then(PdfReaderInkStrokeRequestedEvent(
+page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
+as int,stroke: null == stroke ? _self.stroke : stroke // ignore: cast_nullable_to_non_nullable
+as PdfInkStroke,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class PdfReaderHighlightFocusedEvent implements PdfReaderEvent {
   const PdfReaderHighlightFocusedEvent(this.id);
 
@@ -1484,7 +1774,11 @@ mixin _$PdfReaderState {
  String get query;/// The hits of [query]; null until a search has run.
  PdfFound? get found;/// Which hit of [found] is shown, 0-based.
  int get hit;/// Whether a selection is being highlighted.
- bool get adding;/// Whether the password last typed was wrong.
+ bool get adding;/// Whether page gestures draw pencil ink.
+ bool get inkDrawing;/// The selected pencil color.
+ String get inkColor;/// The selected pencil width in PDF page units.
+ double get inkWidth;/// Whether a pencil stroke is being saved.
+ bool get addingInk;/// Whether the password last typed was wrong.
  bool get passwordWrong;/// The highlight a link named, to keep in view.
  String? get focusHighlight;/// Why the last action did nothing, said once and dismissed.
  ApplicationError? get notice;
@@ -1498,16 +1792,16 @@ $PdfReaderStateCopyWith<PdfReaderState> get copyWith => _$PdfReaderStateCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfReaderState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.file, file) || other.file == file)&&(identical(other.name, name) || other.name == name)&&(identical(other.status, status) || other.status == status)&&(identical(other.info, info) || other.info == info)&&(identical(other.marks, marks) || other.marks == marks)&&(identical(other.declined, declined) || other.declined == declined)&&(identical(other.error, error) || other.error == error)&&(identical(other.marksError, marksError) || other.marksError == marksError)&&(identical(other.zoom, zoom) || other.zoom == zoom)&&(identical(other.invert, invert) || other.invert == invert)&&(identical(other.page, page) || other.page == page)&&(identical(other.jump, jump) || other.jump == jump)&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.query, query) || other.query == query)&&(identical(other.found, found) || other.found == found)&&(identical(other.hit, hit) || other.hit == hit)&&(identical(other.adding, adding) || other.adding == adding)&&(identical(other.passwordWrong, passwordWrong) || other.passwordWrong == passwordWrong)&&(identical(other.focusHighlight, focusHighlight) || other.focusHighlight == focusHighlight)&&(identical(other.notice, notice) || other.notice == notice));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfReaderState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.file, file) || other.file == file)&&(identical(other.name, name) || other.name == name)&&(identical(other.status, status) || other.status == status)&&(identical(other.info, info) || other.info == info)&&(identical(other.marks, marks) || other.marks == marks)&&(identical(other.declined, declined) || other.declined == declined)&&(identical(other.error, error) || other.error == error)&&(identical(other.marksError, marksError) || other.marksError == marksError)&&(identical(other.zoom, zoom) || other.zoom == zoom)&&(identical(other.invert, invert) || other.invert == invert)&&(identical(other.page, page) || other.page == page)&&(identical(other.jump, jump) || other.jump == jump)&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.query, query) || other.query == query)&&(identical(other.found, found) || other.found == found)&&(identical(other.hit, hit) || other.hit == hit)&&(identical(other.adding, adding) || other.adding == adding)&&(identical(other.inkDrawing, inkDrawing) || other.inkDrawing == inkDrawing)&&(identical(other.inkColor, inkColor) || other.inkColor == inkColor)&&(identical(other.inkWidth, inkWidth) || other.inkWidth == inkWidth)&&(identical(other.addingInk, addingInk) || other.addingInk == addingInk)&&(identical(other.passwordWrong, passwordWrong) || other.passwordWrong == passwordWrong)&&(identical(other.focusHighlight, focusHighlight) || other.focusHighlight == focusHighlight)&&(identical(other.notice, notice) || other.notice == notice));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,noteId,file,name,status,info,marks,declined,error,marksError,zoom,invert,page,jump,selection,query,found,hit,adding,passwordWrong,focusHighlight,notice]);
+int get hashCode => Object.hashAll([runtimeType,noteId,file,name,status,info,marks,declined,error,marksError,zoom,invert,page,jump,selection,query,found,hit,adding,inkDrawing,inkColor,inkWidth,addingInk,passwordWrong,focusHighlight,notice]);
 
 @override
 String toString() {
-  return 'PdfReaderState(noteId: $noteId, file: $file, name: $name, status: $status, info: $info, marks: $marks, declined: $declined, error: $error, marksError: $marksError, zoom: $zoom, invert: $invert, page: $page, jump: $jump, selection: $selection, query: $query, found: $found, hit: $hit, adding: $adding, passwordWrong: $passwordWrong, focusHighlight: $focusHighlight, notice: $notice)';
+  return 'PdfReaderState(noteId: $noteId, file: $file, name: $name, status: $status, info: $info, marks: $marks, declined: $declined, error: $error, marksError: $marksError, zoom: $zoom, invert: $invert, page: $page, jump: $jump, selection: $selection, query: $query, found: $found, hit: $hit, adding: $adding, inkDrawing: $inkDrawing, inkColor: $inkColor, inkWidth: $inkWidth, addingInk: $addingInk, passwordWrong: $passwordWrong, focusHighlight: $focusHighlight, notice: $notice)';
 }
 
 
@@ -1518,7 +1812,7 @@ abstract mixin class $PdfReaderStateCopyWith<$Res>  {
   factory $PdfReaderStateCopyWith(PdfReaderState value, $Res Function(PdfReaderState) _then) = _$PdfReaderStateCopyWithImpl;
 @useResult
 $Res call({
- String noteId, String file, String name, PdfReaderStatus status, PdfInfo? info, PdfMarks? marks, PdfDeclined? declined, ApplicationError? error, ApplicationError? marksError, PdfZoom zoom, bool invert, int page, int jump, PdfSelection? selection, String query, PdfFound? found, int hit, bool adding, bool passwordWrong, String? focusHighlight, ApplicationError? notice
+ String noteId, String file, String name, PdfReaderStatus status, PdfInfo? info, PdfMarks? marks, PdfDeclined? declined, ApplicationError? error, ApplicationError? marksError, PdfZoom zoom, bool invert, int page, int jump, PdfSelection? selection, String query, PdfFound? found, int hit, bool adding, bool inkDrawing, String inkColor, double inkWidth, bool addingInk, bool passwordWrong, String? focusHighlight, ApplicationError? notice
 });
 
 
@@ -1535,7 +1829,7 @@ class _$PdfReaderStateCopyWithImpl<$Res>
 
 /// Create a copy of PdfReaderState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? noteId = null,Object? file = null,Object? name = null,Object? status = null,Object? info = freezed,Object? marks = freezed,Object? declined = freezed,Object? error = freezed,Object? marksError = freezed,Object? zoom = null,Object? invert = null,Object? page = null,Object? jump = null,Object? selection = freezed,Object? query = null,Object? found = freezed,Object? hit = null,Object? adding = null,Object? passwordWrong = null,Object? focusHighlight = freezed,Object? notice = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? noteId = null,Object? file = null,Object? name = null,Object? status = null,Object? info = freezed,Object? marks = freezed,Object? declined = freezed,Object? error = freezed,Object? marksError = freezed,Object? zoom = null,Object? invert = null,Object? page = null,Object? jump = null,Object? selection = freezed,Object? query = null,Object? found = freezed,Object? hit = null,Object? adding = null,Object? inkDrawing = null,Object? inkColor = null,Object? inkWidth = null,Object? addingInk = null,Object? passwordWrong = null,Object? focusHighlight = freezed,Object? notice = freezed,}) {
   return _then(_self.copyWith(
 noteId: null == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
 as String,file: null == file ? _self.file : file // ignore: cast_nullable_to_non_nullable
@@ -1555,6 +1849,10 @@ as PdfSelection?,query: null == query ? _self.query : query // ignore: cast_null
 as String,found: freezed == found ? _self.found : found // ignore: cast_nullable_to_non_nullable
 as PdfFound?,hit: null == hit ? _self.hit : hit // ignore: cast_nullable_to_non_nullable
 as int,adding: null == adding ? _self.adding : adding // ignore: cast_nullable_to_non_nullable
+as bool,inkDrawing: null == inkDrawing ? _self.inkDrawing : inkDrawing // ignore: cast_nullable_to_non_nullable
+as bool,inkColor: null == inkColor ? _self.inkColor : inkColor // ignore: cast_nullable_to_non_nullable
+as String,inkWidth: null == inkWidth ? _self.inkWidth : inkWidth // ignore: cast_nullable_to_non_nullable
+as double,addingInk: null == addingInk ? _self.addingInk : addingInk // ignore: cast_nullable_to_non_nullable
 as bool,passwordWrong: null == passwordWrong ? _self.passwordWrong : passwordWrong // ignore: cast_nullable_to_non_nullable
 as bool,focusHighlight: freezed == focusHighlight ? _self.focusHighlight : focusHighlight // ignore: cast_nullable_to_non_nullable
 as String?,notice: freezed == notice ? _self.notice : notice // ignore: cast_nullable_to_non_nullable
@@ -1691,10 +1989,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String noteId,  String file,  String name,  PdfReaderStatus status,  PdfInfo? info,  PdfMarks? marks,  PdfDeclined? declined,  ApplicationError? error,  ApplicationError? marksError,  PdfZoom zoom,  bool invert,  int page,  int jump,  PdfSelection? selection,  String query,  PdfFound? found,  int hit,  bool adding,  bool passwordWrong,  String? focusHighlight,  ApplicationError? notice)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String noteId,  String file,  String name,  PdfReaderStatus status,  PdfInfo? info,  PdfMarks? marks,  PdfDeclined? declined,  ApplicationError? error,  ApplicationError? marksError,  PdfZoom zoom,  bool invert,  int page,  int jump,  PdfSelection? selection,  String query,  PdfFound? found,  int hit,  bool adding,  bool inkDrawing,  String inkColor,  double inkWidth,  bool addingInk,  bool passwordWrong,  String? focusHighlight,  ApplicationError? notice)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PdfReaderState() when $default != null:
-return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that.marks,_that.declined,_that.error,_that.marksError,_that.zoom,_that.invert,_that.page,_that.jump,_that.selection,_that.query,_that.found,_that.hit,_that.adding,_that.passwordWrong,_that.focusHighlight,_that.notice);case _:
+return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that.marks,_that.declined,_that.error,_that.marksError,_that.zoom,_that.invert,_that.page,_that.jump,_that.selection,_that.query,_that.found,_that.hit,_that.adding,_that.inkDrawing,_that.inkColor,_that.inkWidth,_that.addingInk,_that.passwordWrong,_that.focusHighlight,_that.notice);case _:
   return orElse();
 
 }
@@ -1712,10 +2010,10 @@ return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String noteId,  String file,  String name,  PdfReaderStatus status,  PdfInfo? info,  PdfMarks? marks,  PdfDeclined? declined,  ApplicationError? error,  ApplicationError? marksError,  PdfZoom zoom,  bool invert,  int page,  int jump,  PdfSelection? selection,  String query,  PdfFound? found,  int hit,  bool adding,  bool passwordWrong,  String? focusHighlight,  ApplicationError? notice)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String noteId,  String file,  String name,  PdfReaderStatus status,  PdfInfo? info,  PdfMarks? marks,  PdfDeclined? declined,  ApplicationError? error,  ApplicationError? marksError,  PdfZoom zoom,  bool invert,  int page,  int jump,  PdfSelection? selection,  String query,  PdfFound? found,  int hit,  bool adding,  bool inkDrawing,  String inkColor,  double inkWidth,  bool addingInk,  bool passwordWrong,  String? focusHighlight,  ApplicationError? notice)  $default,) {final _that = this;
 switch (_that) {
 case _PdfReaderState():
-return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that.marks,_that.declined,_that.error,_that.marksError,_that.zoom,_that.invert,_that.page,_that.jump,_that.selection,_that.query,_that.found,_that.hit,_that.adding,_that.passwordWrong,_that.focusHighlight,_that.notice);case _:
+return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that.marks,_that.declined,_that.error,_that.marksError,_that.zoom,_that.invert,_that.page,_that.jump,_that.selection,_that.query,_that.found,_that.hit,_that.adding,_that.inkDrawing,_that.inkColor,_that.inkWidth,_that.addingInk,_that.passwordWrong,_that.focusHighlight,_that.notice);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1732,10 +2030,10 @@ return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String noteId,  String file,  String name,  PdfReaderStatus status,  PdfInfo? info,  PdfMarks? marks,  PdfDeclined? declined,  ApplicationError? error,  ApplicationError? marksError,  PdfZoom zoom,  bool invert,  int page,  int jump,  PdfSelection? selection,  String query,  PdfFound? found,  int hit,  bool adding,  bool passwordWrong,  String? focusHighlight,  ApplicationError? notice)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String noteId,  String file,  String name,  PdfReaderStatus status,  PdfInfo? info,  PdfMarks? marks,  PdfDeclined? declined,  ApplicationError? error,  ApplicationError? marksError,  PdfZoom zoom,  bool invert,  int page,  int jump,  PdfSelection? selection,  String query,  PdfFound? found,  int hit,  bool adding,  bool inkDrawing,  String inkColor,  double inkWidth,  bool addingInk,  bool passwordWrong,  String? focusHighlight,  ApplicationError? notice)?  $default,) {final _that = this;
 switch (_that) {
 case _PdfReaderState() when $default != null:
-return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that.marks,_that.declined,_that.error,_that.marksError,_that.zoom,_that.invert,_that.page,_that.jump,_that.selection,_that.query,_that.found,_that.hit,_that.adding,_that.passwordWrong,_that.focusHighlight,_that.notice);case _:
+return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that.marks,_that.declined,_that.error,_that.marksError,_that.zoom,_that.invert,_that.page,_that.jump,_that.selection,_that.query,_that.found,_that.hit,_that.adding,_that.inkDrawing,_that.inkColor,_that.inkWidth,_that.addingInk,_that.passwordWrong,_that.focusHighlight,_that.notice);case _:
   return null;
 
 }
@@ -1747,7 +2045,7 @@ return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that
 
 
 class _PdfReaderState implements PdfReaderState {
-  const _PdfReaderState({this.noteId = '', this.file = '', this.name = '', this.status = PdfReaderStatus.opening, this.info, this.marks, this.declined, this.error, this.marksError, this.zoom = PdfZoom.fitWidth, this.invert = false, this.page = 1, this.jump = 0, this.selection, this.query = '', this.found, this.hit = 0, this.adding = false, this.passwordWrong = false, this.focusHighlight, this.notice});
+  const _PdfReaderState({this.noteId = '', this.file = '', this.name = '', this.status = PdfReaderStatus.opening, this.info, this.marks, this.declined, this.error, this.marksError, this.zoom = PdfZoom.fitWidth, this.invert = false, this.page = 1, this.jump = 0, this.selection, this.query = '', this.found, this.hit = 0, this.adding = false, this.inkDrawing = false, this.inkColor = '#1e1e1e', this.inkWidth = 4, this.addingInk = false, this.passwordWrong = false, this.focusHighlight, this.notice});
 
 
 /// The note the attachment belongs to.
@@ -1790,6 +2088,14 @@ class _PdfReaderState implements PdfReaderState {
 @override@JsonKey() final  int hit;
 /// Whether a selection is being highlighted.
 @override@JsonKey() final  bool adding;
+/// Whether page gestures draw pencil ink.
+@override@JsonKey() final  bool inkDrawing;
+/// The selected pencil color.
+@override@JsonKey() final  String inkColor;
+/// The selected pencil width in PDF page units.
+@override@JsonKey() final  double inkWidth;
+/// Whether a pencil stroke is being saved.
+@override@JsonKey() final  bool addingInk;
 /// Whether the password last typed was wrong.
 @override@JsonKey() final  bool passwordWrong;
 /// The highlight a link named, to keep in view.
@@ -1807,16 +2113,16 @@ _$PdfReaderStateCopyWith<_PdfReaderState> get copyWith => __$PdfReaderStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PdfReaderState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.file, file) || other.file == file)&&(identical(other.name, name) || other.name == name)&&(identical(other.status, status) || other.status == status)&&(identical(other.info, info) || other.info == info)&&(identical(other.marks, marks) || other.marks == marks)&&(identical(other.declined, declined) || other.declined == declined)&&(identical(other.error, error) || other.error == error)&&(identical(other.marksError, marksError) || other.marksError == marksError)&&(identical(other.zoom, zoom) || other.zoom == zoom)&&(identical(other.invert, invert) || other.invert == invert)&&(identical(other.page, page) || other.page == page)&&(identical(other.jump, jump) || other.jump == jump)&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.query, query) || other.query == query)&&(identical(other.found, found) || other.found == found)&&(identical(other.hit, hit) || other.hit == hit)&&(identical(other.adding, adding) || other.adding == adding)&&(identical(other.passwordWrong, passwordWrong) || other.passwordWrong == passwordWrong)&&(identical(other.focusHighlight, focusHighlight) || other.focusHighlight == focusHighlight)&&(identical(other.notice, notice) || other.notice == notice));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PdfReaderState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.file, file) || other.file == file)&&(identical(other.name, name) || other.name == name)&&(identical(other.status, status) || other.status == status)&&(identical(other.info, info) || other.info == info)&&(identical(other.marks, marks) || other.marks == marks)&&(identical(other.declined, declined) || other.declined == declined)&&(identical(other.error, error) || other.error == error)&&(identical(other.marksError, marksError) || other.marksError == marksError)&&(identical(other.zoom, zoom) || other.zoom == zoom)&&(identical(other.invert, invert) || other.invert == invert)&&(identical(other.page, page) || other.page == page)&&(identical(other.jump, jump) || other.jump == jump)&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.query, query) || other.query == query)&&(identical(other.found, found) || other.found == found)&&(identical(other.hit, hit) || other.hit == hit)&&(identical(other.adding, adding) || other.adding == adding)&&(identical(other.inkDrawing, inkDrawing) || other.inkDrawing == inkDrawing)&&(identical(other.inkColor, inkColor) || other.inkColor == inkColor)&&(identical(other.inkWidth, inkWidth) || other.inkWidth == inkWidth)&&(identical(other.addingInk, addingInk) || other.addingInk == addingInk)&&(identical(other.passwordWrong, passwordWrong) || other.passwordWrong == passwordWrong)&&(identical(other.focusHighlight, focusHighlight) || other.focusHighlight == focusHighlight)&&(identical(other.notice, notice) || other.notice == notice));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,noteId,file,name,status,info,marks,declined,error,marksError,zoom,invert,page,jump,selection,query,found,hit,adding,passwordWrong,focusHighlight,notice]);
+int get hashCode => Object.hashAll([runtimeType,noteId,file,name,status,info,marks,declined,error,marksError,zoom,invert,page,jump,selection,query,found,hit,adding,inkDrawing,inkColor,inkWidth,addingInk,passwordWrong,focusHighlight,notice]);
 
 @override
 String toString() {
-  return 'PdfReaderState(noteId: $noteId, file: $file, name: $name, status: $status, info: $info, marks: $marks, declined: $declined, error: $error, marksError: $marksError, zoom: $zoom, invert: $invert, page: $page, jump: $jump, selection: $selection, query: $query, found: $found, hit: $hit, adding: $adding, passwordWrong: $passwordWrong, focusHighlight: $focusHighlight, notice: $notice)';
+  return 'PdfReaderState(noteId: $noteId, file: $file, name: $name, status: $status, info: $info, marks: $marks, declined: $declined, error: $error, marksError: $marksError, zoom: $zoom, invert: $invert, page: $page, jump: $jump, selection: $selection, query: $query, found: $found, hit: $hit, adding: $adding, inkDrawing: $inkDrawing, inkColor: $inkColor, inkWidth: $inkWidth, addingInk: $addingInk, passwordWrong: $passwordWrong, focusHighlight: $focusHighlight, notice: $notice)';
 }
 
 
@@ -1827,7 +2133,7 @@ abstract mixin class _$PdfReaderStateCopyWith<$Res> implements $PdfReaderStateCo
   factory _$PdfReaderStateCopyWith(_PdfReaderState value, $Res Function(_PdfReaderState) _then) = __$PdfReaderStateCopyWithImpl;
 @override @useResult
 $Res call({
- String noteId, String file, String name, PdfReaderStatus status, PdfInfo? info, PdfMarks? marks, PdfDeclined? declined, ApplicationError? error, ApplicationError? marksError, PdfZoom zoom, bool invert, int page, int jump, PdfSelection? selection, String query, PdfFound? found, int hit, bool adding, bool passwordWrong, String? focusHighlight, ApplicationError? notice
+ String noteId, String file, String name, PdfReaderStatus status, PdfInfo? info, PdfMarks? marks, PdfDeclined? declined, ApplicationError? error, ApplicationError? marksError, PdfZoom zoom, bool invert, int page, int jump, PdfSelection? selection, String query, PdfFound? found, int hit, bool adding, bool inkDrawing, String inkColor, double inkWidth, bool addingInk, bool passwordWrong, String? focusHighlight, ApplicationError? notice
 });
 
 
@@ -1844,7 +2150,7 @@ class __$PdfReaderStateCopyWithImpl<$Res>
 
 /// Create a copy of PdfReaderState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? noteId = null,Object? file = null,Object? name = null,Object? status = null,Object? info = freezed,Object? marks = freezed,Object? declined = freezed,Object? error = freezed,Object? marksError = freezed,Object? zoom = null,Object? invert = null,Object? page = null,Object? jump = null,Object? selection = freezed,Object? query = null,Object? found = freezed,Object? hit = null,Object? adding = null,Object? passwordWrong = null,Object? focusHighlight = freezed,Object? notice = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? noteId = null,Object? file = null,Object? name = null,Object? status = null,Object? info = freezed,Object? marks = freezed,Object? declined = freezed,Object? error = freezed,Object? marksError = freezed,Object? zoom = null,Object? invert = null,Object? page = null,Object? jump = null,Object? selection = freezed,Object? query = null,Object? found = freezed,Object? hit = null,Object? adding = null,Object? inkDrawing = null,Object? inkColor = null,Object? inkWidth = null,Object? addingInk = null,Object? passwordWrong = null,Object? focusHighlight = freezed,Object? notice = freezed,}) {
   return _then(_PdfReaderState(
 noteId: null == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
 as String,file: null == file ? _self.file : file // ignore: cast_nullable_to_non_nullable
@@ -1864,6 +2170,10 @@ as PdfSelection?,query: null == query ? _self.query : query // ignore: cast_null
 as String,found: freezed == found ? _self.found : found // ignore: cast_nullable_to_non_nullable
 as PdfFound?,hit: null == hit ? _self.hit : hit // ignore: cast_nullable_to_non_nullable
 as int,adding: null == adding ? _self.adding : adding // ignore: cast_nullable_to_non_nullable
+as bool,inkDrawing: null == inkDrawing ? _self.inkDrawing : inkDrawing // ignore: cast_nullable_to_non_nullable
+as bool,inkColor: null == inkColor ? _self.inkColor : inkColor // ignore: cast_nullable_to_non_nullable
+as String,inkWidth: null == inkWidth ? _self.inkWidth : inkWidth // ignore: cast_nullable_to_non_nullable
+as double,addingInk: null == addingInk ? _self.addingInk : addingInk // ignore: cast_nullable_to_non_nullable
 as bool,passwordWrong: null == passwordWrong ? _self.passwordWrong : passwordWrong // ignore: cast_nullable_to_non_nullable
 as bool,focusHighlight: freezed == focusHighlight ? _self.focusHighlight : focusHighlight // ignore: cast_nullable_to_non_nullable
 as String?,notice: freezed == notice ? _self.notice : notice // ignore: cast_nullable_to_non_nullable

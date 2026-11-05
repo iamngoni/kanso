@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/bridge/api/pdf_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 
 import 'open_library.dart';
@@ -165,6 +166,80 @@ void pdfSuite(OpenLibrary open) {
         expect(after.marks.single.marks, isNotEmpty);
       },
     );
+
+    test('a pencil stroke merges a stale revision and is read back', () async {
+      final library = await open();
+      final id = await makeNote(library, 'Ink report', 'Read the report.');
+      final editor = await library.edit(id: id);
+      await editor.attach(
+        file: ShareFile(
+          name: 'Ink-report.pdf',
+          contentType: 'application/pdf',
+          bytes: _reportPdf(),
+        ),
+      );
+      await editor.close();
+
+      final body = (await library.note(id: id)).body ?? '';
+      final linked = RegExp(
+        'inkdrop://file:([A-Za-z0-9_-]+)',
+      ).firstMatch(body);
+      expect(linked, isNotNull);
+      final file = 'file:${linked!.group(1)}';
+      final pdf = library.pdf();
+      final before = await pdf.marks(noteId: id, file: file);
+      final opened = await pdf.open(noteId: id, file: file);
+      final reader = opened.reader!;
+      addTearDown(() {
+        reader
+          ..close()
+          ..dispose();
+      });
+
+      final concurrent = await library.edit(id: id);
+      final snapshot = await concurrent.snapshot();
+      final currentBody = (await library.note(id: id)).body ?? '';
+      final insertion = currentBody.length;
+      const update = ' Updated while the PDF was open.';
+      concurrent.apply(
+        change: TextChange(
+          baseVersion: snapshot.version,
+          start: insertion,
+          end: insertion,
+          text: update,
+          selection: Range16(
+            start: insertion + update.length,
+            end: insertion + update.length,
+          ),
+        ),
+      );
+      await concurrent.close();
+
+      const stroke = PdfInkStroke(
+        tool: 'pen',
+        color: '#1e1e1e',
+        width: 4,
+        points: <PdfInkPoint>[
+          PdfInkPoint(x: 100, y: 200, pressure: 0.5),
+          PdfInkPoint(x: 300, y: 400, pressure: 1),
+        ],
+      );
+      final saved = await reader.addInkStroke(
+        baseRev: before.rev,
+        page: 1,
+        stroke: stroke,
+      );
+      expect(saved.merged, isTrue);
+      expect(saved.gone, isFalse);
+      expect((await library.note(id: id)).body, contains('Updated while'));
+
+      final after = await pdf.marks(noteId: id, file: file);
+      expect(after.ink, hasLength(1));
+      expect(after.ink.single.page, 1);
+      expect(after.ink.single.strokes, hasLength(1));
+      expect(after.ink.single.strokes.single.tool, 'pen');
+      expect(after.ink.single.strokes.single.points, stroke.points);
+    });
   });
 }
 

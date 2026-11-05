@@ -48,6 +48,10 @@ fn larger<'a>(a: &'a Value, b: &'a Value) -> &'a Value {
     if written(a) >= written(b) { a } else { b }
 }
 
+pub(crate) fn merge_maps(a: &Map<String, Value>, b: &Map<String, Value>) -> Map<String, Value> {
+    merge_extra(a, b)
+}
+
 fn merge_extra(a: &Map<String, Value>, b: &Map<String, Value>) -> Map<String, Value> {
     let mut out = a.clone();
     for (k, v) in b {
@@ -96,12 +100,6 @@ pub fn merge_blocks(a: &PdfBlock, b: &PdfBlock) -> PdfBlock {
     let mut highlights: Vec<Highlight> = by_id.into_values().cloned().collect();
     // In the order they were made, so the newest is drawn on top.
     highlights.sort_by(|p, q| (p.created_at, &p.id).cmp(&(q.created_at, &q.id)));
-    let ink: BTreeMap<String, &Value> = a
-        .ink
-        .iter()
-        .chain(&b.ink)
-        .map(|v| (written(v), v))
-        .collect();
     PdfBlock {
         file: a.file.clone(),
         md5: if a.md5.is_empty() || (!b.md5.is_empty() && b.md5 > a.md5) {
@@ -111,7 +109,7 @@ pub fn merge_blocks(a: &PdfBlock, b: &PdfBlock) -> PdfBlock {
         },
         version: a.version.max(b.version),
         highlights,
-        ink: ink.into_values().cloned().collect(),
+        ink: crate::ink::merge_pages(&a.ink, &b.ink),
         ink_file: a.ink_file.clone().max(b.ink_file.clone()),
         removed: removed.into_iter().collect(),
         extra: merge_extra(&a.extra, &b.extra),

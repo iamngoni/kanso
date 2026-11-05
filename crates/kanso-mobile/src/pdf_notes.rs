@@ -1,22 +1,29 @@
 //! A PDF's highlights in a note, on the phone (issue #43, step 6).
 //!
-//! The phone has no PDF reader, but a note that was read on a computer
-//! carries its highlights in a `kanso-pdf` block. The preview shows them as
+//! A note's PDF annotations live in a `kanso-pdf` block, whether read on
+//! desktop or phone. The preview shows them as
 //! one quiet line ([`kanso_render::pdf_notes`]); this is what the line opens:
 //! the list, and the changes the desktop reader's panel makes (a comment, a
 //! colour, a delete, a quote put back). The rules are `kanso_pdf::highlights`,
 //! so the two ends write the same text.
 
+use std::collections::HashSet;
+
+use kanso_core::canvas::{Point, Stroke, unique_id};
 use kanso_core::links::FILE_LINK_PREFIX;
 use kanso_pdf::annotation::find_blocks;
 use kanso_pdf::highlights::{Annotations, Located, Status, locate};
 use kanso_pdf::model::Color;
+use kanso_store::pdf_ink;
 
-use crate::boundary::guard;
+use crate::boundary::{guard, held};
 use crate::errors::KansoError;
 use crate::library::Library;
-use crate::model::{PdfHighlightChange, PdfHighlightRow, PdfNotes};
-use crate::pdf_reader_model::PdfEdited;
+use crate::model::{PdfHighlightChange, PdfHighlightRow, PdfInkRow, PdfNotes, Saved};
+use crate::pdf_reader_model::{PdfEdited, PdfInkPage, PdfInkPoint, PdfInkStroke};
+use kanso_core::Note;
+use kanso_engine::lock::SealedInk;
+use kanso_sync::lock::Envelope;
 
 /// The most times a change is made again on a note that moved under it.
 const RETRIES: usize = 6;
@@ -52,9 +59,15 @@ fn files_in(body: &str) -> Vec<String> {
     out
 }
 
-/// The list for one PDF of `body`.
+/// The list for one PDF of `body`, as written in the note (no ink attachment).
+#[cfg(test)]
 pub(crate) fn notes_in(body: &str, file: &str, name: &str) -> PdfNotes {
-    let annots = Annotations::from_body(body, file, "");
+    notes_of(&Annotations::from_body(body, file, ""), body, file, name)
+}
+
+/// The list for one PDF, from its highlights `annots` (with the pencil ink
+/// read in, when it lives in its attachment).
+fn notes_of(annots: &Annotations, body: &str, file: &str, name: &str) -> PdfNotes {
     let (editable, why) = match &annots.status {
         Status::Editable => (true, None),
         Status::Restorable => (false, None),
@@ -82,6 +95,14 @@ pub(crate) fn notes_in(body: &str, file: &str, name: &str) -> PdfNotes {
         editable,
         why,
         highlights,
+        ink: annots
+            .ink_rows()
+            .into_iter()
+            .map(|row| PdfInkRow {
+                page: row.page,
+                strokes: row.strokes as u32,
+            })
+            .collect(),
     }
 }
 
@@ -124,21 +145,211 @@ pub(crate) fn change_in(
     Ok(edit.map(|e| e.apply(body)))
 }
 
+/// `body` with the pencil marks on `page` of `file` cleared, or `None` when
+/// there were none. Ink in an attachment is read from `store` and written
+/// back there.
+pub(crate) fn clear_ink_in(
+    store: &kanso_store::Store,
+    note_id: &str,
+    body: &str,
+    file: &str,
+    page: u32,
+    files: &dyn pdf_ink::InkFiles,
+) -> Result<Option<String>, KansoError> {
+    let invalid = |e: kanso_pdf::PdfError| KansoError::invalid(e.to_string());
+    if matches!(locate(body, file), Located::Missing) {
+        return Err(KansoError::invalid(
+            "This note has no pencil marks for that PDF.",
+        ));
+    }
+    let mut annots = Annotations::from_body(body, file, "");
+    pdf_ink::load_ink_with(store, &mut annots, files).map_err(KansoError::invalid)?;
+    if !annots
+        .clear_page_ink(page, kanso_core::now_ms())
+        .map_err(invalid)?
+    {
+        return Ok(None);
+    }
+    pdf_ink::publish_ink_with(store, &mut annots, note_id, body, files)
+        .map_err(KansoError::invalid)?;
+    Ok(annots
+        .save_edit(body)
+        .map_err(invalid)?
+        .map(|e| e.apply(body)))
+}
+
+/// Adds one stroke to the page in `body`, using the same validation,
+/// companion-file sealing and block writer as the desktop reader.
+fn add_ink_in(
+    store: &kanso_store::Store,
+    note_id: &str,
+    body: &str,
+    file: &str,
+    page: u32,
+    stroke: &Stroke,
+    files: &dyn pdf_ink::InkFiles,
+) -> Result<Option<String>, KansoError> {
+    let mut annots = Annotations::from_body(body, file, "");
+    pdf_ink::load_ink_with(store, &mut annots, files).map_err(KansoError::invalid)?;
+    let current = annots.page_ink(page);
+    let mut incoming = kanso_pdf::ink::PageInk::new(page);
+    incoming.strokes.push(stroke.clone());
+    let merged = kanso_pdf::ink::merge_page(&current, &incoming);
+    annots
+        .set_page_ink(merged)
+        .map_err(|error| KansoError::invalid(error.to_string()))?;
+    pdf_ink::publish_ink_with(store, &mut annots, note_id, body, files)
+        .map_err(KansoError::invalid)?;
+    annots
+        .save_edit(body)
+        .map_err(|error| KansoError::invalid(error.to_string()))
+        .map(|edit| edit.map(|edit| edit.apply(body)))
+}
+
 impl Library {
     /// The highlights each PDF has in note `note_id`, for the list the
     /// preview's "4 highlights" line opens. [`KansoError::Locked`] while the
     /// note is locked and closed.
     pub fn pdf_highlights(&self, note_id: &str) -> Result<Vec<PdfNotes>, KansoError> {
         guard(|| {
-            let (_, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+            let (note, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+            let files = self.ink_files(&note);
             Ok(files_in(&body)
                 .into_iter()
                 .map(|file| {
                     let name = self.pdf_name(&file);
-                    notes_in(&body, &file, &name)
+                    let mut annots = Annotations::from_body(&body, &file, "");
+                    // Ink that outgrew the note is read from its attachment.
+                    // One that has not arrived yet is listed when it does.
+                    let _ = pdf_ink::load_ink_with(&self.inner.store, &mut annots, &files);
+                    notes_of(&annots, &body, &file, &name)
                 })
                 .collect())
         })
+    }
+
+    /// The strokes the PDF reader draws, from the same annotation block and
+    /// sealed companion file the desktop reader uses.
+    pub(crate) fn pdf_ink_pages(
+        &self,
+        note: &Note,
+        body: &str,
+        file: &str,
+    ) -> Result<Vec<PdfInkPage>, KansoError> {
+        let md5 = self
+            .inner
+            .store
+            .file_meta(file)?
+            .and_then(|meta| meta.md5digest)
+            .unwrap_or_default();
+        let mut annots = Annotations::from_body(body, file, &md5);
+        let files = self.ink_files(note);
+        pdf_ink::load_ink_with(&self.inner.store, &mut annots, &files)
+            .map_err(KansoError::invalid)?;
+        Ok(annots
+            .ink()
+            .iter()
+            .map(|page| PdfInkPage {
+                page: page.page,
+                strokes: page
+                    .live()
+                    .map(|stroke| PdfInkStroke {
+                        tool: stroke.tool.clone(),
+                        color: stroke.color.clone(),
+                        width: stroke.width,
+                        points: stroke
+                            .points
+                            .iter()
+                            .map(|point| PdfInkPoint {
+                                x: point.x,
+                                y: point.y,
+                                pressure: point.pressure,
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            })
+            .collect())
+    }
+
+    /// Adds one pencil stroke to a page, making it again on newer text when
+    /// the note changes while it is being saved.
+    pub fn pdf_ink_add(
+        &self,
+        note_id: &str,
+        base_rev: &str,
+        file: &str,
+        page: u32,
+        input: PdfInkStroke,
+    ) -> Result<PdfEdited, KansoError> {
+        guard(|| {
+            if input.points.is_empty() {
+                return Err(KansoError::invalid("Draw a stroke before saving it."));
+            }
+            if input.points.len() > kanso_core::canvas::MAX_STROKE_POINTS {
+                return Err(KansoError::invalid("That stroke has too many points."));
+            }
+            if !matches!(input.tool.as_str(), "pen" | "pencil" | "marker" | "highlighter") {
+                return Err(KansoError::invalid("That isn't a pencil tool."));
+            }
+            if ![
+                "#1e1e1e",
+                "#e03131",
+                "#e8590c",
+                "#f08c00",
+                "#2f9e44",
+                "#1971c2",
+                "#9c36b5",
+            ]
+            .contains(&input.color.as_str())
+            {
+                return Err(KansoError::invalid("That isn't a pencil colour."));
+            }
+            if input.points.iter().any(|point| {
+                !point.pressure.is_finite() || !(0.0..=1.0).contains(&point.pressure)
+            }) {
+                return Err(KansoError::invalid("That stroke has invalid pressure."));
+            }
+            let now = kanso_core::now_ms();
+            let stroke = Stroke {
+                id: unique_id("s-", &HashSet::new()),
+                tool: input.tool,
+                color: input.color,
+                width: input.width,
+                points: input
+                    .points
+                    .into_iter()
+                    .map(|point| Point::new(point.x, point.y, point.pressure))
+                    .collect(),
+                kanso_version: 1,
+                kanso_updated: now,
+                kanso_z: now as f64,
+                ..Stroke::default()
+            };
+            let done = write_with_retry(self, note_id, base_rev, |body| {
+                let files = self.ink_files_for_body(note_id)?;
+                add_ink_in(
+                    &self.inner.store,
+                    note_id,
+                    body,
+                    file,
+                    page,
+                    &stroke,
+                    &files,
+                )
+            })?;
+            Ok(PdfEdited {
+                rev: done.rev,
+                id: None,
+                merged: done.merged,
+                gone: false,
+            })
+        })
+    }
+
+    fn ink_files_for_body(&self, note_id: &str) -> Result<SealedInk, KansoError> {
+        let (note, _) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+        Ok(self.ink_files(&note))
     }
 
     /// Changes one highlight of `file` in note `note_id`, which was read at
@@ -182,6 +393,44 @@ impl Library {
                 Err(error) => Err(error),
             }
         })
+    }
+
+    /// Clears all the pencil marks on `page` of `file` in note `note_id`,
+    /// which was read at `base_rev`: one write of the note's text (and, for
+    /// ink that lives in its attachment, of that). If the note moved, the
+    /// page is cleared again on its newest ink before saving.
+    pub fn pdf_ink_clear(
+        &self,
+        note_id: &str,
+        base_rev: &str,
+        file: &str,
+        page: u32,
+    ) -> Result<Saved, KansoError> {
+        guard(|| {
+            let written = write_with_retry(self, note_id, base_rev, |body| {
+                let files = self.ink_files_for_body(note_id)?;
+                clear_ink_in(&self.inner.store, note_id, body, file, page, &files)
+            })?;
+            Ok(Saved {
+                id: note_id.to_owned(),
+                rev: written.rev,
+            })
+        })
+    }
+
+    /// The lock-aware byte store for `note`'s ink. A locked note uses its
+    /// held lock key for a new sealed attachment; a plain note stays plain.
+    fn ink_files(&self, note: &Note) -> SealedInk {
+        let keys = held(&self.inner.keys).file_keys();
+        if note.is_locked() {
+            if let Some(Ok(envelope)) = Envelope::from_extra(&note.extra)
+                && let Some(key) = held(&self.inner.keys).fitting(&envelope)
+            {
+                return SealedInk::new(keys, note, key);
+            }
+            return SealedInk::reading(keys);
+        }
+        SealedInk::plain(keys)
     }
 
     fn pdf_name(&self, file: &str) -> String {

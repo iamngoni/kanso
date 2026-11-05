@@ -138,6 +138,7 @@ PdfMarks fakeMarks({String rev = 'rev-1', bool editable = true}) => PdfMarks(
       ],
     ),
   ],
+  ink: const <PdfInkPage>[],
 );
 
 /// A document open for reading, answering what a test set up.
@@ -174,6 +175,10 @@ class FakePdfSession implements PdfDocumentSession {
           bool quote,
         })
       >[];
+  final List<({String baseRev, int page, PdfInkStroke stroke})> inkStrokes =
+      <({String baseRev, int page, PdfInkStroke stroke})>[];
+  String inkRev = 'rev-1';
+  List<PdfInkPage> inkPages = <PdfInkPage>[];
   bool disposed = false;
 
   @override
@@ -262,6 +267,32 @@ class FakePdfSession implements PdfDocumentSession {
   }
 
   @override
+  Future<Either<ApplicationError, PdfEdited>> addInkStroke({
+    required String baseRev,
+    required int page,
+    required PdfInkStroke stroke,
+  }) async {
+    inkStrokes.add((baseRev: baseRev, page: page, stroke: stroke));
+    inkRev = 'rev-${inkStrokes.length + 1}';
+    inkPages = <PdfInkPage>[
+      for (final inkPage in inkPages)
+        if (inkPage.page != page) inkPage,
+      PdfInkPage(
+        page: page,
+        strokes: <PdfInkStroke>[
+          ...inkPages
+              .where((inkPage) => inkPage.page == page)
+              .expand((inkPage) => inkPage.strokes),
+          stroke,
+        ],
+      ),
+    ];
+    return Right<ApplicationError, PdfEdited>(
+      PdfEdited(rev: inkRev, merged: baseRev != 'rev-1', gone: false),
+    );
+  }
+
+  @override
   void dispose() {
     disposed = true;
   }
@@ -324,6 +355,22 @@ class FakePdfReaderRepository implements PdfReaderRepository {
     if (error != null) {
       return Left<ApplicationError, PdfMarks>(error);
     }
-    return Right<ApplicationError, PdfMarks>(marksAnswer ?? fakeMarks());
+    final marks = marksAnswer ?? fakeMarks();
+    final opened = opening;
+    final openedSession = switch (opened) {
+      PdfOpened(:final session) => session,
+      _ => session,
+    };
+    final inkSession = openedSession is FakePdfSession ? openedSession : null;
+    final revision = inkSession?.inkRev ?? marksAnswer?.rev ?? 'rev-1';
+    return Right<ApplicationError, PdfMarks>(
+      PdfMarks(
+        rev: revision,
+        editable: marks.editable,
+        why: marks.why,
+        marks: marks.marks,
+        ink: inkSession?.inkPages ?? marks.ink,
+      ),
+    );
   }
 }

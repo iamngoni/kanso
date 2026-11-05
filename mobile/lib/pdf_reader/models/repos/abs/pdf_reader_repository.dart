@@ -61,6 +61,13 @@ abstract interface class PdfDocumentSession {
     required bool quote,
   });
 
+  /// Saves a pencil stroke on [page], in 1000-unit PDF page coordinates.
+  Future<Either<ApplicationError, PdfEdited>> addInkStroke({
+    required String baseRev,
+    required int page,
+    required PdfInkStroke stroke,
+  });
+
   void dispose();
 }
 

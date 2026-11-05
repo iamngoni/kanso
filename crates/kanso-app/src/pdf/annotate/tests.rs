@@ -101,15 +101,15 @@ fn page_text(page: u32, lines: &[&str]) -> PageText {
     }
 }
 
-struct Fixture {
-    window: AnyWindowHandle,
-    reader: Entity<PdfReader>,
-    id: String,
-    writes: Rc<RefCell<Vec<Write>>>,
+pub(in crate::pdf) struct Fixture {
+    pub(in crate::pdf) window: AnyWindowHandle,
+    pub(in crate::pdf) reader: Entity<PdfReader>,
+    pub(in crate::pdf) id: String,
+    pub(in crate::pdf) writes: Rc<RefCell<Vec<Write>>>,
     _dir: tempfile::TempDir,
 }
 
-fn open(cx: &mut TestAppContext, body: &str, pages: usize) -> Fixture {
+pub(in crate::pdf) fn open(cx: &mut TestAppContext, body: &str, pages: usize) -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(Store::open(dir.path().join("k.db")).unwrap());
     let id = kanso_engine::attach::attach_pdf(&store, FILE_BYTES, "Report.pdf", None).unwrap();
@@ -164,7 +164,7 @@ fn open(cx: &mut TestAppContext, body: &str, pages: usize) -> Fixture {
     f
 }
 
-fn draw(cx: &mut TestAppContext, f: &Fixture) {
+pub(in crate::pdf) fn draw(cx: &mut TestAppContext, f: &Fixture) {
     for _ in 0..3 {
         cx.run_until_parked();
         f.window
@@ -177,7 +177,7 @@ fn draw(cx: &mut TestAppContext, f: &Fixture) {
     cx.run_until_parked();
 }
 
-fn on_reader<R>(
+pub(in crate::pdf) fn on_reader<R>(
     cx: &mut TestAppContext,
     f: &Fixture,
     what: impl FnOnce(&mut PdfReader, &mut gpui_kit::Window, &mut gpui_kit::Context<PdfReader>) -> R,
@@ -193,7 +193,7 @@ fn on_reader<R>(
 }
 
 /// A window position on page 1, from its normalised place.
-fn on_page(
+pub(in crate::pdf) fn on_page(
     cx: &mut TestAppContext,
     f: &Fixture,
     nx: f32,
@@ -207,7 +207,7 @@ fn on_page(
     )
 }
 
-fn drag(cx: &mut TestAppContext, f: &Fixture, from: (f32, f32), to: (f32, f32)) {
+pub(in crate::pdf) fn drag(cx: &mut TestAppContext, f: &Fixture, from: (f32, f32), to: (f32, f32)) {
     let (a, b) = (on_page(cx, f, from.0, from.1), on_page(cx, f, to.0, to.1));
     let mut vcx = VisualTestContext::from_window(f.window, cx);
     vcx.simulate_mouse_down(a, MouseButton::Left, Modifiers::default());
@@ -216,7 +216,7 @@ fn drag(cx: &mut TestAppContext, f: &Fixture, from: (f32, f32), to: (f32, f32)) 
     draw(cx, f);
 }
 
-fn click_selector(cx: &mut TestAppContext, f: &Fixture, selector: &'static str) {
+pub(in crate::pdf) fn click_selector(cx: &mut TestAppContext, f: &Fixture, selector: &'static str) {
     let mut vcx = VisualTestContext::from_window(f.window, cx);
     let at = vcx
         .debug_bounds(selector)
@@ -226,7 +226,7 @@ fn click_selector(cx: &mut TestAppContext, f: &Fixture, selector: &'static str) 
     draw(cx, f);
 }
 
-fn shown(cx: &mut TestAppContext, f: &Fixture, selector: &'static str) -> bool {
+pub(in crate::pdf) fn shown(cx: &mut TestAppContext, f: &Fixture, selector: &'static str) -> bool {
     VisualTestContext::from_window(f.window, cx)
         .debug_bounds(selector)
         .is_some()

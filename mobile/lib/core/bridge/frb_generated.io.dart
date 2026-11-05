@@ -1215,6 +1215,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PdfInfo dco_decode_box_autoadd_pdf_info(dynamic raw);
 
   @protected
+  PdfInkStroke dco_decode_box_autoadd_pdf_ink_stroke(dynamic raw);
+
+  @protected
   PdfSelection dco_decode_box_autoadd_pdf_selection(dynamic raw);
 
   @protected
@@ -1964,6 +1967,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PdfHighlightRow> dco_decode_list_pdf_highlight_row(dynamic raw);
 
   @protected
+  List<PdfInkPage> dco_decode_list_pdf_ink_page(dynamic raw);
+
+  @protected
+  List<PdfInkPoint> dco_decode_list_pdf_ink_point(dynamic raw);
+
+  @protected
+  List<PdfInkRow> dco_decode_list_pdf_ink_row(dynamic raw);
+
+  @protected
+  List<PdfInkStroke> dco_decode_list_pdf_ink_stroke(dynamic raw);
+
+  @protected
   List<PdfMark> dco_decode_list_pdf_mark(dynamic raw);
 
   @protected
@@ -2665,6 +2680,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PdfInfo dco_decode_pdf_info(dynamic raw);
+
+  @protected
+  PdfInkPage dco_decode_pdf_ink_page(dynamic raw);
+
+  @protected
+  PdfInkPoint dco_decode_pdf_ink_point(dynamic raw);
+
+  @protected
+  PdfInkRow dco_decode_pdf_ink_row(dynamic raw);
+
+  @protected
+  PdfInkStroke dco_decode_pdf_ink_stroke(dynamic raw);
 
   @protected
   PdfMark dco_decode_pdf_mark(dynamic raw);
@@ -4289,6 +4316,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PdfInfo sse_decode_box_autoadd_pdf_info(SseDeserializer deserializer);
 
   @protected
+  PdfInkStroke sse_decode_box_autoadd_pdf_ink_stroke(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PdfSelection sse_decode_box_autoadd_pdf_selection(
     SseDeserializer deserializer,
   );
@@ -5164,6 +5196,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<PdfInkPage> sse_decode_list_pdf_ink_page(SseDeserializer deserializer);
+
+  @protected
+  List<PdfInkPoint> sse_decode_list_pdf_ink_point(SseDeserializer deserializer);
+
+  @protected
+  List<PdfInkRow> sse_decode_list_pdf_ink_row(SseDeserializer deserializer);
+
+  @protected
+  List<PdfInkStroke> sse_decode_list_pdf_ink_stroke(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<PdfMark> sse_decode_list_pdf_mark(SseDeserializer deserializer);
 
   @protected
@@ -6017,6 +6063,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PdfInfo sse_decode_pdf_info(SseDeserializer deserializer);
+
+  @protected
+  PdfInkPage sse_decode_pdf_ink_page(SseDeserializer deserializer);
+
+  @protected
+  PdfInkPoint sse_decode_pdf_ink_point(SseDeserializer deserializer);
+
+  @protected
+  PdfInkRow sse_decode_pdf_ink_row(SseDeserializer deserializer);
+
+  @protected
+  PdfInkStroke sse_decode_pdf_ink_stroke(SseDeserializer deserializer);
 
   @protected
   PdfMark sse_decode_pdf_mark(SseDeserializer deserializer);
@@ -7944,6 +8002,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_box_autoadd_pdf_info(PdfInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_pdf_ink_stroke(
+    PdfInkStroke self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_pdf_selection(
     PdfSelection self,
     SseSerializer serializer,
@@ -9090,6 +9154,30 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_pdf_ink_page(
+    List<PdfInkPage> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_ink_point(
+    List<PdfInkPoint> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_ink_row(
+    List<PdfInkRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_ink_stroke(
+    List<PdfInkStroke> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_pdf_mark(List<PdfMark> self, SseSerializer serializer);
 
   @protected
@@ -10199,6 +10287,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_pdf_info(PdfInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_ink_page(PdfInkPage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_ink_point(PdfInkPoint self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_ink_row(PdfInkRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_ink_stroke(PdfInkStroke self, SseSerializer serializer);
 
   @protected
   void sse_encode_pdf_mark(PdfMark self, SseSerializer serializer);

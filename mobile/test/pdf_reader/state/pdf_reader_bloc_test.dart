@@ -261,6 +261,46 @@ void main() {
       expect(made.start, const PdfCharPos(page: 1, index: 4));
     });
 
+    test(
+      'pencil strokes save with the latest revision and read ink back',
+      () async {
+        final bloc = await opened();
+        addTearDown(bloc.close);
+        bloc.add(const PdfReaderEvent.inkDrawingChanged(true));
+        await bloc.stream.firstWhere((state) => state.inkDrawing);
+
+        const stroke = PdfInkStroke(
+          tool: 'pen',
+          color: '#e03131',
+          width: 4,
+          points: <PdfInkPoint>[
+            PdfInkPoint(x: 100, y: 200, pressure: 0.5),
+            PdfInkPoint(x: 300, y: 400, pressure: 1),
+          ],
+        );
+        bloc.add(
+          const PdfReaderEvent.inkStrokeRequested(page: 1, stroke: stroke),
+        );
+        await bloc.stream.firstWhere(
+          (state) => !state.addingInk && state.marks?.rev == 'rev-2',
+        );
+
+        expect(session.inkStrokes, hasLength(1));
+        expect(session.inkStrokes.single.baseRev, 'rev-1');
+        expect(session.inkStrokes.single.page, 1);
+        expect(session.inkStrokes.single.stroke, stroke);
+        expect(bloc.state.marks?.ink.single.strokes.single, stroke);
+
+        bloc.add(
+          const PdfReaderEvent.inkStrokeRequested(page: 1, stroke: stroke),
+        );
+        await bloc.stream.firstWhere(
+          (state) => !state.addingInk && state.marks?.rev == 'rev-3',
+        );
+        expect(session.inkStrokes.last.baseRev, 'rev-2');
+      },
+    );
+
     test('a note that cannot take highlights makes none', () async {
       final readOnly = FakePdfSession();
       final bloc = _bloc(

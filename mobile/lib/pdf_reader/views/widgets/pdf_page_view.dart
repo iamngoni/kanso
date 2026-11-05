@@ -3,6 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ class PdfPageView extends StatefulWidget {
     required this.width,
     required this.invert,
     required this.marks,
+    required this.ink,
     required this.selection,
     required this.search,
     required this.focus,
@@ -40,6 +42,10 @@ class PdfPageView extends StatefulWidget {
     required this.onLineSelected,
     required this.onSelectionExtended,
     required this.onSelectionCleared,
+    required this.inkDrawing,
+    required this.inkColor,
+    required this.inkWidth,
+    required this.onInkStroke,
     this.overlays = const <PdfPageOverlay>[],
     super.key,
   });
@@ -61,6 +67,9 @@ class PdfPageView extends StatefulWidget {
 
   /// The note's highlights on this page.
   final List<PdfMark> marks;
+
+  /// Saved pencil strokes on this page.
+  final List<PdfInkStroke> ink;
 
   /// The selection, when it reaches this page.
   final PdfSelection? selection;
@@ -85,6 +94,18 @@ class PdfPageView extends StatefulWidget {
   /// The page, outside a word, was tapped: the selection goes.
   final VoidCallback onSelectionCleared;
 
+  /// Whether pointer gestures draw ink instead of selecting text.
+  final bool inkDrawing;
+
+  /// Color for the next stroke.
+  final String inkColor;
+
+  /// Width for the next stroke in page units.
+  final double inkWidth;
+
+  /// A completed stroke in page units, ready to save.
+  final void Function(int page, PdfInkStroke stroke) onInkStroke;
+
   /// Layers drawn over the page's picture and highlights.
   final List<PdfPageOverlay> overlays;
 
@@ -101,9 +122,12 @@ class PdfPageView extends StatefulWidget {
 }
 
 class _PdfPageViewState extends State<PdfPageView> {
+  final ValueNotifier<List<PdfInkPoint>> _liveInk =
+      ValueNotifier<List<PdfInkPoint>>(<PdfInkPoint>[]);
   ui.Image? _image;
   bool _failed = false;
   int _request = 0;
+  int? _inkPointer;
 
   double get _height => PdfPageView.heightFor(widget.size, widget.width);
 
@@ -128,6 +152,7 @@ class _PdfPageViewState extends State<PdfPageView> {
   void dispose() {
     _request++;
     _image?.dispose();
+    _liveInk.dispose();
     super.dispose();
   }
 
@@ -208,6 +233,74 @@ class _PdfPageViewState extends State<PdfPageView> {
     );
   }
 
+  PdfInkPoint _inkPoint(Offset position, double pressure) {
+    final width = widget.width;
+    final height = _height;
+    return PdfInkPoint(
+      x: (position.dx / width * 1000).clamp(0.0, 1000.0),
+      y: (position.dy / height * 1000).clamp(0.0, 20000.0),
+      pressure: pressure.clamp(0.0, 1.0),
+    );
+  }
+
+  double _pressure(PointerEvent event) {
+    if (event.kind == ui.PointerDeviceKind.touch ||
+        event.pressureMin == event.pressureMax) {
+      return 1;
+    }
+    return ((event.pressure - event.pressureMin) /
+            (event.pressureMax - event.pressureMin))
+        .clamp(0.05, 1.0);
+  }
+
+  void _pointerDown(PointerDownEvent event) {
+    if (!widget.inkDrawing || _inkPointer != null) {
+      return;
+    }
+    _inkPointer = event.pointer;
+    _liveInk.value = <PdfInkPoint>[
+      _inkPoint(event.localPosition, _pressure(event)),
+    ];
+  }
+
+  void _pointerMove(PointerMoveEvent event) {
+    if (event.pointer != _inkPointer) {
+      return;
+    }
+    _liveInk.value = <PdfInkPoint>[
+      ..._liveInk.value,
+      _inkPoint(event.localPosition, _pressure(event)),
+    ];
+  }
+
+  void _pointerUp(PointerEvent event) {
+    if (event.pointer != _inkPointer) {
+      return;
+    }
+    final points = _liveInk.value;
+    _inkPointer = null;
+    _liveInk.value = const <PdfInkPoint>[];
+    if (points.isEmpty) {
+      return;
+    }
+    widget.onInkStroke(
+      widget.page,
+      PdfInkStroke(
+        tool: 'pen',
+        color: widget.inkColor,
+        width: widget.inkWidth,
+        points: points,
+      ),
+    );
+  }
+
+  void _pointerCancel(PointerCancelEvent event) {
+    if (event.pointer == _inkPointer) {
+      _inkPointer = null;
+      _liveInk.value = const <PdfInkPoint>[];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = widget.width;
@@ -215,78 +308,109 @@ class _PdfPageViewState extends State<PdfPageView> {
     final rects = _selectionRects;
     final handleStart = rects.isEmpty ? null : rects.first;
     final handleEnd = rects.isEmpty ? null : rects.last;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onLongPressStart: (details) => _point(
-        details.localPosition,
-        (x, y) => widget.onWordSelected(widget.page, x, y),
-      ),
-      onDoubleTapDown: (details) {
-        _point(
-          details.localPosition,
-          (x, y) => widget.onLineSelected(widget.page, x, y),
-        );
-      },
-      onTap: widget.selection == null ? null : widget.onSelectionCleared,
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: <Widget>[
-            Positioned.fill(
-              child: ColoredBox(
-                color: Colors.white,
-                child: _image == null
-                    ? _placeholder(context)
-                    : RawImage(image: _image, width: width, height: height),
+    return Listener(
+      onPointerDown: widget.inkDrawing ? _pointerDown : null,
+      onPointerMove: widget.inkDrawing ? _pointerMove : null,
+      onPointerUp: widget.inkDrawing ? _pointerUp : null,
+      onPointerCancel: widget.inkDrawing ? _pointerCancel : null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPressStart: widget.inkDrawing
+            ? null
+            : (details) => _point(
+                details.localPosition,
+                (x, y) => widget.onWordSelected(widget.page, x, y),
               ),
-            ),
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _PdfPagePainter(
-                  marks: widget.marks,
-                  focus: widget.focus,
-                  selection: rects,
-                  search: widget.search,
-                  overlays: widget.overlays,
-                  colors: context.colors,
+        onDoubleTapDown: widget.inkDrawing
+            ? null
+            : (details) {
+                _point(
+                  details.localPosition,
+                  (x, y) => widget.onLineSelected(widget.page, x, y),
+                );
+              },
+        onTap: !widget.inkDrawing && widget.selection != null
+            ? widget.onSelectionCleared
+            : null,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.white,
+                  child: _image == null
+                      ? _placeholder(context)
+                      : RawImage(image: _image, width: width, height: height),
                 ),
               ),
-            ),
-            if (handleStart != null)
-              _SelectionHandle(
-                key: ValueKey<String>('pdf-handle-start-${widget.page}'),
-                left: handleStart.x0 * width,
-                top: handleStart.y1 * height,
-                alignBottom: true,
-                onDrag: (position) => _point(
-                  position,
-                  (x, y) => widget.onSelectionExtended(
-                    widget.page,
-                    x,
-                    y,
-                    fromStart: true,
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _PdfPagePainter(
+                    marks: widget.marks,
+                    focus: widget.focus,
+                    selection: rects,
+                    search: widget.search,
+                    overlays: widget.overlays,
+                    colors: context.colors,
                   ),
                 ),
               ),
-            if (handleEnd != null)
-              _SelectionHandle(
-                key: ValueKey<String>('pdf-handle-end-${widget.page}'),
-                left: handleEnd.x1 * width,
-                top: handleEnd.y0 * height,
-                alignBottom: false,
-                onDrag: (position) => _point(
-                  position,
-                  (x, y) => widget.onSelectionExtended(
-                    widget.page,
-                    x,
-                    y,
-                    fromStart: false,
+              ValueListenableBuilder<List<PdfInkPoint>>(
+                valueListenable: _liveInk,
+                builder: (context, points, child) => Positioned.fill(
+                  child: CustomPaint(
+                    painter: _PdfInkPainter(
+                      strokes: widget.ink,
+                      dark: widget.invert,
+                      current: points.isEmpty
+                          ? null
+                          : PdfInkStroke(
+                              tool: 'pen',
+                              color: widget.inkColor,
+                              width: widget.inkWidth,
+                              points: points,
+                            ),
+                    ),
                   ),
                 ),
               ),
-          ],
+              if (handleStart != null)
+                _SelectionHandle(
+                  key: ValueKey<String>('pdf-handle-start-${widget.page}'),
+                  left: handleStart.x0 * width,
+                  top: handleStart.y1 * height,
+                  alignBottom: true,
+                  onDrag: (position) => _point(
+                    position,
+                    (x, y) => widget.onSelectionExtended(
+                      widget.page,
+                      x,
+                      y,
+                      fromStart: true,
+                    ),
+                  ),
+                ),
+              if (handleEnd != null)
+                _SelectionHandle(
+                  key: ValueKey<String>('pdf-handle-end-${widget.page}'),
+                  left: handleEnd.x1 * width,
+                  top: handleEnd.y0 * height,
+                  alignBottom: false,
+                  onDrag: (position) => _point(
+                    position,
+                    (x, y) => widget.onSelectionExtended(
+                      widget.page,
+                      x,
+                      y,
+                      fromStart: false,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -464,4 +588,66 @@ class _PdfPagePainter extends CustomPainter {
       old.search != search ||
       old.colors != colors ||
       old.overlays != overlays;
+}
+
+/// Draws saved and in-progress pencil strokes in the PDF's page coordinates.
+class _PdfInkPainter extends CustomPainter {
+  const _PdfInkPainter({
+    required this.strokes,
+    required this.dark,
+    required this.current,
+  });
+
+  final List<PdfInkStroke> strokes;
+  final bool dark;
+  final PdfInkStroke? current;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final stroke in <PdfInkStroke>[
+      ...strokes,
+      if (current != null) current!,
+    ]) {
+      final color = _color(stroke.color, dark);
+      if (stroke.points.length == 1) {
+        final point = stroke.points.single;
+        canvas.drawCircle(
+          Offset(point.x / 1000 * size.width, point.y / 1000 * size.width),
+          stroke.width * size.width / 1000 / 2,
+          Paint()..color = color,
+        );
+        continue;
+      }
+      for (var index = 1; index < stroke.points.length; index++) {
+        final before = stroke.points[index - 1];
+        final after = stroke.points[index];
+        final pressure = math.max(0.05, (before.pressure + after.pressure) / 2);
+        final paint = Paint()
+          ..color = color
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = stroke.width * pressure * size.width / 1000;
+        canvas.drawLine(
+          Offset(before.x / 1000 * size.width, before.y / 1000 * size.width),
+          Offset(after.x / 1000 * size.width, after.y / 1000 * size.width),
+          paint,
+        );
+      }
+    }
+  }
+
+  Color _color(String value, bool dark) {
+    if (dark && value == '#1e1e1e') {
+      return const Color(0xfff1f1f1);
+    }
+    final hex = value.replaceFirst('#', '');
+    final parsed = int.tryParse(hex, radix: 16);
+    if (parsed == null) {
+      return const Color(0xff1e1e1e);
+    }
+    return Color(hex.length == 6 ? 0xff000000 | parsed : parsed);
+  }
+
+  @override
+  bool shouldRepaint(_PdfInkPainter old) =>
+      old.strokes != strokes || old.current != current || old.dark != dark;
 }

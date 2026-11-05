@@ -12657,6 +12657,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
   String get lockFilesNotice;
+
+  /// Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them.
+  ///
+  /// In en, this message translates to:
+  /// **'Pencil marks'**
+  String get pdfNotesInkTitle;
+
+  /// How many pencil strokes are drawn on one page of a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'{strokes, plural, =1{1 stroke} other{{strokes} strokes}}'**
+  String pdfNotesInkStrokes(int strokes);
+
+  /// Button that rubs out all the pencil marks on one page of a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear page'**
+  String get pdfNotesInkClear;
+
+  /// The selected agent needs the person to sign in.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agent needs you to sign in. Sign in to your agent, then try again.'**
+  String get aiTroubleAgentSignIn;
+
+  /// The provider account has run out of credits or needs a plan change.
+  ///
+  /// In en, this message translates to:
+  /// **'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.'**
+  String get aiTroubleBilling;
+
+  /// The configured server address does not point to its API.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model server address looks wrong. Check the address in Settings › AI, then try again.'**
+  String get aiTroubleWrongAddress;
 }
 
 class _AppLocalizationsDelegate

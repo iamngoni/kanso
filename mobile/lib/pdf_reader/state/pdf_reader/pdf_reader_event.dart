@@ -91,6 +91,25 @@ sealed class PdfReaderEvent with _$PdfReaderEvent {
     required bool quote,
   }) = PdfReaderHighlightRequestedEvent;
 
+  /// Turns pencil drawing on or off.
+  // ignore: avoid_positional_boolean_parameters
+  const factory PdfReaderEvent.inkDrawingChanged(bool enabled) =
+      PdfReaderInkDrawingChangedEvent;
+
+  /// Changes the color of the next pencil stroke.
+  const factory PdfReaderEvent.inkColorChanged(String color) =
+      PdfReaderInkColorChangedEvent;
+
+  /// Changes the width of the next pencil stroke, in PDF page units.
+  const factory PdfReaderEvent.inkWidthChanged(double width) =
+      PdfReaderInkWidthChangedEvent;
+
+  /// Saves a pencil stroke on a 1-based page.
+  const factory PdfReaderEvent.inkStrokeRequested({
+    required int page,
+    required PdfInkStroke stroke,
+  }) = PdfReaderInkStrokeRequestedEvent;
+
   /// The highlight [id] is brought into view, when the link named it.
   const factory PdfReaderEvent.highlightFocused(String? id) =
       PdfReaderHighlightFocusedEvent;

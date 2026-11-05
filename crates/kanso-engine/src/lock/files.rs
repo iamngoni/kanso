@@ -1072,6 +1072,51 @@ pub fn seal_new_file(
     Ok(entry)
 }
 
+/// Replaces the contents of sealed attachment `id` with `bytes`, keeping its
+/// seal generation and file key. The note's wrapped ownership entry stays
+/// valid, so a save that doesn't follow a writer's failure still opens it.
+pub fn rewrite_sealed_file(
+    store: &Store,
+    keys: &KeyBook,
+    id: &str,
+    bytes: &[u8],
+) -> Result<(), FilesError> {
+    let mut meta = store
+        .file_meta(id)?
+        .ok_or_else(|| failed("The attachment is gone."))?;
+    let marker =
+        FileLock::from_extra(&meta.extra).ok_or_else(|| failed("The attachment isn't sealed."))?;
+    let seal =
+        SealId::decode(&marker.seal).ok_or_else(|| failed("The attachment's seal is damaged."))?;
+    let Some(file_key) = keys.get(&seal) else {
+        return Err(FilesError::NeedsUnlock {
+            file: id.to_owned(),
+            owner: None,
+        });
+    };
+    let opened = match read_file(store, id, keys) {
+        Reading::Opened(opened) => opened,
+        Reading::Locked => {
+            return Err(FilesError::NeedsUnlock {
+                file: id.to_owned(),
+                owner: None,
+            });
+        }
+        Reading::Missing => return Err(failed("The attachment is gone.")),
+    };
+    let metadata = SealedFileMetadata {
+        name: opened.name,
+        content_type: opened.content_type,
+        public_in: meta.public_in.clone(),
+    }
+    .to_canonical_json()
+    .map_err(|_| failed("The attachment's name and type can't be sealed."))?;
+    let container = sealed_container(id, &seal, &file_key, bytes.to_vec(), metadata)?;
+    FileLock::store(Some(&marker), &mut meta.extra);
+    store.put_sealed_file(meta, Attachment::new(container))?;
+    Ok(())
+}
+
 /// Saves open locked `note` with `body` as its text, the way the editor
 /// saves one: whatever its text shows that isn't sealed yet is sealed and
 /// listed (a legacy note's files on its first save, a file linked from

@@ -141,6 +141,32 @@ pub struct PdfMarks {
     pub editable: bool,
     pub why: Option<String>,
     pub marks: Vec<PdfMark>,
+    /// Pencil strokes, in PDF page units (1,000 units across each page).
+    pub ink: Vec<PdfInkPage>,
+}
+
+/// Pencil strokes on one PDF page, in page units.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PdfInkPage {
+    pub page: u32,
+    pub strokes: Vec<PdfInkStroke>,
+}
+
+/// A saved or newly drawn PDF pencil stroke.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PdfInkStroke {
+    pub tool: String,
+    pub color: String,
+    pub width: f64,
+    pub points: Vec<PdfInkPoint>,
+}
+
+/// A pen sample in PDF page units.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PdfInkPoint {
+    pub x: f64,
+    pub y: f64,
+    pub pressure: f64,
 }
 
 /// What an edit to the highlights came to. An edit is never dropped: a note

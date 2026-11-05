@@ -154,3 +154,44 @@ fn a_newer_block_is_not_merged_into() {
     assert!(matches!(outcome, ApplyOutcome::RemoteWon), "{outcome:?}");
     assert_eq!(store.note("note:q3").unwrap().unwrap().body, newer);
 }
+
+fn pencil(id: &str, y: f64) -> kanso_pdf::PageInk {
+    use kanso_core::canvas::{Point, Stroke};
+    kanso_pdf::PageInk {
+        page: 1,
+        strokes: vec![Stroke {
+            id: id.into(),
+            tool: "pen".into(),
+            color: "#1e1e1e".into(),
+            width: 4.0,
+            points: vec![Point::new(10.0, y, 0.5), Point::new(300.0, y, 0.7)],
+            ..Stroke::default()
+        }],
+        extra: Default::default(),
+    }
+}
+
+/// Pencil drawn on two devices apart, on the same page, is all kept
+/// whichever version of the note wins (step 10).
+#[test]
+fn pencil_drawn_on_two_devices_is_kept_whichever_wins() {
+    let (base, ..) = start();
+    let mut mac = Annotations::from_body(&base, FILE, "m");
+    mac.set_page_ink(pencil("onmac", 100.0)).unwrap();
+    let mac_body = saved(&mac, &base);
+    let mut phone = Annotations::from_body(&base, FILE, "m");
+    phone.set_page_ink(pencil("onphone", 400.0)).unwrap();
+    let phone_body = saved(&phone, &base);
+    for (l_up, r_up) in [(1_000, 2_000), (2_000, 1_000)] {
+        let (_dir, store, _) = meet(
+            &fields(&mac_body, l_up, &[]),
+            &fields(&phone_body, r_up, &[]),
+        );
+        let body = store.note("note:q3").unwrap().unwrap().body;
+        let a = Annotations::from_body(&body, FILE, "m");
+        let mut ids: Vec<String> = a.page_ink(1).strokes.iter().map(|s| s.id.clone()).collect();
+        ids.sort();
+        assert_eq!(ids, vec!["onmac", "onphone"], "{l_up} vs {r_up}");
+        assert_eq!(body.matches("```kanso-pdf").count(), 1);
+    }
+}

@@ -29,8 +29,8 @@ use crate::errors::KansoError;
 use crate::library::Library;
 use crate::pdf_notes::{self, write_with_retry};
 use crate::pdf_reader_model::{
-    PdfCharPos, PdfDeclined, PdfEdited, PdfFindHit, PdfFound, PdfInfo, PdfMark, PdfMarks,
-    PdfPageImage, PdfPageMarks, PdfPageSize, PdfRect, PdfSelection,
+    PdfCharPos, PdfDeclined, PdfEdited, PdfFindHit, PdfFound, PdfInfo, PdfInkStroke, PdfMark,
+    PdfMarks, PdfPageImage, PdfPageMarks, PdfPageSize, PdfRect, PdfSelection,
 };
 
 /// What a PDF in a locked note answers while the note is closed: unlocking
@@ -50,19 +50,9 @@ pub enum PdfOpening {
 }
 
 /// A PDF open on the phone. Dropping it frees the page cache and ends the
-/// reader's thread.
-///
-/// HOOK for ink on pages (issue #43, step 10, PR #307, not merged). The
-/// phone's reader can show, select and highlight; it can't draw yet. Ink is
-/// the shared stroke code of `kanso-core` and `kanso-render` (the canvas's),
-/// kept in the PDF's block next to its highlights. When #307 lands, the
-/// calls that belong here are: `ink(page)` (a page's strokes, normalised like
-/// a highlight's quads, to lay over the page picture), `add_ink_stroke`,
-/// `erase_ink_stroke` and `erase_ink_partial`, each written with
-/// [`write_with_retry`] on the block so a phone's strokes unite with the
-/// desktop's the way highlights do. The app's page view takes overlay layers
-/// (`PdfPageOverlay` in `mobile/lib/pdf_reader`) so the pen layer is one more
-/// overlay, with the pen tools and both erasers of the canvas's toolbar.
+/// reader's thread. Ink uses the desktop's canvas stroke format and PDF
+/// annotation merge code; the app paints the returned page-unit strokes over
+/// the rendered page and sends new strokes through the same revision retry.
 pub struct PdfReader {
     library: Library,
     note_id: String,
@@ -228,11 +218,13 @@ impl Library {
                     marks: marks_of(h.quads.iter().map(|(page, q)| (*page, q.as_slice()))),
                 })
                 .collect();
+            let ink = self.pdf_ink_pages(&note, &body, file)?;
             Ok(PdfMarks {
                 rev: note.rev.unwrap_or_default(),
                 editable,
                 why,
                 marks,
+                ink,
             })
         })
     }
@@ -500,6 +492,18 @@ impl PdfReader {
                 gone: false,
             })
         })
+    }
+
+    /// Adds a pencil stroke to page `page` (1-based), using the same
+    /// annotation and merge format as the desktop reader.
+    pub fn add_ink_stroke(
+        &self,
+        base_rev: &str,
+        page: u32,
+        stroke: PdfInkStroke,
+    ) -> Result<PdfEdited, KansoError> {
+        self.library
+            .pdf_ink_add(&self.note_id, base_rev, &self.file, page, stroke)
     }
 
     /// The reader's attachment, `file:<id>`.

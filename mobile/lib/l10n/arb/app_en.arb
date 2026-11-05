@@ -7179,7 +7179,7 @@
       }
     }
   },
-  "recordingSummaryDropped":"{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
+  "recordingSummaryDropped": "{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
   "@recordingSummaryDropped": {
     "description": "Said when the AI gave items the transcript does not back.",
     "placeholders": {
@@ -9238,5 +9238,34 @@
   "lockFilesNotice": "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.",
   "@lockFilesNotice": {
     "description": "The one-time notice about notes locked before attachments were sealed, with what to do on other devices."
+  },
+  "pdfNotesInkTitle": "Pencil marks",
+  "@pdfNotesInkTitle": {
+    "description": "Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them."
+  },
+  "pdfNotesInkStrokes": "{strokes, plural, =1{1 stroke} other{{strokes} strokes}}",
+  "@pdfNotesInkStrokes": {
+    "description": "How many pencil strokes are drawn on one page of a PDF.",
+    "placeholders": {
+      "strokes": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfNotesInkClear": "Clear page",
+  "@pdfNotesInkClear": {
+    "description": "Button that rubs out all the pencil marks on one page of a PDF."
+  },
+  "aiTroubleAgentSignIn": "Your agent needs you to sign in. Sign in to your agent, then try again.",
+  "@aiTroubleAgentSignIn": {
+    "description": "The selected agent needs the person to sign in."
+  },
+  "aiTroubleBilling": "Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.",
+  "@aiTroubleBilling": {
+    "description": "The provider account has run out of credits or needs a plan change."
+  },
+  "aiTroubleWrongAddress": "Your model server address looks wrong. Check the address in Settings › AI, then try again.",
+  "@aiTroubleWrongAddress": {
+    "description": "The configured server address does not point to its API."
   }
 }

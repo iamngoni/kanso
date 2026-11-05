@@ -248,6 +248,18 @@ class _PdfReaderViewState extends State<_PdfReaderView> {
                 if (_searching && opened && state.query.trim().isNotEmpty)
                   _SearchStatus(state: state),
                 Expanded(child: _body(context, state, info)),
+                if (opened && state.inkDrawing)
+                  _InkToolbar(
+                    color: state.inkColor,
+                    width: state.inkWidth,
+                    saving: state.addingInk,
+                    onColor: (color) => context.read<PdfReaderBloc>().add(
+                      PdfReaderEvent.inkColorChanged(color),
+                    ),
+                    onWidth: (width) => context.read<PdfReaderBloc>().add(
+                      PdfReaderEvent.inkWidthChanged(width),
+                    ),
+                  ),
                 if (opened && state.selection != null)
                   _SelectionBar(
                     selection: state.selection!,
@@ -319,6 +331,16 @@ class _PdfReaderViewState extends State<_PdfReaderView> {
               semanticLabel: l10n.pdfReaderHighlights,
               onPressed: () => _marksSheet(context),
             ),
+          KansoIconButton(
+            icon: KansoIcons.penLine,
+            semanticLabel: 'Draw on PDF',
+            selected: state.inkDrawing,
+            onPressed: marks?.editable ?? false
+                ? () => context.read<PdfReaderBloc>().add(
+                    PdfReaderEvent.inkDrawingChanged(!state.inkDrawing),
+                  )
+                : null,
+          ),
         ],
       ],
     );
@@ -480,6 +502,9 @@ class _PdfReaderViewState extends State<_PdfReaderView> {
               onNotification: _onScroll,
               child: ListView.builder(
                 controller: _scroll,
+                physics: state.inkDrawing
+                    ? const NeverScrollableScrollPhysics()
+                    : null,
                 padding: const EdgeInsets.only(top: KansoSpacing.xs),
                 itemCount: info.pages,
                 itemBuilder: (context, index) {
@@ -501,6 +526,11 @@ class _PdfReaderViewState extends State<_PdfReaderView> {
                           for (final mark
                               in state.marks?.marks ?? const <PdfMark>[])
                             if (mark.page == page) mark,
+                        ],
+                        ink: <PdfInkStroke>[
+                          for (final inkPage
+                              in state.marks?.ink ?? const <PdfInkPage>[])
+                            if (inkPage.page == page) ...inkPage.strokes,
                         ],
                         selection: state.selection,
                         search: hit != null && hit.page == page
@@ -528,6 +558,16 @@ class _PdfReaderViewState extends State<_PdfReaderView> {
                         onSelectionCleared: () => context
                             .read<PdfReaderBloc>()
                             .add(const PdfReaderEvent.selectionCleared()),
+                        inkDrawing: state.inkDrawing,
+                        inkColor: state.inkColor,
+                        inkWidth: state.inkWidth,
+                        onInkStroke: (page, stroke) =>
+                            context.read<PdfReaderBloc>().add(
+                              PdfReaderEvent.inkStrokeRequested(
+                                page: page,
+                                stroke: stroke,
+                              ),
+                            ),
                         overlays: widget.overlays,
                       ),
                     ),
@@ -734,6 +774,108 @@ class _SearchBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Compact pencil controls shown while drawing on the document.
+class _InkToolbar extends StatelessWidget {
+  const _InkToolbar({
+    required this.color,
+    required this.width,
+    required this.saving,
+    required this.onColor,
+    required this.onWidth,
+  });
+
+  final String color;
+  final double width;
+  final bool saving;
+  final ValueChanged<String> onColor;
+  final ValueChanged<double> onWidth;
+
+  static const List<String> colors = <String>[
+    '#1e1e1e',
+    '#e03131',
+    '#1971c2',
+    '#2f9e44',
+  ];
+  static const List<double> widths = <double>[2, 4, 7, 12];
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: context.colors.editor,
+    child: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KansoSpacing.sm,
+          vertical: KansoSpacing.xs,
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: <Widget>[
+              for (final value in colors)
+                KansoPressable(
+                  semanticLabel: 'Pencil color $value',
+                  onTap: () => onColor(value),
+                  child: Padding(
+                    padding: const EdgeInsets.all(KansoSpacing.xxs),
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Color(
+                          int.parse(value.substring(1), radix: 16) | 0xff000000,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: color == value
+                              ? context.colors.accent
+                              : context.colors.divider,
+                          width: color == value ? 2 : 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: KansoSpacing.xs),
+              for (final value in widths)
+                KansoPressable(
+                  semanticLabel: 'Pencil width ${value.round()}',
+                  onTap: () => onWidth(value),
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 36,
+                    ),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: width == value
+                          ? context.colors.accent.withValues(alpha: 0.14)
+                          : null,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${value.round()}',
+                      style: context.typography.secondary.copyWith(
+                        color: width == value ? context.colors.accent : null,
+                      ),
+                    ),
+                  ),
+                ),
+              if (saving) ...<Widget>[
+                const SizedBox(width: KansoSpacing.xs),
+                const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// How the search stands: the hit shown of the hits found, and the buttons

@@ -8,11 +8,8 @@ import 'package:flutter/rendering.dart';
 /// picture, then its highlights, its selection and the search's hit, then
 /// every overlay in turn.
 ///
-/// It is the seam a later feature uses to draw on a page without the reader
-/// knowing about it — the pen and its strokes (issue #43, step 10) — the way
-/// the Rust reader keeps an ink hook open. An overlay never receives
-/// gestures; a tool that needs them draws its own widget over the page and
-/// passes a picture of it here.
+/// It is the seam for non-interactive page decorations. Ink owns its pointer
+/// events in the page view so it can track each touch and stylus sample.
 // A one-method interface is the whole point here: a later tool adds one.
 // ignore: one_member_abstracts
 abstract class PdfPageOverlay {

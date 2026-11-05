@@ -37,6 +37,13 @@ abstract class KansoPdfReader implements RustOpaqueInterface {
     required bool quote,
   });
 
+  /// Adds a pencil stroke to the page, re-merging it if the note changed.
+  Future<PdfEdited> addInkStroke({
+    required String baseRev,
+    required int page,
+    required PdfInkStroke stroke,
+  });
+
   /// Ends the reader now.
   void close();
 

@@ -5,8 +5,9 @@
 use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
-    PdfCharPos, PdfDeclined, PdfEdited, PdfFindHit, PdfFound, PdfInfo, PdfMark, PdfMarks,
-    PdfPageImage, PdfPageMarks, PdfPageSize, PdfRect, PdfSelection,
+    PdfCharPos, PdfDeclined, PdfEdited, PdfFindHit, PdfFound, PdfInfo, PdfInkPage, PdfInkPoint,
+    PdfInkStroke, PdfMark, PdfMarks, PdfPageImage, PdfPageMarks, PdfPageSize, PdfRect,
+    PdfSelection,
 };
 
 #[frb(mirror(PdfPageSize))]
@@ -99,6 +100,28 @@ pub struct _PdfMarks {
     pub editable: bool,
     pub why: Option<String>,
     pub marks: Vec<PdfMark>,
+    pub ink: Vec<PdfInkPage>,
+}
+
+#[frb(mirror(PdfInkPoint))]
+pub struct _PdfInkPoint {
+    pub x: f64,
+    pub y: f64,
+    pub pressure: f64,
+}
+
+#[frb(mirror(PdfInkStroke))]
+pub struct _PdfInkStroke {
+    pub tool: String,
+    pub color: String,
+    pub width: f64,
+    pub points: Vec<PdfInkPoint>,
+}
+
+#[frb(mirror(PdfInkPage))]
+pub struct _PdfInkPage {
+    pub page: u32,
+    pub strokes: Vec<PdfInkStroke>,
 }
 
 #[frb(mirror(PdfEdited))]

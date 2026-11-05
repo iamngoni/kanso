@@ -7616,4 +7616,33 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get lockFilesNotice =>
       'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.';
+
+  @override
+  String get pdfNotesInkTitle => 'Pencil marks';
+
+  @override
+  String pdfNotesInkStrokes(int strokes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      strokes,
+      locale: localeName,
+      other: '$strokes strokes',
+      one: '1 stroke',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pdfNotesInkClear => 'Clear page';
+
+  @override
+  String get aiTroubleAgentSignIn =>
+      'Your agent needs you to sign in. Sign in to your agent, then try again.';
+
+  @override
+  String get aiTroubleBilling =>
+      'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.';
+
+  @override
+  String get aiTroubleWrongAddress =>
+      'Your model server address looks wrong. Check the address in Settings › AI, then try again.';
 }

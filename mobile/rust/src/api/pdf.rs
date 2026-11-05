@@ -4,8 +4,8 @@
 
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    KansoError, Library, PdfCharPos, PdfDeclined, PdfEdited, PdfFound, PdfInfo, PdfMarks,
-    PdfOpening, PdfPageImage, PdfReader, PdfSelection,
+    KansoError, Library, PdfCharPos, PdfDeclined, PdfEdited, PdfFound, PdfInfo, PdfInkStroke,
+    PdfMarks, PdfOpening, PdfPageImage, PdfReader, PdfSelection,
 };
 
 /// Opening a PDF, and the highlights a note has for it.
@@ -125,6 +125,16 @@ impl KansoPdfReader {
         quote: bool,
     ) -> Result<PdfEdited, KansoError> {
         self.0.add_highlight(&base_rev, start, end, &color, quote)
+    }
+
+    /// Adds a pencil stroke to the page, re-merging it if the note changed.
+    pub fn add_ink_stroke(
+        &self,
+        base_rev: String,
+        page: u32,
+        stroke: PdfInkStroke,
+    ) -> Result<PdfEdited, KansoError> {
+        self.0.add_ink_stroke(&base_rev, page, stroke)
     }
 
     /// Ends the reader now.

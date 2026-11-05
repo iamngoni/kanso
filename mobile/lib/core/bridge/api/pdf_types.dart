@@ -164,6 +164,79 @@ class PdfInfo {
           editable == other.editable;
 }
 
+class PdfInkPage {
+  final int page;
+  final List<PdfInkStroke> strokes;
+
+  const PdfInkPage({
+    required this.page,
+    required this.strokes,
+  });
+
+  @override
+  int get hashCode => page.hashCode ^ strokes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfInkPage &&
+          runtimeType == other.runtimeType &&
+          page == other.page &&
+          strokes == other.strokes;
+}
+
+class PdfInkPoint {
+  final double x;
+  final double y;
+  final double pressure;
+
+  const PdfInkPoint({
+    required this.x,
+    required this.y,
+    required this.pressure,
+  });
+
+  @override
+  int get hashCode => x.hashCode ^ y.hashCode ^ pressure.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfInkPoint &&
+          runtimeType == other.runtimeType &&
+          x == other.x &&
+          y == other.y &&
+          pressure == other.pressure;
+}
+
+class PdfInkStroke {
+  final String tool;
+  final String color;
+  final double width;
+  final List<PdfInkPoint> points;
+
+  const PdfInkStroke({
+    required this.tool,
+    required this.color,
+    required this.width,
+    required this.points,
+  });
+
+  @override
+  int get hashCode =>
+      tool.hashCode ^ color.hashCode ^ width.hashCode ^ points.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfInkStroke &&
+          runtimeType == other.runtimeType &&
+          tool == other.tool &&
+          color == other.color &&
+          width == other.width &&
+          points == other.points;
+}
+
 class PdfMark {
   final String id;
   final String color;
@@ -197,17 +270,23 @@ class PdfMarks {
   final bool editable;
   final String? why;
   final List<PdfMark> marks;
+  final List<PdfInkPage> ink;
 
   const PdfMarks({
     required this.rev,
     required this.editable,
     this.why,
     required this.marks,
+    required this.ink,
   });
 
   @override
   int get hashCode =>
-      rev.hashCode ^ editable.hashCode ^ why.hashCode ^ marks.hashCode;
+      rev.hashCode ^
+      editable.hashCode ^
+      why.hashCode ^
+      marks.hashCode ^
+      ink.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -217,7 +296,8 @@ class PdfMarks {
           rev == other.rev &&
           editable == other.editable &&
           why == other.why &&
-          marks == other.marks;
+          marks == other.marks &&
+          ink == other.ink;
 }
 
 class PdfPageImage {

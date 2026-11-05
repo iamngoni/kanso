@@ -118,6 +118,15 @@ class _RustPdfDocumentSession implements PdfDocumentSession {
   );
 
   @override
+  Future<Either<ApplicationError, PdfEdited>> addInkStroke({
+    required String baseRev,
+    required int page,
+    required PdfInkStroke stroke,
+  }) => attempt(
+    () => _reader.addInkStroke(baseRev: baseRev, page: page, stroke: stroke),
+  );
+
+  @override
   void dispose() {
     if (_closed) {
       return;
